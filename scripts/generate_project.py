@@ -47,7 +47,7 @@ app=obj('target:LaGrilla','PBXNativeTarget',buildConfigurationList=configuration
 proxy=obj('proxy','PBXContainerItemProxy',containerPortal=ident('project'),proxyType=1,remoteGlobalIDString=app_id,remoteInfo='LaGrilla')
 dep=obj('testdependency','PBXTargetDependency',target=app_id,targetProxy=proxy)
 testsettings=dict(base,PRODUCT_BUNDLE_IDENTIFIER='com.alexgazin.LaGrillaUITests',PRODUCT_NAME='$(TARGET_NAME)',GENERATE_INFOPLIST_FILE='YES',TEST_TARGET_NAME='LaGrilla')
-tests=[build('test:'+str(p),ident('file:'+str(p.relative_to(ROOT)))) for p in sorted((ROOT/'UITests').glob('*.swift'))]
+tests=[build('test:'+str(p.relative_to(ROOT)),ident('file:'+str(p.relative_to(ROOT)))) for p in sorted((ROOT/'UITests').glob('*.swift'))]
 test=obj('target:LaGrillaUITests','PBXNativeTarget',buildConfigurationList=configurations('tests',testsettings),buildPhases=[phase('test-sources','PBXSourcesBuildPhase',tests),phase('test-frameworks','PBXFrameworksBuildPhase',[]),phase('test-resources','PBXResourcesBuildPhase',[])],buildRules=[],dependencies=[dep],name='LaGrillaUITests',productName='LaGrillaUITests',productReference=test_product,productType='com.apple.product-type.bundle.ui-testing')
 project=obj('project','PBXProject',attributes={'BuildIndependentTargetsInParallel':'YES','LastSwiftUpdateCheck':'1640','LastUpgradeCheck':'1640','TargetAttributes':{app_id:{'CreatedOnToolsVersion':'16.4'},test_id:{'CreatedOnToolsVersion':'16.4','TestTargetID':app_id}}},buildConfigurationList=configurations('project',base),compatibilityVersion='Xcode 14.0',developmentRegion='en',hasScannedForEncodings=0,knownRegions=['en','ru','Base'],mainGroup=rootgroup,packageReferences=[package],productRefGroup=productgroup,projectDirPath='',projectRoot='',targets=[app,test])
 def emit(v,level=0):

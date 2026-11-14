@@ -406,7 +406,7 @@
 			"target" = "363B6F88CC29451360E8EBAB";
 			"targetProxy" = "1241936D4DD3AAD68FE7BFBD";
 		};
-		"68F9CDFF36DC90F21F42E9B0" = {
+		"15672B1CBB107926D06E61FF" = {
 			"isa" = "PBXBuildFile";
 			"fileRef" = "6CEC7797EFD984DB66DA1BF1";
 		};
@@ -473,7 +473,7 @@
 			"isa" = "PBXSourcesBuildPhase";
 			"buildActionMask" = 2147483647;
 			"files" = (
-				"68F9CDFF36DC90F21F42E9B0",
+				"15672B1CBB107926D06E61FF",
 			);
 			"runOnlyForDeploymentPostprocessing" = 0;
 		};
