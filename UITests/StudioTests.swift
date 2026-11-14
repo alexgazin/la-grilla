@@ -7,7 +7,7 @@ final class StudioTests: XCTestCase {
     @MainActor func testNavigationKeepsTransportAlive() {
         let app=launch();app.buttons["Play"].tap();XCTAssertTrue(app.staticTexts["PLAYING"].waitForExistence(timeout:5))
         app.buttons["Jam"].tap();XCTAssertTrue(app.staticTexts["Pocket kit"].exists);XCTAssertTrue(app.staticTexts["PLAYING"].exists)
-        app.buttons["Kick"].tap();app.buttons["Mixer"].tap();XCTAssertTrue(app.staticTexts["Find your balance."].exists);XCTAssertTrue(app.staticTexts["PLAYING"].exists)
+        app.buttons["Kick"].tap();app.buttons["Mixer"].tap();XCTAssertTrue(app.staticTexts["Find your balance."].exists);XCTAssertTrue(app.buttons["Projects"].isHittable);XCTAssertTrue(app.buttons["Mixer"].isHittable);XCTAssertTrue(app.staticTexts["PLAYING"].exists)
         app.buttons["Stop"].tap();XCTAssertTrue(app.staticTexts["STOPPED"].waitForExistence(timeout:5))
     }
     @MainActor func testCreateProjectAndChord() {
@@ -25,6 +25,6 @@ final class StudioTests: XCTestCase {
     }
     @MainActor func testMIDIExportOffersSystemShare() {
         let app=launch();app.buttons["Export MIDI"].tap();XCTAssertTrue(app.staticTexts["Standard MIDI"].waitForExistence(timeout:5))
-        app.buttons["Export MIDI"].tap();XCTAssertTrue(app.otherElements["ActivityListView"].waitForExistence(timeout:8) || app.buttons["Copy"].exists || app.buttons["Save to Files"].exists)
+        app.buttons["export.confirm"].tap();XCTAssertTrue(app.otherElements["ActivityListView"].waitForExistence(timeout:8) || app.buttons["Copy"].exists || app.buttons["Save to Files"].exists || app.staticTexts["Copy"].exists || app.staticTexts["Save to Files"].exists)
     }
 }

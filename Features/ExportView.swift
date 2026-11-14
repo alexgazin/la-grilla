@@ -12,7 +12,7 @@ struct ExportView: View {
         HStack{Text("\(session.project.tracks.count) tracks");Spacer();Text("\(Int(session.project.bpm)) BPM · 4/4")}.font(.system(size:12,design:.monospaced)).foregroundStyle(Color.muted)
         Text("For editing notes in your music software. Instrument sounds are not included in MIDI.").font(.system(size:13)).foregroundStyle(Color.muted).lineSpacing(5)
         Spacer()
-        Button{exporting=true;Task{await session.export(sectionOnly:sectionOnly);exporting=false}}label:{HStack{if exporting{ProgressView()};Text(exporting ? "Exporting…":"Export MIDI");Image(systemName:"arrow.up.right")}.font(.system(size:16,weight:.semibold)).foregroundStyle(Color.ink).frame(maxWidth:.infinity,minHeight:52).background(Color.mint,in:RoundedRectangle(cornerRadius:12))}.disabled(exporting)
+        Button{exporting=true;Task{await session.export(sectionOnly:sectionOnly);exporting=false}}label:{HStack{if exporting{ProgressView()};Text(exporting ? "Exporting…":"Export MIDI");Image(systemName:"arrow.up.right")}.font(.system(size:16,weight:.semibold)).foregroundStyle(Color.ink).frame(maxWidth:.infinity,minHeight:52).background(Color.mint,in:RoundedRectangle(cornerRadius:12))}.accessibilityIdentifier("export.confirm").disabled(exporting)
     }.padding(24).background(Color.panel).navigationTitle("Export").navigationBarTitleDisplayMode(.inline).toolbar{ToolbarItem(placement:.cancellationAction){Button("Cancel"){session.sheet=nil}}}}.presentationDetents([.large])}
 }
 struct ShareView: UIViewControllerRepresentable {
