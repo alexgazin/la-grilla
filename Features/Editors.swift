@@ -41,12 +41,16 @@ struct BassView: View {
 }
 struct SectionsView: View {
     @Bindable var session: Session
-    @State private var editing: UUID?;@State private var name="";@State private var stopPrompt=false
+    @State private var editing: UUID?;@State private var name="";@State private var stopPrompt=false;@State private var deleting: UUID?
     var body: some View {NavigationStack{List{
-        Section{ForEach(session.project.sections){s in HStack{VStack(alignment:.leading,spacing:5){Text(s.name);Text("Bars \(s.start/barTicks+1)–\((s.start+s.length)/barTicks)").font(.caption).foregroundStyle(.secondary)};Spacer();Menu{Button("Rename"){name=s.name;editing=s.id};Button("Duplicate"){structural{session.edit{try $0.duplicateSection(s.id,name:s.name=="Verse" ? "Chorus":s.name+" copy")}}};Button("Move earlier"){structural{session.edit{try $0.moveSection(s.id,by:-1)}}};Button("Move later"){structural{session.edit{try $0.moveSection(s.id,by:1)}}}}label:{Image(systemName:"ellipsis").frame(width:44,height:44)}}}}
+        Section{ForEach(session.project.sections){s in HStack{VStack(alignment:.leading,spacing:5){Text(s.name);Text("Bars \(s.start/barTicks+1)–\((s.start+s.length)/barTicks)").font(.caption).foregroundStyle(.secondary)};Spacer();Menu{Button("Rename"){name=s.name;editing=s.id};Button("Duplicate"){structural{session.edit{try $0.duplicateSection(s.id,name:s.name=="Verse" ? "Chorus":s.name+" copy")}}};Button("Move earlier"){structural{session.edit{try $0.moveSection(s.id,by:-1)}}};Button("Move later"){structural{session.edit{try $0.moveSection(s.id,by:1)}}};if session.project.sections.count>1{Button("Delete section",role:.destructive){deleting=s.id}}}label:{Image(systemName:"ellipsis").frame(width:44,height:44)}}}}
         Section{Text("Duplicated sections have independent chords and drums. Up to 8 sections and 64 bars.").font(.caption).foregroundStyle(.secondary)}
     }.navigationTitle("Song sections").toolbar{ToolbarItem(placement:.confirmationAction){Button("Done"){session.sheet=nil}}}}
         .alert("Rename section",isPresented:Binding(get:{editing != nil},set:{if !$0{editing=nil}})){TextField("Name",text:$name);Button("Save"){if let id=editing,!name.trimmingCharacters(in:.whitespaces).isEmpty{session.edit{p in if let i=p.sections.firstIndex(where:{$0.id==id}){p.sections[i].name=name}}};editing=nil};Button("Cancel",role:.cancel){editing=nil}}
+        .alert("Delete section?",isPresented:Binding(get:{deleting != nil},set:{if !$0{deleting=nil}})) {
+            Button("Delete",role:.destructive){if let id=deleting{structural{session.edit{try $0.deleteSection(id)}}};deleting=nil}
+            Button("Cancel",role:.cancel){deleting=nil}
+        } message: {Text("The following sections move earlier. You can undo this change.")}
         .alert("Stop playback first",isPresented:$stopPrompt){Button("Stop"){session.rewind()};Button("Cancel",role:.cancel){}}message:{Text("Stop the transport, then change the song structure.")}
     }
     func structural(_ action:()->Void){if session.audio.playing{stopPrompt=true}else{action()}}

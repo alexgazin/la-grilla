@@ -2,12 +2,15 @@ import SwiftUI
 import MusicDomain
 struct StudioView: View {
     @Bindable var session: Session
+    @Environment(\.verticalSizeClass) private var verticalSize
     var body: some View {
         VStack(spacing:0){
             header
             if let error=session.audio.error {HStack{Image(systemName:"speaker.slash");Text(error).font(.caption);Button("Retry"){_ = session.ensureAudio()}}.padding(12).background(Color.record.opacity(0.15))}
             if let error=session.saveError {HStack{Text(error).font(.caption);Button("Retry"){Task{await session.save()}};Button("Save copy"){Task{await session.saveCopy()}}}.padding(12).background(Color.record.opacity(0.15))}
-            Group {switch session.tab {case 1: JamView(session:session);case 2: MixerView(session:session);default: GridView(session:session)}}.frame(maxWidth:.infinity,maxHeight:.infinity)
+            if verticalSize == .compact {
+                ScrollView(.vertical){ workspace.frame(minHeight:620) }.frame(maxWidth:.infinity,maxHeight:.infinity)
+            } else { workspace.frame(maxWidth:.infinity,maxHeight:.infinity) }
             transport
             HStack(spacing:0){tab("square.grid.3x3","Grid",0);tab("square.grid.2x2.fill","Jam",1);tab("slider.vertical.3","Mixer",2)}.padding(.top,5).background(Color.panel)
         }.background(Color.ink).foregroundStyle(.white)
@@ -22,6 +25,13 @@ struct StudioView: View {
         .sheet(isPresented:Binding(get:{session.shareURL != nil},set:{if !$0 {session.shareURL=nil}})){if let url=session.shareURL{ShareView(url:url)}}
         .alert("La Grilla",isPresented:Binding(get:{session.message != nil},set:{if !$0{session.message=nil}})){Button("OK"){session.message=nil}}message:{Text(session.message ?? "")}
         .onChange(of:session.audio.clock){_,_ in session.pollRecording()}
+    }
+    @ViewBuilder var workspace: some View {
+        switch session.tab {
+        case 1: JamView(session:session)
+        case 2: MixerView(session:session)
+        default: GridView(session:session)
+        }
     }
     var header: some View {
         VStack(spacing:8){

@@ -39,6 +39,11 @@ import Observation
         guard !recording && !armed else {message = "Finish the drum take before editing the project.";return}
         do {try history.apply(&project,change); sync(); scheduleSave()} catch {message = error.localizedDescription}
     }
+    var mixerGesture = false
+    func mixerEdit(_ change: (inout Project) throws -> Void) {
+        do { try history.apply(&project, coalescing: mixerGesture, change); mixerGesture = true; sync(); scheduleSave() }
+        catch { message = error.localizedDescription }
+    }
     func undo() {guard !recording && !armed else {return}; history.undo(&project); sync();scheduleSave()}
     func redo() {guard !recording && !armed else {return}; history.redo(&project); sync();scheduleSave()}
     func scheduleSave() {saveTask?.cancel();saveTask = Task {try? await Task.sleep(for:.milliseconds(700));guard !Task.isCancelled else{return};await save()} }

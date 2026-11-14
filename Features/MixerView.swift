@@ -20,7 +20,7 @@ struct MixerView: View {
         return VStack(spacing:12){
             RoundedRectangle(cornerRadius:2).fill(color).frame(height:3)
             Text(track?.role.rawValue.capitalized ?? "Master").font(.system(size:11,weight:.semibold)).lineLimit(1).minimumScaleFactor(0.7)
-            Text(gain<=(-61) ? "−∞":String(format:"%.1f",gain)).font(.system(size:14,weight:.medium,design:.monospaced)).foregroundStyle(color).onTapGesture{setGain(index,0)}.accessibilityLabel("\(gain) decibels. Tap to reset.")
+            Text(gain<=(-61) ? "−∞":String(format:"%.1f",gain)).font(.system(size:14,weight:.medium,design:.monospaced)).foregroundStyle(color).onTapGesture{session.mixerGesture=false;setGain(index,0);session.mixerGesture=false}.accessibilityLabel("\(gain) decibels. Tap to reset.")
             GeometryReader{geo in
                 let h=max(60,geo.size.height-22)
                 ZStack(alignment:.top){
@@ -28,7 +28,7 @@ struct MixerView: View {
                     ForEach(0..<7){i in HStack{Rectangle().fill(Color.muted.opacity(0.25)).frame(width:5,height:1);Spacer();Rectangle().fill(Color.muted.opacity(0.25)).frame(width:5,height:1)}.padding(.horizontal,5).offset(y:CGFloat(i)*h/6+11)}
                     Rectangle().fill(Color.mint.opacity(0.65)).frame(width:3,height:h*CGFloat(min(1,session.audio.meters[index]))).frame(height:h,alignment:.bottom).offset(x:13,y:11)
                     RoundedRectangle(cornerRadius:5).fill(Color(red:0.7,green:0.73,blue:0.78)).frame(width:35,height:23).overlay{Rectangle().fill(Color.ink).frame(width:23,height:2)}.offset(y:(1-CGFloat((gain+61)/67))*h)
-                }.frame(maxWidth:.infinity,maxHeight:.infinity).contentShape(Rectangle()).gesture(DragGesture(minimumDistance:0).onChanged{v in let value=Double(1-min(1,max(0,(v.location.y-11)/h)))*67-61;setGain(index,value)}).accessibilityElement().accessibilityLabel(track?.role.rawValue ?? "Master").accessibilityValue("\(Int(gain)) dB").accessibilityAdjustableAction{direction in setGain(index,min(6,max(-61,gain+(direction == .increment ? 1:-1))))}
+                }.frame(maxWidth:.infinity,maxHeight:.infinity).contentShape(Rectangle()).gesture(DragGesture(minimumDistance:0).onChanged{v in let value=Double(1-min(1,max(0,(v.location.y-11)/h)))*67-61;setGain(index,value)}.onEnded{_ in session.mixerGesture=false}).accessibilityElement().accessibilityLabel(track?.role.rawValue ?? "Master").accessibilityValue("\(Int(gain)) dB").accessibilityAdjustableAction{direction in session.mixerGesture=false;setGain(index,min(6,max(-61,gain+(direction == .increment ? 1:-1))));session.mixerGesture=false}
             }
             Text("dB").font(.system(size:9,design:.monospaced)).foregroundStyle(Color.muted)
             if let track {
@@ -37,5 +37,5 @@ struct MixerView: View {
             }else{Text("L  ·  R").font(.system(size:9,design:.monospaced)).foregroundStyle(Color.muted).frame(height:31);CapsuleLabel(text:session.audio.meters[3]>=0.98 ? "CLIP":"OUT",color:session.audio.meters[3]>=0.98 ? .record:.mint).frame(height:38)}
         }.padding(.horizontal,9).padding(.vertical,12).frame(maxWidth:.infinity).frame(height:height).background(Color.panel,in:RoundedRectangle(cornerRadius:10))
     }
-    func setGain(_ index: Int,_ value: Double){session.edit{p in if index==3{p.master=value}else{p.tracks[index].gain=value}}}
+    func setGain(_ index: Int,_ value: Double){session.mixerEdit{p in if index==3{p.master=value}else{p.tracks[index].gain=value}}}
 }

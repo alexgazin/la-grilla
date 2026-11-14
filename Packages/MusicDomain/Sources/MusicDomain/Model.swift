@@ -136,6 +136,18 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
         for i in sections.indices where sections[i].start >= insertion { sections[i].start += original.length }
         sections.insert(Section(name: name, start: insertion, length: original.length), at: index + 1)
     }
+    public mutating func deleteSection(_ id: UUID) throws {
+        guard sections.count > 1, let index = sections.firstIndex(where: {$0.id == id}) else { throw MusicError.invalidProject }
+        let removed = sections.remove(at: index)
+        let end = removed.start + removed.length
+        for i in tracks.indices {
+            tracks[i].clips.removeAll { $0.start >= removed.start && $0.start < end }
+            for j in tracks[i].clips.indices where tracks[i].clips[j].start >= end { tracks[i].clips[j].start -= removed.length }
+        }
+        for i in sections.indices where sections[i].start >= end { sections[i].start -= removed.length }
+        let referenced = Set(tracks.flatMap { $0.clips.map(\.patternID) })
+        patterns.removeAll { !referenced.contains($0.id) }
+    }
     public mutating func moveSection(_ id: UUID, by delta: Int) throws {
         guard let i = sections.firstIndex(where: {$0.id == id}), sections.indices.contains(i + delta) else { return }
         let starts = Dictionary(uniqueKeysWithValues: sections.map {($0.id, $0.start)})
@@ -170,9 +182,9 @@ public struct History: Sendable {
     private var past: [Project] = []; private var future: [Project] = []
     public init() {}
     public var canUndo: Bool { !past.isEmpty }; public var canRedo: Bool { !future.isEmpty }
-    public mutating func apply(_ project: inout Project, _ change: (inout Project) throws -> Void) throws {
+    public mutating func apply(_ project: inout Project, coalescing: Bool = false, _ change: (inout Project) throws -> Void) throws {
         var candidate = project; try change(&candidate); candidate.revision = project.revision + 1; candidate.modified = Date(); try candidate.validate()
-        past.append(project); if past.count > 80 { past.removeFirst() }; future.removeAll(); project = candidate
+        if !coalescing || past.isEmpty { past.append(project) }; if past.count > 80 { past.removeFirst() }; future.removeAll(); project = candidate
     }
     public mutating func undo(_ project: inout Project) { guard var p = past.popLast() else { return }; future.append(project); p.revision = project.revision + 1; p.modified = Date(); project = p }
     public mutating func redo(_ project: inout Project) { guard var p = future.popLast() else { return }; past.append(project); p.revision = project.revision + 1; p.modified = Date(); project = p }

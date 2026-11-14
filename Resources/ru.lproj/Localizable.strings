@@ -122,3 +122,7 @@
 "A song can contain up to 8 sections and 64 bars." = "Песня может содержать до 8 секций и 64 тактов.";
 "This project has too many events." = "В проекте слишком много событий.";
 "The project contains invalid musical data." = "Проект содержит некорректные музыкальные данные.";
+
+"Delete section" = "Удалить секцию";
+"Delete section?" = "Удалить секцию?";
+"The following sections move earlier. You can undo this change." = "Следующие секции сдвинутся раньше. Действие можно отменить.";

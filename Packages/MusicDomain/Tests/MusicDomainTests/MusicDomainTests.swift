@@ -36,6 +36,26 @@ struct MusicDomainTests {
         let chorus=p.sections[1].id;try p.moveSection(chorus,by:-1);try p.validate()
         #expect(p.sections[0].id==chorus);#expect(Compiler.notes(p).filter{$0.track==0&&$0.tick==0}.map(\.pitch).sorted()==[50,54,57])
     }
+    @Test func sectionDeletionRipplesAndUndoIsAtomic() throws {
+        var p=Project.demo(); var h=History()
+        try h.apply(&p){try $0.duplicateSection($0.sections[0].id,name:"Chorus")}
+        let before=p
+        try h.apply(&p){try $0.deleteSection($0.sections[0].id)}
+        try p.validate(); #expect(p.sections.count==1); #expect(p.sections[0].start==0); #expect(p.patterns.count==2)
+        h.undo(&p); #expect(p.patterns==before.patterns); #expect(p.sections==before.sections)
+    }
+    @Test func faderGestureIsOneUndo() throws {
+        var p=Project.demo(); let initial=p; var h=History()
+        try h.apply(&p){$0.master = -10}
+        try h.apply(&p,coalescing:true){$0.master = -15}
+        h.undo(&p); #expect(p.master==initial.master); #expect(!h.canUndo)
+    }
+    @Test func corruptLargeTicksCannotOverflow() {
+        var p=Project.demo();p.patterns[0].chords[0].tick=Int.max
+        #expect(throws:MusicError.self){try p.validate()}
+        p=Project.demo();p.sections[0].length=Int.max;p.sections.append(MusicDomain.Section(name:"Corrupt",length:Int.max))
+        #expect(throws:MusicError.self){try p.validate()}
+    }
     @Test func invalidReferencesAndRangesRejected() {
         var p=Project.demo();p.tracks[0].clips[0].patternID=UUID();#expect(throws:MusicError.self){try p.validate()}
         p=Project.demo();p.sections[0].start=1;#expect(throws:MusicError.self){try p.validate()}
