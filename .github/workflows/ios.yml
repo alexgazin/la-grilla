@@ -1,0 +1,26 @@
+name: iOS build and verification
+on: [push, pull_request, workflow_dispatch]
+jobs:
+  ios:
+    runs-on: macos-15
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Domain behavioral tests
+        run: swift test --package-path Packages/MusicDomain
+      - name: Audio kernel tests
+        run: clang++ -std=c++17 -O2 -Wall -Wextra -Werror Tests/kernel_test.cpp AudioRuntime/GrillaKernel.cpp -o /tmp/kernel-test && /tmp/kernel-test
+      - name: Generate project
+        run: brew install xcodegen && xcodegen generate
+      - name: Build iOS app
+        run: xcodebuild -project LaGrilla.xcodeproj -scheme LaGrilla -sdk iphonesimulator -configuration Debug -derivedDataPath DerivedData CODE_SIGNING_ALLOWED=NO build | tee /tmp/build.log
+      - name: Capture simulator screens
+        run: bash scripts/screenshots.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ios-verification
+          path: |
+            Screenshots/*.png
+            /tmp/build.log
+            DerivedData/Build/Products/Debug-iphonesimulator/LaGrilla.app
