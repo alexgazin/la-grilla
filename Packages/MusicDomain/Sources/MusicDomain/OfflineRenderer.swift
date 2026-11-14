@@ -47,7 +47,7 @@ public enum OfflineRenderer {
         let anySolo=project.tracks.contains(where: \.solo)
         let audible=Set(project.tracks.enumerated().filter { _,track in !track.mute && (!anySolo || track.solo) && (isolatedTrack == nil || track.id==isolatedTrack) }.map(\.offset))
         let compiled = Compiler.notes(project, range: range).filter{audible.contains($0.track)}
-        let notes = compiled.map { LGNote(tick: Int32($0.tick), duration: Int32($0.duration), pitch: Int32($0.pitch), velocity: Int32($0.velocity), track: Int32($0.track), pad: Int32($0.pad)) }
+        let notes = compiled.map { LGNote(tick: Int32($0.tick), duration: Int32($0.duration), pitch: Int32($0.pitch), velocity: Int32($0.velocity), track: Int32($0.track), pad: Int32($0.pad),instrument:Int32($0.instrument)) }
         let submitted = notes.withUnsafeBufferPointer { lg_submit(kernel, $0.baseAddress, Int32($0.count), project.bpm, 0, Int32(range.count), 0, Int32(clamping: project.revision)) }
         guard submitted != 0 else { throw ExportError.renderUnavailable }
         let solo = project.tracks.contains(where: \.solo)
@@ -73,7 +73,7 @@ public enum OfflineRenderer {
             try Task.checkCancellation()
             let count = min(4096, frames-position)
             left.withUnsafeMutableBufferPointer { l in right.withUnsafeMutableBufferPointer { r in lg_render(kernel,l.baseAddress,r.baseAddress,Int32(count)) } }
-            peak = max(peak,lg_meter(kernel,3))
+            peak = max(peak,lg_meter(kernel,Int32(masterBus)))
             try writer.append(left: left, right: right, count: count, dither: settings.dither && settings.bitDepth == 16, random: &random)
             position += count
             if position % (4096*16) == 0 { progress(Double(position)/Double(frames)); await Task.yield() }

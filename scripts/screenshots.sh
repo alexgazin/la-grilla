@@ -22,12 +22,12 @@ echo "Ad-hoc signing simulator application"
 codesign --force --deep --sign - DerivedData/Build/Products/Debug-iphonesimulator/LaGrilla.app
 echo "Installing simulator application"
 run_limited 300 xcrun simctl install "$DEVICE" DerivedData/Build/Products/Debug-iphonesimulator/LaGrilla.app
-SCREENSHOT_DIR=${GRILLA_SCREENSHOT_DIR:-Screenshots/R1}
+SCREENSHOT_DIR=${GRILLA_SCREENSHOT_DIR:-Screenshots/R2}
 mkdir -p "$SCREENSHOT_DIR"
-for SCREEN in grid jam mixer projects export export-wav export-stems; do
+for SCREEN in grid jam mixer projects export export-wav export-stems notes notes-mixer; do
   run_limited 15 xcrun simctl terminate "$DEVICE" com.alexgazin.LaGrilla || true
   echo "Launching $SCREEN"
-  APP_LAUNCH=$(run_limited 60 xcrun simctl launch "$DEVICE" com.alexgazin.LaGrilla --screen "$SCREEN")
+  APP_LAUNCH=$(run_limited 60 xcrun simctl launch "$DEVICE" com.alexgazin.LaGrilla --uitesting --screen "$SCREEN")
   echo "$APP_LAUNCH"
   APP_PID=$(echo "$APP_LAUNCH" | python3 -c 'import sys,re; print(re.search(r": ([0-9]+)",sys.stdin.read()).group(1))')
   sleep 8

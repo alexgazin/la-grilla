@@ -23,6 +23,23 @@ final class StudioTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["REC · DRUMS"].waitForExistence(timeout:8));app.buttons["Kick"].tap();app.buttons["Snare"].tap();app.buttons["Finish drum take"].tap()
         XCTAssertTrue(app.buttons["Undo"].isEnabled);app.buttons["Undo"].tap();XCTAssertTrue(app.buttons["Redo"].isEnabled)
     }
+    @MainActor func testPianoRollNotesUndoAndTransport() {
+        let app=launch();app.buttons["notes.open"].tap()
+        XCTAssertTrue(app.navigationBars["Piano roll"].waitForExistence(timeout:5))
+        app.buttons["notes.add"].tap();XCTAssertTrue(app.staticTexts["notes.count"].label=="1")
+        app.buttons["Copy note"].tap();app.buttons["Paste note"].tap();XCTAssertTrue(app.staticTexts["notes.count"].label=="2")
+        app.buttons["Undo"].tap();XCTAssertTrue(app.staticTexts["notes.count"].label=="1")
+        app.buttons["Show note list"].tap();XCTAssertTrue(app.tables.firstMatch.exists || app.collectionViews.firstMatch.exists)
+        app.buttons["Play"].tap();XCTAssertTrue(app.staticTexts["PLAYING"].waitForExistence(timeout:5))
+        app.buttons["Done"].tap();XCTAssertTrue(app.staticTexts["PLAYING"].exists)
+        app.buttons["Stop"].tap()
+    }
+    @MainActor func testEightTrackMixerMasterIsIndependent() {
+        let app=launch("notes-mixer");XCTAssertTrue(app.staticTexts["Master"].exists)
+        XCTAssertTrue(app.buttons["Mute Harmony"].isHittable)
+        app.buttons["Mute Harmony"].tap();XCTAssertEqual(app.buttons["Mute Harmony"].value as? String,"On")
+        XCTAssertTrue(app.buttons["Play"].isHittable);app.buttons["Play"].tap();XCTAssertTrue(app.staticTexts["PLAYING"].waitForExistence(timeout:5));app.buttons["Stop"].tap()
+    }
     @MainActor func testWAVExportOffersSystemShare() {
         let app=launch();app.buttons["Play"].tap();app.buttons["export.open"].tap()
         XCTAssertTrue(app.buttons["format.wav"].waitForExistence(timeout:5));app.buttons["format.wav"].tap();app.buttons["export.confirm"].tap()

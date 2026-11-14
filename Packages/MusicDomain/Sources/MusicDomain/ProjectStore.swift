@@ -11,10 +11,10 @@ public actor ProjectStore {
         _ = try JSONDecoder().decode(Project.self, from: data)
         let manifest = folder.appendingPathComponent("manifest.json")
         if let old = try? Data(contentsOf: manifest) {
-            if let header = try? JSONSerialization.jsonObject(with:old) as? [String:Any], let version=header["schemaVersion"] as? Int, version>1 {
+            if let header = try? JSONSerialization.jsonObject(with:old) as? [String:Any], let version=header["schemaVersion"] as? Int, version>Project.currentSchemaVersion {
                 throw MusicError.unsupportedSchema
             }
-            if let valid = try? JSONDecoder().decode(Project.self, from:old), (try? valid.validate()) != nil {
+            if let valid = try? ProjectDocument.decode(old), (try? valid.validate()) != nil {
                 if valid.revision > project.revision {return valid.revision}
                 try old.write(to:folder.appendingPathComponent("backup.json"),options:.atomic)
             }
@@ -25,7 +25,7 @@ public actor ProjectStore {
     public func load(_ id: UUID, backup: Bool = false) throws -> Project {
         let file = package(id).appendingPathComponent(backup ? "backup.json" : "manifest.json")
         let values = try file.resourceValues(forKeys: [.fileSizeKey]); guard (values.fileSize ?? 0) <= 8_000_000 else { throw MusicError.tooDense }
-        let p = try JSONDecoder().decode(Project.self, from: Data(contentsOf: file)); try p.validate(); return p
+        let p = try ProjectDocument.decode(Data(contentsOf:file)); try p.validate(); return p
     }
     public struct Entry: Sendable, Identifiable { public let id: UUID; public let project: Project?; public let error: String? }
     public func list() throws -> [Entry] {

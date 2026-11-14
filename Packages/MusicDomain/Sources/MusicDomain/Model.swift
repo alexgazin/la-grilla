@@ -2,7 +2,10 @@ import Foundation
 
 public let ppq = 960
 public let barTicks = 3840
-public enum TrackRole: String, Codable, CaseIterable, Sendable { case harmony, drums, bass }
+public let masterBus = 8
+public enum TrackRole: String, Codable, CaseIterable, Sendable { case harmony, drums, bass, melody
+    public var instrument:Int {switch self{case .harmony:0;case .drums:1;case .bass:2;case .melody:3}}
+}
 public enum Quality: String, Codable, CaseIterable, Sendable {
     case major = "", minor = "m", dim, aug, sus2, sus4, seventh = "7", maj7, m7, m7b5
     public var intervals: [Int] {
@@ -43,16 +46,23 @@ public struct DrumEvent: Codable, Equatable, Identifiable, Sendable {
     public var id: UUID = UUID(); public var tick: Int; public var pad: Int; public var velocity: Int
     public init(tick: Int, pad: Int, velocity: Int = 100) { self.tick = tick; self.pad = pad; self.velocity = velocity }
 }
+public struct NoteEvent: Codable, Equatable, Identifiable, Sendable {
+    public var id:UUID=UUID()
+    public var tick:Int;public var duration:Int;public var pitch:Int;public var velocity:Int
+    public var confidence:Double?
+    public init(tick:Int,duration:Int=ppq,pitch:Int=60,velocity:Int=100,confidence:Double?=nil){self.tick=tick;self.duration=duration;self.pitch=pitch;self.velocity=velocity;self.confidence=confidence}
+    public var name:String{Chord.roots[(pitch%12+12)%12]+String(pitch/12-1)}
+}
 public struct Pattern: Codable, Equatable, Identifiable, Sendable {
-    public var id: UUID = UUID(); public var length: Int; public var chords: [ChordEvent] = []; public var drums: [DrumEvent] = []
-    public init(length: Int, chords: [ChordEvent] = [], drums: [DrumEvent] = []) { self.length = length; self.chords = chords; self.drums = drums }
+    public var id: UUID = UUID(); public var length: Int; public var chords: [ChordEvent] = []; public var drums: [DrumEvent] = []; public var notes:[NoteEvent]?
+    public init(length: Int, chords: [ChordEvent] = [], drums: [DrumEvent] = [], notes:[NoteEvent]=[]) { self.length = length; self.chords = chords; self.drums = drums; self.notes=notes }
 }
 public struct Clip: Codable, Equatable, Identifiable, Sendable {
     public var id: UUID = UUID(); public var patternID: UUID; public var start: Int; public var length: Int; public var offset: Int = 0
     public init(patternID: UUID, start: Int, length: Int) { self.patternID = patternID; self.start = start; self.length = length }
 }
 public struct Track: Codable, Equatable, Identifiable, Sendable {
-    public var id: UUID = UUID(); public var role: TrackRole; public var gain: Double = -6; public var pan: Double = 0
+    public var id: UUID = UUID(); public var role: TrackRole; public var name:String?; public var displayName:String{name ?? role.rawValue.capitalized}; public var gain: Double = -6; public var pan: Double = 0
     public var mute = false; public var solo = false; public var presetVersion = 1; public var clips: [Clip] = []
     public init(role: TrackRole) { self.role = role }
 }
@@ -61,7 +71,8 @@ public struct Section: Codable, Equatable, Identifiable, Sendable {
     public init(name: String, start: Int = 0, length: Int) { self.name = name; self.start = start; self.length = length }
 }
 public struct Project: Codable, Equatable, Identifiable, Sendable {
-    public var id: UUID = UUID(); public var schemaVersion = 1; public var revision = 0
+    public var id: UUID = UUID(); public static let currentSchemaVersion=2
+    public var schemaVersion = 2; public var revision = 0
     public var name: String; public var bpm: Double = 120; public var keyRoot = 0; public var minor = false
     public var modified = Date(); public var tracks: [Track]; public var patterns: [Pattern]; public var sections: [Section]
     public var bassOctave = 0; public var bassGate = 0.9; public var master: Double = -3
@@ -86,30 +97,34 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
         p.tracks.append(Track(role: .bass)); return p
     }
     public func validate() throws {
-        guard schemaVersion == 1 else { throw MusicError.unsupportedSchema }
+        guard schemaVersion == Self.currentSchemaVersion else { throw MusicError.unsupportedSchema }
         guard bpm.isFinite, (40...240).contains(bpm), (0..<12).contains(keyRoot), !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, name.count <= 120,
-              (1...8).contains(sections.count), (barTicks...64*barTicks).contains(length), tracks.count >= 2, tracks.count <= 3,
+              (1...8).contains(sections.count), (barTicks...64*barTicks).contains(length), tracks.count >= 2, tracks.count <= 8,
               bassGate.isFinite, (0.1...1).contains(bassGate), (-1...1).contains(bassOctave), master.isFinite, (-61...6).contains(master),
-              Set(tracks.map(\.role)).count == tracks.count, tracks[0].role == .harmony, tracks[1].role == .drums, (tracks.count == 2 || tracks[2].role == .bass),
-              patterns.count <= 16, Set(patterns.map(\.id)).count == patterns.count, Set(sections.map(\.id)).count == sections.count,
+              tracks[0].role == .harmony, tracks[1].role == .drums, tracks.dropFirst(2).allSatisfy({$0.role == .bass || $0.role == .melody}), tracks.filter({$0.role == .bass}).count <= 1,
+              patterns.count <= 64, Set(patterns.map(\.id)).count == patterns.count, Set(sections.map(\.id)).count == sections.count,
               Set(tracks.map(\.id)).count == tracks.count else { throw MusicError.invalidProject }
-        let ids = [id] + tracks.map(\.id) + patterns.map(\.id) + sections.map(\.id)
-            + tracks.flatMap { $0.clips.map(\.id) }
-            + patterns.flatMap { $0.chords.map(\.id) + $0.drums.map(\.id) }
+        var ids=[id]
+        ids += tracks.map(\.id);ids += patterns.map(\.id);ids += sections.map(\.id)
+        ids += tracks.flatMap{$0.clips.map(\.id)}
+        for p in patterns {ids += p.chords.map(\.id);ids += p.drums.map(\.id);ids += (p.notes ?? []).map(\.id)}
         guard Set(ids).count == ids.count else { throw MusicError.invalidProject }
         var end = 0
         for s in sections { guard s.start == end, s.length > 0, s.length <= 64*barTicks, s.length % barTicks == 0, !s.name.isEmpty, s.name.count <= 120 else { throw MusicError.invalidProject }; end += s.length }
         for p in patterns {
-            guard p.length >= barTicks, p.length % barTicks == 0, p.length <= length, p.chords.count <= 256, p.drums.count <= 4096 else { throw MusicError.invalidProject }
+            guard p.length >= barTicks, p.length % barTicks == 0, p.length <= length, p.chords.count <= 256, p.drums.count <= 4096, (p.notes ?? []).count <= 4096 else { throw MusicError.invalidProject }
             var end = 0
             for e in p.chords.sorted(by: {$0.tick < $1.tick}) {
                 guard e.tick >= end, e.tick < p.length, e.duration > 0, e.duration <= p.length, e.tick + e.duration <= p.length, (0..<12).contains(e.chord.root), (0..<e.chord.quality.intervals.count).contains(e.chord.inversion) else { throw MusicError.invalidProject }
                 end = e.tick + e.duration
             }
+            for e in p.notes ?? [] {
+                guard e.tick>=0,e.tick<p.length,e.duration>0,e.duration<=p.length,e.tick+e.duration<=p.length,(0...127).contains(e.pitch),(1...127).contains(e.velocity),e.confidence==nil || (e.confidence!.isFinite && (0...1).contains(e.confidence!))else{throw MusicError.invalidProject}
+            }
             for e in p.drums { guard e.tick >= 0, e.tick < p.length, (0..<16).contains(e.pad), (1...127).contains(e.velocity) else { throw MusicError.invalidProject } }
         }
         for t in tracks {
-            guard t.gain.isFinite, (-61...6).contains(t.gain), t.pan.isFinite, (-1...1).contains(t.pan), t.presetVersion == 1 else { throw MusicError.invalidProject }
+            guard (t.name==nil || (!t.name!.isEmpty && t.name!.count<=40)), t.gain.isFinite, (-61...6).contains(t.gain), t.pan.isFinite, (-1...1).contains(t.pan), t.presetVersion == 1 else { throw MusicError.invalidProject }
             var end = 0
             for c in t.clips.sorted(by: {$0.start < $1.start}) {
                 guard c.start >= end, c.start < length, c.length > 0, c.length <= length, c.start + c.length <= length, c.offset >= 0, let p = patterns.first(where: {$0.id == c.patternID}), c.offset < p.length else { throw MusicError.invalidProject }
@@ -119,11 +134,11 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
         var upperBound = 0
         for t in tracks { for clip in t.clips {
             if let p = patterns.first(where: {$0.id == clip.patternID}) {
-                upperBound += ((clip.length + p.length - 1) / p.length + 1) * (p.chords.count * 5 + p.drums.count)
+                upperBound += ((clip.length + p.length - 1) / p.length + 1) * (p.chords.count * 8 + p.drums.count + (p.notes ?? []).count)
             }
         }}
-        guard upperBound <= 24000 else { throw MusicError.tooDense }
-        guard Compiler.notes(self).count <= 12000 else { throw MusicError.tooDense }
+        guard upperBound <= 65536 else { throw MusicError.tooDense }
+        guard Compiler.notes(self).count <= 32768 else { throw MusicError.tooDense }
     }
     public mutating func duplicateSection(_ id: UUID, name: String) throws {
         guard let index = sections.firstIndex(where: {$0.id == id}), sections.count < 8, length + sections[index].length <= 64 * barTicks else { throw MusicError.limit }
@@ -133,12 +148,28 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
             for j in tracks[i].clips.indices where tracks[i].clips[j].start >= insertion { tracks[i].clips[j].start += original.length }
             for c in clips {
                 guard var p = patterns.first(where: {$0.id == c.patternID}) else { throw MusicError.invalidProject }
-                p.id = UUID(); p.chords = p.chords.map { var e = $0; e.id = UUID(); return e }; p.drums = p.drums.map { var e = $0; e.id = UUID(); return e }
-                patterns.append(p); tracks[i].clips.append(Clip(patternID: p.id, start: c.start + original.length, length: c.length))
+                p.id = UUID(); p.chords = p.chords.map { var e = $0; e.id = UUID(); return e }; p.drums = p.drums.map { var e = $0; e.id = UUID(); return e }; p.notes=(p.notes ?? []).map{var e=$0;e.id=UUID();return e}
+                patterns.append(p);var copy=c;copy.id=UUID();copy.patternID=p.id;copy.start += original.length;tracks[i].clips.append(copy)
             }
         }
         for i in sections.indices where sections[i].start >= insertion { sections[i].start += original.length }
         sections.insert(Section(name: name, start: insertion, length: original.length), at: index + 1)
+    }
+    public mutating func addMelody(name:String?=nil)throws {
+        guard tracks.count<8 else{throw MusicError.trackLimit}
+        var t=Track(role:.melody);t.name=name ?? "Melody \(tracks.filter{$0.role == .melody}.count+1)"
+        for section in sections {let p=Pattern(length:section.length);patterns.append(p);t.clips.append(Clip(patternID:p.id,start:section.start,length:section.length))}
+        tracks.append(t)
+    }
+    public mutating func deleteTrack(_ id:UUID)throws {
+        guard let i=tracks.firstIndex(where:{$0.id==id}),i>=2 else{throw MusicError.invalidProject}
+        tracks.remove(at:i);let referenced=Set(tracks.flatMap{$0.clips.map(\.patternID)});patterns.removeAll{!referenced.contains($0.id)}
+    }
+    public mutating func duplicateTrack(_ id:UUID)throws {
+        guard tracks.count<8,let t=tracks.first(where:{$0.id==id}),t.role == .melody else{throw MusicError.trackLimit}
+        var copy=t;copy.id=UUID();copy.name=String(t.displayName.prefix(34))+" copy";copy.clips=[]
+        for clip in t.clips {guard var p=patterns.first(where:{$0.id==clip.patternID})else{throw MusicError.invalidProject};p.id=UUID();p.notes=(p.notes ?? []).map{var n=$0;n.id=UUID();return n};p.chords=p.chords.map{var n=$0;n.id=UUID();return n};p.drums=p.drums.map{var n=$0;n.id=UUID();return n};patterns.append(p);var c=clip;c.id=UUID();c.patternID=p.id;copy.clips.append(c)}
+        tracks.append(copy)
     }
     public mutating func deleteSection(_ id: UUID) throws {
         guard sections.count > 1, let index = sections.firstIndex(where: {$0.id == id}) else { throw MusicError.invalidProject }
@@ -167,12 +198,13 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
     }
 }
 public enum MusicError: Error, LocalizedError {
-    case invalidChord, invalidProject, unsupportedSchema, limit, tooDense
+    case invalidChord, invalidProject, unsupportedSchema, limit, tooDense, trackLimit
     public var errorDescription: String? {
         let key = switch self {
         case .invalidChord: "Unrecognized chord. Choose a chord from the list."
         case .unsupportedSchema: "This project was made with a newer version. The original has been preserved."
         case .limit: "A song can contain up to 8 sections and 64 bars."
+        case .trackLimit: "A project can contain up to eight tracks."
         case .tooDense: "This project has too many events."
         case .invalidProject: "The project contains invalid musical data."
         }
@@ -192,4 +224,15 @@ public struct History: Sendable {
     }
     public mutating func undo(_ project: inout Project) { guard var p = past.popLast() else { return }; future.append(project); p.revision = project.revision + 1; p.modified = Date(); project = p }
     public mutating func redo(_ project: inout Project) { guard var p = future.popLast() else { return }; past.append(project); p.revision = project.revision + 1; p.modified = Date(); project = p }
+}
+
+public enum ProjectDocument {
+    /// Read/migrate a value copy. The source bytes are preserved until an explicit save.
+    public static func decode(_ data:Data)throws->Project {
+        guard data.count<=8_000_000 else{throw MusicError.tooDense}
+        var p=try JSONDecoder().decode(Project.self,from:data)
+        guard (1...Project.currentSchemaVersion).contains(p.schemaVersion)else{throw MusicError.unsupportedSchema}
+        if p.schemaVersion==1 {p.schemaVersion=2;for i in p.patterns.indices{if p.patterns[i].notes==nil{p.patterns[i].notes=[]}}}
+        try p.validate();return p
+    }
 }

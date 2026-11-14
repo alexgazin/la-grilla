@@ -40,7 +40,7 @@ jobs:
         run: |
           set -o pipefail
           DEVICE=$(cat /tmp/grilla-simulator-id)
-          xcodebuild -project LaGrilla.xcodeproj -scheme LaGrilla -destination "platform=iOS Simulator,id=$DEVICE" -derivedDataPath DerivedData -resultBundlePath TestResults.xcresult CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO test | tee uitests.log
+          xcodebuild -project LaGrilla.xcodeproj -scheme LaGrilla -destination "platform=iOS Simulator,id=$DEVICE" -derivedDataPath DerivedData -resultBundlePath TestResults.xcresult ARCHS=arm64 ONLY_ACTIVE_ARCH=YES CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO test | tee uitests.log
       - name: Collect app crash reports
         if: always()
         run: |

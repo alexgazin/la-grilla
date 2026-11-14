@@ -1,6 +1,6 @@
 import Foundation
 public struct CompiledNote: Equatable, Sendable {
-    public var tick: Int; public var duration: Int; public var pitch: Int; public var velocity: Int; public var track: Int; public var pad: Int = -1
+    public var tick: Int; public var duration: Int; public var pitch: Int; public var velocity: Int; public var track: Int; public var pad: Int = -1;public var instrument:Int=0
 }
 public enum Compiler {
     public static let drumMap = [36,38,42,46,39,37,45,47,50,49,51,54,56,75,70,82]
@@ -18,12 +18,17 @@ public enum Compiler {
                             guard end > start else { continue }
                             for pitch in chord.chord.notes { result.append(CompiledNote(tick: clip.start + start, duration: end - start, pitch: pitch, velocity: 88, track: index)) }
                             if let bass = project.tracks.firstIndex(where: {$0.role == .bass}) {
-                                result.append(CompiledNote(tick: clip.start + start, duration: max(1, Int(Double(end-start) * project.bassGate)), pitch: (chord.chord.root == 0 ? 36 : 24 + chord.chord.root) + project.bassOctave * 12, velocity: 94, track: bass))
+                                result.append(CompiledNote(tick: clip.start + start, duration: max(1, Int(Double(end-start) * project.bassGate)), pitch: (chord.chord.root == 0 ? 36 : 24 + chord.chord.root) + project.bassOctave * 12, velocity: 94, track: bass,instrument:2))
                             }
+                        }
+                    } else if track.role == .melody {
+                        for note in pattern.notes ?? [] {
+                            let local=cycle+note.tick;let start=max(0,local);let end=min(clip.length,local+note.duration)
+                            if end>start{result.append(CompiledNote(tick:clip.start+start,duration:end-start,pitch:note.pitch,velocity:note.velocity,track:index,instrument:3))}
                         }
                     } else {
                         for drum in pattern.drums where cycle + drum.tick >= 0 && cycle + drum.tick < clip.length && (0..<16).contains(drum.pad) {
-                            result.append(CompiledNote(tick: clip.start + cycle + drum.tick, duration: 120, pitch: drumMap[drum.pad], velocity: drum.velocity, track: index, pad: drum.pad))
+                            result.append(CompiledNote(tick: clip.start + cycle + drum.tick, duration: 120, pitch: drumMap[drum.pad], velocity: drum.velocity, track: index, pad: drum.pad,instrument:1))
                         }
                     }
                 }
@@ -58,9 +63,11 @@ public enum MIDIExporter {
             return Data(Array("MTrk".utf8) + be(bytes.count,4) + bytes)
         }
         result.append(chunk(conductor))
+        var melodyChannel=2
         for (i,t) in project.tracks.enumerated() {
-            let channel = t.role == .drums ? 9 : t.role == .bass ? 1 : 0
-            var events = [Event(tick: 0, priority: -1, bytes: meta(3,Array(t.role.rawValue.capitalized.utf8)))]
+            let channel = t.role == .drums ? 9 : t.role == .bass ? 1 : t.role == .melody ? melodyChannel:0
+            if t.role == .melody {melodyChannel+=1}
+            var events = [Event(tick: 0, priority: -1, bytes: meta(3,Array(t.displayName.utf8)))]
             for n in notes where n.track == i {
                 events.append(Event(tick: n.tick, priority: 1, bytes: [UInt8(0x90|channel),UInt8(n.pitch),UInt8(n.velocity)]))
                 events.append(Event(tick: n.tick+n.duration, priority: 0, bytes: [UInt8(0x80|channel),UInt8(n.pitch),0]))

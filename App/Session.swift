@@ -20,10 +20,11 @@ import Observation
     var exportTask: Task<Void,Never>?
     var exportInProgress=false; var exportProgress=0.0; var exportWarning:String?; var exportError:String?
     private var exportGeneration=0; private var exportedFolder:URL?
+    var noteTrackID:UUID?
     var importing=false
     var ready = false; private var bootstrapTask:Task<Void,Never>?; var saveTask: Task<Void,Never>?
     let store: ProjectStore
-    enum Sheet: String, Identifiable {case projects, newProject, export, settings, bass, sections; var id: String { rawValue }}
+    enum Sheet: String, Identifiable {case projects, newProject, export, settings, bass, sections, notes; var id: String { rawValue }}
     init() {
         let root = ProcessInfo.processInfo.arguments.contains("--uitesting") ? FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString) : FileManager.default.urls(for: .documentDirectory,in:.userDomainMask)[0].appendingPathComponent("Projects")
         store = ProjectStore(root: root)
@@ -134,6 +135,16 @@ import Observation
         commitPass()
         take=[];Task{await save()}
     }
+    func openNotes(_ id:UUID?=nil){
+        finishTake()
+        if let id{noteTrackID=id}
+        else if project.tracks.first(where:{$0.id==noteTrackID && $0.role == .melody})==nil{noteTrackID=project.tracks.first{$0.role == .melody}?.id}
+        if noteTrackID==nil{addMelody()}
+        sheet = .notes
+    }
+    func addMelody(){finishTake();audio.stop();let count=project.tracks.count;edit{try $0.addMelody()};if project.tracks.count>count{noteTrackID=project.tracks.last?.id}}
+    func duplicateMelody(_ id:UUID){finishTake();audio.stop();let count=project.tracks.count;edit{try $0.duplicateTrack(id)};if project.tracks.count>count{noteTrackID=project.tracks.last?.id}}
+    func deleteMelody(_ id:UUID){finishTake();audio.stop();edit{try $0.deleteTrack(id)};noteTrackID=project.tracks.first{$0.role == .melody}?.id}
     func setLoop(bars: Int? = nil, enabled: Bool? = nil) {guard !recording && !armed else{message="Finish the take before changing the loop.";return};if let bars{loopBars=bars};if let enabled{loop=enabled};sync()}
     func select(_ section: MusicDomain.Section) {guard !recording && !armed else{return};selectedSection=section.id;sync();if !audio.playing{audio.seek(section.start)}}
     func open(_ p: Project, force: Bool = false) async {
