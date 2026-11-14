@@ -22,7 +22,7 @@ struct StudioView: View {
         case .bass: BassView(session:session)
         case .sections: SectionsView(session:session)
         }}.presentationDragIndicator(.visible).presentationBackground(Color.panel)}
-        .sheet(isPresented:Binding(get:{session.shareURL != nil},set:{if !$0 {session.shareURL=nil}})){if let url=session.shareURL{ShareView(url:url)}}
+        .sheet(isPresented:Binding(get:{session.shareURL != nil},set:{if !$0 {session.shareURL=nil}}),onDismiss:{session.finishSharing()}){if let url=session.shareURL{ShareView(url:url)}}
         .alert("La Grilla",isPresented:Binding(get:{session.message != nil},set:{if !$0{session.message=nil}})){Button("OK"){session.message=nil}}message:{Text(session.message ?? "")}
         .onChange(of:session.audio.clock){_,_ in session.pollRecording()}
     }
@@ -41,7 +41,7 @@ struct StudioView: View {
                 Spacer(minLength:0)
                 IconButton(symbol:"arrow.uturn.backward",label:"Undo"){session.undo()}.disabled(!session.history.canUndo || session.recording || session.armed).opacity(session.history.canUndo ? 1:0.3)
                 IconButton(symbol:"arrow.uturn.forward",label:"Redo"){session.redo()}.disabled(!session.history.canRedo || session.recording || session.armed).opacity(session.history.canRedo ? 1:0.3)
-                IconButton(symbol:"square.and.arrow.up",label:"Export MIDI"){session.sheet = .export}
+                IconButton(symbol:"square.and.arrow.up",label:"Export"){session.finishTake();session.sheet = .export}.accessibilityIdentifier("export.open")
             }
             HStack{Button{session.sheet = .settings}label:{HStack(spacing:7){Text(String(format:"%.0f",session.project.bpm)).font(.system(size:14,weight:.semibold,design:.monospaced));Text("BPM").font(.system(size:9,weight:.semibold)).foregroundStyle(Color.muted);Image(systemName:"chevron.down").font(.system(size:8))}.frame(minHeight:34)}.buttonStyle(.plain)
                 Rectangle().fill(Color.raised).frame(width:1,height:16).padding(.horizontal,8)
