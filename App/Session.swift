@@ -16,7 +16,12 @@ import Observation
     private var saveGeneration = 0
     var savedRevision = -1; var saving = false; var saveError: String?; var message: String?
     var entries: [ProjectStore.Entry] = []; var sheet: Sheet?; var shareURL: URL?; var exportedURL: URL?
-    var ready = false; var saveTask: Task<Void,Never>?
+    var exportPreset:String?
+    var exportTask: Task<Void,Never>?
+    var exportInProgress=false; var exportProgress=0.0; var exportWarning:String?; var exportError:String?
+    private var exportGeneration=0; private var exportedFolder:URL?
+    var importing=false
+    var ready = false; private var bootstrapTask:Task<Void,Never>?; var saveTask: Task<Void,Never>?
     let store: ProjectStore
     enum Sheet: String, Identifiable {case projects, newProject, export, settings, bass, sections; var id: String { rawValue }}
     init() {
@@ -27,14 +32,18 @@ import Observation
     var loopRange: Range<Int> { let start = section.start; return loop ? start..<min(project.length,start + loopBars*barTicks) : 0..<project.length }
     var pending: Bool { audio.playing && audio.appliedRevision != project.revision }
     func bootstrap() async {
-        guard !ready else { return }; ready = true
-        do {
-            entries = try await store.list()
-            if let first = entries.first(where: {$0.project != nil})?.project { project = first }
-            else if entries.isEmpty {try await store.save(project); entries = try await store.list()}
-            selectedSection = project.sections[0].id
-            try audio.prepare(); sync(); savedRevision = project.revision
-        } catch { message = error.localizedDescription }
+        if let bootstrapTask {await bootstrapTask.value;return}
+        let task=Task { @MainActor in
+            do {
+                entries=try await store.list()
+                if let first=entries.first(where:{$0.project != nil})?.project {project=first}
+                else if entries.isEmpty {try await store.save(project);entries=try await store.list()}
+                selectedSection=project.sections[0].id
+                try audio.prepare();sync();savedRevision=project.revision
+            } catch {message=error.localizedDescription}
+            ready=true
+        }
+        bootstrapTask=task;await task.value
     }
     func ensureAudio() -> Bool { if audio.isPrepared {return true}; do {try audio.prepare(); sync(); return true} catch {audio.error = error.localizedDescription; return false} }
     func sync() { audio.submit(project,loop:loop,range:loopRange); audio.metronome(metronome) }
@@ -129,6 +138,7 @@ import Observation
     func select(_ section: MusicDomain.Section) {guard !recording && !armed else{return};selectedSection=section.id;sync();if !audio.playing{audio.seek(section.start)}}
     func open(_ p: Project, force: Bool = false) async {
         if !force && p.id==project.id {sheet=nil;return}
+        if exportInProgress{cancelExport()}
         finishTake();audio.stop();await save()
         guard saveError==nil else {message="Save the current project or save a copy before opening another project.";return}
         project=p;history=History();selectedSection=p.sections[0].id;savedRevision=p.revision;audio.seek(0);sync();sheet=nil
@@ -140,9 +150,56 @@ import Observation
     func duplicateProject(_ p: Project) async {var copy=p.id==project.id ? project:p;copy.id=UUID();copy.name += " copy";copy.modified=Date();do{try await store.save(copy);entries=try await store.list()}catch{message=error.localizedDescription}}
     func delete(_ id: UUID) async {do{try await store.delete(id);entries=try await store.list()}catch{message=error.localizedDescription}}
     func recover(_ id: UUID) async {do{var p=try await store.load(id,backup:true);p.id=UUID();p.name=String(p.name.prefix(110))+" recovered";p.revision=0;await open(p,force:true);await save();message="Recovered the last working copy."}catch{message=error.localizedDescription}}
-    func export(sectionOnly: Bool) async {
-        let snapshot=project;let range=sectionOnly ? section.start..<section.start+section.length : 0..<snapshot.length
-        do {let data=try MIDIExporter.data(snapshot,range:range);let name=snapshot.name.replacingOccurrences(of:"/",with:"-");let url=FileManager.default.temporaryDirectory.appendingPathComponent(name).appendingPathExtension("mid");try data.write(to:url,options:.atomic);exportedURL=url;sheet=nil}catch{message=error.localizedDescription}
+    enum ExportFormat:String,CaseIterable,Identifiable {
+        case midi,wav,stems,project
+        var id:String{rawValue}
+        var title:String{switch self{case .midi:"Standard MIDI";case .wav:"Stereo WAV";case .stems:"Aligned stems";case .project:"Portable project"}}
+        var fileExtension:String{switch self{case .midi:"mid";case .wav:"wav";case .stems:"zip";case .project:"grillapack"}}
+    }
+    func export(format:ExportFormat,settings:WAVSettings,range:Range<Int>,tracks:Set<UUID>) {
+        finishTake();cancelExport();exportGeneration+=1;let generation=exportGeneration
+        let snapshot=project;exportInProgress=true;exportProgress=0;exportWarning=nil
+        let folder=FileManager.default.temporaryDirectory.appendingPathComponent("GrillaExport-"+UUID().uuidString)
+        let safe=String(snapshot.name.prefix(80)).replacingOccurrences(of:"/",with:"-").replacingOccurrences(of:"\\",with:"-")
+        let url=folder.appendingPathComponent(safe.isEmpty ? "La Grilla":safe).appendingPathExtension(format.fileExtension)
+        exportError=nil
+        exportTask=Task { @MainActor in
+            do {
+                try FileManager.default.createDirectory(at:folder,withIntermediateDirectories:true)
+                let progress:@Sendable(Double)->Void={ [weak self] value in Task { @MainActor in guard let self,self.exportGeneration==generation else{return};self.exportProgress=value } }
+                switch format {
+                case .midi:try MIDIExporter.data(snapshot,range:range).write(to:url,options:.atomic)
+                case .project:try PortableProject.data(snapshot).write(to:url,options:.atomic)
+                case .wav:
+                    let receipt=try await OfflineRenderer.render(snapshot,to:url,settings:settings,range:range,progress:progress)
+                    if receipt.clipped{exportWarning="Clipping was detected. Lower track or master gain for a cleaner export."}
+                case .stems:_ = try await StemExporter.render(snapshot,to:url,settings:settings,range:range,selected:tracks,progress:progress)
+                }
+                try Task.checkCancellation();guard generation==exportGeneration else{return}
+                exportProgress=1;exportInProgress=false;exportedFolder=folder;exportedURL=url;sheet=nil;exportTask=nil
+            } catch {
+                try? FileManager.default.removeItem(at:folder)
+                if generation==exportGeneration{exportInProgress=false;exportTask=nil;if !(error is CancellationError){exportError=error.localizedDescription}}
+            }
+        }
+    }
+    func cancelExport(){exportGeneration+=1;exportTask?.cancel();exportTask=nil;exportInProgress=false;exportProgress=0}
+    func finishSharing() {
+        if let folder=exportedFolder{Task{try? await Task.sleep(for:.seconds(1));try? FileManager.default.removeItem(at:folder)}}
+        exportedFolder=nil
+        if let warning=exportWarning{message=warning;exportWarning=nil}
+    }
+    func importProject(_ url:URL) async {
+        await bootstrap();importing=true;defer{importing=false}
+        let access=url.startAccessingSecurityScopedResource();defer{if access{url.stopAccessingSecurityScopedResource()}}
+        do {
+            let imported=try await Task.detached(priority:.userInitiated){
+                let handle=try FileHandle(forReadingFrom:url);defer{try? handle.close()}
+                let data=try handle.read(upToCount:20_000_001) ?? Data();guard data.count<=20_000_000 else{throw ExportError.archiveTooLarge}
+                return try PortableProject.decode(data)
+            }.value
+            await open(imported);if project.id==imported.id{await save()}
+        }catch{message=error.localizedDescription}
     }
     func saveCopy() async {
         var copy=project; copy.id=UUID(); copy.name += " copy"

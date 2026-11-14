@@ -15,7 +15,7 @@ struct LGKernel {
     std::array<std::vector<float>,16> kit;
     std::array<Input,256> input{}; std::atomic<unsigned> write{0},read{0}; std::atomic<int> overflow{0};
     std::atomic<int> countRequest{0},countRemaining{0}; int counting=0;
-    std::atomic<int> command{0},seek{-1},playing{0},applied{-1},metro{0};
+    std::atomic<int> command{0},seek{-1},playing{0},applied{-1},metro{0},tailOnEnd{0};
     std::atomic<double> position{0}; std::atomic<uint64_t> clock{0};
     std::array<std::atomic<float>,4> gains, pans, meters; std::array<float,4> smooth{}, smoothPan{};
     bool active=false; double origin=0; uint64_t elapsed=0,rendered=0; double previous=-1; long long cycle=0; int cursor=0; int lastBeat=-1;
@@ -81,6 +81,7 @@ int lg_pad(LGKernel*k,int pad,int velocity){if(pad<0||pad>15)return 0;return enq
 void lg_preview(LGKernel*k,int pitch){if(pitch>=0&&pitch<=127)enqueue(k,{pitch,95,true});}
 void lg_mix(LGKernel*k,int t,float db,float pan,int audible){if(t<0||t>2||!std::isfinite(db)||!std::isfinite(pan))return;k->gains[t].store(audible&&db> -61?std::pow(10.f,std::clamp(db,-60.f,6.f)/20):0);k->pans[t].store(std::clamp(pan,-1.f,1.f));}
 void lg_master(LGKernel*k,float db){if(std::isfinite(db))k->gains[3].store(db> -61?std::pow(10.f,std::clamp(db,-60.f,6.f)/20):0);}
+void lg_tail_on_end(LGKernel*k,int enabled){k->tailOnEnd.store(enabled);}
 void lg_metronome(LGKernel*k,int on){k->metro.store(on);}
 void lg_render(LGKernel*k,float*l,float*r,int frames){
     int cmd=k->command.exchange(0);if(cmd<0){k->active=false;k->counting=0;k->countRequest.store(0);k->countRemaining.store(0);k->silence();k->read.store(k->write.load());}
@@ -96,10 +97,10 @@ void lg_render(LGKernel*k,float*l,float*r,int frames){
         if(k->counting>0){int beatFrames=int(k->sr*60/k->slots[k->current].bpm);if(k->counting%beatFrames==0)k->trigger(k->counting>beatFrames*3?96:84,65,3,-1,0.035);k->counting--;k->countRemaining.store(k->counting);}
         else if(k->active&&k->current>=0){
             auto*s=&k->slots[k->current];double tp=k->ticksPerFrame();double raw=k->origin+k->elapsed*tp;double tick=raw-k->cycle*(s->end-s->start);
-            if(tick>=s->end-0.5*tp){if(s->loop){k->cycle++;tick-=s->end-s->start;k->cursor=0;k->silence();while(k->cursor<s->count&&s->notes[k->cursor].tick<s->start)k->cursor++;k->lastBeat=-1;}else{k->active=false;k->silence();tick=s->end;}}
+            if(tick>=s->end-0.5*tp){if(s->loop){k->cycle++;tick-=s->end-s->start;k->cursor=0;k->silence();while(k->cursor<s->count&&s->notes[k->cursor].tick<s->start)k->cursor++;k->lastBeat=-1;}else{k->active=false;if(!k->tailOnEnd.load())k->silence();tick=s->end;}}
             int old=k->current;k->adopt(false,tick);if(k->current!=old){s=&k->slots[k->current];tick=k->origin;tp=k->ticksPerFrame();}
             if(k->active){
-                while(k->cursor<s->count&&s->notes[k->cursor].tick<=tick+0.5*tp){auto&n=s->notes[k->cursor++];if(n.tick>=s->start&&n.tick<s->end)k->trigger(n.pitch,n.velocity,n.track,n.pad,std::min(n.duration,s->end-n.tick)/960.0*60/s->bpm);}
+                while(k->cursor<s->count&&s->notes[k->cursor].tick<=tick+0.5*tp){auto&n=s->notes[k->cursor++];if(n.tick>=s->start&&n.tick<s->end)k->trigger(n.pitch,n.velocity,n.track,n.pad,n.pad>=0?KitFrames/k->sr:std::min(n.duration,s->end-n.tick)/960.0*60/s->bpm);}
                 int beat=int(tick/960);if(beat!=k->lastBeat){if(k->metro.load())k->trigger(beat%4?84:96,65,3,-1,0.035);k->lastBeat=beat;}
                 k->position.store(tick,std::memory_order_relaxed);k->previous=tick;k->elapsed++;
             }else k->position.store(tick);

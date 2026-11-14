@@ -1,4 +1,4 @@
-#include "../AudioRuntime/GrillaKernel.h"
+#include "GrillaKernel.h"
 #include <cassert>
 #include <cmath>
 #include <iostream>

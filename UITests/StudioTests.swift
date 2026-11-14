@@ -23,8 +23,17 @@ final class StudioTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["REC · DRUMS"].waitForExistence(timeout:8));app.buttons["Kick"].tap();app.buttons["Snare"].tap();app.buttons["Finish drum take"].tap()
         XCTAssertTrue(app.buttons["Undo"].isEnabled);app.buttons["Undo"].tap();XCTAssertTrue(app.buttons["Redo"].isEnabled)
     }
+    @MainActor func testWAVExportOffersSystemShare() {
+        let app=launch();app.buttons["Play"].tap();app.buttons["export.open"].tap()
+        XCTAssertTrue(app.buttons["format.wav"].waitForExistence(timeout:5));app.buttons["format.wav"].tap();app.buttons["export.confirm"].tap()
+        XCTAssertTrue(app.otherElements["ActivityListView"].waitForExistence(timeout:30) || app.buttons["Copy"].exists || app.staticTexts["Save to Files"].exists)
+    }
+    @MainActor func testPortableExportOffersSystemShare() {
+        let app=launch();app.buttons["export.open"].tap();app.buttons["format.project"].tap();app.buttons["export.confirm"].tap()
+        XCTAssertTrue(app.otherElements["ActivityListView"].waitForExistence(timeout:15) || app.buttons["Copy"].exists || app.staticTexts["Save to Files"].exists)
+    }
     @MainActor func testMIDIExportOffersSystemShare() {
-        let app=launch();app.buttons["Export MIDI"].tap();XCTAssertTrue(app.staticTexts["Standard MIDI"].waitForExistence(timeout:5))
+        let app=launch();app.buttons["export.open"].tap();XCTAssertTrue(app.buttons["format.midi"].waitForExistence(timeout:5))
         app.buttons["export.confirm"].tap();XCTAssertTrue(app.otherElements["ActivityListView"].waitForExistence(timeout:8) || app.buttons["Copy"].exists || app.buttons["Save to Files"].exists || app.staticTexts["Copy"].exists || app.staticTexts["Save to Files"].exists)
     }
 }

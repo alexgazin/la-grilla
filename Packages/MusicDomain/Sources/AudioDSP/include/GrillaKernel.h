@@ -17,6 +17,7 @@ int lg_pad(LGKernel *k, int pad, int velocity);
 void lg_preview(LGKernel *k, int pitch);
 void lg_mix(LGKernel *k, int track, float db, float pan, int audible);
 void lg_master(LGKernel *k, float db);
+void lg_tail_on_end(LGKernel *k, int enabled);
 void lg_metronome(LGKernel *k, int enabled);
 void lg_render(LGKernel *k, float *left, float *right, int frames);
 double lg_tick(LGKernel *k);

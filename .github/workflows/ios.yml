@@ -4,22 +4,30 @@ jobs:
   ios:
     if: "!contains(github.event.head_commit.message, '[device-only]')"
     runs-on: macos-15
-    timeout-minutes: 30
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
       - name: Domain behavioral tests
+        env:
+          GRILLA_EXPORT_FIXTURES: ${{ github.workspace }}/ExportFixtures
         run: swift test --package-path Packages/MusicDomain
+      - name: Verify WAV and ZIP using independent readers
+        run: python3 scripts/verify_exports.py ExportFixtures
+      - name: Verify generated project is current
+        run: python3 scripts/generate_project.py && git diff --exit-code -- LaGrilla.xcodeproj
       - name: Audio kernel tests
-        run: clang++ -std=c++17 -O2 -Wall -Wextra -Werror Tests/kernel_test.cpp AudioRuntime/GrillaKernel.cpp -o /tmp/kernel-test && /tmp/kernel-test
+        run: clang++ -std=c++17 -O2 -Wall -Wextra -Werror Tests/kernel_test.cpp Packages/MusicDomain/Sources/AudioDSP/GrillaKernel.cpp -I Packages/MusicDomain/Sources/AudioDSP/include -o /tmp/kernel-test && /tmp/kernel-test
       - name: Build iOS app
         run: set -o pipefail; xcodebuild -project LaGrilla.xcodeproj -scheme LaGrilla -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' ARCHS=arm64 ONLY_ACTIVE_ARCH=YES -configuration Debug -derivedDataPath DerivedData CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO build | tee build.log
+      - name: Package simulator app
+        run: ditto -c -k --sequesterRsrc --keepParent DerivedData/Build/Products/Debug-iphonesimulator/LaGrilla.app LaGrilla-Simulator.zip
       - name: Save simulator build
         uses: actions/upload-artifact@v4
         with:
           name: simulator-build
           path: |
             LaGrilla.xcodeproj
-            DerivedData/Build/Products/Debug-iphonesimulator/LaGrilla.app
+            LaGrilla-Simulator.zip
       - name: Capture simulator screens
         run: bash scripts/screenshots.sh
       - name: Save simulator screenshots
@@ -27,12 +35,12 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: simulator-screenshots
-          path: Screenshots/*.png
+          path: Screenshots/**/*.png
       - name: Native user flows
         run: |
           set -o pipefail
           DEVICE=$(cat /tmp/grilla-simulator-id)
-          xcodebuild -project LaGrilla.xcodeproj -scheme LaGrilla -destination "platform=iOS Simulator,id=$DEVICE" -derivedDataPath DerivedData -resultBundlePath TestResults.xcresult CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO test | tee uitests.log
+          xcodebuild -project LaGrilla.xcodeproj -scheme LaGrilla -destination "platform=iOS Simulator,id=$DEVICE" -derivedDataPath DerivedData -resultBundlePath TestResults.xcresult ARCHS=arm64 ONLY_ACTIVE_ARCH=YES CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO test | tee uitests.log
       - name: Collect app crash reports
         if: always()
         run: |
@@ -43,13 +51,14 @@ jobs:
         with:
           name: ios-verification
           path: |
-            Screenshots/*.png
+            Screenshots/**/*.png
+            ExportFixtures
             build.log
             uitests.log
             TestResults.xcresult
             CrashReports
             LaGrilla.xcodeproj
-            DerivedData/Build/Products/Debug-iphonesimulator/LaGrilla.app
+            LaGrilla-Simulator.zip
 
   iphone:
     runs-on: macos-15
