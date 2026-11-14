@@ -11,7 +11,7 @@ jobs:
       - name: Audio kernel tests
         run: clang++ -std=c++17 -O2 -Wall -Wextra -Werror Tests/kernel_test.cpp AudioRuntime/GrillaKernel.cpp -o /tmp/kernel-test && /tmp/kernel-test
       - name: Build iOS app
-        run: set -o pipefail; xcodebuild -project LaGrilla.xcodeproj -scheme LaGrilla -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -configuration Debug -derivedDataPath DerivedData CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO build | tee build.log
+        run: set -o pipefail; xcodebuild -project LaGrilla.xcodeproj -scheme LaGrilla -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' ARCHS=arm64 ONLY_ACTIVE_ARCH=YES -configuration Debug -derivedDataPath DerivedData CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO build | tee build.log
       - name: Save simulator build
         uses: actions/upload-artifact@v4
         with:

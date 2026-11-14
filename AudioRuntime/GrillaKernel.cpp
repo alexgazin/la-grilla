@@ -47,7 +47,7 @@ struct LGKernel {
     void resetCursor(double tick){cursor=0;cycle=0;origin=tick;elapsed=0;previous=tick-1;lastBeat=-1;silence();
         if(current<0) return;
         auto&s=slots[current];
-        while(cursor<s.count&&s.notes[cursor].tick<tick){auto&n=s.notes[cursor];if(n.pad<0&&n.tick+n.duration>tick)trigger(n.pitch,n.velocity,n.track,-1,(n.tick+n.duration-tick)/960*60/s.bpm);cursor++;}
+        while(cursor<s.count&&s.notes[cursor].tick<tick){auto&n=s.notes[cursor];if(active&&n.pad<0&&n.tick+n.duration>tick)trigger(n.pitch,n.velocity,n.track,-1,(n.tick+n.duration-tick)/960*60/s.bpm);cursor++;}
     }
     void adopt(bool force,double tick){
         int chosen=-1,best=applied.load(std::memory_order_relaxed);
@@ -86,7 +86,7 @@ void lg_render(LGKernel*k,float*l,float*r,int frames){
     int cmd=k->command.exchange(0);if(cmd<0){k->active=false;k->counting=0;k->countRequest.store(0);k->countRemaining.store(0);k->silence();k->read.store(k->write.load());}
     k->adopt(!k->active,k->position.load());
     int seek=k->seek.exchange(-1);if(seek>=0){k->resetCursor(seek);k->position.store(seek);}
-    if(cmd>0&&k->current>=0){auto&s=k->slots[k->current];double p=k->position.load();k->resetCursor(p>=s.end?s.start:std::max(p,double(s.start)));k->active=true;}
+    if(cmd>0&&k->current>=0){auto&s=k->slots[k->current];double p=k->position.load();k->active=true;k->resetCursor(p>=s.end?s.start:std::max(p,double(s.start)));}
     int request=k->countRequest.exchange(0);if(request>0)k->counting=request;
     unsigned rd=k->read.load(),wr=k->write.load(std::memory_order_acquire);
     while(rd<wr){auto v=k->input[rd++%256];k->trigger(v.preview?v.value:36,v.velocity,v.preview?0:1,v.preview?-1:v.value,v.preview?0.65:1);}

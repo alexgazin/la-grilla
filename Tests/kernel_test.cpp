@@ -18,6 +18,13 @@ int main(){
  lg_pad(k,0,100);lg_render(k,l.data(),r.data(),512);peak=0;for(float f:l)peak=std::max(peak,std::abs(f));assert(peak>0.001);
  for(int i=0;i<300;i++){lg_pad(k,2,100);}assert(lg_overflows(k)>0);
  lg_play(k,0);lg_render(k,l.data(),r.data(),512);assert(!lg_submit(k,n,3,0,0,1,1,9));lg_destroy(k);
+ // Stop with a pending musical revision must not chase a sounding chord.
+ k=lg_create(48000);assert(lg_submit(k,n,3,120,0,15360,1,1));lg_play(k,1);
+ for(int i=0;i<40;i++){lg_render(k,l.data(),r.data(),512);}
+ assert(lg_submit(k,n,3,120,0,15360,1,2));lg_play(k,0);lg_render(k,l.data(),r.data(),512);
+ for(float f:l)assert(f==0);
+ lg_seek(k,1000);lg_render(k,l.data(),r.data(),512);for(float f:l)assert(f==0);
+ lg_play(k,1);lg_render(k,l.data(),r.data(),512);peak=0;for(float f:l)peak=std::max(peak,std::abs(f));assert(peak>0.001);lg_destroy(k);
  // Long clock: tick stays derived from a stable sample anchor after 10 minutes.
  k=lg_create(44100); assert(lg_submit(k,n,3,123,0,15360,1,1));lg_play(k,1);
  int frames=44100*60*10;for(int f=0;f<frames;f+=512)lg_render(k,l.data(),r.data(),std::min(512,frames-f));
