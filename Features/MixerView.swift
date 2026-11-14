@@ -3,16 +3,18 @@ import MusicDomain
 struct MixerView: View {
     @Bindable var session: Session
     var body: some View {
+        ScrollView(.vertical,showsIndicators:false) {
         VStack(alignment:.leading,spacing:16){
             HStack{VStack(alignment:.leading,spacing:6){SmallHeading(text:"MIXING DESK");Text("Find your balance.").font(.system(size:22,weight:.medium))};Spacer();CapsuleLabel(text:"STEREO",color:.mint)}.padding(.top,20)
             GeometryReader{geo in
                 HStack(alignment:.top,spacing:8){ForEach(Array(session.project.tracks.enumerated()),id:\.element.id){i,t in channel(index:i,track:t,height:geo.size.height)}
                     channel(index:3,track:nil,height:geo.size.height)
                 }
-            }.frame(minHeight:300,maxHeight:430)
+            }.frame(height:430)
             HStack(alignment:.top,spacing:10){Image(systemName:"headphones").foregroundStyle(Color.mint);Text("A little space goes a long way.\nKeep the master below the red.").font(.system(size:12)).foregroundStyle(Color.muted).lineSpacing(4)}.padding(.top,4)
             Spacer(minLength:0)
         }.padding(.horizontal,18).padding(.bottom,18)
+        }
     }
     func channel(index: Int,track: Track?,height: CGFloat)->some View {
         let color: Color = track.map{Color.track($0.role)} ?? .mint
