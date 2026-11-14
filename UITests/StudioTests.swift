@@ -30,7 +30,7 @@ final class StudioTests: XCTestCase {
         app.buttons["Copy note"].tap();app.buttons["Paste note"].tap();XCTAssertTrue(app.staticTexts["notes.count"].label=="2")
         app.buttons["notes.undo"].tap();XCTAssertTrue(app.staticTexts["notes.count"].label=="1")
         app.buttons["Show note list"].tap();XCTAssertTrue(app.tables.firstMatch.exists || app.collectionViews.firstMatch.exists)
-        app.buttons["notes.play"].tap();XCTAssertTrue(app.staticTexts["notes.status"].waitForExistence(timeout:5))
+        app.buttons["notes.play"].tap();XCTAssertEqual(app.staticTexts["notes.status"].label,"PLAYING")
         app.buttons["Done"].tap();XCTAssertTrue(app.staticTexts["PLAYING"].exists)
         app.buttons["Stop"].tap()
     }
