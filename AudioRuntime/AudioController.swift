@@ -26,6 +26,9 @@ final class KernelHandle: @unchecked Sendable {
         try session.setCategory(.playback, mode: .default, options: [])
         try session.setPreferredSampleRate(48000); try session.setPreferredIOBufferDuration(0.0053)
         try session.setActive(true); sampleRate = session.sampleRate
+        guard sampleRate.isFinite, (8000...192000).contains(sampleRate) else {
+            throw NSError(domain:"LaGrilla.Audio",code:1,userInfo:[NSLocalizedDescriptionKey:"No audio output is available. Connect an audio device and retry."])
+        }
         let h = KernelHandle(rate: sampleRate); let e = AVAudioEngine()
         let format = AVAudioFormat(standardFormatWithSampleRate: sampleRate, channels: 2)!
         let node = AVAudioSourceNode(format: format) { _, _, count, buffers in

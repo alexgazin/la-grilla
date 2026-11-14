@@ -47,6 +47,9 @@ import Observation
         do { try history.apply(&project, coalescing: mixerGesture, change); mixerGesture = true; sync(); scheduleSave() }
         catch { message = error.localizedDescription }
     }
+    func mixerImmediate(_ change: (inout Project) throws -> Void) {
+        mixerGesture=false; mixerEdit(change); mixerGesture=false
+    }
     func undo() {guard !recording && !armed else {return}; history.undo(&project); sync();scheduleSave()}
     func redo() {guard !recording && !armed else {return}; history.redo(&project); sync();scheduleSave()}
     func scheduleSave() {saveTask?.cancel();saveTask = Task {try? await Task.sleep(for:.milliseconds(700));guard !Task.isCancelled else{return};await save()} }
