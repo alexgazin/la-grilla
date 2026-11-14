@@ -43,6 +43,8 @@ private enum AudioRender {
             throw NSError(domain:"LaGrilla.Audio",code:1,userInfo:[NSLocalizedDescriptionKey:"No audio output is available. Connect an audio device and retry."])
         }
         let h = KernelHandle(rate: sampleRate); let e = AVAudioEngine()
+        // Preserve musical position when rebuilding after an interruption or route change.
+        lg_seek(h.pointer,Int32(max(0,tick).rounded(.down)))
         let format = AVAudioFormat(standardFormatWithSampleRate: sampleRate, channels: 2)!
         let node = AudioRender.makeSource(format:format, kernel:h)
         e.attach(node); e.connect(node, to: e.mainMixerNode, format: format); e.prepare(); try e.start()
