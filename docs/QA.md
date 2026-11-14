@@ -46,4 +46,17 @@ This is an internal development build. No physical iPhone, Apple Developer signi
 - Full accessibility/Dynamic Type, narrow/landscape ergonomic acceptance and complete localization of dynamic status text.
 - Signed device distribution, TestFlight, App Store privacy/metadata/submission.
 
-WAV/stems, AI/voice, Perform, external MIDI and AUv3 remain the explicitly gated follow-up features; they are not represented by inactive controls in this build.
+AI/voice, Perform, external MIDI and AUv3 remain the explicitly gated follow-up features; they are not represented by inactive controls in this build.
+
+## R1 — WAV, stems and portable projects
+
+Verified app/config source: `b373fca91306b8672904629d821187ad3d60e59c`. [Successful workflow](https://github.com/alexgazin/la-grilla/actions/runs/43653433531).
+
+- 21 Swift tests passed, including exact WAV frame count/header/audio/determinism, one-shot release tail, cancellation cleanup, aligned muted stems and safe ZIP/project round-trip.
+- Independent Python `wave` and `zipfile` readers validated generated files.
+- C++ timing/concurrency/stop/seek regressions passed.
+- Both native SDK builds passed: ARM64 simulator and unsigned physical-iPhone target.
+- Six native UI flows passed: prior navigation/create/chord/drum/MIDI flows plus WAV export during live playback and portable-project system sharing.
+- Seven native screens captured from live processes, including format/rate/depth/tail/stem settings, in [Screenshots/R1](../Screenshots/R1). Images first captured from `02a2c14`; the subsequent verified commit only fixes the CI test architecture.
+
+Import safety/copy semantics are domain-tested; file-provider interaction, real DAW interoperability, physical audio, signing and App Store distribution remain release checks.
