@@ -28,9 +28,9 @@ final class StudioTests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Piano roll"].waitForExistence(timeout:5))
         app.buttons["notes.add"].tap();XCTAssertTrue(app.staticTexts["notes.count"].label=="1")
         app.buttons["Copy note"].tap();app.buttons["Paste note"].tap();XCTAssertTrue(app.staticTexts["notes.count"].label=="2")
-        app.buttons["Undo"].tap();XCTAssertTrue(app.staticTexts["notes.count"].label=="1")
+        app.buttons["notes.undo"].tap();XCTAssertTrue(app.staticTexts["notes.count"].label=="1")
         app.buttons["Show note list"].tap();XCTAssertTrue(app.tables.firstMatch.exists || app.collectionViews.firstMatch.exists)
-        app.buttons["Play"].tap();XCTAssertTrue(app.staticTexts["PLAYING"].waitForExistence(timeout:5))
+        app.buttons["notes.play"].tap();XCTAssertTrue(app.staticTexts["notes.status"].waitForExistence(timeout:5))
         app.buttons["Done"].tap();XCTAssertTrue(app.staticTexts["PLAYING"].exists)
         app.buttons["Stop"].tap()
     }
