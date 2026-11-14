@@ -95,6 +95,18 @@ struct MusicDomainTests {
         let flat=Array(try MIDIExporter.data(p))
         #expect((0...flat.count-5).contains{Array(flat[$0..<$0+5])==[255,89,2,251,1]})
     }
+    @Test func staleSavesAndNewerSchemaNeverOverwriteNewerData() async throws {
+        let root=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer{try? FileManager.default.removeItem(at:root)}
+        let store=ProjectStore(root:root);var p=Project.demo();let old=p
+        p.revision=2;p.name="Newest";try await store.save(p)
+        #expect(try await store.save(old)==2)
+        #expect(try await store.load(p.id).name=="Newest")
+        let manifest=root.appendingPathComponent(p.id.uuidString+".grilla/manifest.json")
+        p.schemaVersion=2;let future=try JSONEncoder().encode(p);try future.write(to:manifest)
+        do {try await store.save(old);Issue.record("A newer schema was overwritten")} catch {}
+        #expect(try Data(contentsOf:manifest)==future)
+    }
     @Test func persistenceRecoveryAndNewerSchema() async throws {
         let root=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer{try? FileManager.default.removeItem(at:root)}

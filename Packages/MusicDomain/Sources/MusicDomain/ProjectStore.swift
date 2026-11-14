@@ -4,16 +4,23 @@ public actor ProjectStore {
     public let root: URL
     public init(root: URL) { self.root = root }
     private func package(_ id: UUID) -> URL { root.appendingPathComponent(id.uuidString).appendingPathExtension("grilla") }
-    public func save(_ project: Project) throws {
+    @discardableResult public func save(_ project: Project) throws -> Int {
         try project.validate()
         let folder = package(project.id); try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let encoder = JSONEncoder(); encoder.outputFormatting = [.sortedKeys]; let data = try encoder.encode(project)
         _ = try JSONDecoder().decode(Project.self, from: data)
         let manifest = folder.appendingPathComponent("manifest.json")
-        if let old = try? Data(contentsOf: manifest), let valid = try? JSONDecoder().decode(Project.self, from: old), (try? valid.validate()) != nil {
-            try old.write(to: folder.appendingPathComponent("backup.json"), options: .atomic)
+        if let old = try? Data(contentsOf: manifest) {
+            if let header = try? JSONSerialization.jsonObject(with:old) as? [String:Any], let version=header["schemaVersion"] as? Int, version>1 {
+                throw MusicError.unsupportedSchema
+            }
+            if let valid = try? JSONDecoder().decode(Project.self, from:old), (try? valid.validate()) != nil {
+                if valid.revision > project.revision {return valid.revision}
+                try old.write(to:folder.appendingPathComponent("backup.json"),options:.atomic)
+            }
         }
         try data.write(to: manifest, options: .atomic)
+        return project.revision
     }
     public func load(_ id: UUID, backup: Bool = false) throws -> Project {
         let file = package(id).appendingPathComponent(backup ? "backup.json" : "manifest.json")

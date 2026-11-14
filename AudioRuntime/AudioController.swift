@@ -7,6 +7,19 @@ final class KernelHandle: @unchecked Sendable {
     init(rate: Double) { pointer = lg_create(rate)! }
     deinit { lg_destroy(pointer) }
 }
+/// The render block must be constructed outside MainActor. AVFAudio's legacy block
+/// type does not express Sendable; creating it in prepare() inherits MainActor
+/// and Swift 6 traps when the engine calls it on the real-time audio thread.
+private enum AudioRender {
+    nonisolated static func makeSource(format: AVAudioFormat, kernel: KernelHandle) -> AVAudioSourceNode {
+        AVAudioSourceNode(format:format) { @Sendable [kernel] _, _, count, buffers in
+            let output=UnsafeMutableAudioBufferListPointer(buffers)
+            guard output.count==2,let left=output[0].mData,let right=output[1].mData else {return noErr}
+            lg_render(kernel.pointer,left.assumingMemoryBound(to:Float.self),right.assumingMemoryBound(to:Float.self),Int32(count))
+            return noErr
+        }
+    }
+}
 @MainActor @Observable final class AudioController {
     private var engine: AVAudioEngine?
     private var source: AVAudioSourceNode?
@@ -31,12 +44,7 @@ final class KernelHandle: @unchecked Sendable {
         }
         let h = KernelHandle(rate: sampleRate); let e = AVAudioEngine()
         let format = AVAudioFormat(standardFormatWithSampleRate: sampleRate, channels: 2)!
-        let node = AVAudioSourceNode(format: format) { _, _, count, buffers in
-            let output = UnsafeMutableAudioBufferListPointer(buffers)
-            guard output.count == 2, let a = output[0].mData, let b = output[1].mData else { return noErr }
-            lg_render(h.pointer, a.assumingMemoryBound(to: Float.self), b.assumingMemoryBound(to: Float.self), Int32(count))
-            return noErr
-        }
+        let node = AudioRender.makeSource(format:format, kernel:h)
         e.attach(node); e.connect(node, to: e.mainMixerNode, format: format); e.prepare(); try e.start()
         handle = h; source = node; engine = e
         timer?.invalidate(); timer = Timer.scheduledTimer(withTimeInterval: 1/30, repeats: true) { [weak self] _ in

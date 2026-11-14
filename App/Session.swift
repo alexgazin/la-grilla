@@ -39,6 +39,7 @@ import Observation
     func ensureAudio() -> Bool { if audio.isPrepared {return true}; do {try audio.prepare(); sync(); return true} catch {audio.error = error.localizedDescription; return false} }
     func sync() { audio.submit(project,loop:loop,range:loopRange); audio.metronome(metronome) }
     func edit(_ change: (inout Project) throws -> Void) {
+        mixerGesture=false
         guard !recording && !armed else {message = "Finish the drum take before editing the project.";return}
         do {try history.apply(&project,change); sync(); scheduleSave()} catch {message = error.localizedDescription}
     }
@@ -50,15 +51,15 @@ import Observation
     func mixerImmediate(_ change: (inout Project) throws -> Void) {
         mixerGesture=false; mixerEdit(change); mixerGesture=false
     }
-    func undo() {guard !recording && !armed else {return}; history.undo(&project); sync();scheduleSave()}
-    func redo() {guard !recording && !armed else {return}; history.redo(&project); sync();scheduleSave()}
+    func undo() {guard !recording && !armed else {return}; mixerGesture=false;history.undo(&project); sync();scheduleSave()}
+    func redo() {guard !recording && !armed else {return}; mixerGesture=false;history.redo(&project); sync();scheduleSave()}
     func scheduleSave() {saveTask?.cancel();saveTask = Task {try? await Task.sleep(for:.milliseconds(700));guard !Task.isCancelled else{return};await save()} }
     func save() async {
         saveGeneration += 1; let generation=saveGeneration
         saving=true; let snapshot=project
         do {
-            try await store.save(snapshot)
-            if project.id==snapshot.id {savedRevision=max(savedRevision,snapshot.revision);saveError=nil}
+            let writtenRevision=try await store.save(snapshot)
+            if project.id==snapshot.id {savedRevision=max(savedRevision,writtenRevision);saveError=nil}
             entries=try await store.list()
         } catch {if project.id==snapshot.id {saveError=error.localizedDescription}}
         if generation==saveGeneration {saving=false}
@@ -138,7 +139,7 @@ import Observation
     }
     func duplicateProject(_ p: Project) async {var copy=p.id==project.id ? project:p;copy.id=UUID();copy.name += " copy";copy.modified=Date();do{try await store.save(copy);entries=try await store.list()}catch{message=error.localizedDescription}}
     func delete(_ id: UUID) async {do{try await store.delete(id);entries=try await store.list()}catch{message=error.localizedDescription}}
-    func recover(_ id: UUID) async {do{let p=try await store.load(id,backup:true);await open(p,force:true);await save();message="Recovered the last working copy."}catch{message=error.localizedDescription}}
+    func recover(_ id: UUID) async {do{var p=try await store.load(id,backup:true);p.id=UUID();p.name=String(p.name.prefix(110))+" recovered";p.revision=0;await open(p,force:true);await save();message="Recovered the last working copy."}catch{message=error.localizedDescription}}
     func export(sectionOnly: Bool) async {
         let snapshot=project;let range=sectionOnly ? section.start..<section.start+section.length : 0..<snapshot.length
         do {let data=try MIDIExporter.data(snapshot,range:range);let name=snapshot.name.replacingOccurrences(of:"/",with:"-");let url=FileManager.default.temporaryDirectory.appendingPathComponent(name).appendingPathExtension("mid");try data.write(to:url,options:.atomic);exportedURL=url;sheet=nil}catch{message=error.localizedDescription}
