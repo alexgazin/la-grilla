@@ -27,7 +27,7 @@ mkdir -p "$SCREENSHOT_DIR"
 for SCREEN in grid jam mixer projects export export-wav export-stems notes notes-mixer harmony harmony-proposal; do
   run_limited 15 xcrun simctl terminate "$DEVICE" com.alexgazin.LaGrilla || true
   echo "Launching $SCREEN"
-  APP_LAUNCH=$(run_limited 60 xcrun simctl launch "$DEVICE" com.alexgazin.LaGrilla --uitesting --screen "$SCREEN")
+  APP_LAUNCH=$(run_limited 180 xcrun simctl launch "$DEVICE" com.alexgazin.LaGrilla --uitesting --screen "$SCREEN")
   echo "$APP_LAUNCH"
   APP_PID=$(echo "$APP_LAUNCH" | python3 -c 'import sys,re; print(re.search(r": ([0-9]+)",sys.stdin.read()).group(1))')
   sleep 8
