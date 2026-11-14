@@ -2,7 +2,7 @@
 
 App source commit: `79e15c6650b4beeea8e39e3d099aa09e26176c41`.
 
-[Successful macOS/iOS workflow](https://github.com/alexgazin/la-grilla/actions/runs/43619270902) — all steps completed successfully. Later documentation/screenshot-only commits do not change this tested app source.
+[Successful macOS/iOS workflow](https://github.com/alexgazin/la-grilla/actions/runs/43619270902) — all steps completed successfully. Later documentation, screenshot and verification-configuration commits do not change this tested app source.
 
 | Check | Actual result |
 | --- | --- |
@@ -12,6 +12,7 @@ App source commit: `79e15c6650b4beeea8e39e3d099aa09e26176c41`.
 | Long sample-clock regression | **Passed**: 600 seconds rendered offline at 44.1 kHz / 123 BPM match the reference musical position within 0.1 tick; this is not a physical-device latency/drift measurement |
 | Linux C++ sanitizer check | **AddressSanitizer and UndefinedBehaviorSanitizer passed**; leak detection disabled because this executor runs under ptrace |
 | Native app compilation | **BUILD SUCCEEDED**, Xcode 16.4 / iOS Simulator SDK 18.5 / Swift 6 language mode / ARM64 |
+| Physical iPhone SDK compilation | **BUILD SUCCEEDED**, unsigned `iphoneos` build; [separate verification run](https://github.com/alexgazin/la-grilla/actions/runs/43620956440). App source unchanged from the tested commit. This confirms compilation, not execution on hardware. |
 | Native iPhone UI flows | **4 tests passed**, 0 failures, iPhone 16 simulator running iOS 18.5 |
 | Simulator screenshots | Grid, Jam, Mixer and Projects captured from a live app process and visually inspected |
 

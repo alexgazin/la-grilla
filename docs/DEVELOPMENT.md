@@ -24,6 +24,10 @@ xcodebuild -project LaGrilla.xcodeproj -scheme LaGrilla \
   -destination 'generic/platform=iOS Simulator' \
   -derivedDataPath DerivedData CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO build
 bash scripts/screenshots.sh
+# Compile the same source for a physical iPhone SDK without a signing identity:
+xcodebuild -project LaGrilla.xcodeproj -scheme LaGrilla -sdk iphoneos \
+  -destination 'generic/platform=iOS' -derivedDataPath DeviceDerivedData \
+  CODE_SIGNING_ALLOWED=NO build
 ```
 
 GitHub Actions performs domain tests, audio kernel tests, an iOS build, simulator capture and native UI tests. Its `ios-verification` artifact contains the simulator app, generated Xcode project, screenshots, logs and XCTest results. The earlier `simulator-build` and `simulator-screenshots` artifacts are also saved independently of UI-test completion. The simulator app is not an IPA for a physical phone.
