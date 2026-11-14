@@ -18,6 +18,8 @@ open -a Simulator --args -CurrentDeviceUDID "$DEVICE" || true
 run_limited 60 xcrun simctl boot "$DEVICE" || true
 run_limited 300 xcrun simctl bootstatus "$DEVICE" -b
 # Keep the simulator's status bar; appearance overrides can block on hosted runners.
+echo "Ad-hoc signing simulator application"
+codesign --force --deep --sign - DerivedData/Build/Products/Debug-iphonesimulator/LaGrilla.app
 echo "Installing simulator application"
 run_limited 90 xcrun simctl install "$DEVICE" DerivedData/Build/Products/Debug-iphonesimulator/LaGrilla.app
 mkdir -p Screenshots
@@ -26,5 +28,6 @@ for SCREEN in grid jam mixer projects; do
   echo "Launching $SCREEN"
   run_limited 60 xcrun simctl launch "$DEVICE" com.alexgazin.LaGrilla --screen "$SCREEN"
   sleep 3
+  xcrun simctl spawn "$DEVICE" launchctl list | python3 -c 'import sys,re; lines=sys.stdin.read().splitlines(); active=[x for x in lines if re.match(r"^[0-9]+\s+",x) and "com.alexgazin.LaGrilla" in x]; print("Active app:",active); sys.exit(0 if active else 1)'
   run_limited 45 xcrun simctl io "$DEVICE" screenshot "Screenshots/$SCREEN.png"
 done

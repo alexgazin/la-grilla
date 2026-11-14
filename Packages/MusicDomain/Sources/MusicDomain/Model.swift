@@ -90,7 +90,7 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
         guard bpm.isFinite, (40...240).contains(bpm), (0..<12).contains(keyRoot), !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, name.count <= 120,
               (1...8).contains(sections.count), (barTicks...64*barTicks).contains(length), tracks.count >= 2, tracks.count <= 3,
               bassGate.isFinite, (0.1...1).contains(bassGate), (-1...1).contains(bassOctave), master.isFinite, (-61...6).contains(master),
-              Set(tracks.map(\.role)).count == tracks.count, tracks.contains(where: {$0.role == .harmony}), tracks.contains(where: {$0.role == .drums}),
+              Set(tracks.map(\.role)).count == tracks.count, tracks[0].role == .harmony, tracks[1].role == .drums, (tracks.count == 2 || tracks[2].role == .bass),
               patterns.count <= 16, Set(patterns.map(\.id)).count == patterns.count, Set(sections.map(\.id)).count == sections.count,
               Set(tracks.map(\.id)).count == tracks.count else { throw MusicError.invalidProject }
         let ids = [id] + tracks.map(\.id) + patterns.map(\.id) + sections.map(\.id)

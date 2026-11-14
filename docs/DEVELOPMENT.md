@@ -22,7 +22,7 @@ Choose the `LaGrilla` scheme and an iPhone simulator. For a physical iPhone, sel
 swift test --package-path Packages/MusicDomain
 xcodebuild -project LaGrilla.xcodeproj -scheme LaGrilla \
   -destination 'generic/platform=iOS Simulator' \
-  -derivedDataPath DerivedData CODE_SIGNING_ALLOWED=NO build
+  -derivedDataPath DerivedData CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO build
 bash scripts/screenshots.sh
 ```
 

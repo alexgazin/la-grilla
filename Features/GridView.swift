@@ -19,7 +19,7 @@ struct GridView: View {
                     timeline
                     Rectangle().fill(Color.mint).frame(width:1.5,height:324).offset(x:CGFloat(session.audio.tick)/CGFloat(barTicks)*barWidth,y:34).allowsHitTesting(false)
                     Image(systemName:"triangle.fill").font(.system(size:9)).rotationEffect(.degrees(180)).foregroundStyle(Color.mint).offset(x:CGFloat(session.audio.tick)/CGFloat(barTicks)*barWidth-4,y:23).allowsHitTesting(false)
-                }.frame(width:CGFloat(session.project.length/barTicks)*barWidth).gesture(MagnifyGesture().onChanged{value in barWidth=min(200,max(68,zoomBase*value.magnification))}.onEnded{_ in zoomBase=barWidth})}
+                }.frame(width:CGFloat(session.project.length/barTicks)*barWidth).gesture(MagnifyGesture().onChanged{value in barWidth=min(640,max(68,zoomBase*value.magnification))}.onEnded{_ in zoomBase=barWidth})}
             }
             HStack{Image(systemName:"hand.pinch");Text("Pinch to zoom");Spacer();Text("SNAP  1/16").fontDesign(.monospaced)}.font(.system(size:9)).foregroundStyle(Color.muted).padding(.horizontal,18).padding(.top,14)
             Spacer(minLength:14)
@@ -52,22 +52,26 @@ struct GridView: View {
                 ForEach(track.clips) { clip in
                     if let pattern=session.project.patterns.first(where:{$0.id==clip.patternID}) {
                         ForEach(0..<pattern.length/barTicks,id:\.self) { bar in
-                            chordCell(clip:clip,pattern:pattern,bar:bar)
+                            if !pattern.chords.contains(where:{$0.tick < (bar+1)*barTicks && $0.tick+$0.duration > bar*barTicks}) {
+                                chordCell(clip:clip,pattern:pattern,event:nil,tick:bar*barTicks)
+                            }
+                        }
+                        ForEach(pattern.chords) { event in
+                            chordCell(clip:clip,pattern:pattern,event:event,tick:event.tick)
                         }
                     }
                 }
             }
         }.frame(height:132)
     }
-    func chordCell(clip:Clip,pattern:Pattern,bar:Int)->some View {
-        let event=pattern.chords.first(where:{$0.tick<=bar*barTicks && $0.tick+$0.duration>bar*barTicks})
+    func chordCell(clip:Clip,pattern:Pattern,event:ChordEvent?,tick:Int)->some View {
         return Button {
             selection=ChordSelection(id:event?.id ?? UUID(),patternID:pattern.id,
-                tick:event?.tick ?? bar*barTicks,
+                tick:tick,
                 chord:event?.chord ?? Chord(root:session.project.keyRoot,quality:session.project.minor ? .minor:.major),
                 duration:event?.duration ?? barTicks)
-        } label: { ChordTile(chord:event?.chord,width:barWidth-6) }
-        .buttonStyle(.plain).offset(x:CGFloat(clip.start/barTicks+bar)*barWidth+3,y:8)
+        } label: { ChordTile(chord:event?.chord,width:max(44,CGFloat(event?.duration ?? barTicks)/CGFloat(barTicks)*barWidth-6)) }
+        .buttonStyle(.plain).offset(x:CGFloat(clip.start+tick)/CGFloat(barTicks)*barWidth+3,y:8)
         .simultaneousGesture(LongPressGesture(minimumDuration:0.35).sequenced(before:DragGesture()).onEnded { value in
             if case .second(true,let drag?)=value,let event {
                 let delta=Int((drag.translation.width/barWidth*16).rounded())*240
@@ -124,7 +128,7 @@ struct ChordTile: View {
     let width: CGFloat
     var body: some View {
         VStack(alignment:.leading,spacing:13) {
-            HStack { Text(chord?.symbol ?? "+").font(.system(size:26,weight:.medium)); Spacer() }
+            HStack { Text(chord?.symbol ?? "+").font(.system(size:26,weight:.medium)).lineLimit(1).minimumScaleFactor(0.5); Spacer() }
             if let chord {
                 HStack(spacing:3) {
                     ForEach(Array(chord.notes.enumerated()),id:\.offset) { _,note in
@@ -132,7 +136,7 @@ struct ChordTile: View {
                             .frame(width:width/6,height:3).offset(y:CGFloat(72-note)/4)
                     }
                 }
-                Text(chord.quality.label).font(.system(size:9)).foregroundStyle(Color.harmony.opacity(0.65))
+                Text(chord.quality.label).font(.system(size:9)).lineLimit(1).minimumScaleFactor(0.5).foregroundStyle(Color.harmony.opacity(0.65))
             }
         }.foregroundStyle(Color.harmony).padding(12).frame(width:width,height:116,alignment:.topLeading)
             .background(Color.harmony.opacity(chord == nil ? 0.04:0.12),in:RoundedRectangle(cornerRadius:7))
