@@ -1,0 +1,67 @@
+name: iOS build and verification
+on: [push, workflow_dispatch]
+jobs:
+  ios:
+    if: "!contains(github.event.head_commit.message, '[device-only]')"
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Domain behavioral tests
+        run: swift test --package-path Packages/MusicDomain
+      - name: Audio kernel tests
+        run: clang++ -std=c++17 -O2 -Wall -Wextra -Werror Tests/kernel_test.cpp AudioRuntime/GrillaKernel.cpp -o /tmp/kernel-test && /tmp/kernel-test
+      - name: Build iOS app
+        run: set -o pipefail; xcodebuild -project LaGrilla.xcodeproj -scheme LaGrilla -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' ARCHS=arm64 ONLY_ACTIVE_ARCH=YES -configuration Debug -derivedDataPath DerivedData CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO build | tee build.log
+      - name: Save simulator build
+        uses: actions/upload-artifact@v4
+        with:
+          name: simulator-build
+          path: |
+            LaGrilla.xcodeproj
+            DerivedData/Build/Products/Debug-iphonesimulator/LaGrilla.app
+      - name: Capture simulator screens
+        run: bash scripts/screenshots.sh
+      - name: Save simulator screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: simulator-screenshots
+          path: Screenshots/*.png
+      - name: Native user flows
+        run: |
+          set -o pipefail
+          DEVICE=$(cat /tmp/grilla-simulator-id)
+          xcodebuild -project LaGrilla.xcodeproj -scheme LaGrilla -destination "platform=iOS Simulator,id=$DEVICE" -derivedDataPath DerivedData -resultBundlePath TestResults.xcresult CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO test | tee uitests.log
+      - name: Collect app crash reports
+        if: always()
+        run: |
+          mkdir -p CrashReports
+          find "$HOME/Library/Logs/DiagnosticReports" -iname '*LaGrilla*' -exec cp {} CrashReports/ \; || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ios-verification
+          path: |
+            Screenshots/*.png
+            build.log
+            uitests.log
+            TestResults.xcresult
+            CrashReports
+            LaGrilla.xcodeproj
+            DerivedData/Build/Products/Debug-iphonesimulator/LaGrilla.app
+
+  iphone:
+    runs-on: macos-15
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile for physical iPhone SDK without signing
+        run: |
+          set -o pipefail
+          xcodebuild -project LaGrilla.xcodeproj -scheme LaGrilla -sdk iphoneos -destination 'generic/platform=iOS' -configuration Debug -derivedDataPath DeviceDerivedData CODE_SIGNING_ALLOWED=NO build | tee iphone-build.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: iphone-build-log
+          path: iphone-build.log

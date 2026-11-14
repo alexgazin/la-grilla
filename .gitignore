@@ -1,0 +1,10 @@
+.DS_Store
+.build/
+DerivedData/
+DeviceDerivedData/
+*.xcuserstate
+xcuserdata/
+node_modules/
+*.ipa
+*.xcarchive
+.build-log*
