@@ -18,7 +18,7 @@ public enum Compiler {
                             guard end > start else { continue }
                             for pitch in chord.chord.notes { result.append(CompiledNote(tick: clip.start + start, duration: end - start, pitch: pitch, velocity: 88, track: index)) }
                             if let bass = project.tracks.firstIndex(where: {$0.role == .bass}) {
-                                result.append(CompiledNote(tick: clip.start + start, duration: max(1, Int(Double(end-start) * project.bassGate)), pitch: (chord.chord.root == 0 ? 36 : 24 + chord.chord.root) + project.bassOctave * 12, velocity: 94, track: bass,instrument:2))
+                                result.append(CompiledNote(tick: clip.start + start, duration: max(1, Int(Double(end-start) * project.bassGate)), pitch: ((chord.chord.slashBass ?? chord.chord.root) == 0 ? 36 : 24 + (chord.chord.slashBass ?? chord.chord.root)) + project.bassOctave * 12, velocity: 94, track: bass,instrument:2))
                             }
                         }
                     } else if track.role == .melody {

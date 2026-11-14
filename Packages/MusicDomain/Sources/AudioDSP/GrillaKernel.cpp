@@ -75,6 +75,7 @@ int lg_submit(LGKernel*k,const LGNote*notes,int count,double bpm,int start,int e
 void lg_countin(LGKernel*k,int frames){k->countRequest.store(frames);}
 int lg_countremaining(LGKernel*k){return k->countRemaining.load();}
 void lg_play(LGKernel*k,int play){k->command.store(play?1:-1,std::memory_order_release);}
+void lg_restart(LGKernel*k){k->command.store(2,std::memory_order_release);}
 void lg_seek(LGKernel*k,int tick){k->seek.store(tick);}
 static int enqueue(LGKernel*k,Input value){unsigned w=k->write.load(std::memory_order_relaxed),r=k->read.load(std::memory_order_acquire);if(w-r>=256){k->overflow.fetch_add(1);return 0;}k->input[w%256]=value;k->write.store(w+1,std::memory_order_release);return 1;}
 int lg_pad(LGKernel*k,int pad,int velocity){if(pad<0||pad>15)return 0;return enqueue(k,{pad,std::clamp(velocity,1,127),1,1,false});}
@@ -85,7 +86,7 @@ void lg_master(LGKernel*k,float db){if(std::isfinite(db))k->gains[Master].store(
 void lg_tail_on_end(LGKernel*k,int enabled){k->tailOnEnd.store(enabled);}
 void lg_metronome(LGKernel*k,int on){k->metro.store(on);}
 void lg_render(LGKernel*k,float*l,float*r,int frames){
-    int cmd=k->command.exchange(0);if(cmd<0){k->active=false;k->counting=0;k->countRequest.store(0);k->countRemaining.store(0);k->silence();k->read.store(k->write.load());}
+    int cmd=k->command.exchange(0);if(cmd<0||cmd==2){k->active=false;k->counting=0;k->countRequest.store(0);k->countRemaining.store(0);k->silence();k->read.store(k->write.load());}
     k->adopt(!k->active,k->position.load());
     int seek=k->seek.exchange(-1);if(seek>=0){k->resetCursor(seek);k->position.store(seek);}
     if(cmd>0&&k->current>=0){auto&s=k->slots[k->current];double p=k->position.load();k->active=true;k->resetCursor(p>=s.end?s.start:std::max(p,double(s.start)));}

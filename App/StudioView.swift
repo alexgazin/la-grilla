@@ -22,6 +22,7 @@ struct StudioView: View {
         case .bass: BassView(session:session)
         case .sections: SectionsView(session:session)
         case .notes: PianoRollView(session:session)
+        case .harmony: HarmonyLabView(session:session)
         }}.presentationDragIndicator(.visible).presentationBackground(Color.panel)}
         .sheet(isPresented:Binding(get:{session.shareURL != nil},set:{if !$0 {session.shareURL=nil}}),onDismiss:{session.finishSharing()}){if let url=session.shareURL{ShareView(url:url)}}
         .alert("La Grilla",isPresented:Binding(get:{session.message != nil},set:{if !$0{session.message=nil}})){Button("OK"){session.message=nil}}message:{Text(session.message ?? "")}

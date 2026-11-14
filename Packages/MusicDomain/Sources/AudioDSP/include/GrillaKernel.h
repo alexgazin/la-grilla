@@ -12,6 +12,7 @@ int lg_submit(LGKernel *k, const LGNote *notes, int count, double bpm, int start
 void lg_countin(LGKernel *k, int frames);
 int lg_countremaining(LGKernel *k);
 void lg_play(LGKernel *k, int play);
+void lg_restart(LGKernel *k);
 void lg_seek(LGKernel *k, int tick);
 int lg_pad(LGKernel *k, int pad, int velocity);
 void lg_preview(LGKernel *k, int pitch);
