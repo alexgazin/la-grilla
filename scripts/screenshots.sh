@@ -26,8 +26,10 @@ mkdir -p Screenshots
 for SCREEN in grid jam mixer projects; do
   run_limited 15 xcrun simctl terminate "$DEVICE" com.alexgazin.LaGrilla || true
   echo "Launching $SCREEN"
-  run_limited 60 xcrun simctl launch "$DEVICE" com.alexgazin.LaGrilla --screen "$SCREEN"
+  APP_LAUNCH=$(run_limited 60 xcrun simctl launch "$DEVICE" com.alexgazin.LaGrilla --screen "$SCREEN")
+  echo "$APP_LAUNCH"
+  APP_PID=$(echo "$APP_LAUNCH" | python3 -c 'import sys,re; print(re.search(r": ([0-9]+)",sys.stdin.read()).group(1))')
   sleep 3
-  xcrun simctl spawn "$DEVICE" launchctl list | python3 -c 'import sys,re; lines=sys.stdin.read().splitlines(); active=[x for x in lines if re.match(r"^[0-9]+\s+",x) and "com.alexgazin.LaGrilla" in x]; print("Active app:",active); sys.exit(0 if active else 1)'
+  kill -0 "$APP_PID"
   run_limited 45 xcrun simctl io "$DEVICE" screenshot "Screenshots/$SCREEN.png"
 done

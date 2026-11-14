@@ -10,8 +10,6 @@ jobs:
         run: swift test --package-path Packages/MusicDomain
       - name: Audio kernel tests
         run: clang++ -std=c++17 -O2 -Wall -Wextra -Werror Tests/kernel_test.cpp AudioRuntime/GrillaKernel.cpp -o /tmp/kernel-test && /tmp/kernel-test
-      - name: Generate project
-        run: brew install xcodegen && xcodegen generate
       - name: Build iOS app
         run: set -o pipefail; xcodebuild -project LaGrilla.xcodeproj -scheme LaGrilla -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -configuration Debug -derivedDataPath DerivedData CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO build | tee build.log
       - name: Save simulator build

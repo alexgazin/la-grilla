@@ -5,7 +5,7 @@ The original README remains the product specification. Implementation is in `fea
 ## Build
 
 - Deployment: iOS 18.0; Swift 6; C++17; no external audio libraries or network dependencies.
-- CI baseline: Xcode 16.4 / iOS Simulator SDK 18.5, macOS 15 ARM64.
+- CI baseline: Xcode 16.4 / iOS Simulator SDK 18.5, macOS 15 (ARM64 kernel/build checks; Intel simulator acceptance).
 - Reference hardware for the remaining physical checks: iPhone 13 or newer, built-in speaker and wired/USB audio. No physical-device measurements have been made in this cloud environment.
 
 On a Mac with Xcode selected, open the included `LaGrilla.xcodeproj`. To regenerate it after adding source files:
@@ -51,7 +51,7 @@ Pads are audible immediately. Recording starts after one bar of count-in or at t
 
 ## Persistence and recovery
 
-Each project is a local `Documents/Projects/<UUID>.grilla` package with `manifest.json` and `backup.json`. A serial actor validates snapshots and writes atomically. The previous valid manifest is copied to backup before replacement. Autosave is debounced by 700 ms; completed takes and lifecycle transitions request immediate checkpoints. The Saved indicator tracks the exact revision written, not merely the newest in-memory revision. Disk failures retain the in-memory project and show Retry / Save copy. Invalid or newer-schema files remain intact and can be recovered from their backup.
+Each project is a local `Documents/Projects/<UUID>.grilla` package with `manifest.json` and `backup.json`. A serial actor validates snapshots and writes atomically. The previous valid manifest is copied to backup before replacement. Autosave is debounced by 700 ms; completed takes and lifecycle transitions request immediate checkpoints. The Saved indicator tracks the exact revision written, not merely the newest in-memory revision. Disk failures retain the in-memory project and show Retry / Save copy. Invalid or newer-schema files remain intact and can be recovered from their backup into a separate project; the original file remains intact.
 
 ## Audio content and rights
 
