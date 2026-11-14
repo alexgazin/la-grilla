@@ -56,7 +56,7 @@ struct LGKernel {
         if(!force && current>=0 && int(tick/3840)==int(std::max(0.0,previous)/3840))return;
         int ready=2;if(!slots[chosen].state.compare_exchange_strong(ready,3,std::memory_order_acq_rel))return;
         if(current>=0)slots[current].state.store(0,std::memory_order_release);
-        current=chosen;applied.store(best);auto&s=slots[current];
+        current=chosen;applied.store(slots[chosen].revision.load(std::memory_order_relaxed));auto&s=slots[current];
         resetCursor(tick>=s.start && tick<s.end ? tick : s.start);
     }
 };
@@ -64,10 +64,10 @@ extern "C" {
 LGKernel*lg_create(double sr){return std::isfinite(sr)&&sr>=8000&&sr<=192000 ? new LGKernel(sr) : nullptr;}
 void lg_destroy(LGKernel*k){delete k;}
 int lg_submit(LGKernel*k,const LGNote*notes,int count,double bpm,int start,int end,int loop,int rev){
-    if(count<0||count>MaxNotes||!std::isfinite(bpm)||bpm<40||bpm>240||start<0||end<=start)return 0;
+    if((count>0&&!notes)||count<0||count>MaxNotes||!std::isfinite(bpm)||bpm<40||bpm>240||start<0||end<=start)return 0;
     for(int n=0;n<count;n++)if(notes[n].tick<0||notes[n].duration<=0||notes[n].pitch<0||notes[n].pitch>127||notes[n].track<0||notes[n].track>2||notes[n].pad < -1||notes[n].pad>15)return 0;
     for(auto&s:k->slots){int expected=0;if(!s.state.compare_exchange_strong(expected,1)){expected=2;if(!s.state.compare_exchange_strong(expected,1))continue;}
-        std::copy(notes,notes+count,s.notes.begin());s.count=count;s.bpm=bpm;s.start=start;s.end=end;s.loop=loop;
+        if(count>0){std::copy(notes,notes+count,s.notes.begin());}s.count=count;s.bpm=bpm;s.start=start;s.end=end;s.loop=loop;
         std::sort(s.notes.begin(),s.notes.begin()+count,[](auto&a,auto&b){return a.tick<b.tick;});
         s.revision.store(rev);s.state.store(2,std::memory_order_release);return 1;
     }return 0;

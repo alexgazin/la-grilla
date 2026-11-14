@@ -87,6 +87,14 @@ struct MusicDomainTests {
         #expect(noteOns.count==Compiler.notes(p).count)
         #expect(noteOns.contains{$0.0==1&&$0.1==3840&&$0.2==57})
     }
+    @Test func midiKeySignatureMatchesDisplayedSpelling() throws {
+        var p=Project.demo();p.keyRoot=1
+        let sharp=Array(try MIDIExporter.data(p))
+        #expect((0...sharp.count-5).contains{Array(sharp[$0..<$0+5])==[255,89,2,7,0]})
+        p.keyRoot=10;p.minor=true
+        let flat=Array(try MIDIExporter.data(p))
+        #expect((0...flat.count-5).contains{Array(flat[$0..<$0+5])==[255,89,2,251,1]})
+    }
     @Test func persistenceRecoveryAndNewerSchema() async throws {
         let root=FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer{try? FileManager.default.removeItem(at:root)}

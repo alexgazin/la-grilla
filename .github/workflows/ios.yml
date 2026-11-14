@@ -14,8 +14,21 @@ jobs:
         run: brew install xcodegen && xcodegen generate
       - name: Build iOS app
         run: set -o pipefail; xcodebuild -project LaGrilla.xcodeproj -scheme LaGrilla -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -configuration Debug -derivedDataPath DerivedData CODE_SIGNING_ALLOWED=NO build | tee build.log
+      - name: Save simulator build
+        uses: actions/upload-artifact@v4
+        with:
+          name: simulator-build
+          path: |
+            LaGrilla.xcodeproj
+            DerivedData/Build/Products/Debug-iphonesimulator/LaGrilla.app
       - name: Capture simulator screens
         run: bash scripts/screenshots.sh
+      - name: Save simulator screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: simulator-screenshots
+          path: Screenshots/*.png
       - name: Native user flows
         run: |
           set -o pipefail

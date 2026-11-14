@@ -43,9 +43,10 @@ public enum MIDIExporter {
         let notes = Compiler.notes(project, range: range); let tempo = Int((60_000_000 / project.bpm).rounded())
         func meta(_ type: UInt8, _ bytes: [UInt8]) -> [UInt8] { [0xff,type] + vlq(bytes.count) + bytes }
         // Circle-of-fifths signature counts: C, Db, D, Eb, E, F, F#, G, Ab, A, Bb, B.
-        let majorFifths = [0,-5,2,-3,4,-1,6,1,-4,3,-2,5]
-        let relativeMajor = project.minor ? (project.keyRoot + 3) % 12 : project.keyRoot
-        var conductor = [Event(tick: 0, priority: 0, bytes: meta(3, Array(project.name.utf8))), Event(tick: 0, priority: 1, bytes: meta(0x51, [UInt8((tempo>>16)&255),UInt8((tempo>>8)&255),UInt8(tempo&255)])), Event(tick: 0, priority: 2, bytes: meta(0x58,[4,2,24,8])), Event(tick: 0, priority: 3, bytes: meta(0x59,[UInt8(bitPattern: Int8(majorFifths[relativeMajor])),project.minor ? 1 : 0]))]
+        let majorFifths = [0,7,2,-3,4,-1,6,1,-4,3,-2,5]
+        let minorFifths = [-3,4,-1,-6,1,-4,3,-2,-7,0,-5,2]
+        let fifths = project.minor ? minorFifths[project.keyRoot] : majorFifths[project.keyRoot]
+        var conductor = [Event(tick: 0, priority: 0, bytes: meta(3, Array(project.name.utf8))), Event(tick: 0, priority: 1, bytes: meta(0x51, [UInt8((tempo>>16)&255),UInt8((tempo>>8)&255),UInt8(tempo&255)])), Event(tick: 0, priority: 2, bytes: meta(0x58,[4,2,24,8])), Event(tick: 0, priority: 3, bytes: meta(0x59,[UInt8(bitPattern: Int8(fifths)),project.minor ? 1 : 0]))]
         for section in project.sections where section.start < range.upperBound && section.start + section.length > range.lowerBound {
             conductor.append(Event(tick: max(0,section.start-range.lowerBound), priority: 4, bytes: meta(6,Array(section.name.utf8))))
         }

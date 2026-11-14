@@ -25,6 +25,7 @@ int main(){
  k=lg_create(48000); assert(lg_submit(k,n,3,120,0,15360,1,1));lg_play(k,1);
  std::thread producer([&]{for(int revision=2;revision<2000;revision++){while(!lg_submit(k,n,3,120,0,15360,1,revision)){};}});
  for(int i=0;i<4000;i++){lg_render(k,l.data(),r.data(),512);for(float f:l)assert(std::isfinite(f));}
- producer.join();lg_destroy(k);
+ producer.join();for(int i=0;i<200;i++){lg_render(k,l.data(),r.data(),512);}assert(lg_revision(k)==1999);lg_destroy(k);
+ k=lg_create(48000);assert(lg_submit(k,nullptr,0,120,0,15360,1,1));lg_countin(k,96000);lg_play(k,1);lg_play(k,0);lg_render(k,l.data(),r.data(),512);assert(lg_countremaining(k)==0);for(float f:l)assert(f==0);lg_destroy(k);
  std::cout<<"Kernel: render, loop boundary, pending revision, stop, pad, overflow, 10 minute clock, concurrent snapshot ownership passed\n";
 }

@@ -93,6 +93,10 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
               Set(tracks.map(\.role)).count == tracks.count, tracks.contains(where: {$0.role == .harmony}), tracks.contains(where: {$0.role == .drums}),
               patterns.count <= 16, Set(patterns.map(\.id)).count == patterns.count, Set(sections.map(\.id)).count == sections.count,
               Set(tracks.map(\.id)).count == tracks.count else { throw MusicError.invalidProject }
+        let ids = [id] + tracks.map(\.id) + patterns.map(\.id) + sections.map(\.id)
+            + tracks.flatMap { $0.clips.map(\.id) }
+            + patterns.flatMap { $0.chords.map(\.id) + $0.drums.map(\.id) }
+        guard Set(ids).count == ids.count else { throw MusicError.invalidProject }
         var end = 0
         for s in sections { guard s.start == end, s.length > 0, s.length <= 64*barTicks, s.length % barTicks == 0, !s.name.isEmpty, s.name.count <= 120 else { throw MusicError.invalidProject }; end += s.length }
         for p in patterns {
