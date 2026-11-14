@@ -2,6 +2,7 @@
 set -euo pipefail
 test -f DerivedData/Build/Products/Debug-iphonesimulator/LaGrilla.app/Info.plist
 DEVICE=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin); print(next(x["udid"] for group in d["devices"].values() for x in group if "iPhone 16" == x["name"]))')
+echo "$DEVICE" > /tmp/grilla-simulator-id
 xcrun simctl boot "$DEVICE" || true
 xcrun simctl bootstatus "$DEVICE" -b
 xcrun simctl status_bar "$DEVICE" override --time '9:41' --dataNetwork wifi --wifiMode active --wifiBars 3 --batteryState charged --batteryLevel 100

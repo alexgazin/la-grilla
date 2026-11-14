@@ -24,7 +24,7 @@ struct GridView: View {
             HStack{Image(systemName:"hand.pinch");Text("Pinch to zoom");Spacer();Text("SNAP  1/16").fontDesign(.monospaced)}.font(.system(size:9)).foregroundStyle(Color.muted).padding(.horizontal,18).padding(.top,14)
             Spacer(minLength:14)
             HStack(alignment:.top,spacing:12){Image(systemName:"pianokeys").foregroundStyle(Color.harmony).font(.system(size:23));VStack(alignment:.leading,spacing:5){Text("Make room for an idea.").font(.system(size:15,weight:.medium));Text("Tap a chord to shape your harmony.\nThen find its rhythm in Jam.").font(.system(size:12)).foregroundStyle(Color.muted).lineSpacing(3)};Spacer()}.padding(18).background(Color.panel,in:RoundedRectangle(cornerRadius:12)).padding(.horizontal,18).padding(.bottom,18)
-        }.sheet(item:$selection){s in ChordEditor(session:session,selection:s).presentationDetents([.medium,.large]).presentationDragIndicator(.visible).presentationBackground(Color.panel)}
+        }.sheet(item:$selection){s in ChordEditor(session:session,selection:s).presentationDetents([.large]).presentationDragIndicator(.visible).presentationBackground(Color.panel)}
     }
     func trackLabel(_ role: TrackRole,height: CGFloat)->some View {
         Button{if role == .bass {session.sheet = .bass}else if role == .drums{session.tab=1}}

@@ -153,13 +153,14 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
 public enum MusicError: Error, LocalizedError {
     case invalidChord, invalidProject, unsupportedSchema, limit, tooDense
     public var errorDescription: String? {
-        switch self {
+        let key = switch self {
         case .invalidChord: "Unrecognized chord. Choose a chord from the list."
         case .unsupportedSchema: "This project was made with a newer version. The original has been preserved."
         case .limit: "A song can contain up to 8 sections and 64 bars."
         case .tooDense: "This project has too many events."
         case .invalidProject: "The project contains invalid musical data."
         }
+        return NSLocalizedString(key, comment: "Project validation")
     }
 }
 public enum Quantize: Int, CaseIterable, Sendable { case off = 0, eighth = 480, sixteenth = 240

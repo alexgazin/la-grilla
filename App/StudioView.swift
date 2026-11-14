@@ -6,11 +6,12 @@ struct StudioView: View {
         VStack(spacing:0){
             header
             if let error=session.audio.error {HStack{Image(systemName:"speaker.slash");Text(error).font(.caption);Button("Retry"){_ = session.ensureAudio()}}.padding(12).background(Color.record.opacity(0.15))}
+            if let error=session.saveError {HStack{Text(error).font(.caption);Button("Retry"){Task{await session.save()}};Button("Save copy"){Task{await session.saveCopy()}}}.padding(12).background(Color.record.opacity(0.15))}
             Group {switch session.tab {case 1: JamView(session:session);case 2: MixerView(session:session);default: GridView(session:session)}}.frame(maxWidth:.infinity,maxHeight:.infinity)
             transport
             HStack(spacing:0){tab("square.grid.3x3","Grid",0);tab("square.grid.2x2.fill","Jam",1);tab("slider.vertical.3","Mixer",2)}.padding(.top,5).background(Color.panel)
         }.background(Color.ink).foregroundStyle(.white)
-        .sheet(item:$session.sheet){sheet in Group{switch sheet {
+        .sheet(item:$session.sheet,onDismiss:{if let url=session.exportedURL{session.shareURL=url;session.exportedURL=nil}}){sheet in Group{switch sheet {
         case .projects: ProjectsView(session:session)
         case .newProject: NewProjectView(session:session)
         case .export: ExportView(session:session)

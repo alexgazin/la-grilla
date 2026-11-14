@@ -21,6 +21,43 @@ struct ProjectsView: View {
 }
 struct NewProjectView: View {
     @Bindable var session: Session
-    @State private var name="";@State private var bpm=120.0;@State private var root=0;@State private var minor=false;@State private var bars=4
-    var body: some View {NavigationStack{Form{Section{TextField("Project name",text:$name);Stepper("\(Int(bpm)) BPM",value:$bpm,in:40...240);Picker("Key",selection:$root){ForEach(0..<12,id:\.self){i in Text(Chord.roots[i]).tag(i)}};Toggle("Minor",isOn:$minor);Picker("Loop length",selection:$bars){ForEach([1,2,4,8],id:\.self){n in Text("\(n) bars").tag(n)}}};Section{Text("All instruments are ready. No downloads, no account, just your next idea.").font(.caption).foregroundStyle(.secondary)}}.navigationTitle("New project").toolbar{ToolbarItem(placement:.cancellationAction){Button("Cancel"){session.sheet=nil}};ToolbarItem(placement:.confirmationAction){Button("Create"){Task{session.loopBars=bars;await session.create(name:name,bpm:bpm,root:root,minor:minor,bars:bars)}}}}.presentationDetents([.medium,.large])}
+    @State private var name = ""
+    @State private var bpm = 120.0
+    @State private var root = 0
+    @State private var minor = false
+    @State private var bars = 4
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    TextField("Project name", text: $name)
+                    Stepper("\(Int(bpm)) BPM", value: $bpm, in: 40...240)
+                    Picker("Key", selection: $root) {
+                        ForEach(0..<12, id: \.self) { i in Text(Chord.roots[i]).tag(i) }
+                    }
+                    Toggle("Minor", isOn: $minor)
+                    Picker("Loop length", selection: $bars) {
+                        ForEach([1,2,4,8], id: \.self) { n in Text("\(n) bars").tag(n) }
+                    }
+                }
+                Section {
+                    Text("All instruments are ready. No downloads, no account, just your next idea.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            .navigationTitle("New project")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { session.sheet = nil } }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Create") {
+                        Task {
+                            session.loopBars = bars
+                            await session.create(name: name, bpm: bpm, root: root, minor: minor, bars: bars)
+                        }
+                    }
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
+    }
 }

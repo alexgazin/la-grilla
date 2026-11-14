@@ -3,7 +3,9 @@
 #include <cmath>
 #include <iostream>
 #include <vector>
+#include <thread>
 int main(){
+ assert(lg_create(0)==nullptr);
  auto*k=lg_create(48000); std::vector<float> l(512),r(512);
  LGNote n[]={{0,3840,60,100,0,-1},{3840,3840,57,100,0,-1},{0,120,36,100,1,0}};
  assert(lg_submit(k,n,3,120,0,15360,1,1));lg_play(k,1);float peak=0;
@@ -20,5 +22,9 @@ int main(){
  k=lg_create(44100); assert(lg_submit(k,n,3,123,0,15360,1,1));lg_play(k,1);
  int frames=44100*60*10;for(int f=0;f<frames;f+=512)lg_render(k,l.data(),r.data(),std::min(512,frames-f));
  double expected=std::fmod((frames-1)*123.0*960/(60*44100),15360);assert(std::abs(lg_tick(k)-expected)<0.1);lg_destroy(k);
- std::cout<<"Kernel: render, loop boundary, pending revision, stop, pad, overflow, 10 minute clock passed\n";
+ k=lg_create(48000); assert(lg_submit(k,n,3,120,0,15360,1,1));lg_play(k,1);
+ std::thread producer([&]{for(int revision=2;revision<2000;revision++){while(!lg_submit(k,n,3,120,0,15360,1,revision)){};}});
+ for(int i=0;i<4000;i++){lg_render(k,l.data(),r.data(),512);for(float f:l)assert(std::isfinite(f));}
+ producer.join();lg_destroy(k);
+ std::cout<<"Kernel: render, loop boundary, pending revision, stop, pad, overflow, 10 minute clock, concurrent snapshot ownership passed\n";
 }

@@ -12,15 +12,15 @@ import Observation
     var passClock: UInt64 = 0; var replaceNextPass = false
     var take: [DrumEvent] = []; var takePattern: UUID?; var takeStart = 0; var takeLength = 0
     var savedRevision = -1; var saving = false; var saveError: String?; var message: String?
-    var entries: [ProjectStore.Entry] = []; var sheet: Sheet?; var shareURL: URL?
+    var entries: [ProjectStore.Entry] = []; var sheet: Sheet?; var shareURL: URL?; var exportedURL: URL?
     var ready = false; var saveTask: Task<Void,Never>?
     let store: ProjectStore
     enum Sheet: String, Identifiable {case projects, newProject, export, settings, bass, sections; var id: String { rawValue }}
     init() {
-        let root = FileManager.default.urls(for: .documentDirectory,in:.userDomainMask)[0].appendingPathComponent("Projects")
+        let root = ProcessInfo.processInfo.arguments.contains("--uitesting") ? FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString) : FileManager.default.urls(for: .documentDirectory,in:.userDomainMask)[0].appendingPathComponent("Projects")
         store = ProjectStore(root: root)
     }
-    var section: Section { project.sections.first(where: {$0.id == selectedSection}) ?? project.sections[0] }
+    var section: MusicDomain.Section { project.sections.first(where: {$0.id == selectedSection}) ?? project.sections[0] }
     var loopRange: Range<Int> { let start = section.start; return loop ? start..<min(project.length,start + loopBars*barTicks) : 0..<project.length }
     var pending: Bool { audio.playing && audio.appliedRevision != project.revision }
     func bootstrap() async {
@@ -99,7 +99,7 @@ import Observation
         take=[];Task{await save()}
     }
     func setLoop(bars: Int? = nil, enabled: Bool? = nil) {guard !recording && !armed else{message="Finish the take before changing the loop.";return};if let bars{loopBars=bars};if let enabled{loop=enabled};sync()}
-    func select(_ section: Section) {guard !recording && !armed else{return};selectedSection=section.id;sync();if !audio.playing{audio.seek(section.start)}}
+    func select(_ section: MusicDomain.Section) {guard !recording && !armed else{return};selectedSection=section.id;sync();if !audio.playing{audio.seek(section.start)}}
     func open(_ p: Project) async {
         finishTake();audio.stop();await save();project=p;history=History();selectedSection=p.sections[0].id;savedRevision=p.revision;audio.seek(0);sync();sheet=nil
     }
@@ -112,7 +112,11 @@ import Observation
     func recover(_ id: UUID) async {do{let p=try await store.load(id,backup:true);await open(p);await save();message="Recovered the last working copy."}catch{message=error.localizedDescription}}
     func export(sectionOnly: Bool) async {
         let snapshot=project;let range=sectionOnly ? section.start..<section.start+section.length : 0..<snapshot.length
-        do {let data=try MIDIExporter.data(snapshot,range:range);let name=snapshot.name.replacingOccurrences(of:"/",with:"-");let url=FileManager.default.temporaryDirectory.appendingPathComponent(name).appendingPathExtension("mid");try data.write(to:url,options:.atomic);shareURL=url;sheet=nil}catch{message=error.localizedDescription}
+        do {let data=try MIDIExporter.data(snapshot,range:range);let name=snapshot.name.replacingOccurrences(of:"/",with:"-");let url=FileManager.default.temporaryDirectory.appendingPathComponent(name).appendingPathExtension("mid");try data.write(to:url,options:.atomic);exportedURL=url;sheet=nil}catch{message=error.localizedDescription}
+    }
+    func saveCopy() async {
+        var copy=project; copy.id=UUID(); copy.name += " copy"
+        do {try await store.save(copy); message="A copy has been saved.";entries=try await store.list()}catch{message=error.localizedDescription}
     }
     func interrupt() {finishTake();audio.reset();Task{await save()}}
 }

@@ -57,11 +57,11 @@ struct LGKernel {
         int ready=2;if(!slots[chosen].state.compare_exchange_strong(ready,3,std::memory_order_acq_rel))return;
         if(current>=0)slots[current].state.store(0,std::memory_order_release);
         current=chosen;applied.store(best);auto&s=slots[current];
-        resetCursor(std::clamp(tick,double(s.start),double(s.end-1)));
+        resetCursor(tick>=s.start && tick<s.end ? tick : s.start);
     }
 };
 extern "C" {
-LGKernel*lg_create(double sr){return new LGKernel(sr);}
+LGKernel*lg_create(double sr){return std::isfinite(sr)&&sr>=8000&&sr<=192000 ? new LGKernel(sr) : nullptr;}
 void lg_destroy(LGKernel*k){delete k;}
 int lg_submit(LGKernel*k,const LGNote*notes,int count,double bpm,int start,int end,int loop,int rev){
     if(count<0||count>MaxNotes||!std::isfinite(bpm)||bpm<40||bpm>240||start<0||end<=start)return 0;
@@ -83,7 +83,7 @@ void lg_mix(LGKernel*k,int t,float db,float pan,int audible){if(t<0||t>2||!std::
 void lg_master(LGKernel*k,float db){if(std::isfinite(db))k->gains[3].store(db> -61?std::pow(10.f,std::clamp(db,-60.f,6.f)/20):0);}
 void lg_metronome(LGKernel*k,int on){k->metro.store(on);}
 void lg_render(LGKernel*k,float*l,float*r,int frames){
-    int cmd=k->command.exchange(0);if(cmd<0){k->active=false;k->counting=0;k->countRemaining.store(0);k->silence();k->read.store(k->write.load());}
+    int cmd=k->command.exchange(0);if(cmd<0){k->active=false;k->counting=0;k->countRequest.store(0);k->countRemaining.store(0);k->silence();k->read.store(k->write.load());}
     k->adopt(!k->active,k->position.load());
     int seek=k->seek.exchange(-1);if(seek>=0){k->resetCursor(seek);k->position.store(seek);}
     if(cmd>0&&k->current>=0){auto&s=k->slots[k->current];double p=k->position.load();k->resetCursor(p>=s.end?s.start:std::max(p,double(s.start)));k->active=true;}
