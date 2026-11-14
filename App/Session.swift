@@ -10,7 +10,10 @@ import Observation
     var quantize: Quantize = .sixteenth; var overdub = true; var countIn = true
     var recording = false; var armed = false; var armClock: UInt64 = 0
     var passClock: UInt64 = 0; var replaceNextPass = false
+    struct RawHit {let tick: Int;let sampleFrame: UInt64;let event: DrumEvent}
+    var rawHits: [RawHit] = []
     var take: [DrumEvent] = []; var takePattern: UUID?; var takeStart = 0; var takeLength = 0
+    private var saveGeneration = 0
     var savedRevision = -1; var saving = false; var saveError: String?; var message: String?
     var entries: [ProjectStore.Entry] = []; var sheet: Sheet?; var shareURL: URL?; var exportedURL: URL?
     var ready = false; var saveTask: Task<Void,Never>?
@@ -47,7 +50,16 @@ import Observation
     func undo() {guard !recording && !armed else {return}; history.undo(&project); sync();scheduleSave()}
     func redo() {guard !recording && !armed else {return}; history.redo(&project); sync();scheduleSave()}
     func scheduleSave() {saveTask?.cancel();saveTask = Task {try? await Task.sleep(for:.milliseconds(700));guard !Task.isCancelled else{return};await save()} }
-    func save() async {saving = true;let snapshot = project;do {try await store.save(snapshot);savedRevision = snapshot.revision; saveError = nil;entries = try await store.list()}catch{saveError=error.localizedDescription};saving=false}
+    func save() async {
+        saveGeneration += 1; let generation=saveGeneration
+        saving=true; let snapshot=project
+        do {
+            try await store.save(snapshot)
+            if project.id==snapshot.id {savedRevision=max(savedRevision,snapshot.revision);saveError=nil}
+            entries=try await store.list()
+        } catch {if project.id==snapshot.id {saveError=error.localizedDescription}}
+        if generation==saveGeneration {saving=false}
+    }
     func togglePlay() {
         if audio.playing {finishTake();audio.stop()}else if ensureAudio(){if audio.tick>=Double(loopRange.upperBound){audio.seek(loopRange.lowerBound)};audio.play()}
     }
@@ -55,7 +67,7 @@ import Observation
     func record() {
         if recording || armed {finishTake();return}
         guard ensureAudio(), let t = project.tracks.first(where: {$0.role == .drums}),let clip=t.clips.first(where: {$0.start<=section.start && $0.start+$0.length>section.start}),let p=project.patterns.first(where: {$0.id==clip.patternID}) else{return}
-        take = [];takePattern=p.id;takeStart=clip.start;takeLength=p.length
+        take = [];rawHits=[];takePattern=p.id;takeStart=clip.start;takeLength=p.length
         let barFrames=audio.sampleRate*240/project.bpm
         if audio.playing {
             let remainder=Double(barTicks)-audio.tick.truncatingRemainder(dividingBy:Double(barTicks))
@@ -86,14 +98,20 @@ import Observation
             }}
             p.patterns[i].drums.append(contentsOf:events)
         }
-        recording=active; replaceNextPass=false; take=[]
+        recording=active; replaceNextPass=false; take=[];rawHits=[]
     }
     func hit(_ pad: Int) {
         guard ensureAudio() else{return}; audio.pad(pad);pollRecording()
         if recording {
             let local=(Int(audio.tick)-takeStart+takeLength)%takeLength
             let e=DrumEvent(tick:quantize.tick(local,length:takeLength),pad:pad)
-            take.append(e)
+            var draft=project
+            if let id=takePattern,let i=draft.patterns.firstIndex(where:{$0.id==id}) {
+                if replaceNextPass {let range=loopRange;let start=takeStart;draft.patterns[i].drums.removeAll{range.contains($0.tick+start)}}
+                draft.patterns[i].drums.append(contentsOf:take+[e])
+                do {try draft.validate();take.append(e);rawHits.append(RawHit(tick:local,sampleFrame:audio.clock,event:e))}
+                catch {message=error.localizedDescription}
+            }
         }
     }
     func finishTake() {
@@ -105,16 +123,19 @@ import Observation
     }
     func setLoop(bars: Int? = nil, enabled: Bool? = nil) {guard !recording && !armed else{message="Finish the take before changing the loop.";return};if let bars{loopBars=bars};if let enabled{loop=enabled};sync()}
     func select(_ section: MusicDomain.Section) {guard !recording && !armed else{return};selectedSection=section.id;sync();if !audio.playing{audio.seek(section.start)}}
-    func open(_ p: Project) async {
-        finishTake();audio.stop();await save();project=p;history=History();selectedSection=p.sections[0].id;savedRevision=p.revision;audio.seek(0);sync();sheet=nil
+    func open(_ p: Project, force: Bool = false) async {
+        if !force && p.id==project.id {sheet=nil;return}
+        finishTake();audio.stop();await save()
+        guard saveError==nil else {message="Save the current project or save a copy before opening another project.";return}
+        project=p;history=History();selectedSection=p.sections[0].id;savedRevision=p.revision;audio.seek(0);sync();sheet=nil
     }
     func create(name: String,bpm: Double,root: Int,minor: Bool,bars: Int) async {
         var p=Project(name:name.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty ? "Untitled" : name,bars:bars);p.bpm=bpm;p.keyRoot=root;p.minor=minor
         await open(p);await save()
     }
-    func duplicateProject(_ p: Project) async {var copy=p;copy.id=UUID();copy.name += " copy";copy.modified=Date();do{try await store.save(copy);entries=try await store.list()}catch{message=error.localizedDescription}}
+    func duplicateProject(_ p: Project) async {var copy=p.id==project.id ? project:p;copy.id=UUID();copy.name += " copy";copy.modified=Date();do{try await store.save(copy);entries=try await store.list()}catch{message=error.localizedDescription}}
     func delete(_ id: UUID) async {do{try await store.delete(id);entries=try await store.list()}catch{message=error.localizedDescription}}
-    func recover(_ id: UUID) async {do{let p=try await store.load(id,backup:true);await open(p);await save();message="Recovered the last working copy."}catch{message=error.localizedDescription}}
+    func recover(_ id: UUID) async {do{let p=try await store.load(id,backup:true);await open(p,force:true);await save();message="Recovered the last working copy."}catch{message=error.localizedDescription}}
     func export(sectionOnly: Bool) async {
         let snapshot=project;let range=sectionOnly ? section.start..<section.start+section.length : 0..<snapshot.length
         do {let data=try MIDIExporter.data(snapshot,range:range);let name=snapshot.name.replacingOccurrences(of:"/",with:"-");let url=FileManager.default.temporaryDirectory.appendingPathComponent(name).appendingPathExtension("mid");try data.write(to:url,options:.atomic);exportedURL=url;sheet=nil}catch{message=error.localizedDescription}

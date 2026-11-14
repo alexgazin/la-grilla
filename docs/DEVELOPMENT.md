@@ -8,7 +8,7 @@ The original README remains the product specification. Implementation is in `fea
 - CI baseline: Xcode 16.4 / iOS Simulator SDK 18.5, macOS 15 ARM64.
 - Reference hardware for the remaining physical checks: iPhone 13 or newer, built-in speaker and wired/USB audio. No physical-device measurements have been made in this cloud environment.
 
-On a Mac with Xcode selected:
+On a Mac with Xcode selected, open the included `LaGrilla.xcodeproj`. To regenerate it after adding source files:
 
 ```sh
 brew install xcodegen
@@ -26,7 +26,7 @@ xcodebuild -project LaGrilla.xcodeproj -scheme LaGrilla \
 bash scripts/screenshots.sh
 ```
 
-GitHub Actions performs domain tests, audio kernel tests, an iOS build, simulator capture and native UI tests. Its `ios-verification` artifact contains the simulator app, generated Xcode project, screenshots, logs and XCTest results. The simulator app is not an IPA for a physical phone.
+GitHub Actions performs domain tests, audio kernel tests, an iOS build, simulator capture and native UI tests. Its `ios-verification` artifact contains the simulator app, generated Xcode project, screenshots, logs and XCTest results. The earlier `simulator-build` and `simulator-screenshots` artifacts are also saved independently of UI-test completion. The simulator app is not an IPA for a physical phone.
 
 ## Source map
 
