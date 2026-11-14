@@ -16,8 +16,10 @@ final class KernelHandle: @unchecked Sendable {
     var countRemaining = 0; var error: String?
     var overflows = 0
     private var timer: Timer?
+    private var generation = 0
+    private var sentRevisions: [Int:Int] = [:]
     var isPrepared: Bool { engine?.isRunning == true }
-    var clock: UInt64 { handle.map {lg_clock($0.pointer)} ?? 0 }
+    var clock: UInt64 = 0
     func prepare() throws {
         if engine?.isRunning == true { return }
         let session = AVAudioSession.sharedInstance()
@@ -41,13 +43,15 @@ final class KernelHandle: @unchecked Sendable {
     }
     func poll() {
         guard let k = handle?.pointer else { return }
-        tick = lg_tick(k); playing = lg_playing(k) != 0; appliedRevision = Int(lg_revision(k)); countRemaining = Int(lg_countremaining(k)); overflows = Int(lg_overflows(k))
+        clock = lg_clock(k); tick = lg_tick(k); playing = lg_playing(k) != 0; appliedRevision = sentRevisions[Int(lg_revision(k))] ?? -1; countRemaining = Int(lg_countremaining(k)); overflows = Int(lg_overflows(k))
         meters = (0..<4).map {lg_meter(k,Int32($0))}
     }
     func submit(_ p: Project, loop: Bool, range: Range<Int>) {
         guard let k = handle?.pointer else { return }
+        generation += 1; sentRevisions[generation] = p.revision
+        if sentRevisions.count > 100 { sentRevisions = sentRevisions.filter { $0.key >= generation - 50 } }
         let notes = Compiler.notes(p).map { LGNote(tick: Int32($0.tick), duration: Int32($0.duration), pitch: Int32($0.pitch), velocity: Int32($0.velocity), track: Int32($0.track), pad: Int32($0.pad)) }
-        let ok = notes.withUnsafeBufferPointer {lg_submit(k,$0.baseAddress,Int32($0.count),p.bpm,Int32(range.lowerBound),Int32(range.upperBound),loop ? 1 : 0,Int32(p.revision))}
+        let ok = notes.withUnsafeBufferPointer {lg_submit(k,$0.baseAddress,Int32($0.count),p.bpm,Int32(range.lowerBound),Int32(range.upperBound),loop ? 1 : 0,Int32(generation))}
         if ok == 0 { error = "Audio update could not be queued. Stop and retry." }
         mix(p)
     }

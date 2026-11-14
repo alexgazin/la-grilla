@@ -9,6 +9,7 @@ import Observation
     var selectedSection: UUID?; var tab = 0; var loop = true; var loopBars = 4; var metronome = false
     var quantize: Quantize = .sixteenth; var overdub = true; var countIn = true
     var recording = false; var armed = false; var armClock: UInt64 = 0
+    var passClock: UInt64 = 0; var replaceNextPass = false
     var take: [DrumEvent] = []; var takePattern: UUID?; var takeStart = 0; var takeLength = 0
     var savedRevision = -1; var saving = false; var saveError: String?; var message: String?
     var entries: [ProjectStore.Entry] = []; var sheet: Sheet?; var shareURL: URL?
@@ -58,22 +59,43 @@ import Observation
             audio.seek(loopRange.lowerBound);audio.play(countInBPM:countIn ? project.bpm : nil)
             armClock=audio.clock+UInt64(countIn ? barFrames : 0)
         }
-        armed=true
+        passClock=armClock; replaceNextPass = !overdub; armed=true
     }
-    func pollRecording() {if armed && audio.clock>=armClock {armed=false;recording=true}}
+    func pollRecording() {
+        if armed && audio.clock>=armClock { armed=false; recording=true }
+        guard recording else { return }
+        let frames = UInt64(Double(loopRange.count)/960*60/project.bpm*audio.sampleRate)
+        if frames > 0 && audio.clock >= passClock + frames {
+            commitPass(); passClock += frames
+        }
+    }
+    func commitPass() {
+        guard let id=takePattern else {return}
+        let events=take; let replace=replaceNextPass; let active=recording
+        let range=loopRange; let start=takeStart
+        recording=false
+        edit {p in guard let i=p.patterns.firstIndex(where: {$0.id==id}) else{return}
+            if replace { p.patterns[i].drums.removeAll { e in
+                let absolute=e.tick+start
+                return range.contains(absolute)
+            }}
+            p.patterns[i].drums.append(contentsOf:events)
+        }
+        recording=active; replaceNextPass=false; take=[]
+    }
     func hit(_ pad: Int) {
         guard ensureAudio() else{return}; audio.pad(pad);pollRecording()
         if recording {
             let local=(Int(audio.tick)-takeStart+takeLength)%takeLength
             let e=DrumEvent(tick:quantize.tick(local,length:takeLength),pad:pad)
-            if let i=take.firstIndex(where: {$0.tick==e.tick && $0.pad==pad}) {take[i]=e}else{take.append(e)}
+            take.append(e)
         }
     }
     func finishTake() {
         let hadTake=recording;armed=false;recording=false
         guard hadTake,let id=takePattern else {take=[];return}
-        let events=take;let replace = !overdub
-        edit {p in guard let i=p.patterns.firstIndex(where: {$0.id==id}) else{return};if replace{p.patterns[i].drums=[]};for e in events {p.patterns[i].drums.removeAll(where: {$0.tick==e.tick && $0.pad==e.pad});p.patterns[i].drums.append(e)}}
+        _ = id
+        commitPass()
         take=[];Task{await save()}
     }
     func setLoop(bars: Int? = nil, enabled: Bool? = nil) {guard !recording && !armed else{message="Finish the take before changing the loop.";return};if let bars{loopBars=bars};if let enabled{loop=enabled};sync()}

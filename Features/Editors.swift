@@ -3,7 +3,7 @@ import MusicDomain
 struct ChordEditor: View {
     @Bindable var session: Session; let selection: ChordSelection
     @Environment(\.dismiss) var dismiss
-    @State private var chord=Chord(); @State private var text=""; @State private var error: String?
+    @State private var duration=barTicks; @State private var chord=Chord(); @State private var text=""; @State private var error: String?
     var body: some View {
         NavigationStack{ScrollView{VStack(alignment:.leading,spacing:22){
             HStack(alignment:.firstTextBaseline){Text(chord.symbol).font(.system(size:42,weight:.medium)).foregroundStyle(Color.harmony);Spacer();Text(chord.notes.map(String.init).joined(separator:" · ")).font(.system(size:13,design:.monospaced)).foregroundStyle(Color.muted)}
@@ -14,12 +14,13 @@ struct ChordEditor: View {
             SmallHeading(text:"QUALITY")
             LazyVGrid(columns:Array(repeating:GridItem(.flexible()),count:4),spacing:8){ForEach(Quality.allCases,id:\.rawValue){q in Button{chord.quality=q;chord.inversion=0;text=chord.symbol;error=nil}label:{Text(q.label).font(.system(size:12,weight:.medium)).foregroundStyle(chord.quality==q ? Color.ink:Color.harmony).frame(maxWidth:.infinity,minHeight:44).background(chord.quality==q ? Color.harmony:Color.raised,in:RoundedRectangle(cornerRadius:8))}.buttonStyle(.plain)}}
             Picker("Inversion",selection:$chord.inversion){ForEach(0..<chord.quality.intervals.count,id:\.self){i in Text(i==0 ? "Root position":"Inversion \(i)").tag(i)}}.pickerStyle(.menu)
+            Stepper("Duration: \(duration/240) sixteenths",value:$duration,in:240...max(240,(session.project.patterns.first(where:{$0.id==selection.patternID})?.length ?? barTicks)-selection.tick),step:240)
             HStack{Button{if session.ensureAudio(){session.audio.preview(chord)}}label:{Label("Preview",systemImage:"speaker.wave.2").frame(maxWidth:.infinity,minHeight:48).background(Color.raised,in:RoundedRectangle(cornerRadius:10))};Button{apply()}label:{Text("Apply").fontWeight(.semibold).foregroundStyle(Color.ink).frame(maxWidth:.infinity,minHeight:48).background(Color.harmony,in:RoundedRectangle(cornerRadius:10))}}.buttonStyle(.plain)
         }.padding(22)}.background(Color.panel).navigationTitle("Edit chord").navigationBarTitleDisplayMode(.inline).toolbar{ToolbarItem(placement:.cancellationAction){Button("Cancel"){dismiss()}}}}
-        .onAppear{chord=selection.chord;text=chord.symbol}
+        .onAppear{chord=selection.chord;text=chord.symbol;duration=selection.duration}
     }
     func parse(){do{chord=try Chord.parse(text);error=nil}catch{self.error=error.localizedDescription}}
-    func apply(){guard (try? Chord.parse(text)) != nil else{parse();return};session.edit{p in guard let i=p.patterns.firstIndex(where:{$0.id==selection.patternID})else{return};p.patterns[i].chords.removeAll(where:{$0.tick<selection.tick+barTicks && $0.tick+$0.duration>selection.tick});p.patterns[i].chords.append(ChordEvent(tick:selection.tick,chord:chord))};dismiss()}
+    func apply(){guard (try? Chord.parse(text)) != nil else{parse();return};session.edit{p in guard let i=p.patterns.firstIndex(where:{$0.id==selection.patternID})else{return};p.patterns[i].chords.removeAll(where:{$0.tick<selection.tick+duration && $0.tick+$0.duration>selection.tick});p.patterns[i].chords.append(ChordEvent(tick:selection.tick,duration:duration,chord:chord))};dismiss()}
 }
 struct SettingsView: View {
     @Bindable var session: Session

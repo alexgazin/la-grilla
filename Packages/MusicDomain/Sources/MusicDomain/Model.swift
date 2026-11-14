@@ -65,7 +65,7 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
     public var name: String; public var bpm: Double = 120; public var keyRoot = 0; public var minor = false
     public var modified = Date(); public var tracks: [Track]; public var patterns: [Pattern]; public var sections: [Section]
     public var bassOctave = 0; public var bassGate = 0.9; public var master: Double = -3
-    public var length: Int { sections.reduce(0) { $0 + $1.length } }
+    public var length: Int { sections.reduce(0) { total, section in let (sum, overflow) = total.addingReportingOverflow(section.length); return overflow ? Int.max : sum } }
     public var keyName: String { Chord.roots[keyRoot] + (minor ? " minor" : " major") }
     public init(name: String = "Untitled", bars: Int = 4) {
         self.name = name; let length = bars * barTicks
@@ -91,15 +91,15 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
               (1...8).contains(sections.count), (barTicks...64*barTicks).contains(length), tracks.count >= 2, tracks.count <= 3,
               bassGate.isFinite, (0.1...1).contains(bassGate), (-1...1).contains(bassOctave), master.isFinite, (-61...6).contains(master),
               Set(tracks.map(\.role)).count == tracks.count, tracks.contains(where: {$0.role == .harmony}), tracks.contains(where: {$0.role == .drums}),
-              Set(patterns.map(\.id)).count == patterns.count, Set(sections.map(\.id)).count == sections.count,
+              patterns.count <= 16, Set(patterns.map(\.id)).count == patterns.count, Set(sections.map(\.id)).count == sections.count,
               Set(tracks.map(\.id)).count == tracks.count else { throw MusicError.invalidProject }
         var end = 0
-        for s in sections { guard s.start == end, s.length > 0, s.length % barTicks == 0, !s.name.isEmpty else { throw MusicError.invalidProject }; end += s.length }
+        for s in sections { guard s.start == end, s.length > 0, s.length <= 64*barTicks, s.length % barTicks == 0, !s.name.isEmpty, s.name.count <= 120 else { throw MusicError.invalidProject }; end += s.length }
         for p in patterns {
-            guard p.length > 0, p.length <= length, p.chords.count <= 256, p.drums.count <= 4096 else { throw MusicError.invalidProject }
+            guard p.length >= barTicks, p.length % barTicks == 0, p.length <= length, p.chords.count <= 256, p.drums.count <= 4096 else { throw MusicError.invalidProject }
             var end = 0
             for e in p.chords.sorted(by: {$0.tick < $1.tick}) {
-                guard e.tick >= end, e.duration > 0, e.tick + e.duration <= p.length, (0..<12).contains(e.chord.root), (0..<e.chord.quality.intervals.count).contains(e.chord.inversion) else { throw MusicError.invalidProject }
+                guard e.tick >= end, e.tick < p.length, e.duration > 0, e.duration <= p.length, e.tick + e.duration <= p.length, (0..<12).contains(e.chord.root), (0..<e.chord.quality.intervals.count).contains(e.chord.inversion) else { throw MusicError.invalidProject }
                 end = e.tick + e.duration
             }
             for e in p.drums { guard e.tick >= 0, e.tick < p.length, (0..<16).contains(e.pad), (1...127).contains(e.velocity) else { throw MusicError.invalidProject } }
@@ -108,10 +108,17 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
             guard t.gain.isFinite, (-61...6).contains(t.gain), t.pan.isFinite, (-1...1).contains(t.pan), t.presetVersion == 1 else { throw MusicError.invalidProject }
             var end = 0
             for c in t.clips.sorted(by: {$0.start < $1.start}) {
-                guard c.start >= end, c.length > 0, c.start + c.length <= length, c.offset >= 0, let p = patterns.first(where: {$0.id == c.patternID}), c.offset < p.length else { throw MusicError.invalidProject }
+                guard c.start >= end, c.start < length, c.length > 0, c.length <= length, c.start + c.length <= length, c.offset >= 0, let p = patterns.first(where: {$0.id == c.patternID}), c.offset < p.length else { throw MusicError.invalidProject }
                 end = c.start + c.length
             }
         }
+        var upperBound = 0
+        for t in tracks { for clip in t.clips {
+            if let p = patterns.first(where: {$0.id == clip.patternID}) {
+                upperBound += ((clip.length + p.length - 1) / p.length + 1) * (p.chords.count * 5 + p.drums.count)
+            }
+        }}
+        guard upperBound <= 24000 else { throw MusicError.tooDense }
         guard Compiler.notes(self).count <= 12000 else { throw MusicError.tooDense }
     }
     public mutating func duplicateSection(_ id: UUID, name: String) throws {

@@ -1,6 +1,6 @@
 import SwiftUI
 import MusicDomain
-struct ChordSelection: Identifiable {let id: UUID;let patternID: UUID;let tick: Int;let chord: Chord}
+struct ChordSelection: Identifiable {let id: UUID;let patternID: UUID;let tick: Int;let chord: Chord;var duration: Int = barTicks}
 struct GridView: View {
     @Bindable var session: Session
     @State private var barWidth: CGFloat = 112
@@ -36,7 +36,13 @@ struct GridView: View {
             ZStack(alignment:.topLeading){gridBackground(height:132)
                 if let track=session.project.tracks.first(where:{$0.role == .harmony}) {ForEach(track.clips){clip in if let p=session.project.patterns.first(where:{$0.id==clip.patternID}){
                     ForEach(0..<p.length/barTicks,id:\.self){bar in let e=p.chords.first(where:{$0.tick<=bar*barTicks && $0.tick+$0.duration>bar*barTicks})
-                        Button{selection=ChordSelection(id:e?.id ?? UUID(),patternID:p.id,tick:bar*barTicks,chord:e?.chord ?? Chord(root:session.project.keyRoot,quality:session.project.minor ? .minor:.major))}label:{VStack(alignment:.leading,spacing:13){HStack{Text(e?.chord.symbol ?? "+").font(.system(size:26,weight:.medium));Spacer()};if let e {HStack(spacing:3){ForEach(Array(e.chord.notes.enumerated()),id:\.offset){_,n in RoundedRectangle(cornerRadius:1).fill(Color.harmony.opacity(0.5)).frame(width:barWidth/6,height:3).offset(y:CGFloat(72-n)/4)}};Text(e.chord.quality.label).font(.system(size:9)).foregroundStyle(Color.harmony.opacity(0.65))}}.foregroundStyle(Color.harmony).padding(12).frame(width:barWidth-6,height:116,alignment:.topLeading).background(Color.harmony.opacity(e == nil ? 0.04:0.12),in:RoundedRectangle(cornerRadius:7)).overlay{RoundedRectangle(cornerRadius:7).stroke(Color.harmony.opacity(0.22),lineWidth:1)}}.buttonStyle(.plain).offset(x:CGFloat(clip.start/barTicks+bar)*barWidth+3,y:8)
+                        Button{selection=ChordSelection(id:e?.id ?? UUID(),patternID:p.id,tick:e?.tick ?? bar*barTicks,chord:e?.chord ?? Chord(root:session.project.keyRoot,quality:session.project.minor ? .minor:.major),duration:e?.duration ?? barTicks)}label:{VStack(alignment:.leading,spacing:13){HStack{Text(e?.chord.symbol ?? "+").font(.system(size:26,weight:.medium));Spacer()};if let e {HStack(spacing:3){ForEach(Array(e.chord.notes.enumerated()),id:\.offset){_,n in RoundedRectangle(cornerRadius:1).fill(Color.harmony.opacity(0.5)).frame(width:barWidth/6,height:3).offset(y:CGFloat(72-n)/4)}};Text(e.chord.quality.label).font(.system(size:9)).foregroundStyle(Color.harmony.opacity(0.65))}}.foregroundStyle(Color.harmony).padding(12).frame(width:barWidth-6,height:116,alignment:.topLeading).background(Color.harmony.opacity(e == nil ? 0.04:0.12),in:RoundedRectangle(cornerRadius:7)).overlay{RoundedRectangle(cornerRadius:7).stroke(Color.harmony.opacity(0.22),lineWidth:1)}}.buttonStyle(.plain).offset(x:CGFloat(clip.start/barTicks+bar)*barWidth+3,y:8)
+                        .simultaneousGesture(LongPressGesture(minimumDuration:0.35).sequenced(before:DragGesture()).onEnded{value in
+                            if case .second(true,let drag?)=value,let e {
+                                let delta=Int((drag.translation.width/barWidth*16).rounded())*240
+                                session.edit {p in guard let i=p.patterns.firstIndex(where:{$0.id==clip.patternID}),let n=p.patterns[i].chords.firstIndex(where:{$0.id==e.id})else{return};p.patterns[i].chords[n].tick=max(0,min(p.patterns[i].length-e.duration,e.tick+delta))}
+                            }
+                        })
                         .contextMenu{if let e{Button("Delete chord",role:.destructive){session.edit{p in if let i=p.patterns.firstIndex(where:{$0.id==clip.patternID}){p.patterns[i].chords.removeAll(where:{$0.id==e.id})}}}}}
                     }
                 }}}
