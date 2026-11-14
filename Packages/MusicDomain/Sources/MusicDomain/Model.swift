@@ -141,7 +141,7 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
         let starts = Dictionary(uniqueKeysWithValues: sections.map {($0.id, $0.start)})
         sections.swapAt(i, i + delta); var cursor = 0
         for j in sections.indices {
-            let oldStart = starts[sections[j].id]!; let len = sections[j].length
+            let len = sections[j].length
             sections[j].start = cursor; cursor += len
         }
         for k in tracks.indices { for c in tracks[k].clips.indices {

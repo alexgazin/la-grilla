@@ -1,5 +1,5 @@
 name: iOS build and verification
-on: [push, pull_request, workflow_dispatch]
+on: [push, workflow_dispatch]
 jobs:
   ios:
     runs-on: macos-15
@@ -13,7 +13,7 @@ jobs:
       - name: Generate project
         run: brew install xcodegen && xcodegen generate
       - name: Build iOS app
-        run: set -o pipefail; xcodebuild -project LaGrilla.xcodeproj -scheme LaGrilla -sdk iphonesimulator -configuration Debug -derivedDataPath DerivedData CODE_SIGNING_ALLOWED=NO build | tee /tmp/build.log
+        run: set -o pipefail; xcodebuild -project LaGrilla.xcodeproj -scheme LaGrilla -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -configuration Debug -derivedDataPath DerivedData CODE_SIGNING_ALLOWED=NO build | tee build.log
       - name: Capture simulator screens
         run: bash scripts/screenshots.sh
       - uses: actions/upload-artifact@v4
@@ -22,5 +22,6 @@ jobs:
           name: ios-verification
           path: |
             Screenshots/*.png
-            /tmp/build.log
+            build.log
+            LaGrilla.xcodeproj
             DerivedData/Build/Products/Debug-iphonesimulator/LaGrilla.app

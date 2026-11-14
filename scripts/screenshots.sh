@@ -1,5 +1,6 @@
 #!/bin/bash
 set -euo pipefail
+test -f DerivedData/Build/Products/Debug-iphonesimulator/LaGrilla.app/Info.plist
 DEVICE=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin); print(next(x["udid"] for group in d["devices"].values() for x in group if "iPhone 16" == x["name"]))')
 xcrun simctl boot "$DEVICE" || true
 xcrun simctl bootstatus "$DEVICE" -b
