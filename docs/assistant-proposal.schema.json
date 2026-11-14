@@ -1,0 +1,252 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "La Grilla local assistant proposal",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "schemaVersion",
+    "projectID",
+    "baseRevision",
+    "scopeSectionID",
+    "operations",
+    "assumptions",
+    "warnings"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "schemaVersion": {
+      "const": 1
+    },
+    "projectID": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "baseRevision": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "scopeSectionID": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "operations": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 16,
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "type",
+              "bpm"
+            ],
+            "properties": {
+              "type": {
+                "const": "setTempo"
+              },
+              "bpm": {
+                "type": "number",
+                "minimum": 40,
+                "maximum": 240
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "type",
+              "root",
+              "minor"
+            ],
+            "properties": {
+              "type": {
+                "const": "setKey"
+              },
+              "root": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 11
+              },
+              "minor": {
+                "type": "boolean"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "type",
+              "sectionID",
+              "name"
+            ],
+            "properties": {
+              "type": {
+                "const": "renameSection"
+              },
+              "sectionID": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 120
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "type",
+              "sectionID",
+              "bars"
+            ],
+            "properties": {
+              "type": {
+                "const": "resizeSection"
+              },
+              "sectionID": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "bars": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 64
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "type",
+              "sectionID",
+              "chords",
+              "durations"
+            ],
+            "properties": {
+              "type": {
+                "const": "setProgression"
+              },
+              "sectionID": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "chords": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 256,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "root",
+                    "quality",
+                    "inversion"
+                  ],
+                  "properties": {
+                    "root": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 11
+                    },
+                    "quality": {
+                      "enum": [
+                        "",
+                        "m",
+                        "dim",
+                        "aug",
+                        "sus2",
+                        "sus4",
+                        "7",
+                        "maj7",
+                        "m7",
+                        "m7b5",
+                        "6",
+                        "m6",
+                        "add9",
+                        "9",
+                        "maj9",
+                        "m9",
+                        "11",
+                        "m11",
+                        "13",
+                        "7b9",
+                        "7#9",
+                        "7#11",
+                        "7b13"
+                      ]
+                    },
+                    "inversion": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 6
+                    },
+                    "slashBass": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ],
+                      "minimum": 0,
+                      "maximum": 11
+                    },
+                    "voicedNotes": {
+                      "type": [
+                        "array",
+                        "null"
+                      ],
+                      "minItems": 1,
+                      "maxItems": 8,
+                      "uniqueItems": true,
+                      "items": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 127
+                      }
+                    }
+                  }
+                }
+              },
+              "durations": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 256,
+                "items": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 64
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    "assumptions": {
+      "type": "array",
+      "maxItems": 16,
+      "items": {
+        "type": "string",
+        "maxLength": 500
+      }
+    },
+    "warnings": {
+      "type": "array",
+      "maxItems": 16,
+      "items": {
+        "type": "string",
+        "maxLength": 500
+      }
+    }
+  }
+}
