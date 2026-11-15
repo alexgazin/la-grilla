@@ -52,13 +52,13 @@ struct PerformView:View {
         if dynamicType.isAccessibilitySize{VStack(spacing:10){filter;delay}}else{HStack(alignment:.top,spacing:10){filter;delay}}
     }
     private var filter:some View {VStack(alignment:.leading,spacing:4){
-        Label("Master filter",systemImage:"line.3.horizontal.decrease").font(.caption.weight(.semibold)).lineLimit(1).minimumScaleFactor(0.8)
+        Label("Master filter",systemImage:"line.3.horizontal.decrease").font(.caption.weight(.semibold)).lineLimit(2)
         Button{live.setEffects(filter:0)}label:{Text(LocalizedStringKey(abs(live.fx.filter)<0.001 ? "BYPASS":String(format:"%+.0f%%",live.fx.filter*100))).font(.system(.title3,design:.monospaced,weight:.medium)).frame(maxWidth:.infinity,minHeight:44,alignment:.leading)}.buttonStyle(StudioQuietButtonStyle()).accessibilityLabel("Reset master filter")
         Slider(value:Binding(get:{live.fx.filter},set:{live.setEffects(filter:$0)}),in:-1...1).tint(.mint).frame(minHeight:44).accessibilityLabel("Master filter").accessibilityIdentifier("perform.filter")
         HStack{Text("LOW PASS");Spacer();Text("HIGH PASS")}.font(.system(size:11,design:.monospaced)).foregroundStyle(Color.muted)
     }.padding(12).frame(maxWidth:.infinity).modifier(StudioSurface()).disabled(!live.contextActive || live.replaying)}
     private var delay:some View {VStack(alignment:.leading,spacing:4){
-        Label("Delay wet",systemImage:"circle.dotted.circle").font(.caption.weight(.semibold)).lineLimit(1).minimumScaleFactor(0.8)
+        Label("Delay wet",systemImage:"circle.dotted.circle").font(.caption.weight(.semibold)).lineLimit(2)
         Text(String(format:"%.0f%%",live.fx.delayWet*100)).font(.system(.title3,design:.monospaced,weight:.medium)).frame(maxWidth:.infinity,minHeight:44,alignment:.leading)
         Slider(value:Binding(get:{live.fx.delayWet},set:{live.setEffects(delay:$0)}),in:0...0.5).tint(.mint).frame(minHeight:44).accessibilityLabel("Delay wet")
         Text("PING-PONG · ⅛").font(.system(size:11,design:.monospaced)).foregroundStyle(Color.muted).lineLimit(1).accessibilityLabel("PING-PONG DELAY · ⅛ NOTE")

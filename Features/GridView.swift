@@ -59,7 +59,7 @@ struct GridView: View {
                     Button("Perform",systemImage:"waveform.path"){session.finishTake();session.sheet = .perform}.accessibilityIdentifier("perform.open")
                     Button("MIDI devices",systemImage:"pianokeys"){session.presentEditor(.midiDevices)}.accessibilityIdentifier("midi.open")
                 }label:{Image(systemName:"ellipsis.circle").frame(width:44,height:44)}.accessibilityLabel("More studio tools").accessibilityIdentifier("tools.more")
-            }.buttonStyle(StudioQuietButtonStyle()).font(.system(size:11,weight:.medium)).lineLimit(1).minimumScaleFactor(0.8).foregroundStyle(Color.mint).padding(.horizontal,4).modifier(StudioSurface())
+            }.buttonStyle(StudioQuietButtonStyle()).font(.system(size:11,weight:.medium)).lineLimit(1).minimumScaleFactor(1).foregroundStyle(Color.mint).padding(.horizontal,4).modifier(StudioSurface())
         }
     }
     func trackLabel(_ role: TrackRole,height: CGFloat)->some View {
