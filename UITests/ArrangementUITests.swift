@@ -78,40 +78,65 @@ final class ArrangementUITests: XCTestCase {
         XCTAssertEqual(panSettled,.completed)
         let widthBefore=scrolledFourth.minX-scrolledThird.minX
         XCTAssertGreaterThan(widthBefore,0)
-        let barsBefore=2+(viewFrame.midX-scrolledThird.minX)/widthBefore
         XCTAssertLessThan(scrolledThird.minX,initialThird.minX-40)
-        timeline.pinch(withScale:1.6,velocity:1)
-        // Width and offset acknowledgement are separate layout events. Wait for
-        // the exact result of this one pinch without repeating the gesture.
+        func number(_ key:String,line prefix:String,in report:String)->Double? {
+            guard let line=report.split(separator:"\n").first(where:{$0.hasPrefix(prefix+" ")}),
+                  let token=line.split(separator:" ").first(where:{$0.hasPrefix(key+"=")}) else{return nil}
+            return Double(token.dropFirst(key.count+1))
+        }
+        // XCTest chooses its own actual hit point and touch trigger distance.
+        // The framework's raw startAnchor is an input, not a target/result from
+        // our zoom helper. Corroborate it against exported two-finger events.
+        timeline.pinch(withScale:1.1,velocity:1)
+        var firstInput="",firstAnchorX=CGFloat.nan,barsBefore=CGFloat.nan
         let enlargedSettled=XCTWaiter.wait(for:[XCTNSPredicateExpectation(predicate:NSPredicate{_,_ in
+            firstInput=timeline.value as? String ?? ""
+            guard number("id",line:"BEGIN",in:firstInput)==1,
+                  number("id",line:"REQUEST",in:firstInput)==1,
+                  number("id",line:"ACK",in:firstInput)==1,
+                  let unit=number("unitAnchorX",line:"BEGIN",in:firstInput),unit.isFinite,(0...1).contains(unit),
+                  let rawWidth=number("viewportWidth",line:"BEGIN",in:firstInput),abs(rawWidth-Double(viewFrame.width))<=0.5 else{return false}
+            firstAnchorX=viewFrame.minX+CGFloat(unit)*viewFrame.width
+            barsBefore=2+(firstAnchorX-scrolledThird.minX)/widthBefore
             let a=third.frame,b=fourth.frame,view=timeline.frame,width=b.minX-a.minX
             guard width>0 else{return false}
-            let center=2+(view.midX-a.minX)/width
+            let center=2+(firstAnchorX-a.minX)/width
             return width>widthBefore*1.2 && abs(center-barsBefore)<=0.04 && a.minX>=view.minX && b.maxX<=view.maxX+1
         },object:third)],timeout:6)
         let enlargedThird=third.frame,enlargedFourth=fourth.frame
         let enlargedWidth=enlargedFourth.minX-enlargedThird.minX
-        let barsEnlarged=2+(timeline.frame.midX-enlargedThird.minX)/enlargedWidth
-        let firstReceipt=XCTAttachment(string:"Settle result=\(enlargedSettled)\nViewport=\(viewFrame) → \(timeline.frame), ruler03=\(scrolledThird) → \(enlargedThird), ruler04=\(scrolledFourth) → \(enlargedFourth)\nActual bar widths=\(widthBefore) → \(enlargedWidth), center bars=\(barsBefore) → \(barsEnlarged)\n\(transport.value as? String ?? "Missing runtime trace")")
+        let barsEnlarged=2+(firstAnchorX-enlargedThird.minX)/enlargedWidth
+        let firstReceipt=XCTAttachment(string:"Settle result=\(enlargedSettled)\nViewport=\(viewFrame) → \(timeline.frame), ruler03=\(scrolledThird) → \(enlargedThird), ruler04=\(scrolledFourth) → \(enlargedFourth)\nRaw-input global anchorX=\(firstAnchorX), actual bar widths=\(widthBefore) → \(enlargedWidth), anchor bars=\(barsBefore) → \(barsEnlarged)\n\(firstInput)\n\(transport.value as? String ?? "Missing runtime trace")")
         firstReceipt.name="Anchored-pinch first actual geometry";firstReceipt.lifetime = .keepAlways;add(firstReceipt)
         XCTAssertEqual(enlargedSettled,.completed)
-        XCTAssertEqual(barsEnlarged,barsBefore,accuracy:0.04,"The real musical point under the viewport pinch center moved")
-        // The next gesture must freeze the newly settled offset and width.
+        XCTAssertEqual(barsEnlarged,barsBefore,accuracy:0.04,"The real musical point under the actual finger anchor moved")
+        let secondViewport=timeline.frame
+        // A second gesture has its own physical anchor, which need not match
+        // the first. Freeze that gesture's before-frames before performing it.
         timeline.pinch(withScale:0.75,velocity:-1)
+        var secondInput="",secondAnchorX=CGFloat.nan,secondBarsBefore=CGFloat.nan
         let reducedSettled=XCTWaiter.wait(for:[XCTNSPredicateExpectation(predicate:NSPredicate{_,_ in
+            secondInput=timeline.value as? String ?? ""
+            guard number("id",line:"BEGIN",in:secondInput)==2,
+                  number("id",line:"REQUEST",in:secondInput)==2,
+                  number("id",line:"ACK",in:secondInput)==2,
+                  let unit=number("unitAnchorX",line:"BEGIN",in:secondInput),unit.isFinite,(0...1).contains(unit),
+                  let rawWidth=number("viewportWidth",line:"BEGIN",in:secondInput),abs(rawWidth-Double(secondViewport.width))<=0.5 else{return false}
+            secondAnchorX=secondViewport.minX+CGFloat(unit)*secondViewport.width
+            secondBarsBefore=2+(secondAnchorX-enlargedThird.minX)/enlargedWidth
             let a=third.frame,b=fourth.frame,view=timeline.frame,width=b.minX-a.minX
             guard width>0 else{return false}
-            let center=2+(view.midX-a.minX)/width
-            return width<enlargedWidth*0.9 && abs(center-barsEnlarged)<=0.04 && a.minX>=view.minX && b.maxX<=view.maxX+1
+            let center=2+(secondAnchorX-a.minX)/width
+            return width<enlargedWidth*0.9 && abs(center-secondBarsBefore)<=0.04 && a.minX>=view.minX && b.maxX<=view.maxX+1
         },object:third)],timeout:6)
         let reducedThird=third.frame,reducedFourth=fourth.frame
         let reducedWidth=reducedFourth.minX-reducedThird.minX
-        let barsReduced=2+(timeline.frame.midX-reducedThird.minX)/reducedWidth
+        let barsReduced=2+(secondAnchorX-reducedThird.minX)/reducedWidth
         let afterTrace=try XCTUnwrap(transport.value as? String)
-        let repeatedReceipt=XCTAttachment(string:"Settle result=\(reducedSettled)\nViewport=\(timeline.frame), ruler03=\(enlargedThird) → \(reducedThird), ruler04=\(enlargedFourth) → \(reducedFourth)\nActual bar widths=\(enlargedWidth) → \(reducedWidth), center bars=\(barsEnlarged) → \(barsReduced)\nBEFORE\n\(beforeTrace)\nAFTER\n\(afterTrace)")
+        let repeatedReceipt=XCTAttachment(string:"Settle result=\(reducedSettled)\nViewport=\(secondViewport) → \(timeline.frame), ruler03=\(enlargedThird) → \(reducedThird), ruler04=\(enlargedFourth) → \(reducedFourth)\nRaw-input global anchorX=\(secondAnchorX), actual bar widths=\(enlargedWidth) → \(reducedWidth), anchor bars=\(secondBarsBefore) → \(barsReduced)\n\(secondInput)\nBEFORE\n\(beforeTrace)\nAFTER\n\(afterTrace)")
         repeatedReceipt.name="Anchored-pinch repeated actual geometry";repeatedReceipt.lifetime = .keepAlways;add(repeatedReceipt)
         XCTAssertEqual(reducedSettled,.completed)
-        XCTAssertEqual(barsReduced,barsEnlarged,accuracy:0.04)
+        XCTAssertEqual(barsReduced,secondBarsBefore,accuracy:0.04)
         XCTAssertGreaterThanOrEqual(reducedWidth,68-0.000001);XCTAssertLessThanOrEqual(reducedWidth,640+0.000001)
         XCTAssertEqual(clip.identifier,clipID);XCTAssertEqual(clip.value as? String,length)
         XCTAssertFalse(app.buttons["Undo"].isEnabled);XCTAssertFalse(app.buttons["Redo"].isEnabled)
