@@ -97,6 +97,7 @@ final class ScreenshotTests:XCTestCase {
                 let learn=app.buttons["midi.learn"],send=app.buttons["midi.send-fixture"]
                 guard revealForCapture([learn],scroll:form,in:app),learn.isEnabled else{XCTFail("Actual MIDI Learn is unavailable");return false}
                 if midiState(status)["learning"] != "1" {
+                    guard midiState(status)["learningActive"]=="0" else{XCTFail("Another MIDI control is already armed; capture must not cancel it");return false}
                     learn.tap()
                     guard waitForCaptureState(status,NSPredicate{_,_ in self.midiState(status)["learning"]=="1"},"MIDI Learn was not armed for the actual filter")else{return false}
                 }

@@ -205,7 +205,7 @@ private enum MIDICallbacks {
         let connected=fixtureInputID.map{settings.enabled && settings.inputIDs.contains($0) && connections[$0]?.endpoint==fixtureSource} ?? false
         let selected=destinationOnline && outputWorker != nil && configuredOutput==fixtureDestination && fixtureDestination != 0 && settings.outputID==fixtureOutputID
         let mapped=fixtureInputID.flatMap{settings.mapping(sourceID:$0,channel:0,controller:74)}?.target == .filter
-        return "requested=\(fixtureRequested ? 1:0);source=\(sourceOnline ? 1:0);input=\(connected ? 1:0);output=\(selected ? 1:0);received=\(fixtureReceivedNotes);mapping=\(mapped ? 1:0);learning=\(learning == .filter ? 1:0);error=\(error==nil ? 0:1);lastFailureStage=\(lastStartupStage ?? "none");lastFailureStatus=\(lastStartupStatus.map{String($0)} ?? "none")"
+        return "requested=\(fixtureRequested ? 1:0);source=\(sourceOnline ? 1:0);input=\(connected ? 1:0);output=\(selected ? 1:0);received=\(fixtureReceivedNotes);mapping=\(mapped ? 1:0);learning=\(learning == .filter ? 1:0);learningActive=\(learning==nil ? 0:1);error=\(error==nil ? 0:1);lastFailureStage=\(lastStartupStage ?? "none");lastFailureStatus=\(lastStartupStatus.map{String($0)} ?? "none")"
     }
     func sendFixture(){
         guard fixtureSource != 0 else{return};var list=MIDIPacketList()
