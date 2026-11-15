@@ -31,7 +31,7 @@ struct JamView: View {
         Button("Steps"){steps=true}.frame(maxWidth:.infinity,minHeight:44).foregroundStyle(steps ? Color.ink:Color.muted).background(steps ? Color.mint:Color.clear,in:RoundedRectangle(cornerRadius:10))
     }.font(.system(size:12,weight:.semibold)).buttonStyle(StudioQuietButtonStyle()).padding(3).frame(width:140).modifier(StudioSurface())}
     private var recordingGuide:some View {VStack(alignment:.leading,spacing:0){
-        Button{showGuide.toggle()}label:{HStack{SmallHeading(text:"RECORD MODE");Spacer();Text(LocalizedStringKey(session.overdub ? "Overdub":"Replace")).font(.caption.weight(.medium));Image(systemName:showGuide ? "chevron.up":"chevron.down").font(.system(size:11,weight:.semibold))}.foregroundStyle(Color.muted).frame(minHeight:44)}.buttonStyle(StudioQuietButtonStyle()).accessibilityLabel("Recording guide").accessibilityIdentifier("jam.recording-guide")
+        Button{showGuide.toggle()}label:{HStack{SmallHeading(text:"RECORD MODE");Spacer();Text(LocalizedStringKey(session.overdub ? "Overdub":"Replace")).font(.caption.weight(.medium));Image(systemName:showGuide ? "chevron.up":"chevron.down").font(.system(size:11,weight:.semibold))}.foregroundStyle(Color.muted).frame(minHeight:44)}.buttonStyle(StudioQuietButtonStyle()).accessibilityLabel("Recording guide").accessibilityValue(LocalizedStringKey(showGuide ? "Expanded":"Collapsed")).accessibilityIdentifier("jam.recording-guide")
         if showGuide{VStack(alignment:.leading,spacing:8){
             Text("Play something only you would.")
             Text(LocalizedStringKey(session.overdub ? "Build your beat, layer by layer.":"A new take. Your last one is undoable."))

@@ -85,7 +85,7 @@ struct StudioSegments<Value:Equatable>:View {
 struct StudioQuietButtonStyle:ButtonStyle {
     @Environment(\.isEnabled) private var enabled
     init(){}
-    func makeBody(configuration:Configuration)->some View {configuration.label.opacity(!enabled ? 0.35:configuration.isPressed ? 0.6:1)}
+    func makeBody(configuration:Configuration)->some View {configuration.label.contentShape(Rectangle()).opacity(!enabled ? 0.35:configuration.isPressed ? 0.6:1)}
 }
 struct StudioNavigationSurface:ViewModifier {
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency

@@ -32,7 +32,9 @@ final class StudioTests: XCTestCase {
         app.buttons["Отмена"].tap();app.buttons["Джем"].tap()
         let guide=app.buttons["jam.recording-guide"]
         for _ in 0..<5 {if guide.isHittable{break};app.scrollViews.firstMatch.swipeUp()}
-        XCTAssertTrue(guide.exists);guide.tap()
+        XCTAssertTrue(guide.exists);XCTAssertEqual(guide.value as? String,"Свёрнуто")
+        // Tap the row's center, including its empty spacer, as a finger would.
+        guide.tap();XCTAssertEqual(guide.value as? String,"Развёрнуто")
         let hint=app.staticTexts["Сыграй свой собственный ритм."]
         for _ in 0..<4 {if hint.isHittable{break};app.scrollViews.firstMatch.swipeUp()}
         XCTAssertTrue(hint.waitForExistence(timeout:5))
@@ -40,6 +42,8 @@ final class StudioTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Создавай бит слой за слоем."].exists)
         XCTAssertFalse(app.staticTexts["Play something only you would."].exists)
         XCTAssertFalse(app.staticTexts["Build your beat, layer by layer."].exists)
+        for _ in 0..<4 {if guide.isHittable{break};app.scrollViews.firstMatch.swipeDown()}
+        guide.tap();XCTAssertEqual(guide.value as? String,"Свёрнуто");XCTAssertFalse(hint.exists)
     }
     @MainActor func testLargeTypeMixerAndAccessibleNoteList() throws {
         XCUIDevice.shared.orientation = .portrait
