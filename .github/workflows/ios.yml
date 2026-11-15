@@ -80,7 +80,7 @@ jobs:
           if test "$GRILLA_INPUT_DIAGNOSTIC" = 1; then
             FILTER=(-only-testing:LaGrillaUITests/AudioRuntimeContinuityTests/testAAOutputOnlyLaunchDoesNotRequestMicrophone -only-testing:LaGrillaUITests/AudioRuntimeContinuityTests/testSessionMicrophoneLeaseRetainsLiveEngineAndPCM -only-testing:LaGrillaUITests/AudioRuntimeContinuityTests/testProductionVoiceCaptureCAFAnalysisApplyStoreAndUndo -only-testing:LaGrillaUITests/AudioRuntimeContinuityTests/testDiagnosticOnlyFreshInputLifecycleControls)
           fi
-          xcodebuild "${FILTER[@]}" -test-timeouts-enabled YES -maximum-test-execution-time-allowance 600 -project LaGrilla.xcodeproj -scheme LaGrilla -destination "platform=iOS Simulator,id=$DEVICE" -derivedDataPath DerivedData -resultBundlePath TestResults.xcresult ARCHS=arm64 ONLY_ACTIVE_ARCH=YES CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO test-without-building | tee uitests.log
+          xcodebuild "${FILTER[@]}" -test-iterations 3 -test-timeouts-enabled YES -maximum-test-execution-time-allowance 600 -project LaGrilla.xcodeproj -scheme LaGrilla -destination "platform=iOS Simulator,id=$DEVICE" -derivedDataPath DerivedData -resultBundlePath TestResults.xcresult ARCHS=arm64 ONLY_ACTIVE_ARCH=YES CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO test-without-building | tee uitests.log
       - name: Record read-only host microphone authorization diagnostics
         if: always() && !cancelled() && contains(github.event.head_commit.message, '[input-diagnostic]')
         run: |
@@ -104,7 +104,9 @@ jobs:
           if test -d CompactResults.xcresult; then
             xcrun xcresulttool export attachments --path CompactResults.xcresult --output-path NativeAttachments/compact || GRILLA_ATTACHMENTS_FAILED=1
           fi
-          python3 scripts/collect_native_screenshots.py NativeAttachments Screenshots/OriginalVision OriginalVision --replace-pngs "$GRILLA_CAPTURE_OPTION" || GRILLA_ATTACHMENTS_FAILED=1
+          # Diagnostic-only fixed repetitions intentionally repeat scene labels.
+          # Preserve every UUID attachment and manifest without choosing a
+          # duplicate or creating a managed release screenshot collection.
           # Preserve every valid original even when another result bundle is
           # corrupt. The step/run still fails; a partial set cannot authorize
           # Store preparation or distribution.
@@ -113,7 +115,7 @@ jobs:
         if: success() && !contains(github.event.head_commit.message, '[input-diagnostic]') && (!contains(github.event.head_commit.message, '[ui-only]') || contains(github.event.head_commit.message, '[ru-capture]'))
         run: python3 scripts/release/prepare_store_screenshots.py Screenshots/OriginalVision Screenshots/AppStore
       - name: Save simulator screenshots
-        if: always()
+        if: ${{ false }}
         uses: actions/upload-artifact@v4
         with:
           name: simulator-screenshots
@@ -128,7 +130,6 @@ jobs:
         with:
           name: ios-verification
           path: |
-            Screenshots/**/*.png
             ExportFixtures
             build.log
             uitests.log
