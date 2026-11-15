@@ -1,0 +1,11 @@
+# Perform behavior and verification
+
+Section launches are applied on the audio clock at the next bar. Tapping the queued section cancels it; the latest different selection replaces it. Beat jump moves by ±1/±4 beats on the next beat. Repeat captures ¼/½/1/2 beats on the next sixteenth; releasing it returns to the underlying source position, which continues moving. The first fragment must have sounded before it can repeat.
+
+The filter is low-pass to the left, high-pass to the right, with center bypass. Delay is an eighth-note stereo ping-pong. Gain, pan and FX use DSP ramps. Live values survive closing the Perform view. Only **Save mixer & FX snapshot** commits them to the static project. Replay controls are read-only. Returning to editing stops/finalizes the performance before source editing.
+
+Recording restarts at the selected section. The latest finite take is stored as one Undo transaction, with its immutable source revision, initial mix, seed and versioned instruments. Limits are 64 bars, 16,384 events, 512 events at one frame and a 2 MB source snapshot. Overflow stops capture at the last reproducible prefix and displays a notice. A completed take replaces the preceding take through Undo. Microphone originals referenced by a frozen source remain in portable packages.
+
+Replay and WAV render the actual sample-offset actions through the same DSP. The default take tail is zero; an optional 0–10 second tail is explicitly selected. A performance export is distinct from ordinary song export. MIDI linearizes played sections, jumps, repeated note fragments and live input, and writes volume/pan/filter/delay controller intent. Audio-buffer envelopes and instrument/FX timbres cannot be represented identically in an external MIDI instrument. The original take remains the authoritative audio replay.
+
+Automated evidence is recorded in [QA](QA.md). Native screenshots are in [R6](../Screenshots/R6). The original real-time repeat snapshot uses a bounded preallocated copy; its worst-case callback time, discontinuities under dense voice stealing, route changes and physical headphone/USB latency remain release-hardening gates. Simulator playback and deterministic PCM tests do not replace those measurements.
