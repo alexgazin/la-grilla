@@ -70,7 +70,10 @@ final class ScreenshotTests:XCTestCase {
         image.name="MIDI-"+name+"-original-error";image.lifetime = .keepAlways;add(image)
     }
     @MainActor private func midiForm(_ app:XCUIApplication)->XCUIElement?{
-        [app.collectionViews["midi.form"],app.tables["midi.form"],app.scrollViews["midi.form"]].first{$0.exists}
+        [app.collectionViews["midi.form"],app.tables["midi.form"],app.scrollViews["midi.form"],
+         app.collectionViews.containing(.button,identifier:"midi.reconnect").firstMatch,
+         app.tables.containing(.button,identifier:"midi.reconnect").firstMatch,
+         app.scrollViews.containing(.button,identifier:"midi.reconnect").firstMatch].first{$0.exists}
     }
     @MainActor private func prepareMIDICapture(_ app:XCUIApplication,mapped:Bool)->Bool{
         let status=app.buttons["midi.done"]
