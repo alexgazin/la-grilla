@@ -115,6 +115,13 @@ Source `8a90920684e2e66fb9a159adec975e4af1cfa303`, [run 43726756796](https://git
 
 Приёмка дополнена реальными RU/EN/375-point кадрами custom chord editor и крупным верхним блоком Perform. В разработке — actual VoiceCapture → CAF → analysis → apply/source persistence/Undo и фактический Session lifecycle записи offset/repeating drum clip. Эти проверки не подменяют человеческий голос или измерения физического MIDI. [Промежуточный кадр Assistant](../Screenshots/OriginalVision-progress/assistant-live-form.png) сохраняет собственный прежний source/run/manifest и явно отделён от будущей полной коллекции.
 
+Дополнительные native проверки реализованы, Apple SDK/execution ещё не приняты:
+
+- `VoiceCaptureRuntimeQA` использует настоящие Session/VoiceCaptureController, input tap и host HAL loopback: ядро играет монофоническую референсную мелодию с тихими барабанами, а тест не подставляет PCM или результат анализа. Проверяются finite Float32/mono/48 kHz CAF, frame/duration/provenance/hash, неизменный оригинал после ручной коррекции, непустые реальные detected notes, точная связь sourceAsset и reviewed notes, настоящий store/reopen и одна Undo/Redo. Монитор наблюдает engine/kernel/clock/phase на всём async capture/analysis/save пути. Это программная приёмка тракта, не оценка человеческого напева.
+- `DrumClipRuntimeQA` ведёт настоящую Session-запись в offset/repeating clip с общим исходным pattern: два прохода по audio clock, отдельная правка gain/pan, самостоятельный audible draft и одна финальная history-транзакция. Проверяются независимость нового источника, сохранность sibling/старых слышимых событий, quantized pads, mixer, Undo/Redo и фаза. Второй сценарий проверяет natural finite end: частичный take сохраняется и снимает recording lock, нажатие за пределами клипа слышно, но не заворачивается в его pattern.
+
+Generated project включает 31 app source file; всего 43 native test methods: 40 функциональных и три capture methods. Focused run теперь выбирает 14 integration tests, не заменяя полный набор. Синтаксический parser, presentation/release и 12 release-gate regressions проходят; это не объявляется Apple typecheck или native выполнением нового кода.
+
 ## Формат отчёта каждого этапа
 
 Для C1–C8 добавлять отдельную запись:

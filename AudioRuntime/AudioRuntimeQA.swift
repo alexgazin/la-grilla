@@ -212,9 +212,10 @@ struct AudioRuntimeQAView:View {
     @State private var result="WAITING"
     @State private var details=""
     @State private var started=false
+    private var voiceCaptureCase:Bool{ProcessInfo.processInfo.arguments.contains("--audio-runtime-voice-capture")}
     private var microphoneCase:Bool {
         let args=ProcessInfo.processInfo.arguments
-        return args.contains("--audio-runtime-microphone") && !args.contains("--audio-runtime-midi-policy")
+        return (args.contains("--audio-runtime-microphone") || voiceCaptureCase) && !args.contains("--audio-runtime-midi-policy")
     }
     var body:some View {
         VStack(spacing:12){
@@ -237,6 +238,8 @@ struct AudioRuntimeQAView:View {
         guard !started else{return};started=true;result="RUNNING"
         do {
             if ProcessInfo.processInfo.arguments.contains("--audio-runtime-midi-policy"){details=try await AudioRuntimeQA.midiPolicy(session)}
+            else if ProcessInfo.processInfo.arguments.contains("--audio-runtime-drum-clip"){details=try await DrumClipRuntimeQA.run(session)}
+            else if voiceCaptureCase{details=try await VoiceCaptureRuntimeQA.run(session)}
             else if microphoneCase{details=try await AudioRuntimeQA.microphone(session)}
             else{details=try await AudioRuntimeQA.snapshots(session)}
             result="PASS"
