@@ -32,6 +32,7 @@ import Observation
     var harmonyPreview=false;private var previewPosition=0;private var previewPlaying=false
     var noteTrackID:UUID?
     var importing=false
+    private var backgrounded=false
     var ready = false; private var bootstrapTask:Task<Void,Never>?; var saveTask: Task<Void,Never>?
     let store: ProjectStore
     enum Sheet: String, Identifiable {case projects, newProject, export, settings, bass, sections, notes, harmony, assistant, voice, perform, midiDevices; var id: String { rawValue }}
@@ -57,8 +58,17 @@ import Observation
         }
         bootstrapTask=task;await task.value
     }
-    func ensureAudio() -> Bool { if audio.isPrepared {return true}; do {try audio.prepare(); sync(); return true} catch {audio.error = error.localizedDescription; return false} }
-    func syncMIDI(){midi.configure(project.midi ?? MIDISettings(),project:project)}
+    func ensureAudio() -> Bool {guard !backgrounded else{return false}; if audio.isPrepared {return true}; do {try audio.prepare(); sync(); return true} catch {audio.error = error.localizedDescription; return false} }
+    func syncMIDI(){guard !backgrounded || audio.playing else{return};midi.configure(project.midi ?? MIDISettings(),project:project)}
+    func sceneChanged(_ phase:ScenePhase){
+        if phase == .active{backgrounded=false;if ready{_ = ensureAudio();syncMIDI()};return}
+        finishTake();Task{await save()}
+        if phase == .background{backgrounded=true;suspendIdleAudio()}
+    }
+    private func suspendIdleAudio(){
+        guard backgrounded,!audio.playing else{return}
+        midi.suspend();audio.reset();try? AVAudioSession.sharedInstance().setActive(false,options:.notifyOthersOnDeactivation)
+    }
     func sync() {syncMIDI();if performance.contextActive{if let p=performance.runtimeProject{audio.mix(p)};return}; audio.submit(project,loop:loop,range:loopRange); audio.metronome(metronome) }
     func edit(_ change: (inout Project) throws -> Void) {
         mixerGesture=false
@@ -110,6 +120,7 @@ import Observation
     }
     func pollRecording() {
         midi.poll(replaying:performance.replaying);pollPerformance()
+        if backgrounded,!audio.playing{suspendIdleAudio();return}
         if armed && audio.clock>=armClock { armed=false; recording=true }
         guard recording else { return }
         let frames = UInt64(Double(loopRange.count)/960*60/project.bpm*audio.sampleRate)
@@ -282,5 +293,5 @@ import Observation
         }}
     }
     func saveCopy()async{do{_ = try await store.duplicate(project);message="A copy has been saved.";entries=try await store.list()}catch{message=error.localizedDescription}}
-    func interrupt() {if performance.contextActive{performance.finalizeBeforeReset();pollPerformance()};harmonyPreview=false;finishTake();midi.panic();midi.retry();audio.reset();Task{await save()}}
+    func interrupt() {if performance.contextActive{performance.finalizeBeforeReset();pollPerformance()};harmonyPreview=false;finishTake();midi.suspend();midi.retry();audio.reset();Task{await save()}}
 }

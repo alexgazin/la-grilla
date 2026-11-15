@@ -132,6 +132,7 @@ private enum MIDICallbacks {
     }
     deinit{if fixtureDestination != 0{MIDIEndpointDispose(fixtureDestination)};if fixtureSource != 0{MIDIEndpointDispose(fixtureSource)};if input != 0{MIDIPortDispose(input)};if client != 0{MIDIClientDispose(client)}}
     func panic(){for id in Array(connections.keys){disconnect(id)};outputWorker?.select(configuredOutput,channels:outputChannels);learning=nil}
+    func suspend(){for id in Array(connections.keys){disconnect(id)};outputWorker?.suspend();configuredOutput=0;lastConfiguration=nil;learning=nil}
     func isConnected(_ id:Int32)->Bool{connections[id] != nil}
     func poll(replaying:Bool){
         late=lg_midi_late(hub.pointer);dropped=lg_midi_dropped(hub.pointer);outputSent=lg_midi_output_count(hub.pointer)
