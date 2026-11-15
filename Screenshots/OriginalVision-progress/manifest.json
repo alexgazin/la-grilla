@@ -115,7 +115,7 @@
       "scenario_result": "passed",
       "scenario_seconds": 386.878,
       "source_test_log": "main",
-      "fixture": "Actual typed custom formula C{0,3,7,11,14} through the production chord parser; no synthetic musical state.",
+      "fixture": "Deterministic Demo project; actual typed custom formula C{0,3,7,11,14} through the production chord parser, without an injected chord result.",
       "source_attachment_name": "OriginalVision-harmony-custom-ru_0_1E6CB97C-C5CB-442F-9B82-81F3028844B9.png",
       "source_attachment_file": "NativeAttachments/main/DE544638-3FF5-426D-825F-9B23C1B91D80.png",
       "source_archive_entry": "Screenshots/OriginalVision/harmony-custom-ru.png",
