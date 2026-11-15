@@ -40,9 +40,11 @@ jobs:
             LaGrilla.xcodeproj
             LaGrilla-Simulator.zip
       - name: Capture simulator screens
+        env:
+          GRILLA_CAPTURE_SCREENS: ${{ contains(github.event.head_commit.message, '[ui-only]') && '0' || '1' }}
         run: bash scripts/screenshots.sh
       - name: Save simulator screenshots
-        if: always()
+        if: always() && !contains(github.event.head_commit.message, '[ui-only]')
         uses: actions/upload-artifact@v4
         with:
           name: simulator-screenshots
