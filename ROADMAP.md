@@ -6,21 +6,23 @@
 
 ## Завершение исходного видения — C0–C8
 
-Сверка с первоначальными идеями выявила функциональные пробелы поверх выполненного MVP: свободный AI/многосекционные предложения, полноценные clip/section жесты, непрерывные структурные правки и duplex voice, практическое расширение гармонии/формулы и круговой DJ-фильтр. Прежнее завершение R0–R10 **не закрывает эти расширения**.
+Программная реализация **C1–C7 принята для 1.0.0 (14), schema 8**: [полный run 43771988471](https://github.com/alexgazin/la-grilla/actions/runs/43771988471), source `77fb72ab82cd800eb8131136628c416ad83c9046`. Прошли 118 Swift tests / 19 suites, 15 C++ suites, 603 EN/RU keys, все 44 функциональных native сценария и три capture methods. [73 оригинала](Screenshots/OriginalVision) просмотрены индивидуально; Store 12 и четыре превью сохраняют их bytes. Интеграция — [PR #13](https://github.com/alexgazin/la-grilla/pull/13); [текущий main CI](https://github.com/alexgazin/la-grilla/actions/workflows/ios.yml?query=branch%3Amain) проверяет точный merge commit перед distribution.
 
-Подробная техчасть, зависимости, тесты и приёмка каждого этапа: [план C0–C8](docs/ORIGINAL_VISION_COMPLETION.md). Фактические результаты: [журнал реализации](docs/IMPLEMENTATION_LOG.md).
+Контракты каждого этапа — [план C0–C8](docs/ORIGINAL_VISION_COMPLETION.md), подробная история ошибок и исправлений — [журнал](docs/IMPLEMENTATION_LOG.md), измерения и пределы — [приёмка C7](docs/release/C7_ACCEPTANCE.md).
 
-| Этап | Что сделать | Статус |
+| Этап | Результат | Статус |
 | --- | --- | --- |
-| C0 | Полная сверка, технические контракты и журнал | План записан; реализация начата |
-| C1 | Джазовый каталог, пользовательские формулы, voicings, schema 8 | Реализация |
-| C2 | Настоящий круговой live-фильтр и доступность | Native приёмка пройдена; [55 кадров и receipt](Screenshots/C2) |
-| C3 | Move/copy/resize клипов, совместимые drop, section drag, clip-specific piano roll | Реализация |
-| C4 | Атомарный music/mix/preset snapshot; live add/remove/reorder и фазовое A/B без Stop | Реализация |
-| C5 | Общий duplex input, напев/диктовка поверх бита, bounded capture и cleanup | Реализация инфраструктуры |
-| C6 | Реальный AI provider, естественные команды/«поджазовать», whole-song review/Apply/Undo | Реализация |
-| C7 | Интеграционная QA, совместимость, новый RC и реальные кадры | После C1–C6 |
-| C8 | Устройства/реальные модели/голоса, signing, TestFlight и App Review | Внешняя приёмка открыта |
+| C0 | Сверка исходных идей, зависимости, контракты и журнал | Выполнено |
+| C1 | 65 качеств аккордов, aliases, custom formulas/voicings, schema 8 | Host/native/export/migration приёмка пройдена |
+| C2 | Круговой DJ filter, Reset, AX, запись/replay | Принят ранее через PR #14; общая регрессия пройдена |
+| C3 | Move/copy/resize клипов, совместимые дорожки, section drag, anchored pinch | Все шесть native Arrangement cases прошли; шесть original synthesized touch events независимо подтверждают anchor |
+| C4 | Atomic music/mix/preset/FX snapshots и live edits без Stop | Native snapshot/MIDI/live editing/drum overdub прошли вместе |
+| C5 | Общий duplex input, original CAF и voice review/Apply/store/Undo | Две настоящие production CAF цепи прошли; timestamp spacing и физическая непрерывность остаются отдельно в C8 |
+| C6 | Typed on-device AI adapter, RU/EN Commands, Jazz/whole-song review | Adapter и native Commands/review/Apply/Undo приняты; реальная модель/язык/качество — C8 |
+| C7 | Общая QA, совместимость, новые кадры и кандидат 14 | Полный software/native run и визуальная приёмка пройдены; exact-main CI обязателен перед distribution |
+| C8 | Устройства, реальные модели/голоса, signing, TestFlight, App Review | Внешняя приёмка открыта |
+
+Предыдущий принятый базовый этап C2 — `912dc483`, версия 13, exact-main run `43719321757` — сохранён как история. Семь [progress PNG](Screenshots/OriginalVision-progress) имеют собственные источники и не переименованы в финальную коллекцию. Исторические failures, включая CoreMIDI −304 и неправильные QA expectations, не скрыты. Отсутствие физических dropouts, minimum-iOS-18 installed launch, реальная модель/живой напев, подпись и публикация не объявлены проверенными.
 
 ## История выполненных базовых этапов
 

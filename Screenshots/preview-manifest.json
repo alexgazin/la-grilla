@@ -1,0 +1,48 @@
+{
+  "candidate": "1.0.0 (14)",
+  "captureSource": "77fb72ab82cd800eb8131136628c416ad83c9046",
+  "captureRunID": 43771988471,
+  "pixelPreservation": "Unchanged verified native PNG bytes.",
+  "images": [
+    {
+      "file": "grid.png",
+      "sourceFile": "OriginalVision/grid.png",
+      "source": "77fb72ab82cd800eb8131136628c416ad83c9046",
+      "runID": 43771988471,
+      "artifactID": 14186510163,
+      "sha256": "3f28d139fc0cadca1b9bf8afa3866463aedff92f58b91cbf7458bd4497b700f4",
+      "width": 1320,
+      "height": 2868
+    },
+    {
+      "file": "jam.png",
+      "sourceFile": "OriginalVision/jam.png",
+      "source": "77fb72ab82cd800eb8131136628c416ad83c9046",
+      "runID": 43771988471,
+      "artifactID": 14186510163,
+      "sha256": "2f6cbab4aa1634cc72c0929526c9fd9b1de2a6a21fd148203cc11781f9d0215d",
+      "width": 1320,
+      "height": 2868
+    },
+    {
+      "file": "mixer.png",
+      "sourceFile": "OriginalVision/mixer.png",
+      "source": "77fb72ab82cd800eb8131136628c416ad83c9046",
+      "runID": 43771988471,
+      "artifactID": 14186510163,
+      "sha256": "4f116abd685bd9792fec5d4cd072ee6193ed6a582f1f2783ab39cc93effa9d31",
+      "width": 1320,
+      "height": 2868
+    },
+    {
+      "file": "projects.png",
+      "sourceFile": "OriginalVision/projects.png",
+      "source": "77fb72ab82cd800eb8131136628c416ad83c9046",
+      "runID": 43771988471,
+      "artifactID": 14186510163,
+      "sha256": "e6317ec8af90a0152dfe1295989a2132eb03a50a1100132cf647008c73b362f9",
+      "width": 1320,
+      "height": 2868
+    }
+  ]
+}

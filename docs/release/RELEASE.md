@@ -1,6 +1,6 @@
 # Release procedure
 
-Current candidate: **1.0.0 (12)**, iPhone / iOS 18+, bundle `com.alexgazin.LaGrilla`. Design 2026 software/native acceptance is recorded in [Design QA](../DESIGN_QA.md) and [Release QA](../RELEASE_QA.md). This is a release procedure, not evidence of an App Store upload.
+Software candidate **1.0.0 (14), schema 8**, iPhone / iOS 18+, bundle `com.alexgazin.LaGrilla`, passed [C1–C7 acceptance](C7_ACCEPTANCE.md): source `77fb72ab82cd800eb8131136628c416ad83c9046`, [full run 43771988471](https://github.com/alexgazin/la-grilla/actions/runs/43771988471), all three verification jobs, 44 functional flows, three capture methods and 73 reviewed original PNGs. [Implementation log](../IMPLEMENTATION_LOG.md) preserves the detailed stages/failures; [Design QA](../DESIGN_QA.md) retains the historical version12 design acceptance. Exact-main checks remain mandatory before distribution. Physical-device acceptance, a signed installed build, TestFlight and App Store publication remain unperformed.
 
 ## Current Apple submission requirement
 
@@ -15,10 +15,10 @@ The main verification workflow runs domain/export readers, audio suites, EN/RU/p
 Store text is in `docs/store/en-US` and `docs/store/ru`; field lengths are checked. Native store images are captured by XCTest on an iPhone 16 Pro Max simulator at **1320 × 2868**, without resizing, fabricated UI or generated screenshots:
 
 ```sh
-python3 scripts/release/prepare_store_screenshots.py Screenshots/Design2026 Screenshots/AppStore
+python3 scripts/release/prepare_store_screenshots.py Screenshots/OriginalVision Screenshots/AppStore
 ```
 
-Use English and Russian images with their corresponding listing. Inspect the final images and make sure their source SHA matches the release binary; regenerate after a visible change. OpenArt provenance concerns the app icon, not the native screenshots.
+Run this only after the complete version 14 capture succeeds. Use English and Russian images with their corresponding listing. Inspect the final images and record their actual capture SHA/run/hashes against the release source; regenerate after a visible change. Do not relabel historical Design2026/C2 images or a partial QA export as new version 14 captures. OpenArt provenance concerns the app icon, not the native screenshots.
 
 ## Signing / TestFlight
 
@@ -36,7 +36,7 @@ Create an App Store Connect app record for the bundle ID, then configure the rep
 
 Generate single-line base64 on a Mac with `base64 -i input-file | tr -d '\n'`. The environment can use GitHub's own reviewers if the owner configures them; this repository adds no mandatory approval request.
 
-Run **Signed archive and optional TestFlight upload** on `main`. It requires successful `ios`, `iphone` and `release-archive` checks for the exact source commit. A documentation-only skipped commit must first get a complete verification run. By default the workflow creates a signed IPA; selecting `upload_testflight` also validates and uploads it. The profile is installed in Xcode 16+’s `~/Library/Developer/Xcode/UserData/Provisioning Profiles` directory. Temporary signing files/keychain are deleted; an identical pre-existing profile is reused and preserved. The workflow never submits the app for App Review or releases it to production.
+Run **Signed archive and optional TestFlight upload** on `main`. It requires successful `ios`, `iphone` and `release-archive` checks from one coherent verification run for the exact source commit. Full push and `[ui-only]` runs execute every functional native class; `[integration-only]`, `[input-diagnostic]`, `[ru-capture]` and `[device-only]` pushes cannot authorize signing. An actual `ios.yml` manual verification run is full because that workflow has no test-scope inputs. The distribution workflow's own manual trigger or `upload_testflight` input does not turn a focused verification into full acceptance. A documentation-only skipped commit must first get a complete verification run. By default the workflow creates a signed IPA; selecting `upload_testflight` also validates and uploads it. The profile is installed in Xcode 16+’s `~/Library/Developer/Xcode/UserData/Provisioning Profiles` directory. Temporary signing files/keychain are deleted; an identical pre-existing profile is reused and preserved. The workflow never submits the app for App Review or releases it to production.
 
 The profile is checked for team/bundle match, expiry and distribution entitlements before signing. The archive is signed with the owner's certificate, verified, exported using `app-store-connect`, and audited again. Successful upload is followed by Apple's asynchronous processing; install the resulting TestFlight build for device QA. No signing or upload has been exercised without the owner's credentials.
 
@@ -48,8 +48,9 @@ Record results in [DEVICE_ACCEPTANCE.md](DEVICE_ACCEPTANCE.md). Resolve blocker/
 - Speaker, wired/USB and Bluetooth routes; headphones unplug, call/Siri interruption, screen lock, background Play/Pause/Stop, media reset and denied microphone/speech permissions.
 - USB and BLE MIDI input/output, sustain, channel filtering, Learn, disconnect/reconnect and Panic. Compare actual events/timing with two DAWs; check exported MIDI/WAV/stems and portable voice assets.
 - Save/reopen/kill/recovery, storage failure, sharing/cancellation, language/appearance, Dynamic Type, VoiceOver and portrait/landscape controls.
+- Actual iOS 18 startup without Foundation Models; shared-graph human voice against a referenced note corpus; live structural/mix/MIDI continuity; and real Foundation Models generation/latency/cancellation plus unavailable-device/model/language fallbacks. Keep these physical/model results separate from deterministic fixtures.
 - Public support/privacy URLs, actual store text/screenshots, data-not-collected answers, current age-rating questionnaire, content rights, export compliance, pricing/availability (including opting out of untested Mac/visionOS compatibility) and the owner's legal seller information.
 
-App Review notes: no login or demo account; start from the included demo. Grid opens harmony/notes/Assistant; More opens voice, Perform and MIDI. Play starts audio; stopping releases notes; record/microphone access is explicit. USB/BLE require a compatible peripheral. Dictation requires a supported local speech model; typed commands remain available. Voice conversion is monophonic and needs review. Original synthesized instruments can sound different from external MIDI instruments.
+App Review notes: no login or demo account; start from the included demo. Grid opens harmony/notes/Assistant; More opens voice, Perform and MIDI. Play starts audio; stopping releases notes; record/microphone access is explicit. USB/BLE require a compatible peripheral. Optional on-device AI needs an eligible iPhone with iOS 26, enabled Apple Intelligence, a ready model and a supported selected language; local Commands work without that model, including on iOS 18. Dictation separately requires supported on-device speech recognition. Voice conversion is monophonic, can record over the backing loop and needs review. Prompts, music and recordings are processed on the device. Original synthesized instruments can sound different from external MIDI instruments.
 
 Only after the signed RC passes this matrix: choose the processed build in App Store Connect, complete the listing and questionnaire, submit for review, then verify the installed production build after approval. Apple account setup, physical measurements and Apple's review cannot be completed by an unsigned cloud simulator build.

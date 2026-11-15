@@ -27,6 +27,10 @@ for manifest in source.rglob('*.json'):
 for name,file in files.items():
     match=pattern.search(name)
     if match:mapped.setdefault(match.group(1).rstrip('-'),file)
+if '--replace-pngs' in sys.argv[4:]:
+    # CI checks out prior accepted captures. A partial/empty native run must
+    # never inherit those PNGs and imply they were captured by the current run.
+    for previous in destination.glob('*.png'):previous.unlink()
 assert mapped or '--allow-empty' in sys.argv[4:],'xcresulttool did not export named '+stage+' screenshots; inspect NativeAttachments/manifest.json'
 destination.mkdir(parents=True,exist_ok=True)
 for name,file in mapped.items():shutil.copyfile(file,destination/(name+file.suffix.lower()))

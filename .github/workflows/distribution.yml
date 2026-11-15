@@ -9,6 +9,7 @@ on:
 permissions:
   contents: read
   checks: read
+  actions: read
 env:
   DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
 concurrency:

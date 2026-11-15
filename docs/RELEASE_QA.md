@@ -1,15 +1,23 @@
 # Release candidate evidence
 
-Candidate: **1.0.0 (12)**, `com.alexgazin.LaGrilla`, iPhone / iOS 18+. Current acceptance uses **Xcode 26.3 / iOS 26.2 SDK**. Apple's Xcode 26 / iOS 26 SDK submission requirement has applied since April 28, 2026. See the [release procedure](release/RELEASE.md).
+Software candidate **1.0.0 (14), project schema 8**, `com.alexgazin.LaGrilla`, iPhone / iOS 18+, has passed C1–C7 acceptance. Verified implementation/capture source `77fb72ab82cd800eb8131136628c416ad83c9046`, [normal full run 43771988471](https://github.com/alexgazin/la-grilla/actions/runs/43771988471), **all three jobs successful** on Xcode 26.3 / iOS 26.2. This is software/Simulator acceptance, not a signed installation or publication.
 
-## Final software acceptance
+Actual results: **118 Swift tests / 19 suites, 15 C++ suites, 603 EN/RU keys, 44/44 functional native methods and 3/3 capture methods**. All 48 declared methods match the source inventory: 47 pass, one explicitly opt-in diagnostic control skips, zero fail. The [73 original PNGs](../Screenshots/OriginalVision) passed complete ZIP/API/native attachment byte/hash checks and individual visual review; [12 Store copies](../Screenshots/AppStore) and four previews are unchanged source bytes. [Complete software evidence, measured microphone timing and limits](release/C7_ACCEPTANCE.md).
+
+The original-idea workflows now include expanded/custom harmony, native arranging and anchored pinch, atomic live edits, shared-engine voice source lifecycle, local Assistant review and DJ performance. Independent original synthesized touch events verify both gestures across three fresh-app pinch cases. Recorded-human voice quality remains limited and reviewable; real FoundationModels quality remains a device gate. Historical failures and corrected QA assumptions are preserved in the [implementation log](IMPLEMENTATION_LOG.md).
+
+[PR #13](https://github.com/alexgazin/la-grilla/pull/13) integrates the candidate; [current main verification](https://github.com/alexgazin/la-grilla/actions/workflows/ios.yml?query=branch%3Amain) supplies exact-main status. Distribution requires successful `ios`, `iphone` and `release-archive` from one coherent run for that exact main commit. Final captures retain source77 provenance rather than inheriting a later metadata/merge SHA.
+
+Previous accepted main 13/C2 was `912dc483415ad2e59c78a89c08eaa6fda38342f5`, [run 43719321757](https://github.com/alexgazin/la-grilla/actions/runs/43719321757), with 64 Swift, 11 C++ and 22 functional flows. Its [C2 captures](../Screenshots/C2) remain historical evidence.
+
+## Historical software acceptance — candidate 12
 
 - Verified implementation/capture source: `72d81cb8a7be054d2e00457f4d30461a99e67b1f`. [Complete run 43700372709](https://github.com/alexgazin/la-grilla/actions/runs/43700372709) passes all three jobs: 64 Swift tests, independent export readers, 11 C++ suites, both SDK builds, 19 native Studio flows, three capture methods (22 native tests across Pro Max and SE), and the optimized device archive/dSYM/resource audit.
 - Design 2026 is implemented and reviewed: shared light/dark palette, readable typography, current native navigation material, simpler Grid/Harmony/Perform/Jam/Mixer and consistent secondary views. The presentation audit checks **480 EN/RU keys**, placeholders, the 11-point fixed-font floor, AA tokens and the opaque original OpenArt icon. [Design QA](DESIGN_QA.md) records the actual touch defect and its passing regression.
-- [54 original native PNGs](../Screenshots/Design2026) have per-file source/run/dimensions/SHA-256. All are opaque RGB; the twelve [Store copies](../Screenshots/AppStore) preserve the original 1320 × 2868 bytes. English/Russian, light/dark, large text, landscape and 375-point views are retained. Root previews follow this collection; [R0](../Screenshots/R0) preserves the former originals.
+- [54 historical original native PNGs](../Screenshots/Design2026) retain per-file source/run/dimensions/SHA-256, including the twelve original 1320×2868 Store-source frames. Current [Store copies](../Screenshots/AppStore) and root previews follow the latest accepted collection. English/Russian, light/dark, large text, landscape and 375-point historical views remain intact; [R0](../Screenshots/R0) preserves the former root originals.
 - The preceding technical candidate 1.0.0 (11), source `ecfc9b9`, passes [43689852307](https://github.com/alexgazin/la-grilla/actions/runs/43689852307). Its [R10 frames](../Screenshots/R10) remain historical evidence. Earlier iOS 18.5 checks are compatibility evidence; they do not replace the current-SDK archive or installed-device acceptance.
 
-## Release fixes and artifacts
+## Historical release fixes and shared tooling
 
 - Stop/Panic is processed before chasing active notes onto a changed output destination. Zero-length remaining gates cannot produce a new NoteOn. At a shared sample boundary, the preceding NoteOff is sent before a same-pitch retrigger. Regressions reproduced all three defects against the previous implementation and pass after the fix; the suite also covers Panic during handover.
 - Endpoint discovery checks both endpoint and parent-device offline flags, so a disconnected device retained by a MIDI driver cannot remain the selected online endpoint. Actual USB/BLE unplug timing remains a physical-device check.

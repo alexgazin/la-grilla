@@ -2,6 +2,8 @@
 
 **Status: not measured.** This environment has no connected physical iPhone, USB/BLE controller, two DAWs or Apple signing account. Simulator and host benchmarks must not be entered as hardware results.
 
+Prepared candidate: **1.0.0 (14), schema 8**. This identifies the software to test, not an installed or accepted build. Every evidence field below remains **Pending** until the actual device/model/signing session is recorded.
+
 Copy this record per tested release candidate. Keep the source SHA, version/build and installed TestFlight build identifier together.
 
 | Field | Recorded result |
@@ -21,3 +23,78 @@ Copy this record per tested release candidate. Keep the source SHA, version/buil
 | Defects / evidence links / tester / date | Pending |
 
 P1: 3 tracks / sparse 64 bars. P2: 8 tracks / 8,192 events. P3: 8 tracks / 16,384 events, live pads, filter/delay and repeated section/transport actions. Use the real instrument/mix presets and export/import the same project between tests. Keep audio recordings or Instruments traces where they substantiate timing or dropout claims. Repeat failed cases after fixes on the new build.
+
+## Minimum iOS 18 startup and compatibility
+
+| Required evidence | Recorded result |
+| --- | --- |
+| Oldest supported available iPhone, exact iOS 18 build, installed signed candidate/version/source and installation method | Pending |
+| Cold launch, relaunch after kill and opening a schema 7 project; console/crash/launch trace | Pending |
+| Demo Play/Jam/Mixer/clip editing/save/export and local Commands without Foundation Models | Pending |
+| Actual on-device AI unavailable message on iOS 18; no dyld missing-framework/symbol crash | Pending |
+| Current iOS 26 eligible iPhone comparison; matching submitted source and build | Pending |
+
+The arm64 weak-link audit is static evidence only. Record an actual installed launch on iOS 18; do not copy the unsigned archive audit into these fields. Keep the original legacy project and compare its compiled music after migration, save and reopen.
+
+## Human voice over the shared backing loop
+
+The reproducible [recorded-human development baseline](../VOICE_HUMAN_BASELINE.md) is separate algorithm evidence. It reports 95.88% confidence-qualified F0 accuracy and 60.28% / 54.95% onset/pitch note F1; it does not populate any installed-device field below.
+
+| Required evidence | Recorded result |
+| --- | --- |
+| Singer/corpus ID, original CAF/WAV SHA-256, sample rate, duration, room/noise conditions, monitoring route | Pending |
+| Expected MIDI pitches/onsets/durations and reference method/DAW; sustained notes, short notes, silence and a monophonic phrase | Pending |
+| Declared pitch/onset/false-positive acceptance thresholds before the session | Pending |
+| Headphone clean reference and speaker/backing-loop bleed trial; register, articulation and repeat counts | Pending |
+| Correct pitches within ±50 cents, octave errors, false voiced notes, onset/offset error and confidence/manual corrections against the reference | Pending |
+| Target track/section, BPM, loop range, capture request/ready/first-frame/end times and resulting placement/offset/duration | Pending |
+| Backing audio before/during/after capture; engine/kernel identity or continuity trace, musical/sample-clock progression, observed gaps | Pending |
+| Source recording retained after review/correction/Apply, Undo/Redo, save/reopen and portable export/import | Pending |
+| Draft reviewed after a live project edit; original audio/manual corrections retained; stale Apply rejected until review | Pending |
+| Cancel, second microphone consumer, permission denial/revocation, background/interruption, route/sample-rate change and count-in/loop-edge cancellation | Pending |
+
+Use the same referenced human take for comparisons; generated tones and the CI virtual microphone are separate fixtures. Distinguish capture request time from the fresh clock sampled after route preparation. Check that normal capture/review does not stop the backing loop, that capture is bounded to its target, and that an interrupted capture does not resume automatically. Record system-forced route/interruption behavior separately from normal shared-graph continuity. Mark diagnostic builds explicitly and repeat user-facing checks on the installed release candidate.
+
+## Actual on-device Foundation Models generation
+
+| Required evidence | Recorded result |
+| --- | --- |
+| Eligible iPhone, exact iOS build, Apple Intelligence enabled state, model readiness and supported selected locale | Pending |
+| Model version if Apple exposes it; otherwise record “not exposed”, OS build and readiness state | Pending |
+| Exact free-form prompts and resulting proposal JSON/music; distinguish real model output from Commands and injected fixtures | Pending |
+| Whole-song form/tempo/key request, selected-section harmonic edit and jazz/style request; before/after scope and musical review | Pending |
+| Generation latency samples, first/warm run distinction, sample count, failures and timeout behavior | Pending |
+| Cancel during generation; project unchanged after cancellation/error; stale/foreign/repeated Apply rejected | Pending |
+| A/B while the loop plays, Apply as one Undo, save/reopen and MIDI/WAV agreement for the accepted proposal | Pending |
+| Ineligible device, Apple Intelligence off, model not ready and unsupported selected language: visible reason and working local Commands | Pending |
+| iOS 18 fallback: Commands available; no attempt to invoke the unavailable model | Pending |
+
+Record language support independently for the UI, Commands, Apple Speech and Foundation Models. A successful Russian Commands fixture does not establish Russian model support. Real generation and its musical quality remain unmeasured until an eligible model/device produces the recorded result; a synthetically supplied proposal is not that evidence.
+
+## Live structure, mix, MIDI and touch ergonomics
+
+| Required evidence | Recorded result |
+| --- | --- |
+| Signed candidate, project fixture/hash, P1/P2/P3 preset/layout, route, connected USB/BLE endpoint and firmware | Pending |
+| During playback: add/duplicate/delete melody tracks; clip move/copy/resize/offset and section duplicate/reorder/delete | Pending |
+| Before/pending/after revision, boundary adoption time, track identity/preset/mix/FX state and continuous clock/audio trace | Pending |
+| Held/sustained external notes across layout changes; correct new bus, current input Off/output None, reconnect and Panic | Pending |
+| Simultaneous fader/FX/preset changes and structural edits; no partial generation, unintended restart, stale MIDI delivery or stuck notes | Pending |
+| Undo/Redo, sourceAsset association, save/reopen and actual MIDI/WAV/stem imports in both recorded DAWs | Pending |
+| Actual finger long-press drag/drop, resizing, incompatible drop rejection, pinch/scroll arbitration and clip-specific editor selection | Pending |
+| Smallest tested display, regular/large text, one/two-handed reach, track/section switches, visible 44-point controls and VoiceOver adjustment | Pending |
+| 30-minute repeated edits/pads/capture/section/FX session; CPU/memory/thermal/dropouts and touch-to-sound/MIDI measurements | Pending |
+
+Record the heard and captured result, not only a playing indicator. Musical changes must adopt as one generation at the intended boundary; immediate controls must target the currently adopted layout. Compare exported events with the expected arrangement, including offsets/repeats and incompatible drops. An actual external device/DAW trace is required for physical MIDI timing; virtual CoreMIDI and host PCM evidence stays separate.
+
+## Installed signing and distribution receipt
+
+| Required evidence | Recorded result |
+| --- | --- |
+| Apple team/profile/certificate expiry, signed IPA/archive source/version and successful exact-main verification run | Pending |
+| App Store Connect processing/TestFlight build identifier and installed candidate matching that source | Pending |
+| Completion of the device/model matrix above, defects/retest evidence and release decision | Pending |
+| Store listing/privacy/age-rating/export compliance/support URLs and App Review submission receipt | Pending |
+| Approved production build installation and post-release smoke result | Pending |
+
+Record identifiers and expiry dates without recording private keys, certificate passwords or API credentials. Signing, upload, installation and review are distinct actions; none is established by an unsigned archive or a prepared workflow.

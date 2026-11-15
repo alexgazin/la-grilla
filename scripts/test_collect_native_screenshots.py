@@ -30,4 +30,17 @@ with tempfile.TemporaryDirectory(prefix='grilla-collector-') as directory:
     subprocess.run([sys.executable,str(script),str(source),str(direct),'C2'],check=True)
     assert sorted(p.name for p in direct.iterdir())==['grid.png']
     assert (direct/'grid.png').read_bytes()==png
+    # Runner workspaces contain the prior committed stage. Replace only PNGs,
+    # leaving documentation intact, so a partial run has no stale provenance.
+    (direct/'previous-run.png').write_bytes(png)
+    (direct/'README.md').write_text('Accepted historical capture documentation')
+    subprocess.run([sys.executable,str(script),str(source),str(direct),'C2','--replace-pngs'],check=True)
+    assert sorted(p.name for p in direct.glob('*.png'))==['grid.png']
+    assert (direct/'README.md').exists()
+    (source/'C2-grid.png').unlink()
+    subprocess.run([sys.executable,str(script),str(source),str(direct),'C2','--replace-pngs','--allow-empty'],check=True)
+    assert list(direct.glob('*.png'))==[]
+    (direct/'previous-run.png').write_bytes(png)
+    failed=subprocess.run([sys.executable,str(script),str(source),str(direct),'C2','--replace-pngs'],capture_output=True)
+    assert failed.returncode!=0 and list(direct.glob('*.png'))==[]
 print('Screenshot collector regression passed: UUID suffix ignored; named PNG bytes preserved.')

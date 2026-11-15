@@ -3,12 +3,6 @@ import AVFoundation
 import Observation
 import MusicDomain
 
-private final class VoiceRecorderCallbacks:NSObject,AVAudioRecorderDelegate {
-    let finish:@Sendable(Bool)->Void
-    init(_ finish:@escaping @Sendable(Bool)->Void){self.finish=finish}
-    func audioRecorderDidFinishRecording(_ recorder:AVAudioRecorder,successfully flag:Bool){finish(flag)}
-    func audioRecorderEncodeErrorDidOccur(_ recorder:AVAudioRecorder,error:Error?){finish(false)}
-}
 struct VoiceCaptureResult:Sendable {
     let sourceURL:URL;let data:Data;let record:AudioAssetRecord;let analysis:VoiceAnalysis
 }
@@ -26,79 +20,179 @@ private enum VoiceSourceIO {
         try write(samples,to:url)
     }
     nonisolated static func fixture(to url:URL)throws {
-        var samples=[Float](repeating:0,count:48000*3)
-        for (index,pitch) in [60,64,67].enumerated(){let hz=440*pow(2,Double(pitch-69)/12);for frame in 0..<38400{let t=Double(frame)/48000;let gain=min(1,t/0.01,Double(38399-frame)/48000/0.01);samples[index*48000+frame]=Float(sin(2*Double.pi*hz*t)*gain*0.6)}}
-        try write(samples,to:url)
+        // Native fixture exercises the same off-tap conversion/file sink as a
+        // 44.1 kHz input route; it remains explicitly synthetic in UI/metadata.
+        let rate=44100,voiceFrames=35280
+        var samples=[Float](repeating:0,count:rate*3)
+        for (index,pitch) in [60,64,67].enumerated(){let hz=440*pow(2,Double(pitch-69)/12);for frame in 0..<voiceFrames{let t=Double(frame)/Double(rate);let gain=min(1,t/0.01,Double(voiceFrames-1-frame)/Double(rate)/0.01);samples[index*rate+frame]=Float(sin(2*Double.pi*hz*t)*gain*0.6)}}
+        let format=AVAudioFormat(commonFormat:.pcmFormatFloat32,sampleRate:Double(rate),channels:1,interleaved:false)!
+        let receiver=try VoicePCMSink.receiver(url:url,input:format)
+        for start in stride(from:0,to:samples.count,by:997){
+            let count=min(997,samples.count-start),buffer=AVAudioPCMBuffer(pcmFormat:format,frameCapacity:AVAudioFrameCount(count))!
+            buffer.frameLength=AVAudioFrameCount(count)
+            samples.withUnsafeBufferPointer{buffer.floatChannelData![0].update(from:$0.baseAddress!.advanced(by:start),count:count)}
+            try receiver.receive(buffer)
+        }
+        try receiver.finish()
     }
     nonisolated static func analyze(_ url:URL,recordedAt:Date?,inputLatency:Double?,tempoBPM:Double?,origin:AudioAssetRecord.Origin,progress:@escaping @Sendable(Double)->Void)throws->VoiceCaptureResult {
         let count=try url.resourceValues(forKeys:[.fileSizeKey]).fileSize ?? 0
         guard (64...12_000_000).contains(count)else{throw VoiceAnalysisError.invalidInput}
         let file=try AVAudioFile(forReading:url,commonFormat:.pcmFormatFloat32,interleaved:false)
-        let rate=file.processingFormat.sampleRate
-        guard file.processingFormat.channelCount==1,file.length>0,Double(file.length)<=rate*30.25 else{throw VoiceAnalysisError.invalidInput}
-        guard let buffer=AVAudioPCMBuffer(pcmFormat:file.processingFormat,frameCapacity:AVAudioFrameCount(file.length))else{throw VoiceAnalysisError.invalidInput}
-        try file.read(into:buffer)
-        guard let channel=buffer.floatChannelData?[0]else{throw VoiceAnalysisError.invalidInput}
-        let samples=Array(UnsafeBufferPointer(start:channel,count:Int(buffer.frameLength)))
-        let data=try Data(contentsOf:url),duration=Double(buffer.frameLength)/rate
+        let rate=file.processingFormat.sampleRate,declaredFrames=file.length
+        guard rate.isFinite,(8000...192000).contains(rate),file.processingFormat.channelCount==1,declaredFrames>0,Double(declaredFrames)<=rate*30.25 else{throw VoiceAnalysisError.invalidInput}
+        let samples=try readComplete(file,declaredFrames:declaredFrames)
+        let data=try Data(contentsOf:url),duration=Double(samples.count)/rate
         let record=AudioAssetRecord(sha256:try AssetIntegrity.sha256(data),byteCount:data.count,sampleRate:rate,duration:duration,origin:origin,recordedAt:recordedAt,inputLatencySeconds:inputLatency,tempoBPM:tempoBPM)
         try AssetIntegrity.validate(data,record:record)
         let analysis=try VoiceAnalyzer.analyze(samples,sampleRate:rate,progress:progress)
         return VoiceCaptureResult(sourceURL:url,data:data,record:record,analysis:analysis)
     }
+    nonisolated private static func readComplete(_ file:AVAudioFile,declaredFrames:AVAudioFramePosition)throws->[Float] {
+        // A native 139,200-frame CAF returned only 138,240 frames from one read.
+        // Accumulate explicit bounded reads; never pad or call a short prefix
+        // the complete original recording.
+        guard let buffer=AVAudioPCMBuffer(pcmFormat:file.processingFormat,frameCapacity:4096),file.framePosition==0 else{throw VoiceAnalysisError.invalidInput}
+        var samples:[Float]=[];samples.reserveCapacity(Int(declaredFrames))
+        while samples.count<Int(declaredFrames) {
+            try Task.checkCancellation()
+            let requested=AVAudioFrameCount(min(4096,Int(declaredFrames)-samples.count)),position=file.framePosition
+            buffer.frameLength=0
+            try file.read(into:buffer,frameCount:requested)
+            let actual=buffer.frameLength
+            guard actual>0,actual<=requested,file.framePosition==position+AVAudioFramePosition(actual),let channel=buffer.floatChannelData?[0]else{throw VoiceAnalysisError.invalidInput}
+            let chunk=UnsafeBufferPointer(start:channel,count:Int(actual))
+            guard chunk.allSatisfy(\.isFinite)else{throw VoiceAnalysisError.invalidInput}
+            samples.append(contentsOf:chunk)
+        }
+        guard samples.count==Int(declaredFrames),file.framePosition==declaredFrames,file.length==declaredFrames else{throw VoiceAnalysisError.invalidInput}
+        // AVAudioFile may throw when asked to read at EOF; the exact decoded
+        // count, cursor and stable declared length above prove completion.
+        return samples
+    }
+}
+
+/// The converter invokes its input block synchronously from one serial drain
+/// call. This box transfers buffer ownership into that block without capturing
+/// a mutable local or sharing the PCM buffer with an unrelated executor.
+private final class VoiceConversionInput:@unchecked Sendable {
+    private let buffer:AVAudioPCMBuffer
+    private var supplied=false
+    init(_ buffer:AVAudioPCMBuffer){self.buffer=buffer}
+    func next(_ state:UnsafeMutablePointer<AVAudioConverterInputStatus>)->AVAudioBuffer? {
+        if supplied{state.pointee = .noDataNow;return nil}
+        supplied=true;state.pointee = .haveData;return buffer
+    }
+}
+
+/// AVAudioFile and converter are confined to the input drain's serial worker.
+/// The original capture remains mono 48 kHz Float32 CAF regardless of input route.
+private final class VoicePCMSink:@unchecked Sendable {
+    private var file:AVAudioFile?
+    private let converter:AVAudioConverter?
+    private let outputFormat:AVAudioFormat
+    init(url:URL,input:AVAudioFormat)throws {
+        guard let output=AVAudioFormat(commonFormat:.pcmFormatFloat32,sampleRate:48000,channels:1,interleaved:false)else{throw VoiceAnalysisError.invalidInput}
+        outputFormat=output
+        file=try AVAudioFile(forWriting:url,settings:output.settings)
+        if input.sampleRate==48000{converter=nil}
+        else{guard let value=AVAudioConverter(from:input,to:output)else{throw VoiceAnalysisError.invalidInput};value.primeMethod = .none;converter=value}
+    }
+    nonisolated static func receiver(url:URL,input:AVAudioFormat)throws->LiveInputReceiver {
+        let sink=try VoicePCMSink(url:url,input:input)
+        return LiveInputReceiver(receive:{ @Sendable [sink] buffer in try sink.append(buffer)},finish:{ @Sendable [sink] in try sink.finish()})
+    }
+    private func append(_ buffer:AVAudioPCMBuffer)throws {
+        guard let file else{throw VoiceAnalysisError.invalidInput}
+        guard let converter else{try file.write(from:buffer);return}
+        let capacity=AVAudioFrameCount(ceil(Double(buffer.frameLength)*48000/buffer.format.sampleRate)+64)
+        guard let output=AVAudioPCMBuffer(pcmFormat:outputFormat,frameCapacity:capacity)else{throw VoiceAnalysisError.invalidInput}
+        let input=VoiceConversionInput(buffer)
+        var failure:NSError?
+        let status=converter.convert(to:output,error:&failure){ @Sendable [input] _,state in input.next(state) }
+        if status == .error{throw failure ?? VoiceAnalysisError.invalidInput as NSError}
+        if output.frameLength>0{try file.write(from:output)}
+    }
+    private func finish()throws {
+        defer{file=nil}
+        guard let file,let converter else{return}
+        for _ in 0..<8 {
+            guard let output=AVAudioPCMBuffer(pcmFormat:outputFormat,frameCapacity:4096)else{throw VoiceAnalysisError.invalidInput}
+            var failure:NSError?
+            let status=converter.convert(to:output,error:&failure){_,state in state.pointee = .endOfStream;return nil}
+            if status == .error{throw failure ?? VoiceAnalysisError.invalidInput as NSError}
+            if output.frameLength>0{try file.write(from:output)}
+            if status == .endOfStream || output.frameLength==0{return}
+        }
+        throw VoiceAnalysisError.invalidInput
+    }
 }
 
 @MainActor @Observable final class VoiceCaptureController {
-    enum State:Equatable {case idle,preparing,countIn,recording,analyzing,ready}
+    enum State:Equatable {case idle,preparing,waiting,countIn,recording,analyzing,ready}
     var state:State = .idle;var result:VoiceCaptureResult?;var error:String?
-    var elapsed=0.0;var remaining=4;var level=0.0;var progress=0.0;var originalPlaying=false
-    var isCapturing:Bool{state == .preparing || state == .countIn || state == .recording}
-    private var recorder:AVAudioRecorder?;private var delegate:VoiceRecorderCallbacks?
+    var elapsed=0.0;var remaining=4;var waitingSeconds=0.0;var plannedDuration=0.0;var level=0.0;var progress=0.0;var originalPlaying=false
+    var isCapturing:Bool{state == .preparing || state == .waiting || state == .countIn || state == .recording}
+    private var microphone:LiveMicrophone?
     private var countPlayer:AVAudioPlayer?;private var originalPlayer:AVAudioPlayer?
     private var timer:Timer?;private var worker:Task<VoiceCaptureResult,Error>?
-    private var generation=0;private var scheduledStart=0.0;private var recordedAt:Date?;private var inputLatency:Double?;private var tempoBPM:Double?;private var origin:AudioAssetRecord.Origin = .microphone;private var activeURL:URL?
-    func start(bpm:Double,duration:Double,countIn:Bool)async {
-        guard !isCapturing,state != .analyzing else{return};stopOriginal();state = .preparing;error=nil;generation+=1;let attempt=generation
+    private var generation=0;private var recordedAt:Date?;private var inputLatency:Double?;private var tempoBPM:Double?;private var origin:AudioAssetRecord.Origin = .microphone;private var activeURL:URL?
+    func start(audio:AudioController,bpm:Double,duration:Double,countIn:Bool,schedule:(@MainActor(Double)->Double?)?=nil,scheduleDuration:(@MainActor()->Double?)?=nil)async {
+        guard !isCapturing,state != .analyzing else{return};stopOriginal();state = .preparing;plannedDuration=0;waitingSeconds=0;elapsed=0;level=0;error=nil;generation+=1;let attempt=generation
         let permission=await AVAudioApplication.requestRecordPermission()
         guard attempt==generation else{return}
         guard permission else{error=NSLocalizedString("Microphone access was denied. You can still write notes in Piano roll.",comment:"");state=result==nil ? .idle:.ready;return}
         do {
-            let session=AVAudioSession.sharedInstance();try session.setCategory(.playAndRecord,mode:.measurement,options:[.defaultToSpeaker]);try session.setPreferredSampleRate(48000);try session.setActive(true)
+            guard bpm.isFinite,(40...240).contains(bpm),duration.isFinite,duration>0 else{throw VoiceAnalysisError.invalidInput}
             let folder=FileManager.default.temporaryDirectory.appendingPathComponent("VoiceDraft-"+UUID().uuidString)
             try FileManager.default.createDirectory(at:folder,withIntermediateDirectories:true)
             let url=folder.appendingPathComponent("source.caf");activeURL=url
-            let settings:[String:Any]=[AVFormatIDKey:kAudioFormatLinearPCM,AVSampleRateKey:48000,AVNumberOfChannelsKey:1,AVLinearPCMBitDepthKey:32,AVLinearPCMIsFloatKey:true,AVLinearPCMIsBigEndianKey:false]
-            let r=try AVAudioRecorder(url:url,settings:settings)
-            let callback=VoiceRecorderCallbacks{[weak self] success in Task { @MainActor in guard let self,self.generation==attempt,self.isCapturing else{return};if success{self.finish(attempt:attempt)}else{self.fail(NSLocalizedString("The recording could not be completed. Try again.",comment:""))}}}
-            delegate=callback;r.delegate=callback;r.isMeteringEnabled=true
-            guard r.prepareToRecord()else{throw VoiceAnalysisError.invalidInput}
-            recorder=r
+            let bar=countIn ? 240/bpm:0
             if countIn {
                 let click=folder.appendingPathComponent("count-in.caf")
                 try await Task.detached{try VoiceSourceIO.countIn(to:click,bpm:bpm)}.value
                 guard attempt==generation else{return}
                 let player=try AVAudioPlayer(contentsOf:click);player.prepareToPlay();player.volume=0.4;countPlayer=player
-                scheduledStart=r.deviceCurrentTime+0.1+240/bpm;player.play(atTime:player.deviceCurrentTime+0.1)
-            }else{scheduledStart=r.deviceCurrentTime+0.1}
-            guard r.record(atTime:scheduledStart,forDuration:min(30,max(0.2,duration)))else{throw VoiceAnalysisError.invalidInput}
-            recordedAt=Date(timeIntervalSinceNow:max(0,scheduledStart-r.deviceCurrentTime));inputLatency=session.inputLatency;tempoBPM=bpm;origin = .microphone
-            elapsed=0;remaining=countIn ? 4:0;state=countIn ? .countIn:.recording
+            }
+            let stream=try LiveMicrophone(audio:audio,delay:0.2+bar,duration:min(30,duration),schedule:schedule,scheduleDuration:scheduleDuration,receiver:{format in try VoicePCMSink.receiver(url:url,input:format)},onFailure:{[weak self] message in
+                guard let self,self.generation==attempt,self.isCapturing else{return};self.fail(message)
+            })
+            microphone=stream
+            if let player=countPlayer {
+                let untilClick=stream.secondsUntilStart-bar
+                guard untilClick>0,player.play(atTime:player.deviceCurrentTime+untilClick)else{throw VoiceAnalysisError.invalidInput}
+            }
+            recordedAt=nil;inputLatency=AVAudioSession.sharedInstance().inputLatency;tempoBPM=bpm;origin = .microphone
+            elapsed=0;remaining=countIn ? 4:0;plannedDuration=stream.duration;waitingSeconds=stream.secondsUntilStart;state = .waiting
             timer?.invalidate();timer=Timer.scheduledTimer(withTimeInterval:1/30,repeats:true){[weak self] _ in Task { @MainActor in self?.poll(bpm:bpm) }}
-        }catch{fail(error.localizedDescription)}
+        }catch{guard generation==attempt else{return};fail(error.localizedDescription)}
     }
     private func poll(bpm:Double){
-        guard let recorder else{return}
-        let until=scheduledStart-recorder.deviceCurrentTime
-        if state == .countIn {remaining=max(0,Int(ceil(until*bpm/60)));if until<=0{state = .recording}}
-        elapsed=max(0,recorder.currentTime);recorder.updateMeters();level=pow(10,Double(recorder.averagePower(forChannel:0))/20)
+        guard let microphone else{return}
+        let until=microphone.secondsUntilStart
+        waitingSeconds=until
+        if state == .waiting || state == .countIn {
+            let bar=countPlayer==nil ? 0:240/bpm
+            if until<=0{state = .recording;remaining=0}
+            else if bar>0,until<=bar{state = .countIn;remaining=min(4,max(1,Int(ceil(until*bpm/60))))}
+            else{state = .waiting}
+        }
+        elapsed=microphone.elapsed;level=microphone.level
+        if elapsed==0,microphone.secondsSinceStart>2{fail(LiveInputError.unavailable.localizedDescription);return}
+        if let date=microphone.recordedAt{recordedAt=date}
+        if microphone.complete{finish(attempt:generation)}
     }
     func stop(){
-        if state == .countIn || state == .preparing{generation+=1;recorder?.stop();recorder=nil;delegate=nil;timer?.invalidate();countPlayer?.stop();clearActive();state=result==nil ? .idle:.ready;return}
+        if state == .waiting || state == .countIn || state == .preparing {
+            generation+=1;try? microphone?.stop();microphone=nil;timer?.invalidate();timer=nil;countPlayer?.stop();countPlayer=nil;clearActive();state=result==nil ? .idle:.ready;return
+        }
         if state == .recording{finish(attempt:generation)}
     }
     private func finish(attempt:Int){
-        guard let url=activeURL,state != .analyzing else{return};state = .analyzing
-        recorder?.stop();recorder=nil;delegate=nil;countPlayer?.stop();countPlayer=nil;timer?.invalidate();timer=nil;progress=0
+        guard let url=activeURL,state != .analyzing else{return}
+        recordedAt=microphone?.recordedAt ?? recordedAt
+        do{try microphone?.stop()}catch{fail(error.localizedDescription);return}
+        microphone=nil;state = .analyzing;countPlayer?.stop();countPlayer=nil;timer?.invalidate();timer=nil;progress=0
         analyze(url,attempt:attempt)
     }
     private func analyze(_ url:URL,attempt:Int){
@@ -110,7 +204,7 @@ private enum VoiceSourceIO {
     }
     func loadFixture()async {
         guard !isCapturing else{return};generation+=1;let attempt=generation;recordedAt=nil;inputLatency=nil;tempoBPM=nil;origin = .syntheticFixture;state = .analyzing;error=nil
-        do{let folder=FileManager.default.temporaryDirectory.appendingPathComponent("VoiceFixture-"+UUID().uuidString);try FileManager.default.createDirectory(at:folder,withIntermediateDirectories:true);let url=folder.appendingPathComponent("source.caf");activeURL=url;try await Task.detached{try VoiceSourceIO.fixture(to:url)}.value;guard generation==attempt else{return};analyze(url,attempt:attempt)}catch{fail(error.localizedDescription)}
+        do{let folder=FileManager.default.temporaryDirectory.appendingPathComponent("VoiceFixture-"+UUID().uuidString);try FileManager.default.createDirectory(at:folder,withIntermediateDirectories:true);let url=folder.appendingPathComponent("source.caf");activeURL=url;try await Task.detached{try VoiceSourceIO.fixture(to:url)}.value;guard generation==attempt else{return};analyze(url,attempt:attempt)}catch{guard generation==attempt else{return};fail(error.localizedDescription)}
     }
     func toggleOriginal()throws {
         if originalPlayer?.isPlaying==true{stopOriginal();return}
@@ -118,7 +212,7 @@ private enum VoiceSourceIO {
     }
     func pollOriginal(){originalPlaying=originalPlayer?.isPlaying ?? false}
     func stopOriginal(){originalPlayer?.stop();originalPlayer=nil;originalPlaying=false}
-    private func fail(_ message:String){error=message;recorder?.stop();recorder=nil;delegate=nil;countPlayer?.stop();countPlayer=nil;timer?.invalidate();timer=nil;clearActive();state=result==nil ? .idle:.ready}
+    private func fail(_ message:String){error=message;try? microphone?.stop();microphone=nil;countPlayer?.stop();countPlayer=nil;timer?.invalidate();timer=nil;clearActive();state=result==nil ? .idle:.ready}
     private func clearActive(){if let folder=activeURL?.deletingLastPathComponent(){try? FileManager.default.removeItem(at:folder)};activeURL=nil}
-    func discard(){generation+=1;worker?.cancel();worker=nil;stop();recorder?.stop();recorder=nil;timer?.invalidate();stopOriginal();clearActive();if let folder=result?.sourceURL.deletingLastPathComponent(){try? FileManager.default.removeItem(at:folder)};result=nil;state = .idle}
+    func discard(){generation+=1;worker?.cancel();worker=nil;try? microphone?.stop();microphone=nil;timer?.invalidate();timer=nil;countPlayer?.stop();countPlayer=nil;stopOriginal();clearActive();if let folder=result?.sourceURL.deletingLastPathComponent(){try? FileManager.default.removeItem(at:folder)};result=nil;state = .idle}
 }

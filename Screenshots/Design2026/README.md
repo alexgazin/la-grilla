@@ -10,4 +10,4 @@
 
 [Small Grid RU](compact-grid-ru.png) · [Small Jam RU](compact-jam-ru.png) · [Small Mixer RU](compact-mixer-ru.png)
 
-The twelve `store-*` originals are copied unchanged into [AppStore](../AppStore). The four root previews follow this accepted collection; [R0](../R0) preserves the former root images. [Design QA](../../docs/DESIGN_QA.md) records the actual touch regression and verification. Physical audio/MIDI, manual VoiceOver usability, signing, TestFlight and App Review remain release gates.
+At this milestone the twelve `store-*` originals supplied unchanged Store copies and the four root previews. Those historical originals remain here; current [AppStore](../AppStore) and root previews follow the latest accepted collection; [R0](../R0) preserves the former root images. [Design QA](../../docs/DESIGN_QA.md) records the actual touch regression and verification. Physical audio/MIDI, manual VoiceOver usability, signing, TestFlight and App Review remain release gates.

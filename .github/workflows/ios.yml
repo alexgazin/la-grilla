@@ -9,7 +9,10 @@ jobs:
   ios:
     if: "!contains(github.event.head_commit.message, '[device-only]')"
     runs-on: macos-15
-    timeout-minutes: 45
+    # 43 functional flows, three capture methods and two device boots share
+    # this job (the measured candidate took 53.5 minutes with failures). Keep
+    # every individual test limit unchanged and allow result/artifact cleanup.
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
       - name: Verify current App Store toolchain
@@ -27,6 +30,7 @@ jobs:
       - name: Release configuration audit
         run: |
           python3 scripts/release/audit_release.py
+          python3 scripts/release/test_native_acceptance.py
           for GRILLA_SCRIPT in scripts/release/*.sh; do bash -n "$GRILLA_SCRIPT"; done
       - name: Presentation and localization audit
         run: python3 scripts/audit_presentation.py && plutil -lint Resources/en.lproj/Localizable.strings Resources/ru.lproj/Localizable.strings
@@ -48,13 +52,20 @@ jobs:
           path: |
             LaGrilla.xcodeproj
             LaGrilla-Simulator.zip
+      - name: Configure virtual host microphone for native PCM
+        run: bash scripts/setup_ci_audio.sh
       - name: Prepare iOS Simulator
         env:
           GRILLA_CAPTURE_SCREENS: '0'
         run: bash scripts/screenshots.sh
       - name: Native user flows
         env:
+          GRILLA_REQUIRE_MIC_INPUT: '1'
+          TEST_RUNNER_GRILLA_REQUIRE_MIC_INPUT: '1'
           GRILLA_UI_ONLY: ${{ contains(github.event.head_commit.message, '[ui-only]') && '1' || '0' }}
+          GRILLA_INTEGRATION_ONLY: ${{ contains(github.event.head_commit.message, '[integration-only]') && '1' || '0' }}
+          GRILLA_INPUT_DIAGNOSTIC: ${{ contains(github.event.head_commit.message, '[input-diagnostic]') && '1' || '0' }}
+          TEST_RUNNER_GRILLA_INPUT_DIAGNOSTIC: ${{ contains(github.event.head_commit.message, '[input-diagnostic]') && '1' || '0' }}
           GRILLA_RU_RECAPTURE: ${{ contains(github.event.head_commit.message, '[ru-capture]') && '1' || '0' }}
           TEST_RUNNER_GRILLA_RU_RECAPTURE: ${{ contains(github.event.head_commit.message, '[ru-capture]') && '1' || '0' }}
         run: |
@@ -62,10 +73,21 @@ jobs:
           DEVICE=$(cat /tmp/grilla-simulator-id)
           FILTER=(-skip-testing:LaGrillaUITests/ScreenshotTests/testCaptureCompactScreens)
           if test "$GRILLA_UI_ONLY" = 1; then FILTER=(-skip-testing:LaGrillaUITests/ScreenshotTests); fi
+          if test "$GRILLA_INTEGRATION_ONLY" = 1; then
+            FILTER=(-only-testing:LaGrillaUITests/ArrangementUITests -only-testing:LaGrillaUITests/AudioRuntimeContinuityTests -only-testing:LaGrillaUITests/DrumRuntimeContinuityTests -only-testing:LaGrillaUITests/LiveEditingTests -only-testing:LaGrillaUITests/VoiceReviewUITests)
+          fi
           if test "$GRILLA_RU_RECAPTURE" = 1; then FILTER+=(-only-testing:LaGrillaUITests/ScreenshotTests/testCaptureStoreScreens); fi
+          if test "$GRILLA_INPUT_DIAGNOSTIC" = 1; then
+            FILTER=(-only-testing:LaGrillaUITests/AudioRuntimeContinuityTests/testAAOutputOnlyLaunchDoesNotRequestMicrophone -only-testing:LaGrillaUITests/AudioRuntimeContinuityTests/testSessionMicrophoneLeaseRetainsLiveEngineAndPCM -only-testing:LaGrillaUITests/AudioRuntimeContinuityTests/testProductionVoiceCaptureCAFAnalysisApplyStoreAndUndo -only-testing:LaGrillaUITests/AudioRuntimeContinuityTests/testDiagnosticOnlyFreshInputLifecycleControls)
+          fi
           xcodebuild "${FILTER[@]}" -test-timeouts-enabled YES -maximum-test-execution-time-allowance 600 -project LaGrilla.xcodeproj -scheme LaGrilla -destination "platform=iOS Simulator,id=$DEVICE" -derivedDataPath DerivedData -resultBundlePath TestResults.xcresult ARCHS=arm64 ONLY_ACTIVE_ARCH=YES CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO test-without-building | tee uitests.log
+      - name: Record read-only host microphone authorization diagnostics
+        if: always() && !cancelled() && contains(github.event.head_commit.message, '[input-diagnostic]')
+        run: |
+          set -o pipefail
+          bash scripts/log_ci_audio_tcc.sh | tee -a ci-audio.log
       - name: Compact iPhone screenshots
-        if: always() && !cancelled() && steps.simulator_build.outcome == 'success' && (!contains(github.event.head_commit.message, '[ui-only]') || contains(github.event.head_commit.message, '[ru-capture]') || contains(github.event.head_commit.message, '[compact-capture]'))
+        if: always() && !cancelled() && !contains(github.event.head_commit.message, '[input-diagnostic]') && steps.simulator_build.outcome == 'success' && (!contains(github.event.head_commit.message, '[ui-only]') || contains(github.event.head_commit.message, '[ru-capture]') || contains(github.event.head_commit.message, '[compact-capture]'))
         env:
           GRILLA_RU_RECAPTURE: ${{ contains(github.event.head_commit.message, '[ru-capture]') && '1' || '0' }}
           TEST_RUNNER_GRILLA_RU_RECAPTURE: ${{ contains(github.event.head_commit.message, '[ru-capture]') && '1' || '0' }}
@@ -73,18 +95,23 @@ jobs:
       - name: Export native QA screenshots
         if: always() && !cancelled()
         env:
-          GRILLA_CAPTURE_OPTION: ${{ contains(github.event.head_commit.message, '[ui-only]') && !contains(github.event.head_commit.message, '[ru-capture]') && '--allow-empty' || '' }}
+          GRILLA_CAPTURE_OPTION: ${{ (contains(github.event.head_commit.message, '[input-diagnostic]') || (contains(github.event.head_commit.message, '[ui-only]') && !contains(github.event.head_commit.message, '[ru-capture]'))) && '--allow-empty' || '' }}
         run: |
+          GRILLA_ATTACHMENTS_FAILED=0
           if test -d TestResults.xcresult; then
-            xcrun xcresulttool export attachments --path TestResults.xcresult --output-path NativeAttachments/main
+            xcrun xcresulttool export attachments --path TestResults.xcresult --output-path NativeAttachments/main || GRILLA_ATTACHMENTS_FAILED=1
           fi
           if test -d CompactResults.xcresult; then
-            xcrun xcresulttool export attachments --path CompactResults.xcresult --output-path NativeAttachments/compact
+            xcrun xcresulttool export attachments --path CompactResults.xcresult --output-path NativeAttachments/compact || GRILLA_ATTACHMENTS_FAILED=1
           fi
-          python3 scripts/collect_native_screenshots.py NativeAttachments Screenshots/C2 C2 "$GRILLA_CAPTURE_OPTION"
+          python3 scripts/collect_native_screenshots.py NativeAttachments Screenshots/OriginalVision OriginalVision --replace-pngs "$GRILLA_CAPTURE_OPTION" || GRILLA_ATTACHMENTS_FAILED=1
+          # Preserve every valid original even when another result bundle is
+          # corrupt. The step/run still fails; a partial set cannot authorize
+          # Store preparation or distribution.
+          exit "$GRILLA_ATTACHMENTS_FAILED"
       - name: Prepare validated App Store screenshots
-        if: success() && (!contains(github.event.head_commit.message, '[ui-only]') || contains(github.event.head_commit.message, '[ru-capture]'))
-        run: python3 scripts/release/prepare_store_screenshots.py Screenshots/C2 Screenshots/AppStore
+        if: success() && !contains(github.event.head_commit.message, '[input-diagnostic]') && (!contains(github.event.head_commit.message, '[ui-only]') || contains(github.event.head_commit.message, '[ru-capture]'))
+        run: python3 scripts/release/prepare_store_screenshots.py Screenshots/OriginalVision Screenshots/AppStore
       - name: Save simulator screenshots
         if: always()
         uses: actions/upload-artifact@v4
@@ -105,6 +132,8 @@ jobs:
             ExportFixtures
             build.log
             uitests.log
+            compact-tests.log
+            ci-audio.log
             TestResults.xcresult
             CompactResults.xcresult
             CrashReports

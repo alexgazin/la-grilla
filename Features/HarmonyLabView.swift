@@ -4,9 +4,12 @@ import MusicDomain
 struct HarmonyLabView:View {
     @Bindable var session:Session
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.dynamicTypeSize) private var dynamicType
     @State private var style:HarmonyStyle = .gentle
     @State private var low=48
     @State private var high=84
+    @State private var voicing:HarmonyVoicing = .compact
     @State private var proposal:HarmonyProposal?
     @State private var error:String?
     @State private var previewB=false
@@ -33,16 +36,53 @@ struct HarmonyLabView:View {
                         Text("Compare a proposal with your original. Nothing is saved until you apply it.").font(.caption).foregroundStyle(Color.muted)
                     }
                     if let error{Text(LocalizedStringKey(error)).foregroundStyle(Color.record).font(.callout)}
-                    DisclosureGroup("Options",isExpanded:$showOptions){HStack{
-                        Picker("Lowest note",selection:$low){ForEach([36,48,60],id:\.self){pitch in Text(NoteEvent(tick:0,pitch:pitch).name).tag(pitch)}}
-                        Spacer()
-                        Picker("Highest note",selection:$high){ForEach([72,84,96],id:\.self){pitch in Text(NoteEvent(tick:0,pitch:pitch).name).tag(pitch)}}
-                    }.frame(minHeight:44).onChange(of:low){_,_ in invalidate()}.onChange(of:high){_,_ in invalidate()}}.font(.subheadline).padding(14).modifier(StudioSurface())
+                    optionsPanel
                 }.padding(18)
-            }.background(Color.ink).navigationTitle("Harmony lab").navigationBarTitleDisplayMode(.inline)
+            }.accessibilityIdentifier("harmony.options-scroll").background(Color.ink).navigationTitle("Harmony lab").navigationBarTitleDisplayMode(.inline)
             .safeAreaInset(edge:.bottom){actionDock}
             .toolbar{ToolbarItem(placement:.cancellationAction){Button("Cancel"){dismiss()}}}
         }.tint(.harmony).onAppear{if let index=ProcessInfo.processInfo.arguments.firstIndex(of:"--screen"),ProcessInfo.processInfo.arguments.count>index+1,ProcessInfo.processInfo.arguments[index+1]=="harmony-proposal"{generate()}}.onDisappear{session.endHarmonyPreview()}
+    }
+    private var optionsPanel:some View {
+        VStack(alignment:.leading,spacing:10){
+            Button{showOptions.toggle()}label:{
+                HStack{
+                    Text("Options")
+                    Spacer(minLength:8)
+                    Image(systemName:showOptions ? "chevron.up":"chevron.down").font(.caption.weight(.semibold)).accessibilityHidden(true)
+                }.frame(maxWidth:.infinity,minHeight:44).contentShape(Rectangle())
+            }.buttonStyle(.plain).foregroundStyle(Color.harmony)
+                .accessibilityIdentifier("harmony.options")
+                .accessibilityValue(LocalizedStringKey(showOptions ? "Expanded":"Collapsed"))
+            if showOptions{optionsContent}
+        }.font(.subheadline).padding(14).modifier(StudioSurface())
+    }
+    private var optionsContent:some View {
+        VStack(alignment:.leading,spacing:10){
+            optionRow("Voicing"){
+                Picker("Voicing",selection:$voicing){ForEach(HarmonyVoicing.allCases,id:\.self){value in Text(LocalizedStringKey(value.rawValue)).tag(value)}}
+                    .labelsHidden().pickerStyle(.menu).frame(minHeight:44).contentShape(Rectangle()).accessibilityIdentifier("harmony.voicing")
+                    .onChange(of:voicing){_,_ in invalidate()}
+            }
+            Text("Compact voicings may omit the perfect fifth and intermediate extensions. Custom formulas keep every tone.").font(.caption).foregroundStyle(Color.muted)
+            optionRow("Lowest note"){
+                Picker("Lowest note",selection:$low){ForEach([36,48,60],id:\.self){pitch in Text(NoteEvent(tick:0,pitch:pitch).name).tag(pitch)}}
+                    .labelsHidden().pickerStyle(.menu).frame(minHeight:44).contentShape(Rectangle()).accessibilityIdentifier("harmony.lowest-note")
+                    .onChange(of:low){_,_ in if high-low>60{high=low+60};invalidate()}
+            }
+            optionRow("Highest note"){
+                Picker("Highest note",selection:$high){ForEach([72,84,96,108],id:\.self){pitch in Text(NoteEvent(tick:0,pitch:pitch).name).tag(pitch)}}
+                    .labelsHidden().pickerStyle(.menu).frame(minHeight:44).contentShape(Rectangle()).accessibilityIdentifier("harmony.highest-note")
+                    .onChange(of:high){_,_ in if high-low>60{low=high-60};invalidate()}
+            }
+        }
+    }
+    @ViewBuilder private func optionRow<Content:View>(_ title:LocalizedStringKey,@ViewBuilder content:()->Content)->some View {
+        if sizeClass == .compact || dynamicType.isAccessibilitySize {
+            VStack(alignment:.leading,spacing:4){Text(title);content().frame(maxWidth:.infinity,alignment:.leading)}
+        }else{
+            HStack{Text(title);Spacer(minLength:8);content()}.frame(minHeight:44)
+        }
     }
     @ViewBuilder private var actionDock:some View {
         VStack(spacing:8){
@@ -81,7 +121,7 @@ struct HarmonyLabView:View {
         }
     }
     func invalidate(){session.endHarmonyPreview();proposal=nil;error=nil}
-    func generate(){session.endHarmonyPreview();do{proposal=try HarmonyLab.propose(session.project,sectionID:session.section.id,options:HarmonyOptions(style:style,low:low,high:high));showOptions=false;showStyles=false;error=nil}catch{self.error=error.localizedDescription;proposal=nil}}
+    func generate(){session.endHarmonyPreview();do{proposal=try HarmonyLab.propose(session.project,sectionID:session.section.id,options:HarmonyOptions(style:style,low:low,high:high,voicing:voicing));showOptions=false;showStyles=false;error=nil}catch{self.error=error.localizedDescription;proposal=nil}}
     func apply(_ proposal:HarmonyProposal){
         guard session.project.id==proposal.projectID,session.project.revision==proposal.revision else{error=HarmonyError.stale.localizedDescription;return}
         session.endHarmonyPreview();let revision=session.project.revision

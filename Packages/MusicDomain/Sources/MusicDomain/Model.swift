@@ -6,9 +6,23 @@ public let masterBus = 8
 public enum TrackRole: String, Codable, CaseIterable, Sendable { case harmony, drums, bass, melody
     public var instrument:Int {switch self{case .harmony:0;case .drums:1;case .bass:2;case .melody:3}}
 }
+public enum ChordFamily:String,CaseIterable,Sendable {
+    case basic="Basic chords",sevenths="Sevenths",extensions="Extensions",altered="Altered chords",suspended="Suspended chords"
+}
 public enum Quality: String, Codable, CaseIterable, Sendable {
+    // Raw values are the stable document representation and canonical notation.
     case major = "", minor = "m", dim, aug, sus2, sus4, seventh = "7", maj7, m7, m7b5
     case sixth="6",m6,add9,ninth="9",maj9,m9,eleventh="11",m11,thirteenth="13",flat9="7b9",sharp9="7#9",sharp11="7#11",flat13="7b13"
+    case diminished7="dim7",augmented7="7#5",augmentedMajor7="maj7#5"
+    case minorMajor7="mMaj7",minorMajor9="mMaj9",minorMajor11="mMaj11",minorMajor13="mMaj13"
+    case major11="maj11",major13="maj13",minor13="m13",sixNine="6/9",minorSixNine="m6/9"
+    case add2,add4,add11,minorAdd9="madd9",minorAdd11="madd11"
+    case sevenSus2="7sus2",sevenSus4="7sus4",nineSus4="9sus4",thirteenSus4="13sus4"
+    case sevenFlat5="7b5",nineFlat5="9b5",nineSharp5="9#5",major7Flat5="maj7b5",minor7Sharp5="m7#5",minor9Flat5="m9b5"
+    case nineSharp11="9#11",thirteenSharp11="13#11",thirteenFlat9="13b9",thirteenSharp9="13#9"
+    case sevenFlat9Sharp11="7b9#11",sevenSharp9Sharp11="7#9#11",sevenFlat9Flat13="7b9b13",sevenSharp9Flat13="7#9b13"
+    case sevenSharp5Flat9="7#5b9",sevenSharp5Sharp9="7#5#9",alteredDominant="7alt"
+    case major7Sharp11="maj7#11",major9Sharp11="maj9#11",major13Sharp11="maj13#11",sevenSus4Flat9="7sus4b9"
     public var intervals: [Int] {
         switch self {
         case .major: [0,4,7]; case .minor: [0,3,7]; case .dim: [0,3,6]; case .aug: [0,4,8]
@@ -18,32 +32,153 @@ public enum Quality: String, Codable, CaseIterable, Sendable {
         case .ninth:[0,4,7,10,14];case .maj9:[0,4,7,11,14];case .m9:[0,3,7,10,14]
         case .eleventh:[0,4,7,10,14,17];case .m11:[0,3,7,10,14,17];case .thirteenth:[0,4,7,10,14,17,21]
         case .flat9:[0,4,7,10,13];case .sharp9:[0,4,7,10,15];case .sharp11:[0,4,7,10,18];case .flat13:[0,4,7,10,20]
+        case .diminished7:[0,3,6,9];case .augmented7:[0,4,8,10];case .augmentedMajor7:[0,4,8,11]
+        case .minorMajor7:[0,3,7,11];case .minorMajor9:[0,3,7,11,14];case .minorMajor11:[0,3,7,11,14,17];case .minorMajor13:[0,3,7,11,14,17,21]
+        case .major11:[0,4,7,11,14,17];case .major13:[0,4,7,11,14,17,21];case .minor13:[0,3,7,10,14,17,21]
+        case .sixNine:[0,4,7,9,14];case .minorSixNine:[0,3,7,9,14]
+        case .add2:[0,2,4,7];case .add4:[0,4,5,7];case .add11:[0,4,7,17];case .minorAdd9:[0,3,7,14];case .minorAdd11:[0,3,7,17]
+        case .sevenSus2:[0,2,7,10];case .sevenSus4:[0,5,7,10];case .nineSus4:[0,5,7,10,14];case .thirteenSus4:[0,5,7,10,14,21]
+        case .sevenFlat5:[0,4,6,10];case .nineFlat5:[0,4,6,10,14];case .nineSharp5:[0,4,8,10,14];case .major7Flat5:[0,4,6,11]
+        case .minor7Sharp5:[0,3,8,10];case .minor9Flat5:[0,3,6,10,14]
+        case .nineSharp11:[0,4,7,10,14,18];case .thirteenSharp11:[0,4,7,10,14,18,21]
+        case .thirteenFlat9:[0,4,7,10,13,21];case .thirteenSharp9:[0,4,7,10,15,21]
+        case .sevenFlat9Sharp11:[0,4,7,10,13,18];case .sevenSharp9Sharp11:[0,4,7,10,15,18]
+        case .sevenFlat9Flat13:[0,4,7,10,13,20];case .sevenSharp9Flat13:[0,4,7,10,15,20]
+        case .sevenSharp5Flat9:[0,4,8,10,13];case .sevenSharp5Sharp9:[0,4,8,10,15]
+        // An explicit altered-dominant palette; compact mode keeps #5 and b9.
+        case .alteredDominant:[0,4,8,10,13,15]
+        case .major7Sharp11:[0,4,7,11,18];case .major9Sharp11:[0,4,7,11,14,18];case .major13Sharp11:[0,4,7,11,14,18,21]
+        case .sevenSus4Flat9:[0,5,7,10,13]
         }
     }
+    public var family:ChordFamily {
+        switch self {
+        case .major,.minor,.dim,.aug,.sixth,.m6,.add2,.add4,.add9,.add11,.minorAdd9,.minorAdd11:return .basic
+        case .seventh,.maj7,.m7,.m7b5,.diminished7,.augmented7,.augmentedMajor7,.minorMajor7:return .sevenths
+        case .ninth,.maj9,.m9,.eleventh,.m11,.thirteenth,.major11,.major13,.minor13,.minorMajor9,.minorMajor11,.minorMajor13,.sixNine,.minorSixNine:return .extensions
+        case .sus2,.sus4,.sevenSus2,.sevenSus4,.nineSus4,.thirteenSus4,.sevenSus4Flat9:return .suspended
+        default:return .altered
+        }
+    }
+    /// Tones that may be left out of a compact voicing. The root, chord-defining
+    /// third/suspension, seventh, altered tones and named highest extension stay.
+    public var optionalVoicingIntervals:Set<Int> {
+        switch self {
+        case .thirteenth,.major13,.minor13,.minorMajor13:return [7,14,17]
+        case .eleventh,.major11,.m11,.minorMajor11:return [7,14]
+        case .ninth,.maj9,.m9,.minorMajor9,.add9,.add11,.minorAdd9,.minorAdd11,.sixNine,.minorSixNine,
+             .flat9,.sharp9,.sharp11,.flat13,.nineSharp11,.thirteenFlat9,.thirteenSharp9,
+             .sevenFlat9Sharp11,.sevenSharp9Sharp11,.sevenFlat9Flat13,.sevenSharp9Flat13,.nineSus4,.major7Sharp11,.major9Sharp11,.sevenSus4Flat9:return [7]
+        case .thirteenSharp11,.thirteenSus4,.major13Sharp11:return [7,14]
+        case .alteredDominant:return [15]
+        default:return []
+        }
+    }
+    public var requiredVoicingIntervals:[Int]{intervals.filter{!optionalVoicingIntervals.contains($0)}}
     public var label: String { NSLocalizedString(self == .major ? "Major" : self == .minor ? "Minor" : rawValue,comment:"Chord quality") }
 }
 public struct Chord: Codable, Equatable, Sendable {
     public var root: Int; public var quality: Quality; public var inversion: Int
     public var slashBass:Int?;public var voicedNotes:[Int]?
-    public init(root: Int = 0, quality: Quality = .major, inversion: Int = 0,slashBass:Int?=nil,voicedNotes:[Int]?=nil) { self.root = root; self.quality = quality; self.inversion = inversion;self.slashBass=slashBass;self.voicedNotes=voicedNotes }
+    public var customIntervals:[Int]?
+    public static let maximumVoices=9 // Eight formula tones plus an explicit slash bass.
+    public init(root: Int = 0, quality: Quality = .major, inversion: Int = 0,slashBass:Int?=nil,voicedNotes:[Int]?=nil,customIntervals:[Int]?=nil) { self.root = root; self.quality = customIntervals==nil ? quality:.major; self.inversion = inversion;self.slashBass=slashBass;self.voicedNotes=voicedNotes;self.customIntervals=customIntervals }
     public static let roots = ["C", "C♯", "D", "E♭", "E", "F", "F♯", "G", "A♭", "A", "B♭", "B"]
-    public var symbol: String { Self.roots[(root % 12 + 12) % 12] + quality.rawValue + (slashBass.map{"/"+Self.roots[($0%12+12)%12]} ?? "") }
+    public var effectiveIntervals:[Int]{customIntervals ?? quality.intervals}
+    public var requiredVoicingIntervals:[Int]{customIntervals ?? quality.requiredVoicingIntervals}
+    public var symbol: String {
+        let rootName=Self.roots[(root % 12 + 12) % 12]
+        let suffix:String
+        if let customIntervals{suffix="{"+customIntervals.map(String.init).joined(separator:",")+"}"}else{suffix=quality.rawValue}
+        let bassName=slashBass.map{"/"+Self.roots[($0%12+12)%12]} ?? ""
+        return rootName+suffix+bassName
+    }
     public var notes: [Int] {
         if let voicedNotes{return voicedNotes.sorted()}
+        guard (0..<12).contains(root),Self.validIntervals(effectiveIntervals),(0..<effectiveIntervals.count).contains(inversion),slashBass==nil || (0..<12).contains(slashBass!) else{return []}
         let base = root == 0 ? 60 : 48 + root
-        var result = quality.intervals.map { base + $0 }
-        for i in 0..<max(0, min(inversion, result.count - 1)) { result[i] += 12 }
+        var result = effectiveIntervals.map { base + $0 }
+        for i in 0..<inversion {
+            result[i] += 12
+            // Custom formulas may deliberately include octave doublings.
+            while result.enumerated().contains(where:{$0.offset != i && $0.element==result[i]}){result[i] += 12}
+        }
         if let slashBass{var bass=48+slashBass;while bass>=(result.min() ?? 60){bass-=12};result.append(bass)}
         return result.sorted()
     }
+    public static func validIntervals(_ values:[Int])->Bool {
+        (2...8).contains(values.count) && values.first==0 && values.allSatisfy{(0...48).contains($0)} && zip(values,values.dropFirst()).allSatisfy{$0.0<$0.1}
+    }
+    public static func parseCustomIntervals(_ text:String)throws->[Int] {
+        guard text.utf8.count<=128 else{throw MusicError.invalidChord}
+        let tokens=text.split{$0=="," || $0==";" || $0.isWhitespace}
+        let values=tokens.compactMap{Int($0)}
+        guard values.count==tokens.count,validIntervals(values)else{throw MusicError.invalidChord}
+        return values
+    }
+    public func isValidVoicing(_ values:[Int])->Bool {
+        guard (0..<12).contains(root),Self.validIntervals(effectiveIntervals),!values.isEmpty,values.count<=Self.maximumVoices,
+              Set(values).count==values.count,values.allSatisfy({(0...127).contains($0)})else{return false}
+        let actual=Set(values.map{$0%12})
+        let allowed=Set(effectiveIntervals.map{($0+root)%12}+(slashBass.map{[$0]} ?? []))
+        let required=Set(requiredVoicingIntervals.map{($0+root)%12}+(slashBass.map{[$0]} ?? []))
+        guard actual.isSubset(of:allowed),required.isSubset(of:actual)else{return false}
+        if customIntervals != nil {
+            // Preserve every custom tone, including deliberate octave doubling.
+            let requiredCounts=Dictionary(grouping:effectiveIntervals.map{($0+root)%12}+(slashBass.map{[$0]} ?? []),by:{$0}).mapValues(\.count)
+            let actualCounts=Dictionary(grouping:values.map{$0%12},by:{$0}).mapValues(\.count)
+            guard requiredCounts.allSatisfy({actualCounts[$0.key,default:0]>=$0.value})else{return false}
+        }
+        return true
+    }
+    public func validate()throws {
+        guard (0..<12).contains(root),Self.validIntervals(effectiveIntervals),(0..<effectiveIntervals.count).contains(inversion),customIntervals==nil || quality == .major,
+              slashBass==nil || (0..<12).contains(slashBass!),isValidVoicing(notes) else{throw MusicError.invalidChord}
+    }
     public static func parse(_ text: String) throws -> Chord {
-        let value=text.trimmingCharacters(in:.whitespacesAndNewlines).replacingOccurrences(of:"♯",with:"#").replacingOccurrences(of:"♭",with:"b")
-        let parts=value.split(separator:"/",omittingEmptySubsequences:false);guard (1...2).contains(parts.count)else{throw MusicError.invalidChord}
-        func pitch(_ raw:String)throws->(Int,String){guard let first=raw.first,let base=["C":0,"D":2,"E":4,"F":5,"G":7,"A":9,"B":11][String(first).uppercased()]else{throw MusicError.invalidChord};var suffix=String(raw.dropFirst());var root=base;if suffix.hasPrefix("#"){root+=1;suffix.removeFirst()}else if suffix.hasPrefix("b"){root-=1;suffix.removeFirst()};return ((root+12)%12,suffix)}
-        let (root,suffix)=try pitch(String(parts[0]));guard let quality=Quality(rawValue:suffix)else{throw MusicError.invalidChord}
+        guard text.utf8.count<=256 else{throw MusicError.invalidChord}
+        let value=text.trimmingCharacters(in:.whitespacesAndNewlines).replacingOccurrences(of:"♯",with:"#").replacingOccurrences(of:"♭",with:"b").replacingOccurrences(of:"−",with:"-")
+        func pitch(_ raw:String)throws->(Int,String){
+            guard let first=raw.first,let base=["C":0,"D":2,"E":4,"F":5,"G":7,"A":9,"B":11][String(first).uppercased()]else{throw MusicError.invalidChord}
+            var suffix=String(raw.dropFirst()),root=base
+            if suffix.hasPrefix("#"){root+=1;suffix.removeFirst()}else if suffix.hasPrefix("b"){root-=1;suffix.removeFirst()}
+            return ((root+12)%12,suffix.trimmingCharacters(in:.whitespaces))
+        }
+        let (root,rawSuffix)=try pitch(value);var suffix=rawSuffix
         var bass:Int?
-        if parts.count==2{let (note,tail)=try pitch(String(parts[1]));guard tail.isEmpty else{throw MusicError.invalidChord};bass=note}
-        return Chord(root:root,quality:quality,slashBass:bass)
+        // A slash inside 6/9 belongs to the quality; a final /note is the bass.
+        if let slash=suffix.lastIndex(of:"/") {
+            let tail=String(suffix[suffix.index(after:slash)...]).trimmingCharacters(in:.whitespaces)
+            if let (note,remainder)=try? pitch(tail),remainder.isEmpty{bass=note;suffix=String(suffix[..<slash]).trimmingCharacters(in:.whitespaces)}
+        }
+        if suffix.hasPrefix("{") {
+            guard suffix.hasSuffix("}")else{throw MusicError.invalidChord}
+            let formula=try parseCustomIntervals(String(suffix.dropFirst().dropLast()))
+            let chord=Chord(root:root,slashBass:bass,customIntervals:formula);try chord.validate();return chord
+        }
+        suffix=suffix.filter{!$0.isWhitespace}
+        if suffix.contains("(") || suffix.contains(")") {
+            guard suffix.filter({$0=="("}).count==1,suffix.filter({$0==")"}).count==1,suffix.last==")",let opening=suffix.firstIndex(of:"(") else{throw MusicError.invalidChord}
+            let prefix=String(suffix[..<opening]),inside=String(suffix[suffix.index(after:opening)..<suffix.index(before:suffix.endIndex)])
+            suffix=prefix+inside.replacingOccurrences(of:",",with:"")
+        }
+        let aliases:[String:Quality]=[
+            "M":.major,"M7":.maj7,"M9":.maj9,"M11":.major11,"M13":.major13,
+            "Δ":.maj7,"Δ7":.maj7,"Δ9":.maj9,"Δ11":.major11,"Δ13":.major13,
+            "M7#11":.major7Sharp11,"M9#11":.major9Sharp11,"M13#11":.major13Sharp11,
+            "Δ7#11":.major7Sharp11,"Δ9#11":.major9Sharp11,"Δ13#11":.major13Sharp11,
+            "-":.minor,"-7":.m7,"-9":.m9,"-11":.m11,"-13":.minor13,
+            "mM7":.minorMajor7,"mM9":.minorMajor9,"mM11":.minorMajor11,"mM13":.minorMajor13,
+            "mΔ7":.minorMajor7,"mΔ9":.minorMajor9,"mΔ11":.minorMajor11,"mΔ13":.minorMajor13,
+            "°":.dim,"o":.dim,"°7":.diminished7,"o7":.diminished7,"ø":.m7b5,"ø7":.m7b5,"ø9":.minor9Flat5,
+            "+":.aug,"+7":.augmented7,"7+":.augmented7,"aug7":.augmented7,"+M7":.augmentedMajor7,
+            "69":.sixNine,"6add9":.sixNine,"m69":.minorSixNine,"m6add9":.minorSixNine,
+            "sus":.sus4,"7sus":.sevenSus4,"9sus":.nineSus4,"13sus":.thirteenSus4,
+            "major":.major,"maj":.major,"minor":.minor,"min":.minor,"min7":.m7,"min9":.m9,"min11":.m11,"min13":.minor13
+            ,"minmaj7":.minorMajor7,"minmaj9":.minorMajor9,"minmaj11":.minorMajor11,"minmaj13":.minorMajor13
+        ]
+        guard let quality=Quality(rawValue:suffix) ?? aliases[suffix] ?? Quality.allCases.first(where:{$0.rawValue.lowercased()==suffix.lowercased()}) ?? aliases[suffix.lowercased()] else{throw MusicError.invalidChord}
+        let chord=Chord(root:root,quality:quality,slashBass:bass);try chord.validate();return chord
     }
 }
 public struct ChordEvent: Codable, Equatable, Identifiable, Sendable {
@@ -79,8 +214,12 @@ public struct Section: Codable, Equatable, Identifiable, Sendable {
     public init(name: String, start: Int = 0, length: Int) { self.name = name; self.start = start; self.length = length }
 }
 public struct Project: Codable, Equatable, Identifiable, Sendable {
-    public var id: UUID = UUID(); public static let currentSchemaVersion=7
+    public var id: UUID = UUID(); public static let currentSchemaVersion=8
+    /// Portable, nonnegative revision IDs. Exhaustion requires a new project
+    /// copy rather than wrapping an ID used by history, saving and playback.
+    public static let maximumRevision=Int(Int32.max)
     public var schemaVersion = Project.currentSchemaVersion; public var revision = 0
+    fileprivate var nextRevision:Int? {revision>=0 && revision<Self.maximumRevision ? revision+1:nil}
     public var name: String; public var bpm: Double = 120; public var keyRoot = 0; public var minor = false
     public var modified = Date(); public var tracks: [Track]; public var patterns: [Pattern]; public var sections: [Section]
     public var masterFX:MasterFX?;public var performanceTakes:[PerformanceTake]?
@@ -110,7 +249,7 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
     }
     public func validate() throws {
         guard schemaVersion == Self.currentSchemaVersion else { throw MusicError.unsupportedSchema }
-        guard bpm.isFinite, (40...240).contains(bpm), (0..<12).contains(keyRoot), !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, name.count <= 120,
+        guard (0...Self.maximumRevision).contains(revision),bpm.isFinite, (40...240).contains(bpm), (0..<12).contains(keyRoot), !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, name.count <= 120,
               (1...8).contains(sections.count), (barTicks...64*barTicks).contains(length), tracks.count >= 2, tracks.count <= 8,
               bassGate.isFinite, (0.1...1).contains(bassGate), (-1...1).contains(bassOctave), master.isFinite, (-61...6).contains(master),
               tracks[0].role == .harmony, tracks[1].role == .drums, tracks.dropFirst(2).allSatisfy({$0.role == .bass || $0.role == .melody}), tracks.filter({$0.role == .bass}).count <= 1,
@@ -133,9 +272,8 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
             guard p.length >= barTicks, p.length % barTicks == 0, p.length <= length, p.chords.count <= 256, p.drums.count <= 4096, (p.notes ?? []).count <= 4096 else { throw MusicError.invalidProject }
             var end = 0
             for e in p.chords.sorted(by: {$0.tick < $1.tick}) {
-                guard e.tick >= end, e.tick < p.length, e.duration > 0, e.duration <= p.length, e.tick + e.duration <= p.length, (0..<12).contains(e.chord.root), (0..<e.chord.quality.intervals.count).contains(e.chord.inversion) else { throw MusicError.invalidProject }
-                guard e.chord.slashBass==nil || (0..<12).contains(e.chord.slashBass!)else{throw MusicError.invalidProject}
-                if let voiced=e.chord.voicedNotes{let allowed=Set(e.chord.quality.intervals.map{($0+e.chord.root)%12}+[e.chord.slashBass ?? e.chord.root]);guard !voiced.isEmpty,voiced.count<=8,Set(voiced).count==voiced.count,Set(voiced.map{$0%12})==allowed,voiced.allSatisfy({(0...127).contains($0)&&allowed.contains($0%12)})else{throw MusicError.invalidProject}}
+                guard e.tick >= end, e.tick < p.length, e.duration > 0, e.duration <= p.length, e.tick + e.duration <= p.length else { throw MusicError.invalidProject }
+                do{try e.chord.validate()}catch{throw MusicError.invalidProject}
                 end = e.tick + e.duration
             }
             for e in p.notes ?? [] {
@@ -155,27 +293,16 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
         var upperBound = 0
         for t in tracks { for clip in t.clips {
             if let p = patterns.first(where: {$0.id == clip.patternID}) {
-                upperBound += ((clip.length + p.length - 1) / p.length + 1) * (p.chords.count * 8 + p.drums.count + (p.notes ?? []).count)
+                let chordVoices=p.chords.reduce(0){$0+$1.chord.notes.count}
+                upperBound += ((clip.length + p.length - 1) / p.length + 1) * (chordVoices + p.drums.count + (p.notes ?? []).count)
             }
         }}
         guard upperBound <= 65536 else { throw MusicError.tooDense }
         guard Compiler.notes(self).count <= 32768 else { throw MusicError.tooDense }
         guard try JSONEncoder().encode(self).count<=8_000_000 else{throw MusicError.tooDense}
     }
-    public mutating func duplicateSection(_ id: UUID, name: String) throws {
-        guard let index = sections.firstIndex(where: {$0.id == id}), sections.count < 8, length + sections[index].length <= 64 * barTicks else { throw MusicError.limit }
-        let original = sections[index]; let insertion = original.start + original.length
-        for i in tracks.indices {
-            let clips = tracks[i].clips.filter { $0.start >= original.start && $0.start < insertion }
-            for j in tracks[i].clips.indices where tracks[i].clips[j].start >= insertion { tracks[i].clips[j].start += original.length }
-            for c in clips {
-                guard var p = patterns.first(where: {$0.id == c.patternID}) else { throw MusicError.invalidProject }
-                p.id = UUID(); p.chords = p.chords.map { var e = $0; e.id = UUID(); return e }; p.drums = p.drums.map { var e = $0; e.id = UUID(); return e }; p.notes=(p.notes ?? []).map{var e=$0;e.id=UUID();return e}
-                patterns.append(p);var copy=c;copy.id=UUID();copy.patternID=p.id;copy.start += original.length;tracks[i].clips.append(copy)
-            }
-        }
-        for i in sections.indices where sections[i].start >= insertion { sections[i].start += original.length }
-        sections.insert(Section(name: name, start: insertion, length: original.length), at: index + 1)
+    public mutating func duplicateSection(_ id:UUID,name:String)throws {
+        try SectionEditing.duplicate(id,name:name,in:&self)
     }
     public mutating func addMelody(name:String?=nil)throws {
         guard tracks.count<8 else{throw MusicError.trackLimit}
@@ -194,40 +321,26 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
         for clip in t.clips {guard var p=patterns.first(where:{$0.id==clip.patternID})else{throw MusicError.invalidProject};p.id=UUID();p.notes=(p.notes ?? []).map{var n=$0;n.id=UUID();return n};p.chords=p.chords.map{var n=$0;n.id=UUID();return n};p.drums=p.drums.map{var n=$0;n.id=UUID();return n};patterns.append(p);var c=clip;c.id=UUID();c.patternID=p.id;copy.clips.append(c)}
         tracks.append(copy)
     }
-    public mutating func deleteSection(_ id: UUID) throws {
-        guard sections.count > 1, let index = sections.firstIndex(where: {$0.id == id}) else { throw MusicError.invalidProject }
-        let removed = sections.remove(at: index)
-        let end = removed.start + removed.length
-        for i in tracks.indices {
-            tracks[i].clips.removeAll { $0.start >= removed.start && $0.start < end }
-            for j in tracks[i].clips.indices where tracks[i].clips[j].start >= end { tracks[i].clips[j].start -= removed.length }
-        }
-        for i in sections.indices where sections[i].start >= end { sections[i].start -= removed.length }
-        let referenced = Set(tracks.flatMap { $0.clips.map(\.patternID) })
-        patterns.removeAll { !referenced.contains($0.id) }
+    public mutating func deleteSection(_ id:UUID)throws {
+        try SectionEditing.delete(id,in:&self)
     }
-    public mutating func moveSection(_ id: UUID, by delta: Int) throws {
-        guard let i = sections.firstIndex(where: {$0.id == id}), sections.indices.contains(i + delta) else { return }
-        let starts = Dictionary(uniqueKeysWithValues: sections.map {($0.id, $0.start)})
-        sections.swapAt(i, i + delta); var cursor = 0
-        for j in sections.indices {
-            let len = sections[j].length
-            sections[j].start = cursor; cursor += len
-        }
-        for k in tracks.indices { for c in tracks[k].clips.indices {
-            let old = tracks[k].clips[c].start
-            if let s = sections.first(where: {old >= starts[$0.id]! && old < starts[$0.id]! + $0.length}) { tracks[k].clips[c].start = s.start + old - starts[s.id]! }
-        }}
+    public mutating func moveSection(_ id:UUID,by delta:Int)throws {
+        guard let index=sections.firstIndex(where:{$0.id==id}),
+              delta != 0,delta >= -index,delta < sections.count-index else{return}
+        let payload=ArrangementDragPayload(project:self,sectionID:id)
+        try ClipEditing.reorderSection(payload,to:sections[index+delta].id,in:&self)
     }
+
 }
 public enum MusicError: Error, LocalizedError {
-    case invalidChord, invalidProject, unsupportedSchema, limit, tooDense, trackLimit, assetLimit
+    case invalidChord, invalidProject, unsupportedSchema, limit, tooDense, trackLimit, assetLimit, revisionLimit
     public var errorDescription: String? {
         let key = switch self {
         case .invalidChord: "Unrecognized chord. Choose a chord from the list."
         case .unsupportedSchema: "This project was made with a newer version. The original has been preserved."
         case .limit: "A song can contain up to 8 sections and 64 bars."
         case .assetLimit: "A project can keep up to eight source recordings."
+        case .revisionLimit: "This project has reached its revision limit. Save a copy to continue editing."
         case .trackLimit: "A project can contain up to eight tracks."
         case .tooDense: "This project has too many events."
         case .invalidProject: "The project contains invalid musical data."
@@ -243,18 +356,29 @@ public struct History: Sendable {
     public init() {}
     public var canUndo: Bool { !past.isEmpty }; public var canRedo: Bool { !future.isEmpty }
     public mutating func apply(_ project: inout Project, coalescing: Bool = false, _ change: (inout Project) throws -> Void) throws {
-        var candidate = project; try change(&candidate); candidate.revision = project.revision + 1; candidate.modified = Date(); try candidate.validate()
+        guard let revision=project.nextRevision else{throw MusicError.revisionLimit}
+        var candidate = project; try change(&candidate); candidate.revision = revision; candidate.modified = Date(); try candidate.validate()
         if !coalescing || past.isEmpty { past.append(project) }; if past.count > 80 { past.removeFirst() }; future.removeAll(); project = candidate
     }
-    public mutating func undo(_ project: inout Project) { guard var p = past.popLast() else { return }; future.append(project); p.revision = project.revision + 1; p.modified = Date(); project = p }
-    public mutating func redo(_ project: inout Project) { guard var p = future.popLast() else { return }; past.append(project); p.revision = project.revision + 1; p.modified = Date(); project = p }
+    public mutating func undo(_ project: inout Project) { guard let revision=project.nextRevision,var p = past.last else { return };past.removeLast(); future.append(project); p.revision = revision; p.modified = Date(); project = p }
+    public mutating func redo(_ project: inout Project) { guard let revision=project.nextRevision,var p = future.last else { return };future.removeLast(); past.append(project); p.revision = revision; p.modified = Date(); project = p }
 }
 
 public enum ProjectDocument {
     /// Read/migrate a value copy. The source bytes are preserved until an explicit save.
     public static func decode(_ data:Data)throws->Project {
         guard data.count<=8_000_000 else{throw MusicError.tooDense}
+        guard let header=try JSONSerialization.jsonObject(with:data) as? [String:Any]else{throw MusicError.invalidProject}
+        try checkSchemaHeaders(header)
         return try migrated(JSONDecoder().decode(Project.self,from:data))
+    }
+    private static func checkSchemaHeaders(_ value:[String:Any],depth:Int=0)throws {
+        guard depth<2,let version=value["schemaVersion"] as? Int else{throw MusicError.invalidProject}
+        guard (1...Project.currentSchemaVersion).contains(version)else{throw MusicError.unsupportedSchema}
+        // Check a frozen source before decoding its newer chord vocabulary too.
+        for take in value["performanceTakes"] as? [[String:Any]] ?? [] {
+            if let source=take["source"] as? [String:Any]{try checkSchemaHeaders(source,depth:depth+1)}
+        }
     }
     private static func migrated(_ value:Project)throws->Project {
         var p=value
@@ -265,6 +389,7 @@ public enum ProjectDocument {
         if p.schemaVersion==4{p.schemaVersion=5}
         if p.schemaVersion==5{p.schemaVersion=6}
         if p.schemaVersion==6{p.schemaVersion=7}
+        if p.schemaVersion==7{p.schemaVersion=8}
         if var take=p.performanceTake{take.source=try migrated(take.source);p.performanceTake=take}
         try p.validate();return p
     }

@@ -9,10 +9,29 @@ typedef struct LGKernel LGKernel;
 int lg_sha256(const uint8_t *data, int32_t count, char *hex);
 typedef struct { int32_t tick, duration, pitch, velocity, track, pad, instrument; } LGNote;
 typedef struct {float gainDB,pan;int32_t audible;} LGTrackMix;
+// identity is stable, nonzero and unique within a project; presetVersion is 1/2,
+// instrument is harmony/drums/bass/melody (0...3), midiChannel is 0...15.
+typedef struct {LGTrackMix mix;int32_t presetVersion,instrument,midiChannel;uint64_t identity;} LGProjectTrack;
 typedef struct { uint64_t frame; int32_t epoch,kind,track,a,b,token; float value; } LGPerformanceEvent;
+typedef struct {
+    uint64_t epoch,callbacks,comparedCallbacks;
+    uint64_t maxExcessNanoseconds,maxIntervalNanoseconds,baselineBufferNanoseconds;
+    uint64_t nonIncreasingTimestamps,clockRateChanges;
+    uint32_t baselineFrames,inheritedAnchor;
+} LGOutputTiming;
 LGKernel *lg_create(double sampleRate);
 void lg_destroy(LGKernel *k);
 int lg_submit(LGKernel *k, const LGNote *notes, int count, double bpm, int start, int end, int loop, int revision);
+// A live arrangement transaction. Notes, mixer, presets and FX are adopted at
+// the same musical boundary. layoutToken must change when ordered track IDs
+// change; this releases old-index live MIDI/sustain and crossfades in stereo.
+// Publication has one serialized control-thread owner. A seek or stopped
+// transport adopts immediately; playback keeps its tick and sample clock.
+int lg_submit_project(LGKernel *k,const LGNote *notes,int count,double bpm,int start,int end,int loop,int revision,uint64_t layoutToken,const LGProjectTrack *tracks,int trackCount,float masterDB,float filter,float delayWet);
+// On the serialized publication/control thread, copy up to three slot revision
+// IDs. Retain routing metadata for these generations until the next publication;
+// a concurrent audio handover cannot hide its generation from this bounded set.
+int lg_snapshot_generations(LGKernel *k,int32_t *revisions,int capacity);
 void lg_countin(LGKernel *k, int frames);
 int lg_countremaining(LGKernel *k);
 void lg_play(LGKernel *k, int play);
@@ -21,10 +40,16 @@ void lg_seek(LGKernel *k, int tick);
 int lg_pad(LGKernel *k, int pad, int velocity);
 void lg_preview(LGKernel *k, int pitch);
 void lg_note_preview(LGKernel *k, int pitch, int track, int instrument);
+// Resolve a stable LGProjectTrack identity after audio-boundary adoption.
+// Deleted/absent tracks are ignored rather than playing through a reused index.
+int lg_note_preview_track(LGKernel *k,int pitch,uint64_t identity);
 void lg_mix(LGKernel *k, int track, float db, float pan, int audible);
 // Publish a complete mixer transaction; the audio callback adopts it once at a
 // buffer boundary. Individual setters remain available for paused/offline setup.
 int lg_mix_snapshot(LGKernel *k,const LGTrackMix *tracks,int count,float masterDB,float filter,float delayWet);
+// Stage a mixer update for an exact lg_submit[_project] musical generation.
+// Future-generation updates wait; stale-generation updates are discarded.
+int lg_mix_snapshot_for_revision(LGKernel *k,const LGTrackMix *tracks,int count,float masterDB,float filter,float delayWet,int revision);
 uint64_t lg_mix_revision(LGKernel *k);
 int lg_preset_version(LGKernel *k,int track,int version);
 void lg_master(LGKernel *k, float db);
@@ -55,6 +80,17 @@ void lg_tail_on_end(LGKernel *k, int enabled);
 void lg_metronome(LGKernel *k, int enabled);
 void lg_render(LGKernel *k, float *left, float *right, int frames);
 void lg_render_midi(LGKernel *k,LGMIDIHub *hub,uint64_t hostTime,double hostTicksPerSecond,float *left,float *right,int frames);
+// Serialized control owner: request a fresh measurement, adopted by the next
+// valid host-timestamped output callback. The previous callback anchor survives
+// epoch changes, so a first post-restart gap is included. Zero-host offline
+// rendering is ignored. Wait until read.epoch matches the returned nonzero ID.
+uint64_t lg_output_timing_begin(LGKernel *k);
+// Bounded coherent read; returns 0 if busy/invalid and leaves *timing untouched.
+// Excess is callback spacing minus the PREVIOUS callback's frame duration.
+// baselineFrames/baselineBufferNanoseconds describe that initial expected span;
+// inheritedAnchor indicates whether the epoch retained a prior real callback.
+// These timestamp diagnostics do not prove physical output has no dropouts.
+int lg_output_timing_read(LGKernel *k,LGOutputTiming *timing);
 double lg_tick(LGKernel *k);
 uint64_t lg_clock(LGKernel *k);
 int lg_playing(LGKernel *k);
