@@ -12,13 +12,15 @@ constexpr int MaxNotes=32768, MaxTracks=8, Master=8, Buses=9, MaxVoices=64, Lega
 constexpr double Pi=3.14159265358979323846;
 struct Snapshot { std::atomic<int> state{0}, revision{-1}; std::array<LGNote,MaxNotes> notes{}; int count=0,start=0,end=15360; double bpm=120; bool loop=true; };
 struct MixSnapshot {std::atomic<int> state{0};std::atomic<uint64_t> revision{0};std::array<float,Buses> gain{},pan{};float filter=0,delay=0;};
-struct Voice { bool on=false; int pitch=0,track=0,pad=-1,instrument=0; double phase=0,age=0,duration=0; float velocity=0,level=0;int sourceKey=-1;bool keyDown=false;bool outputAllowed=true;int outputChannel=-1,outputPitch=0;uint32_t outputEpoch=0;uint64_t outputEndFrame=0;int presetVersion=1;double phaseStep=0,decayStep=1,decay=1;uint64_t ageFrames=0; };
+struct Voice { bool on=false; int pitch=0,track=0,pad=-1,instrument=0; double phase=0,age=0,duration=0; float velocity=0,level=0;int sourceKey=-1;bool keyDown=false;bool outputAllowed=true;int outputChannel=-1,outputPitch=0;uint32_t outputEpoch=0;uint64_t outputEndFrame=0;int presetVersion=1;double phaseStep=0,decayStep=1,decay=1;uint64_t ageFrames=0;float lastSample=0; };
+struct Retirement {float sample=0;int track=0,remaining=0,total=1;};
 struct Input { int value=0,velocity=100,track=0,instrument=0; bool preview=false; };
 struct LGKernel {
     LGMIDIHub *renderHub=nullptr;uint64_t hostNow=0,outputState=0;
     double sr; PerformanceFX fx;PerformanceRuntime performance;std::array<float,Buses> capturedGain{},capturedPan{};float capturedFilter=0,capturedDelay=0;std::atomic<float> filterTarget{0},delayTarget{0}; std::array<Snapshot,3> slots; int current=-1;
     std::array<MixSnapshot,3> mixSlots;std::atomic<uint64_t> mixSerial{0},mixPublished{0};uint64_t mixApplied=0;std::atomic<bool> panicRequest{false};
     std::array<Voice,MaxVoices> voices{};std::array<bool,256> sustain{};
+    std::array<Retirement,MaxVoices*2> retirements{};
     int kitFrames;std::array<std::vector<float>,16> kit,kitV2;std::array<std::atomic<int>,Buses> presets;
     std::array<Input,256> input{}; std::atomic<unsigned> write{0},read{0}; std::atomic<int> overflow{0};
     std::atomic<int> countRequest{0},countRemaining{0}; int counting=0;
@@ -48,12 +50,17 @@ struct LGKernel {
     }
     void endOutput(Voice &v){if(renderHub&&v.outputChannel>=0&&v.outputEpoch==uint32_t(outputState>>33))renderHub->outputOff(outputState,hostNow,v.outputChannel,v.outputPitch);v.outputChannel=-1;}
     void startOutput(Voice &v){if(!renderHub||!v.outputAllowed)return;constexpr int map[16]={36,38,42,46,39,37,45,47,50,49,51,54,56,75,70,82};v.outputPitch=v.pad>=0?map[v.pad]:v.pitch;v.outputEpoch=uint32_t(outputState>>33);v.outputEndFrame=rendered+uint64_t(std::max(0.0,std::round((v.duration-v.age)*sr)));v.outputChannel=renderHub->outputOn(outputState,hostNow,v.track,v.outputPitch,int(v.velocity*127+0.5f));}
-    void silence(bool all=false){for(auto &v:voices)if(all||v.sourceKey<0){endOutput(v);v.on=false;}if(all)sustain.fill(false);}
+    void retire(const Voice &v){
+        if(!v.on||v.presetVersion<2||v.lastSample==0)return;
+        auto *tail=&*std::min_element(retirements.begin(),retirements.end(),[](const auto &a,const auto &b){return std::abs(a.sample)*a.remaining/a.total<std::abs(b.sample)*b.remaining/b.total;});
+        const int count=std::max(1,int(std::ceil(sr*0.003)));*tail={v.lastSample,v.track,count,count};
+    }
+    void silence(bool all=false){for(auto &v:voices)if(all||v.sourceKey<0){if(!all)retire(v);endOutput(v);v.on=false;}if(all){sustain.fill(false);for(auto &tail:retirements)tail.remaining=0;}}
     Voice *trigger(int pitch,int velocity,int track,int pad,int instrument,double duration,bool output=true){
-        if(pad==2)for(auto &v:voices)if(v.pad==3)v.duration=std::min(v.duration,v.age+0.004);
+        if(pad==2)for(auto &v:voices)if(v.on&&v.pad==3){if(v.presetVersion>=2){retire(v);endOutput(v);v.on=false;}else{v.duration=std::min(v.duration,v.age+0.004);}}
         Voice *v=nullptr; for(auto &x:voices)if(!x.on){v=&x;break;}
         if(!v) v=&*std::min_element(voices.begin(),voices.end(),[](auto&a,auto&b){return a.level<b.level;});
-        endOutput(*v);*v=Voice{true,pitch,track,pad,instrument,0,0,duration,float(velocity/127.0),0};v->outputAllowed=output;v->presetVersion=presets[track].load(std::memory_order_relaxed);
+        retire(*v);endOutput(*v);*v=Voice{true,pitch,track,pad,instrument,0,0,duration,float(velocity/127.0),0};v->outputAllowed=output;v->presetVersion=presets[track].load(std::memory_order_relaxed);
         v->phaseStep=440*std::pow(2.,(pitch-69)/12.)/sr;
         if(v->presetVersion>=2){if(pad>=0)v->duration=kitFrames/sr;v->decayStep=std::exp(-(instrument==2?1.5:0.7)/sr);}
         startOutput(*v);return v;
@@ -282,8 +289,9 @@ void lg_render_midi(LGKernel*k,LGMIDIHub*hub,uint64_t hostTime,double hostTicksP
             else {v.phase+=v.phaseStep;if(v.phase>=1)v.phase-=1;sample=float((std::sin(2*Pi*v.phase)+(v.instrument==3?0.35:0.22)*std::sin(4*Pi*v.phase)+(v.instrument==3?0.12*std::sin(6*Pi*v.phase):0))*0.17);}
             double envelope=std::min(1.,v.age/0.004)*std::min(1.,remaining/0.008);if(v.pad<0)envelope*=v.presetVersion>=2?v.decay:std::exp(-v.age*(v.instrument==2?1.5:0.7));
             sample*=float(envelope)*v.velocity;v.level=std::abs(sample);if(v.presetVersion>=2){v.age=double(++v.ageFrames)/k->sr;v.decay*=v.decayStep;}else{v.age+=1/k->sr;}
-            buses[v.track]+=sample;
+            v.lastSample=sample;buses[v.track]+=sample;
         }
+        for(auto &tail:k->retirements)if(tail.remaining>0){buses[tail.track]+=tail.sample*float(tail.remaining)/float(tail.total);--tail.remaining;}
         k->fx.processBuses(buses,k->active);
         for(int t=0;t<MaxTracks;t++){
             const float amp=buses[t]*k->smooth[t];
