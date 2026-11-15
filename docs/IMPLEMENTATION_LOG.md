@@ -351,6 +351,19 @@ Normal `d300ea2` добавляет только bounded read-only framework-inp
 
 Следующий focused diagnostic запускает только anchored method ×fixed3 (без retry/until-pass), поскольку остальные9 gesture outcomes и их nonpinch source уже проверены. Параллельно новый normal FULL снова выполняет все44 функции +3 captures/73 expected originals одним проходом. Предыдущие неправильные expectations и все неуспешные runs сохраняются как история, а не дополняются выдуманным успехом.
 
+
+### C7 — единая программная/native приёмка завершена, source77
+
+Source `77fb72ab82cd800eb8131136628c416ad83c9046`, [normal FULL 43771988471](https://github.com/alexgazin/la-grilla/actions/runs/43771988471): **все три jobs SUCCESS**, без partial flags. Реальные 48 methods точно совпадают с declared source inventory: **44/44 functional + 3/3 capture PASS**, один отдельный opt-in diagnostic SKIP, ноль failures. Host: **118 Swift tests / 19 suites, 15 C++ suites, 603 EN/RU keys**, независимые export/schema/release readers и текущий SDK/archive audit проходят. Previous main13/C2 остаётся историей; эта запись относится только к новому source/run.
+
+Получены ровно **73 настоящих оригинала** (36 standard +12 Store +10 compact +15 named QA). Обе ORIGINAL artifact ZIP полностью сверены с API size/SHA-256; каждый current PNG побайтово совпадает с named copies в обоих ZIP и original native attachment. Все 73 изображения просмотрены по одному: 73 accepted, 0 concrete visual blockers. Guarded promotion выполнил новый каталог [OriginalVision](../Screenshots/OriginalVision); historical C2/Design2026/progress pixels не менялись. Двенадцать текущих Store copies и четыре root previews — точные source bytes. Per-file native IDs/results/reviews/dimensions/EXIF/hash сохранены в manifest.
+
+Pinch input evidence закрыт отдельно [retention run43773609600](https://github.com/alexgazin/la-grilla/actions/runs/43773609600): три fixed fresh-app cases PASS, все **6 original synthesized XCTest touch records + 6 actual ruler receipts** сохранены благодаря reporting-only TestAction.systemAttachmentLifetime=keepAlways. App/test bytes идентичны normal77. Независимый reader, координатор и root повторно сверили оригинальные bplists/SHA и inverse ruler math: input globalX223, max drift **0.0006359169718392899 bar**. Это автоматизированные Simulator touches, не аппаратное измерение iPhone. Earlier wrong-center failures остаются FAIL; никакой retry-until-pass или fake expected geometry не использован.
+
+Обе production voice chains снова PASS: actual139200 frames /48kHz /2.9s /560896bytes, исходные hashes/provenance, correction60/64/67→61/64/67, Apply revision2/store/reopen/Undo/Redo, same engine/kernel. Cold output permission undetermined→explicit Start→granted в одном процессе. Render mHostTime excess **167.572167ms cold /76.532417ms standalone** остаётся измеренным discontinuity; это не callback-entry wall clock и не physical waveform. Generic50.309542ms включает намеренный pause/prepare. Physical dropout absence и точная атрибуция не подтверждены. Реальный MIDI connected41→mapped247 received notes и source/channel1/CC74 mapping проходят; прежний API−304 не объявляется исправленным.
+
+Итоговая интеграция — [PR #13](https://github.com/alexgazin/la-grilla/pull/13). После verified source выполняются только metadata/image updates, без изменения app/domain/test bytes. Merge запускает exact-main все44 functional и все три required jobs; его актуальный SHA/run отражаются в PR/checks и отдельном receipt без рекурсивного cosmetic commit. **C8 остаётся открытым:** actual iOS18 installed launch, compatible real model/locale/quality, live human phone recording, physical routes/indicator/USB/BLE/DAWs/30-minute latency/thermal/dropout, signing/TestFlight/App Review. [Подробные ограничения](release/C7_ACCEPTANCE.md), [запуск на своём iPhone](DEVELOPMENT.md#run-on-your-own-iphone).
+
 ## Формат отчёта каждого этапа
 
 Для C1–C8 добавлять отдельную запись:

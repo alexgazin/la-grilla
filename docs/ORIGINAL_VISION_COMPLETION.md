@@ -1,6 +1,6 @@
 # Полное исходное видение — технический план реализации
 
-Обновлено: 15 ноября 2026. Исходная база сверки: `1ddf660`, 1.0.0 (12). Последний принятый `main`: `912dc483`, 1.0.0 (13), exact-main run `43719321757`. Интеграционный кандидат: 1.0.0 (14), schema 8; его финальная приёмка продолжается. Источник цели — первоначальная идея владельца и последующая сверка с кодом.
+Обновлено: 15 ноября 2026. Исходная база сверки: `1ddf660`, 1.0.0 (12). **C1–C7 реализованы и прошли программную/native приёмку для 1.0.0 (14), schema 8**: source `77fb72ab82cd800eb8131136628c416ad83c9046`, [full run 43771988471](https://github.com/alexgazin/la-grilla/actions/runs/43771988471). Интеграция — [PR #13](https://github.com/alexgazin/la-grilla/pull/13); exact-main CI остаётся обязательным distribution gate. Исторический main 13/C2 `912dc483` и его run `43719321757` сохранены отдельно. C8 требует реальных устройств/модели/signing и остаётся открытым.
 
 Рабочая ветка: `feat/complete-original-vision`. Детальные факты каждого этапа записываются в [журнал реализации](IMPLEMENTATION_LOG.md); общий статус — [ROADMAP](../ROADMAP.md).
 
@@ -34,14 +34,14 @@
 
 | Этап | Результат | Зависимость | Статус |
 | --- | --- | --- | --- |
-| C0 | Сверка исходных идей, подробные контракты и журнал | База 1ddf660 | План и журнал записаны |
-| C1 | Расширенная гармоническая модель и schema 8 | C0 | Host и отдельные native сценарии прошли; финальная регрессия C7 впереди |
-| C2 | Настоящая круговая DJ-ручка | C0 | Native приёмка пройдена; слито в main, PR #14 |
-| C3 | Clip/section arranger: операции и жесты | C0; интеграция с C1/C4 | Clip операции реализованы; e428 short drag intermittent, новый anchored pinch ожидает native44/C7 приёмку |
-| C4 | Атомарные live-правки и непрерывный transport | C0; принимает C1/C3/C6 | Host DSP/MIDI, native live edits и drum overdub прошли; расширенная audition-регрессия ожидает C7 |
-| C5 | Общий duplex микрофон и голос поверх бита | C4 | Focused cold/warm реальная CAF/analysis/review/store/Undo цепь прошла; render timestamp gaps/физическая непрерывность отдельно, финальная регрессия C7 впереди |
-| C6 | Свободный AI Assistant и многосекционные предложения | C1/C3/C4; диктовка C5 | Commands/native review проверены; реальная модель — C8 |
-| C7 | Интеграционная стабилизация и новый RC | C1–C6 | 118 Swift tests/19 suites,15 C++ и603 EN/RU keys проходят; полная native44/capture73 приёмка идёт |
+| C0 | Сверка исходных идей, подробные контракты и журнал | База 1ddf660 | Выполнено |
+| C1 | Расширенная гармоническая модель и schema 8 | C0 | Host, migration/export и native приёмка пройдена |
+| C2 | Настоящая круговая DJ-ручка | C0 | Принята через PR #14; общая регрессия пройдена |
+| C3 | Clip/section arranger, жесты и anchored pinch | C0; C1/C4 | Все шесть native Arrangement cases прошли; original input/geometry anchor независимо сверены |
+| C4 | Атомарные live-правки и transport | C0; C1/C3/C6 | Native live edits, snapshot/MIDI/audition и drum overdub прошли |
+| C5 | Общий duplex микрофон и голос поверх бита | C4 | Две actual CAF→analysis→review→Apply/store/reopen/UndoRedo цепи прошли; physical continuity отдельно в C8 |
+| C6 | Typed AI Assistant и многосекционные предложения | C1/C3/C4; диктовка C5 | Adapter и native Commands/review/Apply/Undo приняты; реальная модель — C8 |
+| C7 | Интеграционная стабилизация, RC и кадры | C1–C6 | 118 Swift / 19 suites, 15 C++, 603 EN/RU, 44 native + 3 captures и 73 individual reviews прошли |
 | C8 | Установленная сборка, устройства, TestFlight/App Store | C7 и реальные ресурсы | Внешняя приёмка открыта |
 
 Порядок интеграции: данные/безопасность → простые независимые контролы → аранжировка и live audio → duplex → AI → общая приёмка. Параллельная разработка не означает зависимость UI от ещё несуществующих API в `main`.

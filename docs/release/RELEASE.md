@@ -1,6 +1,6 @@
 # Release procedure
 
-Current integration candidate: **1.0.0 (14), schema 8**, iPhone / iOS 18+, bundle `com.alexgazin.LaGrilla`. Original-vision software/native acceptance is recorded in [Implementation log](../IMPLEMENTATION_LOG.md) and [Release QA](../RELEASE_QA.md) as each check completes. [Design QA](../DESIGN_QA.md) preserves the historical version 12 design acceptance. This procedure does not establish final version 14 acceptance, an installed signed build or an App Store upload.
+Software candidate **1.0.0 (14), schema 8**, iPhone / iOS 18+, bundle `com.alexgazin.LaGrilla`, passed [C1–C7 acceptance](C7_ACCEPTANCE.md): source `77fb72ab82cd800eb8131136628c416ad83c9046`, [full run 43771988471](https://github.com/alexgazin/la-grilla/actions/runs/43771988471), all three verification jobs, 44 functional flows, three capture methods and 73 reviewed original PNGs. [Implementation log](../IMPLEMENTATION_LOG.md) preserves the detailed stages/failures; [Design QA](../DESIGN_QA.md) retains the historical version12 design acceptance. Exact-main checks remain mandatory before distribution. Physical-device acceptance, a signed installed build, TestFlight and App Store publication remain unperformed.
 
 ## Current Apple submission requirement
 
