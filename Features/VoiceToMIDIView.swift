@@ -17,6 +17,7 @@ struct VoiceToMIDIView:View {
     @State private var error:String?
     @State private var applying=false
     @State private var applied=false
+    @State private var microphoneLease:UUID?
     @State private var sourceProjectID:UUID?
     @State private var sourceRevision=0
     @State private var sourceSectionID:UUID?
@@ -41,11 +42,11 @@ struct VoiceToMIDIView:View {
                 .toolbar{ToolbarItem(placement:.cancellationAction){Button("Cancel"){dismiss()}.disabled(applying)}}
         }.tint(.record).interactiveDismissDisabled(applying)
         .onChange(of:capture.result?.record.id){_,id in if id != nil{resetNotes()}}
-        .onChange(of:capture.state){_,state in if state == .analyzing || state == .idle || state == .ready{_ = session.ensureAudio()}}
+        .onChange(of:capture.state){_,state in if state == .analyzing || state == .idle || state == .ready{restoreAudio()}}
         .onReceive(Timer.publish(every:0.1,on:.main,in:.common).autoconnect()){_ in capture.pollOriginal()}
         .onReceive(NotificationCenter.default.publisher(for:AVAudioSession.interruptionNotification).receive(on:RunLoop.main)){_ in capture.stop();capture.stopOriginal()}
         .onChange(of:phase){_,value in if value == .background{capture.stop();capture.stopOriginal();session.endHarmonyPreview()}}
-        .onDisappear{capture.discard();session.endHarmonyPreview();_ = session.ensureAudio()}
+        .onDisappear{capture.discard();session.endHarmonyPreview();restoreAudio()}
         .task{rememberContext();if synthetic{await capture.loadFixture()}}
     }
     var recordingControls:some View {
@@ -110,7 +111,8 @@ struct VoiceToMIDIView:View {
     func edit(_ action:(inout NoteEvent)->Void){if let i=notes.firstIndex(where:{$0.id==selected}){action(&notes[i])};session.endHarmonyPreview()}
     func move(_ tick:Int){edit{$0.tick=max(0,min(session.section.length-$0.duration,tick))}}
     func rememberContext(){sourceProjectID=session.project.id;sourceRevision=session.project.revision;sourceSectionID=session.section.id}
-    func record(){session.endHarmonyPreview();capture.stopOriginal();session.finishTake();rememberContext();session.audio.reset();Task{await capture.start(bpm:session.project.bpm,duration:limit,countIn:countIn);if !capture.isCapturing{_ = session.ensureAudio()}}}
+    func record(){session.endHarmonyPreview();capture.stopOriginal();session.finishTake();rememberContext();guard let lease=session.beginMicrophone(stop:{capture.stop();capture.stopOriginal()})else{return};microphoneLease=lease;Task{guard session.ownsMicrophone(lease)else{return};await capture.start(bpm:session.project.bpm,duration:limit,countIn:countIn);if !capture.isCapturing{session.endMicrophone(lease);if microphoneLease==lease{microphoneLease=nil}}}}
+    func restoreAudio(){if let lease=microphoneLease{microphoneLease=nil;session.endMicrophone(lease)}}
     func resetNotes(){guard let result=capture.result else{return};session.endHarmonyPreview();notes=VoiceAnalyzer.notes(result.analysis,bpm:session.project.bpm,length:session.section.length,quantize:quantize,scaleRoot:snapScale ? session.project.keyRoot:nil,minor:session.project.minor,offset:offset);selected=notes.first?.id}
     func placement()throws->VoicePlacement{guard sourceProjectID==session.project.id,sourceRevision==session.project.revision,let sourceSectionID,let result=capture.result else{throw AssistantError.stale};return try Arrangement.voiceCandidate(session.project,sectionID:sourceSectionID,target:target,notes:notes,source:result.record)}
     func original(){session.endHarmonyPreview();session.audio.stop();do{try capture.toggleOriginal()}catch{self.error=error.localizedDescription}}

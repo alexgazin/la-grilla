@@ -16,7 +16,7 @@ struct AssistantView:View {
     @State private var previewB=false
     @State private var language="ru-RU"
     @State private var dictation=DictationController()
-    @State private var microphoneSession=false
+    @State private var microphoneLease:UUID?
     var body:some View {
         NavigationStack {
             ScrollView {
@@ -53,7 +53,7 @@ struct AssistantView:View {
         .onChange(of:dictation.text){_,value in if !value.isEmpty{input=value}}
         .onChange(of:dictation.recording){_,recording in if !recording{restoreAudio()}}
         .onChange(of:phase){_,p in if p == .background{dictation.stop();restoreAudio()}}
-        .onReceive(NotificationCenter.default.publisher(for:AVAudioSession.interruptionNotification).receive(on:RunLoop.main)){_ in dictation.stop();microphoneSession=false}
+        .onReceive(NotificationCenter.default.publisher(for:AVAudioSession.interruptionNotification).receive(on:RunLoop.main)){_ in dictation.stop();restoreAudio()}
         .onDisappear{dictation.stop();restoreAudio();session.endHarmonyPreview()}
         .onAppear{if let i=ProcessInfo.processInfo.arguments.firstIndex(of:"--screen"),ProcessInfo.processInfo.arguments.count>i+1,ProcessInfo.processInfo.arguments[i+1]=="assistant-proposal"{input="Tempo 110; Chorus 8 bars: Am F C G each 2 bars";generate()}}
     }
@@ -93,8 +93,8 @@ struct AssistantView:View {
     func toggleDictation(){
         focused=false
         if dictation.recording{dictation.stop();restoreAudio();return}
-        session.endHarmonyPreview();session.finishTake();session.audio.reset();microphoneSession=true
-        Task{await dictation.start(locale:language);if !dictation.recording{restoreAudio()}}
+        session.endHarmonyPreview();session.finishTake();guard let lease=session.beginMicrophone(stop:{dictation.stop()})else{return};microphoneLease=lease
+        Task{guard session.ownsMicrophone(lease)else{return};await dictation.start(locale:language);if !dictation.recording{session.endMicrophone(lease);if microphoneLease==lease{microphoneLease=nil}}}
     }
-    func restoreAudio(){if microphoneSession{microphoneSession=false;_ = session.ensureAudio()}}
+    func restoreAudio(){if let lease=microphoneLease{microphoneLease=nil;session.endMicrophone(lease)}}
 }

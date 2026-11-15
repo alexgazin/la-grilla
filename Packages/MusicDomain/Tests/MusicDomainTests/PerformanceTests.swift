@@ -3,6 +3,17 @@ import Testing
 @testable import MusicDomain
 
 struct PerformanceTests {
+    @Test func instrumentUpgradePreservesVersionedFrozenSources()throws {
+        var legacy=Project.demo();legacy.schemaVersion=6
+        for i in legacy.tracks.indices{legacy.tracks[i].presetVersion=1}
+        legacy.performanceTake=PerformanceTake(source:legacy,sampleRate:48000,durationFrames:48000,events:[PerformanceEvent(frame:0,kind:.section,sectionID:legacy.sections[0].id)])
+        let migrated=try ProjectDocument.decode(JSONEncoder().encode(legacy))
+        #expect(migrated.schemaVersion==Project.currentSchemaVersion)
+        #expect(migrated.tracks.allSatisfy{$0.presetVersion==1})
+        #expect(migrated.performanceTake?.source.tracks.allSatisfy{$0.presetVersion==1}==true)
+        #expect(Project.demo().tracks.allSatisfy{$0.presetVersion==2})
+        var invalid=migrated;invalid.tracks[0].presetVersion=3;#expect(throws:MusicError.self){try invalid.validate()}
+    }
     @Test func finiteTimelineFollowsLaunchJumpRepeatAndLiveInputs()throws {
         var p=Project(name:"Timeline",bars:2);p.bpm=120
         p.patterns[0].chords=[ChordEvent(tick:0,duration:960,chord:Chord(root:0)),ChordEvent(tick:3840,duration:960,chord:Chord(root:7))]

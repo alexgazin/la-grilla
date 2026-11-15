@@ -6,6 +6,7 @@ import Observation
 @MainActor @Observable final class PerformanceController {
     let audio:AudioController
     var contextActive=false;var playing=false;var recording=false;var starting=false;var replaying=false
+    var stopping=false
     var runtimeProject:Project?;var activeSectionID:UUID?;var queuedSectionID:UUID?
     var repeatSize=480;var repeating=false;var seconds=0.0;var beatsToLaunch=0.0;var eventCount=0
     var error:String?;var notice:String?;var takeReady:PerformanceTake?
@@ -15,11 +16,12 @@ import Observation
     @ObservationIgnored private var events:[PerformanceEvent]=[]
     @ObservationIgnored private var requestedSequence:UInt64=0
     @ObservationIgnored private var startedAt=Date.distantPast
+    @ObservationIgnored private var stopWaiters:[CheckedContinuation<Void,Never>]=[]
     @ObservationIgnored private(set) var replayTake:PerformanceTake?
     init(audio:AudioController){self.audio=audio}
     var fx:MasterFX{runtimeProject?.masterFX ?? MasterFX()}
     func begin(_ project:Project,sectionID:UUID,record:Bool)throws {
-        guard !starting,!recording,takeReady==nil else{return}
+        guard !starting,!stopping,!recording,takeReady==nil else{return}
         var source=project;source.performanceTake=nil
         if let old=runtimeProject,contextActive,!replaying,old.tracks.map(\.id)==source.tracks.map(\.id){
             for i in source.tracks.indices{source.tracks[i].gain=old.tracks[i].gain;source.tracks[i].pan=old.tracks[i].pan;source.tracks[i].mute=old.tracks[i].mute;source.tracks[i].solo=old.tracks[i].solo};source.master=old.master;source.masterFX=old.masterFX
@@ -33,7 +35,7 @@ import Observation
         epoch=try audio.beginPerformance(source,section:section,token:source.sections.firstIndex(where:{$0.id==section.id})!+1,recording:record)
     }
     func playTake(_ take:PerformanceTake)throws {
-        guard !recording,!starting else{return};try take.validate()
+        guard !recording,!starting,!stopping else{return};try take.validate()
         guard let first=take.events.first,let section=take.source.sections.first(where:{$0.id==first.sectionID})else{throw MusicError.invalidProject}
         let encoded=try PerformanceCodec.kernelEvents(take,targetRate:audio.sampleRate)
         let duration=UInt64((take.durationSeconds*audio.sampleRate).rounded())
@@ -51,7 +53,7 @@ import Observation
     func toggleRepeat(){guard playing,!replaying else{return};let ticks=repeating ? 0:repeatSize;if audio.withKernel({lg_perform_queue($0,3,Float(ticks),0,0,0)})==0{error="The performance control queue is full. Try again."}}
     func setRepeatSize(_ ticks:Int){repeatSize=ticks;if repeating,!replaying{if audio.withKernel({lg_perform_queue($0,3,Float(ticks),0,0,0)})==0{error="The performance control queue is full. Try again."}}}
     func setEffects(filter:Double?=nil,delay:Double?=nil){
-        guard contextActive,!replaying,var project=runtimeProject else{return};var value=project.masterFX ?? MasterFX();if let filter{value.filter=min(1,max(-1,filter))};if let delay{value.delayWet=min(0.5,max(0,delay))};project.masterFX=value;runtimeProject=project;audio.effects(value)
+        guard contextActive,!replaying,var project=runtimeProject else{return};var value=project.masterFX ?? MasterFX();if let filter{value.filter=min(1,max(-1,filter))};if let delay{value.delayWet=min(0.5,max(0,delay))};project.masterFX=value;runtimeProject=project;audio.mix(project)
     }
     func editMix(_ change:(inout Project)throws->Void)throws {
         guard contextActive,!replaying,var value=runtimeProject else{return};let before=value;try change(&value)
@@ -60,12 +62,17 @@ import Observation
         runtimeProject=value;audio.mix(value)
     }
     func stopRecording(){guard recording else{return};audio.withKernel{lg_perform_record_stop($0)}}
-    func panic(){audio.panic();repeating=false;queuedSectionID=nil;if var source=runtimeProject{source.masterFX=MasterFX();runtimeProject=source};poll()}
+    func panic(){guard !stopping else{return};stopping=true;audio.panic();repeating=false;queuedSectionID=nil;if var source=runtimeProject{source.masterFX=MasterFX();runtimeProject=source};Task{await finishStop();completeStop()}}
     func stop()async {
+        if stopping{await withCheckedContinuation{stopWaiters.append($0)};return}
+        stopping=true;defer{completeStop()};await finishStop()
+    }
+    private func completeStop(){stopping=false;let waiting=stopWaiters;stopWaiters=[];for waiter in waiting{waiter.resume()}}
+    private func finishStop()async {
         audio.stop();let deadline=Date().addingTimeInterval(1)
         while Date()<deadline {
             poll();if !(audio.withKernel{lg_perform_mode($0) != 0} ?? false){break}
-            if !audio.isPrepared{audio.stopRenderAndFinalizePerformance();break}
+            if !audio.isPrepared || Task.isCancelled{audio.stopRenderAndFinalizePerformance();break}
             try? await Task.sleep(for:.milliseconds(10))
         }
         if audio.withKernel({lg_perform_mode($0) != 0})==true{audio.stopRenderAndFinalizePerformance()}

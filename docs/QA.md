@@ -140,3 +140,13 @@ Verified source: `595d4a3`. [Successful workflow 43682961615](https://github.com
 - Three additional original-PNG QA views are committed in [Screenshots/R8](../Screenshots/R8). The final flow retry skips duplicate bulk capture; the integrated hardening/release runs retain broader captures and the real 375-point simulator check.
 
 Manual VoiceOver usability and physical-device accessibility remain part of installed release-candidate acceptance.
+
+## R9 — real-time and lifecycle hardening
+
+Verified app/audio/domain source: `cd2ae56`. [Complete successful workflow 43681942977](https://github.com/alexgazin/la-grilla/actions/runs/43681942977).
+
+- All 64 Swift tests and 11 C++ suites pass, including committed portable P1/P2/P3 projects, schema/preset migration, incremental repeat freezing, 30,000 coherent mixer publications, bounded voice-retirement tails and allocation-counted dense rendering.
+- Both SDK builds and all 19 native Studio scenarios pass, including explicit background playback/stop/return, Core MIDI input/Learn/actual output, performance recording/replay/export, RU/light, large text and landscape. The main capture and real 375-point compact capture pass too: 21 native tests across the two destinations.
+- Thirty-six original PNGs are committed in [Screenshots/R9](../Screenshots/R9). [Hardening QA](HARDENING_QA.md) records measured host evidence and the [device acceptance record](release/DEVICE_ACCEPTANCE.md) remains open.
+
+This is iOS 18.5 compatibility evidence. The release stage separately selects and validates the SDK required by current Apple submission rules. No physical latency/CPU/memory, human-voice accuracy or USB/BLE/DAW measurement is inferred from these results.

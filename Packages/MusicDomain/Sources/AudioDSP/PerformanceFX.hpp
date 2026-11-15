@@ -6,7 +6,7 @@
 
 /// Audio-thread-owned state. Buffers are allocated once by the kernel constructor.
 class PerformanceFX {
-    double sr;int historySize,delaySize,write=0,available=0,repeatLength=0,repeatPhase=0,seam=0;
+    double sr;int historySize,delaySize,write=0,available=0,repeatLength=0,repeatPhase=0,seam=0,repeatStart=0,repeatCopied=0;
     int delayWrite=0,delayAvailable=0,delayFrames=1;
     bool repeatWanted=false;
     float repeatMix=0,filter=0,delayWet=0,coefficientL=1,coefficientH=0.001f;
@@ -17,10 +17,10 @@ class PerformanceFX {
     std::array<float,2> low1{},low2{},high1{},high2{};
 public:
     explicit PerformanceFX(double rate):sr(rate),historySize(int(std::ceil(rate*4))+1),delaySize(int(std::ceil(rate*2))+1),ramp(float(1-std::exp(-1/(rate*0.005)))),delayL(delaySize),delayR(delaySize) {
-        for(auto &bus:history){bus.resize(historySize);}for(auto &bus:frozen){bus.resize(historySize);}
+        for(auto &bus:history){bus.resize(historySize);}for(auto &bus:frozen){bus.resize(int(std::ceil(rate*3))+2);}
     }
     void reset(){
-        write=available=repeatLength=repeatPhase=seam=delayWrite=delayAvailable=0;repeatWanted=false;repeatMix=0;
+        write=available=repeatLength=repeatPhase=seam=delayWrite=delayAvailable=repeatStart=repeatCopied=0;repeatWanted=false;repeatMix=0;
         low1={};low2={};high1={};high2={};lastRepeat={};seamSample={};filter=targetFilter;delayWet=targetWet;coefficientL=targetL;coefficientH=targetH;
         // Logical validity counters invalidate old ring contents without clearing megabytes in RT.
     }
@@ -35,8 +35,10 @@ public:
         if(ticks!=240&&ticks!=480&&ticks!=960&&ticks!=1920)return false;
         const int frames=int(std::round(double(ticks)/960*60/bpm*sr));
         if(frames<=0||frames>=historySize||available<frames)return false;
-        const int start=(write+historySize-frames)%historySize,first=std::min(frames,historySize-start);
-        for(int t=0;t<8;t++){std::copy(history[t].begin()+start,history[t].begin()+start+first,frozen[t].begin());if(first<frames)std::copy(history[t].begin(),history[t].begin()+frames-first,frozen[t].begin()+first);}
+        // Freeze lazily while reading the first cycle. The continuous backing
+        // ring is longer than the largest repeat, so every source sample is
+        // copied before the writer could overwrite it. Launch is constant work.
+        repeatStart=(write+historySize-frames)%historySize;repeatCopied=0;
         repeatLength=frames;repeatPhase=0;repeatWanted=true;seam=0;return true;
     }
     void releaseRepeat(){repeatWanted=false;}
@@ -48,6 +50,7 @@ public:
         if(!repeatWanted&&repeatMix<0.00001f){repeatLength=0;repeatMix=0;}
         if(running){for(int t=0;t<8;t++)history[t][write]=buses[t];write=(write+1)%historySize;available=std::min(historySize,available+1);}
         if(repeatLength>0){
+            if(repeatCopied<repeatLength){const int source=(repeatStart+repeatCopied)%historySize;for(int t=0;t<8;t++)frozen[t][repeatCopied]=history[t][source];repeatCopied++;}
             const int seamLength=std::max(1,int(sr*0.003));
             for(int t=0;t<8;t++){
                 float sample=frozen[t][repeatPhase];

@@ -15,6 +15,14 @@ final class StudioTests: XCTestCase {
         }
         XCTFail("The application window did not finish rotating")
     }
+    @MainActor func testBackgroundPlaybackAndStoppedReturn() {
+        let app=launch();app.buttons["Play"].tap();XCTAssertTrue(app.staticTexts["PLAYING"].waitForExistence(timeout:5))
+        XCUIDevice.shared.press(.home);Thread.sleep(forTimeInterval:2);app.activate()
+        XCTAssertTrue(app.buttons["Stop"].waitForExistence(timeout:10));app.buttons["Stop"].tap()
+        XCUIDevice.shared.press(.home);Thread.sleep(forTimeInterval:1);app.activate()
+        XCTAssertTrue(app.buttons["Play"].waitForExistence(timeout:10));XCTAssertTrue(app.staticTexts["STOPPED"].exists)
+        app.buttons["Play"].tap();XCTAssertTrue(app.buttons["Stop"].waitForExistence(timeout:5));app.buttons["Stop"].tap()
+    }
     @MainActor func testRussianInterfaceAndLightAppearance() {
         XCUIDevice.shared.orientation = .portrait
         let app=XCUIApplication();app.launchArguments=["--uitesting","--screen","grid","--appearance","light","-AppleLanguages","(ru)","-AppleLocale","ru_RU"];app.launch()

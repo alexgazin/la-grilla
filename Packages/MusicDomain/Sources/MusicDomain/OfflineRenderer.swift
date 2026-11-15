@@ -48,6 +48,7 @@ public enum OfflineRenderer {
         if let isolatedTrack, !project.tracks.contains(where: {$0.id == isolatedTrack}) { throw ExportError.invalidSettings }
         guard let kernel = lg_create(Double(settings.sampleRate)) else { throw ExportError.renderUnavailable }
         defer { lg_destroy(kernel) }
+        for (index,track) in project.tracks.enumerated(){_ = lg_preset_version(kernel,Int32(index),Int32(track.presetVersion))}
         let anySolo=project.tracks.contains(where: \.solo)
         let audible=Set(project.tracks.enumerated().filter { _,track in !track.mute && (!anySolo || track.solo) && (isolatedTrack == nil || track.id==isolatedTrack) }.map(\.offset))
         let compiled = Compiler.notes(project, range: range).filter{performance != nil || audible.contains($0.track)}

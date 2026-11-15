@@ -1,0 +1,17 @@
+# R9 hardening evidence
+
+Local checks, November 15, 2026: **64 Swift tests and 11 C++ suites pass**. Native simulator acceptance is tracked separately in GitHub Actions; physical-device approval remains open.
+
+Full iOS 18.5 acceptance also passes for app/audio/domain source `cd2ae56`: [run 43681942977](https://github.com/alexgazin/la-grilla/actions/runs/43681942977), both SDK builds, 19 Studio flows and both capture tests. Thirty-six original PNGs are retained in [Screenshots/R9](../Screenshots/R9). Subsequent orientation-isolation changes affect the test harness, not the app/audio/domain implementation. Current App Store SDK validation is completed by the release stage.
+
+- Repeat capture freezes incrementally with constant per-sample work; 18-second holds/releases/recaptures match the previous eager reference at 44.1/48/96/192 kHz.
+- Mixer gain/pan/master/filter/delay publish as a single buffer-boundary snapshot. Thirty thousand concurrent publications preserve coherent values and monotonic ownership. Panic wins queued effect updates.
+- Schema 7 preserves preset version 1 for all legacy projects and recursively frozen take sources. New instruments use version 2, sample-rate-independent cymbal tails and a fixed 128-slot, 3 ms retirement pool for voice stealing, choke and position changes. Stop/Panic clears tails immediately. Unknown preset versions are rejected.
+- Voice-retirement continuity, saturation and Panic pass at 44.1–192 kHz. GCC AddressSanitizer/UndefinedBehaviorSanitizer pass for this regression. LeakSanitizer is disabled because the container's ptrace environment prevents its execution; no leak-check result is claimed.
+- P1/P2/P3 render tests use 768 / 8,192 / 16,384 scheduled notes, 12 simulated seconds each, 48 kHz / 256-frame buffers. P3 adds live pads and moving filter/delay. All samples remain finite, queues remain bounded and C++ `new`/`new[]` counters remain zero inside rendering. Host timing is diagnostic, not iPhone latency/CPU evidence; shared-host scheduling can exceed a buffer deadline.
+- [Importable fixture packages](release/fixtures) have the same compiled event counts, 64 bars, schema 7 and no personal audio. A Swift regression validates and round-trips the actual portable packages; their hashes are recorded in `manifest.json`.
+- Audio now reads the kernel clock at a pad touch rather than relying on the preceding 30 Hz UI poll. This reduces polling quantization, but does not establish sample-exact touch timing or measured route compensation.
+- A microphone ownership token prevents a completed older permission/capture operation from restoring audio over a newer recording. Background/interruption stops capture. Returning to the foreground prepares a stopped graph without automatically resuming recording.
+- Explicit playback supports iOS background audio and system Play/Pause/Stop. A stopped background graph releases MIDI notes synchronously, disconnects inputs, stops its output timer and deactivates its audio session. Performance stop waits for the capture acknowledgement before accepting another take; navigation does not own capture lifetime.
+
+Remaining measured acceptance: 30-minute physical sessions, thermal/CPU/memory/dropouts, touch-to-sound/USB/BLE timing, microphone and local speech permission/quality scenarios, external-controller unplug/sustain and actual import in two DAWs. Use the final installed release candidate and [device record](release/DEVICE_ACCEPTANCE.md) when available.

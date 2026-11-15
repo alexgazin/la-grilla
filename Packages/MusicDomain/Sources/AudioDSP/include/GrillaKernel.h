@@ -8,6 +8,7 @@ extern "C" {
 typedef struct LGKernel LGKernel;
 int lg_sha256(const uint8_t *data, int32_t count, char *hex);
 typedef struct { int32_t tick, duration, pitch, velocity, track, pad, instrument; } LGNote;
+typedef struct {float gainDB,pan;int32_t audible;} LGTrackMix;
 typedef struct { uint64_t frame; int32_t epoch,kind,track,a,b,token; float value; } LGPerformanceEvent;
 LGKernel *lg_create(double sampleRate);
 void lg_destroy(LGKernel *k);
@@ -21,6 +22,11 @@ int lg_pad(LGKernel *k, int pad, int velocity);
 void lg_preview(LGKernel *k, int pitch);
 void lg_note_preview(LGKernel *k, int pitch, int track, int instrument);
 void lg_mix(LGKernel *k, int track, float db, float pan, int audible);
+// Publish a complete mixer transaction; the audio callback adopts it once at a
+// buffer boundary. Individual setters remain available for paused/offline setup.
+int lg_mix_snapshot(LGKernel *k,const LGTrackMix *tracks,int count,float masterDB,float filter,float delayWet);
+uint64_t lg_mix_revision(LGKernel *k);
+int lg_preset_version(LGKernel *k,int track,int version);
 void lg_master(LGKernel *k, float db);
 void lg_effects(LGKernel *k, float filter, float delayWet);
 void lg_panic(LGKernel *k);

@@ -71,7 +71,7 @@ public struct Clip: Codable, Equatable, Identifiable, Sendable {
 }
 public struct Track: Codable, Equatable, Identifiable, Sendable {
     public var id: UUID = UUID(); public var role: TrackRole; public var name:String?; public var displayName:String{name ?? NSLocalizedString(role.rawValue.capitalized,comment:"Track role")}; public var gain: Double = -6; public var pan: Double = 0
-    public var mute = false; public var solo = false; public var presetVersion = 1; public var clips: [Clip] = []
+    public var mute = false; public var solo = false; public var presetVersion = 2; public var clips: [Clip] = []
     public init(role: TrackRole) { self.role = role }
 }
 public struct Section: Codable, Equatable, Identifiable, Sendable {
@@ -79,7 +79,7 @@ public struct Section: Codable, Equatable, Identifiable, Sendable {
     public init(name: String, start: Int = 0, length: Int) { self.name = name; self.start = start; self.length = length }
 }
 public struct Project: Codable, Equatable, Identifiable, Sendable {
-    public var id: UUID = UUID(); public static let currentSchemaVersion=6
+    public var id: UUID = UUID(); public static let currentSchemaVersion=7
     public var schemaVersion = Project.currentSchemaVersion; public var revision = 0
     public var name: String; public var bpm: Double = 120; public var keyRoot = 0; public var minor = false
     public var modified = Date(); public var tracks: [Track]; public var patterns: [Pattern]; public var sections: [Section]
@@ -144,7 +144,7 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
             for e in p.drums { guard e.tick >= 0, e.tick < p.length, (0..<16).contains(e.pad), (1...127).contains(e.velocity) else { throw MusicError.invalidProject } }
         }
         for t in tracks {
-            guard (t.name==nil || (!t.name!.isEmpty && t.name!.count<=40)), t.gain.isFinite, (-61...6).contains(t.gain), t.pan.isFinite, (-1...1).contains(t.pan), t.presetVersion == 1 else { throw MusicError.invalidProject }
+            guard (t.name==nil || (!t.name!.isEmpty && t.name!.count<=40)), t.gain.isFinite, (-61...6).contains(t.gain), t.pan.isFinite, (-1...1).contains(t.pan), (1...2).contains(t.presetVersion) else { throw MusicError.invalidProject }
             var end = 0
             for c in t.clips.sorted(by: {$0.start < $1.start}) {
                 guard c.start >= end, c.start < length, c.length > 0, c.length <= length, c.start + c.length <= length, c.offset >= 0, let p = patterns.first(where: {$0.id == c.patternID}), c.offset < p.length else { throw MusicError.invalidProject }
@@ -264,6 +264,7 @@ public enum ProjectDocument {
         if p.schemaVersion==3{p.schemaVersion=4}
         if p.schemaVersion==4{p.schemaVersion=5}
         if p.schemaVersion==5{p.schemaVersion=6}
+        if p.schemaVersion==6{p.schemaVersion=7}
         if var take=p.performanceTake{take.source=try migrated(take.source);p.performanceTake=take}
         try p.validate();return p
     }

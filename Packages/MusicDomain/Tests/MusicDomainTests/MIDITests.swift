@@ -15,7 +15,7 @@ struct MIDITests {
         #expect(try PerformanceCodec.event(raw[1],source:p).midiKey==17)
         #expect(try PerformanceTimeline.midi(take).count>100)
         var old=p;old.schemaVersion=5;var frozen=take;frozen.source=old;old.performanceTake=frozen
-        let migrated=try ProjectDocument.decode(JSONEncoder().encode(old));#expect(migrated.schemaVersion==6);#expect(migrated.performanceTake?.source.schemaVersion==6)
+        let migrated=try ProjectDocument.decode(JSONEncoder().encode(old));#expect(migrated.schemaVersion==Project.currentSchemaVersion);#expect(migrated.performanceTake?.source.schemaVersion==Project.currentSchemaVersion)
     }
     @Test func mappingsUseStableSourcesAndProtectSustainAndChannelMode()throws {
         let p=Project.demo();var settings=MIDISettings();settings.inputIDs=[123,456];settings.trackID=p.tracks[0].id
