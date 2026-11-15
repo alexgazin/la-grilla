@@ -27,8 +27,8 @@ struct JamView: View {
         }.padding(.horizontal,18).padding(.bottom,16)
     }
     private var editorMode:some View {HStack(spacing:2){
-        Button("Pads"){steps=false}.frame(maxWidth:.infinity,minHeight:44).foregroundStyle(!steps ? Color.ink:Color.muted).background(!steps ? Color.mint:Color.clear,in:RoundedRectangle(cornerRadius:10))
-        Button("Steps"){steps=true}.frame(maxWidth:.infinity,minHeight:44).foregroundStyle(steps ? Color.ink:Color.muted).background(steps ? Color.mint:Color.clear,in:RoundedRectangle(cornerRadius:10))
+        Button{steps=false}label:{Text("Pads").frame(maxWidth:.infinity,minHeight:44).foregroundStyle(!steps ? Color.ink:Color.muted).background(!steps ? Color.mint:Color.clear,in:RoundedRectangle(cornerRadius:10))}
+        Button{steps=true}label:{Text("Steps").frame(maxWidth:.infinity,minHeight:44).foregroundStyle(steps ? Color.ink:Color.muted).background(steps ? Color.mint:Color.clear,in:RoundedRectangle(cornerRadius:10))}
     }.font(.system(size:12,weight:.semibold)).buttonStyle(StudioQuietButtonStyle()).padding(3).frame(width:140).modifier(StudioSurface())}
     private var recordingGuide:some View {VStack(alignment:.leading,spacing:0){
         Button{showGuide.toggle()}label:{HStack{SmallHeading(text:"RECORD MODE");Spacer();Text(LocalizedStringKey(session.overdub ? "Overdub":"Replace")).font(.caption.weight(.medium));Image(systemName:showGuide ? "chevron.up":"chevron.down").font(.system(size:11,weight:.semibold))}.foregroundStyle(Color.muted).frame(minHeight:44)}.buttonStyle(StudioQuietButtonStyle()).accessibilityLabel("Recording guide").accessibilityValue(LocalizedStringKey(showGuide ? "Expanded":"Collapsed")).accessibilityIdentifier("jam.recording-guide")

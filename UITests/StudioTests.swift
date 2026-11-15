@@ -30,9 +30,10 @@ final class StudioTests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Экспорт"].waitForExistence(timeout:5));XCTAssertTrue(app.buttons["Отмена"].exists)
         let shot=XCTAttachment(data:XCUIScreen.main.screenshot().pngRepresentation,uniformTypeIdentifier:"public.png");shot.name="Design2026-qa-russian-light-export";shot.lifetime = .keepAlways;add(shot)
         app.buttons["Отмена"].tap();app.buttons["Джем"].tap()
+        for title in ["Пэды","Шаги"]{XCTAssertGreaterThanOrEqual(app.buttons[title].frame.height,44)}
         let guide=app.buttons["jam.recording-guide"]
         for _ in 0..<5 {if guide.isHittable{break};app.scrollViews.firstMatch.swipeUp()}
-        XCTAssertTrue(guide.exists);XCTAssertEqual(guide.value as? String,"Свёрнуто")
+        XCTAssertTrue(guide.exists);XCTAssertGreaterThanOrEqual(guide.frame.height,44);XCTAssertEqual(guide.value as? String,"Свёрнуто")
         // Tap the row's center, including its empty spacer, as a finger would.
         guide.tap();XCTAssertEqual(guide.value as? String,"Развёрнуто")
         let hint=app.staticTexts["Сыграй свой собственный ритм."]
