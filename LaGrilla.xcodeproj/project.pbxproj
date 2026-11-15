@@ -279,6 +279,12 @@
 			"name" = "AudioRuntime";
 			"sourceTree" = "<group>";
 		};
+		"7AB0A957D41402ED44864770" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "UITests/ScreenshotTests.swift";
+			"sourceTree" = "SOURCE_ROOT";
+		};
 		"6CEC7797EFD984DB66DA1BF1" = {
 			"isa" = "PBXFileReference";
 			"lastKnownFileType" = "sourcecode.swift";
@@ -288,6 +294,7 @@
 		"121BB60E85DEE453365B9ECD" = {
 			"isa" = "PBXGroup";
 			"children" = (
+				"7AB0A957D41402ED44864770",
 				"6CEC7797EFD984DB66DA1BF1",
 			);
 			"name" = "UITests";
@@ -579,6 +586,10 @@
 			"target" = "363B6F88CC29451360E8EBAB";
 			"targetProxy" = "1241936D4DD3AAD68FE7BFBD";
 		};
+		"2AA4DDE7108A4144C8FF84E5" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "7AB0A957D41402ED44864770";
+		};
 		"15672B1CBB107926D06E61FF" = {
 			"isa" = "PBXBuildFile";
 			"fileRef" = "6CEC7797EFD984DB66DA1BF1";
@@ -646,6 +657,7 @@
 			"isa" = "PBXSourcesBuildPhase";
 			"buildActionMask" = 2147483647;
 			"files" = (
+				"2AA4DDE7108A4144C8FF84E5",
 				"15672B1CBB107926D06E61FF",
 			);
 			"runOnlyForDeploymentPostprocessing" = 0;

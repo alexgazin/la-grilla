@@ -7,7 +7,7 @@ jobs:
   ios:
     if: "!contains(github.event.head_commit.message, '[device-only]')"
     runs-on: macos-15
-    timeout-minutes: 35
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - name: Domain behavioral tests
@@ -39,21 +39,28 @@ jobs:
           path: |
             LaGrilla.xcodeproj
             LaGrilla-Simulator.zip
-      - name: Capture simulator screens
+      - name: Prepare iOS Simulator
         env:
-          GRILLA_CAPTURE_SCREENS: ${{ contains(github.event.head_commit.message, '[ui-only]') && '0' || '1' }}
+          GRILLA_CAPTURE_SCREENS: '0'
         run: bash scripts/screenshots.sh
-      - name: Save simulator screenshots
-        if: always() && !contains(github.event.head_commit.message, '[ui-only]')
-        uses: actions/upload-artifact@v4
-        with:
-          name: simulator-screenshots
-          path: Screenshots/**/*.png
       - name: Native user flows
         run: |
           set -o pipefail
           DEVICE=$(cat /tmp/grilla-simulator-id)
           xcodebuild -project LaGrilla.xcodeproj -scheme LaGrilla -destination "platform=iOS Simulator,id=$DEVICE" -derivedDataPath DerivedData -resultBundlePath TestResults.xcresult ARCHS=arm64 ONLY_ACTIVE_ARCH=YES CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO test | tee uitests.log
+      - name: Export native screenshots
+        if: always()
+        run: |
+          if test -d TestResults.xcresult; then
+            xcrun xcresulttool export attachments --path TestResults.xcresult --output-path NativeAttachments
+            python3 scripts/collect_native_screenshots.py NativeAttachments Screenshots/R7 R7
+          fi
+      - name: Save simulator screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: simulator-screenshots
+          path: Screenshots/**/*.png
       - name: Collect app crash reports
         if: always()
         run: |
@@ -70,6 +77,7 @@ jobs:
             uitests.log
             TestResults.xcresult
             CrashReports
+            NativeAttachments
             LaGrilla.xcodeproj
             LaGrilla-Simulator.zip
 
