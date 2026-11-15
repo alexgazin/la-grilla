@@ -3,7 +3,9 @@
 import json,pathlib,re,shutil,sys
 source,destination,stage=pathlib.Path(sys.argv[1]),pathlib.Path(sys.argv[2]),sys.argv[3]
 files={p.name:p for p in source.rglob('*') if p.is_file() and p.suffix.lower() in ('.png','.jpg','.jpeg')}
-pattern=re.compile(re.escape(stage)+r'-([A-Za-z][A-Za-z0-9-]*)')
+# A stage name can also occur inside an exported UUID (e.g. 01C2-ABC...).
+# Only a real attachment basename/path prefix identifies a named screenshot.
+pattern=re.compile(r'(?:^|[/\\])'+re.escape(stage)+r'-([A-Za-z][A-Za-z0-9-]*)')
 mapped={}
 def strings(value):
     if isinstance(value,str):yield value

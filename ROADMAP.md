@@ -14,7 +14,7 @@
 | --- | --- | --- |
 | C0 | Полная сверка, технические контракты и журнал | План записан; реализация начата |
 | C1 | Джазовый каталог, пользовательские формулы, voicings, schema 8 | Реализация |
-| C2 | Настоящий круговой live-фильтр и доступность | Реализация |
+| C2 | Настоящий круговой live-фильтр и доступность | Native приёмка пройдена; [55 кадров и receipt](Screenshots/C2) |
 | C3 | Move/copy/resize клипов, совместимые drop, section drag, clip-specific piano roll | Реализация |
 | C4 | Атомарный music/mix/preset snapshot; live add/remove/reorder и фазовое A/B без Stop | Реализация |
 | C5 | Общий duplex input, напев/диктовка поверх бита, bounded capture и cleanup | Реализация инфраструктуры |

@@ -30,6 +30,8 @@ jobs:
           for GRILLA_SCRIPT in scripts/release/*.sh; do bash -n "$GRILLA_SCRIPT"; done
       - name: Presentation and localization audit
         run: python3 scripts/audit_presentation.py && plutil -lint Resources/en.lproj/Localizable.strings Resources/ru.lproj/Localizable.strings
+      - name: Screenshot collector regression
+        run: python3 scripts/test_collect_native_screenshots.py
       - name: Audio kernel tests
         env:
           GRILLA_CXX_BIN: clang++
