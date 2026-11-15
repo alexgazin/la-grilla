@@ -20,3 +20,16 @@ NativeAttachments/
 
 __pycache__/
 *.pyc
+
+# Manual voice benchmark: corpus and generated output live outside Git.
+/Tools/VoiceBenchmark/.swiftpm/
+/Tools/VoiceBenchmark/.cache/
+/Tools/VoiceBenchmark/.data/
+/Tools/VoiceBenchmark/Audio/
+/Tools/VoiceBenchmark/Annotations/
+/Tools/VoiceBenchmark/results/
+/Tools/VoiceBenchmark/**/*.wav
+/Tools/VoiceBenchmark/**/*.csv
+/Tools/VoiceBenchmark/*.zip
+/voice-benchmark-data/
+/voice-benchmark-results/
