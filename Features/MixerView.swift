@@ -7,17 +7,17 @@ struct MixerView: View {
         VStack(alignment:.leading,spacing:16){
             HStack{VStack(alignment:.leading,spacing:6){SmallHeading(text:"MIXING DESK");Text("Find your balance.").font(.system(size:22,weight:.medium))};Spacer();CapsuleLabel(text:"STEREO",color:.mint)}.padding(.top,20)
             HStack(alignment:.top,spacing:8){
-                ScrollView(.horizontal){HStack(spacing:8){ForEach(Array(session.project.tracks.enumerated()),id:\.element.id){i,t in channel(index:i,track:t,height:430).frame(width:108)}}}.scrollIndicators(.visible)
+                ScrollView(.horizontal){HStack(spacing:8){ForEach(Array(session.displayProject.tracks.enumerated()),id:\.element.id){i,t in channel(index:i,track:t,height:430).frame(width:108)}}}.scrollIndicators(.visible)
                 channel(index:masterBus,track:nil,height:430).frame(width:78)
             }.frame(height:430)
             HStack(alignment:.top,spacing:10){Image(systemName:"headphones").foregroundStyle(Color.mint);Text("A little space goes a long way.\nKeep the master below the red.").font(.system(size:12)).foregroundStyle(Color.muted).lineSpacing(4)}.padding(.top,4)
             Spacer(minLength:0)
-        }.padding(.horizontal,18).padding(.bottom,18)
+        }.padding(.horizontal,18).padding(.bottom,18).disabled(session.performance.replaying)
         }
     }
     func channel(index: Int,track: Track?,height: CGFloat)->some View {
         let color: Color = track.map{Color.track($0.role)} ?? .mint
-        let gain=track?.gain ?? session.project.master
+        let gain=track?.gain ?? session.displayProject.master
         return VStack(spacing:12){
             RoundedRectangle(cornerRadius:2).fill(color).frame(height:3)
             Text(track?.displayName ?? "Master").font(.system(size:11,weight:.semibold)).lineLimit(1).minimumScaleFactor(0.7)
@@ -33,7 +33,7 @@ struct MixerView: View {
             }
             Text("dB").font(.system(size:9,design:.monospaced)).foregroundStyle(Color.muted)
             if let track {
-                Slider(value:Binding(get:{session.project.tracks[index].pan},set:{v in session.mixerEdit{$0.tracks[index].pan=v}}),in:-1...1,onEditingChanged:{_ in session.mixerGesture=false}).tint(color).accessibilityLabel("Pan \(track.displayName)")
+                Slider(value:Binding(get:{session.displayProject.tracks[index].pan},set:{v in session.mixerEdit{$0.tracks[index].pan=v}}),in:-1...1,onEditingChanged:{_ in session.mixerGesture=false}).tint(color).accessibilityLabel("Pan \(track.displayName)")
                 HStack(spacing:4){Button{session.mixerImmediate{$0.tracks[index].mute.toggle()}}label:{Text("M").frame(maxWidth:.infinity,minHeight:44).background(track.mute ? color.opacity(0.3):Color.ink,in:RoundedRectangle(cornerRadius:5))}.accessibilityLabel("Mute \(track.displayName)").accessibilityValue(track.mute ? "On":"Off");Button{session.mixerImmediate{$0.tracks[index].solo.toggle()}}label:{Text("S").frame(maxWidth:.infinity,minHeight:44).background(track.solo ? color.opacity(0.3):Color.ink,in:RoundedRectangle(cornerRadius:5))}.accessibilityLabel("Solo \(track.displayName)").accessibilityValue(track.solo ? "On":"Off")}.font(.system(size:11,weight:.semibold)).foregroundStyle(color).buttonStyle(.plain)
             }else{Text("L  ·  R").font(.system(size:9,design:.monospaced)).foregroundStyle(Color.muted).frame(height:31);CapsuleLabel(text:session.audio.meters[masterBus]>=0.98 ? "CLIP":"OUT",color:session.audio.meters[masterBus]>=0.98 ? .record:.mint).frame(height:38)}
         }.padding(.horizontal,9).padding(.vertical,12).frame(maxWidth:.infinity).frame(height:height).background(Color.panel,in:RoundedRectangle(cornerRadius:10))

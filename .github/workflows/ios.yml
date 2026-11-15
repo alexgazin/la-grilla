@@ -17,11 +17,14 @@ jobs:
           GRILLA_EXPORT_FIXTURES: ${{ github.workspace }}/ExportFixtures
         run: swift test --package-path Packages/MusicDomain
       - name: Verify WAV and ZIP using independent readers
-        run: python3 scripts/verify_exports.py ExportFixtures && python3 scripts/verify_voice_assets.py ExportFixtures
+        run: python3 scripts/verify_exports.py ExportFixtures && python3 scripts/verify_voice_assets.py ExportFixtures && python3 scripts/verify_performance.py ExportFixtures
       - name: Verify generated project is current
         run: python3 scripts/generate_project.py && git diff --exit-code -- LaGrilla.xcodeproj
       - name: Audio kernel tests
-        run: clang++ -std=c++17 -O2 -Wall -Wextra -Werror Tests/kernel_test.cpp Packages/MusicDomain/Sources/AudioDSP/GrillaKernel.cpp -I Packages/MusicDomain/Sources/AudioDSP/include -o /tmp/kernel-test && /tmp/kernel-test
+        run: |
+          clang++ -std=c++17 -O2 -Wall -Wextra -Werror Tests/kernel_test.cpp Packages/MusicDomain/Sources/AudioDSP/GrillaKernel.cpp -I Packages/MusicDomain/Sources/AudioDSP/include -o /tmp/kernel-test && /tmp/kernel-test
+          clang++ -std=c++17 -O2 -Wall -Wextra -Werror Tests/performance_control_test.cpp Packages/MusicDomain/Sources/AudioDSP/GrillaKernel.cpp -I Packages/MusicDomain/Sources/AudioDSP/include -o /tmp/perf-control-test && /tmp/perf-control-test
+          clang++ -std=c++17 -O2 -Wall -Wextra -Werror Tests/performance_fx_test.cpp -I Packages/MusicDomain/Sources/AudioDSP -o /tmp/perf-fx-test && /tmp/perf-fx-test
       - name: Build iOS app
         run: set -o pipefail; xcodebuild -project LaGrilla.xcodeproj -scheme LaGrilla -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' ARCHS=arm64 ONLY_ACTIVE_ARCH=YES -configuration Debug -derivedDataPath DerivedData CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO build | tee build.log
       - name: Package simulator app
@@ -34,9 +37,11 @@ jobs:
             LaGrilla.xcodeproj
             LaGrilla-Simulator.zip
       - name: Capture simulator screens
+        env:
+          GRILLA_CAPTURE_SCREENS: ${{ contains(github.event.head_commit.message, '[ui-only]') && '0' || '1' }}
         run: bash scripts/screenshots.sh
       - name: Save simulator screenshots
-        if: always()
+        if: always() && !contains(github.event.head_commit.message, '[ui-only]')
         uses: actions/upload-artifact@v4
         with:
           name: simulator-screenshots

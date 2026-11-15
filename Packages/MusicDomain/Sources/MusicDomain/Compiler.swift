@@ -40,26 +40,39 @@ public enum Compiler {
         }.sorted { $0.tick == $1.tick ? $0.pitch < $1.pitch : $0.tick < $1.tick }
     }
 }
+public struct MIDIControl:Sendable {
+    public var tick:Int;public var track:Int;public var number:Int;public var value:Int
+    public init(tick:Int,track:Int,number:Int,value:Int){self.tick=tick;self.track=track;self.number=number;self.value=value}
+}
+public struct MIDIMarker:Sendable {
+    public var tick:Int;public var text:String
+    public init(tick:Int,text:String){self.tick=tick;self.text=text}
+}
 public enum MIDIExporter {
     private struct Event { var tick: Int; var priority: Int; var bytes: [UInt8] }
     public static func data(_ project: Project, range: Range<Int>? = nil) throws -> Data {
         try project.validate(); let range = range ?? 0..<project.length
         guard range.lowerBound >= 0, range.upperBound <= project.length, !range.isEmpty else { throw MusicError.invalidProject }
-        let notes = Compiler.notes(project, range: range); let tempo = Int((60_000_000 / project.bpm).rounded())
+        let markers=project.sections.filter{$0.start<range.upperBound && $0.start+$0.length>range.lowerBound}.map{MIDIMarker(tick:max(0,$0.start-range.lowerBound),text:$0.name)}
+        return try sequence(project,notes:Compiler.notes(project,range:range),duration:range.count,markers:markers)
+    }
+    public static func sequence(_ project:Project,notes:[CompiledNote],duration:Int,markers:[MIDIMarker]=[],controls:[MIDIControl]=[])throws->Data {
+        try project.validate()
+        guard (1...64*barTicks).contains(duration),notes.count<=200_000,markers.count<=16384,controls.count<=150_000 else{throw MusicError.limit}
+        guard notes.allSatisfy({$0.tick>=0 && $0.tick<duration && $0.duration>0 && $0.duration<=duration-$0.tick && (0...127).contains($0.pitch) && (1...127).contains($0.velocity) && project.tracks.indices.contains($0.track)}),markers.allSatisfy({(0...duration).contains($0.tick) && $0.text.utf8.count<=512}),controls.allSatisfy({(0...duration).contains($0.tick) && project.tracks.indices.contains($0.track) && (0...127).contains($0.number) && (0...127).contains($0.value)})else{throw MusicError.invalidProject}
+        let tempo = Int((60_000_000 / project.bpm).rounded())
         func meta(_ type: UInt8, _ bytes: [UInt8]) -> [UInt8] { [0xff,type] + vlq(bytes.count) + bytes }
         // Circle-of-fifths signature counts: C, Db, D, Eb, E, F, F#, G, Ab, A, Bb, B.
         let majorFifths = [0,7,2,-3,4,-1,6,1,-4,3,-2,5]
         let minorFifths = [-3,4,-1,-6,1,-4,3,-2,-7,0,-5,2]
         let fifths = project.minor ? minorFifths[project.keyRoot] : majorFifths[project.keyRoot]
         var conductor = [Event(tick: 0, priority: 0, bytes: meta(3, Array(project.name.utf8))), Event(tick: 0, priority: 1, bytes: meta(0x51, [UInt8((tempo>>16)&255),UInt8((tempo>>8)&255),UInt8(tempo&255)])), Event(tick: 0, priority: 2, bytes: meta(0x58,[4,2,24,8])), Event(tick: 0, priority: 3, bytes: meta(0x59,[UInt8(bitPattern: Int8(fifths)),project.minor ? 1 : 0]))]
-        for section in project.sections where section.start < range.upperBound && section.start + section.length > range.lowerBound {
-            conductor.append(Event(tick: max(0,section.start-range.lowerBound), priority: 4, bytes: meta(6,Array(section.name.utf8))))
-        }
+        for marker in markers {conductor.append(Event(tick:marker.tick,priority:4,bytes:meta(6,Array(marker.text.utf8))))}
         var result = Data(Array("MThd".utf8) + be(6,4) + be(1,2) + be(project.tracks.count+1,2) + be(ppq,2))
         func chunk(_ events: [Event]) -> Data {
             var bytes: [UInt8] = []; var previous = 0
             for e in events.sorted(by: { $0.tick == $1.tick ? $0.priority < $1.priority : $0.tick < $1.tick }) { bytes += vlq(e.tick - previous) + e.bytes; previous = e.tick }
-            bytes += vlq(range.count - previous) + [0xff,0x2f,0]
+            bytes += vlq(duration - previous) + [0xff,0x2f,0]
             return Data(Array("MTrk".utf8) + be(bytes.count,4) + bytes)
         }
         result.append(chunk(conductor))
@@ -68,8 +81,9 @@ public enum MIDIExporter {
             let channel = t.role == .drums ? 9 : t.role == .bass ? 1 : t.role == .melody ? melodyChannel:0
             if t.role == .melody {melodyChannel+=1}
             var events = [Event(tick: 0, priority: -1, bytes: meta(3,Array(t.displayName.utf8)))]
+            for control in controls where control.track==i {events.append(Event(tick:control.tick,priority:1,bytes:[UInt8(0xb0|channel),UInt8(control.number),UInt8(control.value)]))}
             for n in notes where n.track == i {
-                events.append(Event(tick: n.tick, priority: 1, bytes: [UInt8(0x90|channel),UInt8(n.pitch),UInt8(n.velocity)]))
+                events.append(Event(tick: n.tick, priority: 2, bytes: [UInt8(0x90|channel),UInt8(n.pitch),UInt8(n.velocity)]))
                 events.append(Event(tick: n.tick+n.duration, priority: 0, bytes: [UInt8(0x80|channel),UInt8(n.pitch),0]))
             }
             result.append(chunk(events))

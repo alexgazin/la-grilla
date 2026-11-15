@@ -10,23 +10,24 @@ struct GridView: View {
     var body: some View {
         ScrollView(.vertical,showsIndicators:false) {
         VStack(alignment:.leading,spacing:0){
-            HStack{SmallHeading(text:"ARRANGEMENT");Spacer();Text("\(session.project.length/barTicks) bars").font(.system(size:11,design:.monospaced)).foregroundStyle(Color.muted);IconButton(symbol:"ellipsis",label:"Edit song sections",color:.muted){session.sheet = .sections}}.padding(.horizontal,18).padding(.top,8)
+            HStack{SmallHeading(text:"ARRANGEMENT");Spacer();Text("\(session.displayProject.length/barTicks) bars").font(.system(size:11,design:.monospaced)).foregroundStyle(Color.muted);IconButton(symbol:"ellipsis",label:"Edit song sections",color:.muted){session.presentEditor(.sections)}}.padding(.horizontal,18).padding(.top,8)
             ScrollView(.horizontal,showsIndicators:false){HStack(spacing:8){
-                Button{session.finishTake();session.sheet = .harmony}label:{Label("Harmony",systemImage:"wand.and.stars").frame(minWidth:92,minHeight:44)}.accessibilityLabel("Harmony lab").accessibilityIdentifier("harmony.open")
+                Button{session.finishTake();session.sheet = .perform}label:{Label("Perform",systemImage:"waveform.path").frame(minWidth:90,minHeight:44)}.accessibilityIdentifier("perform.open")
+                Button{session.presentEditor(.harmony)}label:{Label("Harmony",systemImage:"wand.and.stars").frame(minWidth:92,minHeight:44)}.accessibilityLabel("Harmony lab").accessibilityIdentifier("harmony.open")
                 Button{session.openNotes()}label:{Label("Notes",systemImage:"pianokeys").frame(minWidth:80,minHeight:44)}.accessibilityLabel("Open piano roll").accessibilityIdentifier("notes.open")
-                Button{session.finishTake();session.sheet = .assistant}label:{Label("Assistant",systemImage:"text.bubble").frame(minWidth:96,minHeight:44)}.accessibilityIdentifier("assistant.open")
-                Button{session.finishTake();session.sheet = .voice}label:{Label("Voice",systemImage:"waveform.badge.mic").frame(minWidth:76,minHeight:44)}.accessibilityIdentifier("voice.open")
+                Button{session.presentEditor(.assistant)}label:{Label("Assistant",systemImage:"text.bubble").frame(minWidth:96,minHeight:44)}.accessibilityIdentifier("assistant.open")
+                Button{session.presentEditor(.voice)}label:{Label("Voice",systemImage:"waveform.badge.mic").frame(minWidth:76,minHeight:44)}.accessibilityIdentifier("voice.open")
             }}.font(.system(size:12,weight:.medium)).foregroundStyle(Color.mint).padding(.horizontal,18).padding(.bottom,10)
-            ScrollView(.horizontal,showsIndicators:false){HStack(spacing:8){ForEach(session.project.sections){s in Button{session.select(s)}label:{HStack(spacing:8){RoundedRectangle(cornerRadius:1).fill(session.section.id==s.id ? Color.mint:Color.muted).frame(width:3,height:20);VStack(alignment:.leading,spacing:3){Text(s.name).font(.system(size:12,weight:.semibold));Text("\(s.start/barTicks+1)–\((s.start+s.length)/barTicks)").font(.system(size:9,design:.monospaced)).foregroundStyle(Color.muted)}}.padding(.horizontal,12).padding(.vertical,10).background(session.section.id==s.id ? Color.raised:Color.panel,in:RoundedRectangle(cornerRadius:8)).overlay{RoundedRectangle(cornerRadius:8).stroke(session.section.id==s.id ? Color.mint.opacity(0.4):Color.clear,lineWidth:1)}}.buttonStyle(.plain)}
-                Button{session.sheet = .sections}label:{Image(systemName:"plus").frame(width:44,height:48).foregroundStyle(Color.muted)}
+            ScrollView(.horizontal,showsIndicators:false){HStack(spacing:8){ForEach(session.displayProject.sections){s in Button{session.select(s)}label:{HStack(spacing:8){RoundedRectangle(cornerRadius:1).fill(session.section.id==s.id ? Color.mint:Color.muted).frame(width:3,height:20);VStack(alignment:.leading,spacing:3){Text(s.name).font(.system(size:12,weight:.semibold));Text("\(s.start/barTicks+1)–\((s.start+s.length)/barTicks)").font(.system(size:9,design:.monospaced)).foregroundStyle(Color.muted)}}.padding(.horizontal,12).padding(.vertical,10).background(session.section.id==s.id ? Color.raised:Color.panel,in:RoundedRectangle(cornerRadius:8)).overlay{RoundedRectangle(cornerRadius:8).stroke(session.section.id==s.id ? Color.mint.opacity(0.4):Color.clear,lineWidth:1)}}.buttonStyle(.plain)}
+                Button{session.presentEditor(.sections)}label:{Image(systemName:"plus").frame(width:44,height:48).foregroundStyle(Color.muted)}
             }.padding(.horizontal,18)}.padding(.bottom,18)
             HStack(spacing:0){
-                VStack(spacing:0){Color.clear.frame(height:34);trackLabel(.harmony,height:132);trackLabel(.drums,height:100);trackLabel(.bass,height:92);ForEach(session.project.tracks.filter{$0.role == .melody}){t in Button{session.openNotes(t.id)}label:{Text(t.displayName).font(.system(size:9,weight:.semibold)).lineLimit(2).foregroundStyle(Color.mint).padding(8).frame(width:68,height:76).background(Color.panel)}.buttonStyle(.plain)}}.frame(width:68)
+                VStack(spacing:0){Color.clear.frame(height:34);trackLabel(.harmony,height:132);trackLabel(.drums,height:100);trackLabel(.bass,height:92);ForEach(session.displayProject.tracks.filter{$0.role == .melody}){t in Button{session.openNotes(t.id)}label:{Text(t.displayName).font(.system(size:9,weight:.semibold)).lineLimit(2).foregroundStyle(Color.mint).padding(8).frame(width:68,height:76).background(Color.panel)}.buttonStyle(.plain)}}.frame(width:68)
                 ScrollView(.horizontal,showsIndicators:true){ZStack(alignment:.topLeading){
                     timeline
-                    Rectangle().fill(Color.mint).frame(width:1.5,height:CGFloat(324+session.project.tracks.filter{$0.role == .melody}.count*76)).offset(x:CGFloat(session.audio.tick)/CGFloat(barTicks)*barWidth,y:34).allowsHitTesting(false)
+                    Rectangle().fill(Color.mint).frame(width:1.5,height:CGFloat(324+session.displayProject.tracks.filter{$0.role == .melody}.count*76)).offset(x:CGFloat(session.audio.tick)/CGFloat(barTicks)*barWidth,y:34).allowsHitTesting(false)
                     Image(systemName:"triangle.fill").font(.system(size:9)).rotationEffect(.degrees(180)).foregroundStyle(Color.mint).offset(x:CGFloat(session.audio.tick)/CGFloat(barTicks)*barWidth-4,y:23).allowsHitTesting(false)
-                }.frame(width:CGFloat(session.project.length/barTicks)*barWidth).gesture(MagnifyGesture().onChanged{value in barWidth=min(640,max(68,zoomBase*value.magnification))}.onEnded{_ in zoomBase=barWidth})}
+                }.frame(width:CGFloat(session.displayProject.length/barTicks)*barWidth).gesture(MagnifyGesture().onChanged{value in barWidth=min(640,max(68,zoomBase*value.magnification))}.onEnded{_ in zoomBase=barWidth})}
             }
             HStack{Image(systemName:"hand.pinch");Text("Pinch to zoom");Spacer();Text("SNAP  1/16").fontDesign(.monospaced)}.font(.system(size:9)).foregroundStyle(Color.muted).padding(.horizontal,18).padding(.top,14)
             Spacer(minLength:14)
@@ -35,15 +36,15 @@ struct GridView: View {
         }.sheet(item:$selection){s in ChordEditor(session:session,selection:s).presentationDetents([.large]).presentationDragIndicator(.visible).presentationBackground(Color.panel)}
     }
     func trackLabel(_ role: TrackRole,height: CGFloat)->some View {
-        Button{if role == .harmony{session.finishTake();session.sheet = .harmony}else if role == .bass {session.sheet = .bass}else if role == .drums{session.tab=1}}
+        Button{if role == .harmony{session.presentEditor(.harmony)}else if role == .bass {session.presentEditor(.bass)}else if role == .drums{session.tab=1}}
         label:{VStack(alignment:.leading,spacing:9){RoundedRectangle(cornerRadius:2).fill(Color.track(role)).frame(width:18,height:3);Text(role == .harmony ? "HARM":role == .drums ? "DRUM":"BASS").font(.system(size:9,weight:.semibold));Image(systemName:role == .harmony ? "pianokeys":role == .drums ? "square.grid.2x2":"waveform").font(.system(size:14)).foregroundStyle(Color.track(role))}.frame(maxWidth:.infinity,maxHeight:.infinity,alignment:.leading).padding(.leading,16).frame(height:height).background(Color.panel.opacity(0.6)).overlay(alignment:.bottom){Rectangle().fill(Color.raised).frame(height:1)}}.buttonStyle(.plain)
     }
     var timeline: some View {
-        VStack(spacing:0) { ruler; harmonyLane; drumLane; bassLane;ForEach(session.project.tracks.filter{$0.role == .melody}){t in melodyLane(t)} }
+        VStack(spacing:0) { ruler; harmonyLane; drumLane; bassLane;ForEach(session.displayProject.tracks.filter{$0.role == .melody}){t in melodyLane(t)} }
     }
     var ruler: some View {
         HStack(spacing:0) {
-            ForEach(0..<session.project.length/barTicks,id:\.self) { bar in
+            ForEach(0..<session.displayProject.length/barTicks,id:\.self) { bar in
                 Text(String(format:"%02d",bar+1)).font(.system(size:10,weight:.medium,design:.monospaced))
                     .foregroundStyle(Color.muted).frame(width:barWidth,alignment:.leading)
             }
@@ -56,9 +57,9 @@ struct GridView: View {
     var harmonyLane: some View {
         ZStack(alignment:.topLeading) {
             gridBackground(height:132)
-            if let track=session.project.tracks.first(where:{$0.role == .harmony}) {
+            if let track=session.displayProject.tracks.first(where:{$0.role == .harmony}) {
                 ForEach(track.clips) { clip in
-                    if let pattern=session.project.patterns.first(where:{$0.id==clip.patternID}) {
+                    if let pattern=session.displayProject.patterns.first(where:{$0.id==clip.patternID}) {
                         ForEach(0..<pattern.length/barTicks,id:\.self) { bar in
                             if !pattern.chords.contains(where:{$0.tick < (bar+1)*barTicks && $0.tick+$0.duration > bar*barTicks}) {
                                 chordCell(clip:clip,pattern:pattern,event:nil,tick:bar*barTicks)
@@ -76,10 +77,10 @@ struct GridView: View {
         return Button {
             selection=ChordSelection(id:event?.id ?? UUID(),patternID:pattern.id,
                 tick:tick,
-                chord:event?.chord ?? Chord(root:session.project.keyRoot,quality:session.project.minor ? .minor:.major),
+                chord:event?.chord ?? Chord(root:session.displayProject.keyRoot,quality:session.displayProject.minor ? .minor:.major),
                 duration:event?.duration ?? barTicks)
         } label: { ChordTile(chord:event?.chord,width:max(44,CGFloat(event?.duration ?? barTicks)/CGFloat(barTicks)*barWidth-6)) }
-        .buttonStyle(.plain).offset(x:CGFloat(clip.start+tick)/CGFloat(barTicks)*barWidth+3,y:8)
+        .buttonStyle(.plain).disabled(session.performance.contextActive).offset(x:CGFloat(clip.start+tick)/CGFloat(barTicks)*barWidth+3,y:8)
         .simultaneousGesture(LongPressGesture(minimumDuration:0.35).sequenced(before:DragGesture()).onEnded { value in
             if case .second(true,let drag?)=value,let event {
                 let delta=Int((drag.translation.width/barWidth*16).rounded())*240
@@ -103,7 +104,7 @@ struct GridView: View {
         ZStack(alignment:.topLeading) {
             gridBackground(height:100)
             Canvas { context,_ in
-                for note in Compiler.notes(session.project) where note.pad>=0 {
+                for note in Compiler.notes(session.displayProject) where note.pad>=0 {
                     let x=CGFloat(note.tick)/CGFloat(barTicks)*barWidth
                     let y=CGFloat(note.pad%4)*18+16
                     context.fill(Path(roundedRect:CGRect(x:x+2,y:y,width:max(3,barWidth/32),height:5),cornerRadius:1),with:.color(.drums.opacity(note.pad==2 ? 0.4:0.9)))
@@ -114,9 +115,9 @@ struct GridView: View {
     var bassLane: some View {
         ZStack(alignment:.topLeading) {
             gridBackground(height:92)
-            if let index=session.project.tracks.firstIndex(where:{$0.role == .bass}) {
+            if let index=session.displayProject.tracks.firstIndex(where:{$0.role == .bass}) {
                 Canvas { context,_ in
-                    for note in Compiler.notes(session.project) where note.track==index {
+                    for note in Compiler.notes(session.displayProject) where note.track==index {
                         let x=CGFloat(note.tick)/CGFloat(barTicks)*barWidth
                         let width=CGFloat(note.duration)/CGFloat(barTicks)*barWidth
                         context.fill(Path(roundedRect:CGRect(x:x+4,y:28,width:max(3,width-8),height:24),cornerRadius:4),with:.color(.bass.opacity(0.18)))
@@ -124,20 +125,20 @@ struct GridView: View {
                     }
                 }
             } else {
-                Button("+ Add root bass"){session.sheet = .bass}.font(.system(size:12)).foregroundStyle(Color.bass).padding(20)
+                Button("+ Add root bass"){session.presentEditor(.bass)}.font(.system(size:12)).foregroundStyle(Color.bass).padding(20)
             }
-        }.frame(height:92).onTapGesture{session.sheet = .bass}
+        }.frame(height:92).onTapGesture{session.presentEditor(.bass)}
     }
     func melodyLane(_ track:Track)->some View {
         ZStack(alignment:.topLeading){gridBackground(height:76)
             Canvas{context,_ in
-                if let index=session.project.tracks.firstIndex(where:{$0.id==track.id}){
-                    for n in Compiler.notes(session.project) where n.track==index{let x=CGFloat(n.tick)/CGFloat(barTicks)*barWidth;let y=CGFloat(84-min(84,max(48,n.pitch)))/36*48+10;context.fill(Path(roundedRect:CGRect(x:x+2,y:y,width:max(3,CGFloat(n.duration)/CGFloat(barTicks)*barWidth-2),height:5),cornerRadius:2),with:.color(.mint.opacity(0.7)))}
+                if let index=session.displayProject.tracks.firstIndex(where:{$0.id==track.id}){
+                    for n in Compiler.notes(session.displayProject) where n.track==index{let x=CGFloat(n.tick)/CGFloat(barTicks)*barWidth;let y=CGFloat(84-min(84,max(48,n.pitch)))/36*48+10;context.fill(Path(roundedRect:CGRect(x:x+2,y:y,width:max(3,CGFloat(n.duration)/CGFloat(barTicks)*barWidth-2),height:5),cornerRadius:2),with:.color(.mint.opacity(0.7)))}
                 }
             }
         }.frame(height:76).contentShape(Rectangle()).onTapGesture{session.openNotes(track.id)}.accessibilityLabel("Edit \(track.displayName)")
     }
-    func gridBackground(height: CGFloat)->some View {Canvas{context,size in for step in 0...session.project.length/ppq {let x=CGFloat(step)*barWidth/4;var p=Path();p.move(to:CGPoint(x:x,y:0));p.addLine(to:CGPoint(x:x,y:height));context.stroke(p,with:.color(Color.raised.opacity(step%4==0 ? 1:0.4)),lineWidth:1)};var line=Path();line.move(to:CGPoint(x:0,y:height));line.addLine(to:CGPoint(x:size.width,y:height));context.stroke(line,with:.color(.raised),lineWidth:1)}}
+    func gridBackground(height: CGFloat)->some View {Canvas{context,size in for step in 0...session.displayProject.length/ppq {let x=CGFloat(step)*barWidth/4;var p=Path();p.move(to:CGPoint(x:x,y:0));p.addLine(to:CGPoint(x:x,y:height));context.stroke(p,with:.color(Color.raised.opacity(step%4==0 ? 1:0.4)),lineWidth:1)};var line=Path();line.move(to:CGPoint(x:0,y:height));line.addLine(to:CGPoint(x:size.width,y:height));context.stroke(line,with:.color(.raised),lineWidth:1)}}
 }
 
 struct ChordTile: View {

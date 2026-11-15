@@ -29,8 +29,12 @@ private enum AudioRender {
     var meters: [Float] = Array(repeating:0,count:masterBus+1); var sampleRate: Double = 48000
     var countRemaining = 0; var error: String?
     var overflows = 0
+    @ObservationIgnored var onPoll:(()->Void)?
     private var timer: Timer?
     private var generation = 0
+    private var submittedNotes:[CompiledNote]?;private var submittedBPM=0.0;private var submittedRange:Range<Int>?;private var submittedLoop=false;private var submittedProject:UUID?
+    private var performanceEpoch=0
+    private var performanceBuffer=[LGPerformanceEvent](repeating:LGPerformanceEvent(),count:512)
     private var sentRevisions: [Int:Int] = [:]
     var isPrepared: Bool { engine?.isRunning == true }
     var clock: UInt64 = 0
@@ -49,7 +53,7 @@ private enum AudioRender {
         let format = AVAudioFormat(standardFormatWithSampleRate: sampleRate, channels: 2)!
         let node = AudioRender.makeSource(format:format, kernel:h)
         e.attach(node); e.connect(node, to: e.mainMixerNode, format: format); e.prepare(); try e.start()
-        handle = h; source = node; engine = e
+        handle = h; source = node; engine = e;submittedNotes=nil
         timer?.invalidate(); timer = Timer.scheduledTimer(withTimeInterval: 1/30, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.poll() }
         }
@@ -58,21 +62,25 @@ private enum AudioRender {
     func poll() {
         guard let k = handle?.pointer else { return }
         clock = lg_clock(k); tick = lg_tick(k); playing = lg_playing(k) != 0; appliedRevision = sentRevisions[Int(lg_revision(k))] ?? -1; countRemaining = Int(lg_countremaining(k)); overflows = Int(lg_overflows(k))
-        meters = (0...masterBus).map {lg_meter(k,Int32($0))}
+        meters = (0...masterBus).map {lg_meter(k,Int32($0))};onPoll?()
     }
     func submit(_ p: Project, loop: Bool, range: Range<Int>) {
         guard let k = handle?.pointer else { return }
+        let compiled=Compiler.notes(p)
+        if compiled==submittedNotes,p.bpm==submittedBPM,range==submittedRange,loop==submittedLoop,p.id==submittedProject {
+            sentRevisions[generation]=p.revision;if Int(lg_revision(k))==generation{appliedRevision=p.revision};mix(p);return
+        }
         generation += 1; sentRevisions[generation] = p.revision
         if sentRevisions.count > 100 { sentRevisions = sentRevisions.filter { $0.key >= generation - 50 } }
-        let notes = Compiler.notes(p).map { LGNote(tick: Int32($0.tick), duration: Int32($0.duration), pitch: Int32($0.pitch), velocity: Int32($0.velocity), track: Int32($0.track), pad: Int32($0.pad),instrument:Int32($0.instrument)) }
+        let notes = compiled.map { LGNote(tick: Int32($0.tick), duration: Int32($0.duration), pitch: Int32($0.pitch), velocity: Int32($0.velocity), track: Int32($0.track), pad: Int32($0.pad),instrument:Int32($0.instrument)) }
         let ok = notes.withUnsafeBufferPointer {lg_submit(k,$0.baseAddress,Int32($0.count),p.bpm,Int32(range.lowerBound),Int32(range.upperBound),loop ? 1 : 0,Int32(generation))}
-        if ok == 0 { error = "Audio update could not be queued. Stop and retry." }
+        if ok == 0 { error = "Audio update could not be queued. Stop and retry." }else{submittedNotes=compiled;submittedBPM=p.bpm;submittedRange=range;submittedLoop=loop;submittedProject=p.id}
         mix(p)
     }
     func mix(_ p: Project) {
         guard let k = handle?.pointer else { return }; let solo = p.tracks.contains(where: \.solo)
         for (i,t) in p.tracks.enumerated() {lg_mix(k,Int32(i),Float(t.gain),Float(t.pan),!t.mute && (!solo || t.solo) ? 1 : 0)}
-        lg_master(k,Float(p.master))
+        lg_master(k,Float(p.master));let fx=p.masterFX ?? MasterFX();lg_effects(k,Float(fx.filter),Float(fx.delayWet))
     }
     func play(countInBPM: Double? = nil) {
         guard let k = handle?.pointer else { return }
@@ -85,6 +93,19 @@ private enum AudioRender {
     func pad(_ pad: Int, velocity: Int = 100) {if let k = handle?.pointer { _ = lg_pad(k,Int32(pad),Int32(velocity)) }}
     func preview(_ chord: Chord) {if let k = handle?.pointer {for n in chord.notes {lg_preview(k,Int32(n))}}}
     func previewNote(_ pitch:Int,track:Int){if let k=handle?.pointer{lg_note_preview(k,Int32(pitch),Int32(track),3)}}
+    func stopRenderAndFinalizePerformance(){engine?.stop();if let k=handle?.pointer{lg_perform_finalize_paused(k)};playing=false}
+    func withKernel<T>(_ action:(OpaquePointer)->T)->T?{guard let pointer=handle?.pointer else{return nil};return action(pointer)}
+    func beginPerformance(_ p:Project,section:MusicDomain.Section,token:Int,recording:Bool,replay:[LGPerformanceEvent]?=nil,duration:UInt64=0)throws->Int {
+        guard let k=handle?.pointer else{throw MusicError.invalidProject};performanceEpoch+=1
+        submittedNotes=nil;submit(p,loop:true,range:section.start..<section.start+section.length);metronome(false);seek(section.start)
+        if let replay{let ok=replay.withUnsafeBufferPointer{lg_perform_replay_submit(k,$0.baseAddress,Int32($0.count),duration,Int32(performanceEpoch))};guard ok != 0 else{throw MusicError.invalidProject}}
+        let limit=UInt64((Double(64*barTicks)/Double(ppq)*60/p.bpm*sampleRate).rounded())
+        lg_perform_begin(k,Int32(token),Int32(performanceEpoch),recording ? 1:0,recording ? limit:0);playing=true;return performanceEpoch
+    }
+    func drainPerformance()->[LGPerformanceEvent]{guard let k=handle?.pointer else{return []};var result:[LGPerformanceEvent]=[];while true{let count=performanceBuffer.withUnsafeMutableBufferPointer{lg_perform_pop(k,$0.baseAddress,Int32($0.count))};if count==0{break};result.append(contentsOf:performanceBuffer.prefix(Int(count)))};return result}
+    func effects(_ fx:MasterFX){if let k=handle?.pointer{lg_effects(k,Float(fx.filter),Float(fx.delayWet))}}
+    func panic(){if let k=handle?.pointer{lg_panic(k)};playing=false}
     func metronome(_ on: Bool) {if let k = handle?.pointer {lg_metronome(k,on ? 1 : 0)}}
-    func reset() { stop(); timer?.invalidate(); engine?.stop(); engine = nil; source = nil; handle = nil }
+    func invalidateMusicSnapshot(){submittedNotes=nil}
+    func reset() {submittedNotes=nil; stop(); timer?.invalidate(); engine?.stop(); engine = nil; source = nil; handle = nil }
 }
