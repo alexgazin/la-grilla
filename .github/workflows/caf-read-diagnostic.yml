@@ -1,0 +1,28 @@
+name: Diagnostic CAF file I/O only
+on:
+  push:
+    branches: [verify/c5-first-input]
+    paths:
+      - scripts/diagnose_caf_reads.swift
+      - .github/workflows/caf-read-diagnostic.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  file-io:
+    runs-on: macos-15
+    timeout-minutes: 5
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@v4
+      - name: Measure real AVAudioFile read and end-of-file behavior
+        run: |
+          set -o pipefail
+          mkdir -p FileIODiagnostics
+          xcrun swift scripts/diagnose_caf_reads.swift FileIODiagnostics | tee FileIODiagnostics/read-stages.jsonl
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: diagnostic-caf-file-io-only
+          path: FileIODiagnostics
