@@ -36,7 +36,7 @@ final class StudioTests: XCTestCase {
     @MainActor func testPerformRecordingSurvivesNavigationAndReplays() {
         let app=launch("perform")
         XCTAssertTrue(app.buttons["perform.record"].waitForExistence(timeout:5));app.buttons["perform.record"].tap()
-        XCTAssertTrue(app.staticTexts["perform.mode"].waitForExistence(timeout:5))
+        XCTAssertTrue(app.staticTexts["perform.mode"].waitForExistence(timeout:5));XCTAssertEqual(app.staticTexts["perform.mode"].label,"RECORDING")
         app.buttons["perform.section.Chorus"].tap()
         app.buttons["perform.done"].tap();app.buttons["Jam"].tap();app.buttons["Kick"].tap()
         app.buttons["perform.transport"].tap();XCTAssertTrue(app.buttons["perform.record"].waitForExistence(timeout:5));app.buttons["perform.record"].tap()
@@ -98,7 +98,7 @@ final class StudioTests: XCTestCase {
     }
     @MainActor func testAssistantCommandReviewApplyAndUndo() {
         let app=launch();app.buttons["assistant.open"].tap();XCTAssertTrue(app.navigationBars["Assistant"].waitForExistence(timeout:5))
-        app.buttons["Examples"].tap();app.buttons["Tempo 110"].tap();app.buttons["assistant.generate"].tap();app.swipeUp()
+        let input=app.textViews["assistant.input"];XCTAssertTrue(input.waitForExistence(timeout:5));input.tap();input.typeText("tempo 110");app.swipeUp();app.buttons["assistant.generate"].tap();app.swipeUp()
         XCTAssertTrue(app.buttons["assistant.apply"].waitForExistence(timeout:5));app.buttons["assistant.apply"].tap()
         XCTAssertTrue(app.staticTexts["110"].waitForExistence(timeout:5));app.buttons["Undo"].tap();XCTAssertTrue(app.staticTexts["120"].exists)
     }
