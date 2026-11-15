@@ -56,6 +56,16 @@
 			"name" = "App";
 			"sourceTree" = "<group>";
 		};
+		"E313F38A63DE261EE7C9141C" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "Features/AssistantView.swift";
+			"sourceTree" = "SOURCE_ROOT";
+		};
+		"107BE4FF9CD20D8A61788BBC" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "E313F38A63DE261EE7C9141C";
+		};
 		"B5FCEE76D5E5C943FE601284" = {
 			"isa" = "PBXFileReference";
 			"lastKnownFileType" = "sourcecode.swift";
@@ -139,6 +149,7 @@
 		"E64DA6756D6CF253E6CA6FFA" = {
 			"isa" = "PBXGroup";
 			"children" = (
+				"E313F38A63DE261EE7C9141C",
 				"B5FCEE76D5E5C943FE601284",
 				"61680B367E11FEC8CC95AAD6",
 				"6DB07D8C3FB8DBA25E51BB33",
@@ -161,10 +172,21 @@
 			"isa" = "PBXBuildFile";
 			"fileRef" = "55B6A9A0F0A957043461C53F";
 		};
+		"D47395E0F8A10472F577507F" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "AudioRuntime/DictationController.swift";
+			"sourceTree" = "SOURCE_ROOT";
+		};
+		"06478C887723CAE93F422E89" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "D47395E0F8A10472F577507F";
+		};
 		"23B7E063E34C2F873A615B1C" = {
 			"isa" = "PBXGroup";
 			"children" = (
 				"55B6A9A0F0A957043461C53F",
+				"D47395E0F8A10472F577507F",
 			);
 			"name" = "AudioRuntime";
 			"sourceTree" = "<group>";
@@ -212,11 +234,35 @@
 			"name" = "Localizable.strings";
 			"sourceTree" = "<group>";
 		};
+		"60C3D3D3A1D4A8D894A82968" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "text.plist.strings";
+			"path" = "Resources/en.lproj/InfoPlist.strings";
+			"sourceTree" = "SOURCE_ROOT";
+			"name" = "en";
+		};
+		"48E78186C7E745D2F2B7F85F" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "text.plist.strings";
+			"path" = "Resources/ru.lproj/InfoPlist.strings";
+			"sourceTree" = "SOURCE_ROOT";
+			"name" = "ru";
+		};
+		"6F6C01DCC67E25B65DE9B2A3" = {
+			"isa" = "PBXVariantGroup";
+			"children" = (
+				"60C3D3D3A1D4A8D894A82968",
+				"48E78186C7E745D2F2B7F85F",
+			);
+			"name" = "InfoPlist.strings";
+			"sourceTree" = "<group>";
+		};
 		"369366657F0CC118760331FE" = {
 			"isa" = "PBXGroup";
 			"children" = (
 				"B8FA18644A594FE11B39A425",
 				"E967D16DAE74A49B5E0E0512",
+				"6F6C01DCC67E25B65DE9B2A3",
 			);
 			"name" = "Resources";
 			"sourceTree" = "<group>";
@@ -288,7 +334,7 @@
 				"GENERATE_INFOPLIST_FILE" = "NO";
 				"INFOPLIST_FILE" = "App/Info.plist";
 				"MARKETING_VERSION" = "0.3.0";
-				"CURRENT_PROJECT_VERSION" = "4";
+				"CURRENT_PROJECT_VERSION" = "5";
 				"ASSETCATALOG_COMPILER_APPICON_NAME" = "AppIcon";
 				"INFOPLIST_KEY_CFBundleDisplayName" = "La Grilla";
 				"INFOPLIST_KEY_LSApplicationCategoryType" = "public.app-category.music";
@@ -322,7 +368,7 @@
 				"GENERATE_INFOPLIST_FILE" = "NO";
 				"INFOPLIST_FILE" = "App/Info.plist";
 				"MARKETING_VERSION" = "0.3.0";
-				"CURRENT_PROJECT_VERSION" = "4";
+				"CURRENT_PROJECT_VERSION" = "5";
 				"ASSETCATALOG_COMPILER_APPICON_NAME" = "AppIcon";
 				"INFOPLIST_KEY_CFBundleDisplayName" = "La Grilla";
 				"INFOPLIST_KEY_LSApplicationCategoryType" = "public.app-category.music";
@@ -351,6 +397,7 @@
 				"0587407DA031D1B414F3155D",
 				"F8C137E32B1198A64C56AA5B",
 				"E748B01438B0371DC7F9104A",
+				"107BE4FF9CD20D8A61788BBC",
 				"586A1646E08C306C3B726A7B",
 				"847C58B7B4D8B1036E3E7C12",
 				"51D56D53A08999B70DE92723",
@@ -360,6 +407,7 @@
 				"232CAC420194A5C143AD9586",
 				"D3EA09086F02091F16A56071",
 				"7589B598023E170057C43C61",
+				"06478C887723CAE93F422E89",
 			);
 			"runOnlyForDeploymentPostprocessing" = 0;
 		};
@@ -388,12 +436,17 @@
 			"isa" = "PBXBuildFile";
 			"fileRef" = "E967D16DAE74A49B5E0E0512";
 		};
+		"80C276DD338F236B50A8A129" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "6F6C01DCC67E25B65DE9B2A3";
+		};
 		"4628612439DB78A41065DA49" = {
 			"isa" = "PBXResourcesBuildPhase";
 			"buildActionMask" = 2147483647;
 			"files" = (
 				"656DC65840B2ED7FBB3923BD",
 				"2A1AA518DE147C0C49F1D6D2",
+				"80C276DD338F236B50A8A129",
 			);
 			"runOnlyForDeploymentPostprocessing" = 0;
 		};

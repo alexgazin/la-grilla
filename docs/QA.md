@@ -83,3 +83,15 @@ Verified app/config source: `cf82a44fb1839d2307783e6bc38e4caf0193569b`. [Success
 - Reconciliation with R2 main changes only documentation, screenshots and commit ancestry; app/domain/audio/test sources remain identical to the verified source.
 
 These are deterministic local musical proposals; no cloud LLM is used. Physical A/B audio-quality acceptance remains a release gate.
+
+## R4 — local Assistant and dictation adapter
+
+Verified app/config source: `56091ed` (Speech capability API fix on top of `eba8be4`). [Successful workflow](https://github.com/alexgazin/la-grilla/actions/runs/43656289939).
+
+- 42 Swift tests pass: equivalent RU/EN commands, explicit chord durations, ambiguity choices, section resize/trimming/empty space, one-transaction Undo, strict structured-operation/ID validation and stale/duplicate rejection.
+- Both native SDK builds pass. All 11 native UI scenarios pass, including Assistant ambiguity → explicit distribution → Cancel, and command → review → Apply → Undo.
+- Thirteen real simulator screenshots are stored in [Screenshots/R4](../Screenshots/R4).
+- Apple Speech uses `supportsOnDeviceRecognition`/`requiresOnDeviceRecognition`, RU/EN selection, permission-on-use and manual-input fallback. Real microphone input, language/model availability, permission denial and interruption behavior need device acceptance; simulator text-flow tests do not prove ASR quality.
+- App/domain/audio/test sources remain unchanged when reconciling verified R3 main.
+
+No free-form cloud provider or client API key is included.

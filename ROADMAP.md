@@ -10,7 +10,7 @@
 | R1. Переносимый результат | WAV mixdown, stems, 44.1/48 kHz, 16/24 bit, tail, диапазон; export progress/cancel; переносимый `.grillapack`, импорт копией | Файлы открываются независимым WAV/ZIP reader; mix/stem alignment, deterministic render, finite duration, cancel cleanup, project round-trip. Live transport не переключается в offline mode | **Слито в main** |
 | R2. Полный нотный редактор | Melody/piano roll, до 8 дорожек, add/move/resize/delete notes, velocity, selection, copy/paste, clip/section operations, zoom/drag arbitration | Создать мелодию, изменить ноты, Undo, сохранить/открыть и услышать/экспортировать ровно те же ноты. Нет потери v1-проектов | **Слито в main** |
 | R3. Гармоническая лаборатория | 9/11/13, alterations/slash bass, voicing/range/voice leading; мягкая/выразительная стилизация и reharm | Объяснимое предложение с исходными/новыми аккордами, A/B, Apply/Cancel, одна Undo-транзакция. Хроматика и ограничения видны | **Слито в main** |
-| R4. Assistant | RU/EN локальные команды tempo/key/sections/progressions; dictation отдельно от напева; typed proposals, scope, assumptions, stale/double-apply guards | Команда → preview → Apply или Cancel. Нет скрытого редактирования, неподтверждённых сетевых обещаний или ключей в клиенте. Cloud provider только через защищённый backend, если понадобится | Запланировано |
+| R4. Assistant | RU/EN локальные команды tempo/key/sections/progressions; dictation отдельно от напева; typed proposals, scope, assumptions, stale/double-apply guards | Команда → preview → Apply или Cancel. Нет скрытого редактирования, неподтверждённых сетевых обещаний или ключей в клиенте. Cloud provider только через защищённый backend, если понадобится | **Слито в main** |
 | R5. Voice-to-MIDI | Microphone permission, headphones guidance, count-in, запись исходного mono audio, monophonic pitch/onset/confidence, quantize/scale snap, piano-roll correction/A-B | Синус/напев/пауза/шум/octave-jump набор; сомнительные ноты видны, тишина остаётся тишиной, Apply/Cancel сохраняют исходник до решения | Запланировано |
 | R6. Perform | Quantized section launch/cancel, repeat/jump, filter/repeat FX, bounded smoothing, finite performance-take с replay/export | Отрепетировать секции → записать исполнение → воспроизвести и экспортировать тот же порядок/автоматизацию без stuck notes | Запланировано |
 | R7. MIDI devices | Core MIDI USB/BLE, endpoint selection, MIDI in/out, learn/map, channel filtering, disconnect/panic | Реальный input/output и проверка unplug/sustain на USB и BLE. Bluetooth audio latency не смешивается с BLE MIDI | Запланировано |
@@ -23,7 +23,7 @@
 
 R1 → R2 → R3 → R4; R2 и аудиосессия → R5; transport/compiler → R6 → R7. R8 и R9 сопровождают каждый этап, R10/R11 завершают выпуск. Аппаратные и внешние проверки не блокируют независимую разработку, но не могут быть отмечены выполненными по результату симулятора.
 
-### Завершено: R1–R3
+### Завершено: R1–R4
 
 - [x] Offline renderer использует тот же compiler и DSP kernel, отдельный экземпляр, без изменения live engine.
 - [x] WAV PCM stereo 44.1/48 kHz, 16/24 bit, range, release tail, progress/cancel.
@@ -44,3 +44,5 @@ R1 → R2 → R3 → R4; R2 и аудиосессия → R5; transport/compiler
 - **15.11.2026 — R2:** piano roll, melody, 8 каналов и schema migration реализованы; 28 Swift tests, C++ routing, обе SDK-сборки и 8 native UI tests проходят. Реальные экраны — `Screenshots/R2`.
 
 - **15.11.2026 — R3:** 9/11/13, altered/slash chords, bounded voicings, voice leading, scoped reharm и A/B реализованы. 35 Swift tests, C++ restart regression, обе SDK-сборки и 9 native UI tests проходят. Экраны — `Screenshots/R3`.
+
+- **15.11.2026 — R4:** RU/EN local Assistant, проверяемые предложения, выбор длительностей, A/B и одна Undo-транзакция реализованы. 42 Swift tests, обе SDK-сборки и 11 native UI tests проходят; `Screenshots/R4`. On-device Speech adapter собран, реальная диктовка требует физического устройства/доступной модели.
