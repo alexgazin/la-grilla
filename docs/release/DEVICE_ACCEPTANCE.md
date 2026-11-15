@@ -38,6 +38,8 @@ The arm64 weak-link audit is static evidence only. Record an actual installed la
 
 ## Human voice over the shared backing loop
 
+The reproducible [recorded-human development baseline](../VOICE_HUMAN_BASELINE.md) is separate algorithm evidence. It reports 95.88% confidence-qualified F0 accuracy and 60.28% / 54.95% onset/pitch note F1; it does not populate any installed-device field below.
+
 | Required evidence | Recorded result |
 | --- | --- |
 | Singer/corpus ID, original CAF/WAV SHA-256, sample rate, duration, room/noise conditions, monitoring route | Pending |
