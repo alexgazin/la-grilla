@@ -27,6 +27,9 @@ struct LoadFixtureTests {
             #expect(compiled.count == (level==1 ? 768:level==2 ? 8192:16384))
             let bytes=try PortableProject.data(project),decoded=try PortableProject.decode(bytes,asCopy:false)
             #expect(Compiler.notes(decoded)==compiled);#expect(decoded.tracks.allSatisfy{$0.presetVersion==2})
+            let committed=URL(fileURLWithPath:#filePath).deletingLastPathComponent().appendingPathComponent("../../../../docs/release/fixtures/load-P\(level).grillapack").standardizedFileURL
+            let stored=try PortableProject.decode(Data(contentsOf:committed),asCopy:false)
+            #expect(stored.length==64*barTicks);#expect(Compiler.notes(stored).count==compiled.count)
             if let path=ProcessInfo.processInfo.environment["GRILLA_EXPORT_FIXTURES"] {
                 let folder=URL(fileURLWithPath:path);try FileManager.default.createDirectory(at:folder,withIntermediateDirectories:true)
                 try bytes.write(to:folder.appendingPathComponent("load-P\(level).grillapack"))
