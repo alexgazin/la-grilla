@@ -84,5 +84,7 @@
 	<string>Turn your spoken commands into editable text using on-device speech recognition when supported.</string>
 	<key>NSBluetoothAlwaysUsageDescription</key>
 	<string>Connect a Bluetooth MIDI keyboard or controller when you open the Bluetooth MIDI picker.</string>
+	<key>UIBackgroundModes</key>
+	<array><string>audio</string></array>
 </dict>
 </plist>

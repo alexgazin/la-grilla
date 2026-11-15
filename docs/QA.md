@@ -107,3 +107,15 @@ Verified app/config source: `4dc5f5d0260a6dca1c5edb7bbb9ffb093229036a`. [Success
 - [Voice QA](VOICE_QA.md) records the controlled metrics and hardware/human-voice gates. The feature remains **Beta / monophonic**. Simulator fixtures prove software flow, not microphone permission/route/count-in quality or recognition accuracy for human voices.
 
 The implementation compiles the actual AVAudioRecorder scheduled-count-in and Apple Speech adapters. Physical microphone and language-model acceptance remain unverified.
+
+## R6 — finite Perform recording and replay
+
+Verified app/config source: `f1ffe17a9be69ac0053b44f0e07ca6ac2142e36a`. Final full acceptance run: [`43671884623`](https://github.com/alexgazin/la-grilla/actions/runs/43671884623), test/CI revision `b7ff805`. That revision changes the Assistant test to type its command and skips duplicate screenshot capture; both SDK builds, all domain/kernel checks and all 14 native UI flows still run. The app/audio/domain source is unchanged.
+
+- 60 Swift tests pass, including finite takes, frozen source validation, migration, sample-rate conversion, repeat/section/live-input projection, WAV determinism and rejected invalid actions.
+- Three C++ suites pass: existing kernel timing/concurrent snapshot regressions, filter/delay/repeat DSP, and actual-frame Perform control/capture/replay. The latter includes section cancel/latest-wins, beat jump, repeat, pad, gain, pan, filter, delay, stop and Panic. PCM replay matches within `1e-6` across 512/257-frame render blocks.
+- Independent Python PCM/SMF readers verify finite one-second WAV, Type 1/PPQ 960/tempo, live pad notes, filter CC and NoteOff ordering.
+- Both native SDK builds and all 14 native UI scenarios pass. Perform is recorded, kept while navigating to Jam, replayed and exported to the system Share sheet.
+- Eighteen real live-process captures from app source `f1ffe17` are checked in at [Screenshots/R6](../Screenshots/R6).
+
+[Perform QA](PERFORM_QA.md) documents controller semantics and the remaining physical-audio gates. This stage does not claim measured iPhone latency, USB/BLE compatibility or identical MIDI timbres in external music software.

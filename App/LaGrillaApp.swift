@@ -38,7 +38,7 @@ import MusicDomain
             };if target.hasPrefix("voice"){session.sheet = .voice};if target.hasPrefix("assistant"){session.sheet = .assistant};if target.hasPrefix("harmony"){session.sheet = .harmony};if target=="jam"{session.tab=1};if target=="mixer"{session.tab=2};if target=="projects"{session.sheet = .projects};if target.hasPrefix("export"){session.exportPreset=target=="export-wav" ? "wav":target=="export-stems" ? "stems":"midi";session.sheet = .export}
         }
     }.onOpenURL{url in Task{await session.importProject(url)}}
-    .onChange(of:phase){_,value in if value != .active{session.finishTake();Task{await session.save()}}}
+    .onChange(of:phase){_,value in session.sceneChanged(value)}
     .onReceive(NotificationCenter.default.publisher(for:AVAudioSession.interruptionNotification).receive(on:RunLoop.main)){_ in session.interrupt()}
     .onReceive(NotificationCenter.default.publisher(for:AVAudioSession.routeChangeNotification).receive(on:RunLoop.main)){n in
         if let raw=n.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt, let reason=AVAudioSession.RouteChangeReason(rawValue:raw), reason == .oldDeviceUnavailable || reason == .newDeviceAvailable {session.interrupt()}

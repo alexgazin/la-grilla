@@ -34,6 +34,16 @@ final class MIDIOutputWorker:@unchecked Sendable {
             epoch=channels.withUnsafeBufferPointer{lg_midi_output_configure(hub.pointer,$0.baseAddress,Int32($0.count),endpoint==0 ? 0:1)}
         }
     }
+    /// Complete note release before iOS can suspend the process. This is called
+    /// on MainActor, never from an audio/MIDI callback or the output queue.
+    func suspend(){
+        _ = lg_midi_output_configure(hub.pointer,nil,0,0)
+        queue.sync {
+            if destination != 0{releaseAll()}
+            while buffer.withUnsafeMutableBufferPointer({lg_midi_output_pop(hub.pointer,$0.baseAddress,Int32($0.count))})>0{}
+            destination=0;timer?.cancel();timer=nil
+        }
+    }
     private func send(time:UInt64,status:Int32,a:Int32,b:Int32)->OSStatus {
         var list=MIDIPacketList();return withUnsafeMutablePointer(to:&list){pointer in
             let packet=MIDIPacketListInit(pointer);let bytes=[UInt8(status),UInt8(a),UInt8(b)]
