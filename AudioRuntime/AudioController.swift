@@ -97,7 +97,7 @@ private enum AudioRender {
     func withKernel<T>(_ action:(OpaquePointer)->T)->T?{guard let pointer=handle?.pointer else{return nil};return action(pointer)}
     func beginPerformance(_ p:Project,section:MusicDomain.Section,token:Int,recording:Bool,replay:[LGPerformanceEvent]?=nil,duration:UInt64=0)throws->Int {
         guard let k=handle?.pointer else{throw MusicError.invalidProject};performanceEpoch+=1
-        submit(p,loop:true,range:section.start..<section.start+section.length);metronome(false);seek(section.start)
+        submittedNotes=nil;submit(p,loop:true,range:section.start..<section.start+section.length);metronome(false);seek(section.start)
         if let replay{let ok=replay.withUnsafeBufferPointer{lg_perform_replay_submit(k,$0.baseAddress,Int32($0.count),duration,Int32(performanceEpoch))};guard ok != 0 else{throw MusicError.invalidProject}}
         let limit=UInt64((Double(64*barTicks)/Double(ppq)*60/p.bpm*sampleRate).rounded())
         lg_perform_begin(k,Int32(token),Int32(performanceEpoch),recording ? 1:0,recording ? limit:0);playing=true;return performanceEpoch

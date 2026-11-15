@@ -117,6 +117,7 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
               Set(tracks.map(\.id)).count == tracks.count else { throw MusicError.invalidProject }
         guard (performanceTakes ?? []).count<=1 else{throw MusicError.limit}
         try masterFX?.validate();try performanceTake?.validate()
+        if let take=performanceTake{guard (take.source.audioAssets ?? []).allSatisfy({asset in (audioAssets ?? []).contains(asset)})else{throw MusicError.invalidProject}}
         guard (audioAssets ?? []).count<=8 else{throw MusicError.tooDense}
         for asset in audioAssets ?? []{try asset.validate()}
         var ids=[id];if let take=performanceTake{ids.append(take.id)};ids += (audioAssets ?? []).map(\.id)

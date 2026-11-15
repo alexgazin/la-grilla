@@ -16,8 +16,8 @@ int main(){
     render(96000-2048);assert(lg_perform_active_token(k)==1);render(1);assert(lg_perform_pending_token(k)==0);
     assert(lg_perform_queue(k,1,0,3840,7680,2));render(512);render(192000-96001-512);assert(lg_perform_active_token(k)==1);
     render(1);assert(lg_perform_active_token(k)==2);assert(lg_tick(k)==3840);
-    assert(lg_perform_queue(k,2,1,0,0,0));render(24000);assert(lg_tick(k)>5700&&lg_tick(k)<5800);
-    lg_effects(k,-0.5f,0.25f);render(512);lg_pad(k,0,110);render(512);
+    assert(lg_perform_queue(k,3,480,0,0,0));assert(lg_perform_queue(k,2,1,0,0,0));render(24000);assert(lg_perform_repeat(k)==480);assert(lg_tick(k)>5700&&lg_tick(k)<5800);
+    assert(lg_perform_queue(k,3,0,0,0,0));lg_effects(k,-0.5f,0.25f);render(512);lg_pad(k,0,110);render(512);
     lg_perform_record_stop(k);render(512);assert(!lg_perform_recording(k));const auto duration=lg_perform_duration(k);assert(duration>192000&&duration<240000);
     std::vector<LGPerformanceEvent> events(512);int count=lg_perform_pop(k,events.data(),512);assert(count>=6);assert(events[0].frame==0&&events[0].kind==1);
     bool launch=false,jump=false,pad=false,filter=false,delay=false;

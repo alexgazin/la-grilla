@@ -18,7 +18,7 @@ import Observation
     private var saveGeneration = 0
     var savedRevision = -1; var saving = false; var saveError: String?; var message: String?
     var entries: [ProjectStore.Entry] = []; var sheet: Sheet?; var shareURL: URL?; var exportedURL: URL?
-    var exportPreset:String?
+    var exportPreset:String?;var exportTake:PerformanceTake?
     var exportTask: Task<Void,Never>?
     var exportInProgress=false; var exportProgress=0.0; var exportWarning:String?; var exportError:String?
     private var exportGeneration=0; private var exportedFolder:URL?
@@ -27,7 +27,7 @@ import Observation
     var importing=false
     var ready = false; private var bootstrapTask:Task<Void,Never>?; var saveTask: Task<Void,Never>?
     let store: ProjectStore
-    enum Sheet: String, Identifiable {case projects, newProject, export, settings, bass, sections, notes, harmony, assistant, voice; var id: String { rawValue }}
+    enum Sheet: String, Identifiable {case projects, newProject, export, settings, bass, sections, notes, harmony, assistant, voice, perform; var id: String { rawValue }}
     init() {
         let root = ProcessInfo.processInfo.arguments.contains("--uitesting") ? FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString) : FileManager.default.urls(for: .documentDirectory,in:.userDomainMask)[0].appendingPathComponent("Projects")
         store = ProjectStore(root: root)
@@ -81,7 +81,7 @@ import Observation
         if generation==saveGeneration {saving=false}
     }
     func togglePlay() {
-        if performance.contextActive{if performance.playing || performance.starting{Task{await performance.stop();pollPerformance()}}else{startPerformance(record:false)};return}
+        if performance.contextActive{if performance.playing || performance.starting{Task{await performance.stop();pollPerformance()}}else if performance.replaying,let take=performance.replayTake{replayPerformance(take)}else{startPerformance(record:false)};return}
         if audio.playing {finishTake();audio.stop()}else if ensureAudio(){if audio.tick>=Double(loopRange.upperBound){audio.seek(loopRange.lowerBound)};audio.play()}
     }
     func rewind() {if performance.contextActive{Task{await leavePerformance();rewind()};return};finishTake();audio.stop();audio.seek(loopRange.lowerBound)}
@@ -189,11 +189,12 @@ import Observation
         var title:String{switch self{case .midi:"Standard MIDI";case .wav:"Stereo WAV";case .stems:"Aligned stems";case .project:"Portable project"}}
         var fileExtension:String{switch self{case .midi:"mid";case .wav:"wav";case .stems:"zip";case .project:"grillapack"}}
     }
-    func export(format:ExportFormat,settings:WAVSettings,range:Range<Int>,tracks:Set<UUID>) {
+    func export(format:ExportFormat,settings:WAVSettings,range:Range<Int>,tracks:Set<UUID>,performance:PerformanceTake?=nil) {
+        if performance != nil && format != .midi && format != .wav{exportError="Choose WAV or MIDI for a performance.";return}
         finishTake();cancelExport();exportGeneration+=1;let generation=exportGeneration
-        let snapshot=project;exportInProgress=true;exportProgress=0;exportWarning=nil
+        let snapshot=performance?.source ?? project;exportInProgress=true;exportProgress=0;exportWarning=nil
         let folder=FileManager.default.temporaryDirectory.appendingPathComponent("GrillaExport-"+UUID().uuidString)
-        let safe=String(snapshot.name.prefix(80)).replacingOccurrences(of:"/",with:"-").replacingOccurrences(of:"\\",with:"-")
+        let safe=String((performance?.name ?? snapshot.name).prefix(80)).components(separatedBy:CharacterSet(charactersIn:"/\\").union(.controlCharacters)).joined(separator:"-").trimmingCharacters(in:CharacterSet(charactersIn:". "))
         let url=folder.appendingPathComponent(safe.isEmpty ? "La Grilla":safe).appendingPathExtension(format.fileExtension)
         exportError=nil
         exportTask=Task { @MainActor in
@@ -201,10 +202,10 @@ import Observation
                 try FileManager.default.createDirectory(at:folder,withIntermediateDirectories:true)
                 let progress:@Sendable(Double)->Void={ [weak self] value in Task { @MainActor in guard let self,self.exportGeneration==generation else{return};self.exportProgress=value } }
                 switch format {
-                case .midi:try MIDIExporter.data(snapshot,range:range).write(to:url,options:.atomic)
+                case .midi:let data=try await Task.detached(priority:.userInitiated){if let performance{return try PerformanceTimeline.midi(performance)};return try MIDIExporter.data(snapshot,range:range)}.value;try Task.checkCancellation();try data.write(to:url,options:.atomic)
                 case .project:try await store.portable(snapshot,to:url)
                 case .wav:
-                    let receipt=try await OfflineRenderer.render(snapshot,to:url,settings:settings,range:range,progress:progress)
+                    let receipt:RenderReceipt;if let performance{receipt=try await OfflineRenderer.renderPerformance(performance,to:url,settings:settings,progress:progress)}else{receipt=try await OfflineRenderer.render(snapshot,to:url,settings:settings,range:range,progress:progress)}
                     if receipt.clipped{exportWarning="Clipping was detected. Lower track or master gain for a cleaner export."}
                 case .stems:_ = try await StemExporter.render(snapshot,to:url,settings:settings,range:range,selected:tracks,progress:progress)
                 }

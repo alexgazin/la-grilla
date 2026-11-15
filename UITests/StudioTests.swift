@@ -4,6 +4,26 @@ final class StudioTests: XCTestCase {
         let app=XCUIApplication();app.launchArguments=["--uitesting","--screen",screen,"-AppleLanguages","(en)","-AppleLocale","en_US"]
         app.launch();XCTAssertTrue(app.buttons["Play"].waitForExistence(timeout:15));return app
     }
+    @MainActor func testPerformRecordingSurvivesNavigationAndReplays() {
+        let app=launch("perform")
+        XCTAssertTrue(app.buttons["perform.record"].waitForExistence(timeout:5));app.buttons["perform.record"].tap()
+        XCTAssertTrue(app.staticTexts["RECORDING"].waitForExistence(timeout:5))
+        app.buttons["perform.section.Chorus"].tap()
+        app.buttons["perform.done"].tap();app.buttons["Jam"].tap();app.buttons["Kick"].tap()
+        app.buttons["perform.transport"].tap();XCTAssertTrue(app.buttons["perform.record"].waitForExistence(timeout:5));app.buttons["perform.record"].tap()
+        app.swipeUp();app.swipeUp();app.swipeUp()
+        XCTAssertTrue(app.staticTexts["perform.saved"].waitForExistence(timeout:5));app.buttons["perform.replay"].tap()
+        app.swipeDown();app.swipeDown();app.swipeDown()
+        XCTAssertTrue(app.staticTexts["TAKE REPLAY"].waitForExistence(timeout:5))
+        app.buttons["perform.panic"].tap();app.buttons["perform.done"].tap()
+        XCTAssertTrue(app.buttons["Play"].waitForExistence(timeout:5))
+    }
+    @MainActor func testFinitePerformanceWAVExportOffersShare() {
+        let app=launch("perform-export")
+        XCTAssertTrue(app.staticTexts["Export your performance."].waitForExistence(timeout:12))
+        XCTAssertFalse(app.buttons["format.stems"].exists);app.buttons["export.confirm"].tap()
+        XCTAssertTrue(app.otherElements["ActivityListView"].waitForExistence(timeout:20) || app.buttons["Copy"].exists || app.staticTexts["Save to Files"].exists)
+    }
     @MainActor func testNavigationKeepsTransportAlive() {
         let app=launch();app.buttons["Play"].tap();XCTAssertTrue(app.staticTexts["PLAYING"].waitForExistence(timeout:5))
         app.buttons["Jam"].tap();XCTAssertTrue(app.staticTexts["Pocket kit"].exists);XCTAssertTrue(app.staticTexts["PLAYING"].exists)

@@ -15,6 +15,7 @@ import Observation
     @ObservationIgnored private var events:[PerformanceEvent]=[]
     @ObservationIgnored private var requestedSequence:UInt64=0
     @ObservationIgnored private var startedAt=Date.distantPast
+    @ObservationIgnored private(set) var replayTake:PerformanceTake?
     init(audio:AudioController){self.audio=audio}
     var fx:MasterFX{runtimeProject?.masterFX ?? MasterFX()}
     func begin(_ project:Project,sectionID:UUID,record:Bool)throws {
@@ -28,7 +29,7 @@ import Observation
         guard let section=source.sections.first(where:{$0.id==sectionID})else{throw MusicError.invalidProject}
         try source.validate();if record{guard try JSONEncoder().encode(source).count<=2_000_000 else{throw MusicError.tooDense}}
         _ = audio.drainPerformance();events=[];eventCount=0;error=nil;notice=nil;requestedSequence=0
-        runtimeProject=source;frozenSource=record ? source:nil;expectedCapture=record;replaying=false;contextActive=true;starting=true;startedAt=Date();activeSectionID=section.id;queuedSectionID=nil
+        runtimeProject=source;frozenSource=record ? source:nil;expectedCapture=record;replaying=false;replayTake=nil;contextActive=true;starting=true;startedAt=Date();activeSectionID=section.id;queuedSectionID=nil
         epoch=try audio.beginPerformance(source,section:section,token:source.sections.firstIndex(where:{$0.id==section.id})!+1,recording:record)
     }
     func playTake(_ take:PerformanceTake)throws {
@@ -37,7 +38,7 @@ import Observation
         let encoded=try PerformanceCodec.kernelEvents(take,targetRate:audio.sampleRate)
         let duration=UInt64((take.durationSeconds*audio.sampleRate).rounded())
         _ = audio.drainPerformance();events=[];eventCount=0;error=nil;notice=nil;requestedSequence=0;expectedCapture=false;frozenSource=nil
-        runtimeProject=take.source;contextActive=true;replaying=true;starting=true;startedAt=Date();activeSectionID=section.id;queuedSectionID=nil
+        runtimeProject=take.source;replayTake=take;contextActive=true;replaying=true;starting=true;startedAt=Date();activeSectionID=section.id;queuedSectionID=nil
         epoch=try audio.beginPerformance(take.source,section:section,token:take.source.sections.firstIndex(where:{$0.id==section.id})!+1,recording:false,replay:encoded,duration:duration)
     }
     func queueSection(_ id:UUID){
@@ -48,6 +49,7 @@ import Observation
     }
     func jump(_ beats:Int){guard playing,!replaying else{return};if audio.withKernel({lg_perform_queue($0,2,Float(beats),0,0,0)})==0{error="The performance control queue is full. Try again."}}
     func toggleRepeat(){guard playing,!replaying else{return};let ticks=repeating ? 0:repeatSize;if audio.withKernel({lg_perform_queue($0,3,Float(ticks),0,0,0)})==0{error="The performance control queue is full. Try again."}}
+    func setRepeatSize(_ ticks:Int){repeatSize=ticks;if repeating,!replaying{if audio.withKernel({lg_perform_queue($0,3,Float(ticks),0,0,0)})==0{error="The performance control queue is full. Try again."}}}
     func setEffects(filter:Double?=nil,delay:Double?=nil){
         guard contextActive,!replaying,var project=runtimeProject else{return};var value=project.masterFX ?? MasterFX();if let filter{value.filter=min(1,max(-1,filter))};if let delay{value.delayWet=min(0.5,max(0,delay))};project.masterFX=value;runtimeProject=project;audio.effects(value)
     }
@@ -69,7 +71,7 @@ import Observation
         if audio.withKernel({lg_perform_mode($0) != 0})==true{audio.stopRenderAndFinalizePerformance()}
         poll();playing=false;starting=false
     }
-    func exit()async {await stop();contextActive=false;replaying=false;queuedSectionID=nil;repeating=false;runtimeProject=nil}
+    func exit()async {await stop();contextActive=false;replaying=false;replayTake=nil;queuedSectionID=nil;repeating=false;runtimeProject=nil}
     func finalizeBeforeReset(){audio.stopRenderAndFinalizePerformance();poll();playing=false;starting=false}
     private func collect(){
         let raw=audio.drainPerformance();guard expectedCapture,let source=frozenSource else{return}

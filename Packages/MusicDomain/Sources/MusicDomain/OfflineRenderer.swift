@@ -10,14 +10,14 @@ public struct WAVSettings: Sendable, Equatable {
         self.sampleRate = sampleRate; self.bitDepth = bitDepth; self.tailSeconds = tailSeconds; self.dither = dither
     }
     public func validate() throws {
-        guard [44100,48000].contains(sampleRate), [16,24].contains(bitDepth), tailSeconds.isFinite, (0...5).contains(tailSeconds) else { throw ExportError.invalidSettings }
+        guard [44100,48000].contains(sampleRate), [16,24].contains(bitDepth), tailSeconds.isFinite, (0...10).contains(tailSeconds) else { throw ExportError.invalidSettings }
     }
 }
 public enum ExportError: Error, LocalizedError {
     case invalidSettings, invalidRange, renderUnavailable, invalidArchive, archiveTooLarge, unsupportedArchive
     public var errorDescription: String? {
         let key = switch self {
-        case .invalidSettings: "Choose 44.1 or 48 kHz, 16 or 24 bit, and a tail of 0–5 seconds."
+        case .invalidSettings: "Choose 44.1 or 48 kHz, 16 or 24 bit, and a tail of 0–10 seconds."
         case .invalidRange: "Choose a non-empty range inside the song."
         case .renderUnavailable: "The offline audio renderer could not be prepared."
         case .invalidArchive: "This project archive is damaged or contains unsafe paths."
@@ -36,19 +36,25 @@ public struct RenderReceipt: Sendable, Equatable {
     public let clipped: Bool
 }
 public enum OfflineRenderer {
+    public static func renderPerformance(_ take:PerformanceTake,to url:URL,settings:WAVSettings=WAVSettings(tailSeconds:0),progress:@Sendable(Double)->Void={_ in})async throws->RenderReceipt {
+        try take.validate();return try await render(take.source,to:url,settings:settings,performance:take,progress:progress)
+    }
     /// Compiles an immutable value snapshot; the live AVAudioEngine is never touched.
-    public static func render(_ project: Project, to url: URL, settings: WAVSettings = WAVSettings(), range requested: Range<Int>? = nil, isolatedTrack: UUID? = nil, progress: @Sendable (Double) -> Void = { _ in }) async throws -> RenderReceipt {
+    public static func render(_ project: Project, to url: URL, settings: WAVSettings = WAVSettings(), range requested: Range<Int>? = nil, isolatedTrack: UUID? = nil, performance:PerformanceTake?=nil, progress: @Sendable (Double) -> Void = { _ in }) async throws -> RenderReceipt {
         try Task.checkCancellation(); try project.validate(); try settings.validate()
         let range = requested ?? 0..<project.length
         guard range.lowerBound >= 0, range.upperBound <= project.length, !range.isEmpty else { throw ExportError.invalidRange }
+        if let performance{try performance.validate();guard isolatedTrack==nil,project==performance.source,requested==nil else{throw ExportError.invalidSettings}}
         if let isolatedTrack, !project.tracks.contains(where: {$0.id == isolatedTrack}) { throw ExportError.invalidSettings }
         guard let kernel = lg_create(Double(settings.sampleRate)) else { throw ExportError.renderUnavailable }
         defer { lg_destroy(kernel) }
         let anySolo=project.tracks.contains(where: \.solo)
         let audible=Set(project.tracks.enumerated().filter { _,track in !track.mute && (!anySolo || track.solo) && (isolatedTrack == nil || track.id==isolatedTrack) }.map(\.offset))
-        let compiled = Compiler.notes(project, range: range).filter{audible.contains($0.track)}
+        let compiled = Compiler.notes(project, range: range).filter{performance != nil || audible.contains($0.track)}
         let notes = compiled.map { LGNote(tick: Int32($0.tick), duration: Int32($0.duration), pitch: Int32($0.pitch), velocity: Int32($0.velocity), track: Int32($0.track), pad: Int32($0.pad),instrument:Int32($0.instrument)) }
-        let submitted = notes.withUnsafeBufferPointer { lg_submit(kernel, $0.baseAddress, Int32($0.count), project.bpm, 0, Int32(range.count), 0, Int32(clamping: project.revision)) }
+        let firstSection=performance.flatMap{take in take.source.sections.first{$0.id==take.events.first?.sectionID}}
+        let start=firstSection?.start ?? 0,end=firstSection.map{$0.start+$0.length} ?? range.count
+        let submitted = notes.withUnsafeBufferPointer { lg_submit(kernel, $0.baseAddress, Int32($0.count), project.bpm, Int32(start), Int32(end), performance==nil ? 0:1, Int32(clamping: project.revision)) }
         guard submitted != 0 else { throw ExportError.renderUnavailable }
         let solo = project.tracks.contains(where: \.solo)
         for (index, track) in project.tracks.enumerated() {
@@ -62,8 +68,15 @@ public enum OfflineRenderer {
         var left = [Float](repeating: 0, count: 4096), right = left
         // Settle the exact same DSP ramps before the first written sample.
         left.withUnsafeMutableBufferPointer { l in right.withUnsafeMutableBufferPointer { r in lg_render(kernel,l.baseAddress,r.baseAddress,Int32(min(4096,settings.sampleRate / 20))) } }
-        lg_seek(kernel, 0); lg_play(kernel, 1)
-        let frames = Int((Double(range.count) * 60 / (project.bpm * Double(ppq)) * Double(settings.sampleRate)).rounded()) + Int((settings.tailSeconds * Double(settings.sampleRate)).rounded())
+        let contentFrames:Int
+        if let performance,let firstSection {
+            contentFrames=Int((performance.durationSeconds*Double(settings.sampleRate)).rounded())
+            let events=try PerformanceCodec.kernelEvents(performance,targetRate:Double(settings.sampleRate))
+            let ok=events.withUnsafeBufferPointer{lg_perform_replay_submit(kernel,$0.baseAddress,Int32($0.count),UInt64(contentFrames),1)}
+            guard ok != 0 else{throw ExportError.renderUnavailable}
+            lg_seek(kernel,Int32(firstSection.start));lg_perform_begin(kernel,Int32(project.sections.firstIndex{$0.id==firstSection.id}!+1),1,0,0)
+        }else{lg_seek(kernel, 0);lg_play(kernel,1);contentFrames=Int((Double(range.count)*60/(project.bpm*Double(ppq))*Double(settings.sampleRate)).rounded())}
+        let frames=contentFrames+Int((settings.tailSeconds*Double(settings.sampleRate)).rounded())
         var complete = false
         defer { if !complete {try? FileManager.default.removeItem(at:url)} }
         let writer = try PCMWriter(url: url, sampleRate: settings.sampleRate, bits: settings.bitDepth, frames: frames)
