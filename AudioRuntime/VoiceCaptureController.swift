@@ -39,17 +39,37 @@ private enum VoiceSourceIO {
         let count=try url.resourceValues(forKeys:[.fileSizeKey]).fileSize ?? 0
         guard (64...12_000_000).contains(count)else{throw VoiceAnalysisError.invalidInput}
         let file=try AVAudioFile(forReading:url,commonFormat:.pcmFormatFloat32,interleaved:false)
-        let rate=file.processingFormat.sampleRate
-        guard file.processingFormat.channelCount==1,file.length>0,Double(file.length)<=rate*30.25 else{throw VoiceAnalysisError.invalidInput}
-        guard let buffer=AVAudioPCMBuffer(pcmFormat:file.processingFormat,frameCapacity:AVAudioFrameCount(file.length))else{throw VoiceAnalysisError.invalidInput}
-        try file.read(into:buffer)
-        guard let channel=buffer.floatChannelData?[0]else{throw VoiceAnalysisError.invalidInput}
-        let samples=Array(UnsafeBufferPointer(start:channel,count:Int(buffer.frameLength)))
-        let data=try Data(contentsOf:url),duration=Double(buffer.frameLength)/rate
+        let rate=file.processingFormat.sampleRate,declaredFrames=file.length
+        guard rate.isFinite,(8000...192000).contains(rate),file.processingFormat.channelCount==1,declaredFrames>0,Double(declaredFrames)<=rate*30.25 else{throw VoiceAnalysisError.invalidInput}
+        let samples=try readComplete(file,declaredFrames:declaredFrames)
+        let data=try Data(contentsOf:url),duration=Double(samples.count)/rate
         let record=AudioAssetRecord(sha256:try AssetIntegrity.sha256(data),byteCount:data.count,sampleRate:rate,duration:duration,origin:origin,recordedAt:recordedAt,inputLatencySeconds:inputLatency,tempoBPM:tempoBPM)
         try AssetIntegrity.validate(data,record:record)
         let analysis=try VoiceAnalyzer.analyze(samples,sampleRate:rate,progress:progress)
         return VoiceCaptureResult(sourceURL:url,data:data,record:record,analysis:analysis)
+    }
+    nonisolated private static func readComplete(_ file:AVAudioFile,declaredFrames:AVAudioFramePosition)throws->[Float] {
+        // A native 139,200-frame CAF returned only 138,240 frames from one read.
+        // Accumulate explicit bounded reads; never pad or call a short prefix
+        // the complete original recording.
+        guard let buffer=AVAudioPCMBuffer(pcmFormat:file.processingFormat,frameCapacity:4096),file.framePosition==0 else{throw VoiceAnalysisError.invalidInput}
+        var samples:[Float]=[];samples.reserveCapacity(Int(declaredFrames))
+        while samples.count<Int(declaredFrames) {
+            try Task.checkCancellation()
+            let requested=AVAudioFrameCount(min(4096,Int(declaredFrames)-samples.count)),position=file.framePosition
+            buffer.frameLength=0
+            try file.read(into:buffer,frameCount:requested)
+            let actual=buffer.frameLength
+            guard actual>0,actual<=requested,file.framePosition==position+AVAudioFramePosition(actual),let channel=buffer.floatChannelData?[0]else{throw VoiceAnalysisError.invalidInput}
+            let chunk=UnsafeBufferPointer(start:channel,count:Int(actual))
+            guard chunk.allSatisfy(\.isFinite)else{throw VoiceAnalysisError.invalidInput}
+            samples.append(contentsOf:chunk)
+        }
+        guard samples.count==Int(declaredFrames),file.framePosition==declaredFrames,file.length==declaredFrames else{throw VoiceAnalysisError.invalidInput}
+        buffer.frameLength=0
+        try file.read(into:buffer,frameCount:1)
+        guard buffer.frameLength==0,file.framePosition==declaredFrames,file.length==declaredFrames else{throw VoiceAnalysisError.invalidInput}
+        return samples
     }
 }
 
