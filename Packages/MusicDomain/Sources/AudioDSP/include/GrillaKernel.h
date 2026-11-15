@@ -20,6 +20,8 @@ void lg_preview(LGKernel *k, int pitch);
 void lg_note_preview(LGKernel *k, int pitch, int track, int instrument);
 void lg_mix(LGKernel *k, int track, float db, float pan, int audible);
 void lg_master(LGKernel *k, float db);
+void lg_effects(LGKernel *k, float filter, float delayWet);
+void lg_panic(LGKernel *k);
 void lg_tail_on_end(LGKernel *k, int enabled);
 void lg_metronome(LGKernel *k, int enabled);
 void lg_render(LGKernel *k, float *left, float *right, int frames);

@@ -57,6 +57,7 @@ public enum OfflineRenderer {
         }
         // Stems retain track gain and pan, but exclude master gain. Mute/solo are honored.
         lg_master(kernel, Float(isolatedTrack == nil ? project.master : 0))
+        let fx=isolatedTrack==nil ? (project.masterFX ?? MasterFX()):MasterFX();lg_effects(kernel,Float(fx.filter),Float(fx.delayWet))
         lg_metronome(kernel, 0); lg_tail_on_end(kernel, settings.tailSeconds > 0 ? 1 : 0)
         var left = [Float](repeating: 0, count: 4096), right = left
         // Settle the exact same DSP ramps before the first written sample.

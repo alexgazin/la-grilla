@@ -21,7 +21,9 @@ jobs:
       - name: Verify generated project is current
         run: python3 scripts/generate_project.py && git diff --exit-code -- LaGrilla.xcodeproj
       - name: Audio kernel tests
-        run: clang++ -std=c++17 -O2 -Wall -Wextra -Werror Tests/kernel_test.cpp Packages/MusicDomain/Sources/AudioDSP/GrillaKernel.cpp -I Packages/MusicDomain/Sources/AudioDSP/include -o /tmp/kernel-test && /tmp/kernel-test
+        run: |
+          clang++ -std=c++17 -O2 -Wall -Wextra -Werror Tests/kernel_test.cpp Packages/MusicDomain/Sources/AudioDSP/GrillaKernel.cpp -I Packages/MusicDomain/Sources/AudioDSP/include -o /tmp/kernel-test && /tmp/kernel-test
+          clang++ -std=c++17 -O2 -Wall -Wextra -Werror Tests/performance_fx_test.cpp -I Packages/MusicDomain/Sources/AudioDSP -o /tmp/perf-fx-test && /tmp/perf-fx-test
       - name: Build iOS app
         run: set -o pipefail; xcodebuild -project LaGrilla.xcodeproj -scheme LaGrilla -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' ARCHS=arm64 ONLY_ACTIVE_ARCH=YES -configuration Debug -derivedDataPath DerivedData CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO build | tee build.log
       - name: Package simulator app

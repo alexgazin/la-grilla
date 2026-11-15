@@ -72,7 +72,7 @@ private enum AudioRender {
     func mix(_ p: Project) {
         guard let k = handle?.pointer else { return }; let solo = p.tracks.contains(where: \.solo)
         for (i,t) in p.tracks.enumerated() {lg_mix(k,Int32(i),Float(t.gain),Float(t.pan),!t.mute && (!solo || t.solo) ? 1 : 0)}
-        lg_master(k,Float(p.master))
+        lg_master(k,Float(p.master));let fx=p.masterFX ?? MasterFX();lg_effects(k,Float(fx.filter),Float(fx.delayWet))
     }
     func play(countInBPM: Double? = nil) {
         guard let k = handle?.pointer else { return }
@@ -85,6 +85,8 @@ private enum AudioRender {
     func pad(_ pad: Int, velocity: Int = 100) {if let k = handle?.pointer { _ = lg_pad(k,Int32(pad),Int32(velocity)) }}
     func preview(_ chord: Chord) {if let k = handle?.pointer {for n in chord.notes {lg_preview(k,Int32(n))}}}
     func previewNote(_ pitch:Int,track:Int){if let k=handle?.pointer{lg_note_preview(k,Int32(pitch),Int32(track),3)}}
+    func effects(_ fx:MasterFX){if let k=handle?.pointer{lg_effects(k,Float(fx.filter),Float(fx.delayWet))}}
+    func panic(){if let k=handle?.pointer{lg_panic(k)};playing=false}
     func metronome(_ on: Bool) {if let k = handle?.pointer {lg_metronome(k,on ? 1 : 0)}}
     func reset() { stop(); timer?.invalidate(); engine?.stop(); engine = nil; source = nil; handle = nil }
 }

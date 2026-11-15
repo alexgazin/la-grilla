@@ -79,10 +79,12 @@ public struct Section: Codable, Equatable, Identifiable, Sendable {
     public init(name: String, start: Int = 0, length: Int) { self.name = name; self.start = start; self.length = length }
 }
 public struct Project: Codable, Equatable, Identifiable, Sendable {
-    public var id: UUID = UUID(); public static let currentSchemaVersion=4
-    public var schemaVersion = 4; public var revision = 0
+    public var id: UUID = UUID(); public static let currentSchemaVersion=5
+    public var schemaVersion = 5; public var revision = 0
     public var name: String; public var bpm: Double = 120; public var keyRoot = 0; public var minor = false
     public var modified = Date(); public var tracks: [Track]; public var patterns: [Pattern]; public var sections: [Section]
+    public var masterFX:MasterFX?;public var performanceTakes:[PerformanceTake]?
+    public var performanceTake:PerformanceTake?{get{performanceTakes?.first}set{performanceTakes=newValue.map{[$0]}}}
     public var audioAssets:[AudioAssetRecord]?
     public var bassOctave = 0; public var bassGate = 0.9; public var master: Double = -3
     public var length: Int { sections.reduce(0) { total, section in let (sum, overflow) = total.addingReportingOverflow(section.length); return overflow ? Int.max : sum } }
@@ -113,9 +115,11 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
               tracks[0].role == .harmony, tracks[1].role == .drums, tracks.dropFirst(2).allSatisfy({$0.role == .bass || $0.role == .melody}), tracks.filter({$0.role == .bass}).count <= 1,
               patterns.count <= 64, Set(patterns.map(\.id)).count == patterns.count, Set(sections.map(\.id)).count == sections.count,
               Set(tracks.map(\.id)).count == tracks.count else { throw MusicError.invalidProject }
+        guard (performanceTakes ?? []).count<=1 else{throw MusicError.limit}
+        try masterFX?.validate();try performanceTake?.validate()
         guard (audioAssets ?? []).count<=8 else{throw MusicError.tooDense}
         for asset in audioAssets ?? []{try asset.validate()}
-        var ids=[id];ids += (audioAssets ?? []).map(\.id)
+        var ids=[id];if let take=performanceTake{ids.append(take.id)};ids += (audioAssets ?? []).map(\.id)
         ids += tracks.map(\.id);ids += patterns.map(\.id);ids += sections.map(\.id)
         ids += tracks.flatMap{$0.clips.map(\.id)}
         for p in patterns {ids += p.chords.map(\.id);ids += p.drums.map(\.id);ids += (p.notes ?? []).map(\.id)}
@@ -250,6 +254,7 @@ public enum ProjectDocument {
         if p.schemaVersion==1 {p.schemaVersion=2;for i in p.patterns.indices{if p.patterns[i].notes==nil{p.patterns[i].notes=[]}}}
         if p.schemaVersion==2{p.schemaVersion=3}
         if p.schemaVersion==3{p.schemaVersion=4}
+        if p.schemaVersion==4{p.schemaVersion=5}
         try p.validate();return p
     }
 }

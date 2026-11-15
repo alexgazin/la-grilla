@@ -1,4 +1,5 @@
 #include "GrillaKernel.h"
+#include "PerformanceFX.hpp"
 #include <atomic>
 #include <cmath>
 #include <algorithm>
@@ -10,7 +11,7 @@ struct Snapshot { std::atomic<int> state{0}, revision{-1}; std::array<LGNote,Max
 struct Voice { bool on=false; int pitch=0,track=0,pad=-1,instrument=0; double phase=0,age=0,duration=0; float velocity=0,level=0; };
 struct Input { int value=0,velocity=100,track=0,instrument=0; bool preview=false; };
 struct LGKernel {
-    double sr; std::array<Snapshot,3> slots; int current=-1;
+    double sr; PerformanceFX fx;std::atomic<float> filterTarget{0},delayTarget{0}; std::array<Snapshot,3> slots; int current=-1;
     std::array<Voice,MaxVoices> voices{};
     std::array<std::vector<float>,16> kit;
     std::array<Input,256> input{}; std::atomic<unsigned> write{0},read{0}; std::atomic<int> overflow{0};
@@ -19,7 +20,7 @@ struct LGKernel {
     std::atomic<double> position{0}; std::atomic<uint64_t> clock{0};
     std::array<std::atomic<float>,Buses> gains, pans, meters; std::array<float,Buses> smooth{}, smoothPan{};
     bool active=false; double origin=0; uint64_t elapsed=0,rendered=0; double previous=-1; long long cycle=0; int cursor=0; int lastBeat=-1;
-    explicit LGKernel(double rate):sr(rate) {
+    explicit LGKernel(double rate):sr(rate),fx(rate) {
         for(int i=0;i<Buses;i++){ gains[i].store(i==Master?0.708f:0.5f);pans[i].store(0);meters[i].store(0);smooth[i]=gains[i].load(); }
         uint32_t noise=0x4c47524c;
         for(int pad=0;pad<16;pad++) {
@@ -83,10 +84,13 @@ void lg_note_preview(LGKernel*k,int pitch,int track,int instrument){if(pitch>=0&
 void lg_preview(LGKernel*k,int pitch){lg_note_preview(k,pitch,0,0);}
 void lg_mix(LGKernel*k,int t,float db,float pan,int audible){if(t<0||t>=MaxTracks||!std::isfinite(db)||!std::isfinite(pan))return;k->gains[t].store(audible&&db> -61?std::pow(10.f,std::clamp(db,-60.f,6.f)/20):0);k->pans[t].store(std::clamp(pan,-1.f,1.f));}
 void lg_master(LGKernel*k,float db){if(std::isfinite(db))k->gains[Master].store(db> -61?std::pow(10.f,std::clamp(db,-60.f,6.f)/20):0);}
+void lg_effects(LGKernel*k,float filter,float delay){if(std::isfinite(filter)&&std::isfinite(delay)){k->filterTarget.store(std::clamp(filter,-1.f,1.f));k->delayTarget.store(std::clamp(delay,0.f,0.5f));}}
+void lg_panic(LGKernel*k){k->filterTarget.store(0);k->delayTarget.store(0);k->command.store(-1);}
 void lg_tail_on_end(LGKernel*k,int enabled){k->tailOnEnd.store(enabled);}
 void lg_metronome(LGKernel*k,int on){k->metro.store(on);}
 void lg_render(LGKernel*k,float*l,float*r,int frames){
-    int cmd=k->command.exchange(0);if(cmd<0||cmd==2){k->active=false;k->counting=0;k->countRequest.store(0);k->countRemaining.store(0);k->silence();k->read.store(k->write.load());}
+    k->fx.prepare(k->filterTarget.load(),k->delayTarget.load(),k->current<0?120:k->slots[k->current].bpm);
+    int cmd=k->command.exchange(0);if(cmd<0||cmd==2){k->active=false;k->counting=0;k->countRequest.store(0);k->countRemaining.store(0);k->fx.reset();k->silence();k->read.store(k->write.load());}
     k->adopt(!k->active,k->position.load());
     int seek=k->seek.exchange(-1);if(seek>=0){k->resetCursor(seek);k->position.store(seek);}
     if(cmd>0&&k->current>=0){auto&s=k->slots[k->current];double p=k->position.load();k->active=true;k->resetCursor(p>=s.end?s.start:std::max(p,double(s.start)));}
@@ -99,7 +103,7 @@ void lg_render(LGKernel*k,float*l,float*r,int frames){
         if(k->counting>0){int beatFrames=int(k->sr*60/k->slots[k->current].bpm);if(k->counting%beatFrames==0)k->trigger(k->counting>beatFrames*3?96:84,65,Master,-1,0,0.035);k->counting--;k->countRemaining.store(k->counting);}
         else if(k->active&&k->current>=0){
             auto*s=&k->slots[k->current];double tp=k->ticksPerFrame();double raw=k->origin+k->elapsed*tp;double tick=raw-k->cycle*(s->end-s->start);
-            if(tick>=s->end-0.5*tp){if(s->loop){k->cycle++;tick-=s->end-s->start;k->cursor=0;k->silence();while(k->cursor<s->count&&s->notes[k->cursor].tick<s->start)k->cursor++;k->lastBeat=-1;}else{k->active=false;if(!k->tailOnEnd.load())k->silence();tick=s->end;}}
+            if(tick>=s->end-0.5*tp){if(s->loop){k->cycle++;tick-=s->end-s->start;k->cursor=0;k->silence();while(k->cursor<s->count&&s->notes[k->cursor].tick<s->start)k->cursor++;k->lastBeat=-1;}else{k->active=false;if(!k->tailOnEnd.load()){k->silence();k->fx.reset();}tick=s->end;}}
             int old=k->current;k->adopt(false,tick);if(k->current!=old){s=&k->slots[k->current];tick=k->origin;tp=k->ticksPerFrame();}
             if(k->active){
                 while(k->cursor<s->count&&s->notes[k->cursor].tick<=tick+0.5*tp){auto&n=s->notes[k->cursor++];if(n.tick>=s->start&&n.tick<s->end)k->trigger(n.pitch,n.velocity,n.track,n.pad,n.instrument,n.pad>=0?KitFrames/k->sr:std::min(n.duration,s->end-n.tick)/960.0*60/s->bpm);}
@@ -108,7 +112,7 @@ void lg_render(LGKernel*k,float*l,float*r,int frames){
             }else k->position.store(tick);
         }
         for(int t=0;t<Buses;t++){k->smooth[t]+=(k->gains[t].load(std::memory_order_relaxed)-k->smooth[t])*ramp;k->smoothPan[t]+=(k->pans[t].load(std::memory_order_relaxed)-k->smoothPan[t])*ramp;}
-        float left=0,right=0;
+        float left=0,right=0;float buses[Buses]={};
         for(auto&v:k->voices)if(v.on){
             float sample=0;const double remaining=v.duration-v.age;
             if(remaining<=0){v.on=false;continue;}
@@ -116,9 +120,15 @@ void lg_render(LGKernel*k,float*l,float*r,int frames){
             else {double hz=440*std::pow(2.,(v.pitch-69)/12.);v.phase+=hz/k->sr;if(v.phase>=1)v.phase-=1;sample=float((std::sin(2*Pi*v.phase)+(v.instrument==3?0.35:0.22)*std::sin(4*Pi*v.phase)+(v.instrument==3?0.12*std::sin(6*Pi*v.phase):0))*0.17);}
             double envelope=std::min(1.,v.age/0.004)*std::min(1.,remaining/0.008);if(v.pad<0)envelope*=std::exp(-v.age*(v.instrument==2?1.5:0.7));
             sample*=float(envelope)*v.velocity;v.level=std::abs(sample);v.age+=1/k->sr;
-            int t=v.track;float amp=sample*(t==Master?0.65f:k->smooth[t]);float angle=(k->smoothPan[t]+1)*float(Pi/4);
+            buses[v.track]+=sample;
+        }
+        k->fx.processBuses(buses,k->active);
+        for(int t=0;t<MaxTracks;t++){
+            const float amp=buses[t]*k->smooth[t],angle=(k->smoothPan[t]+1)*float(Pi/4);
             left+=amp*std::cos(angle);right+=amp*std::sin(angle);peak[t]=std::max(peak[t],std::abs(amp));
         }
+        k->fx.process(left,right);
+        const float cue=buses[Master]*0.65f*0.7071067812f;left+=cue;right+=cue;
         left*=k->smooth[Master];right*=k->smooth[Master];peak[Master]=std::max(peak[Master],std::max(std::abs(left),std::abs(right)));
         l[f]=std::clamp(left,-0.98f,0.98f);r[f]=std::clamp(right,-0.98f,0.98f);k->rendered++;
     }
