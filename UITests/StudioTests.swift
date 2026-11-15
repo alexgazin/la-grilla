@@ -65,13 +65,26 @@ final class StudioTests: XCTestCase {
     }
     @MainActor func testVirtualMIDILearnAndActualOutputDestination() {
         let app=launch("midi");guard app.staticTexts["midi.fixture"].waitForExistence(timeout:15)else{let shot=XCTAttachment(data:XCUIScreen.main.screenshot().pngRepresentation,uniformTypeIdentifier:"public.png");shot.name="R7-midi-error";shot.lifetime = .keepAlways;add(shot);let error=app.staticTexts["midi.error"];XCTFail("Virtual MIDI setup: "+(error.exists ? error.label:app.debugDescription));return}
-        app.swipeUp();app.swipeUp()
-        XCTAssertTrue(app.buttons["midi.learn"].waitForExistence(timeout:5));app.buttons["midi.learn"].tap();app.buttons["midi.send-fixture"].tap()
+        let form=app.collectionViews.firstMatch.exists ? app.collectionViews.firstMatch:app.tables.firstMatch.exists ? app.tables.firstMatch:app.scrollViews.firstMatch
+        reveal(app.buttons["midi.learn"],in:form);app.buttons["midi.learn"].tap()
+        reveal(app.buttons["midi.send-fixture"],in:form);app.buttons["midi.send-fixture"].tap()
         XCTAssertTrue(app.staticTexts["Ch 1 · CC 74"].waitForExistence(timeout:8))
-        app.swipeUp();XCTAssertTrue(app.staticTexts["midi.last"].waitForExistence(timeout:5));XCTAssertTrue(app.staticTexts["midi.last"].label.contains("CC 74"))
-        app.swipeDown();let received=app.staticTexts["midi.fixture-received"]
-        XCTAssertTrue(received.waitForExistence(timeout:5));XCTAssertGreaterThan(Int(received.label) ?? 0,0)
-        app.swipeUp();app.buttons["midi.panic"].tap();app.buttons["Done"].tap();XCTAssertTrue(app.buttons["Play"].waitForExistence(timeout:5))
+        reveal(app.staticTexts["midi.last"],in:form);XCTAssertTrue(app.staticTexts["midi.last"].label.contains("CC 74"))
+        let received=app.staticTexts["midi.fixture-received"]
+        reveal(received,in:form,up:false);XCTAssertGreaterThan(Int(received.label) ?? 0,0)
+        reveal(app.buttons["midi.panic"],in:form);app.buttons["midi.panic"].tap()
+        app.buttons["Done"].tap();XCTAssertTrue(app.buttons["Play"].waitForExistence(timeout:5))
+    }
+    @MainActor private func reveal(_ element:XCUIElement,in scroll:XCUIElement,up:Bool=true){
+        // Form rows are virtualized. Scroll only the form and stop when the
+        // target is reachable; an application-wide downward swipe can dismiss
+        // the sheet before a row has been measured.
+        for _ in 0..<8{
+            if element.exists && element.isHittable{return}
+            if up{scroll.swipeUp()}else{scroll.swipeDown()}
+        }
+        XCTAssertTrue(element.exists,"Expected the requested MIDI form row")
+        XCTAssertTrue(element.isHittable,"Expected the MIDI form row to be reachable")
     }
     @MainActor func testPerformRecordingSurvivesNavigationAndReplays() {
         let app=launch("perform")
