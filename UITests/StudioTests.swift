@@ -45,6 +45,25 @@ final class StudioTests: XCTestCase {
         XCTAssertFalse(app.staticTexts["Build your beat, layer by layer."].exists)
         for _ in 0..<4 {if guide.isHittable{break};app.scrollViews.firstMatch.swipeDown()}
         guide.tap();XCTAssertEqual(guide.value as? String,"Свёрнуто");XCTAssertFalse(hint.exists)
+        let scroll=app.scrollViews.firstMatch
+        let steps=app.buttons["Шаги"];reveal(steps,in:scroll,up:false);steps.tap()
+        let step=app.buttons["jam.step.0"];reveal(step,in:scroll)
+        XCTAssertEqual(step.label,"Шаг 1");XCTAssertGreaterThanOrEqual(step.frame.height,44)
+        let original=step.value as? String
+        XCTAssertTrue(original=="Вкл." || original=="Выкл.")
+        let undo=app.buttons["Отменить"];XCTAssertFalse(undo.isEnabled)
+        step.tap()
+        let changed=original=="Вкл." ? "Выкл.":"Вкл."
+        XCTAssertEqual(XCTWaiter.wait(for:[XCTNSPredicateExpectation(predicate:NSPredicate(format:"value == %@",changed),object:step)],timeout:5),.completed)
+        XCTAssertTrue(undo.isEnabled);undo.tap()
+        XCTAssertEqual(XCTWaiter.wait(for:[XCTNSPredicateExpectation(predicate:NSPredicate(format:"value == %@",original ?? ""),object:step)],timeout:5),.completed)
+        XCTAssertFalse(undo.isEnabled)
+        app.buttons["Микшер"].tap()
+        let reset=app.buttons["mixer.reset.0"]
+        XCTAssertTrue(reset.waitForExistence(timeout:5));reveal(reset,in:app.scrollViews.firstMatch)
+        XCTAssertTrue(reset.label.contains("децибела"));XCTAssertTrue(reset.label.contains("Нажми для сброса."))
+        XCTAssertFalse(reset.label.contains("decibels"));XCTAssertFalse(reset.label.contains("Tap to reset"))
+        XCTAssertGreaterThanOrEqual(reset.frame.height,44)
     }
     @MainActor func testLargeTypeMixerAndAccessibleNoteList() throws {
         XCUIDevice.shared.orientation = .portrait

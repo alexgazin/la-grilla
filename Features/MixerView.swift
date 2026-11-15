@@ -38,7 +38,7 @@ struct MixerView: View {
         return VStack(spacing:8){
             RoundedRectangle(cornerRadius:2).fill(color).frame(height:3)
             Text(track?.displayName ?? NSLocalizedString("Master",comment:"Master channel")).font(.system(size:11,weight:.semibold)).lineLimit(1)
-            Button{session.mixerGesture=false;setGain(index,0);session.mixerGesture=false}label:{Text(LocalizedStringKey(gain<=(-61) ? "−∞":String(format:"%.1f",gain))).font(.system(size:16,weight:.semibold,design:.monospaced)).frame(maxWidth:.infinity,minHeight:44)}.buttonStyle(StudioQuietButtonStyle()).foregroundStyle(color).accessibilityLabel("\(gain) decibels. Tap to reset.")
+            Button{session.mixerGesture=false;setGain(index,0);session.mixerGesture=false}label:{Text(LocalizedStringKey(gain<=(-61) ? "−∞":String(format:"%.1f",gain))).font(.system(size:16,weight:.semibold,design:.monospaced)).frame(maxWidth:.infinity,minHeight:44)}.buttonStyle(StudioQuietButtonStyle()).foregroundStyle(color).accessibilityLabel("\(gain,specifier:"%.1f") decibels. Tap to reset.").accessibilityIdentifier("mixer.reset.\(index)")
             GeometryReader{geo in
                 let h=max(60,geo.size.height-22)
                 ZStack(alignment:.top){
