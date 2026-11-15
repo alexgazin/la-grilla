@@ -20,11 +20,12 @@ import Observation
     var exportTask: Task<Void,Never>?
     var exportInProgress=false; var exportProgress=0.0; var exportWarning:String?; var exportError:String?
     private var exportGeneration=0; private var exportedFolder:URL?
+    var harmonyPreview=false;private var previewPosition=0;private var previewPlaying=false
     var noteTrackID:UUID?
     var importing=false
     var ready = false; private var bootstrapTask:Task<Void,Never>?; var saveTask: Task<Void,Never>?
     let store: ProjectStore
-    enum Sheet: String, Identifiable {case projects, newProject, export, settings, bass, sections, notes; var id: String { rawValue }}
+    enum Sheet: String, Identifiable {case projects, newProject, export, settings, bass, sections, notes, harmony; var id: String { rawValue }}
     init() {
         let root = ProcessInfo.processInfo.arguments.contains("--uitesting") ? FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString) : FileManager.default.urls(for: .documentDirectory,in:.userDomainMask)[0].appendingPathComponent("Projects")
         store = ProjectStore(root: root)
@@ -135,6 +136,16 @@ import Observation
         commitPass()
         take=[];Task{await save()}
     }
+    func previewHarmony(_ p:Project,section:MusicDomain.Section){
+        finishTake();guard ensureAudio()else{return}
+        if !harmonyPreview{previewPosition=Int(audio.tick);previewPlaying=audio.playing;harmonyPreview=true}
+        audio.audition(p,range:section.start..<section.start+section.length)
+    }
+    func endHarmonyPreview(){
+        guard harmonyPreview else{return};harmonyPreview=false
+        if previewPlaying{audio.audition(project,range:loopRange,tick:min(loopRange.upperBound-1,max(loopRange.lowerBound,previewPosition)),loop:loop)}
+        else{audio.stop();audio.seek(previewPosition);sync()}
+    }
     func openNotes(_ id:UUID?=nil){
         finishTake()
         if let id{noteTrackID=id}
@@ -216,5 +227,5 @@ import Observation
         var copy=project; copy.id=UUID(); copy.name += " copy"
         do {try await store.save(copy); message="A copy has been saved.";entries=try await store.list()}catch{message=error.localizedDescription}
     }
-    func interrupt() {finishTake();audio.reset();Task{await save()}}
+    func interrupt() {harmonyPreview=false;finishTake();audio.reset();Task{await save()}}
 }

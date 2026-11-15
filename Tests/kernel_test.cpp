@@ -40,5 +40,8 @@ int main(){
  peak=0;for(int i=0;i<10;i++){lg_render(k,l.data(),r.data(),512);for(float f:l)peak=std::max(peak,std::abs(f));}
  assert(peak>0.01);assert(lg_meter(k,7)>0.01);assert(lg_meter(k,8)>0.01);assert(lg_meter(k,3)==0);
  lg_mix(k,7,-61,0,0);for(int i=0;i<20;i++)lg_render(k,l.data(),r.data(),512);for(float f:l)assert(std::abs(f)<0.00001);lg_destroy(k);
+ // Preview swaps snapshots immediately at a buffer boundary, even at the same song revision.
+ k=lg_create(48000);assert(lg_submit(k,n,3,120,0,15360,1,1));lg_play(k,1);lg_render(k,l.data(),r.data(),512);
+ LGNote proposal={0,3840,79,100,0,-1,0};assert(lg_submit(k,&proposal,1,120,0,15360,1,2));lg_seek(k,0);lg_restart(k);lg_render(k,l.data(),r.data(),512);assert(lg_revision(k)==2);assert(lg_playing(k));assert(lg_tick(k)<30);lg_destroy(k);
  std::cout<<"Kernel: render, loop boundary, pending revision, stop, pad, overflow, 10 minute clock, concurrent snapshot ownership passed\n";
 }

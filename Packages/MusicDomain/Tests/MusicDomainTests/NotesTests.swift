@@ -13,12 +13,12 @@ struct NotesTests {
         let folder=root.appendingPathComponent(p.id.uuidString+".grilla");try FileManager.default.createDirectory(at:folder,withIntermediateDirectories:true)
         let manifest=folder.appendingPathComponent("manifest.json");try old.write(to:manifest)
         let store=ProjectStore(root:root);var migrated=try await store.load(p.id)
-        #expect(migrated.schemaVersion==2);#expect(migrated.patterns.allSatisfy{$0.notes==[]})
+        #expect(migrated.schemaVersion==Project.currentSchemaVersion);#expect(migrated.patterns.allSatisfy{$0.notes==[]})
         #expect(try Data(contentsOf:manifest)==old)
         #expect(Compiler.notes(migrated)==Compiler.notes(Project.demo()))
         migrated.revision+=1;try await store.save(migrated)
         #expect(try Data(contentsOf:folder.appendingPathComponent("backup.json"))==old)
-        #expect(try await store.load(p.id,backup:true).schemaVersion==2)
+        #expect(try await store.load(p.id,backup:true).schemaVersion==Project.currentSchemaVersion)
     }
     @Test func eightTracksHaveIndependentPatternsAndRouting() throws {
         var p=Project.demo()

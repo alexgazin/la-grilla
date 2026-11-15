@@ -79,6 +79,7 @@ private enum AudioRender {
         if let bpm = countInBPM {lg_countin(k,Int32((sampleRate*240/bpm).rounded()))}
         lg_play(k,1); playing = true
     }
+    func audition(_ p:Project,range:Range<Int>,tick:Int?=nil,loop:Bool=true){submit(p,loop:loop,range:range);seek(tick ?? range.lowerBound);if let k=handle?.pointer{lg_restart(k)};playing=true}
     func stop() {if let k = handle?.pointer {lg_play(k,0)}; playing = false}
     func seek(_ tick: Int) {if let k = handle?.pointer {lg_seek(k,Int32(tick))}; self.tick = Double(tick)}
     func pad(_ pad: Int, velocity: Int = 100) {if let k = handle?.pointer { _ = lg_pad(k,Int32(pad),Int32(velocity)) }}

@@ -40,6 +40,13 @@ final class StudioTests: XCTestCase {
         app.buttons["Mute Harmony"].tap();XCTAssertEqual(app.buttons["Mute Harmony"].value as? String,"On")
         XCTAssertTrue(app.buttons["Play"].isHittable);app.buttons["Play"].tap();XCTAssertTrue(app.staticTexts["PLAYING"].waitForExistence(timeout:5));app.buttons["Stop"].tap()
     }
+    @MainActor func testHarmonyProposalPreviewApplyAndUndo() {
+        let app=launch();app.buttons["harmony.open"].tap();XCTAssertTrue(app.navigationBars["Harmony lab"].waitForExistence(timeout:5))
+        app.buttons["harmony.generate"].tap();app.swipeUp()
+        XCTAssertTrue(app.buttons["harmony.b"].waitForExistence(timeout:5));app.buttons["harmony.b"].tap();XCTAssertTrue(app.buttons["Stop preview"].exists)
+        app.buttons["harmony.a"].tap();app.buttons["harmony.apply"].tap()
+        XCTAssertTrue(app.buttons["Undo"].waitForExistence(timeout:5));app.buttons["Undo"].tap();XCTAssertTrue(app.buttons["Redo"].isEnabled)
+    }
     @MainActor func testWAVExportOffersSystemShare() {
         let app=launch();app.buttons["Play"].tap();app.buttons["export.open"].tap()
         XCTAssertTrue(app.buttons["format.wav"].waitForExistence(timeout:5));app.buttons["format.wav"].tap();app.buttons["export.confirm"].tap()

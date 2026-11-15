@@ -71,3 +71,15 @@ Verified source/config: `59834d0a1937c4a16860dca23439612d63aa7960`. [Successful 
 - Nine live simulator screens are stored in [Screenshots/R2](../Screenshots/R2). These images were captured from `e24380a`; later source changes only add accessibility IDs/test selectors, while CI configuration handles cold simulator startup.
 
 Physical gestures, performance/latency and external DAW interoperability remain release checks.
+
+## R3 — harmony lab
+
+Verified app/config source: `cf82a44fb1839d2307783e6bc38e4caf0193569b`. [Successful workflow](https://github.com/alexgazin/la-grilla/actions/runs/43655352838).
+
+- 35 Swift tests pass, covering extended/slash vocabulary, register/pitch-class preservation, section-scoped replacement with crossing clips, borrowed/tritone substitutions, stale/repeated proposal guards and migration.
+- C++ immediate audition-snapshot restart and existing timing/routing regressions pass.
+- Both native SDK builds and 9 native UI flows pass, including generate → B → A → Apply → Undo for harmony proposals.
+- Eleven actual live-process screenshots, including harmony settings and original/proposed chords, are checked in at [Screenshots/R3](../Screenshots/R3).
+- Reconciliation with R2 main changes only documentation, screenshots and commit ancestry; app/domain/audio/test sources remain identical to the verified source.
+
+These are deterministic local musical proposals; no cloud LLM is used. Physical A/B audio-quality acceptance remains a release gate.
