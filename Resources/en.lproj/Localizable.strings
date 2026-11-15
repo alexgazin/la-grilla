@@ -447,3 +447,28 @@
 "Project actions" = "Project actions";
 
 "More studio tools" = "More studio tools";
+
+"About La Grilla" = "About La Grilla";
+
+"Version" = "Version";
+
+"Privacy policy" = "Privacy policy";
+
+"Support" = "Support";
+
+"Projects and recordings stay on your iPhone. Portable project exports include their original voice recordings." = "Projects and recordings stay on your iPhone. Portable project exports include their original voice recordings.";
+
+/* Release visual-review corrections: conditional text and badges. */
+"A new take. Your last one is undoable." = "A new take. Your last one is undoable.";
+"BETA · MONO" = "BETA · MONO";
+"Build your beat, layer by layer." = "Build your beat, layer by layer.";
+"CLIP" = "CLIP";
+"Could not read project" = "Could not read project";
+"Count-in · get ready" = "Count-in · get ready";
+"Exporting…" = "Exporting…";
+"LOCAL" = "LOCAL";
+"ON DEVICE" = "ON DEVICE";
+"OUT" = "OUT";
+"Play something only you would." = "Play something only you would.";
+"Recording drums · tap Record to finish" = "Recording drums · tap Record to finish";
+"STEREO" = "STEREO";

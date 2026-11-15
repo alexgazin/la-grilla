@@ -1,0 +1,1 @@
+Build a song from a chord, a beat or a melody. Arrange sections, perform your ideas and export music you can keep working on.

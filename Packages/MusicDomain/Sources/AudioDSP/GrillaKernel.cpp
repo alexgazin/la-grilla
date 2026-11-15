@@ -49,7 +49,7 @@ struct LGKernel {
         };generate(kit,LegacyKitFrames);if(kitFrames!=LegacyKitFrames)generate(kitV2,kitFrames);
     }
     void endOutput(Voice &v){if(renderHub&&v.outputChannel>=0&&v.outputEpoch==uint32_t(outputState>>33))renderHub->outputOff(outputState,hostNow,v.outputChannel,v.outputPitch);v.outputChannel=-1;}
-    void startOutput(Voice &v){if(!renderHub||!v.outputAllowed)return;constexpr int map[16]={36,38,42,46,39,37,45,47,50,49,51,54,56,75,70,82};v.outputPitch=v.pad>=0?map[v.pad]:v.pitch;v.outputEpoch=uint32_t(outputState>>33);v.outputEndFrame=rendered+uint64_t(std::max(0.0,std::round((v.duration-v.age)*sr)));v.outputChannel=renderHub->outputOn(outputState,hostNow,v.track,v.outputPitch,int(v.velocity*127+0.5f));}
+    void startOutput(Voice &v){if(!renderHub||!v.outputAllowed)return;const auto remainingFrames=uint64_t(std::max(0.0,std::round((v.duration-v.age)*sr)));if(remainingFrames==0)return;constexpr int map[16]={36,38,42,46,39,37,45,47,50,49,51,54,56,75,70,82};v.outputPitch=v.pad>=0?map[v.pad]:v.pitch;v.outputEpoch=uint32_t(outputState>>33);v.outputEndFrame=rendered+remainingFrames;v.outputChannel=renderHub->outputOn(outputState,hostNow,v.track,v.outputPitch,int(v.velocity*127+0.5f));}
     void retire(const Voice &v){
         if(!v.on||v.presetVersion<2||v.lastSample==0)return;
         auto *tail=&*std::min_element(retirements.begin(),retirements.end(),[](const auto &a,const auto &b){return std::abs(a.sample)*a.remaining/a.total<std::abs(b.sample)*b.remaining/b.total;});
@@ -219,7 +219,8 @@ void lg_tail_on_end(LGKernel*k,int enabled){k->tailOnEnd.store(enabled);}
 void lg_metronome(LGKernel*k,int on){k->metro.store(on);}
 void lg_render_midi(LGKernel*k,LGMIDIHub*hub,uint64_t hostTime,double hostTicksPerSecond,float*l,float*r,int frames){
     k->renderHub=hub;k->hostNow=hostTime;
-    if(hub){const auto state=hub->outputState.load(std::memory_order_acquire);if(state!=k->outputState){k->outputState=state;hub->resetOutputRefs();for(auto &voice:k->voices){voice.outputChannel=-1;if(voice.on)k->startOutput(voice);}}}
+    bool outputChanged=false;
+    if(hub){const auto state=hub->outputState.load(std::memory_order_acquire);if(state!=k->outputState){outputChanged=true;k->outputState=state;hub->resetOutputRefs();for(auto &voice:k->voices)voice.outputChannel=-1;}}
     const double hostPerSample=hostTicksPerSecond/k->sr;
     if(hub)hub->prepare([&](int source){k->midiClear(source);});
     k->adoptMix();const bool panic=k->panicRequest.exchange(false,std::memory_order_acq_rel);if(panic){k->filterTarget.store(0);k->delayTarget.store(0);}
@@ -239,6 +240,8 @@ void lg_render_midi(LGKernel*k,LGMIDIHub*hub,uint64_t hostTime,double hostTicksP
         k->capturedFilter=filter;k->capturedDelay=delay;
     }
     k->performance.consume([&](PerformanceControl control){return k->performAction(control);});
+    // Chase only voices that survive Stop/Panic, seeks and queued section actions.
+    if(outputChanged)for(auto &voice:k->voices)if(voice.on)k->startOutput(voice);
     if(k->performance.enabled){
         for(int t=0;t<Buses;t++){if(gainTargets[t]!=k->capturedGain[t])k->performance.emit(6,t,gainTargets[t]);if(panTargets[t]!=k->capturedPan[t])k->performance.emit(7,t,panTargets[t]);}
         if(filter!=k->capturedFilter){k->performance.emit(4,-1,filter);}if(delay!=k->capturedDelay){k->performance.emit(5,-1,delay);}
@@ -251,6 +254,8 @@ void lg_render_midi(LGKernel*k,LGMIDIHub*hub,uint64_t hostTime,double hostTicksP
     float peak[Buses]={};const float ramp=float(1-std::exp(-1/(k->sr*0.005)));
     for(int f=0;f<frames;f++){
         k->hostNow=hostTime+uint64_t(double(f)*hostPerSample);
+        // Release old gates before scheduling a retrigger at this same sample.
+        for(auto &voice:k->voices)if(voice.on&&voice.outputChannel>=0&&k->rendered>=voice.outputEndFrame)k->endOutput(voice);
         if(hub)hub->due(hostTime+uint64_t(double(f)*hostPerSample),uint64_t(std::max(1.0,hostPerSample)),[&](const LGMIDIEvent &event){if(!k->performance.replaying())k->midiEvent(event);});
         if(k->active&&k->performance.enabled){
             bool replay=k->performance.replayDue([&](const LGPerformanceEvent &event){
@@ -282,7 +287,6 @@ void lg_render_midi(LGKernel*k,LGMIDIHub*hub,uint64_t hostTime,double hostTicksP
         for(int t=0;t<Buses;t++){k->smooth[t]+=(gainTargets[t]-k->smooth[t])*ramp;k->smoothPan[t]+=(panTargets[t]-k->smoothPan[t])*ramp;}
         float left=0,right=0;float buses[Buses]={};
         for(auto&v:k->voices)if(v.on){
-            if(v.outputChannel>=0&&k->rendered>=v.outputEndFrame)k->endOutput(v);
             float sample=0;const double remaining=v.duration-v.age;
             if(remaining<=0){k->endOutput(v);v.on=false;continue;}
             if(v.pad>=0){const auto &bank=v.presetVersion>=2&&k->kitFrames!=LegacyKitFrames?k->kitV2:k->kit;int frame=v.presetVersion>=2?int(v.ageFrames):int(v.age*k->sr);if(frame>=int(bank[v.pad].size())){k->endOutput(v);v.on=false;continue;}sample=bank[v.pad][frame];}

@@ -28,7 +28,7 @@ struct JamView: View {
     private var compactJam:some View {VStack(spacing:4){
         HStack{Text("Pocket kit").font(.headline);Spacer();Picker("Editor",selection:$steps){Text("Pads").tag(false);Text("Steps").tag(true)}.pickerStyle(.segmented).frame(width:145)
             Menu{
-                Picker("Quantize",selection:$session.quantize){ForEach(Quantize.allCases,id:\.rawValue){value in Text(value == .off ? "Off":value == .eighth ? "1/8":"1/16").tag(value)}}
+                Picker("Quantize",selection:$session.quantize){ForEach(Quantize.allCases,id:\.rawValue){value in Text(LocalizedStringKey(value == .off ? "Off":value == .eighth ? "1/8":"1/16")).tag(value)}}
                 Toggle("Count-in",isOn:$session.countIn);Toggle("Overdub",isOn:$session.overdub)
                 Toggle("Metronome",isOn:Binding(get:{session.metronome},set:{session.metronome=$0;session.audio.metronome($0)}))
                 Picker("Loop length",selection:Binding(get:{session.loopBars},set:{session.setLoop(bars:$0)})){ForEach([1,2,4,8],id:\.self){bars in Text("\(bars) bars").tag(bars)}}.disabled(session.performance.contextActive)

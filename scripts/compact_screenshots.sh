@@ -7,12 +7,8 @@ try:sys.exit(subprocess.run(sys.argv[2:],timeout=int(sys.argv[1])).returncode)
 except subprocess.TimeoutExpired:sys.exit(124)
 PY
 }
-COMPACT=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin); print(next((x["udid"] for group in d["devices"].values() for x in group if x["name"]=="iPhone SE (3rd generation)"),""))')
-if test -z "$COMPACT"; then
-  RUNTIME=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin); target=open("/tmp/grilla-simulator-id").read().strip(); print(next(k for k,v in d["devices"].items() if any(x["udid"]==target for x in v)))')
-  COMPACT=$(run_limited 60 xcrun simctl create GrillaCompact com.apple.CoreSimulator.SimDeviceType.iPhone-SE-3rd-generation "$RUNTIME")
-fi
 DEVICE=$(cat /tmp/grilla-simulator-id)
+COMPACT=$(python3 scripts/select_simulator.py --name "iPhone SE (3rd generation)" --type com.apple.CoreSimulator.SimDeviceType.iPhone-SE-3rd-generation --same-runtime-as "$DEVICE")
 run_limited 60 xcrun simctl shutdown "$DEVICE" || true
 run_limited 60 xcrun simctl boot "$COMPACT" || true
 run_limited 300 xcrun simctl bootstatus "$COMPACT" -b

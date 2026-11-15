@@ -11,3 +11,12 @@ node_modules/
 
 ExportFixtures/
 LaGrilla-Simulator.zip
+
+ReleaseDerivedData/
+ReleaseArtifacts/
+TestResults.xcresult/
+CompactResults.xcresult/
+NativeAttachments/
+
+__pycache__/
+*.pyc

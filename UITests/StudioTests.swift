@@ -29,6 +29,13 @@ final class StudioTests: XCTestCase {
         XCTAssertTrue(app.buttons["Сетка"].waitForExistence(timeout:15));app.buttons["export.open"].tap()
         XCTAssertTrue(app.navigationBars["Экспорт"].waitForExistence(timeout:5));XCTAssertTrue(app.buttons["Отмена"].exists)
         let shot=XCTAttachment(data:XCUIScreen.main.screenshot().pngRepresentation,uniformTypeIdentifier:"public.png");shot.name="R8-russian-light-export";shot.lifetime = .keepAlways;add(shot)
+        app.buttons["Отмена"].tap();app.buttons["Джем"].tap()
+        let hint=app.staticTexts["Сыграй свой собственный ритм."]
+        XCTAssertTrue(hint.waitForExistence(timeout:5))
+        for _ in 0..<4 {if app.staticTexts["Создавай бит слой за слоем."].isHittable{break};app.scrollViews.firstMatch.swipeUp()}
+        XCTAssertTrue(app.staticTexts["Создавай бит слой за слоем."].exists)
+        XCTAssertFalse(app.staticTexts["Play something only you would."].exists)
+        XCTAssertFalse(app.staticTexts["Build your beat, layer by layer."].exists)
     }
     @MainActor func testLargeTypeMixerAndAccessibleNoteList() throws {
         XCUIDevice.shared.orientation = .portrait
@@ -66,8 +73,10 @@ final class StudioTests: XCTestCase {
         app.buttons["perform.transport"].tap();XCTAssertTrue(app.buttons["perform.record"].waitForExistence(timeout:5));app.buttons["perform.record"].tap()
         app.swipeUp();app.swipeUp();app.swipeUp()
         XCTAssertTrue(app.staticTexts["perform.saved"].waitForExistence(timeout:5));app.buttons["perform.replay"].tap()
-        app.swipeDown();app.swipeDown();app.swipeDown()
-        XCTAssertTrue(app.staticTexts["perform.mode"].waitForExistence(timeout:5));XCTAssertEqual(app.staticTexts["perform.mode"].label,"TAKE REPLAY")
+        let mode=app.staticTexts["perform.mode"]
+        // Stop at the header: another downward swipe at the top dismisses the sheet.
+        for _ in 0..<6 {if mode.isHittable{break};app.scrollViews.firstMatch.swipeDown()}
+        XCTAssertTrue(mode.waitForExistence(timeout:5));XCTAssertEqual(mode.label,"TAKE REPLAY")
         app.buttons["perform.panic"].tap();app.buttons["perform.done"].tap()
         XCTAssertTrue(app.buttons["Play"].waitForExistence(timeout:5))
     }

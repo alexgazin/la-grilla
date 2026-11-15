@@ -15,12 +15,31 @@ for key,value in catalogs['ru'].items():
     assert placeholder.findall(key)==placeholder.findall(value),f'Changed formatting: {key}'
 literal=r'"((?:[^"\\]|\\.)*)"'
 ui=re.compile(r'(?:Text|Button|Label|Section|navigationTitle|accessibilityLabel|ContentUnavailableView|NSLocalizedString)\(\s*'+literal+r'|SmallHeading\(text:\s*'+literal)
+def localized_expressions(source):
+    # Ternary keys and badge text are not the first literal of Text(...).
+    # Read balanced arguments, ignoring parentheses inside Swift string literals.
+    for match in re.finditer(r'(?:LocalizedStringKey|CapsuleLabel)\(',source):
+        start=position=match.end();depth=1;quoted=escaped=False
+        while position<len(source) and depth:
+            char=source[position]
+            if quoted:
+                if escaped:escaped=False
+                elif char=='\\':escaped=True
+                elif char=='"':quoted=False
+            elif char=='"':quoted=True
+            elif char=='(':depth+=1
+            elif char==')':depth-=1
+            position+=1
+        assert depth==0,'Unbalanced localized expression'
+        value=re.sub(r'comment:\s*'+literal,'',source[start:position-1])
+        yield from re.findall(literal,value)
 missing=set()
 paths=list((root/'App').glob('*.swift'))+list((root/'Features').glob('*.swift'))
 for path in paths:
-    for match in ui.finditer(path.read_text()):
-        key=match[1] or match[2]
-        if '\\(' in key or not re.search('[A-Za-zА-Яа-я]',key):continue
+    source=path.read_text()
+    keys=[match[1] or match[2] for match in ui.finditer(source)]+list(localized_expressions(source))
+    for key in keys:
+        if '\\(' in key or not re.search('[A-Za-zА-Яа-я]',placeholder.sub('',key)):continue
         key=json.loads('"'+key+'"')
         if key not in catalogs['ru']:missing.add(key)
 assert not missing,'Missing UI keys: '+repr(sorted(missing))

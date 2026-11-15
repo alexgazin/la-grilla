@@ -1,5 +1,7 @@
 name: iOS build and verification
 on: [push, workflow_dispatch]
+env:
+  DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
 concurrency:
   group: ios-${{ github.ref }}
   cancel-in-progress: true
@@ -10,6 +12,8 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+      - name: Verify current App Store toolchain
+        run: python3 scripts/release/assert_sdk.py
       - name: Domain behavioral tests
         env:
           GRILLA_VOICE_METRICS: ${{ github.workspace }}/ExportFixtures/voice-metrics.json
@@ -20,6 +24,10 @@ jobs:
         run: python3 scripts/verify_exports.py ExportFixtures && python3 scripts/verify_voice_assets.py ExportFixtures && python3 scripts/verify_performance.py ExportFixtures
       - name: Verify generated project is current
         run: python3 scripts/generate_project.py && git diff --exit-code -- LaGrilla.xcodeproj
+      - name: Release configuration audit
+        run: |
+          python3 scripts/release/audit_release.py
+          for GRILLA_SCRIPT in scripts/release/*.sh; do bash -n "$GRILLA_SCRIPT"; done
       - name: Presentation and localization audit
         run: python3 scripts/audit_presentation.py && plutil -lint Resources/en.lproj/Localizable.strings Resources/ru.lproj/Localizable.strings
       - name: Audio kernel tests
@@ -45,19 +53,25 @@ jobs:
       - name: Native user flows
         env:
           GRILLA_UI_ONLY: ${{ contains(github.event.head_commit.message, '[ui-only]') && '1' || '0' }}
+          GRILLA_RU_RECAPTURE: ${{ contains(github.event.head_commit.message, '[ru-capture]') && '1' || '0' }}
+          TEST_RUNNER_GRILLA_RU_RECAPTURE: ${{ contains(github.event.head_commit.message, '[ru-capture]') && '1' || '0' }}
         run: |
           set -o pipefail
           DEVICE=$(cat /tmp/grilla-simulator-id)
           FILTER=(-skip-testing:LaGrillaUITests/ScreenshotTests/testCaptureCompactScreens)
           if test "$GRILLA_UI_ONLY" = 1; then FILTER=(-only-testing:LaGrillaUITests/StudioTests); fi
+          if test "$GRILLA_RU_RECAPTURE" = 1; then FILTER+=(-only-testing:LaGrillaUITests/ScreenshotTests/testCaptureStoreScreens); fi
           xcodebuild "${FILTER[@]}" -test-timeouts-enabled YES -maximum-test-execution-time-allowance 600 -project LaGrilla.xcodeproj -scheme LaGrilla -destination "platform=iOS Simulator,id=$DEVICE" -derivedDataPath DerivedData -resultBundlePath TestResults.xcresult ARCHS=arm64 ONLY_ACTIVE_ARCH=YES CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO test-without-building | tee uitests.log
       - name: Compact iPhone screenshots
-        if: always() && !cancelled() && steps.simulator_build.outcome == 'success' && !contains(github.event.head_commit.message, '[ui-only]')
+        if: always() && !cancelled() && steps.simulator_build.outcome == 'success' && (!contains(github.event.head_commit.message, '[ui-only]') || contains(github.event.head_commit.message, '[ru-capture]'))
+        env:
+          GRILLA_RU_RECAPTURE: ${{ contains(github.event.head_commit.message, '[ru-capture]') && '1' || '0' }}
+          TEST_RUNNER_GRILLA_RU_RECAPTURE: ${{ contains(github.event.head_commit.message, '[ru-capture]') && '1' || '0' }}
         run: bash scripts/compact_screenshots.sh
       - name: Export native QA screenshots
         if: always() && !cancelled()
         env:
-          GRILLA_CAPTURE_OPTION: ${{ contains(github.event.head_commit.message, '[ui-only]') && '--allow-empty' || '' }}
+          GRILLA_CAPTURE_OPTION: ${{ contains(github.event.head_commit.message, '[ui-only]') && !contains(github.event.head_commit.message, '[ru-capture]') && '--allow-empty' || '' }}
         run: |
           if test -d TestResults.xcresult; then
             xcrun xcresulttool export attachments --path TestResults.xcresult --output-path NativeAttachments/main
@@ -65,7 +79,10 @@ jobs:
           if test -d CompactResults.xcresult; then
             xcrun xcresulttool export attachments --path CompactResults.xcresult --output-path NativeAttachments/compact
           fi
-          python3 scripts/collect_native_screenshots.py NativeAttachments Screenshots/R8 R8 "$GRILLA_CAPTURE_OPTION"
+          python3 scripts/collect_native_screenshots.py NativeAttachments Screenshots/R10 R10 "$GRILLA_CAPTURE_OPTION"
+      - name: Prepare validated App Store screenshots
+        if: success() && (!contains(github.event.head_commit.message, '[ui-only]') || contains(github.event.head_commit.message, '[ru-capture]'))
+        run: python3 scripts/release/prepare_store_screenshots.py Screenshots/R10 Screenshots/AppStore
       - name: Save simulator screenshots
         if: always()
         uses: actions/upload-artifact@v4
@@ -98,6 +115,8 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+      - name: Verify current App Store toolchain
+        run: python3 scripts/release/assert_sdk.py
       - name: Compile for physical iPhone SDK without signing
         run: |
           set -o pipefail
@@ -107,3 +126,21 @@ jobs:
         with:
           name: iphone-build-log
           path: iphone-build.log
+
+  release-archive:
+    runs-on: macos-15
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify current App Store toolchain
+        run: python3 scripts/release/assert_sdk.py
+      - name: Archive optimized iPhone binary and validate bundled resources
+        run: bash scripts/release/archive_unsigned.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: unsigned-release-archive
+          path: |
+            ReleaseArtifacts/LaGrilla-unsigned-archive.zip
+            ReleaseArtifacts/*.log
+            ReleaseArtifacts/*-uuid.txt

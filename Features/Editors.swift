@@ -33,6 +33,13 @@ struct SettingsView: View {
         Section("Transport"){Toggle("Loop",isOn:Binding(get:{session.loop},set:{session.setLoop(enabled:$0)}));Picker("Loop length",selection:Binding(get:{session.loopBars},set:{session.setLoop(bars:$0)})){ForEach([1,2,4,8],id:\.self){n in Text("\(n) bars").tag(n)}}}
         Section("MIDI"){Button("MIDI devices"){session.sheet = .midiDevices}}
         Section("Audio"){LabeledContent("Sample rate",value:"\(Int(session.audio.sampleRate)) Hz");Text("Wireless headphones add latency. For live pads, use the speaker or wired audio.").font(.caption).foregroundStyle(.secondary)}
+        Section("About La Grilla"){
+            LabeledContent("Version",value:"\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "") (\(Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? ""))")
+            Link("Privacy policy",destination:URL(string:"https://github.com/alexgazin/la-grilla/blob/main/docs/privacy/"+(Locale.current.language.languageCode?.identifier=="ru" ? "ru":"en")+".md")!)
+            Link("Support",destination:URL(string:"https://github.com/alexgazin/la-grilla/issues")!)
+            Text("Projects and recordings stay on your iPhone. Portable project exports include their original voice recordings.").font(.caption).foregroundStyle(.secondary)
+        }
+
     }.navigationTitle("Project settings").toolbar{ToolbarItem(placement:.confirmationAction){Button("Done"){session.sheet=nil}}}}.presentationDetents([.medium,.large])}
 }
 struct BassView: View {
