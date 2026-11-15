@@ -138,7 +138,10 @@ struct GridView: View {
             // The drop host contains distinct clip controls. It must not absorb
             // their accessibility frames into its lane-wide UIKit host view.
             .accessibilityElement(children:.contain)
-            .dropDestination(for:String.self,action:{items,point in dropClip(items,on:track.id,at:point)},isTargeted:{targeted in if targeted{targetTrack=track.id}else if targetTrack==track.id{targetTrack=nil}})
+            .dropDestination(for:String.self,action:{items,point in dropClip(items,on:track.id,at:point)},isTargeted:{targeted in
+                ArrangementDragDiagnostics.record("drop targeted track=\(track.id) targeted=\(targeted)")
+                if targeted{targetTrack=track.id}else if targetTrack==track.id{targetTrack=nil}
+            })
     }
     private func clipBlock(track:Track,clip:Clip,height:CGFloat,notes:[CompiledNote])->some View {
         let draft=resizeDraft?.payload.objectID==clip.id ? resizeDraft:nil

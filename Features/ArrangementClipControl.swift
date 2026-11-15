@@ -148,6 +148,8 @@ final class ArrangementClipControlView:UIView,UIGestureRecognizerDelegate,UIDrag
     }
     func dragInteraction(_ interaction:UIDragInteraction,sessionAllowsMoveOperation session:UIDragSession)->Bool{true}
     func dragInteraction(_ interaction:UIDragInteraction,previewForLifting item:UIDragItem,session:UIDragSession)->UITargetedDragPreview? {
+        let started=ProcessInfo.processInfo.systemUptime
+        defer{ArrangementDragDiagnostics.record("preview return id=\(accessibilityIdentifier ?? "unknown") duration=\(ProcessInfo.processInfo.systemUptime-started)")}
         guard let window else{return nil}
         var rect=convert(bounds,to:window).intersection(window.bounds)
         var parent=superview
@@ -157,12 +159,15 @@ final class ArrangementClipControlView:UIView,UIGestureRecognizerDelegate,UIDrag
         }
         guard !rect.isNull,!rect.isEmpty else{return nil}
         ArrangementDragDiagnostics.record("preview id=\(accessibilityIdentifier ?? "unknown") rect=\(rect)")
-        let format=UIGraphicsImageRendererFormat();format.scale=window.screen.scale
-        let image=UIGraphicsImageRenderer(size:rect.size,format:format).image{context in
-            context.cgContext.translateBy(x:-rect.minX,y:-rect.minY)
-            _ = window.drawHierarchy(in:window.bounds,afterScreenUpdates:false)
+        // Reuse the already rendered clip rectangle. Rasterizing the complete
+        // window here can block the lift long enough to consume the gesture.
+        let snapshotStarted=ProcessInfo.processInfo.systemUptime
+        guard let preview=window.resizableSnapshotView(from:rect,afterScreenUpdates:false,withCapInsets:.zero)else{
+            ArrangementDragDiagnostics.record("preview snapshot unavailable duration=\(ProcessInfo.processInfo.systemUptime-snapshotStarted)")
+            return nil
         }
-        let preview=UIImageView(image:image);preview.frame=CGRect(origin:.zero,size:rect.size)
+        ArrangementDragDiagnostics.record("preview snapshot finished duration=\(ProcessInfo.processInfo.systemUptime-snapshotStarted)")
+        preview.frame=CGRect(origin:.zero,size:rect.size)
         let parameters=UIDragPreviewParameters();parameters.backgroundColor = .clear
         parameters.visiblePath=UIBezierPath(roundedRect:preview.bounds,cornerRadius:11)
         let target=UIDragPreviewTarget(container:window,center:CGPoint(x:rect.midX,y:rect.midY))
