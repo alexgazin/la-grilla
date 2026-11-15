@@ -25,6 +25,42 @@ trap 'rm -rf "$GRILLA_CI_AUDIO_TMP"' EXIT
 sw_vers
 uname -m
 system_profiler SPAudioDataType -json
+
+# Simulator remembers its own recent audio-device choices independently of
+# the Mac's defaults (Apple: configuring-the-environment-of-a-simulated-device).
+# Verify the exact installed Simulator recognizes these menu preference keys;
+# do not invent AudioDeviceInputUID/AudioDeviceOutputUID app-side overrides.
+GRILLA_CI_AUDIO_DEVELOPER_DIR=${DEVELOPER_DIR:-$(xcode-select -p)}
+GRILLA_CI_AUDIO_SIMULATOR="$GRILLA_CI_AUDIO_DEVELOPER_DIR/Applications/Simulator.app/Contents/MacOS/Simulator"
+if pgrep -x Simulator >/dev/null; then
+  echo "Simulator audio preferences must be configured before Simulator launches." >&2
+  exit 1
+fi
+/usr/bin/strings -a "$GRILLA_CI_AUDIO_SIMULATOR" > "$GRILLA_CI_AUDIO_TMP/simulator-strings.txt"
+python3 - "$GRILLA_CI_AUDIO_TMP/simulator-strings.txt" <<'PY'
+import sys
+strings=set(open(sys.argv[1],errors='replace').read().splitlines())
+keys=['RecentAudioInputDeviceUIDs','RecentAudioOutputDeviceUIDs']
+print('Installed Simulator audio UID strings:',sorted(value for value in strings if 'Audio' in value and 'UID' in value and len(value)<120))
+for key in keys:
+    assert key in strings, 'Installed Simulator does not expose the expected audio preference: '+key
+print('Verified installed Simulator menu preference strings:',', '.join(keys))
+PY
+echo "Simulator audio preferences before explicit device selection:"
+for GRILLA_CI_AUDIO_KEY in AudioDeviceInputUID AudioDeviceOutputUID RecentAudioInputDeviceUIDs RecentAudioOutputDeviceUIDs; do
+  echo "$GRILLA_CI_AUDIO_KEY:"
+  defaults read com.apple.iphonesimulator "$GRILLA_CI_AUDIO_KEY" || true
+done
+defaults write com.apple.iphonesimulator RecentAudioInputDeviceUIDs -array BlackHole2ch_UID
+defaults write com.apple.iphonesimulator RecentAudioOutputDeviceUIDs -array BlackHole2ch_UID
+python3 - <<'PY'
+import plistlib,subprocess
+prefs=plistlib.loads(subprocess.check_output(['defaults','export','com.apple.iphonesimulator','-']))
+for key in ['RecentAudioInputDeviceUIDs','RecentAudioOutputDeviceUIDs']:
+    assert prefs.get(key)==['BlackHole2ch_UID'], 'Simulator audio preference did not persist: '+key
+    print(key+': '+repr(prefs[key]))
+print('Explicit Simulator duplex preferences verified before boot; actual native PCM is still required.')
+PY
 brew info --json=v2 --cask blackhole-2ch > "$GRILLA_CI_AUDIO_TMP/cask.json"
 brew info --json=v2 switchaudio-osx > "$GRILLA_CI_AUDIO_TMP/formula.json"
 # Refuse an unreviewed package update instead of silently changing the CI route.

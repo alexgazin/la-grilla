@@ -18,6 +18,13 @@ GRILLA_XCODE_DEVELOPER_DIR=${DEVELOPER_DIR:-$(xcode-select -p)}
 run_limited 60 open -a "$GRILLA_XCODE_DEVELOPER_DIR/Applications/Simulator.app" --args -CurrentDeviceUDID "$DEVICE" || true
 run_limited 60 xcrun simctl boot "$DEVICE" || true
 run_limited 300 xcrun simctl bootstatus "$DEVICE" -b
+if test -f ci-audio.log; then
+  {
+    echo "Simulator audio preferences after actual device boot:"
+    defaults read com.apple.iphonesimulator RecentAudioInputDeviceUIDs || true
+    defaults read com.apple.iphonesimulator RecentAudioOutputDeviceUIDs || true
+  } 2>&1 | tee -a ci-audio.log
+fi
 if test "${GRILLA_CAPTURE_SCREENS:-1}" = 0; then
   # XCTest installs and launches its own correctly signed application.
   exit 0

@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import MusicDomain
 struct ChordEditor: View {
     @Bindable var session: Session; let selection: ChordSelection
@@ -98,8 +99,7 @@ struct BassView: View {
                 Spacer()
                 // Keep the platform switch's hit region independent of the
                 // Form cell and its descriptive/status rows on iOS 26.
-                Toggle("Root bass",isOn:bassEnabled).labelsHidden().toggleStyle(.switch)
-                    .frame(width:64,height:44).accessibilityLabel("Root bass").accessibilityIdentifier("bass.enabled").disabled(editingLocked)
+                RootBassSwitch(isOn:bassEnabled,enabled:!editingLocked).frame(width:64,height:44)
             }
             Text("Bass follows the roots of your chords.").foregroundStyle(.secondary).font(.caption)
             Text(LocalizedStringKey(session.audio.playing ? "PLAYING":"STOPPED")).font(.caption.monospaced()).foregroundStyle(Color.muted).accessibilityIdentifier("bass.playback-state")
@@ -110,6 +110,51 @@ struct BassView: View {
         }.disabled(editingLocked)}
     }.tint(.bass).navigationTitle("Bass").toolbar{ToolbarItem(placement:.confirmationAction){Button("Done"){session.sheet=nil}}}}.presentationDetents([.medium])}
 }
+
+/// UISwitch keeps its native visual, valueChanged and accessibility behavior.
+/// The host, touch and accessibility rectangles share the same 64×44 bounds;
+/// the smaller system-drawn thumb does not shrink the interactive target.
+@MainActor private struct RootBassSwitch:UIViewRepresentable {
+    @Binding var isOn:Bool
+    let enabled:Bool
+    func makeUIView(context:Context)->RootBassUISwitch {
+        let control=RootBassUISwitch()
+        control.addTarget(context.coordinator,action:#selector(Coordinator.changed(_:)),for:.valueChanged)
+        return control
+    }
+    func updateUIView(_ control:RootBassUISwitch,context:Context){
+        context.coordinator.value=$isOn
+        control.isEnabled=enabled && context.environment.isEnabled
+        control.accessibilityIdentifier="bass.enabled"
+        control.accessibilityLabel=NSLocalizedString("Root bass",comment:"Bass switch")
+        control.onTintColor=UIColor(Color.bass)
+        if control.isOn != isOn{control.setOn(isOn,animated:control.window != nil)}
+    }
+    func makeCoordinator()->Coordinator{Coordinator(value:$isOn)}
+    func sizeThatFits(_ proposal:ProposedViewSize,uiView:RootBassUISwitch,context:Context)->CGSize?{CGSize(width:64,height:44)}
+    static func dismantleUIView(_ uiView:RootBassUISwitch,coordinator:Coordinator){uiView.removeTarget(coordinator,action:#selector(Coordinator.changed(_:)),for:.valueChanged)}
+    @MainActor final class Coordinator:NSObject {
+        var value:Binding<Bool>
+        init(value:Binding<Bool>){self.value=value}
+        @objc func changed(_ sender:UISwitch){
+            value.wrappedValue=sender.isOn
+            // A source-edit guard may reject a change. Reflect the authoritative
+            // project value without emitting a second valueChanged event.
+            if sender.isOn != value.wrappedValue{sender.setOn(value.wrappedValue,animated:true)}
+        }
+    }
+}
+
+@MainActor private final class RootBassUISwitch:UISwitch {
+    private var hitBounds:CGRect{bounds.insetBy(dx:-max(0,64-bounds.width)/2,dy:-max(0,44-bounds.height)/2)}
+    override var intrinsicContentSize:CGSize{CGSize(width:64,height:44)}
+    override func point(inside point:CGPoint,with event:UIEvent?)->Bool{isEnabled && hitBounds.contains(point)}
+    override var accessibilityFrame:CGRect {
+        get{guard window != nil else{return super.accessibilityFrame};return UIAccessibility.convertToScreenCoordinates(hitBounds,in:self)}
+        set{super.accessibilityFrame=newValue}
+    }
+}
+
 struct SectionsView: View {
     @Bindable var session: Session
     @State private var editing: UUID?

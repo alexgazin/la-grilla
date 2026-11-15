@@ -170,25 +170,16 @@ struct GridView: View {
                     .accessibilityLabel("Resize clip").accessibilityHidden(true)
             }
         }.buttonStyle(.plain).frame(width:width,height:max(44,height-12)).contentShape(Rectangle())
-            .simultaneousGesture(DragGesture(minimumDistance:0).onChanged{value in
-                if grabbedClip != clip.id{grabbedClip=clip.id;grabbedOffset=max(0,min(clip.length-1,Int(value.startLocation.x/barWidth*CGFloat(barTicks))))}
-            }.onEnded{_ in grabbedClip=nil})
             .modifier(ArrangementDragSource(payload:editingLocked || resizeDraft != nil ? nil:ArrangementDragPayload(project:session.project,trackID:track.id,clipID:clip.id,grabOffset:grabbedClip==clip.id ? grabbedOffset:0).encoded()))
-            .contextMenu{
-                Button("Edit clip contents"){pendingClipEditor=ClipEditorSelection(trackID:track.id,clipID:clip.id);openPendingClipEditor()}
-                Button("Clip settings"){clipSelection=ClipEditorSelection(trackID:track.id,clipID:clip.id)}
-                Button("Duplicate clip"){
-                    let token=ArrangementDragPayload(project:session.project,trackID:track.id,clipID:clip.id)
-                    session.edit{try ClipEditing.copy(token,to:track.id,start:clip.start+clip.length,snap:240,in:&$0)}
-                }
-                Button("Delete clip",role:.destructive){let token=ArrangementDragPayload(project:session.project,trackID:track.id,clipID:clip.id);session.edit{try ClipEditing.delete(token,in:&$0)}}
-            }
             .accessibilityHidden(true)
         return ZStack {
             control
-            ArrangementClipAccessibility(label:track.displayName,value:String(format:NSLocalizedString("%.2f bars",comment:"Clip length"),Double(clip.length)/Double(barTicks)),identifier:"grid.clip.\(clip.id)",enabled:!editingLocked){
+            ArrangementClipAccessibility(label:track.displayName,value:String(format:NSLocalizedString("%.2f bars",comment:"Clip length"),Double(clip.length)/Double(barTicks)),identifier:"grid.clip.\(clip.id)",enabled:!editingLocked,touchBegan:{point in
+                guard resizeDraft==nil,clipSelection==nil,selection==nil,!showClipList,session.sheet==nil else{return}
+                grabbedClip=clip.id;grabbedOffset=max(0,min(clip.length-1,Int(point.x/barWidth*CGFloat(barTicks))))
+            },activate:{
                 clipSelection=ClipEditorSelection(trackID:track.id,clipID:clip.id)
-            }.frame(width:width,height:max(44,height-12))
+            }).frame(width:width,height:max(44,height-12))
         }.frame(width:width,height:max(44,height-12))
             .offset(x:CGFloat(clip.start)/CGFloat(barTicks)*barWidth+3,y:6)
             .allowsHitTesting(!editingLocked)
@@ -198,7 +189,7 @@ struct GridView: View {
         do {
             let payload=try ArrangementDragPayload.decode(items[0])
             guard payload.kind == .clip else{throw ClipEditingError.invalidDrag}
-            let raw=Double(point.x/barWidth)*Double(barTicks)-Double(payload.grabOffset)
+            let raw=Double((point.x-3)/barWidth)*Double(barTicks)-Double(payload.grabOffset)
             let tick=max(0,min(64*barTicks,Int(raw)))
             let copy=copyOnDrag,snap=clipSnap
             if !copy,payload.sourceTrackID==trackID,let track=session.project.tracks.first(where:{$0.id==trackID}),let clip=track.clips.first(where:{$0.id==payload.objectID}),try ClipEditing.snapped(tick,step:snap)==clip.start{
@@ -422,6 +413,7 @@ private struct ArrangementClipAccessibility:UIViewRepresentable {
     let value:String
     let identifier:String
     let enabled:Bool
+    let touchBegan:(CGPoint)->Void
     let activate:()->Void
     func makeUIView(context:Context)->ArrangementClipAccessibilityView {
         let view=ArrangementClipAccessibilityView()
@@ -432,12 +424,30 @@ private struct ArrangementClipAccessibility:UIViewRepresentable {
     func updateUIView(_ view:ArrangementClipAccessibilityView,context:Context){
         view.accessibilityLabel=label;view.accessibilityValue=value;view.accessibilityIdentifier=identifier
         view.accessibilityTraits=enabled ? .button:[.button,.notEnabled]
-        view.acceptsActivation=enabled;view.activate=activate
+        view.acceptsActivation=enabled;view.activate=activate;view.touchBegan=touchBegan
     }
 }
-private final class ArrangementClipAccessibilityView:UIView {
+private final class ArrangementClipAccessibilityView:UIView,UIGestureRecognizerDelegate {
     var acceptsActivation=true
     var activate:(()->Void)?
+    var touchBegan:((CGPoint)->Void)?
+    private var touchObserver:UILongPressGestureRecognizer?
+    override func didMoveToWindow(){
+        super.didMoveToWindow()
+        if let observer=touchObserver{observer.view?.removeGestureRecognizer(observer)}
+        touchObserver=nil
+        guard let window else{return}
+        let observer=UILongPressGestureRecognizer(target:nil,action:nil)
+        observer.cancelsTouchesInView=false;observer.delaysTouchesBegan=false;observer.delaysTouchesEnded=false
+        observer.delegate=self;window.addGestureRecognizer(observer);touchObserver=observer
+    }
+    func gestureRecognizer(_ gestureRecognizer:UIGestureRecognizer,shouldReceive touch:UITouch)->Bool {
+        // Observe the initial local anchor without entering gesture recognition.
+        // Native SwiftUI drag, taps, resize and scrolling receive every touch.
+        let point=touch.location(in:self)
+        if acceptsActivation,bounds.contains(point){touchBegan?(point)}
+        return false
+    }
     override var accessibilityFrame:CGRect {
         get{UIAccessibility.convertToScreenCoordinates(bounds,in:self)}
         set{super.accessibilityFrame=newValue}

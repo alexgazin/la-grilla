@@ -1,6 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "La Grilla local assistant proposal",
+  "title": "La Grilla assistant proposal — versions 1 and 2",
+  "description": "Canonical AssistantProposal JSON envelope, distinct from project schema v8 and from the internal model interpretation. Always decode and validate against the actual project before review/apply.",
+  "$comment": "AssistantProposal.decode also enforces a 64,000-byte payload limit, exact project/revision/scope identity, operation parameter whitelist and full project validation after every operation. JSON Schema cannot express those stateful musical relations. JSONEncoder omits nil optionals; this canonical schema does not permit unrelated null operation parameters that Codable may ignore.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -19,7 +21,11 @@
       "format": "uuid"
     },
     "schemaVersion": {
-      "const": 1
+      "type": "integer",
+      "enum": [
+        1,
+        2
+      ]
     },
     "projectID": {
       "type": "string",
@@ -27,7 +33,8 @@
     },
     "baseRevision": {
       "type": "integer",
-      "minimum": 0
+      "minimum": 0,
+      "maximum": 2147483647
     },
     "scopeSectionID": {
       "type": "string",
@@ -38,198 +45,7 @@
       "minItems": 1,
       "maxItems": 16,
       "items": {
-        "oneOf": [
-          {
-            "type": "object",
-            "additionalProperties": false,
-            "required": [
-              "type",
-              "bpm"
-            ],
-            "properties": {
-              "type": {
-                "const": "setTempo"
-              },
-              "bpm": {
-                "type": "number",
-                "minimum": 40,
-                "maximum": 240
-              }
-            }
-          },
-          {
-            "type": "object",
-            "additionalProperties": false,
-            "required": [
-              "type",
-              "root",
-              "minor"
-            ],
-            "properties": {
-              "type": {
-                "const": "setKey"
-              },
-              "root": {
-                "type": "integer",
-                "minimum": 0,
-                "maximum": 11
-              },
-              "minor": {
-                "type": "boolean"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "additionalProperties": false,
-            "required": [
-              "type",
-              "sectionID",
-              "name"
-            ],
-            "properties": {
-              "type": {
-                "const": "renameSection"
-              },
-              "sectionID": {
-                "type": "string",
-                "format": "uuid"
-              },
-              "name": {
-                "type": "string",
-                "minLength": 1,
-                "maxLength": 120
-              }
-            }
-          },
-          {
-            "type": "object",
-            "additionalProperties": false,
-            "required": [
-              "type",
-              "sectionID",
-              "bars"
-            ],
-            "properties": {
-              "type": {
-                "const": "resizeSection"
-              },
-              "sectionID": {
-                "type": "string",
-                "format": "uuid"
-              },
-              "bars": {
-                "type": "integer",
-                "minimum": 1,
-                "maximum": 64
-              }
-            }
-          },
-          {
-            "type": "object",
-            "additionalProperties": false,
-            "required": [
-              "type",
-              "sectionID",
-              "chords",
-              "durations"
-            ],
-            "properties": {
-              "type": {
-                "const": "setProgression"
-              },
-              "sectionID": {
-                "type": "string",
-                "format": "uuid"
-              },
-              "chords": {
-                "type": "array",
-                "minItems": 1,
-                "maxItems": 256,
-                "items": {
-                  "type": "object",
-                  "additionalProperties": false,
-                  "required": [
-                    "root",
-                    "quality",
-                    "inversion"
-                  ],
-                  "properties": {
-                    "root": {
-                      "type": "integer",
-                      "minimum": 0,
-                      "maximum": 11
-                    },
-                    "quality": {
-                      "enum": [
-                        "",
-                        "m",
-                        "dim",
-                        "aug",
-                        "sus2",
-                        "sus4",
-                        "7",
-                        "maj7",
-                        "m7",
-                        "m7b5",
-                        "6",
-                        "m6",
-                        "add9",
-                        "9",
-                        "maj9",
-                        "m9",
-                        "11",
-                        "m11",
-                        "13",
-                        "7b9",
-                        "7#9",
-                        "7#11",
-                        "7b13"
-                      ]
-                    },
-                    "inversion": {
-                      "type": "integer",
-                      "minimum": 0,
-                      "maximum": 6
-                    },
-                    "slashBass": {
-                      "type": [
-                        "integer",
-                        "null"
-                      ],
-                      "minimum": 0,
-                      "maximum": 11
-                    },
-                    "voicedNotes": {
-                      "type": [
-                        "array",
-                        "null"
-                      ],
-                      "minItems": 1,
-                      "maxItems": 8,
-                      "uniqueItems": true,
-                      "items": {
-                        "type": "integer",
-                        "minimum": 0,
-                        "maximum": 127
-                      }
-                    }
-                  }
-                }
-              },
-              "durations": {
-                "type": "array",
-                "minItems": 1,
-                "maxItems": 256,
-                "items": {
-                  "type": "integer",
-                  "minimum": 1,
-                  "maximum": 64
-                }
-              }
-            }
-          }
-        ]
+        "$ref": "#/$defs/operation"
       }
     },
     "assumptions": {
@@ -247,6 +63,438 @@
         "type": "string",
         "maxLength": 500
       }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "schemaVersion": {
+            "const": 1
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "operations": {
+            "items": {
+              "$ref": "#/$defs/legacyOperation"
+            }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "chord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "root",
+        "quality",
+        "inversion"
+      ],
+      "description": "Canonical encoded MusicDomain.Chord. Family, symbol, notes and voicing layout are computed/UI values, not JSON fields. Both proposal versions use this current chord representation.",
+      "properties": {
+        "root": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 11
+        },
+        "quality": {
+          "type": "string",
+          "enum": [
+            "",
+            "m",
+            "dim",
+            "aug",
+            "sus2",
+            "sus4",
+            "7",
+            "maj7",
+            "m7",
+            "m7b5",
+            "6",
+            "m6",
+            "add9",
+            "9",
+            "maj9",
+            "m9",
+            "11",
+            "m11",
+            "13",
+            "7b9",
+            "7#9",
+            "7#11",
+            "7b13",
+            "dim7",
+            "7#5",
+            "maj7#5",
+            "mMaj7",
+            "mMaj9",
+            "mMaj11",
+            "mMaj13",
+            "maj11",
+            "maj13",
+            "m13",
+            "6/9",
+            "m6/9",
+            "add2",
+            "add4",
+            "add11",
+            "madd9",
+            "madd11",
+            "7sus2",
+            "7sus4",
+            "9sus4",
+            "13sus4",
+            "7b5",
+            "9b5",
+            "9#5",
+            "maj7b5",
+            "m7#5",
+            "m9b5",
+            "9#11",
+            "13#11",
+            "13b9",
+            "13#9",
+            "7b9#11",
+            "7#9#11",
+            "7b9b13",
+            "7#9b13",
+            "7#5b9",
+            "7#5#9",
+            "7alt",
+            "maj7#11",
+            "maj9#11",
+            "maj13#11",
+            "7sus4b9"
+          ],
+          "description": "Stable Quality raw value, case-sensitive; the empty string denotes major. Not a chord-symbol alias."
+        },
+        "inversion": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 7,
+          "description": "Swift additionally requires inversion < effectiveIntervals.count."
+        },
+        "slashBass": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 11
+        },
+        "voicedNotes": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "minItems": 1,
+          "maxItems": 9,
+          "uniqueItems": true,
+          "items": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 127
+          },
+          "description": "Persisted explicit MIDI pitches. Swift validates allowed/required pitch classes and custom-tone multiplicities; stored order need not be sorted."
+        },
+        "customIntervals": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "minItems": 2,
+          "maxItems": 8,
+          "uniqueItems": true,
+          "prefixItems": [
+            {
+              "const": 0
+            }
+          ],
+          "items": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 48
+          },
+          "description": "Semitone formula; Swift additionally requires strictly increasing values and a valid realized MIDI voicing. Array form requires the canonical major quality marker."
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "required": [
+              "customIntervals"
+            ],
+            "properties": {
+              "customIntervals": {
+                "type": "array"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "quality": {
+                "const": ""
+              }
+            }
+          }
+        }
+      ],
+      "$comment": "Optional nil fields are omitted by JSONEncoder. Explicit null decodes as nil in Swift. Musical set/count relations and Swift Character-count bounds require candidate validation, not only JSON Schema."
+    },
+    "songSection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "bars",
+        "chords",
+        "durations",
+        "sourceSectionID"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120,
+          "not": {
+            "pattern": "[\\u0000-\\u001f\\u007f-\\u009f]"
+          },
+          "description": "Swift also rejects whitespace-only names and every scalar in CharacterSet.controlCharacters."
+        },
+        "bars": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 64
+        },
+        "chords": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 64,
+          "items": {
+            "$ref": "#/$defs/chord"
+          }
+        },
+        "durations": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 64,
+          "items": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 64
+          }
+        },
+        "sourceSectionID": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "$comment": "Source ID must exist in the original request project. Durations must match chord count and sum to bars. All arranged sections together must fit 64 bars. Swift validates these relations."
+    },
+    "harmonyStyle": {
+      "type": "string",
+      "enum": [
+        "voiceLeading",
+        "gentle",
+        "expressive",
+        "reharmonize"
+      ]
+    },
+    "legacyOperation": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "bpm"
+          ],
+          "properties": {
+            "type": {
+              "const": "setTempo"
+            },
+            "bpm": {
+              "type": "number",
+              "minimum": 40,
+              "maximum": 240
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "root",
+            "minor"
+          ],
+          "properties": {
+            "type": {
+              "const": "setKey"
+            },
+            "root": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 11
+            },
+            "minor": {
+              "type": "boolean"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "sectionID",
+            "name"
+          ],
+          "properties": {
+            "type": {
+              "const": "renameSection"
+            },
+            "sectionID": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "sectionID",
+            "bars"
+          ],
+          "properties": {
+            "type": {
+              "const": "resizeSection"
+            },
+            "sectionID": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "bars": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 64
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "sectionID",
+            "chords",
+            "durations"
+          ],
+          "properties": {
+            "type": {
+              "const": "setProgression"
+            },
+            "sectionID": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "chords": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 256,
+              "items": {
+                "$ref": "#/$defs/chord"
+              }
+            },
+            "durations": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 256,
+              "items": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 64
+              }
+            }
+          }
+        }
+      ]
+    },
+    "operation": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/legacyOperation"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "sections"
+          ],
+          "properties": {
+            "type": {
+              "const": "arrangeSong"
+            },
+            "sections": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 8,
+              "items": {
+                "$ref": "#/$defs/songSection"
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "sectionID",
+            "style"
+          ],
+          "properties": {
+            "type": {
+              "const": "styleHarmony"
+            },
+            "sectionID": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "style": {
+              "$ref": "#/$defs/harmonyStyle"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "style"
+          ],
+          "properties": {
+            "type": {
+              "const": "styleSong"
+            },
+            "style": {
+              "$ref": "#/$defs/harmonyStyle"
+            }
+          }
+        }
+      ]
     }
   }
 }

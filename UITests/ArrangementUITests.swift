@@ -88,6 +88,26 @@ final class ArrangementUITests: XCTestCase {
         app.buttons["grid.clips.list"].tap();XCTAssertEqual(rows.count,3)
     }
 
+    @MainActor func testWideClipNativeDragRetainsTouchOffset(){
+        let app=launch()
+        let clip=app.buttons.matching(NSPredicate(format:"identifier BEGINSWITH 'grid.clip.' AND label == 'Harmony'")).firstMatch
+        XCTAssertTrue(clip.waitForExistence(timeout:5));wait(clip,NSPredicate(format:"hittable == true"))
+        let initialX=clip.frame.minX,width=clip.frame.width,bar=(width+6)/4
+        XCTAssertLessThan(width,app.windows.firstMatch.frame.width)
+        XCTAssertGreaterThan(width,app.windows.firstMatch.frame.width/2)
+        // At 20% of this four-bar clip, omitting the grab offset snaps a
+        // one-bar finger movement to bar three. The musical start must be two.
+        let finger=clip.coordinate(withNormalizedOffset:CGVector(dx:0.2,dy:0.25))
+        drag(finger,to:finger.withOffset(CGVector(dx:bar,dy:0)))
+        XCTAssertEqual(clip.frame.minX,initialX+bar,accuracy:3)
+        clip.tap();XCTAssertTrue(app.navigationBars["Clip settings"].waitForExistence(timeout:5))
+        XCTAssertEqual(app.steppers["clip.start"].value as? String,"2:1")
+        XCTAssertEqual(app.steppers["clip.length"].value as? String,"4.00 bars")
+        app.buttons["Done"].tap();app.buttons["Undo"].tap()
+        XCTAssertEqual(clip.frame.minX,initialX,accuracy:3)
+        XCTAssertEqual(clip.value as? String,"4.00 bars")
+    }
+
     @MainActor func testSectionChipsDragWholeSectionAndUndo(){
         let app=launch("perform")
         XCTAssertTrue(app.buttons["perform.done"].waitForExistence(timeout:5));app.buttons["perform.done"].tap()

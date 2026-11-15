@@ -48,9 +48,14 @@ final class LiveEditingTests:XCTestCase {
         XCTAssertGreaterThanOrEqual(toggle.frame.height,44)
         let initial=toggle.value as? String
         XCTAssertNotNil(initial)
-        toggle.tap();wait(toggle,NSPredicate(format:"value != %@",initial ?? ""))
+        // These physical taps are outside the native ~27pt thumb, inside the
+        // 44pt target. Each must toggle once through UISwitch.valueChanged.
+        let center=toggle.coordinate(withNormalizedOffset:CGVector(dx:0.5,dy:0.5))
+        center.withOffset(CGVector(dx:0,dy:-20)).tap()
+        wait(toggle,NSPredicate(format:"value != %@",initial ?? ""))
         playing(app.staticTexts["bass.playback-state"])
-        toggle.tap();wait(toggle,NSPredicate(format:"value == %@",initial ?? ""))
+        center.withOffset(CGVector(dx:0,dy:20)).tap()
+        wait(toggle,NSPredicate(format:"value == %@",initial ?? ""))
         playing(app.staticTexts["bass.playback-state"])
         app.buttons["Done"].tap()
         XCTAssertTrue(app.buttons["Stop"].waitForExistence(timeout:5))
