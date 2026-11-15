@@ -1,0 +1,42 @@
+{
+  "params": {
+    "prompt": "Create an original 2026 art-direction board for LA GRILLA, a real native iPhone music-creation instrument. This is a UI design concept board, not an App Store screenshot. Four equal, straight-on, fully visible portrait app canvases side by side on a quiet graphite presentation background, with a small 'LA GRILLA / DESIGN STUDY 2026' heading. Exact coherent visual system across all four screens, engineered for a 440-point iPhone viewport. No perspective devices, no hands, no photography. Distinctive identity: a luminous vertical playhead crossing precise musical divisions, quiet asymmetric editorial typography and a restrained acid-pear action color. Matte near-black #111410 and warm ivory typography. Primary action #D8F780. Harmony warm amber, drums muted periwinkle, bass soft aqua. Hairline divisions, confident large type for musical values, small monospaced bar/beat labels, generous purposeful space. Crisp flat digital material with very subtle layered surfaces; accessible contrast and large 44pt touch targets. Refined iOS 26 native feel, using glass sparingly only around navigation. Build a recognizable compact musical instrument, not a finance dashboard or generic rounded-card app. Every area has a musical purpose; no decorative waveform heroes, neon gradients, excessive glowing, 3D knobs, stock clip art or pseudo-technical filler.\nScreen 1 GRID: compact project header 'First light', understated saved indicator, tempo '120' and 'C major'; section tabs Verse / Chorus; the arrangement is the visual hero, three horizontal lanes HARMONY / DRUMS / BASS with four proportional measures, chord blocks C / Am / F / G, rhythmic note marks and a slim bright playhead. A concise tool strip Harmony / Notes / Assistant. Persistent bottom transport with a confident bright Play action, small red Record, musical time '01 : 1', then three simple navigation labels Grid / Jam / Mixer. Avoid giant explanatory cards.\nScreen 2 JAM: same project/context header and same transport/navigation. Clear 'Pocket kit' title with discreet Pads / Steps selector. Sixteen generous tactile pads in a precise 4x4 array, numbered 01-16, short meaningful percussion names. One bright pressed pad and extremely restrained semantic color. Compact quantize / loop / metronome controls. Everything playable and readable at a glance.\nScreen 3 HARMONY: compact navigation title 'Harmony', a short 'Give it a new color.' headline, style choices as a clear compact segmented set. Four clean comparison rows C → Cmaj7, Am → Am7, F → Fmaj7, G → G7 with quiet note details. A/B listening controls directly beside the proposal. Advanced options collapsed. Fixed bottom action 'Apply to Verse'. The core task fits comfortably without a long form or paragraphs.\nScreen 4 PERFORM: clear live status and active section 'Chorus', restrained timer. Two-by-two launch section pads Verse / Chorus / Bridge / Outro, current section visibly selected. A compact paired filter/delay surface with meaningful sliders, plus one Repeat action. Extra controls grouped under a clear expandable 'More controls'. Saved take as one compact row with Replay and Export. Play/record controls are easy to reach. Prioritize simplicity, rhythm and strong hierarchy.\nThe design must feel singular, precise and musically alive, implementable using SwiftUI vectors and real native controls. Render legible English UI labels, consistent spacing, realistic quantities of content and restrained modern typographic craft.",
+    "imageCount": 1,
+    "aspectRatio": "16:9",
+    "resolutionTier": "4k",
+    "quality": "high",
+    "outputFormat": "png",
+    "autoEnhancePrompt": false,
+    "variant": "sunburst"
+  },
+  "result": {
+    "status": "COMPLETED",
+    "historyId": "yUd9Bof1KIlMeOmA8l12",
+    "projectId": "rFe277ka23SUG0FnemRl",
+    "capabilityId": "gpt-image-2-6-sunburst:text2image",
+    "modelDisplayName": "GPT Image 2.6 Sunburst",
+    "aspectRatio": "16:9",
+    "prompt": "Create an original 2026 art-direction board for LA GRILLA, a real native iPhone music-creation instrument. This is a UI design concept board, not an App Store screenshot. Four equal, straight-on, fully visible portrait app canvases side by side on a quiet graphite presentation background, with a small 'LA GRILLA / DESIGN STUDY 2026' heading. Exact coherent visual system across all four screens, engineered for a 440-point iPhone viewport. No perspective devices, no hands, no photography. Distinctive identity: a luminous vertical playhead crossing precise musical divisions, quiet asymmetric editorial typography and a restrained acid-pear action color. Matte near-black #111410 and warm ivory typography. Primary action #D8F780. Harmony warm amber, drums muted periwinkle, bass soft aqua. Hairline divisions, confident large type for musical values, small monospaced bar/beat labels, generous purposeful space. Crisp flat digital material with very subtle layered surfaces; accessible contrast and large 44pt touch targets. Refined iOS 26 native feel, using glass sparingly only around navigation. Build a recognizable compact musical instrument, not a finance dashboard or generic rounded-card app. Every area has a musical purpose; no decorative waveform heroes, neon gradients, excessive glowing, 3D knobs, stock clip art or pseudo-technical filler.\nScreen 1 GRID: compact project header 'First light', understated saved indicator, tempo '120' and 'C major'; section tabs Verse / Chorus; the arrangement is the visual hero, three horizontal lanes HARMONY / DRUMS / BASS with four proportional measures, chord blocks C / Am / F / G, rhythmic note marks and a slim bright playhead. A concise tool strip Harmony / Notes / Assistant. Persistent bottom transport with a confident bright Play action, small red Record, musical time '01 : 1', then three simple navigation labels Grid / Jam / Mixer. Avoid giant explanatory cards.\nScreen 2 JAM: same project/context header and same transport/navigation. Clear 'Pocket kit' title with discreet Pads / Steps selector. Sixteen generous tactile pads in a precise 4x4 array, numbered 01-16, short meaningful percussion names. One bright pressed pad and extremely restrained semantic color. Compact quantize / loop / metronome controls. Everything playable and readable at a glance.\nScreen 3 HARMONY: compact navigation title 'Harmony', a short 'Give it a new color.' headline, style choices as a clear compact segmented set. Four clean comparison rows C → Cmaj7, Am → Am7, F → Fmaj7, G → G7 with quiet note details. A/B listening controls directly beside the proposal. Advanced options collapsed. Fixed bottom action 'Apply to Verse'. The core task fits comfortably without a long form or paragraphs.\nScreen 4 PERFORM: clear live status and active section 'Chorus', restrained timer. Two-by-two launch section pads Verse / Chorus / Bridge / Outro, current section visibly selected. A compact paired filter/delay surface with meaningful sliders, plus one Repeat action. Extra controls grouped under a clear expandable 'More controls'. Saved take as one compact row with Replay and Export. Play/record controls are easy to reach. Prioritize simplicity, rhythm and strong hierarchy.\nThe design must feel singular, precise and musically alive, implementable using SwiftUI vectors and real native controls. Render legible English UI labels, consistent spacing, realistic quantities of content and restrained modern typographic craft.",
+    "resources": [
+      {
+        "id": "k9IcczgPgRgppXwAYqmu",
+        "mediaType": "image",
+        "url": "https://cdn.openart.ai/openart-ai/production/2026-11/create-image/nLyAgzcELnIVGocBaHJz/gpt-image-2-6-sunburst-1_1794728842467_fd5f3748.png",
+        "status": "completed",
+        "aspectRatio": "16:9",
+        "thumbnailUrl": "https://cdn.openart.ai/openart/thumbnail/production/2026-11/create-image/nLyAgzcELnIVGocBaHJz/gpt-image-2-6-sunburst-1_1794728842787_5fe174e1.webp",
+        "metadata": {
+          "width": 3584,
+          "height": 2016,
+          "format": "png"
+        }
+      }
+    ]
+  },
+  "billing": {
+    "quotedListCredits": 60,
+    "chargedCredits": 54,
+    "balanceBefore": 583,
+    "balanceAfter": 529
+  }
+}

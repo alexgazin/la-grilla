@@ -71,8 +71,9 @@ final class StudioTests: XCTestCase {
         app.buttons["perform.section.Chorus"].tap()
         app.buttons["perform.done"].tap();app.buttons["Jam"].tap();app.buttons["Kick"].tap()
         app.buttons["perform.transport"].tap();XCTAssertTrue(app.buttons["perform.record"].waitForExistence(timeout:5));app.buttons["perform.record"].tap()
-        app.swipeUp();app.swipeUp();app.swipeUp()
-        XCTAssertTrue(app.staticTexts["perform.saved"].waitForExistence(timeout:5));app.buttons["perform.replay"].tap()
+        let replay=app.buttons["perform.replay"]
+        for _ in 0..<6 {if replay.isHittable{break};app.scrollViews.firstMatch.swipeUp()}
+        XCTAssertTrue(app.staticTexts["perform.saved"].waitForExistence(timeout:5));replay.tap()
         let mode=app.staticTexts["perform.mode"]
         // Stop at the header: another downward swipe at the top dismisses the sheet.
         for _ in 0..<6 {if mode.isHittable{break};app.scrollViews.firstMatch.swipeDown()}

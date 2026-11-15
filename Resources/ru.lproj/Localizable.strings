@@ -474,3 +474,8 @@
 "Play something only you would." = "Сыграй свой собственный ритм.";
 "Recording drums · tap Record to finish" = "Запись ритма · нажми кнопку записи для завершения";
 "STEREO" = "СТЕРЕО";
+"Harmony + root bass · one Undo" = "Гармония и корневой бас · одна отмена";
+"Apply to %@" = "Применить к «%@»";
+"Change details" = "Что изменится";
+"More controls" = "Дополнительные функции";
+"Reset master filter" = "Сбросить мастер-фильтр";
