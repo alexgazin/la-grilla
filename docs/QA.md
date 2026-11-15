@@ -46,4 +46,52 @@ This is an internal development build. No physical iPhone, Apple Developer signi
 - Full accessibility/Dynamic Type, narrow/landscape ergonomic acceptance and complete localization of dynamic status text.
 - Signed device distribution, TestFlight, App Store privacy/metadata/submission.
 
-WAV/stems, AI/voice, Perform, external MIDI and AUv3 remain the explicitly gated follow-up features; they are not represented by inactive controls in this build.
+AI/voice, Perform, external MIDI and AUv3 remain the explicitly gated follow-up features; they are not represented by inactive controls in this build.
+
+## R1 — WAV, stems and portable projects
+
+Verified app/config source: `b373fca91306b8672904629d821187ad3d60e59c`. [Successful workflow](https://github.com/alexgazin/la-grilla/actions/runs/43653433531).
+
+- 21 Swift tests passed, including exact WAV frame count/header/audio/determinism, one-shot release tail, cancellation cleanup, aligned muted stems and safe ZIP/project round-trip.
+- Independent Python `wave` and `zipfile` readers validated generated files.
+- C++ timing/concurrency/stop/seek regressions passed.
+- Both native SDK builds passed: ARM64 simulator and unsigned physical-iPhone target.
+- Six native UI flows passed: prior navigation/create/chord/drum/MIDI flows plus WAV export during live playback and portable-project system sharing.
+- Seven native screens captured from live processes, including format/rate/depth/tail/stem settings, in [Screenshots/R1](../Screenshots/R1). Images first captured from `02a2c14`; the subsequent verified commit only fixes the CI test architecture.
+
+Import safety/copy semantics are domain-tested; file-provider interaction, real DAW interoperability, physical audio, signing and App Store distribution remain release checks.
+
+## R2 — piano roll and eight tracks
+
+Verified source/config: `59834d0a1937c4a16860dca23439612d63aa7960`. [Successful workflow, attempt 2](https://github.com/alexgazin/la-grilla/actions/runs/43655337342/attempts/2).
+
+- 28 Swift tests pass: note editing/Undo, independent track/section copies, offsets/repeats, v1 source-preserving migration/backup, MIDI channels and eighth-track WAV/mute.
+- C++ eighth-track/master independence and existing timing/concurrency regressions pass.
+- Both native SDK builds pass; 8 UI scenarios pass, including piano-roll add/copy/paste/Undo/list/playback and eight-track mixer mute/transport.
+- Nine live simulator screens are stored in [Screenshots/R2](../Screenshots/R2). These images were captured from `e24380a`; later source changes only add accessibility IDs/test selectors, while CI configuration handles cold simulator startup.
+
+Physical gestures, performance/latency and external DAW interoperability remain release checks.
+
+## R3 — harmony lab
+
+Verified app/config source: `cf82a44fb1839d2307783e6bc38e4caf0193569b`. [Successful workflow](https://github.com/alexgazin/la-grilla/actions/runs/43655352838).
+
+- 35 Swift tests pass, covering extended/slash vocabulary, register/pitch-class preservation, section-scoped replacement with crossing clips, borrowed/tritone substitutions, stale/repeated proposal guards and migration.
+- C++ immediate audition-snapshot restart and existing timing/routing regressions pass.
+- Both native SDK builds and 9 native UI flows pass, including generate → B → A → Apply → Undo for harmony proposals.
+- Eleven actual live-process screenshots, including harmony settings and original/proposed chords, are checked in at [Screenshots/R3](../Screenshots/R3).
+- Reconciliation with R2 main changes only documentation, screenshots and commit ancestry; app/domain/audio/test sources remain identical to the verified source.
+
+These are deterministic local musical proposals; no cloud LLM is used. Physical A/B audio-quality acceptance remains a release gate.
+
+## R4 — local Assistant and dictation adapter
+
+Verified app/config source: `56091ed` (Speech capability API fix on top of `eba8be4`). [Successful workflow](https://github.com/alexgazin/la-grilla/actions/runs/43656289939).
+
+- 42 Swift tests pass: equivalent RU/EN commands, explicit chord durations, ambiguity choices, section resize/trimming/empty space, one-transaction Undo, strict structured-operation/ID validation and stale/duplicate rejection.
+- Both native SDK builds pass. All 11 native UI scenarios pass, including Assistant ambiguity → explicit distribution → Cancel, and command → review → Apply → Undo.
+- Thirteen real simulator screenshots are stored in [Screenshots/R4](../Screenshots/R4).
+- Apple Speech uses `supportsOnDeviceRecognition`/`requiresOnDeviceRecognition`, RU/EN selection, permission-on-use and manual-input fallback. Real microphone input, language/model availability, permission denial and interruption behavior need device acceptance; simulator text-flow tests do not prove ASR quality.
+- App/domain/audio/test sources remain unchanged when reconciling verified R3 main.
+
+No free-form cloud provider or client API key is included.
