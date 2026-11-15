@@ -12,6 +12,7 @@ struct GridView: View {
         VStack(alignment:.leading,spacing:0){
             HStack{SmallHeading(text:"ARRANGEMENT");Spacer();Text("\(session.displayProject.length/barTicks) bars").font(.system(size:11,design:.monospaced)).foregroundStyle(Color.muted);IconButton(symbol:"ellipsis",label:"Edit song sections",color:.muted){session.presentEditor(.sections)}}.padding(.horizontal,18).padding(.top,8)
             ScrollView(.horizontal,showsIndicators:false){HStack(spacing:8){
+                Button{session.presentEditor(.midiDevices)}label:{Label("MIDI",systemImage:"pianokeys.inverse").frame(minWidth:76,minHeight:44)}.accessibilityIdentifier("midi.open")
                 Button{session.finishTake();session.sheet = .perform}label:{Label("Perform",systemImage:"waveform.path").frame(minWidth:90,minHeight:44)}.accessibilityIdentifier("perform.open")
                 Button{session.presentEditor(.harmony)}label:{Label("Harmony",systemImage:"wand.and.stars").frame(minWidth:92,minHeight:44)}.accessibilityLabel("Harmony lab").accessibilityIdentifier("harmony.open")
                 Button{session.openNotes()}label:{Label("Notes",systemImage:"pianokeys").frame(minWidth:80,minHeight:44)}.accessibilityLabel("Open piano roll").accessibilityIdentifier("notes.open")

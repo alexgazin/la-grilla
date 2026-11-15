@@ -1,0 +1,57 @@
+import SwiftUI
+import CoreAudioKit
+import MusicDomain
+
+struct MIDIDevicesView:View {
+    @Bindable var session:Session
+    @State private var bluetooth=false
+    @State private var target:MIDIMapping.Target = .filter
+    @State private var mappingTrack:UUID?
+    private var settings:MIDISettings{session.project.midi ?? MIDISettings()}
+    private var midi:MIDIController{session.midi}
+    var body:some View {
+        NavigationStack {Form {
+            SwiftUI.Section {
+                Toggle("MIDI input",isOn:Binding(get:{settings.enabled},set:{value in edit{$0.enabled=value}})).accessibilityIdentifier("midi.enabled")
+                Text("Play this project's instruments from a USB or Bluetooth MIDI controller. Mappings are saved with this project.").font(.caption).foregroundStyle(.secondary)
+                if midi.isFixture{Text("Virtual MIDI QA source").font(.caption).foregroundStyle(Color.drums).accessibilityIdentifier("midi.fixture")}
+            }
+            SwiftUI.Section("Input devices") {
+                if midi.sources.isEmpty{Text("No MIDI sources found. Connect a class-compliant USB device or pair Bluetooth MIDI.").foregroundStyle(.secondary)}
+                ForEach(midi.sources){source in Toggle(isOn:Binding(get:{settings.inputIDs.contains(source.id)},set:{on in edit{value in if on{value.inputIDs.append(source.id)}else{value.inputIDs.removeAll{$0==source.id}}}})){VStack(alignment:.leading,spacing:4){Text(source.name);Text(midi.isConnected(source.id) ? "Connected":"Disconnected").font(.caption).foregroundStyle(.secondary)}}.disabled(!settings.enabled)}
+                Button("Bluetooth MIDI devices"){bluetooth=true}.frame(minHeight:44).accessibilityIdentifier("midi.bluetooth")
+                Button("Refresh & reconnect"){midi.retry();session.syncMIDI()}.frame(minHeight:44)
+            }
+            SwiftUI.Section("Play into") {
+                Picker("Instrument",selection:Binding(get:{settings.trackID ?? session.project.tracks[0].id},set:{id in edit{$0.trackID=id}})){ForEach(session.project.tracks){track in Text(track.displayName).tag(track.id)}}
+                Picker("Input channel",selection:Binding(get:{settings.channel ?? -1},set:{channel in edit{$0.channel=channel<0 ? nil:channel}})){Text("All channels").tag(-1);ForEach(0..<16,id:\.self){i in Text("Channel \(i+1)").tag(i)}}
+                Text("Drums use General MIDI note numbers. NoteOn with velocity zero is NoteOff. CC64 controls sustain. Incoming notes are included when recording a performance take.").font(.caption).foregroundStyle(.secondary)
+            }.disabled(!settings.enabled)
+            SwiftUI.Section("MIDI Learn") {
+                Picker("Control",selection:$target){ForEach(MIDIMapping.Target.allCases,id:\.self){option in Text(title(option)).tag(option)}}
+                if target == .trackGain || target == .trackPan{Picker("Track",selection:Binding(get:{mappingTrack ?? session.project.tracks[0].id},set:{mappingTrack=$0})){ForEach(session.project.tracks){track in Text(track.displayName).tag(track.id)}}}
+                Button(midi.learning==nil ? "Learn next CC":"Cancel learn"){
+                    if midi.learning != nil{midi.learning=nil}else{midi.learning=target;midi.learningTrack=target == .trackGain || target == .trackPan ? (mappingTrack ?? session.project.tracks[0].id):nil}
+                }.frame(minHeight:44).accessibilityIdentifier("midi.learn").disabled(!settings.enabled || !midi.sources.contains(where:{midi.isConnected($0.id)}))
+                if midi.learning != nil{Text("Move a controller knob. Sustain and channel-mode messages are reserved.").font(.caption).foregroundStyle(.secondary)}
+                ForEach(settings.mappings){mapping in HStack{VStack(alignment:.leading){Text(title(mapping.target));Text("Ch \(mapping.channel+1) · CC \(mapping.controller)").font(.caption).foregroundStyle(.secondary)};Spacer();Button("Remove",role:.destructive){edit{$0.mappings.removeAll{$0.id==mapping.id}}}.font(.caption)}}
+                if midi.isFixture{Button("Send virtual MIDI phrase"){midi.sendFixture()}.accessibilityIdentifier("midi.send-fixture")}
+            }
+            SwiftUI.Section("Activity") {
+                Text(midi.lastMessage).font(.system(.caption,design:.monospaced)).accessibilityIdentifier("midi.last")
+                LabeledContent("Late input events",value:String(midi.late));LabeledContent("Dropped events",value:String(midi.dropped))
+                Text("Late events play at the first available audio sample. Bluetooth audio latency is separate from Bluetooth MIDI.").font(.caption).foregroundStyle(.secondary)
+                if let error=midi.error{Text(error).foregroundStyle(Color.record)}
+                Button("Panic · release all notes",role:.destructive){session.audio.panic();midi.panic();midi.retry();session.syncMIDI()}.frame(minHeight:44).accessibilityIdentifier("midi.panic")
+            }
+        }.navigationTitle("MIDI devices").toolbar{ToolbarItem(placement:.confirmationAction){Button("Done"){midi.learning=nil;session.sheet=nil}}}}
+        .onAppear{midi.prepare();session.syncMIDI()}.onDisappear{midi.learning=nil}
+        .sheet(isPresented:$bluetooth,onDismiss:{midi.endpointsChanged()}){NavigationStack{BluetoothMIDIPicker().navigationTitle("Bluetooth MIDI").toolbar{ToolbarItem(placement:.confirmationAction){Button("Done"){bluetooth=false}}}}}
+    }
+    private func edit(_ change:@escaping(inout MIDISettings)->Void){session.edit{p in var value=p.midi ?? MIDISettings();change(&value);p.midi=value}}
+    private func title(_ target:MIDIMapping.Target)->String{switch target{case .masterGain:"Master gain";case .trackGain:"Track gain";case .trackPan:"Track pan";case .filter:"Master filter";case .delay:"Delay wet"}}
+}
+private struct BluetoothMIDIPicker:UIViewControllerRepresentable {
+    func makeUIViewController(context:Context)->CABTMIDICentralViewController{CABTMIDICentralViewController()}
+    func updateUIViewController(_ controller:CABTMIDICentralViewController,context:Context){}
+}

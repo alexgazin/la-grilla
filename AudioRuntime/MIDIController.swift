@@ -8,6 +8,22 @@ import Darwin
 final class MIDIHubHandle:@unchecked Sendable {
     let pointer:OpaquePointer
     init(){pointer=lg_midi_create()!}
+    func createFixture()->Int32? {
+        guard ProcessInfo.processInfo.arguments.contains("--uitesting")else{return nil};prepare()
+        if fixtureSource==0{let status=MIDISourceCreate(client,"La Grilla virtual QA keyboard" as CFString,&fixtureSource);guard status==noErr else{error="Virtual MIDI source failed (\(status)).";return nil}}
+        isFixture=true;refresh();return endpoint(fixtureSource)?.id
+    }
+    func sendFixture(){
+        guard fixtureSource != 0 else{return};var list=MIDIPacketList()
+        var info=mach_timebase_info_data_t();mach_timebase_info(&info);let now=mach_absolute_time(),later=now+UInt64(200_000_000*Double(info.denom)/Double(info.numer))
+        withUnsafeMutablePointer(to:&list){pointer in
+            var packet=MIDIPacketListInit(pointer)
+            for (time,bytes) in [(now,[UInt8(0x90),72,108]),(now,[UInt8(0xb0),74,80]),(later,[UInt8(0x80),72,0])]{
+                packet=bytes.withUnsafeBufferPointer{MIDIPacketListAdd(pointer,MemoryLayout<MIDIPacketList>.size,packet,time,$0.count,$0.baseAddress!)}!
+            }
+            _ = MIDIReceived(fixtureSource,pointer)
+        }
+    }
     deinit{lg_midi_destroy(pointer)}
 }
 struct MIDIEndpoint:Identifiable,Equatable {
@@ -22,7 +38,7 @@ private enum MIDICallbacks {
             for _ in 0..<min(256,packets.pointee.numPackets){
                 let bytes=UnsafeRawPointer(packet).advanced(by:MemoryLayout<MIDIPacket>.offset(of:\.data)!).assumingMemoryBound(to:UInt8.self)
                 _ = lg_midi_push(hub.pointer,handle,packet.pointee.timeStamp,bytes,Int32(packet.pointee.length))
-                packet=MIDIPacketNext(packet)
+                packet=UnsafePointer(MIDIPacketNext(packet))
             }
         }
     }
@@ -34,6 +50,8 @@ private enum MIDICallbacks {
     let hub:MIDIHubHandle
     var sources:[MIDIEndpoint]=[];var destinations:[MIDIEndpoint]=[]
     var error:String?;var lastMessage="No MIDI input yet";var late:UInt64=0;var dropped:UInt64=0
+    var isFixture=false
+    @ObservationIgnored private var fixtureSource=MIDIEndpointRef()
     var learning:MIDIMapping.Target?;var learningTrack:UUID?
     @ObservationIgnored var onConfigurationChange:(()->Void)?
     @ObservationIgnored private var lastConfiguration:MIDISettings?
@@ -88,7 +106,7 @@ private enum MIDICallbacks {
         }
     }
     private func disconnect(_ id:Int32){guard let connection=connections.removeValue(forKey:id)else{return};MIDIPortDisconnectSource(input,connection.endpoint);lg_midi_disconnect(hub.pointer,Int32(connection.slot))}
-    deinit{if input != 0{MIDIPortDispose(input)};if client != 0{MIDIClientDispose(client)}}
+    deinit{if fixtureSource != 0{MIDIEndpointDispose(fixtureSource)};if input != 0{MIDIPortDispose(input)};if client != 0{MIDIClientDispose(client)}}
     func panic(){for id in Array(connections.keys){disconnect(id)};learning=nil}
     func isConnected(_ id:Int32)->Bool{connections[id] != nil}
     func poll(replaying:Bool){
