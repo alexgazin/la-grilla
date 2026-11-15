@@ -54,7 +54,7 @@ final class LiveEditingTests:XCTestCase {
         XCTAssertTrue(toggle.waitForExistence(timeout:5))
         XCTAssertTrue(toggle.isEnabled)
         XCTAssertLessThanOrEqual(toggle.frame.width,80,"The native switch must not inherit the entire Form row's hit region")
-        XCTAssertGreaterThanOrEqual(toggle.frame.height,44)
+        assertMinimumTouchDimension(toggle.frame.height)
         let initial=toggle.value as? String
         XCTAssertNotNil(initial)
         // These physical taps are outside the native ~27pt thumb, inside the

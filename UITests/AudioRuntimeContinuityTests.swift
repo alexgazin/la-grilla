@@ -46,7 +46,7 @@ final class AudioRuntimeContinuityTests:XCTestCase {
             let start=app.buttons["audio.runtime.start"]
             XCTAssertTrue(start.waitForExistence(timeout:15))
             XCTAssertEqual(result.label,"READY")
-            XCTAssertGreaterThanOrEqual(start.frame.height,44)
+            assertMinimumTouchDimension(start.frame.height)
             start.tap()
         }
         let deadline=Date().addingTimeInterval(35)
@@ -172,7 +172,7 @@ final class AudioRuntimeContinuityTests:XCTestCase {
         let process=try XCTUnwrap(privacy["processIdentifier"] as? Int)
         XCTAssertGreaterThan(process,0)
         let start=app.buttons["audio.runtime.start"]
-        XCTAssertTrue(start.waitForExistence(timeout:5));XCTAssertGreaterThanOrEqual(start.frame.height,44)
+        XCTAssertTrue(start.waitForExistence(timeout:5));assertMinimumTouchDimension(start.frame.height)
         for alert in springboard.alerts.allElementsBoundByIndex{_ = handleMicrophoneAlert(alert)}
         guard !earlyMicrophoneAlert,result.label=="READY",
               privacy["softwareOutputPrivacyVerified"] as? Bool==true,

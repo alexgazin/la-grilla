@@ -168,7 +168,7 @@ final class ScreenshotTests:XCTestCase {
         let labels=["Расположение голосов","Нижняя нота","Верхняя нота"].map{app.staticTexts[$0]}
         guard revealForCapture([options,voicing,low,high]+labels,scroll:scroll,in:app,bottom:app.buttons["harmony.generate"])else{return false}
         guard waitForCaptureState(low,NSPredicate(format:"label CONTAINS 'C3' OR value CONTAINS 'C3'"),"The actual low register changed unexpectedly"),waitForCaptureState(high,NSPredicate(format:"label CONTAINS 'C6' OR value CONTAINS 'C6'"),"The actual high register changed unexpectedly")else{return false}
-        for control in [voicing,low,high]{XCTAssertGreaterThanOrEqual(control.frame.height,44)}
+        for control in [voicing,low,high]{assertMinimumTouchDimension(control.frame.height)}
         XCTAssertFalse(app.keyboards.firstMatch.exists)
         return !app.keyboards.firstMatch.exists
     }

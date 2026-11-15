@@ -30,10 +30,10 @@ final class StudioTests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Экспорт"].waitForExistence(timeout:5));XCTAssertTrue(app.buttons["Отмена"].exists)
         let shot=XCTAttachment(data:XCUIScreen.main.screenshot().pngRepresentation,uniformTypeIdentifier:"public.png");shot.name="OriginalVision-qa-russian-light-export";shot.lifetime = .keepAlways;add(shot)
         app.buttons["Отмена"].tap();app.buttons["Джем"].tap()
-        for title in ["Пэды","Шаги"]{XCTAssertGreaterThanOrEqual(app.buttons[title].frame.height,44)}
+        for title in ["Пэды","Шаги"]{assertMinimumTouchDimension(app.buttons[title].frame.height)}
         let guide=app.buttons["jam.recording-guide"]
         for _ in 0..<5 {if guide.isHittable{break};app.scrollViews.firstMatch.swipeUp()}
-        XCTAssertTrue(guide.exists);XCTAssertGreaterThanOrEqual(guide.frame.height,44);XCTAssertEqual(guide.value as? String,"Свёрнуто")
+        XCTAssertTrue(guide.exists);assertMinimumTouchDimension(guide.frame.height);XCTAssertEqual(guide.value as? String,"Свёрнуто")
         // Tap the row's center, including its empty spacer, as a finger would.
         guide.tap();XCTAssertEqual(guide.value as? String,"Развёрнуто")
         let hint=app.staticTexts["Сыграй свой собственный ритм."]
@@ -48,7 +48,7 @@ final class StudioTests: XCTestCase {
         let scroll=app.scrollViews.firstMatch
         let steps=app.buttons["Шаги"];reveal(steps,in:scroll,up:false);steps.tap()
         let step=app.buttons["jam.step.0"];reveal(step,in:scroll)
-        XCTAssertEqual(step.label,"Шаг 1");XCTAssertGreaterThanOrEqual(step.frame.height,44)
+        XCTAssertEqual(step.label,"Шаг 1");assertMinimumTouchDimension(step.frame.height)
         let original=step.value as? String
         XCTAssertTrue(original=="Вкл." || original=="Выкл.")
         let undo=app.buttons["Отменить"];XCTAssertFalse(undo.isEnabled)
@@ -63,9 +63,7 @@ final class StudioTests: XCTestCase {
         XCTAssertTrue(reset.waitForExistence(timeout:5));reveal(reset,in:app.scrollViews.firstMatch)
         XCTAssertTrue(reset.label.contains("децибела"));XCTAssertTrue(reset.label.contains("Нажми для сброса."))
         XCTAssertFalse(reset.label.contains("decibels"));XCTAssertFalse(reset.label.contains("Tap to reset"))
-        // AX CGRect subtraction can report 43.99999999999997 for the actual
-        // 44-point source target. Tolerance is far below one display pixel.
-        XCTAssertGreaterThanOrEqual(reset.frame.height+0.000001,44)
+        assertMinimumTouchDimension(reset.frame.height)
     }
     @MainActor func testLargeTypeMixerAndAccessibleNoteList() throws {
         XCUIDevice.shared.orientation = .portrait
@@ -74,7 +72,7 @@ final class StudioTests: XCTestCase {
         let track=app.buttons["notes.tracks"],section=app.buttons["notes.section"]
         XCTAssertTrue(track.waitForExistence(timeout:5));XCTAssertTrue(section.waitForExistence(timeout:5))
         XCTAssertTrue(track.label.contains("Melody"));XCTAssertTrue(section.label.contains("Verse") || (section.value as? String)?.contains("Verse")==true)
-        XCTAssertGreaterThanOrEqual(track.frame.height,44)
+        assertMinimumTouchDimension(track.frame.height)
         XCTAssertGreaterThanOrEqual(section.frame.minY,track.frame.maxY,"Accessibility-size track and section controls must occupy separate rows")
         let row=app.buttons.matching(NSPredicate(format:"identifier BEGINSWITH 'notes.row.'")).firstMatch
         XCTAssertTrue(row.waitForExistence(timeout:5));XCTAssertTrue(row.isHittable)
@@ -216,5 +214,14 @@ final class StudioTests: XCTestCase {
     @MainActor func testMIDIExportOffersSystemShare() {
         let app=launch();app.buttons["export.open"].tap();XCTAssertTrue(app.buttons["format.midi"].waitForExistence(timeout:5))
         app.buttons["export.confirm"].tap();XCTAssertTrue(app.otherElements["ActivityListView"].waitForExistence(timeout:8) || app.buttons["Copy"].exists || app.buttons["Save to Files"].exists || app.staticTexts["Copy"].exists || app.staticTexts["Save to Files"].exists)
+    }
+}
+
+// AX CGRect arithmetic may report 43.99999999999997 for an actual 44-point
+// target. This tolerance is less than one millionth of a point; real undersized
+// controls still fail, and source geometry / edge-tap checks remain unchanged.
+extension XCTestCase {
+    func assertMinimumTouchDimension(_ actual:CGFloat,file:StaticString=#filePath,line:UInt=#line){
+        XCTAssertGreaterThanOrEqual(actual+0.000001,44,"Touch dimension must be at least 44 points",file:file,line:line)
     }
 }

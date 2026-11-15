@@ -92,7 +92,7 @@ final class ArrangementUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Root bass follows harmony and cannot hold independent clips."].exists)
         let add=app.buttons.matching(NSPredicate(format:"identifier BEGINSWITH 'grid.clip.add.drums.'")).firstMatch
         XCTAssertTrue(add.exists);XCTAssertEqual(add.label,"Add clip to Drums")
-        XCTAssertGreaterThanOrEqual(add.frame.height,44)
+        assertMinimumTouchDimension(add.frame.height)
         add.tap()
         XCTAssertTrue(app.navigationBars["Clip settings"].waitForExistence(timeout:5))
         XCTAssertEqual(app.steppers["clip.start"].value as? String,"5:1")

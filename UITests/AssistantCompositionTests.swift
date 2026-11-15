@@ -81,7 +81,7 @@ final class AssistantCompositionTests:XCTestCase {
                 scroll.swipeDown()
             }
             XCTAssertTrue(control.isHittable)
-            if change=="language"{XCTAssertGreaterThanOrEqual(control.frame.height,44);XCTAssertFalse(control.isSelected)}
+            if change=="language"{assertMinimumTouchDimension(control.frame.height);XCTAssertFalse(control.isSelected)}
             control.tap()
             if change=="language" {
                 wait(control,NSPredicate{_,_ in control.exists && control.isSelected})

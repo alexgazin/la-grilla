@@ -31,7 +31,7 @@ final class PerformControlTests:XCTestCase {
         app.buttons["perform.play"].tap()
         let ready=XCTNSPredicateExpectation(predicate:NSPredicate(format:"enabled == true"),object:knob)
         XCTAssertEqual(XCTWaiter.wait(for:[ready],timeout:5),.completed)
-        XCTAssertGreaterThanOrEqual(knob.frame.height,44)
+        assertMinimumTouchDimension(knob.frame.height)
         XCTAssertEqual(knob.value as? String,"BYPASS")
         turnClockwise(knob)
         waitForValue(knob,NSPredicate(format:"value BEGINSWITH '+'"))
@@ -77,7 +77,7 @@ final class PerformControlTests:XCTestCase {
         XCTAssertGreaterThanOrEqual(app.buttons["perform.section.Verse"].frame.width,app.scrollViews.firstMatch.frame.width*0.8)
         let verse=app.buttons["perform.section.Verse"]
         XCTAssertTrue(verse.isHittable)
-        XCTAssertGreaterThanOrEqual(verse.frame.height,44)
+        assertMinimumTouchDimension(verse.frame.height)
         let sections=XCTAttachment(data:XCUIScreen.main.screenshot().pngRepresentation,uniformTypeIdentifier:"public.png")
         sections.name="OriginalVision-qa-large-perform-sections";sections.lifetime = .keepAlways;add(sections)
         app.buttons["perform.play"].tap()
@@ -87,8 +87,8 @@ final class PerformControlTests:XCTestCase {
             if scroll.frame.contains(knob.frame.insetBy(dx:0,dy:-10)),reset.isHittable{break}
             scroll.swipeUp()
         }
-        XCTAssertTrue(knob.isHittable);XCTAssertGreaterThanOrEqual(knob.frame.height,44)
-        XCTAssertTrue(reset.isHittable);XCTAssertGreaterThanOrEqual(reset.frame.height,44)
+        XCTAssertTrue(knob.isHittable);assertMinimumTouchDimension(knob.frame.height)
+        XCTAssertTrue(reset.isHittable);assertMinimumTouchDimension(reset.frame.height)
         XCTAssertTrue(app.buttons["perform.play"].isHittable)
         turnClockwise(knob);waitForValue(knob,NSPredicate(format:"value BEGINSWITH '+'"))
         let shot=XCTAttachment(data:XCUIScreen.main.screenshot().pngRepresentation,uniformTypeIdentifier:"public.png")
