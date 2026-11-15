@@ -1,0 +1,20 @@
+{
+  "kind": "native-progress-screenshot",
+  "version": "1.0.0 (14)",
+  "source_sha": "dc3a0a9aa63a0422907593e89fb8fcc96a7ed02b",
+  "run_id": 43724350400,
+  "artifact_id": 14165822929,
+  "run_conclusion": "failure",
+  "scenario": "LiveEditingTests.testAssistantWholeSongABAndStopRestoreRunningProject",
+  "scenario_result": "passed",
+  "fixture": "Local Commands whole-song proposal; not a generative-model result",
+  "files": [
+    {
+      "path": "assistant-live-form.png",
+      "source_attachment_name": "OriginalVision-qa-live-assistant-preview",
+      "width": 1320,
+      "height": 2868,
+      "sha256": "fd9e11b6bd5c89b55ed0e2bdfbdfb0d6cbc92d0764401a6c760dda8773cd9269"
+    }
+  ]
+}

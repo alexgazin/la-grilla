@@ -99,7 +99,7 @@ struct BassView: View {
                 Spacer()
                 // Keep the platform switch's hit region independent of the
                 // Form cell and its descriptive/status rows on iOS 26.
-                RootBassSwitch(isOn:bassEnabled,enabled:!editingLocked).frame(width:64,height:44)
+                RootBassSwitch(isOn:bassEnabled,enabled:!editingLocked).frame(width:64,height:48)
             }
             Text("Bass follows the roots of your chords.").foregroundStyle(.secondary).font(.caption)
             Text(LocalizedStringKey(session.audio.playing ? "PLAYING":"STOPPED")).font(.caption.monospaced()).foregroundStyle(Color.muted).accessibilityIdentifier("bass.playback-state")
@@ -112,7 +112,8 @@ struct BassView: View {
 }
 
 /// UISwitch keeps its native visual, valueChanged and accessibility behavior.
-/// The host, touch and accessibility rectangles share the same 64×44 bounds;
+/// The host, touch and accessibility rectangles share the same 64×48 bounds.
+/// The extra height retains a 44pt screen target after the system sheet's scale;
 /// the smaller system-drawn thumb does not shrink the interactive target.
 @MainActor private struct RootBassSwitch:UIViewRepresentable {
     @Binding var isOn:Bool
@@ -131,7 +132,7 @@ struct BassView: View {
         if control.isOn != isOn{control.setOn(isOn,animated:control.window != nil)}
     }
     func makeCoordinator()->Coordinator{Coordinator(value:$isOn)}
-    func sizeThatFits(_ proposal:ProposedViewSize,uiView:RootBassUISwitch,context:Context)->CGSize?{CGSize(width:64,height:44)}
+    func sizeThatFits(_ proposal:ProposedViewSize,uiView:RootBassUISwitch,context:Context)->CGSize?{CGSize(width:64,height:48)}
     static func dismantleUIView(_ uiView:RootBassUISwitch,coordinator:Coordinator){uiView.removeTarget(coordinator,action:#selector(Coordinator.changed(_:)),for:.valueChanged)}
     @MainActor final class Coordinator:NSObject {
         var value:Binding<Bool>
@@ -146,8 +147,8 @@ struct BassView: View {
 }
 
 @MainActor private final class RootBassUISwitch:UISwitch {
-    private var hitBounds:CGRect{bounds.insetBy(dx:-max(0,64-bounds.width)/2,dy:-max(0,44-bounds.height)/2)}
-    override var intrinsicContentSize:CGSize{CGSize(width:64,height:44)}
+    private var hitBounds:CGRect{bounds.insetBy(dx:-max(0,64-bounds.width)/2,dy:-max(0,48-bounds.height)/2)}
+    override var intrinsicContentSize:CGSize{CGSize(width:64,height:48)}
     override func point(inside point:CGPoint,with event:UIEvent?)->Bool{isEnabled && hitBounds.contains(point)}
     override var accessibilityFrame:CGRect {
         get{guard window != nil else{return super.accessibilityFrame};return UIAccessibility.convertToScreenCoordinates(hitBounds,in:self)}

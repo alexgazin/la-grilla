@@ -3,11 +3,21 @@ import XCTest
 final class VoiceReviewUITests:XCTestCase {
     override func setUp(){super.setUp();continueAfterFailure=false;executionTimeAllowance=120}
     @MainActor private func reveal(_ element:XCUIElement,in app:XCUIApplication,up:Bool=true){
-        for _ in 0..<12 {
-            if element.exists && element.isHittable{return}
-            if up{app.scrollViews.firstMatch.swipeUp()}else{app.scrollViews.firstMatch.swipeDown()}
+        let scroll=app.scrollViews.firstMatch
+        func visible()->Bool {
+            guard element.exists,element.isHittable else{return false}
+            let frame=element.frame,window=app.windows.firstMatch.frame,scrollFrame=scroll.frame
+            let navigationBottom=app.navigationBars.firstMatch.exists ? app.navigationBars.firstMatch.frame.maxY:window.minY
+            let viewport=CGRect(x:max(window.minX,scrollFrame.minX),y:max(navigationBottom,scrollFrame.minY),width:min(window.maxX,scrollFrame.maxX)-max(window.minX,scrollFrame.minX),height:min(window.maxY,scrollFrame.maxY)-max(navigationBottom,scrollFrame.minY)).insetBy(dx:4,dy:4)
+            // SwiftUI can report clipped offscreen buttons as hittable. Require
+            // the actual control to be entirely inside the visible viewport.
+            return frame.minX.isFinite && frame.minY.isFinite && frame.width.isFinite && frame.height.isFinite && frame.width>0 && frame.height>0 && viewport.contains(frame)
         }
-        XCTAssertTrue(element.exists);XCTAssertTrue(element.isHittable)
+        for _ in 0..<12 {
+            if visible(){return}
+            if up{scroll.swipeUp()}else{scroll.swipeDown()}
+        }
+        XCTAssertTrue(element.exists);XCTAssertTrue(visible(),"Control is outside the visible scroll viewport: "+element.debugDescription)
     }
     @MainActor func testLiveMixEditRequiresExplicitReviewAndPreservesManualNotesAndSource(){
         XCUIDevice.shared.orientation = .portrait
@@ -34,8 +44,14 @@ final class VoiceReviewUITests:XCTestCase {
         XCTAssertEqual(app.staticTexts["voice.note-count"].label,"3 notes")
         let instrument=app.buttons["voice.instrument"];reveal(instrument,in:app,up:false);instrument.tap()
         XCTAssertEqual(app.staticTexts["voice.fixture-transport"].label,"PLAYING")
-        let stop=app.buttons["Stop preview"];reveal(stop,in:app);stop.tap()
+        let preview=app.staticTexts["voice.fixture-preview"]
+        XCTAssertEqual(XCTWaiter.wait(for:[XCTNSPredicateExpectation(predicate:NSPredicate(format:"label == 'PREVIEW'"),object:preview)],timeout:5),.completed,"Instrument tap must start the reviewed candidate before testing Stop")
+        let stop=app.buttons["voice.stop-preview"];reveal(stop,in:app);stop.tap()
+        XCTAssertEqual(XCTWaiter.wait(for:[XCTNSPredicateExpectation(predicate:NSPredicate(format:"label == 'ORIGINAL'"),object:preview)],timeout:5),.completed)
+        XCTAssertFalse(stop.exists)
         XCTAssertEqual(app.staticTexts["voice.fixture-transport"].label,"PLAYING")
+        XCTAssertEqual(app.staticTexts["voice.fixture-source"].label,source)
+        XCTAssertEqual(app.staticTexts["voice.fixture-pitch"].label,"61")
         reveal(apply,in:app)
         let attachment=XCTAttachment(data:XCUIScreen.main.screenshot().pngRepresentation,uniformTypeIdentifier:"public.png")
         attachment.name="OriginalVision-qa-voice-live-review";attachment.lifetime = .keepAlways;add(attachment)

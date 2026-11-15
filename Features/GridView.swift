@@ -151,29 +151,32 @@ struct GridView: View {
             clipSelection=ClipEditorSelection(trackID:track.id,clipID:clip.id)
         } label: {
             ArrangementClipFace(notes:notes,track:track,clip:clip,width:width,height:max(44,height-12),resizing:draft != nil)
-            .overlay(alignment:.trailing){
-                Image(systemName:"line.3.horizontal").font(.system(size:11,weight:.semibold)).rotationEffect(.degrees(90)).foregroundStyle(Color.track(track.role))
-                    .frame(width:min(18,max(6,width*0.2)),height:44).frame(width:44,height:44).contentShape(Rectangle())
-                    .highPriorityGesture(DragGesture(minimumDistance:1).onChanged{value in
-                        guard !editingLocked else{return}
-                        if resizeDraft?.payload.objectID != clip.id {resizeDraft=ClipResizeDraft(payload:.init(project:session.project,trackID:track.id,clipID:clip.id),originalLength:clip.length,length:clip.length,start:clip.start)}
-                        guard var current=resizeDraft else{return}
-                        let ticks=Double(current.originalLength)+Double(value.translation.width/barWidth)*Double(barTicks)
-                        let bounded=max(Double(clipSnap),min(Double(64*barTicks-current.start),ticks))
-                        current.length=(try? ClipEditing.snapped(Int(bounded),step:clipSnap)) ?? clip.length;resizeDraft=current
-                    }.onEnded{_ in
-                        guard let current=resizeDraft,current.payload.objectID==clip.id else{return};resizeDraft=nil
-                        guard current.length != current.originalLength else{return}
-                        let snap=clipSnap
-                        session.edit{try ClipEditing.resize(current.payload,length:current.length,snap:snap,in:&$0)}
-                    })
-                    .accessibilityLabel("Resize clip").accessibilityHidden(true)
-            }
         }.buttonStyle(.plain).frame(width:width,height:max(44,height-12)).contentShape(Rectangle())
             .modifier(ArrangementDragSource(payload:editingLocked || resizeDraft != nil ? nil:ArrangementDragPayload(project:session.project,trackID:track.id,clipID:clip.id,grabOffset:grabbedClip==clip.id ? grabbedOffset:0).encoded()))
             .accessibilityHidden(true)
-        return ZStack {
+            // Rebuild the native source after inspector/model edits; touch
+            // anchor updates leave this revision unchanged during the lift.
+            .id(clip.id.uuidString+"-"+String(session.project.revision))
+        return ZStack(alignment:.bottomTrailing) {
             control
+            // Resize is a separate corner target. Keep its high-priority pan
+            // outside the drag Button's center hit region on narrow clips.
+            Image(systemName:"line.3.horizontal").font(.system(size:11,weight:.semibold)).rotationEffect(.degrees(90)).foregroundStyle(Color.track(track.role))
+                .frame(width:min(18,max(6,width*0.2)),height:44).frame(width:44,height:44).contentShape(Rectangle())
+                .highPriorityGesture(DragGesture(minimumDistance:1).onChanged{value in
+                    guard !editingLocked else{return}
+                    if resizeDraft?.payload.objectID != clip.id {resizeDraft=ClipResizeDraft(payload:.init(project:session.project,trackID:track.id,clipID:clip.id),originalLength:clip.length,length:clip.length,start:clip.start)}
+                    guard var current=resizeDraft else{return}
+                    let ticks=Double(current.originalLength)+Double(value.translation.width/barWidth)*Double(barTicks)
+                    let bounded=max(Double(clipSnap),min(Double(64*barTicks-current.start),ticks))
+                    current.length=(try? ClipEditing.snapped(Int(bounded),step:clipSnap)) ?? clip.length;resizeDraft=current
+                }.onEnded{_ in
+                    guard let current=resizeDraft,current.payload.objectID==clip.id else{return};resizeDraft=nil
+                    guard current.length != current.originalLength else{return}
+                    let snap=clipSnap
+                    session.edit{try ClipEditing.resize(current.payload,length:current.length,snap:snap,in:&$0)}
+                })
+                .accessibilityLabel("Resize clip").accessibilityHidden(true)
             ArrangementClipAccessibility(label:track.displayName,value:String(format:NSLocalizedString("%.2f bars",comment:"Clip length"),Double(clip.length)/Double(barTicks)),identifier:"grid.clip.\(clip.id)",enabled:!editingLocked,touchBegan:{point in
                 guard resizeDraft==nil,clipSelection==nil,selection==nil,!showClipList,session.sheet==nil else{return}
                 grabbedClip=clip.id;grabbedOffset=max(0,min(clip.length-1,Int(point.x/barWidth*CGFloat(barTicks))))

@@ -29,6 +29,7 @@ jobs:
       - name: Release configuration audit
         run: |
           python3 scripts/release/audit_release.py
+          python3 scripts/release/test_native_acceptance.py
           for GRILLA_SCRIPT in scripts/release/*.sh; do bash -n "$GRILLA_SCRIPT"; done
       - name: Presentation and localization audit
         run: python3 scripts/audit_presentation.py && plutil -lint Resources/en.lproj/Localizable.strings Resources/ru.lproj/Localizable.strings

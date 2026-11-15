@@ -100,6 +100,21 @@ Release archive `12dc161` проверен отдельно: iOS 18 minimum, SDK
 
 Host HAL был действительно выбран и работал на 48 kHz, но Simulator по-прежнему объявил 2 канала с частотой 0 Hz и не дал PCM. Диагностика подтвердила сохранение engine/kernel/clock/category и фазы; это не выдано за успешную запись. Следующий CI дополнительно задаёт собственные remembered input/output preferences Simulator: точные `RecentAudioInputDeviceUIDs`/`RecentAudioOutputDeviceUIDs` проверяются по установленному SDK, сохраняются и логируются после boot. Производственный граф не заменяется на догадке о причине. Финальные полный native run, 375-point capture и полная коллекция OriginalVision остаются обязательными.
 
+### C7 — проверка 8a909 и расширение сквозной приёмки
+
+Source `8a90920684e2e66fb9a159adec975e4af1cfa303`, [run 43726756796](https://github.com/alexgazin/la-grilla/actions/runs/43726756796): обе SDK и optimized archive проходят; **7/11 native integration tests passed, 4 failed**, общий результат не принят. Впервые прошёл настоящий перенос широкого четырёхтактового клипа с off-center grab offset и Undo. Также проходят Add clip, section drag, live snapshot, immediate MIDI Off, Assistant A/B и live section operations.
+
+По реальным log/video исправляются четыре причины, без ослабления проверок:
+
+- Уменьшенный однобарный клип действительно поднимался при drag и возвращался без ошибки доменной операции; широкий клип переносится. Resize-gesture вынесен из draggable Button в отдельный нижний угловой target; native source обновляется после revision, сохраняя стабильный clip AX UUID. Добавлена проверка фактического corner resize и Undo; исходные one-bar/wide движения и start `2:1` сохранены.
+- Native Bass Switch имел 44 локальных пункта, но системная презентация уменьшила экранную высоту до 42.4. Настоящие layout, touch и AX bounds увеличены согласованно до 64×48; строгие физические ±20-point edge taps, обе смены value, 44-point минимум и непрерывный Play остаются обязательными.
+- VoiceReview прошёл source hash, ручную C♯4 и rebase, затем не включил Instrument: SwiftUI объявил частично скрытую кнопку hittable. Reveal теперь проверяет положение всего контрола внутри видимого viewport, а реальное касание должно сначала включить `PREVIEW`; explicit Stop возвращает `ORIGINAL`, сохраняя Play/hash/pitch. Предположение об окончании короткого preview отвергнуто после чтения Session и видео: этот preview работает в loop.
+- Input всё ещё объявлял 2 канала с 0 Hz и не дал кадров. Host HAL и post-boot RecentAudio UID arrays действительно выбраны, но recents не доказывают выбранный Simulator input. Следующая проверка использует поддерживаемое меню Simulator Audio Input/Output через bounded GUI automation и требует checked marker существующего BlackHole item. Только последующий настоящий PCM может закрыть входную цепь. Output engine/kernel/clock/playing/category уже сохранялись; phase difference — `3.41e-13` tick.
+
+Обнаружен отдельный release bug: прежний signing gate принимал три green check names даже от сокращённого integration/capture run. Gate теперь проверяет exact SHA, GitHub Actions origin, фактический verification event/scope, job/check linkage и один coherent завершённый run. Focused/capture-only push не разрешает signing; manual exception относится только к настоящему `ios.yml workflow_dispatch`. Host regressions покрывают ложные допуски и безопасные ошибки; read-only проверка на реальных API-данных main `912dc483` корректно приняла run `43719321757`. Signing при этом не выполнялся.
+
+Приёмка дополнена реальными RU/EN/375-point кадрами custom chord editor и крупным верхним блоком Perform. В разработке — actual VoiceCapture → CAF → analysis → apply/source persistence/Undo и фактический Session lifecycle записи offset/repeating drum clip. Эти проверки не подменяют человеческий голос или измерения физического MIDI. [Промежуточный кадр Assistant](../Screenshots/OriginalVision-progress/assistant-live-form.png) сохраняет собственный прежний source/run/manifest и явно отделён от будущей полной коллекции.
+
 ## Формат отчёта каждого этапа
 
 Для C1–C8 добавлять отдельную запись:

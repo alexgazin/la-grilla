@@ -24,6 +24,7 @@ if test -f ci-audio.log; then
     defaults read com.apple.iphonesimulator RecentAudioInputDeviceUIDs || true
     defaults read com.apple.iphonesimulator RecentAudioOutputDeviceUIDs || true
   } 2>&1 | tee -a ci-audio.log
+  bash scripts/select_ci_simulator_audio.sh 2>&1 | tee -a ci-audio.log
 fi
 if test "${GRILLA_CAPTURE_SCREENS:-1}" = 0; then
   # XCTest installs and launches its own correctly signed application.

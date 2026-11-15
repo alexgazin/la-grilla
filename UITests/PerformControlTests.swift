@@ -75,6 +75,11 @@ final class PerformControlTests:XCTestCase {
         let knob=app.sliders["perform.filter"],reset=app.buttons["perform.filter.reset"]
         XCTAssertTrue(knob.waitForExistence(timeout:5));XCTAssertTrue(app.buttons["perform.play"].isHittable)
         XCTAssertGreaterThanOrEqual(app.buttons["perform.section.Verse"].frame.width,app.scrollViews.firstMatch.frame.width*0.8)
+        let verse=app.buttons["perform.section.Verse"]
+        XCTAssertTrue(verse.isHittable)
+        XCTAssertGreaterThanOrEqual(verse.frame.height,44)
+        let sections=XCTAttachment(data:XCUIScreen.main.screenshot().pngRepresentation,uniformTypeIdentifier:"public.png")
+        sections.name="OriginalVision-qa-large-perform-sections";sections.lifetime = .keepAlways;add(sections)
         app.buttons["perform.play"].tap()
         waitForValue(knob,NSPredicate(format:"enabled == true"))
         let scroll=app.scrollViews.firstMatch

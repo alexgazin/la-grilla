@@ -138,7 +138,7 @@
 2. Перегенерировать Xcode project, согласовать version/build и schema. Обе SDK-сборки и оптимизированный archive/dSYM/privacy/resources на актуальном App Store toolchain.
 3. Native сценарии всего исходного видения: клипы/секции пальцем, непрерывный loop при структурных правках и A/B, circular filter/record/replay, AI whole-song review/apply/cancel/Undo, shared voice capture, exports и MIDI regression.
 4. RU/EN, dark/light, 375 pt, large text, landscape, VoiceOver semantics, Reduce Motion/Transparency/Contrast; минимум 44 pt для стандартных контролов и доступные альтернативы точным музыкальным canvas.
-5. Реальные PNG в `Screenshots/Completion/`; дополнительные сцены новой функциональности; 12 соответствующих Store-копий без выдуманного UI. Source/run/dimensions/SHA-256 и явные fixture labels.
+5. Реальные PNG в `Screenshots/OriginalVision/`; дополнительные сцены новой функциональности; 12 соответствующих Store-копий без выдуманного UI. Source/run/dimensions/SHA-256 и явные fixture labels.
 6. Обновить metadata, support/privacy, review notes и руководство сценариев. Проверить, что описание не обещает модель/язык/качество или аппаратную задержку без доказательства.
 7. PR/merge в main, все обязательные checks точного main SHA. Только затем программный этап считается завершённым.
 

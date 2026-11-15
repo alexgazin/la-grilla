@@ -108,6 +108,21 @@ final class ArrangementUITests: XCTestCase {
         XCTAssertEqual(clip.value as? String,"4.00 bars")
     }
 
+    @MainActor func testNativeCornerResizeKeepsClipStartAndIsUndoable(){
+        let app=launch()
+        let clip=app.buttons.matching(NSPredicate(format:"identifier BEGINSWITH 'grid.clip.' AND label == 'Harmony'")).firstMatch
+        XCTAssertTrue(clip.waitForExistence(timeout:5));wait(clip,NSPredicate(format:"hittable == true"))
+        let initialX=clip.frame.minX,width=clip.frame.width,bar=(width+6)/4
+        let handle=clip.coordinate(withNormalizedOffset:CGVector(dx:0.95,dy:0.86))
+        handle.press(forDuration:0.1,thenDragTo:handle.withOffset(CGVector(dx:-bar,dy:0)))
+        wait(clip,NSPredicate(format:"value == '3.00 bars'"))
+        XCTAssertEqual(clip.frame.minX,initialX,accuracy:3)
+        XCTAssertEqual(clip.frame.width,width-bar,accuracy:3)
+        app.buttons["Undo"].tap();wait(clip,NSPredicate(format:"value == '4.00 bars'"))
+        XCTAssertEqual(clip.frame.minX,initialX,accuracy:3)
+        XCTAssertEqual(clip.frame.width,width,accuracy:3)
+    }
+
     @MainActor func testSectionChipsDragWholeSectionAndUndo(){
         let app=launch("perform")
         XCTAssertTrue(app.buttons["perform.done"].waitForExistence(timeout:5));app.buttons["perform.done"].tap()

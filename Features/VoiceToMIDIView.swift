@@ -91,7 +91,7 @@ struct VoiceToMIDIView:View {
                 Button{original()}label:{Label(LocalizedStringKey(capture.originalPlaying ? "Stop original":"Original voice"),systemImage:"waveform").frame(maxWidth:.infinity,minHeight:48).background(Color.raised,in:RoundedRectangle(cornerRadius:10))}.disabled(applying).accessibilityIdentifier("voice.original")
                 Button{instrument()}label:{Label("Instrument",systemImage:"pianokeys").frame(maxWidth:.infinity,minHeight:48).background(Color.raised,in:RoundedRectangle(cornerRadius:10))}.disabled(notes.isEmpty || applied || applying).accessibilityIdentifier("voice.instrument")
             }.font(.subheadline)
-            if session.harmonyPreview{Button("Stop preview"){session.endHarmonyPreview()}.frame(minHeight:44)}
+            if session.harmonyPreview{Button("Stop preview"){session.endHarmonyPreview()}.frame(minHeight:44).accessibilityIdentifier("voice.stop-preview")}
             DisclosureGroup("Rhythm and scale"){
                 VStack(spacing:12){StudioSegments(title:"Quantize",selection:$quantize,options:[(.off,"Original"),(.sixteenth,"1/16"),(.eighth,"1/8")]);Toggle("Snap to project scale",isOn:$snapScale);HStack{Text("Timing offset");Slider(value:$offset,in:-0.25...0.25,step:0.005);Text("\(Int(offset*1000)) ms").font(.caption.monospaced()).frame(width:56)};Button("Rebuild notes from source"){resetNotes()};Text("Rebuilding replaces manual note corrections. The original recording stays available.").font(.caption).foregroundStyle(Color.muted)}.padding(.top,12)
             }.disabled(draftLocked)
@@ -106,6 +106,7 @@ struct VoiceToMIDIView:View {
             if synthetic && ProcessInfo.processInfo.arguments.contains("--voice-review-fixture") {
                 Button{if !session.audio.playing{session.audio.play()};session.mixerEdit{$0.master=max(-60,$0.master-1)};session.mixerGesture=false}label:{Text(verbatim:"Change fixture mix")}.frame(minHeight:48).accessibilityIdentifier("voice.fixture-edit").disabled(draftLocked)
                 Text(verbatim:session.audio.playing ? "PLAYING":"STOPPED").accessibilityIdentifier("voice.fixture-transport")
+                Text(verbatim:session.harmonyPreview ? "PREVIEW":"ORIGINAL").accessibilityIdentifier("voice.fixture-preview")
                 Text(verbatim:String(note?.pitch ?? -1)).accessibilityIdentifier("voice.fixture-pitch")
                 Text(verbatim:result.record.sha256).font(.caption).accessibilityIdentifier("voice.fixture-source")
             }
