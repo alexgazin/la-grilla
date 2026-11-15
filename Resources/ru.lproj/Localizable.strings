@@ -603,4 +603,13 @@
 "Bar:beat:tick · 960 ticks per beat; zero ticks are omitted." = "Такт:доля:тик · 960 тиков на долю; нулевые тики не показаны.";
 "Bar %lld, beat %lld" = "Такт %lld, доля %lld";
 "Bar %lld, beat %lld, tick %lld of 960" = "Такт %lld, доля %lld, тик %lld из 960";
+"Duration: %lld sixteenths" = "Длительность: %lld × 1/16";
+"Pitch: %@" = "Высота: %@";
+"Start: %lld ticks" = "Начало: %lld тиков";
+"Length: %lld ticks" = "Длина: %lld тиков";
+"From bar %lld" = "С такта %lld";
+"Through bar %lld" = "По такт %lld";
+"Inversion %lld" = "Обращение %lld";
+"%lld:%lld · %lld ticks · v%lld" = "%lld:%lld · %lld тиков · v%lld";
+"Step %lld" = "Шаг %lld";
 "Source pattern: %@" = "Исходный паттерн: %@";

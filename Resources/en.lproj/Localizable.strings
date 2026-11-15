@@ -601,4 +601,13 @@
 "Bar:beat:tick · 960 ticks per beat; zero ticks are omitted." = "Bar:beat:tick · 960 ticks per beat; zero ticks are omitted.";
 "Bar %lld, beat %lld" = "Bar %lld, beat %lld";
 "Bar %lld, beat %lld, tick %lld of 960" = "Bar %lld, beat %lld, tick %lld of 960";
+"Duration: %lld sixteenths" = "Duration: %lld sixteenths";
+"Pitch: %@" = "Pitch: %@";
+"Start: %lld ticks" = "Start: %lld ticks";
+"Length: %lld ticks" = "Length: %lld ticks";
+"From bar %lld" = "From bar %lld";
+"Through bar %lld" = "Through bar %lld";
+"Inversion %lld" = "Inversion %lld";
+"%lld:%lld · %lld ticks · v%lld" = "%lld:%lld · %lld ticks · v%lld";
+"Step %lld" = "Step %lld";
 "Source pattern: %@" = "Source pattern: %@";

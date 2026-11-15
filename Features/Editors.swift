@@ -32,7 +32,9 @@ struct ChordEditor: View {
             HStack {
                 Text("Inversion")
                 Spacer(minLength:8)
-                Picker("Inversion",selection:Binding(get:{chord.inversion},set:{chord.inversion=$0;chord.voicedNotes=nil})){ForEach(0..<chord.effectiveIntervals.count,id:\.self){i in Text(LocalizedStringKey(i==0 ? "Root position":"Inversion \(i)")).tag(i)}}
+                Picker("Inversion",selection:Binding(get:{chord.inversion},set:{chord.inversion=$0;chord.voicedNotes=nil})){ForEach(0..<chord.effectiveIntervals.count,id:\.self){i in
+                    if i==0{Text("Root position").tag(i)}else{Text("Inversion \(i)").tag(i)}
+                }}
                     .labelsHidden().pickerStyle(.menu).frame(minHeight:44).contentShape(Rectangle()).accessibilityIdentifier("chord.inversion")
             }.frame(minHeight:44)
             HStack {
@@ -41,7 +43,7 @@ struct ChordEditor: View {
                 Picker("Slash bass",selection:Binding(get:{chord.slashBass ?? -1},set:{chord.slashBass=$0<0 ? nil:$0;chord.voicedNotes=nil;text=chord.symbol})){Text("None").tag(-1);ForEach(0..<12,id:\.self){i in Text(Chord.roots[i]).tag(i)}}
                     .labelsHidden().pickerStyle(.menu).frame(minHeight:44).contentShape(Rectangle()).accessibilityIdentifier("chord.slash-bass")
             }.frame(minHeight:44)
-            Stepper("Duration: \(duration/240) sixteenths",value:$duration,in:240...max(240,(session.project.patterns.first(where:{$0.id==selection.patternID})?.length ?? barTicks)-selection.tick),step:240)
+            Stepper("Duration: \(duration/240) sixteenths",value:$duration,in:240...max(240,(session.project.patterns.first(where:{$0.id==selection.patternID})?.length ?? barTicks)-selection.tick),step:240).accessibilityIdentifier("chord.duration")
             HStack{Button{preview()}label:{Label("Preview",systemImage:"speaker.wave.2").frame(maxWidth:.infinity,minHeight:48).background(Color.raised,in:RoundedRectangle(cornerRadius:10))}.accessibilityIdentifier("chord.preview");Button{apply()}label:{Text("Apply").fontWeight(.semibold).foregroundStyle(Color.ink).frame(maxWidth:.infinity,minHeight:48).background(Color.harmony,in:RoundedRectangle(cornerRadius:10))}.accessibilityIdentifier("chord.apply")}.buttonStyle(StudioQuietButtonStyle())
         }.padding(22)}.background(Color.panel).navigationTitle("Edit chord").navigationBarTitleDisplayMode(.inline).toolbar{ToolbarItem(placement:.cancellationAction){Button("Cancel"){dismiss()}}}}
         .onAppear{chord=selection.chord;text=chord.symbol;duration=selection.duration;family=chord.quality.family;formulaText=chord.effectiveIntervals.map(String.init).joined(separator:", ")}

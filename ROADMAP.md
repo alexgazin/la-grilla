@@ -17,12 +17,12 @@
 | C2 | Настоящий круговой live-фильтр и доступность | Native приёмка пройдена; [55 кадров и receipt](Screenshots/C2) |
 | C3 | Move/copy/resize клипов, совместимые drop, section drag, clip-specific piano roll | Реализовано; все 5 native arrangement сценариев прошли в 43733352465; финальная регрессия впереди |
 | C4 | Атомарный music/mix/preset snapshot; live add/remove/reorder и фазовое A/B без Stop | Реализовано; kernel/MIDI, native live edits и настоящий drum overdub прошли; расширенная проверка audition ожидает C7 |
-| C5 | Общий duplex input, напев/диктовка поверх бита, bounded capture и cleanup | Активный этап: исправлен порядок создания input/output; нужны cold first-use и реальные CAF/analysis/apply receipts |
+| C5 | Общий duplex input, напев/диктовка поверх бита, bounded capture и cleanup | Focused native cold/warm CAF→analysis→review→Apply/store/reopen/UndoRedo прошли (43748050176); render timestamp gaps измерены, physical output/indicator/живой голос остаются C8 |
 | C6 | Реальный AI provider, естественные команды/«поджазовать», whole-song review/Apply/Undo | FoundationModels adapter и Commands реализованы; native review/Apply/Undo прошли; реальная модель/язык проверяются в C8 |
-| C7 | Интеграционная QA, совместимость, новый RC и реальные кадры | Кандидат 1.0.0 (14), schema 8; 115 Swift tests и 15 C++ suites проходят; полная native/визуальная приёмка и merge ожидают C5 |
+| C7 | Интеграционная QA, совместимость, новый RC и реальные кадры | Кандидат 1.0.0 (14), schema 8; 115 Swift/18 suites,15 C++ и603 EN/RU keys проходят; полный native43/captures73, визуальная приёмка и merge впереди |
 | C8 | Устройства/реальные модели/голоса, signing, TestFlight и App Review | Внешняя приёмка открыта |
 
-Последний принятый `main` — `912dc483`, **1.0.0 (13)**, exact-main run `43719321757`. Расширения кандидата 14 находятся в [PR #13](https://github.com/alexgazin/la-grilla/pull/13). Его частичные прогоны и три [промежуточных оригинальных кадра](Screenshots/OriginalVision-progress) не объявляются финальной приёмкой. Следующая цепочка: C5 cold playback→consent→capture в одном процессе → полный native run и свежая коллекция кадров → merge → проверки точного `main` → C8.
+Последний принятый `main` — `912dc483`, **1.0.0 (13)**, exact-main run `43719321757`. Расширения кандидата 14 находятся в [PR #13](https://github.com/alexgazin/la-grilla/pull/13). Focused C5 cold playback→consent→complete capture в одном процессе прошёл; источник/фаза не выданы за gapless physical audio. Частичные прогоны и шесть [промежуточных оригинальных кадров](Screenshots/OriginalVision-progress) не являются финальной приёмкой; RU Duration bug в одном кадре сохранён и исправляется с общей dynamic-localization регрессией. Следующая цепочка: полный native run и свежая коллекция кадров → merge → проверки точного `main` → C8.
 
 ## История выполненных базовых этапов
 

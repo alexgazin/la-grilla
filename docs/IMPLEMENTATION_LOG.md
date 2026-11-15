@@ -242,6 +242,14 @@ Cold privacy: undetermined → undetermined во время настоящего
 
 Source `793fcb5` исправляет нарушенный async String-drop test contract: после одного прежнего жеста bounded6 s ожидание **точного x=initialX+bar ±3 pt и length1.00**, затем сохраняются старый >halfbar guard, настоящий inspector start2:1 и Undo/Redo. Wide drag/Undo/Redo также ждут точного результата; нет retry gesture, увеличения press duration или доменной подстановки движения. Production gesture не меняется. Parse/diff проходят; новый native FULL обязан подтвердить приёмку.
 
+### C7 — реальные progress PNG выявили динамическую локализацию
+
+Три новых [оригинальных progress PNG](../Screenshots/OriginalVision-progress) source41/run43744734618 побайтово сверены с двумя ZIP и actual NativeAttachments, их API digest/size проверены. Assistant Jazz diff и compact Russian inspector соответствуют прошедшим native сценариям. Russian custom-chord frame честно сохранён как **issue evidence**: `Duration: 16 sixteenths` остался английским. Общий source41 всё ещё FAIL,72/73 fresh; эти кадры не объявляются финальными или Store.
+
+Bounded полный аудит dynamic captions нашёл ещё Voice Pitch/Start/Length, Export From/Through, piano-list ticks, Step/On/Off AX, runtime String → LocalizedStringKey для Inversion и несовпадающий default Double/%.1f format для gain reset. Исправления добавляют девять точных EN/RU format keys (**603 всего**), прямую localized interpolation для Inversion, раздельные localized Step label/On-Off value и явный %.1f для mixer. Музыкальные значения, units, действие Step/Undo и reset не меняются. Russian capture теперь проверяет действительный Duration caption; существующий Russian Studio flow — Step1/state/toggle/one Undo и localized reset label/44pt. Новых native methods/PNG имён нет: ожидаются43 functional+3capture/73PNG.
+
+Presentation audit теперь разбирает balanced Swift interpolations с nested strings, включает Stepper/Slider/AX labels, проверяет format precision и отвергает потерю localization metadata при runtime-string ключе. **603-key audit, Swift parse, release/gate12, collector и project generation прошли.** Четыре counterfactual checks с настоящими исходниками/594-key catalogs из `aff4997` корректно проваливаются: отсутствующие format keys, старое Inversion construction, default gain precision и raw English Step state. Run43750364170/sourceaff был запущен до визуальной находки; следующий normal FULL supersedes его, не выдавая незавершённый run за принятую регрессию.
+
 ## Формат отчёта каждого этапа
 
 Для C1–C8 добавлять отдельную запись:

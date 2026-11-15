@@ -14,7 +14,43 @@ placeholder=re.compile(r'%(?:\d+\$)?[-+ #0]*(?:\d+)?(?:\.\d+)?(?:ll|l)?[diuoxXfF
 for key,value in catalogs['ru'].items():
     assert placeholder.findall(key)==placeholder.findall(value),f'Changed formatting: {key}'
 literal=r'"((?:[^"\\]|\\.)*)"'
-ui=re.compile(r'(?:Text|Button|Label|Section|Toggle|Picker|TextField|LabeledContent|ProgressView|Menu|DisclosureGroup|navigationTitle|accessibilityLabel|accessibilityHint|ContentUnavailableView)\(\s*'+literal+r'|(?:SmallHeading|StudioSegments)\((?:text|title):\s*'+literal)
+ui_names=r'Text|Button|Label|Section|Toggle|Picker|Stepper|Slider|TextField|LabeledContent|ProgressView|Menu|DisclosureGroup|navigationTitle|accessibilityLabel|accessibilityValue|accessibilityHint|ContentUnavailableView'
+ui=re.compile(r'(?:'+ui_names+r')\(\s*'+literal+r'|(?:SmallHeading|StudioSegments)\((?:text|title):\s*'+literal)
+units={'BPM','Hz','ms','s','dB','CC','v'}
+def swift_string(source,start):
+    """Read a literal and its balanced interpolations, including nested strings."""
+    assert source[start]=='"'
+    delimiter='"""' if source.startswith('"""',start) else '"'
+    position=start+len(delimiter);parts=[''];expressions=[]
+    while position<len(source):
+        if source.startswith(delimiter,position):
+            decoded=[json.loads('"'+part.replace('\n','\\n').replace('\r','\\r')+'"') for part in parts]
+            return decoded,expressions,position+len(delimiter)
+        if source.startswith('\\(',position):
+            begin=position+2;position=begin;depth=1
+            while position<len(source) and depth:
+                if source[position]=='"':
+                    _,_,position=swift_string(source,position);continue
+                if source[position]=='(':depth+=1
+                elif source[position]==')':depth-=1
+                position+=1
+            assert depth==0,'Unbalanced Swift interpolation'
+            expressions.append(source[begin:position-1]);parts.append('');continue
+        if source[position]=='\\' and position+1<len(source):
+            parts[-1]+=source[position:position+2];position+=2
+        else:parts[-1]+=source[position];position+=1
+    raise AssertionError('Unterminated Swift string')
+def needs_translation(parts):
+    words=set(re.findall(r'[A-Za-zА-Яа-я]+',''.join(parts)))
+    return bool(words-units)
+def interpolated_catalog_key(parts,expressions,catalog):
+    pattern=re.escape(parts[0])
+    for expression,tail in zip(expressions,parts[1:]):
+        specified=re.search(r'\bspecifier\s*:\s*"([^"\\]+)"',expression)
+        # Default interpolation does not inherit the precision of a catalog's
+        # %.1f key. Require explicit specifier agreement for formatted values.
+        pattern+=(re.escape(specified[1]) if specified else r'%(?:lld|ld|d|@|lf|f)')+re.escape(tail)
+    return any(re.fullmatch(pattern,key) for key in catalog)
 def expression_arguments(value):
     # Only top-level commas separate call arguments. A conditional key can use
     # nested calls, collections or closures containing their own commas.
@@ -53,7 +89,11 @@ def localized_expressions(source,ui_source=True):
         else:value=arguments[0] if arguments else ''
         # Table names, comments, fallback values and SF Symbol names are not
         # translation keys; inspect only the key/text/label argument above.
-        yield from re.findall(literal,value)
+        for key in re.findall(literal,value):
+            if match[1]=='LocalizedStringKey' and '\\(' in key:
+                parts,expressions,_=swift_string('"'+key+'"',0)
+                assert not expressions or not needs_translation(parts),'Runtime String interpolation loses localization metadata; use a direct localized literal: '+key
+            yield key
 missing=set()
 ui_paths=list((root/'App').glob('*.swift'))+list((root/'Features').glob('*.swift'))
 runtime_paths=list((root/'AudioRuntime').glob('*.swift'))+list((root/'Packages/MusicDomain/Sources/MusicDomain').glob('*.swift'))
@@ -63,6 +103,10 @@ for path in ui_paths+runtime_paths:
     if ui_source:
         for size in re.findall(r'\.system\(size:\s*(\d+(?:\.\d+)?)(?=[,)])',source):
             assert float(size)>=11,f'iOS HIG minimum font size is 11 pt: {path.name} uses {size}'
+        for call in re.finditer(r'(?:'+ui_names+r')\(\s*(?=")',source):
+            parts,expressions,_=swift_string(source,call.end())
+            if expressions and needs_translation(parts) and not interpolated_catalog_key(parts,expressions,catalogs['ru']):
+                missing.add(path.name+': interpolated '+ '⟨value⟩'.join(parts))
     keys=([match[1] or match[2] for match in ui.finditer(source)] if ui_source else [])+list(localized_expressions(source,ui_source))
     for key in keys:
         if '\\(' in key or not re.search('[A-Za-zА-Яа-я]',placeholder.sub('',key)):continue

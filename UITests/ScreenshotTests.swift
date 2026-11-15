@@ -30,7 +30,7 @@ final class ScreenshotTests:XCTestCase {
                 if target=="jam"{XCTAssertTrue(app.buttons[language=="ru" ? "Перкуссия":"Perc"].isHittable)}
                 if target=="mixer"{XCTAssertTrue(app.buttons["mixer.mute.0"].isHittable);XCTAssertTrue(app.buttons["mixer.solo.0"].isHittable);XCTAssertTrue(app.sliders["mixer.pan.0"].isHittable)}
             }
-            if customHarmony,!prepareCustomHarmony(app){continue}
+            if customHarmony,!prepareCustomHarmony(app,russian:language=="ru"){continue}
             if harmonyOptions,!prepareHarmonyOptions(app){continue}
             if arrangementClips,!prepareClipInspector(app){continue}
             if target=="voice-draft"{XCTAssertTrue(app.staticTexts["voice.note-count"].waitForExistence(timeout:15))}
@@ -109,7 +109,7 @@ final class ScreenshotTests:XCTestCase {
         XCTAssertFalse(app.keyboards.firstMatch.exists)
         return valid && !(length.value as? String ?? "").isEmpty && !app.keyboards.firstMatch.exists
     }
-    @MainActor private func prepareCustomHarmony(_ app:XCUIApplication)->Bool {
+    @MainActor private func prepareCustomHarmony(_ app:XCUIApplication,russian:Bool)->Bool {
         let chord=app.buttons.matching(NSPredicate(format:"identifier BEGINSWITH %@","grid.chord.")).firstMatch
         guard chord.waitForExistence(timeout:5)else{XCTFail("No actual chord cell opened for the custom harmony capture");return false}
         chord.tap()
@@ -132,6 +132,13 @@ final class ScreenshotTests:XCTestCase {
         let dismissed=XCTNSPredicateExpectation(predicate:NSPredicate(format:"exists == false"),object:app.keyboards.firstMatch)
         let keyboardDismissed=XCTWaiter.wait(for:[dismissed],timeout:5) == .completed
         XCTAssertTrue(keyboardDismissed)
+        let duration=app.steppers["chord.duration"]
+        guard duration.waitForExistence(timeout:5)else{XCTFail("The actual chord duration control is missing");return false}
+        if russian {
+            let translated=duration.label.contains("Длительность") && duration.label.contains("1/16") && !duration.label.contains("Duration")
+            XCTAssertTrue(translated,"Russian chord duration must use its real localized format: "+duration.label)
+            guard translated else{return false}
+        }
         return formulaValue=="0, 3, 7, 11, 14" && symbolValue=="C{0,3,7,11,14}" && custom=="1" && !hasError && keyboardDismissed
     }
     @MainActor private func settledPNG()->Data {
