@@ -16,6 +16,7 @@ import Observation
     @ObservationIgnored private var events:[PerformanceEvent]=[]
     @ObservationIgnored private var requestedSequence:UInt64=0
     @ObservationIgnored private var startedAt=Date.distantPast
+    @ObservationIgnored private var stopWaiters:[CheckedContinuation<Void,Never>]=[]
     @ObservationIgnored private(set) var replayTake:PerformanceTake?
     init(audio:AudioController){self.audio=audio}
     var fx:MasterFX{runtimeProject?.masterFX ?? MasterFX()}
@@ -61,16 +62,17 @@ import Observation
         runtimeProject=value;audio.mix(value)
     }
     func stopRecording(){guard recording else{return};audio.withKernel{lg_perform_record_stop($0)}}
-    func panic(){guard !stopping else{return};stopping=true;audio.panic();repeating=false;queuedSectionID=nil;if var source=runtimeProject{source.masterFX=MasterFX();runtimeProject=source};Task{await finishStop();stopping=false}}
+    func panic(){guard !stopping else{return};stopping=true;audio.panic();repeating=false;queuedSectionID=nil;if var source=runtimeProject{source.masterFX=MasterFX();runtimeProject=source};Task{await finishStop();completeStop()}}
     func stop()async {
-        if stopping{while stopping{try? await Task.sleep(for:.milliseconds(10))};return}
-        stopping=true;defer{stopping=false};await finishStop()
+        if stopping{await withCheckedContinuation{stopWaiters.append($0)};return}
+        stopping=true;defer{completeStop()};await finishStop()
     }
+    private func completeStop(){stopping=false;let waiting=stopWaiters;stopWaiters=[];for waiter in waiting{waiter.resume()}}
     private func finishStop()async {
         audio.stop();let deadline=Date().addingTimeInterval(1)
         while Date()<deadline {
             poll();if !(audio.withKernel{lg_perform_mode($0) != 0} ?? false){break}
-            if !audio.isPrepared{audio.stopRenderAndFinalizePerformance();break}
+            if !audio.isPrepared || Task.isCancelled{audio.stopRenderAndFinalizePerformance();break}
             try? await Task.sleep(for:.milliseconds(10))
         }
         if audio.withKernel({lg_perform_mode($0) != 0})==true{audio.stopRenderAndFinalizePerformance()}
