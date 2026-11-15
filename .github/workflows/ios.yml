@@ -32,7 +32,7 @@ jobs:
           clang++ -std=c++17 -O2 -Wall -Wextra -Werror Tests/midi_output_test.cpp Packages/MusicDomain/Sources/AudioDSP/GrillaKernel.cpp Packages/MusicDomain/Sources/AudioDSP/MIDIHub.cpp -I Packages/MusicDomain/Sources/AudioDSP/include -o /tmp/midi-output-test && /tmp/midi-output-test
       - name: Build iOS app
         id: simulator_build
-        run: set -o pipefail; xcodebuild -test-timeouts-enabled YES -maximum-test-execution-time-allowance 600 -project LaGrilla.xcodeproj -scheme LaGrilla -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' ARCHS=arm64 ONLY_ACTIVE_ARCH=YES -configuration Debug -derivedDataPath DerivedData CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO build | tee build.log
+        run: set -o pipefail; xcodebuild -test-timeouts-enabled YES -maximum-test-execution-time-allowance 600 -project LaGrilla.xcodeproj -scheme LaGrilla -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' ARCHS=arm64 ONLY_ACTIVE_ARCH=YES -configuration Debug -derivedDataPath DerivedData CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO build-for-testing | tee build.log
       - name: Package simulator app
         run: ditto -c -k --sequesterRsrc --keepParent DerivedData/Build/Products/Debug-iphonesimulator/LaGrilla.app LaGrilla-Simulator.zip
       - name: Save simulator build
@@ -50,12 +50,12 @@ jobs:
         run: |
           set -o pipefail
           DEVICE=$(cat /tmp/grilla-simulator-id)
-          xcodebuild -test-timeouts-enabled YES -maximum-test-execution-time-allowance 600 -project LaGrilla.xcodeproj -scheme LaGrilla -destination "platform=iOS Simulator,id=$DEVICE" -derivedDataPath DerivedData -resultBundlePath TestResults.xcresult ARCHS=arm64 ONLY_ACTIVE_ARCH=YES CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO -skip-testing:LaGrillaUITests/ScreenshotTests/testCaptureCompactScreens test | tee uitests.log
+          xcodebuild -test-timeouts-enabled YES -maximum-test-execution-time-allowance 600 -project LaGrilla.xcodeproj -scheme LaGrilla -destination "platform=iOS Simulator,id=$DEVICE" -derivedDataPath DerivedData -resultBundlePath TestResults.xcresult ARCHS=arm64 ONLY_ACTIVE_ARCH=YES CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO -skip-testing:LaGrillaUITests/ScreenshotTests/testCaptureCompactScreens test-without-building | tee uitests.log
       - name: Compact iPhone screenshots
-        if: always() && steps.simulator_build.outcome == 'success'
+        if: always() && !cancelled() && steps.simulator_build.outcome == 'success'
         run: bash scripts/compact_screenshots.sh
       - name: Export native QA screenshots
-        if: always()
+        if: always() && !cancelled()
         run: |
           if test -d TestResults.xcresult; then
             xcrun xcresulttool export attachments --path TestResults.xcresult --output-path NativeAttachments/main
