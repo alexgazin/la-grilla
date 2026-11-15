@@ -69,18 +69,32 @@ final class ArrangementUITests: XCTestCase {
         let barsBefore=(viewFrame.midX-scrolledFrame.minX+3)/((scrolledFrame.width+6)/4)
         XCTAssertGreaterThan(viewFrame.minX-scrolledFrame.minX+3,40)
         timeline.pinch(withScale:1.6,velocity:1)
-        wait(clip,NSPredicate{_,_ in clip.frame.width>scrolledFrame.width*1.2})
+        // Width and content-offset acknowledgement are separate layout events.
+        // Wait for the exact result of this one pinch, without repeating it.
+        let enlargedSettled=XCTWaiter.wait(for:[XCTNSPredicateExpectation(predicate:NSPredicate{_,_ in
+            let frame=clip.frame,view=timeline.frame
+            let center=(view.midX-frame.minX+3)/((frame.width+6)/4)
+            return frame.width>scrolledFrame.width*1.2 && abs(center-barsBefore)<=0.04
+        },object:clip)],timeout:6)
         let enlargedFrame=clip.frame
         let barsEnlarged=(timeline.frame.midX-enlargedFrame.minX+3)/((enlargedFrame.width+6)/4)
-        let firstReceipt=XCTAttachment(string:"Actual viewport=\(viewFrame) → \(timeline.frame), clip=\(scrolledFrame) → \(enlargedFrame)\nCenter bars=\(barsBefore) → \(barsEnlarged)\n\(transport.value as? String ?? "Missing runtime trace")")
+        let firstReceipt=XCTAttachment(string:"Settle result=\(enlargedSettled)\nActual viewport=\(viewFrame) → \(timeline.frame), clip=\(scrolledFrame) → \(enlargedFrame)\nCenter bars=\(barsBefore) → \(barsEnlarged)\n\(transport.value as? String ?? "Missing runtime trace")")
         firstReceipt.name="Anchored-pinch first actual geometry";firstReceipt.lifetime = .keepAlways;add(firstReceipt)
+        XCTAssertEqual(enlargedSettled,.completed)
         XCTAssertEqual(barsEnlarged,barsBefore,accuracy:0.04,"The real musical point under the viewport pinch center moved")
         // A second gesture must freeze the newly settled offset/width rather
         // than reuse the reference from the previous pinch.
         timeline.pinch(withScale:0.75,velocity:-1)
-        wait(clip,NSPredicate{_,_ in clip.frame.width<enlargedFrame.width*0.9})
+        let reducedSettled=XCTWaiter.wait(for:[XCTNSPredicateExpectation(predicate:NSPredicate{_,_ in
+            let frame=clip.frame,view=timeline.frame
+            let center=(view.midX-frame.minX+3)/((frame.width+6)/4)
+            return frame.width<enlargedFrame.width*0.9 && abs(center-barsEnlarged)<=0.04
+        },object:clip)],timeout:6)
         let reducedFrame=clip.frame
         let barsReduced=(timeline.frame.midX-reducedFrame.minX+3)/((reducedFrame.width+6)/4)
+        let repeatedReceipt=XCTAttachment(string:"Settle result=\(reducedSettled)\nActual viewport=\(timeline.frame), clip=\(enlargedFrame) → \(reducedFrame)\nCenter bars=\(barsEnlarged) → \(barsReduced)\n\(transport.value as? String ?? "Missing runtime trace")")
+        repeatedReceipt.name="Anchored-pinch repeated actual geometry";repeatedReceipt.lifetime = .keepAlways;add(repeatedReceipt)
+        XCTAssertEqual(reducedSettled,.completed)
         XCTAssertEqual(barsReduced,barsEnlarged,accuracy:0.04)
         let finalWidth=(reducedFrame.width+6)/4
         XCTAssertGreaterThanOrEqual(finalWidth,68-0.000001);XCTAssertLessThanOrEqual(finalWidth,640+0.000001)
