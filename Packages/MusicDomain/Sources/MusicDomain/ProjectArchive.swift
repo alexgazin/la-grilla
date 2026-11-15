@@ -23,7 +23,7 @@ public enum ProjectArchive {
     public static func encode(_ entries:[Entry])throws->Data {
         guard entries.count<=64,Set(entries.map(\.name)).count==entries.count else {throw ExportError.invalidArchive}
         var data=Data(),descriptors:[Descriptor]=[]
-        for e in entries {try validate(e.name);guard e.data.count<=16_000_000,data.count<=64_000_000 else{throw ExportError.archiveTooLarge};let descriptor=Descriptor(name:e.name,crc:checksum(e.data),size:UInt32(e.data.count),offset:UInt32(data.count));data.append(local(descriptor));data.append(e.data);descriptors.append(descriptor)}
+        for e in entries {try validate(e.name);guard e.data.count<=16_000_000,data.count+e.data.count+1024<=128_000_000 else{throw ExportError.archiveTooLarge};let descriptor=Descriptor(name:e.name,crc:checksum(e.data),size:UInt32(e.data.count),offset:UInt32(data.count));data.append(local(descriptor));data.append(e.data);descriptors.append(descriptor)}
         data.append(directory(descriptors,offset:UInt32(data.count)));return data
     }
     /// Streaming archive for large stems. Only one 64 KiB file chunk is held in memory.
@@ -50,7 +50,7 @@ public enum ProjectArchive {
     }
     public static func decode(_ data:Data,maxBytes:Int=20_000_000)throws->[Entry] {
         guard data.count>=22,data.count<=maxBytes else{throw ExportError.archiveTooLarge}
-        let b=[UInt8](data)
+        let b=data
         func u16(_ i:Int)throws->Int{guard i>=0,i+2<=b.count else{throw ExportError.invalidArchive};return Int(b[i])|Int(b[i+1])<<8}
         func u32(_ i:Int)throws->Int{guard i>=0,i+4<=b.count else{throw ExportError.invalidArchive};return Int(b[i])|Int(b[i+1])<<8|Int(b[i+2])<<16|Int(b[i+3])<<24}
         var end:Int?
@@ -77,17 +77,28 @@ public enum ProjectArchive {
         guard cursor==end else{throw ExportError.invalidArchive};return entries
     }
 }
+public struct PortableProjectBundle:Sendable {public var project:Project;public var assets:[String:Data]}
 public enum PortableProject {
-    public static func data(_ project:Project)throws->Data {
+    static func documentEntries(_ project:Project)throws->[ProjectArchive.Entry] {
         try project.validate();let encoder=JSONEncoder();encoder.outputFormatting=[.sortedKeys];let manifest=try encoder.encode(project)
-        let metadata:[String:String] = ["format":"La Grilla portable project","version":"1","manifestCRC32":String(format:"%08x",ProjectArchive.checksum(manifest)),"instruments":"Bundled synthetic presets version 1; no external sample assets required."]
-        return try ProjectArchive.encode([.init("manifest.json",manifest),.init("metadata.json",try JSONSerialization.data(withJSONObject:metadata,options:[.sortedKeys]))])
+        let metadata:[String:String]=["format":"La Grilla portable project","version":(project.audioAssets ?? []).isEmpty ? "1":"2","manifestCRC32":String(format:"%08x",ProjectArchive.checksum(manifest)),"instruments":"Bundled synthetic presets version 1. Voice source recordings are included when present."]
+        return [.init("manifest.json",manifest),.init("metadata.json",try JSONSerialization.data(withJSONObject:metadata,options:[.sortedKeys]))]
     }
-    public static func decode(_ data:Data,asCopy:Bool=true)throws->Project {
-        let entries=try ProjectArchive.decode(data)
-        guard Set(entries.map(\.name))==["manifest.json","metadata.json"],let manifest=entries.first(where:{$0.name=="manifest.json"})?.data,manifest.count<=8_000_000,let meta=entries.first(where:{$0.name=="metadata.json"})?.data,let metadata=try JSONSerialization.jsonObject(with:meta) as? [String:String],metadata["version"]=="1",metadata["manifestCRC32"]==String(format:"%08x",ProjectArchive.checksum(manifest))else{throw ExportError.invalidArchive}
-        var p=try ProjectDocument.decode(manifest)
+    public static func data(_ project:Project,assets:[String:Data]=[:])throws->Data {
+        var entries=try documentEntries(project)
+        guard Set(assets.keys)==Set((project.audioAssets ?? []).map(\.relativePath))else{throw ExportError.invalidArchive}
+        for record in project.audioAssets ?? []{guard let data=assets[record.relativePath]else{throw ExportError.invalidArchive};try AssetIntegrity.validate(data,record:record);entries.append(.init(record.relativePath,data))}
+        return try ProjectArchive.encode(entries)
+    }
+    public static func decodeBundle(_ data:Data,asCopy:Bool=true)throws->PortableProjectBundle {
+        let entries=try ProjectArchive.decode(data,maxBytes:128_000_000)
+        guard let manifest=entries.first(where:{$0.name=="manifest.json"})?.data,manifest.count<=8_000_000,let meta=entries.first(where:{$0.name=="metadata.json"})?.data,meta.count<=64_000,let metadata=try JSONSerialization.jsonObject(with:meta) as? [String:String],["1","2"].contains(metadata["version"] ?? ""),metadata["manifestCRC32"]==String(format:"%08x",ProjectArchive.checksum(manifest))else{throw ExportError.invalidArchive}
+        var p=try ProjectDocument.decode(manifest);let expected=Set(["manifest.json","metadata.json"]+(p.audioAssets ?? []).map(\.relativePath))
+        guard Set(entries.map(\.name))==expected else{throw ExportError.invalidArchive}
+        var assets:[String:Data]=[:]
+        for record in p.audioAssets ?? []{guard let data=entries.first(where:{$0.name==record.relativePath})?.data else{throw ExportError.invalidArchive};try AssetIntegrity.validate(data,record:record);assets[record.relativePath]=data}
         if asCopy{p.id=UUID();p.revision=0;p.modified=Date();p.name=String(p.name.prefix(110))+" imported"}
-        return p
+        return PortableProjectBundle(project:p,assets:assets)
     }
+    public static func decode(_ data:Data,asCopy:Bool=true)throws->Project {try decodeBundle(data,asCopy:asCopy).project}
 }

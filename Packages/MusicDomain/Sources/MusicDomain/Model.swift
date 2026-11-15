@@ -66,7 +66,7 @@ public struct Pattern: Codable, Equatable, Identifiable, Sendable {
     public init(length: Int, chords: [ChordEvent] = [], drums: [DrumEvent] = [], notes:[NoteEvent]=[]) { self.length = length; self.chords = chords; self.drums = drums; self.notes=notes }
 }
 public struct Clip: Codable, Equatable, Identifiable, Sendable {
-    public var id: UUID = UUID(); public var patternID: UUID; public var start: Int; public var length: Int; public var offset: Int = 0
+    public var id: UUID = UUID(); public var patternID: UUID;public var sourceAssetID:UUID?; public var start: Int; public var length: Int; public var offset: Int = 0
     public init(patternID: UUID, start: Int, length: Int) { self.patternID = patternID; self.start = start; self.length = length }
 }
 public struct Track: Codable, Equatable, Identifiable, Sendable {
@@ -79,10 +79,11 @@ public struct Section: Codable, Equatable, Identifiable, Sendable {
     public init(name: String, start: Int = 0, length: Int) { self.name = name; self.start = start; self.length = length }
 }
 public struct Project: Codable, Equatable, Identifiable, Sendable {
-    public var id: UUID = UUID(); public static let currentSchemaVersion=3
-    public var schemaVersion = 3; public var revision = 0
+    public var id: UUID = UUID(); public static let currentSchemaVersion=4
+    public var schemaVersion = 4; public var revision = 0
     public var name: String; public var bpm: Double = 120; public var keyRoot = 0; public var minor = false
     public var modified = Date(); public var tracks: [Track]; public var patterns: [Pattern]; public var sections: [Section]
+    public var audioAssets:[AudioAssetRecord]?
     public var bassOctave = 0; public var bassGate = 0.9; public var master: Double = -3
     public var length: Int { sections.reduce(0) { total, section in let (sum, overflow) = total.addingReportingOverflow(section.length); return overflow ? Int.max : sum } }
     public var keyName: String { Chord.roots[keyRoot] + (minor ? " minor" : " major") }
@@ -112,7 +113,9 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
               tracks[0].role == .harmony, tracks[1].role == .drums, tracks.dropFirst(2).allSatisfy({$0.role == .bass || $0.role == .melody}), tracks.filter({$0.role == .bass}).count <= 1,
               patterns.count <= 64, Set(patterns.map(\.id)).count == patterns.count, Set(sections.map(\.id)).count == sections.count,
               Set(tracks.map(\.id)).count == tracks.count else { throw MusicError.invalidProject }
-        var ids=[id]
+        guard (audioAssets ?? []).count<=8 else{throw MusicError.tooDense}
+        for asset in audioAssets ?? []{try asset.validate()}
+        var ids=[id];ids += (audioAssets ?? []).map(\.id)
         ids += tracks.map(\.id);ids += patterns.map(\.id);ids += sections.map(\.id)
         ids += tracks.flatMap{$0.clips.map(\.id)}
         for p in patterns {ids += p.chords.map(\.id);ids += p.drums.map(\.id);ids += (p.notes ?? []).map(\.id)}
@@ -138,6 +141,7 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
             var end = 0
             for c in t.clips.sorted(by: {$0.start < $1.start}) {
                 guard c.start >= end, c.start < length, c.length > 0, c.length <= length, c.start + c.length <= length, c.offset >= 0, let p = patterns.first(where: {$0.id == c.patternID}), c.offset < p.length else { throw MusicError.invalidProject }
+                if let asset=c.sourceAssetID{guard (audioAssets ?? []).contains(where:{$0.id==asset})else{throw MusicError.invalidProject}}
                 end = c.start + c.length
             }
         }
@@ -208,12 +212,13 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
     }
 }
 public enum MusicError: Error, LocalizedError {
-    case invalidChord, invalidProject, unsupportedSchema, limit, tooDense, trackLimit
+    case invalidChord, invalidProject, unsupportedSchema, limit, tooDense, trackLimit, assetLimit
     public var errorDescription: String? {
         let key = switch self {
         case .invalidChord: "Unrecognized chord. Choose a chord from the list."
         case .unsupportedSchema: "This project was made with a newer version. The original has been preserved."
         case .limit: "A song can contain up to 8 sections and 64 bars."
+        case .assetLimit: "A project can keep up to eight source recordings."
         case .trackLimit: "A project can contain up to eight tracks."
         case .tooDense: "This project has too many events."
         case .invalidProject: "The project contains invalid musical data."
@@ -244,6 +249,7 @@ public enum ProjectDocument {
         guard (1...Project.currentSchemaVersion).contains(p.schemaVersion)else{throw MusicError.unsupportedSchema}
         if p.schemaVersion==1 {p.schemaVersion=2;for i in p.patterns.indices{if p.patterns[i].notes==nil{p.patterns[i].notes=[]}}}
         if p.schemaVersion==2{p.schemaVersion=3}
+        if p.schemaVersion==3{p.schemaVersion=4}
         try p.validate();return p
     }
 }

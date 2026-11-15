@@ -59,6 +59,14 @@ final class StudioTests: XCTestCase {
         app.buttons["Stretch chords evenly"].tap();app.swipeUp();XCTAssertTrue(app.buttons["assistant.apply"].exists)
         app.buttons["Cancel"].tap();XCTAssertTrue(app.staticTexts["120"].exists)
     }
+    @MainActor func testVoiceFixtureAnalyzePreviewApplyUndoAndPortableExport() {
+        let app=launch("voice-draft");XCTAssertTrue(app.staticTexts["voice.note-count"].waitForExistence(timeout:15));XCTAssertEqual(app.staticTexts["voice.note-count"].label,"3 notes")
+        app.swipeUp();app.buttons["voice.original"].tap();app.buttons["voice.instrument"].tap();app.swipeUp();app.swipeUp()
+        XCTAssertTrue(app.buttons["voice.apply"].waitForExistence(timeout:5));app.buttons["voice.apply"].tap()
+        XCTAssertTrue(app.buttons["Undo"].waitForExistence(timeout:5));app.buttons["Undo"].tap();app.buttons["Redo"].tap()
+        app.buttons["export.open"].tap();app.buttons["format.project"].tap();app.buttons["export.confirm"].tap()
+        XCTAssertTrue(app.otherElements["ActivityListView"].waitForExistence(timeout:20) || app.buttons["Copy"].exists || app.staticTexts["Save to Files"].exists)
+    }
     @MainActor func testWAVExportOffersSystemShare() {
         let app=launch();app.buttons["Play"].tap();app.buttons["export.open"].tap()
         XCTAssertTrue(app.buttons["format.wav"].waitForExistence(timeout:5));app.buttons["format.wav"].tap();app.buttons["export.confirm"].tap()

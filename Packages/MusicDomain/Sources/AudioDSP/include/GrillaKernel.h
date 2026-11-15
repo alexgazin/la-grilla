@@ -5,6 +5,7 @@
 extern "C" {
 #endif
 typedef struct LGKernel LGKernel;
+int lg_sha256(const uint8_t *data, int32_t count, char *hex);
 typedef struct { int32_t tick, duration, pitch, velocity, track, pad, instrument; } LGNote;
 LGKernel *lg_create(double sampleRate);
 void lg_destroy(LGKernel *k);

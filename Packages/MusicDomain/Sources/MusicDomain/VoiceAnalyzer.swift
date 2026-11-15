@@ -102,6 +102,12 @@ public enum VoiceAnalyzer {
             if let root=scaleRoot,(0..<12).contains(root){let range=max(0,pitch-6)...min(127,pitch+6);let allowed=range.filter{scale.contains(($0-root+12)%12)};let sourcePitch=pitch;pitch=allowed.min{abs($0-sourcePitch)<abs($1-sourcePitch)} ?? pitch}
             result.append(NoteEvent(tick:start,duration:end-start,pitch:pitch,velocity:min(120,max(30,Int(segment.level/peak*90+30))),confidence:segment.confidence))
         }
-        return result
+        var mono:[NoteEvent]=[]
+        for note in result.sorted(by:{$0.tick<$1.tick}){
+            if let previous=mono.last,previous.tick==note.tick{if (note.confidence ?? 0)>(previous.confidence ?? 0){mono[mono.count-1]=note};continue}
+            if let previous=mono.last,previous.tick+previous.duration>note.tick{mono[mono.count-1].duration=note.tick-previous.tick}
+            mono.append(note)
+        }
+        return mono
     }
 }

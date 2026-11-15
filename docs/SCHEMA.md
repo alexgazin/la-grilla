@@ -1,4 +1,4 @@
-# Project schema v3
+# Project schema v4
 
 A `.grilla` directory contains `manifest.json`, optional `backup.json`, and no user-supplied assets in v0.1. Foundation JSONEncoder/Decoder encode UUIDs as strings, dates as seconds since 2001-01-01, enum values as documented Swift raw strings, and integral ticks as JSON integers.
 
@@ -11,3 +11,5 @@ Validation rejects unsupported schemas, missing pattern references, duplicate en
 Version 3 adds optional `slashBass` (pitch class 0–11) and `voicedNotes` (1–8 unique MIDI notes) to chords. Explicit voicings must contain the exact pitch-class set of the quality plus slash bass. v2 migrates in a value copy without rewriting source bytes. Both live and export compilers use the persisted voicing; root bass follows slash bass when present. Harmony proposals are runtime values tied to project ID/revision and materialize a single section into an independent pattern, splitting crossing clip instances without altering surrounding music.
 
 Assistant proposals use a separate bounded runtime contract, [JSON Schema](assistant-proposal.schema.json). Their project ID/base revision and all section IDs must match the source. The decoder rejects unknown fields/operations and candidate validation runs after every operation. Commands never carry executable code. A proposal is applied through History as one transaction; narration/assumptions are separate from allowlisted operations.
+
+Version 4 adds optional project `audioAssets` and clip `sourceAssetID`. A source record has UUID-derived `Assets/<UUID>.caf` path, SHA-256, exact byte count, mono PCM sample rate/duration, origin (microphone or marked synthetic QA fixture), optional scheduled recording timestamp/input latency/capture tempo. Up to eight bounded source recordings are retained, including for Undo. Package copy/recovery and portable version 2 preserve and validate bytes. v3 migrates in memory. Missing/damaged source files block source playback/export with an error; synthesized MIDI notes remain separate from source audio. Portable import is bounded to 128 MB and never extracts arbitrary paths.
