@@ -25,7 +25,9 @@ jobs:
       - name: Verify generated project is current
         run: python3 scripts/generate_project.py && git diff --exit-code -- LaGrilla.xcodeproj
       - name: Release configuration audit
-        run: python3 scripts/release/audit_release.py
+        run: |
+          python3 scripts/release/audit_release.py
+          for GRILLA_SCRIPT in scripts/release/*.sh; do bash -n "$GRILLA_SCRIPT"; done
       - name: Presentation and localization audit
         run: python3 scripts/audit_presentation.py && plutil -lint Resources/en.lproj/Localizable.strings Resources/ru.lproj/Localizable.strings
       - name: Audio kernel tests

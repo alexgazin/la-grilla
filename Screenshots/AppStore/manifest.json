@@ -1,0 +1,102 @@
+{
+  "candidate": "1.0.0 (11)",
+  "designRevisionPending": "R8.1",
+  "images": [
+    {
+      "file": "en-US/01-grid.png",
+      "source": "e1d13da4d8276d1d1843bcbb2ea7a71c58bbae20",
+      "runID": 43686737452,
+      "sha256": "0e80108e121079b4173508c3db13f7f1600dbc41578df7cc7f7ddda5cae7ad8a",
+      "width": 1320,
+      "height": 2868
+    },
+    {
+      "file": "en-US/02-jam.png",
+      "source": "e1d13da4d8276d1d1843bcbb2ea7a71c58bbae20",
+      "runID": 43686737452,
+      "sha256": "f6c7b795a08b8c31ac2da72250dac3309372d111ec3098c56716d219957cd03c",
+      "width": 1320,
+      "height": 2868
+    },
+    {
+      "file": "en-US/03-notes.png",
+      "source": "e1d13da4d8276d1d1843bcbb2ea7a71c58bbae20",
+      "runID": 43686737452,
+      "sha256": "efaddef7ea061b6e24d3038acff9d3e2e438a6d00e0572c001be9ac521a0bb9d",
+      "width": 1320,
+      "height": 2868
+    },
+    {
+      "file": "en-US/04-harmony-proposal.png",
+      "source": "e1d13da4d8276d1d1843bcbb2ea7a71c58bbae20",
+      "runID": 43686737452,
+      "sha256": "a84014a232dceb81c4bba8fa367c8508a4c7848eff8d9cfb74d9979b88ac7422",
+      "width": 1320,
+      "height": 2868
+    },
+    {
+      "file": "en-US/05-perform-take.png",
+      "source": "e1d13da4d8276d1d1843bcbb2ea7a71c58bbae20",
+      "runID": 43686737452,
+      "sha256": "8eb39c24e8be2f083fe75f6abf296bf095c858367f7ba3df64ba4b3c95dae600",
+      "width": 1320,
+      "height": 2868
+    },
+    {
+      "file": "en-US/06-export.png",
+      "source": "e1d13da4d8276d1d1843bcbb2ea7a71c58bbae20",
+      "runID": 43686737452,
+      "sha256": "0d230516db8865115c64be16ea730b5190542f76b186e039e22c419339c948ca",
+      "width": 1320,
+      "height": 2868
+    },
+    {
+      "file": "ru/01-grid.png",
+      "source": "ecfc9b9c18fad9e3d5c8a821d498f536910d8140",
+      "runID": 43689852307,
+      "sha256": "04eb2bb649d9e10ec4e40d4ad674fb7357f41cb620c3a5fbc439a37ae1b24159",
+      "width": 1320,
+      "height": 2868
+    },
+    {
+      "file": "ru/02-jam.png",
+      "source": "ecfc9b9c18fad9e3d5c8a821d498f536910d8140",
+      "runID": 43689852307,
+      "sha256": "d2a9f7cad32128dc8708d74316289ec47f211360410549eb4a9315bc16fd92dd",
+      "width": 1320,
+      "height": 2868
+    },
+    {
+      "file": "ru/03-notes.png",
+      "source": "ecfc9b9c18fad9e3d5c8a821d498f536910d8140",
+      "runID": 43689852307,
+      "sha256": "fcda96e32207ff1c68c1e23e48c13e3a0136dc663f53b5362cb26b5eab6c6127",
+      "width": 1320,
+      "height": 2868
+    },
+    {
+      "file": "ru/04-harmony-proposal.png",
+      "source": "ecfc9b9c18fad9e3d5c8a821d498f536910d8140",
+      "runID": 43689852307,
+      "sha256": "5f9eafc643afcef87b887292d2241a3142c73bd911912ae6da4333f602239ade",
+      "width": 1320,
+      "height": 2868
+    },
+    {
+      "file": "ru/05-perform-take.png",
+      "source": "ecfc9b9c18fad9e3d5c8a821d498f536910d8140",
+      "runID": 43689852307,
+      "sha256": "29ba57af4120ad6238b0388da8b30aaac4eb2f4a7138e4da6bdee2fa10ac02fd",
+      "width": 1320,
+      "height": 2868
+    },
+    {
+      "file": "ru/06-export.png",
+      "source": "ecfc9b9c18fad9e3d5c8a821d498f536910d8140",
+      "runID": 43689852307,
+      "sha256": "43aabaf588ef9b6dbd89cca2d51f4df7646f7c3874734fbd8ae4a39984fe0768",
+      "width": 1320,
+      "height": 2868
+    }
+  ]
+}

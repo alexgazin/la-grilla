@@ -150,3 +150,9 @@ Verified app/audio/domain source: `cd2ae56`. [Complete successful workflow 43681
 - Thirty-six original PNGs are committed in [Screenshots/R9](../Screenshots/R9). [Hardening QA](HARDENING_QA.md) records measured host evidence and the [device acceptance record](release/DEVICE_ACCEPTANCE.md) remains open.
 
 This is iOS 18.5 compatibility evidence. The release stage separately selects and validates the SDK required by current Apple submission rules. No physical latency/CPU/memory, human-voice accuracy or USB/BLE/DAW measurement is inferred from these results.
+
+## R10 — current-SDK technical candidate
+
+App/UI source `ecfc9b9` passes [run 43689852307](https://github.com/alexgazin/la-grilla/actions/runs/43689852307): 64 Swift tests, independent export readers, 11 C++ suites, both SDK builds, 19 Studio flows, two Russian capture tests and optimized archive/dSYM/resource audit on Xcode 26.3 / iOS 26.2. The preceding [full capture](https://github.com/alexgazin/la-grilla/actions/runs/43686737452) supplies unchanged English frames. [R10 screenshots](../Screenshots/R10) contain 51 original PNGs with per-file source/hash; [Store sets](../Screenshots/AppStore) contain twelve unchanged native copies.
+
+[Release QA](RELEASE_QA.md) records reproduced MIDI boundary defects, visual-review localization fixes and signing preparation. R8.1 design, installed physical acceptance, signing/TestFlight and App Review remain open; these are technical-candidate images, not final acceptance of the requested design revision.

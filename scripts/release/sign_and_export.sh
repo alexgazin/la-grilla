@@ -32,9 +32,17 @@ options={'method':'app-store-connect','signingStyle':'manual','teamID':team,'man
 PY
 GRILLA_PROFILE_NAME=$(cat "$GRILLA_SIGNING_TEMP/profile-name")
 GRILLA_PROFILE_UUID=$(cat "$GRILLA_SIGNING_TEMP/profile-uuid")
-mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
-GRILLA_PROFILE_PATH="$HOME/Library/MobileDevice/Provisioning Profiles/Grilla-$GRILLA_PROFILE_UUID.mobileprovision"
-cp "$GRILLA_SIGNING_TEMP/profile.mobileprovision" "$GRILLA_PROFILE_PATH"
+# Xcode 16+ (including the selected Xcode 26) uses the Developer/UserData location.
+GRILLA_PROFILE_DIRECTORY="$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"
+mkdir -p "$GRILLA_PROFILE_DIRECTORY"
+GRILLA_PROFILE_CANDIDATE="$GRILLA_PROFILE_DIRECTORY/$GRILLA_PROFILE_UUID.mobileprovision"
+if test -e "$GRILLA_PROFILE_CANDIDATE"; then
+  # Reuse an identical installed profile without deleting it during cleanup.
+  cmp "$GRILLA_SIGNING_TEMP/profile.mobileprovision" "$GRILLA_PROFILE_CANDIDATE"
+else
+  install -m 600 "$GRILLA_SIGNING_TEMP/profile.mobileprovision" "$GRILLA_PROFILE_CANDIDATE"
+  GRILLA_PROFILE_PATH="$GRILLA_PROFILE_CANDIDATE"
+fi
 security create-keychain -p "$GRILLA_KEYCHAIN_PASSWORD" "$GRILLA_KEYCHAIN"
 security set-keychain-settings -lut 21600 "$GRILLA_KEYCHAIN"
 security unlock-keychain -p "$GRILLA_KEYCHAIN_PASSWORD" "$GRILLA_KEYCHAIN"
