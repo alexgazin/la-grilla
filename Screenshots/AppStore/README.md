@@ -1,6 +1,6 @@
-# Native Store screenshots — Design 2026
+# Native Store screenshots — C2 / Design 2026
 
-Original iPhone 16 Pro Max / iOS 26.2 screenshots, **1320 × 2868, opaque RGB PNG**, candidate **1.0.0 (12)**. All twelve images are copied byte-for-byte from [Design2026](../Design2026), source `72d81cb8a7be054d2e00457f4d30461a99e67b1f`, [successful capture/acceptance run 43700372709](https://github.com/alexgazin/la-grilla/actions/runs/43700372709). [Provenance and hashes](manifest.json).
+Original iPhone 16 Pro Max / iOS 26.2 screenshots, **1320 × 2868, opaque RGB PNG**, candidate **1.0.0 (13)**. All twelve images are copied byte-for-byte from [C2](../C2), source `4fcf4c3a3594af67871d05f3d8ccefcc5dc0b70e`. Its [three capture methods passed in run 43713084377](https://github.com/alexgazin/la-grilla/actions/runs/43713084377); that run's separate MIDI UI-test failure is recorded in the C2 receipt. The test-only correction passed [all 22 native flows and all three jobs in run 43716116613](https://github.com/alexgazin/la-grilla/actions/runs/43716116613). Production app source is identical between these runs. [Provenance and hashes](manifest.json).
 
 | Screen | English | Russian |
 | --- | --- | --- |
