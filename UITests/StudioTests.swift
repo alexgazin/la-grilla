@@ -1,5 +1,6 @@
 import XCTest
 final class StudioTests: XCTestCase {
+    override func setUp(){super.setUp();continueAfterFailure=false;executionTimeAllowance=120}
     @MainActor func launch(_ screen: String = "grid") -> XCUIApplication {
         let app=XCUIApplication();app.launchArguments=["--uitesting","--screen",screen,"-AppleLanguages","(en)","-AppleLocale","en_US"]
         app.launch();XCTAssertTrue(app.buttons["perform.transport"].waitForExistence(timeout:15));return app
