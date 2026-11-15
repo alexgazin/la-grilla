@@ -35,9 +35,9 @@ public struct VoiceCapturePlan:Equatable,Sendable {
         return VoiceCapturePlan(sectionID:section.id,startTick:start,offsetTicks:start-section.start,captureTicks:length,delay:max(minimumLead,delay),duration:Double(length)/speed)
     }
     public func place(_ source:[NoteEvent],sectionLength:Int)throws->[NoteEvent] {
-        guard offsetTicks>=0,captureTicks>0,offsetTicks+captureTicks<=sectionLength else{throw MusicError.invalidProject}
+        guard sectionLength>0,offsetTicks>=0,offsetTicks<=sectionLength,captureTicks>0,captureTicks<=sectionLength-offsetTicks else{throw MusicError.invalidProject}
         return try source.map{note in
-            guard note.tick>=0,note.duration>0,note.tick+note.duration<=captureTicks else{throw MusicError.invalidProject}
+            guard note.tick>=0,note.tick<captureTicks,note.duration>0,note.duration<=captureTicks-note.tick else{throw MusicError.invalidProject}
             var placed=note;placed.tick+=offsetTicks;return placed
         }
     }

@@ -6,11 +6,12 @@ private struct VoiceReviewContext {
     let projectID:UUID
     var revision:Int
     let sectionID:UUID
+    var sectionName:String
     var sectionStart:Int
     var sectionLength:Int
     let captureBPM:Double
-    let scaleRoot:Int
-    let minor:Bool
+    var scaleRoot:Int
+    var minor:Bool
     let plan:VoiceCapturePlan
 }
 
@@ -35,7 +36,7 @@ struct VoiceToMIDIView:View {
     var note:NoteEvent?{notes.first{$0.id==selected}}
     var synthetic:Bool{let args=ProcessInfo.processInfo.arguments;return args.contains("--uitesting") && args.contains("voice-draft")}
     private var displayContext:VoiceReviewContext?{capture.isCapturing ? pendingContext:context}
-    var targetSection:MusicDomain.Section?{session.project.sections.first{$0.id==(displayContext?.sectionID ?? session.section.id)}}
+    var sourceSectionName:String{displayContext?.sectionName ?? session.section.name}
     var sectionLength:Int{context?.sectionLength ?? session.section.length}
     var limit:Double{capture.isCapturing && capture.plannedDuration>0 ? capture.plannedDuration:(displayContext?.plan.duration ?? min(30,Double(session.section.length)/Double(ppq)*60/session.project.bpm))}
     var stale:Bool{guard let context else{return false};return context.projectID != session.project.id || context.revision != session.project.revision || !session.project.sections.contains{$0.id==context.sectionID && $0.start==context.sectionStart && $0.length==context.sectionLength}}
@@ -46,7 +47,7 @@ struct VoiceToMIDIView:View {
                     Text("Hum it. Shape it.").font(.system(.title2,weight:.semibold)).tracking(-0.6)
                     Text("Record one melody with headphones, then review the notes.").font(.caption).foregroundStyle(Color.muted)
                     DisclosureGroup{Text("Record one melody in a quiet room. Use headphones. Microphone monitoring is off. Review uncertain notes before applying.").font(.caption).foregroundStyle(Color.muted).padding(.vertical,8)}label:{Text("Recording guide").frame(maxWidth:.infinity,minHeight:44,alignment:.leading)}.font(.caption).foregroundStyle(Color.muted)
-                    HStack{Text(targetSection?.name ?? session.section.name).fontWeight(.medium);Spacer();Text("\(Int(limit)) s · \(Int(displayContext?.captureBPM ?? session.project.bpm)) BPM").font(.caption.monospaced()).foregroundStyle(Color.muted);CapsuleLabel(text:"BETA · MONO",color:.record)}
+                    HStack{Text(sourceSectionName).fontWeight(.medium);Spacer();Text("\(Int(limit)) s · \(Int(displayContext?.captureBPM ?? session.project.bpm)) BPM").font(.caption.monospaced()).foregroundStyle(Color.muted);CapsuleLabel(text:"BETA · MONO",color:.record)}
                     if let displayContext{HStack{Text("Recording starts at bar");Text(String(displayContext.plan.startTick/barTicks+1)).monospacedDigit()}.font(.caption).foregroundStyle(Color.muted)}
                     Text("Capture ends at the section or loop edge. The backing beat keeps playing.").font(.caption).foregroundStyle(Color.muted)
                     if synthetic{Text("QA FIXTURE · SYNTHETIC SOURCE").font(.caption.monospaced()).foregroundStyle(Color.harmony)}
@@ -100,6 +101,14 @@ struct VoiceToMIDIView:View {
                 Text("The project changed. Review this melody against the current project before applying.").font(.callout).foregroundStyle(Color.harmony)
                 Button("Review against current project"){rebase()}.frame(minHeight:48).disabled(applying || capture.isCapturing || capture.state == .analyzing).accessibilityIdentifier("voice.rebase")
             }
+            #if DEBUG
+            if synthetic && ProcessInfo.processInfo.arguments.contains("--voice-review-fixture") {
+                Button{if !session.audio.playing{session.audio.play()};session.mixerEdit{$0.master=max(-60,$0.master-1)};session.mixerGesture=false}label:{Text(verbatim:"Change fixture mix")}.frame(minHeight:48).accessibilityIdentifier("voice.fixture-edit")
+                Text(verbatim:session.audio.playing ? "PLAYING":"STOPPED").accessibilityIdentifier("voice.fixture-transport")
+                Text(verbatim:String(note?.pitch ?? -1)).accessibilityIdentifier("voice.fixture-pitch")
+                Text(verbatim:result.record.sha256).font(.caption).accessibilityIdentifier("voice.fixture-source")
+            }
+            #endif
             if applied {
                 Text("Notes applied. Save needs attention.").font(.callout).foregroundStyle(Color.harmony)
                 Button("Retry save"){Task{await session.save();if session.saveError==nil{dismiss()}else{error=session.saveError}}}.frame(minHeight:48)
@@ -123,7 +132,7 @@ struct VoiceToMIDIView:View {
         VStack(spacing:10){
             ScrollView(.horizontal){HStack{ForEach(notes){n in Button{selected=n.id}label:{Text(n.name).font(.caption.monospaced()).padding(12).frame(minHeight:44).background(selected==n.id ? Color.record.opacity(0.2):Color.panel,in:RoundedRectangle(cornerRadius:8))}.buttonStyle(StudioQuietButtonStyle())}}}
             if let note {
-                Stepper("Pitch: \(note.name)",value:Binding(get:{note.pitch},set:{v in edit{$0.pitch=v}}),in:0...127)
+                Stepper("Pitch: \(note.name)",value:Binding(get:{note.pitch},set:{v in edit{$0.pitch=v}}),in:0...127).accessibilityIdentifier("voice.pitch")
                 HStack{Button("Octave down"){edit{$0.pitch=max(0,$0.pitch-12)}};Spacer();Button("Octave up"){edit{$0.pitch=min(127,$0.pitch+12)}}}.frame(minHeight:44)
                 Stepper("Start: \(note.tick) ticks",onIncrement:{move(note.tick+120)},onDecrement:{move(note.tick-120)})
                 Stepper("Length: \(note.duration) ticks",onIncrement:{edit{$0.duration=min(sectionLength-$0.tick,$0.duration+120)}},onDecrement:{edit{$0.duration=max(1,$0.duration-120)}})
@@ -138,7 +147,7 @@ struct VoiceToMIDIView:View {
         let project=session.project
         let plan=try VoiceCapturePlan.make(project:project,selectedSectionID:session.section.id,tick:session.audio.tick,playing:playing ?? session.audio.playing,loop:session.loop,range:session.loopRange,minimumLead:minimumLead)
         guard let section=project.sections.first(where:{$0.id==plan.sectionID})else{throw MusicError.invalidProject}
-        return VoiceReviewContext(projectID:project.id,revision:project.revision,sectionID:section.id,sectionStart:section.start,sectionLength:section.length,captureBPM:project.bpm,scaleRoot:project.keyRoot,minor:project.minor,plan:plan)
+        return VoiceReviewContext(projectID:project.id,revision:project.revision,sectionID:section.id,sectionName:section.name,sectionStart:section.start,sectionLength:section.length,captureBPM:project.bpm,scaleRoot:project.keyRoot,minor:project.minor,plan:plan)
     }
     func record(){
         session.endHarmonyPreview();capture.stopOriginal();session.finishTake();error=nil;pendingContext=nil
@@ -169,7 +178,7 @@ struct VoiceToMIDIView:View {
         do {
             guard let result=capture.result else{return}
             _ = try Arrangement.voiceCandidate(session.project,sectionID:section.id,target:target,notes:notes,source:result.record)
-            current.revision=session.project.revision;current.sectionStart=section.start;current.sectionLength=section.length
+            current.revision=session.project.revision;current.sectionName=section.name;current.sectionStart=section.start;current.sectionLength=section.length;current.scaleRoot=session.project.keyRoot;current.minor=session.project.minor
             context=current;error=nil;session.endHarmonyPreview()
         }catch{self.error=error.localizedDescription}
     }

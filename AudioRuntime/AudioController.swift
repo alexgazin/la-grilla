@@ -28,8 +28,7 @@ private enum AudioRender {
     nonisolated static func makeSource(format: AVAudioFormat, kernel: KernelHandle,hub:MIDIHubHandle) -> AVAudioSourceNode {
         var info=mach_timebase_info_data_t();mach_timebase_info(&info)
         let ticks=1_000_000_000*Double(info.denom)/Double(info.numer)
-        return
-        AVAudioSourceNode(format:format) { @Sendable [kernel,hub] _, stamp, count, buffers in
+        return AVAudioSourceNode(format:format) { @Sendable [kernel,hub] _, stamp, count, buffers in
             let output=UnsafeMutableAudioBufferListPointer(buffers)
             guard output.count==2,let left=output[0].mData,let right=output[1].mData else {return noErr}
             let host=stamp.pointee.mHostTime==0 ? mach_absolute_time():stamp.pointee.mHostTime
@@ -62,6 +61,8 @@ private enum AudioRender {
     var captureEngine:AVAudioEngine? {engine}
     var pendingSnapshot:Bool {guard let k=handle?.pointer else{return false};return generation != Int(lg_revision(k))}
     var activeMIDIRouting:AudioMIDIRouting? {guard let k=handle?.pointer else{return nil};return routing[Int(lg_revision(k))]}
+    /// Bounded metadata retained alongside the kernel's three musical slots.
+    var retainedRoutingCount:Int {routing.count}
     var clock: UInt64 = 0
     func prepare() throws {
         if engine?.isRunning == true { return }

@@ -43,7 +43,7 @@ struct AssistantView:View {
                             Button("Jazz up this section"){input="Поджазуй"}
                             Button("Song: Intro 4 bars: Dm Gm A Dm; Chorus 8 bars: Dm Gm C F each 2 bars"){input="Song: Intro 4 bars: Dm Gm A Dm; Chorus 8 bars: Dm Gm C F each 2 bars"}
                             Button("Create a complete song form"){input=language.hasPrefix("ru") ? "Создай форму: интро 4 такта, куплет 8 тактов и припев 8 тактов. Тональность Ре минор, темп 108. Используй Dm7 Gm7 A7 Dm7.":"Create a song form: 4-bar intro, 8-bar verse and 8-bar chorus in D minor at 108 BPM, using Dm7 Gm7 A7 Dm7.";mode = .onDeviceAI}
-                        }.frame(minHeight:44)
+                        }.frame(minHeight:44).disabled(dictation.recording || dictation.requesting || dictation.finalizing)
                         Spacer()
                         Picker("Dictation language",selection:$language){Text("RU").tag("ru-RU");Text("EN").tag("en-US")}.pickerStyle(.menu).disabled(dictation.recording || dictation.requesting || dictation.finalizing)
                         Button{toggleDictation()}label:{Image(systemName:dictation.recording ? "stop.circle.fill":"mic.fill").frame(width:44,height:44).foregroundStyle(dictation.recording ? Color.record:Color.mint)}.accessibilityLabel(LocalizedStringKey(dictation.recording ? "Stop dictation":"Dictate a command")).disabled(dictation.requesting || dictation.finalizing)
@@ -66,9 +66,9 @@ struct AssistantView:View {
         .onChange(of:mode){_,_ in cancelGeneration();proposal=nil;candidate=nil;error=nil}
         .onChange(of:language){_,value in cancelGeneration();proposal=nil;candidate=nil;ai.refresh(localeIdentifier:value)}
         .onChange(of:dictation.recording){_,recording in if !recording{restoreAudio()}}
-        .onChange(of:phase){_,p in if p == .background{cancelGeneration();dictation.stop();restoreAudio()}else if p == .active{ai.refresh(localeIdentifier:language)}}
-        .onReceive(NotificationCenter.default.publisher(for:AVAudioSession.interruptionNotification).receive(on:RunLoop.main)){_ in dictation.stop();restoreAudio()}
-        .onDisappear{cancelGeneration();dictation.stop();restoreAudio();session.endHarmonyPreview()}
+        .onChange(of:phase){_,p in if p == .background{cancelGeneration();dictation.cancel();restoreAudio()}else if p == .active{ai.refresh(localeIdentifier:language)}}
+        .onReceive(NotificationCenter.default.publisher(for:AVAudioSession.interruptionNotification).receive(on:RunLoop.main)){_ in dictation.cancel();restoreAudio()}
+        .onDisappear{cancelGeneration();dictation.cancel();restoreAudio();session.endHarmonyPreview()}
         .onAppear{ai.refresh(localeIdentifier:language);if let i=ProcessInfo.processInfo.arguments.firstIndex(of:"--screen"),ProcessInfo.processInfo.arguments.count>i+1{let target=ProcessInfo.processInfo.arguments[i+1];if target=="assistant-proposal"{input="Tempo 110; Chorus 8 bars: Am F C G each 2 bars";generate()}else if target=="assistant-song-proposal"{input="Song: Tempo 108; Key D minor; Intro 4 bars: Dm Gm A Dm; Chorus 8 bars: Dm Gm C F each 2 bars";generate()}}}
     }
     func review(_ proposal:AssistantProposal,candidate:Project)->some View {
@@ -139,7 +139,7 @@ struct AssistantView:View {
     func toggleDictation(){
         focused=false
         if dictation.recording{dictation.stop();restoreAudio();return}
-        guard !dictation.finalizing,let lease=session.beginMicrophone(stop:{dictation.stop()})else{return};microphoneLease=lease
+        guard !dictation.finalizing,let lease=session.beginMicrophone(stop:{dictation.cancel()})else{return};microphoneLease=lease
         Task{guard session.ownsMicrophone(lease)else{return};await dictation.start(locale:language,audio:session.audio);if !dictation.recording{session.endMicrophone(lease);if microphoneLease==lease{microphoneLease=nil}}}
     }
     func restoreAudio(){if let lease=microphoneLease{microphoneLease=nil;session.endMicrophone(lease)}}

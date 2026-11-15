@@ -33,6 +33,19 @@ struct VoiceCapturePlanTests {
         #expect(throws:MusicError.self){try short.place([outside],sectionLength:section.length)}
         #expect(throws:VoiceCapturePlanError.self){try VoiceCapturePlan.make(project:p,selectedSectionID:section.id,tick:Double(p.length-100),playing:true,loop:false,range:0..<p.length,minimumLead:0.2)}
     }
+    @Test func subrangePreservesPhaseAndEveryCapturedNote()throws {
+        let p=Project.demo(),section=p.sections[0]
+        let plan=try VoiceCapturePlan.make(project:p,selectedSectionID:section.id,tick:Double(barTicks+ppq),playing:true,loop:true,range:barTicks..<3*barTicks,minimumLead:0.2)
+        #expect(plan.offsetTicks==barTicks);#expect(plan.captureTicks==2*barTicks)
+        let first=NoteEvent(tick:0,duration:ppq,pitch:60,velocity:100)
+        let last=NoteEvent(tick:plan.captureTicks-120,duration:120,pitch:64,velocity:100)
+        let placed=try plan.place([first,last],sectionLength:section.length)
+        #expect(placed.count==2);#expect(placed[0].tick==barTicks)
+        #expect(placed[1].tick+placed[1].duration==3*barTicks)
+        #expect(placed.map(\.id)==[first.id,last.id])
+        let invalid=NoteEvent(tick:Int.max,duration:Int.max,pitch:60,velocity:100)
+        #expect(throws:MusicError.self){try plan.place([invalid],sectionLength:section.length)}
+    }
     @Test func idleTakeAndThirtySecondCeilingAreExplicit()throws {
         var p=Project.demo();p.bpm=40
         let section=p.sections[0]

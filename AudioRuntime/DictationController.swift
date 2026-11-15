@@ -65,6 +65,7 @@ private enum SpeechCallbacks {
         let attempt=generation
         settling?.cancel();settling=Task{try? await Task.sleep(for:.seconds(2));guard !Task.isCancelled,self.generation==attempt else{return};self.finishRecognition()}
     }
+    func cancel(){cancelRecognition()}
     private func finishRecognition(){
         generation+=1
         timeout?.cancel();timeout=nil;settling?.cancel();settling=nil

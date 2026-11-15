@@ -169,6 +169,9 @@ import Observation
     func pollRecording() {
         syncMIDI();midi.poll(replaying:performance.replaying);pollPerformance()
         updateNowPlaying()
+        // A finite arrangement can stop itself without a transport tap. Keep
+        // the final partial drum pass and release the recording/editing lock.
+        if (recording || armed),!audio.playing{finishTake();if backgrounded{suspendIdleAudio()};return}
         if backgrounded,!audio.playing{suspendIdleAudio();return}
         if armed && audio.clock>=armClock { armed=false; recording=true }
         guard recording else { return }

@@ -40,12 +40,8 @@ struct GridView: View {
             VStack(spacing:0){
                 ScrollView(.vertical,showsIndicators:false){
                     VStack(alignment:.leading,spacing:0){
-                        HStack{SmallHeading(text:"ARRANGEMENT");Spacer();Text("\(session.displayProject.length/barTicks) bars").font(.system(size:11,design:.monospaced)).foregroundStyle(Color.muted);IconButton(symbol:clipMode ? "pianokeys":"rectangle.3.group",label:clipMode ? "Edit chords":"Arrange clips",color:clipMode ? .mint:.muted){clipMode.toggle()}.accessibilityIdentifier("grid.mode.clips").accessibilityValue(LocalizedStringKey(clipMode ? "Clips":"Chords"));IconButton(symbol:"ellipsis",label:"Edit song sections",color:.muted){session.presentEditor(.sections)}.accessibilityIdentifier("sections.open")}.padding(.horizontal,16)
-                        ScrollView(.horizontal,showsIndicators:false){HStack(spacing:6){ForEach(session.displayProject.sections){section in
-                            Button{session.select(section)}label:{HStack(spacing:6){Text(section.name).font(.system(size:12,weight:.semibold));Text("\(section.start/barTicks+1)–\((section.start+section.length)/barTicks)").font(.system(size:11,design:.monospaced)).opacity(0.7)}.padding(.horizontal,14).frame(minHeight:44).foregroundStyle(session.section.id==section.id ? Color.ink:Color.studioText).background(session.section.id==section.id ? Color.mint:Color.panel,in:Capsule())}.buttonStyle(StudioQuietButtonStyle()).accessibilityIdentifier("grid.section.\(section.id)")
-                                .onDrag{editingLocked ? NSItemProvider():NSItemProvider(object:ArrangementDragPayload(project:session.project,sectionID:section.id).encoded() as NSString)}
-                                .dropDestination(for:String.self){items,_ in dropSection(items,on:section.id)}
-                        };Button{session.presentEditor(.sections)}label:{Image(systemName:"plus").frame(width:44,height:44).foregroundStyle(Color.muted)}.buttonStyle(StudioQuietButtonStyle())}.padding(.horizontal,16)}.padding(.bottom,8)
+                        arrangementHeader
+                        sectionChips
                         if clipMode{clipControls.padding(.horizontal,16).padding(.bottom,8)}
                         HStack(spacing:0){
                             VStack(spacing:0){Color.clear.frame(height:28);trackLabel(.harmony,height:harmonyHeight);trackLabel(.drums,height:drumHeight);trackLabel(.bass,height:bassHeight);ForEach(session.displayProject.tracks.filter{$0.role == .melody}){track in Button{session.openNotes(track.id)}label:{Text(track.displayName).font(.system(size:11,weight:.semibold)).lineLimit(2).foregroundStyle(Color.mint).padding(8).frame(width:gutter,height:melodyHeight)}.buttonStyle(StudioQuietButtonStyle())}}.frame(width:gutter)
@@ -66,6 +62,41 @@ struct GridView: View {
     private func configureViewport(_ size:CGSize){
         viewport=size
         if !zoomed,size.width>gutter{barWidth=max(68,(size.width-gutter)/CGFloat(min(4,max(1,session.displayProject.length/barTicks))));zoomBase=barWidth}
+    }
+    private var arrangementHeader:some View {
+        HStack {
+            SmallHeading(text:"ARRANGEMENT")
+            Spacer()
+            Text("\(session.displayProject.length/barTicks) bars")
+                .font(.system(size:11,design:.monospaced)).foregroundStyle(Color.muted)
+            IconButton(symbol:clipMode ? "pianokeys":"rectangle.3.group",label:clipMode ? "Edit chords":"Arrange clips",color:clipMode ? .mint:.muted){clipMode.toggle()}
+                .accessibilityIdentifier("grid.mode.clips").accessibilityValue(LocalizedStringKey(clipMode ? "Clips":"Chords"))
+            IconButton(symbol:"ellipsis",label:"Edit song sections",color:.muted){session.presentEditor(.sections)}
+                .accessibilityIdentifier("sections.open")
+        }.padding(.horizontal,16)
+    }
+    private var sectionChips:some View {
+        ScrollView(.horizontal,showsIndicators:false) {
+            HStack(spacing:6) {
+                ForEach(session.displayProject.sections){section in sectionChip(section)}
+                Button{session.presentEditor(.sections)}label:{Image(systemName:"plus").frame(width:44,height:44).foregroundStyle(Color.muted)}
+                    .buttonStyle(StudioQuietButtonStyle())
+            }.padding(.horizontal,16)
+        }.padding(.bottom,8)
+    }
+    private func sectionChip(_ section:MusicDomain.Section)->some View {
+        let selected=session.section.id==section.id
+        return Button{session.select(section)}label:{
+            HStack(spacing:6) {
+                Text(section.name).font(.system(size:12,weight:.semibold))
+                Text("\(section.start/barTicks+1)–\((section.start+section.length)/barTicks)")
+                    .font(.system(size:11,design:.monospaced)).opacity(0.7)
+            }.padding(.horizontal,14).frame(minHeight:44)
+                .foregroundStyle(selected ? Color.ink:Color.studioText)
+                .background(selected ? Color.mint:Color.panel,in:Capsule())
+        }.buttonStyle(StudioQuietButtonStyle()).accessibilityIdentifier("grid.section.\(section.id)")
+            .onDrag{editingLocked ? NSItemProvider():NSItemProvider(object:ArrangementDragPayload(project:session.project,sectionID:section.id).encoded() as NSString)}
+            .dropDestination(for:String.self){items,_ in dropSection(items,on:section.id)}
     }
     private var clipControls:some View {
         HStack(spacing:10) {
@@ -193,14 +224,29 @@ struct GridView: View {
     }
     private var clipList:some View {
         NavigationStack {
-            List {
-                ForEach(session.project.tracks.filter{$0.role != .bass}){track in
-                    SwiftUI.Section(track.displayName){ForEach(track.clips.sorted{$0.start<$1.start}){clip in
-                        Button{pendingClipInspector=ClipEditorSelection(trackID:track.id,clipID:clip.id);showClipList=false}label:{HStack{Text("\(clip.start/barTicks+1):\(clip.start%barTicks/240+1)");Spacer();Text(String(format:NSLocalizedString("%.2f bars",comment:"Clip length"),Double(clip.length)/Double(barTicks))).foregroundStyle(Color.muted)}.frame(minHeight:44)}
-                    }}
-                }
-            }.navigationTitle("Clip list").toolbar{ToolbarItem(placement:.confirmationAction){Button("Done"){showClipList=false}}}
+            clipListContents.navigationTitle("Clip list")
+                .toolbar{ToolbarItem(placement:.confirmationAction){Button("Done"){showClipList=false}}}
         }.tint(.mint)
+    }
+    private var clipListContents:some View {
+        let tracks=session.project.tracks.filter{$0.role != .bass}
+        return List{ForEach(tracks){track in clipListSection(track)}}
+    }
+    private func clipListSection(_ track:Track)->some View {
+        let clips=track.clips.sorted{$0.start<$1.start}
+        return SwiftUI.Section {
+            ForEach(clips){clip in clipListRow(trackID:track.id,clip:clip)}
+        } header:{Text(track.displayName)}
+    }
+    private func clipListRow(trackID:UUID,clip:Clip)->some View {
+        let position="\(clip.start/barTicks+1):\(clip.start%barTicks/240+1)"
+        let length=String(format:NSLocalizedString("%.2f bars",comment:"Clip length"),Double(clip.length)/Double(barTicks))
+        return Button {
+            pendingClipInspector=ClipEditorSelection(trackID:trackID,clipID:clip.id)
+            showClipList=false
+        } label:{
+            HStack{Text(position);Spacer();Text(length).foregroundStyle(Color.muted)}.frame(minHeight:44)
+        }
     }
     @ViewBuilder private var tools:some View {
         if dynamicType.isAccessibilitySize {

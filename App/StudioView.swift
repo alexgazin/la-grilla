@@ -14,6 +14,7 @@ struct StudioView: View {
                 HStack(spacing:4){tab("square.grid.3x3","Grid",0);tab("square.grid.2x2.fill","Jam",1);tab("slider.vertical.3","Mixer",2)} .padding(6).modifier(StudioNavigationSurface()).padding(.horizontal,12).padding(.bottom,4).background(Color.ink)
             }
         }.background(Color.ink).foregroundStyle(Color.studioText)
+        .overlay{if AudioRuntimeQA.enabled{AudioRuntimeQAView(session:session)}}
         .sheet(item:$session.sheet,onDismiss:{if let url=session.exportedURL{session.shareURL=url;session.exportedURL=nil}}){sheet in Group{switch sheet {
         case .projects: ProjectsView(session:session)
         case .newProject: NewProjectView(session:session)

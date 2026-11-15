@@ -53,6 +53,19 @@ private enum VoiceSourceIO {
     }
 }
 
+/// The converter invokes its input block synchronously from one serial drain
+/// call. This box transfers buffer ownership into that block without capturing
+/// a mutable local or sharing the PCM buffer with an unrelated executor.
+private final class VoiceConversionInput:@unchecked Sendable {
+    private let buffer:AVAudioPCMBuffer
+    private var supplied=false
+    init(_ buffer:AVAudioPCMBuffer){self.buffer=buffer}
+    func next(_ state:UnsafeMutablePointer<AVAudioConverterInputStatus>)->AVAudioBuffer? {
+        if supplied{state.pointee = .noDataNow;return nil}
+        supplied=true;state.pointee = .haveData;return buffer
+    }
+}
+
 /// AVAudioFile and converter are confined to the input drain's serial worker.
 /// The original capture remains mono 48 kHz Float32 CAF regardless of input route.
 private final class VoicePCMSink:@unchecked Sendable {
@@ -75,11 +88,9 @@ private final class VoicePCMSink:@unchecked Sendable {
         guard let converter else{try file.write(from:buffer);return}
         let capacity=AVAudioFrameCount(ceil(Double(buffer.frameLength)*48000/buffer.format.sampleRate)+64)
         guard let output=AVAudioPCMBuffer(pcmFormat:outputFormat,frameCapacity:capacity)else{throw VoiceAnalysisError.invalidInput}
-        var supplied=false,failure:NSError?
-        let status=converter.convert(to:output,error:&failure){_,state in
-            if supplied{state.pointee = .noDataNow;return nil}
-            supplied=true;state.pointee = .haveData;return buffer
-        }
+        let input=VoiceConversionInput(buffer)
+        var failure:NSError?
+        let status=converter.convert(to:output,error:&failure){ @Sendable [input] _,state in input.next(state) }
         if status == .error{throw failure ?? VoiceAnalysisError.invalidInput as NSError}
         if output.frameLength>0{try file.write(from:output)}
     }
@@ -108,7 +119,7 @@ private final class VoicePCMSink:@unchecked Sendable {
     private var timer:Timer?;private var worker:Task<VoiceCaptureResult,Error>?
     private var generation=0;private var recordedAt:Date?;private var inputLatency:Double?;private var tempoBPM:Double?;private var origin:AudioAssetRecord.Origin = .microphone;private var activeURL:URL?
     func start(audio:AudioController,bpm:Double,duration:Double,countIn:Bool,schedule:(@MainActor(Double)->Double?)?=nil,scheduleDuration:(@MainActor()->Double?)?=nil)async {
-        guard !isCapturing,state != .analyzing else{return};stopOriginal();state = .preparing;error=nil;generation+=1;let attempt=generation
+        guard !isCapturing,state != .analyzing else{return};stopOriginal();state = .preparing;plannedDuration=0;waitingSeconds=0;elapsed=0;level=0;error=nil;generation+=1;let attempt=generation
         let permission=await AVAudioApplication.requestRecordPermission()
         guard attempt==generation else{return}
         guard permission else{error=NSLocalizedString("Microphone access was denied. You can still write notes in Piano roll.",comment:"");state=result==nil ? .idle:.ready;return}
