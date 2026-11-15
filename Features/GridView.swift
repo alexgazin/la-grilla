@@ -1,6 +1,56 @@
 import SwiftUI
 import UIKit
 import MusicDomain
+import Observation
+
+/// Read-only native QA inputs. Keep the latest raw framework anchor outside
+/// the drag log ring; no target or musical result is supplied to the gesture.
+@MainActor @Observable private final class GridZoomDiagnostics {
+    static let shared=GridZoomDiagnostics()
+    static let enabled=ProcessInfo.processInfo.arguments.contains("--uitesting")
+    private(set) var report=""
+    @ObservationIgnored private var sequence=0
+    @ObservationIgnored private var beginLine=""
+    @ObservationIgnored private var requestLine=""
+    @ObservationIgnored private var awaitingAck=false
+    @ObservationIgnored private var request:Request?
+    private struct Request {
+        let magnification:Double
+        let position:TimelineZoom.Position
+        let frozenAnchorX:Double
+        let frozenAnchorBars:Double
+    }
+    func begin(unitAnchorX:Double,viewportWidth:Double,offset:Double,contentWidth:Double,barWidth:Double){
+        guard Self.enabled else{return}
+        sequence+=1;request=nil;requestLine="";awaitingAck=false
+        beginLine="BEGIN id=\(sequence) unitAnchorX=\(unitAnchorX) viewportWidth=\(viewportWidth) offset=\(offset) contentWidth=\(contentWidth) barWidth=\(barWidth)"
+        report=beginLine
+    }
+    func observeRequest(magnification:Double,position:TimelineZoom.Position,reference:TimelineZoom){
+        guard Self.enabled else{return}
+        // Fixed-size numeric storage only; no per-frame published log/string.
+        request=Request(magnification:magnification,position:position,frozenAnchorX:reference.anchorX,frozenAnchorBars:reference.anchorBars)
+    }
+    func finish(viewportWidth:Double,offset:Double,contentWidth:Double,barCount:Int){
+        guard Self.enabled,let request else{return}
+        requestLine="REQUEST id=\(sequence) magnification=\(request.magnification) width=\(request.position.barWidth) offset=\(request.position.offset) frozenAnchorX=\(request.frozenAnchorX) frozenAnchorBars=\(request.frozenAnchorBars)"
+        awaitingAck=true;report=beginLine+"\n"+requestLine
+        acknowledge(viewportWidth:viewportWidth,offset:offset,contentWidth:contentWidth,barCount:barCount)
+    }
+    func acknowledge(viewportWidth:Double,offset:Double,contentWidth:Double,barCount:Int){
+        guard Self.enabled,awaitingAck,let request,
+              abs(contentWidth-Double(barCount)*request.position.barWidth)<1,
+              abs(offset-request.position.offset)<=0.5 else{return}
+        awaitingAck=false
+        report=beginLine+"\n"+requestLine+"\nACK id=\(sequence) viewportWidth=\(viewportWidth) offset=\(offset) contentWidth=\(contentWidth)"
+    }
+}
+private struct GridZoomDiagnosticValue:ViewModifier {
+    @ViewBuilder func body(content:Content)->some View {
+        if GridZoomDiagnostics.enabled{content.accessibilityValue(Text(verbatim:GridZoomDiagnostics.shared.report))}else{content}
+    }
+}
+
 struct ChordSelection: Identifiable {let id: UUID;let patternID: UUID;let tick: Int;let chord: Chord;var duration: Int = barTicks}
 struct GridView: View {
     @Bindable var session: Session
@@ -67,9 +117,13 @@ struct GridView: View {
                                 }
                                 .simultaneousGesture(MagnifyGesture().updating($pinchActive){_,active,_ in active=true}.onChanged{value in
                                     zoomTimeline(magnification:value.magnification,anchor:value.startAnchor.x)
-                                }.onEnded{_ in pinchReference=nil})
+                                }.onEnded{_ in
+                                    GridZoomDiagnostics.shared.finish(viewportWidth:Double(timelineGeometry.viewportWidth),offset:Double(timelineGeometry.offset),contentWidth:Double(timelineGeometry.contentWidth),barCount:timelineBars)
+                                    pinchReference=nil
+                                })
                                 .onChange(of:pinchActive){_,active in if !active{pinchReference=nil}}
                                 .accessibilityIdentifier("grid.timeline")
+                                .modifier(GridZoomDiagnosticValue())
                         }
                     }
                 }
@@ -91,16 +145,19 @@ struct GridView: View {
     private func zoomTimeline(magnification:CGFloat,anchor:CGFloat){
         guard timelineGeometry.viewportWidth>0 else{return}
         if pinchReference==nil {
+            GridZoomDiagnostics.shared.begin(unitAnchorX:Double(anchor),viewportWidth:Double(timelineGeometry.viewportWidth),offset:Double(timelineGeometry.offset),contentWidth:Double(timelineGeometry.contentWidth),barWidth:Double(barWidth))
             resizeDraft=nil;zoomed=true
             pinchReference=TimelineZoom(barWidth:Double(barWidth),offset:Double(timelineGeometry.offset),viewportWidth:Double(timelineGeometry.viewportWidth),anchorX:Double(anchor*timelineGeometry.viewportWidth),barCount:timelineBars)
         }
-        guard let next=pinchReference?.position(magnification:Double(magnification))else{return}
+        guard let reference=pinchReference,let next=reference.position(magnification:Double(magnification))else{return}
+        GridZoomDiagnostics.shared.observeRequest(magnification:Double(magnification),position:next,reference:reference)
         pendingZoom=next
         var transaction=Transaction();transaction.animation=nil
         withTransaction(transaction){barWidth=CGFloat(next.barWidth);timelinePosition.scrollTo(x:CGFloat(next.offset))}
     }
     private func observeTimeline(_ geometry:TimelineGeometry){
         timelineGeometry=geometry
+        GridZoomDiagnostics.shared.acknowledge(viewportWidth:Double(geometry.viewportWidth),offset:Double(geometry.offset),contentWidth:Double(geometry.contentWidth),barCount:timelineBars)
         guard let target=pendingZoom,
               abs(geometry.contentWidth-CGFloat(timelineBars)*CGFloat(target.barWidth))<1 else{return}
         // A point request can clamp against the previous, narrower content.
