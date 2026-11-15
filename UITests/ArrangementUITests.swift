@@ -41,12 +41,15 @@ final class ArrangementUITests: XCTestCase {
     @MainActor func testPinchRetainsScrolledMusicalCenterWithoutEditingOrStopping()throws {
         let app=launch(runtimeTrace:true)
         let timeline=app.scrollViews["grid.timeline"]
+        let third=app.staticTexts["grid.bar.2"],fourth=app.staticTexts["grid.bar.3"]
         let clip=app.buttons.matching(NSPredicate(format:"identifier BEGINSWITH 'grid.clip.' AND label == 'Harmony'")).firstMatch
         XCTAssertTrue(timeline.waitForExistence(timeout:5));XCTAssertTrue(clip.waitForExistence(timeout:5))
+        XCTAssertTrue(third.waitForExistence(timeout:5));XCTAssertTrue(fourth.waitForExistence(timeout:5))
         let clipID=clip.identifier,length=clip.value as? String
         XCTAssertEqual(length,"4.00 bars");XCTAssertFalse(app.buttons["Undo"].isEnabled)
-        let initialFrame=clip.frame
-        let initialWidth=(initialFrame.width+6)/4
+        let initialClip=clip.frame,initialThird=third.frame,initialFourth=fourth.frame
+        let initialWidth=initialFourth.minX-initialThird.minX
+        XCTAssertGreaterThan(initialWidth,0)
         let transport=app.buttons["perform.transport"]
         wait(transport,NSPredicate(format:"value CONTAINS 'ready=true'"))
         app.buttons["Play"].tap()
@@ -60,53 +63,62 @@ final class ArrangementUITests: XCTestCase {
         }
         let project=try field("project",in:beforeTrace),revision=try field("revision",in:beforeTrace),kernel=try field("kernel",in:beforeTrace)
         let clock=try XCTUnwrap(UInt64(field("actualClock",in:beforeTrace)))
-        // Drag the ruler, away from clip controls, to establish a real nonzero
-        // horizontal offset. The dwell removes inertial motion before pinching.
+        // Drag the ruler to establish a real nonzero horizontal offset. Fully
+        // visible ruler landmarks avoid assumptions about offscreen clip AX
+        // clipping or hittability. Their leading-edge delta is the bar width.
         let ruler=timeline.coordinate(withNormalizedOffset:.zero).withOffset(CGVector(dx:timeline.frame.width*0.75,dy:14))
         ruler.press(forDuration:0.05,thenDragTo:ruler.withOffset(CGVector(dx:-initialWidth,dy:0)),withVelocity:.slow,thenHoldForDuration:0.4)
-        wait(clip,NSPredicate{_,_ in clip.frame.minX<initialFrame.minX-40 && clip.isHittable})
-        let scrolledFrame=clip.frame,viewFrame=timeline.frame
-        let barsBefore=(viewFrame.midX-scrolledFrame.minX+3)/((scrolledFrame.width+6)/4)
-        XCTAssertGreaterThan(viewFrame.minX-scrolledFrame.minX+3,40)
+        let panSettled=XCTWaiter.wait(for:[XCTNSPredicateExpectation(predicate:NSPredicate{_,_ in
+            let a=third.frame,b=fourth.frame,view=timeline.frame
+            return a.minX<initialThird.minX-40 && a.minX>=view.minX && b.maxX<=view.maxX+1
+        },object:third)],timeout:6)
+        let scrolledThird=third.frame,scrolledFourth=fourth.frame,viewFrame=timeline.frame
+        let panReceipt=XCTAttachment(string:"Settle result=\(panSettled)\nViewport=\(viewFrame)\nRuler03=\(initialThird) → \(scrolledThird), ruler04=\(initialFourth) → \(scrolledFourth)\nClip=\(initialClip) → \(clip.frame), hittable=\(clip.isHittable)\n\(transport.value as? String ?? "Missing runtime trace")")
+        panReceipt.name="Anchored-pinch actual ruler pan";panReceipt.lifetime = .keepAlways;add(panReceipt)
+        XCTAssertEqual(panSettled,.completed)
+        let widthBefore=scrolledFourth.minX-scrolledThird.minX
+        XCTAssertGreaterThan(widthBefore,0)
+        let barsBefore=2+(viewFrame.midX-scrolledThird.minX)/widthBefore
+        XCTAssertLessThan(scrolledThird.minX,initialThird.minX-40)
         timeline.pinch(withScale:1.6,velocity:1)
-        // Width and content-offset acknowledgement are separate layout events.
-        // Wait for the exact result of this one pinch, without repeating it.
+        // Width and offset acknowledgement are separate layout events. Wait for
+        // the exact result of this one pinch without repeating the gesture.
         let enlargedSettled=XCTWaiter.wait(for:[XCTNSPredicateExpectation(predicate:NSPredicate{_,_ in
-            let frame=clip.frame,view=timeline.frame
-            let center=(view.midX-frame.minX+3)/((frame.width+6)/4)
-            return frame.width>scrolledFrame.width*1.2 && abs(center-barsBefore)<=0.04
-        },object:clip)],timeout:6)
-        let enlargedFrame=clip.frame
-        let barsEnlarged=(timeline.frame.midX-enlargedFrame.minX+3)/((enlargedFrame.width+6)/4)
-        let firstReceipt=XCTAttachment(string:"Settle result=\(enlargedSettled)\nActual viewport=\(viewFrame) → \(timeline.frame), clip=\(scrolledFrame) → \(enlargedFrame)\nCenter bars=\(barsBefore) → \(barsEnlarged)\n\(transport.value as? String ?? "Missing runtime trace")")
+            let a=third.frame,b=fourth.frame,view=timeline.frame,width=b.minX-a.minX
+            guard width>0 else{return false}
+            let center=2+(view.midX-a.minX)/width
+            return width>widthBefore*1.2 && abs(center-barsBefore)<=0.04
+        },object:third)],timeout:6)
+        let enlargedThird=third.frame,enlargedFourth=fourth.frame
+        let enlargedWidth=enlargedFourth.minX-enlargedThird.minX
+        let barsEnlarged=2+(timeline.frame.midX-enlargedThird.minX)/enlargedWidth
+        let firstReceipt=XCTAttachment(string:"Settle result=\(enlargedSettled)\nViewport=\(viewFrame) → \(timeline.frame), ruler03=\(scrolledThird) → \(enlargedThird), ruler04=\(scrolledFourth) → \(enlargedFourth)\nActual bar widths=\(widthBefore) → \(enlargedWidth), center bars=\(barsBefore) → \(barsEnlarged)\n\(transport.value as? String ?? "Missing runtime trace")")
         firstReceipt.name="Anchored-pinch first actual geometry";firstReceipt.lifetime = .keepAlways;add(firstReceipt)
         XCTAssertEqual(enlargedSettled,.completed)
         XCTAssertEqual(barsEnlarged,barsBefore,accuracy:0.04,"The real musical point under the viewport pinch center moved")
-        // A second gesture must freeze the newly settled offset/width rather
-        // than reuse the reference from the previous pinch.
+        // The next gesture must freeze the newly settled offset and width.
         timeline.pinch(withScale:0.75,velocity:-1)
         let reducedSettled=XCTWaiter.wait(for:[XCTNSPredicateExpectation(predicate:NSPredicate{_,_ in
-            let frame=clip.frame,view=timeline.frame
-            let center=(view.midX-frame.minX+3)/((frame.width+6)/4)
-            return frame.width<enlargedFrame.width*0.9 && abs(center-barsEnlarged)<=0.04
-        },object:clip)],timeout:6)
-        let reducedFrame=clip.frame
-        let barsReduced=(timeline.frame.midX-reducedFrame.minX+3)/((reducedFrame.width+6)/4)
-        let repeatedReceipt=XCTAttachment(string:"Settle result=\(reducedSettled)\nActual viewport=\(timeline.frame), clip=\(enlargedFrame) → \(reducedFrame)\nCenter bars=\(barsEnlarged) → \(barsReduced)\n\(transport.value as? String ?? "Missing runtime trace")")
+            let a=third.frame,b=fourth.frame,view=timeline.frame,width=b.minX-a.minX
+            guard width>0 else{return false}
+            let center=2+(view.midX-a.minX)/width
+            return width<enlargedWidth*0.9 && abs(center-barsEnlarged)<=0.04
+        },object:third)],timeout:6)
+        let reducedThird=third.frame,reducedFourth=fourth.frame
+        let reducedWidth=reducedFourth.minX-reducedThird.minX
+        let barsReduced=2+(timeline.frame.midX-reducedThird.minX)/reducedWidth
+        let afterTrace=try XCTUnwrap(transport.value as? String)
+        let repeatedReceipt=XCTAttachment(string:"Settle result=\(reducedSettled)\nViewport=\(timeline.frame), ruler03=\(enlargedThird) → \(reducedThird), ruler04=\(enlargedFourth) → \(reducedFourth)\nActual bar widths=\(enlargedWidth) → \(reducedWidth), center bars=\(barsEnlarged) → \(barsReduced)\nBEFORE\n\(beforeTrace)\nAFTER\n\(afterTrace)")
         repeatedReceipt.name="Anchored-pinch repeated actual geometry";repeatedReceipt.lifetime = .keepAlways;add(repeatedReceipt)
         XCTAssertEqual(reducedSettled,.completed)
         XCTAssertEqual(barsReduced,barsEnlarged,accuracy:0.04)
-        let finalWidth=(reducedFrame.width+6)/4
-        XCTAssertGreaterThanOrEqual(finalWidth,68-0.000001);XCTAssertLessThanOrEqual(finalWidth,640+0.000001)
+        XCTAssertGreaterThanOrEqual(reducedWidth,68-0.000001);XCTAssertLessThanOrEqual(reducedWidth,640+0.000001)
         XCTAssertEqual(clip.identifier,clipID);XCTAssertEqual(clip.value as? String,length)
         XCTAssertFalse(app.buttons["Undo"].isEnabled);XCTAssertFalse(app.buttons["Redo"].isEnabled)
-        let afterTrace=try XCTUnwrap(transport.value as? String)
         XCTAssertEqual(try field("project",in:afterTrace),project);XCTAssertEqual(try field("revision",in:afterTrace),revision)
         XCTAssertEqual(try field("kernel",in:afterTrace),kernel);XCTAssertEqual(try field("actualPlaying",in:afterTrace),"1")
         XCTAssertEqual(try field("pending",in:afterTrace),"false")
         XCTAssertGreaterThan(try XCTUnwrap(UInt64(field("actualClock",in:afterTrace))),clock)
-        let receipt=XCTAttachment(string:"Initial clip=\(initialFrame), scrolled=\(scrolledFrame), viewport=\(viewFrame)\nEnlarged=\(enlargedFrame), reduced=\(reducedFrame)\nActual center bars: \(barsBefore) → \(barsEnlarged) → \(barsReduced)\nBEFORE\n\(beforeTrace)\nAFTER\n\(afterTrace)")
-        receipt.name="Anchored-pinch actual geometry and transport";receipt.lifetime = .keepAlways;add(receipt)
         app.buttons["Stop"].tap()
     }
 

@@ -366,6 +366,7 @@ struct GridView: View {
             ForEach(0..<timelineBars,id:\.self) { bar in
                 Text(String(format:"%02d",bar+1)).font(.system(size:11,weight:.medium,design:.monospaced))
                     .foregroundStyle(bar<session.displayProject.length/barTicks ? Color.muted:Color.muted.opacity(0.5)).frame(width:barWidth,alignment:.leading)
+                    .accessibilityIdentifier("grid.bar.\(bar)")
             }
         }.frame(height:28).overlay(alignment:.topLeading) {
             Rectangle().fill(Color.mint.opacity(0.6))
