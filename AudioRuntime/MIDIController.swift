@@ -38,6 +38,12 @@ private enum MIDICallbacks {
     var sources:[MIDIEndpoint]=[];var destinations:[MIDIEndpoint]=[]
     var error:String?;var lastMessage="No MIDI input yet";var late:UInt64=0;var dropped:UInt64=0;var outputSent:UInt64=0
     var isFixture=false;var fixtureOutputID:Int32?;var fixtureReceivedNotes=0
+    private(set) var fixtureRequested=false
+    private(set) var lastStartupStage:String?
+    private(set) var lastStartupStatus:OSStatus?
+    @ObservationIgnored private var startupErrorStage:String?
+    @ObservationIgnored private var startupErrorMessage:String?
+    @ObservationIgnored private var fixtureInputID:Int32?
     @ObservationIgnored private let fixtureProbe=MIDIHubHandle()
     @ObservationIgnored private var fixtureDestination=MIDIEndpointRef()
     @ObservationIgnored private var fixtureSource=MIDIEndpointRef()
@@ -60,13 +66,45 @@ private enum MIDICallbacks {
     @ObservationIgnored private var buffer=[LGMIDIEvent](repeating:LGMIDIEvent(),count:512)
     init(hub:MIDIHubHandle){self.hub=hub}
     func prepare(){
-        guard client==0 else{return}
-        var status=MIDIClientCreateWithBlock("La Grilla" as CFString,&client,MIDICallbacks.notifications(self))
-        if status==noErr{status=MIDIInputPortCreateWithBlock(client,"Input" as CFString,&input,MIDICallbacks.input(hub))}
-        if status != noErr{error=String(format:NSLocalizedString("MIDI could not start (%d).",comment:"MIDI input startup error"),status);if client != 0{MIDIClientDispose(client)};client=0;input=0;return}
-        var output=MIDIPortRef();let outputStatus=MIDIOutputPortCreate(client,"Output" as CFString,&output)
-        if outputStatus==noErr{outputWorker=MIDIOutputWorker(hub:hub,port:output)}else{error=String(format:NSLocalizedString("MIDI output could not start (%d).",comment:"MIDI output startup error"),outputStatus)}
+        // An explicit reconnect retries only missing resources. A failed input
+        // or output port must not make a healthy client permanently unretryable.
+        guard client==0 || input==0 || outputWorker==nil else{return}
+        if client==0 {
+            var created=MIDIClientRef()
+            let status=MIDIClientCreateWithBlock("La Grilla" as CFString,&created,MIDICallbacks.notifications(self))
+            guard status==noErr else{
+                if created != 0{MIDIClientDispose(created)}
+                failStartup("client",status:status,message:String(format:NSLocalizedString("MIDI could not start (%d).",comment:"MIDI input startup error"),status));return
+            }
+            client=created
+        }
+        if input==0 {
+            var created=MIDIPortRef()
+            let status=MIDIInputPortCreateWithBlock(client,"Input" as CFString,&created,MIDICallbacks.input(hub))
+            guard status==noErr else{
+                if created != 0{MIDIPortDispose(created)}
+                failStartup("input-port",status:status,message:String(format:NSLocalizedString("MIDI could not start (%d).",comment:"MIDI input startup error"),status));return
+            }
+            input=created
+        }
+        if outputWorker==nil {
+            var output=MIDIPortRef()
+            let status=MIDIOutputPortCreate(client,"Output" as CFString,&output)
+            guard status==noErr else{
+                if output != 0{MIDIPortDispose(output)}
+                failStartup("output-port",status:status,message:String(format:NSLocalizedString("MIDI output could not start (%d).",comment:"MIDI output startup error"),status));refresh();return
+            }
+            outputWorker=MIDIOutputWorker(hub:hub,port:output)
+        }
+        if let stage=startupErrorStage,["client","input-port","output-port"].contains(stage){clearStartupError()}
         refresh()
+    }
+    private func failStartup(_ stage:String,status:OSStatus,message:String){
+        lastStartupStage=stage;lastStartupStatus=status;startupErrorStage=stage;startupErrorMessage=message;error=message
+    }
+    private func clearStartupError(){
+        if error==startupErrorMessage{error=nil}
+        startupErrorStage=nil;startupErrorMessage=nil
     }
     private func endpoint(_ ref:MIDIEndpointRef)->MIDIEndpoint? {
         guard endpointIsOnline(ref) else{return nil}
@@ -85,7 +123,7 @@ private enum MIDICallbacks {
         return true
     }
     func endpointsChanged(){lastConfiguration=nil;refresh();onConfigurationChange?()}
-    func retry(){lastConfiguration=nil;outputNeedsRefresh=true;error=nil}
+    func retry(){lastConfiguration=nil;outputNeedsRefresh=true;error=nil;startupErrorStage=nil;startupErrorMessage=nil}
     /// The same stable key is embedded in the audio project snapshot. Track
     /// indices are deliberately excluded: editing their order must not reconnect
     /// a keyboard or let a queued packet play a different track.
@@ -139,14 +177,35 @@ private enum MIDICallbacks {
     }
     private func disconnect(_ id:Int32){guard let connection=connections.removeValue(forKey:id)else{return};MIDIPortDisconnectSource(input,connection.endpoint);lg_midi_disconnect(hub.pointer,Int32(connection.slot))}
     func createFixture()->Int32? {
-        guard ProcessInfo.processInfo.arguments.contains("--uitesting")else{return nil};prepare();guard client != 0 else{return nil}
-        if fixtureSource==0{let status=MIDISourceCreate(client,"La Grilla virtual QA keyboard" as CFString,&fixtureSource);guard status==noErr else{error=String(format:NSLocalizedString("Virtual MIDI source failed (%d).",comment:"Virtual MIDI test source error"),status);return nil}}
+        guard ProcessInfo.processInfo.arguments.contains("--uitesting")else{return nil}
+        fixtureRequested=true;prepare();guard client != 0,input != 0,outputWorker != nil else{return nil}
+        if fixtureSource==0{
+            var created=MIDIEndpointRef()
+            let status=MIDISourceCreate(client,"La Grilla virtual QA keyboard" as CFString,&created)
+            guard status==noErr else{if created != 0{MIDIEndpointDispose(created)};failStartup("fixture-source",status:status,message:String(format:NSLocalizedString("Virtual MIDI source failed (%d).",comment:"Virtual MIDI test source error"),status));return nil}
+            fixtureSource=created
+        }
         if fixtureDestination==0{
             lg_midi_configure(fixtureProbe.pointer,256,0,0,65535)
-            let status=MIDIDestinationCreateWithBlock(client,"La Grilla virtual QA output" as CFString,&fixtureDestination,MIDICallbacks.probe(fixtureProbe))
-            if status != noErr{error=String(format:NSLocalizedString("Virtual MIDI destination failed (%d).",comment:"Virtual MIDI test destination error"),status);return nil}
+            var created=MIDIEndpointRef()
+            let status=MIDIDestinationCreateWithBlock(client,"La Grilla virtual QA output" as CFString,&created,MIDICallbacks.probe(fixtureProbe))
+            guard status==noErr else{if created != 0{MIDIEndpointDispose(created)};failStartup("fixture-destination",status:status,message:String(format:NSLocalizedString("Virtual MIDI destination failed (%d).",comment:"Virtual MIDI test destination error"),status));return nil}
+            fixtureDestination=created
         }
-        fixtureOutputID=endpoint(fixtureDestination)?.id;isFixture=true;refresh();return endpoint(fixtureSource)?.id
+        guard let source=endpoint(fixtureSource),let destination=endpoint(fixtureDestination)else{return nil}
+        fixtureInputID=source.id;fixtureOutputID=destination.id;isFixture=true
+        if let stage=startupErrorStage,["fixture-source","fixture-destination"].contains(stage){clearStartupError()}
+        refresh();return source.id
+    }
+    /// Read-only QA state from actual CoreMIDI resources and received packets.
+    /// No endpoint, connection, learned mapping or output receipt is synthesized.
+    var fixtureReadiness:String {
+        let sourceOnline=sources.contains{$0.id==fixtureInputID && $0.reference==fixtureSource}
+        let destinationOnline=destinations.contains{$0.id==fixtureOutputID && $0.reference==fixtureDestination}
+        let connected=fixtureInputID.map{settings.enabled && settings.inputIDs.contains($0) && connections[$0]?.endpoint==fixtureSource} ?? false
+        let selected=destinationOnline && outputWorker != nil && configuredOutput==fixtureDestination && fixtureDestination != 0 && settings.outputID==fixtureOutputID
+        let mapped=fixtureInputID.flatMap{settings.mapping(sourceID:$0,channel:0,controller:74)}?.target == .filter
+        return "requested=\(fixtureRequested ? 1:0);source=\(sourceOnline ? 1:0);input=\(connected ? 1:0);output=\(selected ? 1:0);received=\(fixtureReceivedNotes);mapping=\(mapped ? 1:0);learning=\(learning == .filter ? 1:0);error=\(error==nil ? 0:1);lastFailureStage=\(lastStartupStage ?? "none");lastFailureStatus=\(lastStartupStatus.map{String($0)} ?? "none")"
     }
     func sendFixture(){
         guard fixtureSource != 0 else{return};var list=MIDIPacketList()

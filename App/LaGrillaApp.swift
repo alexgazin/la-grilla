@@ -12,7 +12,7 @@ import MusicDomain
         if let index=ProcessInfo.processInfo.arguments.firstIndex(of:"--screen"),ProcessInfo.processInfo.arguments.count>index+1 {
             let target=ProcessInfo.processInfo.arguments[index+1]
             if target=="midi" || target=="midi-mapped" {
-                if let source=session.midi.createFixture(){session.edit{p in var settings=MIDISettings();settings.enabled=true;settings.inputIDs=[source];settings.outputID=session.midi.fixtureOutputID;settings.trackID=p.tracks[0].id;p.midi=settings}}
+                session.prepareMIDIFixture()
                 session.sheet = .midiDevices;session.togglePlay()
                 if target=="midi-mapped"{session.midi.learning = .filter;try? await Task.sleep(for:.milliseconds(500));session.midi.sendFixture()}
             }

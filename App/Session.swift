@@ -80,6 +80,15 @@ import Observation
         // adopted layout; the hub resolves its current index at the boundary.
         midi.configure(project.midi ?? MIDISettings(),tracks:audio.activeMIDIRouting?.tracks ?? project.tracks)
     }
+    /// Share the real QA endpoint setup between launch and an explicit reconnect.
+    /// A failed launch never creates an enabled project or a pretend mapping.
+    func prepareMIDIFixture(){
+        guard let source=midi.createFixture(),let destination=midi.fixtureOutputID else{return}
+        var value=project.midi ?? MIDISettings()
+        value.enabled=true;value.inputIDs=[source];value.outputID=destination;value.trackID=project.tracks[0].id
+        if project.midi != value{let configured=value;edit{$0.midi=configured}}
+        syncMIDI()
+    }
     func ownsMicrophone(_ owner:UUID)->Bool{microphoneOwner==owner && !backgrounded}
     func beginMicrophone(stop:@escaping()->Void)->UUID? {
         guard !backgrounded else{return nil}

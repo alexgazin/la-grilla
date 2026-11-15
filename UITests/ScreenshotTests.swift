@@ -33,6 +33,9 @@ final class ScreenshotTests:XCTestCase {
             if customHarmony,!prepareCustomHarmony(app,russian:language=="ru"){continue}
             if harmonyOptions,!prepareHarmonyOptions(app){continue}
             if arrangementClips,!prepareClipInspector(app){continue}
+            if target=="midi" || target=="midi-mapped" {
+                if !prepareMIDICapture(app,mapped:target=="midi-mapped"){continue}
+            }
             if target=="voice-draft"{XCTAssertTrue(app.staticTexts["voice.note-count"].waitForExistence(timeout:15))}
             Thread.sleep(forTimeInterval:target.hasPrefix("perform-") ? 5:1)
             let png=settledPNG()
@@ -47,6 +50,69 @@ final class ScreenshotTests:XCTestCase {
         let ready=XCTWaiter.wait(for:[XCTNSPredicateExpectation(predicate:predicate,object:element)],timeout:6) == .completed
         if !ready{XCTFail(message+"; "+element.debugDescription)}
         return ready
+    }
+    @MainActor private func midiState(_ status:XCUIElement)->[String:String]{
+        guard status.exists,let value=status.value as? String else{return [:]}
+        return Dictionary(uniqueKeysWithValues:value.split(separator:";").compactMap{item in
+            let pair=item.split(separator:"=",maxSplits:1,omittingEmptySubsequences:false)
+            return pair.count==2 ? (String(pair[0]),String(pair[1])):nil
+        })
+    }
+    @MainActor private func midiReady(_ status:XCUIElement)->Bool{
+        let state=midiState(status)
+        return ["requested","source","input","output"].allSatisfy{state[$0]=="1"} && (Int(state["received"] ?? "0") ?? 0)>0 && state["error"]=="0"
+    }
+    @MainActor private func preserveMIDIStartup(_ app:XCUIApplication,status:XCUIElement,name:String){
+        let error=app.staticTexts["midi.error"]
+        let receipt=XCTAttachment(string:"Actual CoreMIDI state: \(status.value ?? "missing")\nVisible error: \(error.exists ? error.label:"none")")
+        receipt.name="MIDI-"+name+"-diagnostic";receipt.lifetime = .keepAlways;add(receipt)
+        let image=XCTAttachment(data:XCUIScreen.main.screenshot().pngRepresentation,uniformTypeIdentifier:"public.png")
+        image.name="MIDI-"+name+"-original-error";image.lifetime = .keepAlways;add(image)
+    }
+    @MainActor private func midiForm(_ app:XCUIApplication)->XCUIElement?{
+        [app.collectionViews["midi.form"],app.tables["midi.form"],app.scrollViews["midi.form"]].first{$0.exists}
+    }
+    @MainActor private func prepareMIDICapture(_ app:XCUIApplication,mapped:Bool)->Bool{
+        let status=app.buttons["midi.done"]
+        guard status.waitForExistence(timeout:6),let form=midiForm(app)else{XCTFail("The actual MIDI form did not open");return false}
+        let ready=NSPredicate{_,_ in self.midiReady(status)}
+        if XCTWaiter.wait(for:[XCTNSPredicateExpectation(predicate:ready,object:status)],timeout:6) != .completed {
+            preserveMIDIStartup(app,status:status,name:"before-reconnect")
+            let state=midiState(status)
+            // A recorded startup failure permits one real, visible reconnect.
+            // No arbitrary delay, repeated tap or generated mapping replaces it.
+            guard state["requested"]=="1",let failure=state["lastFailureStatus"],failure != "none" else{
+                XCTFail("MIDI capture requires real input/output connections and received output notes: \(status.value ?? "missing")");return false
+            }
+            let reconnect=app.buttons["midi.reconnect"]
+            guard revealForCapture([reconnect],scroll:form,in:app)else{return false}
+            reconnect.tap()
+            guard waitForCaptureState(status,ready,"The single MIDI reconnect did not restore the actual fixture")else{
+                preserveMIDIStartup(app,status:status,name:"after-reconnect-failure");return false
+            }
+        }
+        guard !app.staticTexts["midi.error"].exists else{preserveMIDIStartup(app,status:status,name:"unexpected-error");XCTFail("A MIDI error cannot be captured as ready");return false}
+        if mapped {
+            if midiState(status)["mapping"] != "1" {
+                let learn=app.buttons["midi.learn"],send=app.buttons["midi.send-fixture"]
+                guard revealForCapture([learn],scroll:form,in:app),learn.isEnabled else{XCTFail("Actual MIDI Learn is unavailable");return false}
+                if midiState(status)["learning"] != "1" {
+                    learn.tap()
+                    guard waitForCaptureState(status,NSPredicate{_,_ in self.midiState(status)["learning"]=="1"},"MIDI Learn was not armed for the actual filter")else{return false}
+                }
+                guard revealForCapture([send],scroll:form,in:app)else{return false}
+                send.tap()
+                guard waitForCaptureState(status,NSPredicate{_,_ in self.midiReady(status) && self.midiState(status)["mapping"]=="1"},"The real CC 74 phrase did not produce a filter mapping")else{return false}
+            }
+            let mapping=app.staticTexts["midi.mapping.filter"],detail=app.staticTexts["midi.mapping-detail.filter"]
+            guard revealForCapture([mapping,detail],scroll:form,in:app)else{return false}
+            guard detail.label=="Ch 1 · CC 74",midiReady(status),midiState(status)["mapping"]=="1" else{
+                XCTFail("The visible MIDI mapping does not match the connected source's actual CC 74");return false
+            }
+        }
+        let receipt=XCTAttachment(string:"Actual ready MIDI capture: \(status.value ?? "missing")")
+        receipt.name=mapped ? "MIDI-mapped-ready-diagnostic":"MIDI-connected-ready-diagnostic";receipt.lifetime = .keepAlways;add(receipt)
+        return true
     }
     @MainActor private func revealForCapture(_ elements:[XCUIElement],scroll:XCUIElement,in app:XCUIApplication,bottom:XCUIElement?=nil)->Bool {
         guard scroll.waitForExistence(timeout:5)else{XCTFail("The actual presented scroll view is missing");return false}
