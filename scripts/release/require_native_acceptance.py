@@ -4,7 +4,7 @@ import json,os,re,sys,urllib.parse,urllib.request
 
 REQUIRED_JOBS=('ios','iphone','release-archive')
 VERIFICATION_WORKFLOW='.github/workflows/ios.yml'
-PARTIAL_FLAGS=('[integration-only]','[ru-capture]','[device-only]')
+PARTIAL_FLAGS=('[integration-only]','[ru-capture]','[device-only]','[input-diagnostic]')
 
 class AcceptanceError(RuntimeError):pass
 

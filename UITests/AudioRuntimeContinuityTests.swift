@@ -7,12 +7,13 @@ import XCTest
 final class AudioRuntimeContinuityTests:XCTestCase {
     override func setUp(){super.setUp();continueAfterFailure=false;executionTimeAllowance=90}
 
-    @MainActor private func run(microphone:Bool,midiPolicy:Bool=false,voiceCapture:Bool=false)throws {
+    @MainActor private func run(microphone:Bool,midiPolicy:Bool=false,voiceCapture:Bool=false,inputDiagnostic:Bool=false)throws {
         let app=XCUIApplication()
         app.launchArguments=["--uitesting","--audio-runtime-qa","-AppleLanguages","(en)","-AppleLocale","en_US"]
         if microphone{app.launchArguments.append("--audio-runtime-microphone")}
         if midiPolicy{app.launchArguments.append("--audio-runtime-midi-policy")}
         if voiceCapture{app.launchArguments.append("--audio-runtime-voice-capture")}
+        if inputDiagnostic{app.launchArguments.append("--audio-input-lifecycle-controls")}
         let interruption=addUIInterruptionMonitor(withDescription:"Native microphone permission"){alert in
             guard microphone else{return false}
             if alert.buttons["Allow"].exists{alert.buttons["Allow"].tap();return true}
@@ -50,11 +51,25 @@ final class AudioRuntimeContinuityTests:XCTestCase {
         let deadline=Date().addingTimeInterval(35)
         while Date()<deadline {
             allowMicrophonePrompt()
-            if result.exists,result.label == "PASS" || result.label == "FAIL" || result.label == "UNAVAILABLE"{break}
+            if result.exists,result.label == "PASS" || result.label == "FAIL" || result.label == "UNAVAILABLE" || (inputDiagnostic && result.label == "DIAGNOSTIC"){break}
             RunLoop.current.run(until:Date().addingTimeInterval(0.1))
         }
         let details=app.staticTexts["audio.runtime.details"].label
-        let report=XCTAttachment(string:details);report.name=voiceCapture ? "Native-production-voice-capture-lifecycle":midiPolicy ? "Native-immediate-MIDI-policy":microphone ? "Native-microphone-engine-continuity":"Native-live-snapshot-continuity";report.lifetime = .keepAlways;add(report)
+        let report=XCTAttachment(string:details);report.name=inputDiagnostic ? "Diagnostic-only-input-lifecycle-controls":voiceCapture ? "Native-production-voice-capture-lifecycle":midiPolicy ? "Native-immediate-MIDI-policy":microphone ? "Native-microphone-engine-continuity":"Native-live-snapshot-continuity";report.lifetime = .keepAlways;add(report)
+        if inputDiagnostic {
+            XCTAssertEqual(result.label,"DIAGNOSTIC",details)
+            let data=try XCTUnwrap(details.data(using:.utf8))
+            let diagnostic=try XCTUnwrap(JSONSerialization.jsonObject(with:data) as? [String:Any])
+            XCTAssertEqual(diagnostic["diagnosticOnly"] as? Bool,true)
+            XCTAssertEqual(diagnostic["productionAcceptance"] as? Bool,false)
+            XCTAssertEqual(diagnostic["humanVoiceAccuracyVerified"] as? Bool,false)
+            XCTAssertEqual(diagnostic["originalSessionEngineReleased"] as? Bool,true)
+            let cases=try XCTUnwrap(diagnostic["cases"] as? [[String:Any]])
+            XCTAssertEqual(cases.count,4)
+            XCTAssertEqual(Set(cases.compactMap{$0["id"] as? String}),Set(["duplex-input-first","playback-disabled-input-precreated","playback-output-first-late-input","duplex-output-first-late-input"]))
+            XCTAssertLessThan(diagnostic["elapsedSeconds"] as? Double ?? .infinity,20)
+            return
+        }
         if voiceCapture,result.label=="UNAVAILABLE"{XCTFail("Production VoiceCapture acceptance requires real HAL input: "+details);return}
         if microphone,result.label=="UNAVAILABLE" {
             guard let data=details.data(using:.utf8),let report=try JSONSerialization.jsonObject(with:data) as? [String:Any],report["outcome"] as? String=="UNAVAILABLE",
@@ -101,4 +116,8 @@ final class AudioRuntimeContinuityTests:XCTestCase {
     @MainActor func testLiveSnapshotMixRoutingAndClockStayCoherent()throws {try run(microphone:false)}
     @MainActor func testSessionMicrophoneLeaseRetainsLiveEngineAndPCM()throws {try run(microphone:true)}
     @MainActor func testMIDIOffTakesEffectBeforePendingStructuralBoundary()throws {try run(microphone:false,midiPolicy:true)}
+    @MainActor func testDiagnosticOnlyFreshInputLifecycleControls()throws {
+        guard ProcessInfo.processInfo.environment["GRILLA_INPUT_DIAGNOSTIC"]=="1" else{throw XCTSkip("Input lifecycle controls are opt-in diagnostics; production microphone acceptance is covered independently.")}
+        try run(microphone:true,inputDiagnostic:true)
+    }
 }

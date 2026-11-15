@@ -40,6 +40,7 @@ import SwiftUI
     }
     static func snapshots(_ session:Session)async throws->String {
         let audio=session.audio
+        let acceptanceDeadline=Date().addingTimeInterval(30)
         var project=try await fixture(audio)
         defer{audio.stop()}
         let kernel=try pointer(audio)
@@ -90,7 +91,74 @@ import SwiftUI
         var foreign=project;foreign.id=UUID()
         try require(!audio.mix(foreign),"Mixer accepted a different project's identical track layout")
         try require(try pointer(audio)==kernel && audio.captureEngine===engine && audio.playing,"Snapshot burst replaced or stopped the engine")
-        return "Actual engine: boundary mix/FX, deferred keyed preview, preset cache invalidation, reordered MIDI roles, 80 concurrent submissions, bounded routing cache, phase and kernel identity"
+        // Exercise the actual Session publication paths, including the path a
+        // controller CC uses. The fixture above submitted directly to audio;
+        // now make that same source the editable Session project.
+        session.project=project;session.history=History();session.mixerGesture=false
+        session.loop=true;session.loopBars=4;session.metronome=false;session.sync()
+        @MainActor func previewWait(_ stage:String,_ condition:()->Bool)async throws {
+            let remaining=acceptanceDeadline.timeIntervalSinceNow
+            try require(remaining>0,"Preview acceptance deadline exceeded: "+stage)
+            do{try await wait(audio,timeout:min(3,remaining),condition)}
+            catch{throw Failure(message:"Preview acceptance ("+stage+"): "+error.localizedDescription)}
+        }
+        try await previewWait("Session source adoption"){audio.playing && !audio.pendingSnapshot}
+        let baseline=session.project,section=baseline.sections[0]
+        let running=try HarmonyLab.propose(baseline,sectionID:section.id,options:HarmonyOptions(style:.expressive,voicing:.compact))
+        try require(Compiler.notes(running.candidate) != Compiler.notes(baseline),"Running preview fixture did not change audible harmony")
+        session.previewAssistant(running.candidate,wholeSong:true,sectionID:section.id)
+        try await previewWait("running audition"){session.harmonyPreview && audio.playing && !audio.pendingSnapshot}
+        audio.refreshClock();let previewClock=audio.clock,previewTick=audio.tick
+        let gain=MIDIMapping(sourceID:0,channel:0,controller:20,target:.trackGain,trackID:baseline.tracks[0].id)
+        session.applyMIDI(gain,value:-12)
+        try require(!session.harmonyPreview && audio.playing,"A controller mixer edit left the running audition marked active or stopped playback")
+        try require(session.project.patterns==baseline.patterns,"A controller mixer edit committed audition harmony")
+        try await previewWait("controller edit adoption"){
+            audio.playing && !audio.pendingSnapshot && audio.appliedRevision==session.project.revision && audio.withKernel{abs(lg_gain_target($0,0)-powf(10,-12/20))<0.0001}==true
+        }
+        audio.refreshClock()
+        try require(audio.clock>previewClock && audio.captureEngine===engine && (try pointer(audio))==kernel,"Controller preview invalidation replaced or reset the actual engine/kernel/clock")
+        let previewLength=Double(baseline.length)
+        let previewExpected=(Double(audio.clock-previewClock)*baseline.bpm*Double(ppq)/(60*audio.sampleRate)).truncatingRemainder(dividingBy:previewLength)
+        let previewActual=(audio.tick-previewTick+previewLength).truncatingRemainder(dividingBy:previewLength)
+        let previewDelta=abs(previewActual-previewExpected),previewPhase=min(previewDelta,previewLength-previewDelta)
+        try require(previewPhase<128,"Ending a running preview after a controller edit changed musical phase")
+
+        audio.stop();try await previewWait("idle setup stop"){!audio.playing}
+        let idlePosition=960
+        audio.seek(idlePosition)
+        try await previewWait("idle setup position"){!audio.playing && abs(audio.tick-Double(idlePosition))<1}
+        let idleSource=session.project
+        let idle=try HarmonyLab.propose(idleSource,sectionID:section.id,options:HarmonyOptions(style:.gentle))
+        try require(Compiler.notes(idle.candidate) != Compiler.notes(idleSource),"Idle preview fixture did not change audible harmony")
+        session.previewHarmony(idle.candidate,section:section)
+        try await previewWait("idle-started audition"){session.harmonyPreview && audio.playing && !audio.pendingSnapshot}
+        session.edit{$0.bpm=999}
+        let rejectedKeptPreview=session.project==idleSource && session.harmonyPreview && audio.playing && session.message != nil
+        // Consume the expected validation failure in this fixture's MainActor
+        // turn before SwiftUI can present an alert over its QA result.
+        session.message=nil
+        try require(rejectedKeptPreview,"A rejected edit invalidated a still-valid audition or changed its source")
+        session.edit{$0.name="Native preview source"}
+        try require(!session.harmonyPreview && !audio.playing,"An accepted edit left an idle-started audition playing")
+        try await previewWait("stopped source restoration"){
+            !audio.playing && !audio.pendingSnapshot && audio.appliedRevision==session.project.revision && abs(audio.tick-Double(idlePosition))<1
+        }
+        try require(session.project.patterns==idleSource.patterns && session.project.tracks==idleSource.tracks,"Ending the idle audition changed source music/mix")
+        try require(audio.captureEngine===engine && (try pointer(audio))==kernel,"Idle preview invalidation replaced the engine or kernel")
+
+        // Open's explicit seek(0) must win over the previous idle audition's
+        // saved position. Clearing only inside the later sync would seek 960.
+        let beforeOpen=session.project
+        let opening=try HarmonyLab.propose(beforeOpen,sectionID:section.id,options:HarmonyOptions(style:.gentle))
+        session.previewHarmony(opening.candidate,section:section)
+        try await previewWait("audition before project open"){session.harmonyPreview && audio.playing && !audio.pendingSnapshot}
+        var opened=Project.demo();opened.name="Native opened source";opened.bpm=240
+        await session.open(opened,force:true)
+        try require(session.project.id==opened.id && !session.harmonyPreview && !audio.playing,"Project open retained an old audition or did not switch the source")
+        try await previewWait("opened source at zero"){!audio.playing && !audio.pendingSnapshot && abs(audio.tick)<1}
+        try require(audio.captureEngine===engine && (try pointer(audio))==kernel && audio.clock>previewClock,"Project open unnecessarily replaced the engine/kernel or reset its clock")
+        return "Actual engine: boundary mix/FX, deferred keyed preview, preset cache invalidation, reordered MIDI roles, 80 concurrent submissions, bounded routing cache; actual Session controller-edit preview invalidation (phase difference \(previewPhase) ticks), rejected edit preserves audition, accepted idle edit restores stopped position \(idlePosition), project open clears audition and restores zero; retained engine/kernel/clock"
     }
     struct InputUnavailable:Error {let details:String}
     struct OutputHostTimingReport:Encodable {
@@ -250,17 +318,18 @@ struct AudioRuntimeQAView:View {
     @State private var result="WAITING"
     @State private var details=""
     @State private var started=false
+    private var inputDiagnosticCase:Bool{ProcessInfo.processInfo.arguments.contains("--audio-input-lifecycle-controls")}
     private var voiceCaptureCase:Bool{ProcessInfo.processInfo.arguments.contains("--audio-runtime-voice-capture")}
     private var microphoneCase:Bool {
         let args=ProcessInfo.processInfo.arguments
-        return (args.contains("--audio-runtime-microphone") || voiceCaptureCase) && !args.contains("--audio-runtime-midi-policy")
+        return (args.contains("--audio-runtime-microphone") || voiceCaptureCase || inputDiagnosticCase) && !args.contains("--audio-runtime-midi-policy")
     }
     var body:some View {
         VStack(spacing:12){
             Text(verbatim:result).font(.headline).accessibilityIdentifier("audio.runtime.result")
             Text(verbatim:details).font(.caption).accessibilityIdentifier("audio.runtime.details")
             if microphoneCase,result=="READY" {
-                Button{Task{await run()}}label:{Text(verbatim:"Start microphone check").frame(minHeight:44)}
+                Button{Task{await run()}}label:{Text(verbatim:inputDiagnosticCase ? "Start input diagnostics":"Start microphone check").frame(minHeight:44)}
                     .buttonStyle(.borderedProminent).accessibilityIdentifier("audio.runtime.start")
             }
         }.padding(24).frame(maxWidth:.infinity,maxHeight:.infinity).background(Color.ink).foregroundStyle(Color.studioText)
@@ -275,6 +344,11 @@ struct AudioRuntimeQAView:View {
     @MainActor private func run()async {
         guard !started else{return};started=true;result="RUNNING"
         do {
+            if inputDiagnosticCase {
+                details=try await InputLifecycleDiagnostics.run(session)
+                result="DIAGNOSTIC"
+                return
+            }
             if ProcessInfo.processInfo.arguments.contains("--audio-runtime-midi-policy"){details=try await AudioRuntimeQA.midiPolicy(session)}
             else if ProcessInfo.processInfo.arguments.contains("--audio-runtime-drum-clip"){details=try await DrumClipRuntimeQA.run(session)}
             else if voiceCaptureCase{details=try await VoiceCaptureRuntimeQA.run(session)}

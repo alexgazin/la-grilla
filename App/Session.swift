@@ -119,6 +119,7 @@ import Observation
     }
     func sync() {
         if performance.contextActive{if let p=performance.runtimeProject{audio.mix(p)};syncMIDI();return}
+        restorePreviewTransport()
         if let drumDraft{drumPlayback=try? drumDraft.candidate(for:project)}else{drumPlayback=nil}
         audio.submit(drumPlayback ?? project,loop:loop,range:loopRange);audio.metronome(metronome);syncMIDI()
     }
@@ -218,9 +219,13 @@ import Observation
         audio.audition(candidate,range:wholeSong ? 0..<candidate.length:section.start..<section.start+section.length);syncMIDI()
     }
     func endHarmonyPreview(){
+        guard harmonyPreview else{return};restorePreviewTransport();sync()
+    }
+    private func restorePreviewTransport(){
         guard harmonyPreview else{return};harmonyPreview=false
-        if previewPlaying{audio.submit(project,loop:loop,range:loopRange);syncMIDI()}
-        else{audio.stop();audio.seek(previewPosition);sync()}
+        // Any normal source sync replaces an audition. A preview started from
+        // idle returns to its stopped position; a running song keeps its phase.
+        if !previewPlaying{audio.stop();audio.seek(previewPosition)}
     }
     func presentEditor(_ sheet:Sheet){if performance.contextActive{Task{await leavePerformance();self.sheet=sheet}}else{finishTake();self.sheet=sheet}}
     func openNotes(_ id:UUID?=nil,clipID:UUID?=nil){
@@ -247,7 +252,7 @@ import Observation
         if performance.contextActive{await leavePerformance()}
         if !force && p.id==project.id {sheet=nil;return}
         if exportInProgress{cancelExport()}
-        finishTake();audio.stop();await save()
+        finishTake();endHarmonyPreview();audio.stop();await save()
         guard saveError==nil else {message="Save the current project or save a copy before opening another project.";return}
         project=p;history=History();noteTrackID=nil;noteClipID=nil;drumClipID=nil;selectedSection=p.sections[0].id;savedRevision=p.revision;audio.seek(0);sync();sheet=nil
     }

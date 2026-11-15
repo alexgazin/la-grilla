@@ -138,6 +138,16 @@ VoiceReview подтвердил `PREVIEW` → настоящий Stop → `ORIG
 
 Новый OutputTimingMeter хранит предыдущий host anchor через measurement epoch и engine restart, использует bounded atomic publication/read без callback locks/allocations и не меняет PCM. Проверены непрерывный/переменный buffer spacing, 80/100 ms паузы, первая пауза после epoch, обратные timestamps/rate changes, offline exclusion, 44.1/48/96 kHz, 5000 конкурентных epochs/snapshots и точное сохранение звука. **15 C++ suites + stress прошли**, render allocations = 0. После изменения ядра заново прошли **112 Swift tests**. Generic mic и production VoiceCapture receipts ждут baseline callbacks до записи и сохраняют baseline/final host-timing; `physicalDropoutAbsenceVerified=false` не даёт спутать их с физическим измерением динамика. Apple SDK/UI этого checkpoint ещё не приняты.
 
+### C7 — 1bfdb22: все touch/live сценарии приняты, input остаётся единственным блокером
+
+Source `1bfdb22bd7fa60efca90c7a702befbf240c6e986`, [run 43733352465](https://github.com/alexgazin/la-grilla/actions/runs/43733352465): обе SDK/Release archive, 112 Swift и 15 C++ suites проходят. **12/14 native integration tests passed**: все пять Arrangement (включая настоящий one-bar drag, corner resize и Undo), snapshot/MIDI, production Session drum lifecycle, все три LiveEditing и VoiceReview. Новые реальные [arrangement/track actions PNG](../Screenshots/OriginalVision-progress) сохранены с per-file source/run/hash; старый Assistant не переименован в новый источник.
+
+Не прошли только generic mic и actual VoiceCapture. EnableIO query успешен (`status=0`, 4 bytes): input остаётся `0`, output `1` до input getter и после reprepare; оба input formats — 2ch/0Hz, frames=0. Host timing раскрыл **132.052167 ms excess / 142.718833 ms max callback interval** против 10.666667 ms baseline/512 frames. Сохранённая phase/engine identity не выдана за бесшовный звук. Дополнительные случайные изменения Simulator preferences прекращены.
+
+Следующий запуск `[input-diagnostic]` сохраняет оба строгих failing production tests и отдельно собирает четыре локальных fresh-engine controls: duplex input-first, playback с заранее созданным disabled input, playback output-first/late input и duplex output-first/late input. Категория задаётся **до создания** соответствующего engine; разрешение запрашивается после READY/Start, до reset/controls. Входной format берётся только из реального node; tap не устанавливается на нулевой hardware/output format. Отдельный terminal `DIAGNOSTIC`/JSON `productionAcceptance=false` не закрывает C5. Такой scope отклоняется signing gate. Read-only TCC rows и фактические SimulatorTrampoline identifiers дополняют receipt без изменения разрешений.
+
+При независимой сверке найден реальный state bug: MIDI mixer edit вызывал baseline sync, но оставлял `harmonyPreview=true`; preview из idle продолжал играть baseline. Нормальный sync теперь централизованно сбрасывает audition и восстанавливает исходное idle/run состояние; Performance mix path сохранён. `endHarmonyPreview` использует ту же процедуру, а open очищает старый audition до смены проекта/seek0. Native snapshot QA дополнен running-preview/MIDI gain, rejected edit, accepted idle edit и project-open cases; их новая приёмка ещё предстоит.
+
 ## Формат отчёта каждого этапа
 
 Для C1–C8 добавлять отдельную запись:

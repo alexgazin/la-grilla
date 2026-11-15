@@ -28,7 +28,7 @@ class NativeAcceptanceTests(unittest.TestCase):
                 self.verification_run['head_commit']['message']=message
                 proof=self.verify();self.assertEqual(len(proof),3);self.assertEqual({item['scope'] for item in proof},{expected})
     def test_focused_or_capture_only_pushes_fail(self):
-        for flag in ['[integration-only]','[INTEGRATION-ONLY]','[ru-capture]','[ui-only] [ru-capture]','[device-only]']:
+        for flag in ['[integration-only]','[INTEGRATION-ONLY]','[ru-capture]','[ui-only] [ru-capture]','[device-only]','[input-diagnostic]','[INPUT-DIAGNOSTIC]','[ui-only] [input-diagnostic]']:
             with self.subTest(flag=flag):
                 self.verification_run['head_commit']['message']='Checkpoint '+flag
                 with self.assertRaises(gate.AcceptanceError):self.verify()
