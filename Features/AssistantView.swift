@@ -41,7 +41,7 @@ struct AssistantView:View {
                     HStack {
                         Button("Examples"){focused=false;showExamples=true}.frame(minHeight:44).disabled(dictation.recording || dictation.requesting || dictation.finalizing).accessibilityIdentifier("assistant.examples")
                         Spacer()
-                        Picker("Dictation language",selection:$language){Text("RU").tag("ru-RU");Text("EN").tag("en-US")}.pickerStyle(.menu).disabled(dictation.recording || dictation.requesting || dictation.finalizing).accessibilityIdentifier("assistant.language")
+                        languageControl.disabled(dictation.recording || dictation.requesting || dictation.finalizing)
                         Button{toggleDictation()}label:{Image(systemName:dictation.recording ? "stop.circle.fill":"mic.fill").frame(width:44,height:44).foregroundStyle(dictation.recording ? Color.record:Color.mint)}.accessibilityLabel(LocalizedStringKey(dictation.recording ? "Stop dictation":"Dictate a command")).disabled(dictation.requesting || dictation.finalizing)
                     }
                     if dictation.requesting{ProgressView("Preparing dictation…")}
@@ -67,6 +67,20 @@ struct AssistantView:View {
         .onReceive(NotificationCenter.default.publisher(for:AVAudioSession.interruptionNotification).receive(on:RunLoop.main)){_ in dictation.cancel();restoreAudio()}
         .onDisappear{cancelGeneration();dictation.cancel();restoreAudio();session.endHarmonyPreview()}
         .onAppear{ai.refresh(localeIdentifier:language);if let i=ProcessInfo.processInfo.arguments.firstIndex(of:"--screen"),ProcessInfo.processInfo.arguments.count>i+1{let target=ProcessInfo.processInfo.arguments[i+1];if target=="assistant-proposal"{input="Tempo 110; Chorus 8 bars: Am F C G each 2 bars";generate()}else if target=="assistant-song-proposal"{input="Song: Tempo 108; Key D minor; Intro 4 bars: Dm Gm A Dm; Chorus 8 bars: Dm Gm C F each 2 bars";generate()}}}
+    }
+    private var languageControl:some View {
+        HStack(spacing:3){
+            ForEach(["ru-RU","en-US"],id:\.self){code in
+                Button{language=code}label:{
+                    Text(verbatim:String(code.prefix(2)).uppercased()).font(.caption.weight(.semibold))
+                        .frame(minWidth:44,minHeight:44)
+                        .foregroundStyle(language==code ? Color.ink:Color.muted)
+                        .background(language==code ? Color.mint:Color.clear,in:RoundedRectangle(cornerRadius:11,style:.continuous))
+                }.buttonStyle(StudioQuietButtonStyle())
+                    .accessibilityIdentifier("assistant.language."+String(code.prefix(2)))
+                    .accessibilityAddTraits(language==code ? .isSelected:[])
+            }
+        }.padding(3).modifier(StudioSurface()).accessibilityElement(children:.contain).accessibilityLabel("Dictation language")
     }
     func review(_ proposal:AssistantProposal,source:Project,candidate:Project)->some View {
         VStack(alignment:.leading,spacing:14){

@@ -73,29 +73,20 @@ final class AssistantCompositionTests:XCTestCase {
             XCTAssertEqual(state.value as? String,"Original")
             let proposal=app.buttons["assistant.b"];revealFully(proposal,in:app);proposal.tap()
             wait(state,NSPredicate(format:"label == 'PLAYING' AND value == 'Preview'"))
-            let control=change=="mode" ? app.buttons["Commands"]:app.buttons["assistant.language"]
+            let control=change=="mode" ? app.buttons["Commands"]:app.buttons["assistant.language.en"]
             let scroll=app.scrollViews["assistant.review-scroll"]
             for _ in 0..<10 {
                 let viewport=scroll.frame.intersection(app.frame),frame=control.frame
                 if control.isHittable,frame.minY>=viewport.minY+8,frame.maxY<=viewport.maxY-8{break}
                 scroll.swipeDown()
             }
-            XCTAssertTrue(control.isHittable);control.tap()
+            XCTAssertTrue(control.isHittable)
+            if change=="language"{XCTAssertGreaterThanOrEqual(control.frame.height,44);XCTAssertFalse(control.isSelected)}
+            control.tap()
             if change=="language" {
-                // iOS 26 exposes the real menu row but can omit its AX
-                // activation point. A single physical tap uses that row's
-                // visible bounds; never tap the underlying language picker.
-                let english=app.buttons.matching(NSPredicate(format:"label == 'EN' AND identifier != 'assistant.language'")).firstMatch
-                XCTAssertTrue(english.waitForExistence(timeout:5))
-                let visible=NSPredicate{_,_ in
-                    guard english.exists,english.isHittable else{return false}
-                    let frame=english.frame,window=app.windows.firstMatch.frame
-                    return frame.width>0 && frame.height>0 && window.contains(frame)
-                }
-                wait(english,visible)
-                english.coordinate(withNormalizedOffset:CGVector(dx:0.5,dy:0.5)).tap()
-                wait(control,NSPredicate(format:"label CONTAINS 'EN' OR value CONTAINS 'EN'"))
-                wait(english,NSPredicate(format:"exists == false"))
+                wait(control,NSPredicate{_,_ in control.exists && control.isSelected})
+                XCTAssertEqual(control.label,"EN")
+                XCTAssertFalse(app.buttons["assistant.language.ru"].isSelected)
             }
             // Check the actual Session preview flag and transport even after
             // the review controls disappear; hiding the proposal is insufficient.
