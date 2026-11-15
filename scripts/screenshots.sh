@@ -17,15 +17,15 @@ echo "$DEVICE" > /tmp/grilla-simulator-id
 run_limited 60 open -a Simulator --args -CurrentDeviceUDID "$DEVICE" || true
 run_limited 60 xcrun simctl boot "$DEVICE" || true
 run_limited 300 xcrun simctl bootstatus "$DEVICE" -b
+if test "${GRILLA_CAPTURE_SCREENS:-1}" = 0; then
+  # XCTest installs and launches its own correctly signed application.
+  exit 0
+fi
 # Keep the simulator's status bar; appearance overrides can block on hosted runners.
 echo "Ad-hoc signing simulator application"
 codesign --force --deep --sign - DerivedData/Build/Products/Debug-iphonesimulator/LaGrilla.app
 echo "Installing simulator application"
 run_limited 300 xcrun simctl install "$DEVICE" DerivedData/Build/Products/Debug-iphonesimulator/LaGrilla.app
-if test "${GRILLA_CAPTURE_SCREENS:-1}" = 0; then
-  # XCTest owns application launch; simctl launch can stall on a cold hosted simulator.
-  exit 0
-fi
 SCREENSHOT_DIR=${GRILLA_SCREENSHOT_DIR:-Screenshots/R7}
 mkdir -p "$SCREENSHOT_DIR"
 rm -f "$SCREENSHOT_DIR/"*.png
