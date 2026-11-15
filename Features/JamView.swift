@@ -2,13 +2,15 @@ import SwiftUI
 import MusicDomain
 struct JamView: View {
     @Bindable var session: Session
+    @Environment(\.verticalSizeClass) private var verticalSize
     @Environment(\.dynamicTypeSize) private var dynamicType
     @State private var steps = false
     @State private var selectedPad = 0
     @State private var stepBar = 0
     @State private var velocity = 100.0
     @State private var pressed: Set<Int> = []
-    var body: some View {
+    var body:some View{Group{if verticalSize == .compact{compactJam}else{regularJam}}}
+    private var regularJam: some View {
         VStack(spacing:14){
             HStack{VStack(alignment:.leading,spacing:5){SmallHeading(text:"DRUM MACHINE");Text("Pocket kit").font(.system(size:22,weight:.medium))};Spacer();Picker("Editor",selection:$steps){Text("Pads").tag(false);Text("Steps").tag(true)}.pickerStyle(.segmented).frame(width:145)}.padding(.top,18)
             HStack(spacing:6){Menu{ForEach([1,2,4,8],id:\.self){n in Button("\(n) bars"){session.setLoop(bars:n)}}}label:{HStack(spacing:5){Image(systemName:"repeat");Text("\(session.loopBars) bars");Image(systemName:"chevron.down").font(.system(size:8))}.font(.system(size:11,weight:.medium)).frame(minHeight:40).padding(.horizontal,10).background(Color.raised,in:RoundedRectangle(cornerRadius:8))}.disabled(session.performance.contextActive)
@@ -23,6 +25,17 @@ struct JamView: View {
             Spacer(minLength:0)
         }.padding(.horizontal,18).padding(.bottom,16)
     }
+    private var compactJam:some View {VStack(spacing:4){
+        HStack{Text("Pocket kit").font(.headline);Spacer();Picker("Editor",selection:$steps){Text("Pads").tag(false);Text("Steps").tag(true)}.pickerStyle(.segmented).frame(width:145)
+            Menu{
+                Picker("Quantize",selection:$session.quantize){ForEach(Quantize.allCases,id:\.rawValue){value in Text(value == .off ? "Off":value == .eighth ? "1/8":"1/16").tag(value)}}
+                Toggle("Count-in",isOn:$session.countIn);Toggle("Overdub",isOn:$session.overdub)
+                Toggle("Metronome",isOn:Binding(get:{session.metronome},set:{session.metronome=$0;session.audio.metronome($0)}))
+                Picker("Loop length",selection:Binding(get:{session.loopBars},set:{session.setLoop(bars:$0)})){ForEach([1,2,4,8],id:\.self){bars in Text("\(bars) bars").tag(bars)}}.disabled(session.performance.contextActive)
+            }label:{Image(systemName:"slider.horizontal.3").frame(width:44,height:44)}.accessibilityLabel("Drum recording options")
+        }
+        if steps{ScrollView{stepEditor.disabled(session.performance.contextActive)}}else if dynamicType.isAccessibilitySize{accessiblePads}else{padGrid.disabled(session.performance.replaying)}
+    }.padding(.horizontal,12).padding(.bottom,8)}
     private var accessiblePads:some View {ScrollView{
         LazyVGrid(columns:[GridItem(.flexible()),GridItem(.flexible())],spacing:10){ForEach(0..<16,id:\.self){pad in
             Button{session.hit(pad)}label:{Text(LocalizedStringKey(Compiler.padNames[pad])).font(.headline).frame(maxWidth:.infinity,minHeight:72).padding(8).background(Color.drums.opacity(0.15),in:RoundedRectangle(cornerRadius:10))}.buttonStyle(.plain).foregroundStyle(Color.drums)
@@ -37,7 +50,7 @@ struct JamView: View {
                     .gesture(DragGesture(minimumDistance:0).onChanged{_ in if !pressed.contains(pad){pressed.insert(pad);session.hit(pad)}}.onEnded{_ in pressed.remove(pad)})
                     .accessibilityElement(children:.ignore).accessibilityLabel(LocalizedStringKey(Compiler.padNames[pad])).accessibilityAddTraits(.isButton).accessibilityAction{session.hit(pad)}
             }}.frame(maxHeight:.infinity,alignment:.center)
-        }.frame(minHeight:240,maxHeight:380)
+        }.frame(minHeight:verticalSize == .compact ? 200:240,maxHeight:380)
     }
     var drumPattern: Pattern? {
         guard let t=session.displayProject.tracks.first(where:{$0.role == .drums}),let c=t.clips.first(where:{$0.start==session.section.start})else{return nil}

@@ -5,14 +5,14 @@ struct StudioView: View {
     @Environment(\.verticalSizeClass) private var verticalSize
     var body: some View {
         VStack(spacing:0){
-            header
             if let error=session.audio.error {HStack{Image(systemName:"speaker.slash");Text(LocalizedStringKey(error)).font(.caption);Button("Retry"){_ = session.ensureAudio()}}.padding(12).background(Color.record.opacity(0.15))}
             if let error=session.saveError {HStack{Text(LocalizedStringKey(error)).font(.caption);Button("Retry"){Task{await session.save()}};Button("Save copy"){Task{await session.saveCopy()}}}.padding(12).background(Color.record.opacity(0.15))}
             if verticalSize == .compact {
-                ScrollView(.vertical){ workspace.frame(minHeight:620) }.frame(maxWidth:.infinity,maxHeight:.infinity)
-            } else { workspace.frame(maxWidth:.infinity,maxHeight:.infinity) }
-            transport
-            HStack(spacing:0){tab("square.grid.3x3","Grid",0);tab("square.grid.2x2.fill","Jam",1);tab("slider.vertical.3","Mixer",2)}.padding(.top,5).background(Color.panel)
+                HStack(spacing:0){VStack(spacing:0){compactHeader;workspace.frame(maxWidth:.infinity,maxHeight:.infinity)};compactSidebar}
+            }else{
+                header;workspace.frame(maxWidth:.infinity,maxHeight:.infinity);transport
+                HStack(spacing:0){tab("square.grid.3x3","Grid",0);tab("square.grid.2x2.fill","Jam",1);tab("slider.vertical.3","Mixer",2)}.padding(.top,5).background(Color.panel)
+            }
         }.background(Color.ink).foregroundStyle(.primary)
         .sheet(item:$session.sheet,onDismiss:{if let url=session.exportedURL{session.shareURL=url;session.exportedURL=nil}}){sheet in Group{switch sheet {
         case .projects: ProjectsView(session:session)
@@ -39,6 +39,20 @@ struct StudioView: View {
         default: GridView(session:session)
         }
     }
+    private var compactHeader:some View {HStack(spacing:4){
+        IconButton(symbol:"square.stack.3d.up",label:"Projects",color:.mint){session.sheet = .projects}
+        Button{session.presentEditor(.settings)}label:{VStack(alignment:.leading,spacing:4){Text(session.displayProject.name).font(.headline).lineLimit(1);Text("\(Int(session.displayProject.bpm)) BPM · \(session.displayProject.keyName)").font(.caption).foregroundStyle(Color.muted)}}.buttonStyle(.plain).frame(maxWidth:.infinity,alignment:.leading)
+        IconButton(symbol:"arrow.uturn.backward",label:"Undo"){session.undo()}.disabled(!session.history.canUndo || session.recording || session.armed)
+        IconButton(symbol:"arrow.uturn.forward",label:"Redo"){session.redo()}.disabled(!session.history.canRedo || session.recording || session.armed)
+        IconButton(symbol:"square.and.arrow.up",label:"Export"){session.finishTake();session.exportTake=nil;session.sheet = .export}.accessibilityIdentifier("export.open")
+    }.padding(.horizontal,8).frame(minHeight:58).background(Color.panel)}
+    private var compactSidebar:some View {VStack(spacing:4){
+        Button{session.togglePlay()}label:{Image(systemName:session.audio.playing ? "stop.fill":"play.fill").font(.title2).foregroundStyle(Color.ink).frame(width:72,height:48).background(Color.mint,in:RoundedRectangle(cornerRadius:12))}.accessibilityLabel(session.audio.playing ? "Stop":"Play")
+        HStack(spacing:0){IconButton(symbol:"backward.end.fill",label:"Return to start"){session.rewind()};IconButton(symbol:session.recording ? "stop.circle.fill":"record.circle",label:session.recording ? "Finish drum take":"Record drums",color:.record){session.record()}.disabled(session.performance.contextActive)}
+        HStack(spacing:0){IconButton(symbol:"repeat",label:"Toggle loop",color:session.loop ? .mint:.muted){session.setLoop(enabled:!session.loop)}.disabled(session.performance.contextActive);Button{if session.performance.contextActive{session.sheet = .perform}}label:{Text(String(format:"%02d:%d",Int(session.audio.tick)/barTicks+1,Int(session.audio.tick)%barTicks/ppq+1)).font(.caption.monospaced()).frame(minWidth:44,minHeight:44)}.accessibilityIdentifier("perform.transport")}
+        tab("square.grid.3x3","Grid",0);tab("square.grid.2x2.fill","Jam",1);tab("slider.vertical.3","Mixer",2)
+        Spacer(minLength:0)
+    }.padding(.top,6).frame(width:104).background(Color.panel)}
     var header: some View {
         VStack(spacing:8){
             HStack(spacing:6){

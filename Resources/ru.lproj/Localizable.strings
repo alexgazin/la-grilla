@@ -434,3 +434,16 @@
 "Ch %d · note %d · velocity %d" = "Канал %d · нота %d · скорость %d";
 "Ch %d · CC %d = %d" = "Канал %d · CC %d = %d";
 "%.1f dB" = "%.1f дБ";
+"%d BARS" = "%d ТАКТОВ";
+"Studio tools" = "Инструменты студии";
+"COUNT IN" = "ОТСЧЁТ";
+"REC · DRUMS" = "ЗАПИСЬ БАРАБАНОВ";
+"Saved on this iPhone" = "Сохранено на этом iPhone";
+"Saving…" = "Сохранение…";
+"Save failed" = "Ошибка сохранения";
+"Unsaved changes" = "Есть несохранённые изменения";
+"PLAYING" = "ВОСПРОИЗВЕДЕНИЕ";
+"STOPPED" = "ОСТАНОВЛЕНО";
+"Selected" = "Выбрано";
+"Untitled" = "Без названия";
+"Project actions" = "Действия с проектом";

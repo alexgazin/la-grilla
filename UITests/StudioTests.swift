@@ -4,6 +4,25 @@ final class StudioTests: XCTestCase {
         let app=XCUIApplication();app.launchArguments=["--uitesting","--screen",screen,"-AppleLanguages","(en)","-AppleLocale","en_US"]
         app.launch();XCTAssertTrue(app.buttons["perform.transport"].waitForExistence(timeout:15));return app
     }
+    @MainActor func testRussianInterfaceAndLightAppearance() {
+        let app=XCUIApplication();app.launchArguments=["--uitesting","--screen","grid","--appearance","light","-AppleLanguages","(ru)","-AppleLocale","ru_RU"];app.launch()
+        XCTAssertTrue(app.buttons["Сетка"].waitForExistence(timeout:15));app.buttons["export.open"].tap()
+        XCTAssertTrue(app.navigationBars["Экспорт"].waitForExistence(timeout:5));XCTAssertTrue(app.buttons["Отмена"].exists)
+        let shot=XCTAttachment(screenshot:app.screenshot());shot.name="R8-russian-light-export";shot.lifetime = .keepAlways;add(shot)
+    }
+    @MainActor func testLargeTypeMixerAndAccessibleNoteList() throws {
+        let app=XCUIApplication();app.launchArguments=["--uitesting","--screen","notes","--large-type","-AppleLanguages","(en)","-AppleLocale","en_US"];app.launch()
+        XCTAssertTrue(app.navigationBars["Piano roll"].waitForExistence(timeout:15));XCTAssertTrue(app.tables.firstMatch.exists || app.collectionViews.firstMatch.exists)
+        let shot=XCTAttachment(screenshot:app.screenshot());shot.name="R8-large-type-piano-roll";shot.lifetime = .keepAlways;add(shot)
+        app.buttons["Done"].tap();app.buttons["Mixer"].tap();XCTAssertTrue(app.sliders["Gain Harmony"].waitForExistence(timeout:5))
+        try app.performAccessibilityAudit(for:[.sufficientElementDescription])
+    }
+    @MainActor func testLandscapeKeepsPadsAndTransportReachable() {
+        let app=launch();XCUIDevice.shared.orientation = .landscapeLeft;defer{XCUIDevice.shared.orientation = .portrait}
+        app.buttons["Jam"].tap();XCTAssertTrue(app.buttons["Play"].isHittable);XCTAssertTrue(app.buttons["Kick"].isHittable);app.buttons["Kick"].tap()
+        let shot=XCTAttachment(screenshot:app.screenshot());shot.name="R8-landscape-jam";shot.lifetime = .keepAlways;add(shot)
+        app.buttons["Play"].tap();XCTAssertTrue(app.buttons["Stop"].waitForExistence(timeout:5));app.buttons["Stop"].tap()
+    }
     @MainActor func testVirtualMIDILearnAndActualOutputDestination() {
         let app=launch("midi");XCTAssertTrue(app.staticTexts["midi.fixture"].waitForExistence(timeout:15))
         app.swipeUp();app.swipeUp()

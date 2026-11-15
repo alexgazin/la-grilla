@@ -34,3 +34,8 @@ struct ScrollableForLargeType:ViewModifier {
         if size.isAccessibilitySize{ScrollView(.vertical){content}}else{content}
     }
 }
+struct StudioQATypeSize:ViewModifier {
+    @ViewBuilder func body(content:Content)->some View {
+        if ProcessInfo.processInfo.arguments.contains("--large-type"){content.dynamicTypeSize(.accessibility3)}else{content}
+    }
+}

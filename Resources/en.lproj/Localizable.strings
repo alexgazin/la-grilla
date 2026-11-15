@@ -432,3 +432,16 @@
 "Ch %d · note %d · velocity %d" = "Ch %d · note %d · velocity %d";
 "Ch %d · CC %d = %d" = "Ch %d · CC %d = %d";
 "%.1f dB" = "%.1f dB";
+"%d BARS" = "%d BARS";
+"Studio tools" = "Studio tools";
+"COUNT IN" = "COUNT IN";
+"REC · DRUMS" = "REC · DRUMS";
+"Saved on this iPhone" = "Saved on this iPhone";
+"Saving…" = "Saving…";
+"Save failed" = "Save failed";
+"Unsaved changes" = "Unsaved changes";
+"PLAYING" = "PLAYING";
+"STOPPED" = "STOPPED";
+"Selected" = "Selected";
+"Untitled" = "Untitled";
+"Project actions" = "Project actions";
