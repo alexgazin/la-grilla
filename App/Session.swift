@@ -5,7 +5,7 @@ import AVFoundation
 import Observation
 
 @MainActor @Observable final class Session {
-    var project = Project.demo(); var history = History(); let audio = AudioController()
+    var project = Project.demo(){didSet{reconcileEditorSelection()}}; var history = History(); let audio = AudioController()
     @ObservationIgnored lazy var performance=PerformanceController(audio:audio)
     @ObservationIgnored lazy var midi:MIDIController={
         let controller=MIDIController(hub:audio.midiHub)
@@ -14,14 +14,15 @@ import Observation
         controller.onControl={ [weak self] mapping,value in self?.applyMIDI(mapping,value:value) }
         return controller
     }()
-    var displayProject:Project{performance.contextActive ? (performance.runtimeProject ?? project):project}
-    var selectedSection: UUID?; var tab = 0; var loop = true; var loopBars = 4; var metronome = false
+    var displayProject:Project{performance.contextActive ? (performance.runtimeProject ?? project):(drumPlayback ?? project)}
+    var selectedSection: UUID?{didSet{if selectedSection != oldValue{noteClipID=nil;drumClipID=nil}}}; var tab = 0; var loop = true; var loopBars = 4; var metronome = false
     var quantize: Quantize = .sixteenth; var overdub = true; var countIn = true
     var recording = false; var armed = false; var armClock: UInt64 = 0
     var passClock: UInt64 = 0; var replaceNextPass = false
     struct RawHit {let tick: Int;let sampleFrame: UInt64;let event: DrumEvent}
     var rawHits: [RawHit] = []
     var take: [DrumEvent] = []; var takePattern: UUID?; var takeStart = 0; var takeLength = 0
+    private var drumDraft:DrumRecordingDraft?;private var drumPlayback:Project?
     private var saveGeneration = 0
     var savedRevision = -1; var saving = false; var saveError: String?; var message: String?
     var entries: [ProjectStore.Entry] = []; var sheet: Sheet?; var shareURL: URL?; var exportedURL: URL?
@@ -30,7 +31,8 @@ import Observation
     var exportInProgress=false; var exportProgress=0.0; var exportWarning:String?; var exportError:String?
     private var exportGeneration=0; private var exportedFolder:URL?
     var harmonyPreview=false;private var previewPosition=0;private var previewPlaying=false
-    var noteTrackID:UUID?
+    var noteTrackID:UUID?{didSet{if noteTrackID != oldValue{noteClipID=nil}}}
+    var noteClipID:UUID?;var drumClipID:UUID?
     var importing=false
     private var backgrounded=false
     private var microphoneOwner:UUID?
@@ -47,8 +49,15 @@ import Observation
         audio.onPoll={ [weak self] in self?.pollRecording() }
     }
     var section: MusicDomain.Section { displayProject.sections.first(where: {$0.id == selectedSection}) ?? displayProject.sections[0] }
-    var loopRange: Range<Int> {if performance.contextActive{return section.start..<section.start+section.length}; let start = section.start; return loop ? start..<min(project.length,start + loopBars*barTicks) : 0..<project.length }
-    var pending: Bool { !performance.contextActive && audio.playing && audio.appliedRevision != project.revision }
+    var loopRange: Range<Int> {if performance.contextActive{return section.start..<section.start+section.length};if loop,let clip=focusedDrumClip{return clip.start..<clip.start+clip.length};let start = section.start; return loop ? start..<min(project.length,start + loopBars*barTicks) : 0..<project.length }
+    var pending: Bool { !performance.contextActive && audio.playing && audio.pendingSnapshot }
+    private var focusedDrumClip:Clip?{guard let drumClipID else{return nil};return project.tracks.first{$0.role == .drums}?.clips.first{$0.id==drumClipID}}
+    private func reconcileEditorSelection(){
+        if !project.sections.contains(where:{$0.id==selectedSection}){selectedSection=project.sections.first?.id}
+        if let noteTrackID,!project.tracks.contains(where:{$0.id==noteTrackID && $0.role == .melody}){self.noteTrackID=project.tracks.first{$0.role == .melody}?.id}
+        if let noteClipID,!project.tracks.contains(where:{$0.id==noteTrackID && $0.clips.contains{$0.id==noteClipID}}){self.noteClipID=nil}
+        if let drumClipID,!project.tracks.contains(where:{$0.role == .drums && $0.clips.contains{$0.id==drumClipID}}){self.drumClipID=nil}
+    }
     func bootstrap() async {
         if let bootstrapTask {await bootstrapTask.value;return}
         let task=Task { @MainActor in
@@ -63,21 +72,19 @@ import Observation
         }
         bootstrapTask=task;await task.value
     }
-    func ensureAudio() -> Bool {guard !backgrounded || remoteStarting,microphoneOwner==nil else{return false}; if audio.isPrepared {return true}; do {try audio.prepare(); sync(); return true} catch {audio.error = error.localizedDescription; return false} }
-    func syncMIDI(){guard microphoneOwner==nil, !backgrounded || audio.playing || remoteStarting else{return};midi.configure(project.midi ?? MIDISettings(),project:project)}
+    func ensureAudio() -> Bool {guard !backgrounded || remoteStarting else{return false}; if audio.isPrepared {return true}; do {try audio.prepare(); sync(); return true} catch {audio.error = error.localizedDescription; return false} }
+    func syncMIDI(){guard !backgrounded || audio.playing || remoteStarting else{return};if let adopted=audio.activeMIDIRouting{midi.configure(adopted.midi,tracks:adopted.tracks)}else if !audio.playing{midi.configure(project.midi ?? MIDISettings(),tracks:project.tracks)}}
     func ownsMicrophone(_ owner:UUID)->Bool{microphoneOwner==owner && !backgrounded}
     func beginMicrophone(stop:@escaping()->Void)->UUID? {
         guard !backgrounded else{return nil}
         stopMicrophone?()
-        if performance.contextActive{performance.finalizeBeforeReset();pollPerformance()}
-        finishTake();harmonyPreview=false;midi.suspend();audio.reset()
         let owner=UUID();microphoneOwner=owner;stopMicrophone=stop;return owner
     }
     func endMicrophone(_ owner:UUID){
         guard microphoneOwner==owner else{return}
         microphoneOwner=nil;stopMicrophone=nil
-        if !backgrounded,UIApplication.shared.applicationState == .active{_ = ensureAudio()}
-        else{try? AVAudioSession.sharedInstance().setActive(false,options:.notifyOthersOnDeactivation)}
+        if !backgrounded,UIApplication.shared.applicationState == .active{syncMIDI()}
+        else{suspendIdleAudio()}
     }
     func sceneChanged(_ phase:ScenePhase){
         if phase == .active{backgrounded=false;if ready{_ = ensureAudio();syncMIDI()};return}
@@ -89,14 +96,13 @@ import Observation
         midi.suspend();audio.reset();try? AVAudioSession.sharedInstance().setActive(false,options:.notifyOthersOnDeactivation)
     }
     private func updateNowPlaying(){
-        guard !harmonyPreview,microphoneOwner==nil else{return}
+        guard !harmonyPreview else{return}
         if audio.playing{remoteActive=true}
         guard remoteActive else{return}
         let source=displayProject,seconds=performance.contextActive ? performance.seconds:audio.tick/Double(ppq)*60/source.bpm
         remote.update(title:source.name,seconds:seconds,duration:Double(source.length)/Double(ppq)*60/source.bpm,playing:audio.playing)
     }
     private func remoteCommand(_ action:StudioRemoteAction){
-        guard microphoneOwner==nil else{return}
         switch action {
         case .play:if !audio.playing{remoteStarting=true;togglePlay();remoteStarting=false}
         case .pause:if audio.playing{togglePlay()}
@@ -105,7 +111,11 @@ import Observation
         }
         updateNowPlaying();suspendIdleAudio()
     }
-    func sync() {syncMIDI();if performance.contextActive{if let p=performance.runtimeProject{audio.mix(p)};return}; audio.submit(project,loop:loop,range:loopRange); audio.metronome(metronome) }
+    func sync() {
+        if performance.contextActive{if let p=performance.runtimeProject{audio.mix(p)};syncMIDI();return}
+        if let drumDraft{drumPlayback=try? drumDraft.candidate(for:project)}else{drumPlayback=nil}
+        audio.submit(drumPlayback ?? project,loop:loop,range:loopRange);audio.metronome(metronome);syncMIDI()
+    }
     func edit(_ change: (inout Project) throws -> Void) {
         mixerGesture=false
         guard !performance.contextActive else{message="Return to editing before changing the source project.";return}
@@ -142,9 +152,10 @@ import Observation
     func record() {
         guard !performance.contextActive else{message="Return to editing before recording a drum loop.";return}
         if recording || armed {finishTake();return}
-        guard ensureAudio(), let t = project.tracks.first(where: {$0.role == .drums}),let clip=t.clips.first(where: {$0.start<=section.start && $0.start+$0.length>section.start}),let p=project.patterns.first(where: {$0.id==clip.patternID}) else{return}
+        guard ensureAudio(),let track=project.tracks.first(where:{$0.role == .drums}),let clip=focusedDrumClip ?? track.clips.first(where:{$0.start<=section.start && $0.start+$0.length>section.start})else{return}
+        do{drumDraft=try DrumRecordingDraft(project:project,clipID:clip.id)}catch{message=error.localizedDescription;return}
         audio.refreshClock()
-        take = [];rawHits=[];takePattern=p.id;takeStart=clip.start;takeLength=p.length
+        take=[];rawHits=[];takePattern=drumDraft?.patternID;takeStart=clip.start;takeLength=clip.length
         let barFrames=audio.sampleRate*240/project.bpm
         if audio.playing {
             let remainder=Double(barTicks)-audio.tick.truncatingRemainder(dividingBy:Double(barTicks))
@@ -153,10 +164,10 @@ import Observation
             audio.seek(loopRange.lowerBound);audio.play(countInBPM:countIn ? project.bpm : nil)
             armClock=audio.clock+UInt64(countIn ? barFrames : 0)
         }
-        passClock=armClock; replaceNextPass = !overdub; armed=true
+        passClock=armClock;replaceNextPass = !overdub;armed=true;sync()
     }
     func pollRecording() {
-        midi.poll(replaying:performance.replaying);pollPerformance()
+        syncMIDI();midi.poll(replaying:performance.replaying);pollPerformance()
         updateNowPlaying()
         if backgrounded,!audio.playing{suspendIdleAudio();return}
         if armed && audio.clock>=armClock { armed=false; recording=true }
@@ -167,62 +178,60 @@ import Observation
         }
     }
     func commitPass() {
-        guard let id=takePattern else {return}
-        let events=take; let replace=replaceNextPass; let active=recording
-        let range=loopRange; let start=takeStart
-        recording=false
-        edit {p in guard let i=p.patterns.firstIndex(where: {$0.id==id}) else{return}
-            if replace { p.patterns[i].drums.removeAll { e in
-                let absolute=e.tick+start
-                return range.contains(absolute)
-            }}
-            p.patterns[i].drums.append(contentsOf:events)
-        }
-        recording=active; replaceNextPass=false; take=[];rawHits=[]
+        guard var draft=drumDraft else{return}
+        do{try draft.commitPass(take,replacing:replaceNextPass ? loopRange:nil);drumDraft=draft;replaceNextPass=false;take=[];rawHits=[];sync()}
+        catch{message=error.localizedDescription;take=[];rawHits=[]}
     }
     func hit(_ pad: Int) {
         guard !performance.replaying,ensureAudio() else{return};audio.refreshClock();audio.pad(pad);pollRecording()
         if recording {
-            let local=(Int(audio.tick)-takeStart+takeLength)%takeLength
+            guard let draft=drumDraft,let local=draft.localTick(Int(audio.tick))else{return}
             let e=DrumEvent(tick:quantize.tick(local,length:takeLength),pad:pad)
-            var draft=project
-            if let id=takePattern,let i=draft.patterns.firstIndex(where:{$0.id==id}) {
-                if replaceNextPass {let range=loopRange;let start=takeStart;draft.patterns[i].drums.removeAll{range.contains($0.tick+start)}}
-                draft.patterns[i].drums.append(contentsOf:take+[e])
-                do {try draft.validate();take.append(e);rawHits.append(RawHit(tick:local,sampleFrame:audio.clock,event:e))}
-                catch {message=error.localizedDescription}
-            }
+            do{var check=draft;try check.commitPass(take+[e],replacing:replaceNextPass ? loopRange:nil);take.append(e);rawHits.append(RawHit(tick:local,sampleFrame:audio.clock,event:e))}
+            catch{message=error.localizedDescription}
         }
     }
     func finishTake() {
         let hadTake=recording;armed=false;recording=false
-        guard hadTake,let id=takePattern else {take=[];return}
-        _ = id
-        commitPass()
-        take=[];Task{await save()}
+        if hadTake{commitPass()}
+        let finished=drumDraft;drumDraft=nil;drumPlayback=nil;take=[];rawHits=[];takePattern=nil
+        if let finished,finished.changed{edit{$0=try finished.candidate(for:$0)}}else if finished != nil{sync()}
     }
     func previewHarmony(_ p:Project,section:MusicDomain.Section){
+        previewAssistant(p,wholeSong:false,sectionID:section.id)
+    }
+    func previewAssistant(_ candidate:Project,wholeSong:Bool,sectionID:UUID){
+        guard !performance.contextActive else{message="Return to editing before changing the source project.";return}
         finishTake();guard ensureAudio()else{return}
+        guard candidate.id==project.id,candidate.revision==project.revision,let section=candidate.sections.first(where:{$0.id==sectionID})else{message=AssistantError.stale.localizedDescription;return}
+        do{try candidate.validate()}catch{message=error.localizedDescription;return}
         if !harmonyPreview{previewPosition=Int(audio.tick);previewPlaying=audio.playing;harmonyPreview=true}
-        audio.audition(p,range:section.start..<section.start+section.length)
+        audio.audition(candidate,range:wholeSong ? 0..<candidate.length:section.start..<section.start+section.length);syncMIDI()
     }
     func endHarmonyPreview(){
         guard harmonyPreview else{return};harmonyPreview=false
-        if previewPlaying{audio.audition(project,range:loopRange,tick:min(loopRange.upperBound-1,max(loopRange.lowerBound,previewPosition)),loop:loop)}
+        if previewPlaying{audio.submit(project,loop:loop,range:loopRange);syncMIDI()}
         else{audio.stop();audio.seek(previewPosition);sync()}
     }
     func presentEditor(_ sheet:Sheet){if performance.contextActive{Task{await leavePerformance();self.sheet=sheet}}else{finishTake();self.sheet=sheet}}
-    func openNotes(_ id:UUID?=nil){
-        if performance.contextActive{Task{await leavePerformance();openNotes(id)};return}
+    func openNotes(_ id:UUID?=nil,clipID:UUID?=nil){
+        if performance.contextActive{Task{await leavePerformance();openNotes(id,clipID:clipID)};return}
         finishTake()
         if let id{noteTrackID=id}
         else if project.tracks.first(where:{$0.id==noteTrackID && $0.role == .melody})==nil{noteTrackID=project.tracks.first{$0.role == .melody}?.id}
         if noteTrackID==nil{addMelody()}
+        noteClipID=clipID;reconcileEditorSelection()
         sheet = .notes
     }
-    func addMelody(){finishTake();audio.stop();let count=project.tracks.count;edit{try $0.addMelody()};if project.tracks.count>count{noteTrackID=project.tracks.last?.id}}
-    func duplicateMelody(_ id:UUID){finishTake();audio.stop();let count=project.tracks.count;edit{try $0.duplicateTrack(id)};if project.tracks.count>count{noteTrackID=project.tracks.last?.id}}
-    func deleteMelody(_ id:UUID){finishTake();audio.stop();edit{try $0.deleteTrack(id)};noteTrackID=project.tracks.first{$0.role == .melody}?.id}
+    func openDrumClip(_ clipID:UUID){
+        guard !performance.contextActive else{message="Return to editing before changing the source project.";return}
+        finishTake();guard let clip=project.tracks.first(where:{$0.role == .drums})?.clips.first(where:{$0.id==clipID})else{return}
+        if let section=project.sections.first(where:{$0.start<=clip.start && $0.start+$0.length>clip.start}){selectedSection=section.id}
+        drumClipID=clipID;tab=1;sync();if !audio.playing{audio.seek(clip.start)}
+    }
+    func addMelody(){finishTake();let count=project.tracks.count;edit{try $0.addMelody()};if project.tracks.count>count{noteTrackID=project.tracks.last?.id}}
+    func duplicateMelody(_ id:UUID){finishTake();let count=project.tracks.count;edit{try $0.duplicateTrack(id)};if project.tracks.count>count{noteTrackID=project.tracks.last?.id}}
+    func deleteMelody(_ id:UUID){finishTake();edit{try $0.deleteTrack(id)};noteTrackID=project.tracks.first{$0.role == .melody}?.id}
     func setLoop(bars: Int? = nil, enabled: Bool? = nil) {guard !recording && !armed else{message="Finish the take before changing the loop.";return};if let bars{loopBars=bars};if let enabled{loop=enabled};sync()}
     func select(_ section: MusicDomain.Section) {if performance.contextActive{performance.queueSection(section.id);return};guard !recording && !armed else{return};selectedSection=section.id;sync();if !audio.playing{audio.seek(section.start)}}
     func open(_ p: Project, force: Bool = false) async {
@@ -231,7 +240,7 @@ import Observation
         if exportInProgress{cancelExport()}
         finishTake();audio.stop();await save()
         guard saveError==nil else {message="Save the current project or save a copy before opening another project.";return}
-        project=p;history=History();selectedSection=p.sections[0].id;savedRevision=p.revision;audio.seek(0);sync();sheet=nil
+        project=p;history=History();noteTrackID=nil;noteClipID=nil;drumClipID=nil;selectedSection=p.sections[0].id;savedRevision=p.revision;audio.seek(0);sync();sheet=nil
     }
     func create(name: String,bpm: Double,root: Int,minor: Bool,bars: Int) async {
         var p=Project(name:name.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty ? "Untitled" : name,bars:bars);p.bpm=bpm;p.keyRoot=root;p.minor=minor
@@ -293,9 +302,9 @@ import Observation
         }catch{message=error.localizedDescription}
     }
     func applyVoice(_ placement:VoicePlacement,data:Data,record:AudioAssetRecord,projectID:UUID,revision:Int)async throws->Bool {
-        guard project.id==projectID,project.revision==revision,!recording,!armed else{throw AssistantError.stale}
+        guard project.id==projectID,project.revision==revision,!recording,!armed,!performance.contextActive else{throw AssistantError.stale}
         try await store.writeAsset(data,record:record,projectID:projectID)
-        guard project.id==projectID,project.revision==revision else{await store.removeStagedAsset(record,projectID:projectID);throw AssistantError.stale}
+        guard project.id==projectID,project.revision==revision,!recording,!armed,!performance.contextActive else{await store.removeStagedAsset(record,projectID:projectID);throw AssistantError.stale}
         do{try history.apply(&project){$0=placement.project}}
         catch{await store.removeStagedAsset(record,projectID:projectID);throw error}
         noteTrackID=placement.trackID;sync();await save();return saveError==nil

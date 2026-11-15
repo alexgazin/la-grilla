@@ -7,6 +7,7 @@ struct HarmonyLabView:View {
     @State private var style:HarmonyStyle = .gentle
     @State private var low=48
     @State private var high=84
+    @State private var voicing:HarmonyVoicing = .compact
     @State private var proposal:HarmonyProposal?
     @State private var error:String?
     @State private var previewB=false
@@ -33,11 +34,14 @@ struct HarmonyLabView:View {
                         Text("Compare a proposal with your original. Nothing is saved until you apply it.").font(.caption).foregroundStyle(Color.muted)
                     }
                     if let error{Text(LocalizedStringKey(error)).foregroundStyle(Color.record).font(.callout)}
-                    DisclosureGroup("Options",isExpanded:$showOptions){HStack{
+                    DisclosureGroup("Options",isExpanded:$showOptions){VStack(alignment:.leading,spacing:10){
+                        Picker("Voicing",selection:$voicing){ForEach(HarmonyVoicing.allCases,id:\.self){value in Text(LocalizedStringKey(value.rawValue)).tag(value)}}.pickerStyle(.menu).frame(minHeight:44).onChange(of:voicing){_,_ in invalidate()}
+                        Text("Compact voicings may omit the perfect fifth and intermediate extensions. Custom formulas keep every tone.").font(.caption).foregroundStyle(Color.muted)
+                        HStack{
                         Picker("Lowest note",selection:$low){ForEach([36,48,60],id:\.self){pitch in Text(NoteEvent(tick:0,pitch:pitch).name).tag(pitch)}}
                         Spacer()
-                        Picker("Highest note",selection:$high){ForEach([72,84,96],id:\.self){pitch in Text(NoteEvent(tick:0,pitch:pitch).name).tag(pitch)}}
-                    }.frame(minHeight:44).onChange(of:low){_,_ in invalidate()}.onChange(of:high){_,_ in invalidate()}}.font(.subheadline).padding(14).modifier(StudioSurface())
+                        Picker("Highest note",selection:$high){ForEach([72,84,96,108],id:\.self){pitch in Text(NoteEvent(tick:0,pitch:pitch).name).tag(pitch)}}
+                    }.frame(minHeight:44).onChange(of:low){_,_ in if high-low>60{high=low+60};invalidate()}.onChange(of:high){_,_ in if high-low>60{low=high-60};invalidate()}}}.font(.subheadline).padding(14).modifier(StudioSurface())
                 }.padding(18)
             }.background(Color.ink).navigationTitle("Harmony lab").navigationBarTitleDisplayMode(.inline)
             .safeAreaInset(edge:.bottom){actionDock}
@@ -81,7 +85,7 @@ struct HarmonyLabView:View {
         }
     }
     func invalidate(){session.endHarmonyPreview();proposal=nil;error=nil}
-    func generate(){session.endHarmonyPreview();do{proposal=try HarmonyLab.propose(session.project,sectionID:session.section.id,options:HarmonyOptions(style:style,low:low,high:high));showOptions=false;showStyles=false;error=nil}catch{self.error=error.localizedDescription;proposal=nil}}
+    func generate(){session.endHarmonyPreview();do{proposal=try HarmonyLab.propose(session.project,sectionID:session.section.id,options:HarmonyOptions(style:style,low:low,high:high,voicing:voicing));showOptions=false;showStyles=false;error=nil}catch{self.error=error.localizedDescription;proposal=nil}}
     func apply(_ proposal:HarmonyProposal){
         guard session.project.id==proposal.projectID,session.project.revision==proposal.revision else{error=HarmonyError.stale.localizedDescription;return}
         session.endHarmonyPreview();let revision=session.project.revision

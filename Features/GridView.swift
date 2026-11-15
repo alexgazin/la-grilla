@@ -10,6 +10,18 @@ struct GridView: View {
     @State private var dragStart: Int?
     @State private var viewport=CGSize(width:440,height:630)
     @State private var zoomed=false
+    @State private var clipMode=ProcessInfo.processInfo.arguments.contains("--arrangement-clips")
+    @State private var copyOnDrag=false
+    @State private var clipSnap=barTicks
+    @State private var clipSelection:ClipEditorSelection?
+    @State private var pendingClipEditor:ClipEditorSelection?
+    @State private var showClipList=false
+    @State private var pendingClipInspector:ClipEditorSelection?
+    @State private var targetTrack:UUID?
+    @State private var grabbedClip:UUID?
+    @State private var grabbedOffset=0
+    @State private var resizeDraft:ClipResizeDraft?
+    private struct ClipResizeDraft {let payload:ArrangementDragPayload;let originalLength:Int;var length:Int;let start:Int}
     private let gutter:CGFloat=56
     private var laneScale:CGFloat{min(1.35,max(0.78,(viewport.height-155)/324))}
     private var harmonyHeight:CGFloat{132*laneScale}
@@ -17,32 +29,178 @@ struct GridView: View {
     private var bassHeight:CGFloat{92*laneScale}
     private var melodyHeight:CGFloat{64}
     private var musicHeight:CGFloat{harmonyHeight+drumHeight+bassHeight+CGFloat(session.displayProject.tracks.filter{$0.role == .melody}.count)*melodyHeight}
+    private var editingLocked:Bool{session.performance.contextActive || session.recording || session.armed}
+    private var timelineBars:Int {
+        let base=session.displayProject.length/barTicks
+        let resized=resizeDraft.map{($0.start+$0.length+barTicks-1)/barTicks} ?? 0
+        return clipMode ? min(64,max(base+4,resized)):base
+    }
     var body: some View {
         GeometryReader{geometry in
             VStack(spacing:0){
                 ScrollView(.vertical,showsIndicators:false){
                     VStack(alignment:.leading,spacing:0){
-                        HStack{SmallHeading(text:"ARRANGEMENT");Spacer();Text("\(session.displayProject.length/barTicks) bars").font(.system(size:11,design:.monospaced)).foregroundStyle(Color.muted);IconButton(symbol:"ellipsis",label:"Edit song sections",color:.muted){session.presentEditor(.sections)}}.padding(.horizontal,16)
+                        HStack{SmallHeading(text:"ARRANGEMENT");Spacer();Text("\(session.displayProject.length/barTicks) bars").font(.system(size:11,design:.monospaced)).foregroundStyle(Color.muted);IconButton(symbol:clipMode ? "pianokeys":"rectangle.3.group",label:clipMode ? "Edit chords":"Arrange clips",color:clipMode ? .mint:.muted){clipMode.toggle()}.accessibilityIdentifier("grid.mode.clips").accessibilityValue(LocalizedStringKey(clipMode ? "Clips":"Chords"));IconButton(symbol:"ellipsis",label:"Edit song sections",color:.muted){session.presentEditor(.sections)}.accessibilityIdentifier("sections.open")}.padding(.horizontal,16)
                         ScrollView(.horizontal,showsIndicators:false){HStack(spacing:6){ForEach(session.displayProject.sections){section in
-                            Button{session.select(section)}label:{HStack(spacing:6){Text(section.name).font(.system(size:12,weight:.semibold));Text("\(section.start/barTicks+1)–\((section.start+section.length)/barTicks)").font(.system(size:11,design:.monospaced)).opacity(0.7)}.padding(.horizontal,14).frame(minHeight:44).foregroundStyle(session.section.id==section.id ? Color.ink:Color.studioText).background(session.section.id==section.id ? Color.mint:Color.panel,in:Capsule())}.buttonStyle(StudioQuietButtonStyle())
+                            Button{session.select(section)}label:{HStack(spacing:6){Text(section.name).font(.system(size:12,weight:.semibold));Text("\(section.start/barTicks+1)–\((section.start+section.length)/barTicks)").font(.system(size:11,design:.monospaced)).opacity(0.7)}.padding(.horizontal,14).frame(minHeight:44).foregroundStyle(session.section.id==section.id ? Color.ink:Color.studioText).background(session.section.id==section.id ? Color.mint:Color.panel,in:Capsule())}.buttonStyle(StudioQuietButtonStyle()).accessibilityIdentifier("grid.section.\(section.id)")
+                                .onDrag{editingLocked ? NSItemProvider():NSItemProvider(object:ArrangementDragPayload(project:session.project,sectionID:section.id).encoded() as NSString)}
+                                .dropDestination(for:String.self){items,_ in dropSection(items,on:section.id)}
                         };Button{session.presentEditor(.sections)}label:{Image(systemName:"plus").frame(width:44,height:44).foregroundStyle(Color.muted)}.buttonStyle(StudioQuietButtonStyle())}.padding(.horizontal,16)}.padding(.bottom,8)
+                        if clipMode{clipControls.padding(.horizontal,16).padding(.bottom,8)}
                         HStack(spacing:0){
                             VStack(spacing:0){Color.clear.frame(height:28);trackLabel(.harmony,height:harmonyHeight);trackLabel(.drums,height:drumHeight);trackLabel(.bass,height:bassHeight);ForEach(session.displayProject.tracks.filter{$0.role == .melody}){track in Button{session.openNotes(track.id)}label:{Text(track.displayName).font(.system(size:11,weight:.semibold)).lineLimit(2).foregroundStyle(Color.mint).padding(8).frame(width:gutter,height:melodyHeight)}.buttonStyle(StudioQuietButtonStyle())}}.frame(width:gutter)
                             ScrollView(.horizontal,showsIndicators:true){ZStack(alignment:.topLeading){
                                 timeline
                                 Rectangle().fill(Color.mint).frame(width:2,height:musicHeight).offset(x:CGFloat(session.audio.tick)/CGFloat(barTicks)*barWidth,y:28).allowsHitTesting(false)
                                 Image(systemName:"triangle.fill").font(.system(size:11)).rotationEffect(.degrees(180)).foregroundStyle(Color.mint).offset(x:CGFloat(session.audio.tick)/CGFloat(barTicks)*barWidth-4,y:18).allowsHitTesting(false)
-                            }.frame(width:CGFloat(session.displayProject.length/barTicks)*barWidth).gesture(MagnifyGesture().onChanged{value in zoomed=true;barWidth=min(640,max(68,zoomBase*value.magnification))}.onEnded{_ in zoomBase=barWidth})}
+                            }.frame(width:CGFloat(timelineBars)*barWidth).gesture(MagnifyGesture().onChanged{value in zoomed=true;barWidth=min(640,max(68,zoomBase*value.magnification))}.onEnded{_ in zoomBase=barWidth})}
                         }
                     }
                 }
                 tools.padding(.horizontal,12).padding(.vertical,7)
             }.onAppear{configureViewport(geometry.size)}.onChange(of:geometry.size){_,size in configureViewport(size)}.onChange(of:session.project.id){_,_ in zoomed=false;configureViewport(geometry.size)}.onChange(of:session.displayProject.length){_,_ in configureViewport(geometry.size)}
         }.sheet(item:$selection){selection in ChordEditor(session:session,selection:selection).presentationDetents([.large]).presentationDragIndicator(.visible).presentationBackground(Color.panel)}
+            .sheet(item:$clipSelection,onDismiss:openPendingClipEditor){choice in ArrangementClipInspector(session:session,selection:choice){pendingClipEditor=choice;clipSelection=nil}.presentationDragIndicator(.visible).presentationBackground(Color.panel)}
+            .sheet(isPresented:$showClipList,onDismiss:{if let choice=pendingClipInspector{pendingClipInspector=nil;clipSelection=choice}}){clipList}
     }
     private func configureViewport(_ size:CGSize){
         viewport=size
         if !zoomed,size.width>gutter{barWidth=max(68,(size.width-gutter)/CGFloat(min(4,max(1,session.displayProject.length/barTicks))));zoomBase=barWidth}
+    }
+    private var clipControls:some View {
+        HStack(spacing:10) {
+            Menu {
+                Picker("Clip snap",selection:$clipSnap){Text("1 bar").tag(barTicks);Text("1 beat").tag(ppq);Text("1/16").tag(240)}
+                Toggle("Copy on drag",isOn:$copyOnDrag)
+                Button("Play whole song"){session.setLoop(enabled:false)}
+            } label: {Label(LocalizedStringKey(copyOnDrag ? "Copy clips":"Move clips"),systemImage:copyOnDrag ? "plus.rectangle.on.rectangle":"hand.draw").font(.system(size:11,weight:.medium)).frame(minHeight:44)}.accessibilityIdentifier("grid.clip.options")
+            Spacer(minLength:4)
+            Text(LocalizedStringKey(clipSnap==barTicks ? "1 bar":clipSnap==ppq ? "1 beat":"1/16")).font(.system(size:11,design:.monospaced)).foregroundStyle(Color.muted)
+            IconButton(symbol:"list.bullet",label:"Clip list",color:.mint){showClipList=true}.accessibilityIdentifier("grid.clips.list")
+        }.foregroundStyle(Color.mint)
+    }
+    private var clipTimeline:some View {
+        let project=session.displayProject,notes=Compiler.notes(project)
+        return VStack(spacing:0) {
+            ruler
+            if let track=project.tracks.first(where:{$0.role == .harmony}) {clipLane(track,height:harmonyHeight,notes:notes)}
+            if let track=project.tracks.first(where:{$0.role == .drums}) {clipLane(track,height:drumHeight,notes:notes)}
+            bassLane.overlay(alignment:.bottomLeading){Text("Root bass follows harmony").font(.system(size:11)).foregroundStyle(Color.muted).padding(8)}
+                .dropDestination(for:String.self){items,_ in
+                    guard let track=project.tracks.first(where:{$0.role == .bass}) else{session.message=ClipEditingError.derivedBass.localizedDescription;return false}
+                    return dropClip(items,on:track.id,at:.zero)
+                }
+            ForEach(project.tracks.filter{$0.role == .melody}){track in clipLane(track,height:melodyHeight,notes:notes)}
+        }
+    }
+    private func clipLane(_ track:Track,height:CGFloat,notes:[CompiledNote])->some View {
+        let index=session.displayProject.tracks.firstIndex(where:{$0.id==track.id}) ?? -1
+        let rendered=notes.filter{$0.track==index}
+        return ZStack(alignment:.topLeading) {
+            gridBackground(height:height).contentShape(Rectangle()).gesture(SpatialTapGesture().onEnded{value in
+                guard !editingLocked else{return}
+                let tick=max(0,min(64*barTicks-clipSnap,Int(value.location.x/barWidth*CGFloat(barTicks))/clipSnap*clipSnap))
+                session.edit{try ClipEditing.create(on:track.id,start:tick,length:barTicks,snap:clipSnap,in:&$0)}
+            })
+            if targetTrack==track.id {Rectangle().fill(Color.mint.opacity(0.09)).allowsHitTesting(false)}
+            ForEach(track.clips){clip in clipBlock(track:track,clip:clip,height:height,notes:rendered)}
+        }.frame(width:CGFloat(timelineBars)*barWidth,height:height)
+            .accessibilityIdentifier("grid.lane.\(track.id)")
+            .dropDestination(for:String.self,action:{items,point in dropClip(items,on:track.id,at:point)},isTargeted:{targeted in if targeted{targetTrack=track.id}else if targetTrack==track.id{targetTrack=nil}})
+    }
+    private func clipBlock(track:Track,clip:Clip,height:CGFloat,notes:[CompiledNote])->some View {
+        let draft=resizeDraft?.payload.objectID==clip.id ? resizeDraft:nil
+        let visibleLength=draft?.length ?? clip.length
+        let width=max(4,CGFloat(visibleLength)/CGFloat(barTicks)*barWidth-6)
+        return ArrangementClipFace(notes:notes,track:track,clip:clip,width:width,height:max(44,height-12),resizing:draft != nil)
+            .overlay(alignment:.trailing){
+                Image(systemName:"line.3.horizontal").font(.system(size:11,weight:.semibold)).rotationEffect(.degrees(90)).foregroundStyle(Color.track(track.role)).frame(width:min(18,max(6,width*0.2)),height:44).contentShape(Rectangle())
+                    .highPriorityGesture(DragGesture(minimumDistance:1).onChanged{value in
+                        guard !editingLocked else{return}
+                        if resizeDraft?.payload.objectID != clip.id {resizeDraft=ClipResizeDraft(payload:.init(project:session.project,trackID:track.id,clipID:clip.id),originalLength:clip.length,length:clip.length,start:clip.start)}
+                        guard var current=resizeDraft else{return}
+                        let ticks=Double(current.originalLength)+Double(value.translation.width/barWidth)*Double(barTicks)
+                        let bounded=max(Double(clipSnap),min(Double(64*barTicks-current.start),ticks))
+                        current.length=(try? ClipEditing.snapped(Int(bounded),step:clipSnap)) ?? clip.length;resizeDraft=current
+                    }.onEnded{_ in
+                        guard let current=resizeDraft,current.payload.objectID==clip.id else{return};resizeDraft=nil
+                        guard current.length != current.originalLength else{return}
+                        let snap=clipSnap
+                        session.edit{try ClipEditing.resize(current.payload,length:current.length,snap:snap,in:&$0)}
+                    })
+                    .accessibilityLabel("Resize clip").accessibilityHidden(true)
+            }
+            .onTapGesture{guard !editingLocked else{return};clipSelection=ClipEditorSelection(trackID:track.id,clipID:clip.id)}
+            .simultaneousGesture(DragGesture(minimumDistance:0).onChanged{value in
+                if grabbedClip != clip.id{grabbedClip=clip.id;grabbedOffset=max(0,min(clip.length-1,Int(value.startLocation.x/barWidth*CGFloat(barTicks))))}
+            }.onEnded{_ in grabbedClip=nil})
+            .onDrag{
+                guard !editingLocked,resizeDraft==nil else{return NSItemProvider()}
+                let offset=grabbedClip==clip.id ? grabbedOffset:0
+                let token=ArrangementDragPayload(project:session.project,trackID:track.id,clipID:clip.id,grabOffset:offset)
+                return NSItemProvider(object:token.encoded() as NSString)
+            }
+            .contextMenu{
+                Button("Edit clip contents"){pendingClipEditor=ClipEditorSelection(trackID:track.id,clipID:clip.id);openPendingClipEditor()}
+                Button("Clip settings"){clipSelection=ClipEditorSelection(trackID:track.id,clipID:clip.id)}
+                Button("Duplicate clip"){
+                    let token=ArrangementDragPayload(project:session.project,trackID:track.id,clipID:clip.id)
+                    session.edit{try ClipEditing.copy(token,to:track.id,start:clip.start+clip.length,snap:240,in:&$0)}
+                }
+                Button("Delete clip",role:.destructive){let token=ArrangementDragPayload(project:session.project,trackID:track.id,clipID:clip.id);session.edit{try ClipEditing.delete(token,in:&$0)}}
+            }
+            .accessibilityElement(children:.ignore).accessibilityLabel(track.displayName)
+            .accessibilityValue(String(format:NSLocalizedString("%.2f bars",comment:"Clip length"),Double(clip.length)/Double(barTicks)))
+            .accessibilityAddTraits(.isButton).accessibilityAction{clipSelection=ClipEditorSelection(trackID:track.id,clipID:clip.id)}
+            .accessibilityIdentifier("grid.clip.\(clip.id)")
+            .offset(x:CGFloat(clip.start)/CGFloat(barTicks)*barWidth+3,y:6)
+            .allowsHitTesting(!editingLocked)
+    }
+    private func dropClip(_ items:[String],on trackID:UUID,at point:CGPoint)->Bool {
+        guard !editingLocked,items.count==1 else{return false}
+        do {
+            let payload=try ArrangementDragPayload.decode(items[0])
+            guard payload.kind == .clip else{throw ClipEditingError.invalidDrag}
+            let raw=Double(point.x/barWidth)*Double(barTicks)-Double(payload.grabOffset)
+            let tick=max(0,min(64*barTicks,Int(raw)))
+            let copy=copyOnDrag,snap=clipSnap
+            if !copy,payload.sourceTrackID==trackID,let track=session.project.tracks.first(where:{$0.id==trackID}),let clip=track.clips.first(where:{$0.id==payload.objectID}),try ClipEditing.snapped(tick,step:snap)==clip.start{
+                try payload.validate(in:session.project,kind:.clip);return true
+            }
+            var applied=false
+            session.edit{project in if copy{try ClipEditing.copy(payload,to:trackID,start:tick,snap:snap,in:&project)}else{try ClipEditing.move(payload,to:trackID,start:tick,snap:snap,in:&project)};applied=true}
+            return applied
+        } catch {session.message=error.localizedDescription;return false}
+    }
+    private func dropSection(_ items:[String],on sectionID:UUID)->Bool {
+        guard !editingLocked,items.count==1 else{return false}
+        do {
+            let token=try ArrangementDragPayload.decode(items[0]);try token.validate(in:session.project,kind:.section)
+            if token.objectID==sectionID{return true}
+            var applied=false;session.edit{try ClipEditing.reorderSection(token,to:sectionID,in:&$0);applied=true};return applied
+        } catch {session.message=error.localizedDescription;return false}
+    }
+    private func openPendingClipEditor() {
+        guard let choice=pendingClipEditor else{return};pendingClipEditor=nil
+        guard let track=session.project.tracks.first(where:{$0.id==choice.trackID}),let clip=track.clips.first(where:{$0.id==choice.clipID}),let pattern=session.project.patterns.first(where:{$0.id==clip.patternID})else{session.message=ClipEditingError.missing.localizedDescription;return}
+        if track.role == .melody {session.openNotes(track.id,clipID:clip.id)}
+        else if track.role == .drums {session.openDrumClip(clip.id)}
+        else if track.role == .harmony {
+            clipMode=false
+            let event=pattern.chords.sorted{$0.tick<$1.tick}.first
+            selection=ChordSelection(id:event?.id ?? UUID(),patternID:pattern.id,tick:event?.tick ?? 0,chord:event?.chord ?? Chord(root:session.project.keyRoot,quality:session.project.minor ? .minor:.major),duration:event?.duration ?? barTicks)
+        }
+    }
+    private var clipList:some View {
+        NavigationStack {
+            List {
+                ForEach(session.project.tracks.filter{$0.role != .bass}){track in
+                    SwiftUI.Section(track.displayName){ForEach(track.clips.sorted{$0.start<$1.start}){clip in
+                        Button{pendingClipInspector=ClipEditorSelection(trackID:track.id,clipID:clip.id);showClipList=false}label:{HStack{Text("\(clip.start/barTicks+1):\(clip.start%barTicks/240+1)");Spacer();Text(String(format:NSLocalizedString("%.2f bars",comment:"Clip length"),Double(clip.length)/Double(barTicks))).foregroundStyle(Color.muted)}.frame(minHeight:44)}
+                    }}
+                }
+            }.navigationTitle("Clip list").toolbar{ToolbarItem(placement:.confirmationAction){Button("Done"){showClipList=false}}}
+        }.tint(.mint)
     }
     @ViewBuilder private var tools:some View {
         if dynamicType.isAccessibilitySize {
@@ -64,16 +222,16 @@ struct GridView: View {
     }
     func trackLabel(_ role: TrackRole,height: CGFloat)->some View {
         Button{if role == .harmony{session.presentEditor(.harmony)}else if role == .bass {session.presentEditor(.bass)}else if role == .drums{session.tab=1}}
-        label:{VStack(alignment:.leading,spacing:9){RoundedRectangle(cornerRadius:2).fill(Color.track(role)).frame(width:18,height:3);Text(LocalizedStringKey(role == .harmony ? "HARM":role == .drums ? "DRUM":"BASS")).font(.system(size:11,weight:.semibold));Image(systemName:role == .harmony ? "pianokeys":role == .drums ? "square.grid.2x2":"waveform").font(.system(size:14)).foregroundStyle(Color.track(role))}.frame(maxWidth:.infinity,maxHeight:.infinity,alignment:.leading).padding(.leading,12).frame(height:height).background(Color.panel.opacity(0.6)).overlay(alignment:.bottom){Rectangle().fill(Color.raised).frame(height:1)}}.buttonStyle(StudioQuietButtonStyle())
+        label:{VStack(alignment:.leading,spacing:9){RoundedRectangle(cornerRadius:2).fill(Color.track(role)).frame(width:18,height:3);Text(LocalizedStringKey(role == .harmony ? "HARM":role == .drums ? "DRUM":"BASS")).font(.system(size:11,weight:.semibold));Image(systemName:role == .harmony ? "pianokeys":role == .drums ? "square.grid.2x2":"waveform").font(.system(size:14)).foregroundStyle(Color.track(role))}.frame(maxWidth:.infinity,maxHeight:.infinity,alignment:.leading).padding(.leading,12).frame(height:height).background(Color.panel.opacity(0.6)).overlay(alignment:.bottom){Rectangle().fill(Color.raised).frame(height:1)}}.buttonStyle(StudioQuietButtonStyle()).accessibilityIdentifier(role == .bass ? "bass.open":"grid.track.\(role.rawValue)")
     }
-    var timeline: some View {
-        VStack(spacing:0) { ruler; harmonyLane; drumLane; bassLane;ForEach(session.displayProject.tracks.filter{$0.role == .melody}){t in melodyLane(t)} }
+    @ViewBuilder var timeline: some View {
+        if clipMode{clipTimeline}else{VStack(spacing:0) { ruler; harmonyLane; drumLane; bassLane;ForEach(session.displayProject.tracks.filter{$0.role == .melody}){t in melodyLane(t)} }}
     }
     var ruler: some View {
         HStack(spacing:0) {
-            ForEach(0..<session.displayProject.length/barTicks,id:\.self) { bar in
+            ForEach(0..<timelineBars,id:\.self) { bar in
                 Text(String(format:"%02d",bar+1)).font(.system(size:11,weight:.medium,design:.monospaced))
-                    .foregroundStyle(Color.muted).frame(width:barWidth,alignment:.leading)
+                    .foregroundStyle(bar<session.displayProject.length/barTicks ? Color.muted:Color.muted.opacity(0.5)).frame(width:barWidth,alignment:.leading)
             }
         }.frame(height:28).overlay(alignment:.topLeading) {
             Rectangle().fill(Color.mint.opacity(0.6))
@@ -87,27 +245,23 @@ struct GridView: View {
             if let track=session.displayProject.tracks.first(where:{$0.role == .harmony}) {
                 ForEach(track.clips) { clip in
                     if let pattern=session.displayProject.patterns.first(where:{$0.id==clip.patternID}) {
-                        ForEach(0..<pattern.length/barTicks,id:\.self) { bar in
-                            if !pattern.chords.contains(where:{$0.tick < (bar+1)*barTicks && $0.tick+$0.duration > bar*barTicks}) {
-                                chordCell(clip:clip,pattern:pattern,event:nil,tick:bar*barTicks)
-                            }
-                        }
-                        ForEach(pattern.chords) { event in
-                            chordCell(clip:clip,pattern:pattern,event:event,tick:event.tick)
+                        ForEach(ClipEditing.chordSlices(clip:clip,pattern:pattern)) { slice in
+                            chordCell(clip:clip,pattern:pattern,slice:slice)
                         }
                     }
                 }
             }
         }.frame(height:harmonyHeight)
     }
-    func chordCell(clip:Clip,pattern:Pattern,event:ChordEvent?,tick:Int)->some View {
+    func chordCell(clip:Clip,pattern:Pattern,slice:ArrangementChordSlice)->some View {
+        let event=slice.event,tick=slice.sourceTick
         return Button {
             selection=ChordSelection(id:event?.id ?? UUID(),patternID:pattern.id,
                 tick:tick,
                 chord:event?.chord ?? Chord(root:session.displayProject.keyRoot,quality:session.displayProject.minor ? .minor:.major),
-                duration:event?.duration ?? barTicks)
-        } label: { ChordTile(chord:event?.chord,width:max(44,CGFloat(event?.duration ?? barTicks)/CGFloat(barTicks)*barWidth-6),height:harmonyHeight-16) }
-        .buttonStyle(StudioQuietButtonStyle()).disabled(session.performance.contextActive).offset(x:CGFloat(clip.start+tick)/CGFloat(barTicks)*barWidth+3,y:8)
+                duration:event?.duration ?? slice.duration)
+        } label: { ChordTile(chord:event?.chord,width:max(8,CGFloat(slice.duration)/CGFloat(barTicks)*barWidth-6),height:harmonyHeight-16) }
+        .buttonStyle(StudioQuietButtonStyle()).disabled(editingLocked).accessibilityIdentifier("grid.chord.\(slice.id)").offset(x:CGFloat(slice.timelineTick)/CGFloat(barTicks)*barWidth+3,y:8)
         .simultaneousGesture(LongPressGesture(minimumDuration:0.35).sequenced(before:DragGesture()).onEnded { value in
             if case .second(true,let drag?)=value,let event {
                 let delta=Int((drag.translation.width/barWidth*16).rounded())*240
@@ -165,7 +319,7 @@ struct GridView: View {
             }
         }.frame(height:melodyHeight).contentShape(Rectangle()).onTapGesture{session.openNotes(track.id)}.accessibilityLabel("Edit \(track.displayName)")
     }
-    func gridBackground(height: CGFloat)->some View {Canvas{context,size in for step in 0...session.displayProject.length/ppq {let x=CGFloat(step)*barWidth/4;var p=Path();p.move(to:CGPoint(x:x,y:0));p.addLine(to:CGPoint(x:x,y:height));context.stroke(p,with:.color(Color.raised.opacity(step%4==0 ? 1:0.4)),lineWidth:1)};var line=Path();line.move(to:CGPoint(x:0,y:height));line.addLine(to:CGPoint(x:size.width,y:height));context.stroke(line,with:.color(.raised),lineWidth:1)}}
+    func gridBackground(height: CGFloat)->some View {Canvas{context,size in for step in 0...timelineBars*4 {let x=CGFloat(step)*barWidth/4;var p=Path();p.move(to:CGPoint(x:x,y:0));p.addLine(to:CGPoint(x:x,y:height));context.stroke(p,with:.color(Color.raised.opacity(step%4==0 ? 1:0.4)),lineWidth:1)};var line=Path();line.move(to:CGPoint(x:0,y:height));line.addLine(to:CGPoint(x:size.width,y:height));context.stroke(line,with:.color(.raised),lineWidth:1)}}
 }
 
 struct ChordTile: View {

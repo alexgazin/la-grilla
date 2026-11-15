@@ -19,6 +19,12 @@ public:
     explicit PerformanceFX(double rate):sr(rate),historySize(int(std::ceil(rate*4))+1),delaySize(int(std::ceil(rate*2))+1),ramp(float(1-std::exp(-1/(rate*0.005)))),delayL(delaySize),delayR(delaySize) {
         for(auto &bus:history){bus.resize(historySize);}for(auto &bus:frozen){bus.resize(int(std::ceil(rate*3))+2);}
     }
+    void resetTrackHistory(){
+        // Bus indices belong to a project layout. Invalidate their captured
+        // history without clearing buffers or disturbing stereo delay/filter.
+        write=available=repeatLength=repeatPhase=seam=repeatStart=repeatCopied=0;
+        repeatWanted=false;repeatMix=0;lastRepeat={};seamSample={};
+    }
     void reset(){
         write=available=repeatLength=repeatPhase=seam=delayWrite=delayAvailable=repeatStart=repeatCopied=0;repeatWanted=false;repeatMix=0;
         low1={};low2={};high1={};high2={};lastRepeat={};seamSample={};filter=targetFilter;delayWet=targetWet;coefficientL=targetL;coefficientH=targetH;

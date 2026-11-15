@@ -4,9 +4,13 @@ public enum HarmonyStyle:String,CaseIterable,Sendable {
     case voiceLeading,gentle,expressive,reharmonize
     public var title:String{switch self{case .voiceLeading:"Voice leading";case .gentle:"Gentle";case .expressive:"Expressive";case .reharmonize:"Reharmonize"}}
 }
+public enum HarmonyVoicing:String,CaseIterable,Sendable {
+    case complete="Complete voicing",compact="Compact jazz voicing"
+}
 public struct HarmonyOptions:Sendable {
     public var style:HarmonyStyle;public var low:Int;public var high:Int
-    public init(style:HarmonyStyle = .gentle,low:Int=48,high:Int=84){self.style=style;self.low=low;self.high=high}
+    public var voicing:HarmonyVoicing
+    public init(style:HarmonyStyle = .gentle,low:Int=48,high:Int=84,voicing:HarmonyVoicing = .complete){self.style=style;self.low=low;self.high=high;self.voicing=voicing}
 }
 public enum HarmonyError:Error,LocalizedError {
     case empty,range,stale
@@ -66,7 +70,9 @@ public enum HarmonyLab {
         var output:[ChordEvent]=[];var changes:[HarmonyChange]=[];var previous:[Int]=[]
         for (index,e) in original.enumerated(){
             var chord=e.chord;chord.voicedNotes=nil;chord.inversion=0
-            switch options.style {
+            // A written custom formula is explicit musical content. Styles may
+            // revoice it, but never silently replace its intervals or quality.
+            if chord.customIntervals==nil{switch options.style {
             case .voiceLeading:break
             case .gentle:
                 if chord.quality == .major{chord.quality=(chord.root-project.keyRoot+12)%12==7 ? .seventh:.maj7}
@@ -77,8 +83,8 @@ public enum HarmonyLab {
                 let next=index+1<original.count ? original[index+1].chord:nil
                 if index>0,let next,(chord.root-next.root+12)%12==7,[Quality.seventh,.ninth,.thirteenth].contains(chord.quality){chord.root=(chord.root+6)%12;chord.quality = .flat9;chord.slashBass=nil}
                 else if index>0,index<original.count-1,!project.minor,(chord.root-project.keyRoot+12)%12==5,chord.quality == .major{chord.quality = .m7}
-            }
-            chord.voicedNotes=try voicing(chord,previous:previous,low:options.low,high:options.high)
+            }}
+            chord.voicedNotes=try voicing(chord,previous:previous,low:options.low,high:options.high,layout:options.voicing)
             previous=chord.notes
             var event=e;event.id=UUID();event.chord=chord;output.append(event)
             changes.append(HarmonyChange(id:event.id,tick:event.tick,before:e.chord,after:chord,chromatic:chord.notes.contains{!scale.contains($0%12)}))
@@ -86,15 +92,16 @@ public enum HarmonyLab {
         var candidate=project;try Arrangement.replaceHarmony(output,in:section,project:&candidate);try candidate.validate()
         return HarmonyProposal(id:UUID(),projectID:project.id,revision:project.revision,sectionID:sectionID,candidate:candidate,changes:changes,style:options.style)
     }
-    public static func voicing(_ chord:Chord,previous:[Int],low:Int,high:Int)throws->[Int] {
-        guard low>=0,high<=127,low<=high,(0..<12).contains(chord.root),previous.allSatisfy({(0...127).contains($0)}),chord.slashBass==nil || (0..<12).contains(chord.slashBass!)else{throw HarmonyError.range}
+    public static func voicing(_ chord:Chord,previous:[Int],low:Int,high:Int,layout:HarmonyVoicing = .complete)throws->[Int] {
+        guard low>=0,high<=127,low<=high,(0..<12).contains(chord.root),Chord.validIntervals(chord.effectiveIntervals),previous.allSatisfy({(0...127).contains($0)}),chord.slashBass==nil || (0..<12).contains(chord.slashBass!)else{throw HarmonyError.range}
+        let intervals=layout == .compact ? chord.requiredVoicingIntervals:chord.effectiveIntervals
         var best:[Int]?;var bestScore=Double.infinity
-        for inversion in 0..<chord.quality.intervals.count {
+        for inversion in 0..<intervals.count {
             for octave in 1...7 {
                 let base=octave*12+chord.root
-                var notes=chord.quality.intervals.enumerated().map{base+$0.element+($0.offset<inversion ? 12:0)}.sorted()
+                var notes=intervals.enumerated().map{base+$0.element+($0.offset<inversion ? 12:0)}.sorted()
                 if let slash=chord.slashBass{var bass=notes[0]/12*12+slash;while bass>=notes[0]{bass-=12};notes.append(bass);notes.sort()}
-                guard notes.allSatisfy({(low...high).contains($0)}),Set(notes).count==notes.count else{continue}
+                guard notes.allSatisfy({(low...high).contains($0)}),chord.isValidVoicing(notes) else{continue}
                 let center=Double(low+high)/2
                 var score=notes.reduce(0.0){$0+abs(Double($1)-center)*0.08}
                 if previous.isEmpty{score+=abs(Double(notes.reduce(0,+))/Double(notes.count)-center)}

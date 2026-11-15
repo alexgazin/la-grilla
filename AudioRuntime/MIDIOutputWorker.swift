@@ -23,6 +23,9 @@ final class MIDIOutputWorker:@unchecked Sendable {
     }
     deinit{timer?.cancel();if port != 0{MIDIPortDispose(port)}}
     func select(_ endpoint:MIDIEndpointRef,channels:[Int32]){
+        // Called for an endpoint change or an explicit retry, never for track
+        // reordering. The hub overlays the latest audio-owned project channels
+        // if a snapshot was adopted while this asynchronous selection waited.
         // Invalidate the old destination immediately. An in-flight render buffer
         // can still publish its old epoch; the worker will discard those events.
         _ = lg_midi_output_configure(hub.pointer,nil,0,0)

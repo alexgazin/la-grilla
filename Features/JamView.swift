@@ -10,10 +10,11 @@ struct JamView: View {
     @State private var stepBar = 0
     @State private var velocity = 100.0
     @State private var pressed: Set<Int> = []
-    var body:some View{Group{if verticalSize == .compact{compactJam}else{GeometryReader{geometry in ScrollView(.vertical){regularJam(compact:geometry.size.height<500)}}}}}
+    var body:some View{Group{if verticalSize == .compact{compactJam}else{GeometryReader{geometry in ScrollView(.vertical){regularJam(compact:geometry.size.height<500)}}}}.onChange(of:drumPattern?.id){_,_ in stepBar=0}.onChange(of:drumPattern?.length){_,length in stepBar=min(stepBar,max(0,(length ?? barTicks)/barTicks-1))}}
     private func regularJam(compact:Bool)->some View {
         VStack(spacing:14){
             HStack(spacing:10){Text("Pocket kit").font(.system(size:26,weight:.semibold)).tracking(-0.6).lineLimit(1).minimumScaleFactor(0.75);Spacer(minLength:0);editorMode}.padding(.top,12)
+            if focusedClip != nil{clipFocus}
             HStack(spacing:6){Menu{ForEach([1,2,4,8],id:\.self){n in Button("\(n) bars"){session.setLoop(bars:n)}}}label:{HStack(spacing:5){Image(systemName:"repeat");Text("\(session.loopBars) bars");Image(systemName:"chevron.down").font(.system(size:11))}.font(.system(size:11,weight:.medium)).frame(minHeight:44).padding(.horizontal,12).background(Color.panel,in:RoundedRectangle(cornerRadius:12,style:.continuous))}.disabled(session.performance.contextActive)
                 Menu{ForEach(Quantize.allCases,id:\.rawValue){q in Button(LocalizedStringKey(q == .off ? "Off":q == .eighth ? "1/8":"1/16")){session.quantize=q}}}label:{HStack(spacing:5){Text("Q").foregroundStyle(Color.muted);Text(LocalizedStringKey(session.quantize == .off ? "Off":session.quantize == .eighth ? "1/8":"1/16"))}.font(.system(size:11,weight:.medium)).frame(minHeight:44).padding(.horizontal,12).background(Color.panel,in:RoundedRectangle(cornerRadius:12,style:.continuous))}.disabled(session.performance.contextActive)
                 Spacer(minLength:0)
@@ -48,6 +49,7 @@ struct JamView: View {
                 Picker("Loop length",selection:Binding(get:{session.loopBars},set:{session.setLoop(bars:$0)})){ForEach([1,2,4,8],id:\.self){bars in Text("\(bars) bars").tag(bars)}}.disabled(session.performance.contextActive)
             }label:{Image(systemName:"slider.horizontal.3").frame(width:44,height:44)}.accessibilityLabel("Drum recording options")
         }
+        if focusedClip != nil{clipFocus}
         if steps{ScrollView{stepEditor.disabled(session.performance.contextActive)}}else if dynamicType.isAccessibilitySize{accessiblePads}else{padGrid(height:200).disabled(session.performance.replaying)}
     }.padding(.horizontal,12).padding(.bottom,8)}
     private var accessiblePads:some View {ScrollView{
@@ -70,8 +72,10 @@ struct JamView: View {
             }}.frame(maxHeight:.infinity,alignment:.center)
         }.frame(height:height)
     }
+    private var focusedClip:Clip?{guard let id=session.drumClipID else{return nil};return session.displayProject.tracks.first{$0.role == .drums}?.clips.first{$0.id==id}}
+    private var clipFocus:some View{HStack(spacing:8){Text("Editing this drum clip's source pattern. Repeats share these steps.").font(.caption).foregroundStyle(Color.muted);Spacer(minLength:0);Button("Whole section"){session.drumClipID=nil;session.sync()}.font(.caption).frame(minHeight:44)}.accessibilityIdentifier("jam.clip-focus")}
     var drumPattern: Pattern? {
-        guard let t=session.displayProject.tracks.first(where:{$0.role == .drums}),let c=t.clips.first(where:{$0.start==session.section.start})else{return nil}
+        guard let t=session.displayProject.tracks.first(where:{$0.role == .drums}),let c=focusedClip ?? t.clips.first(where:{$0.start<=session.section.start && $0.start+$0.length>session.section.start})else{return nil}
         return session.displayProject.patterns.first(where:{$0.id==c.patternID})
     }
     var stepEditor: some View {

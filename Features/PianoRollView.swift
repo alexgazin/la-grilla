@@ -17,13 +17,16 @@ struct PianoRollView: View {
     @State private var trackName=""
     @State private var original:AudioAssetRecord?
     var track:Track?{session.project.tracks.first{$0.id==session.noteTrackID && $0.role == .melody} ?? session.project.tracks.first{$0.role == .melody}}
-    var pattern:Pattern?{guard let t=track,let c=t.clips.first(where:{$0.start<=session.section.start && $0.start+$0.length>session.section.start})else{return nil};return session.project.patterns.first{$0.id==c.patternID}}
-    var sourceRecord:AudioAssetRecord?{guard let clip=track?.clips.first(where:{$0.start<=session.section.start && $0.start+$0.length>session.section.start}),let id=clip.sourceAssetID else{return nil};return session.project.audioAssets?.first{$0.id==id}}
+    var clip:Clip?{guard let track else{return nil};if let id=session.noteClipID,let selected=track.clips.first(where:{$0.id==id}){return selected};return track.clips.first{$0.start<=session.section.start && $0.start+$0.length>session.section.start}}
+    var pattern:Pattern?{guard let clip else{return nil};return session.project.patterns.first{$0.id==clip.patternID}}
+    var sourceRecord:AudioAssetRecord?{guard let id=clip?.sourceAssetID else{return nil};return session.project.audioAssets?.first{$0.id==id}}
+    var sourcePlayhead:Double{guard let clip,let pattern else{return -1};let position=session.audio.tick-Double(clip.start);guard position>=0,position<Double(clip.length)else{return -1};return (position+Double(clip.offset)).truncatingRemainder(dividingBy:Double(pattern.length))}
     var note:NoteEvent?{pattern?.notes?.first{$0.id==selected}}
     var body:some View {
         NavigationStack {
             VStack(spacing:12){
                 controls.padding(.horizontal,16)
+                if let clip,let pattern,clip.offset != 0 || clip.length != pattern.length{Text("Editing the source pattern updates every loop of this clip.").font(.caption).foregroundStyle(Color.muted).padding(.horizontal,16)}
                 if let pattern {
                     if listMode {eventList(pattern).frame(height:dynamicType.isAccessibilitySize ? 280:nil)} else {roll(pattern)}
                     if let note {NoteInspector(session:session,patternID:pattern.id,note:note,snap:snap)}
@@ -36,6 +39,7 @@ struct PianoRollView: View {
         }.tint(.mint).alert("Rename track",isPresented:$renaming){TextField("Track name",text:$trackName);Button("Save"){if let id=track?.id{let name=String(trackName.trimmingCharacters(in:.whitespacesAndNewlines).prefix(40));if !name.isEmpty{session.edit{p in if let i=p.tracks.firstIndex(where:{$0.id==id}){p.tracks[i].name=name}}}}};Button("Cancel",role:.cancel){}}
         .onChange(of:dynamicType,initial:true){_,size in if size.isAccessibilitySize || UIAccessibility.isVoiceOverRunning{listMode=true}}
         .onChange(of:session.noteTrackID){_,_ in selected=nil}
+        .onChange(of:session.noteClipID){_,_ in selected=nil}
         .sheet(item:$original){record in SourceRecordingView(session:session,record:record)}
         .onChange(of:session.selectedSection){_,_ in selected=nil}
     }
@@ -43,7 +47,7 @@ struct PianoRollView: View {
         VStack(spacing:10){
             HStack {
                 Menu {
-                    ForEach(session.project.tracks.filter{$0.role == .melody}){t in Button(t.displayName){session.noteTrackID=t.id}}
+                    ForEach(session.project.tracks.filter{$0.role == .melody}){t in Button(t.displayName){session.noteTrackID=t.id;session.noteClipID=nil}}
                     Button("Add melody",systemImage:"plus"){session.addMelody()}.disabled(session.project.tracks.count>=8)
                     if let sourceRecord{Button("Original voice",systemImage:"waveform"){original=sourceRecord}}
                     if let track {
@@ -53,7 +57,7 @@ struct PianoRollView: View {
                     }
                 }label:{Label(track?.displayName ?? NSLocalizedString("Add melody",comment:"Track menu"),systemImage:"pianokeys").lineLimit(1).frame(minHeight:44)}.accessibilityIdentifier("notes.tracks")
                 Spacer(minLength:6)
-                Picker("Section",selection:Binding(get:{session.section.id},set:{id in if let s=session.project.sections.first(where:{$0.id==id}){session.select(s)}})){ForEach(session.project.sections){s in Text(s.name).tag(s.id)}}.pickerStyle(.menu)
+                Picker("Section",selection:Binding(get:{session.section.id},set:{id in if let s=session.project.sections.first(where:{$0.id==id}){session.noteClipID=nil;session.select(s)}})){ForEach(session.project.sections){s in Text(s.name).tag(s.id)}}.pickerStyle(.menu)
             }
             HStack(spacing:12){StudioSegments(title:"Snap",selection:$snap,options:[(240,"1/16"),(480,"1/8"),(960,"1/4")])
                 Button{listMode.toggle()}label:{Image(systemName:listMode ? "pianokeys":"list.bullet").frame(width:44,height:44)}.accessibilityLabel(LocalizedStringKey(listMode ? "Show piano roll":"Show note list"))}
@@ -67,7 +71,7 @@ struct PianoRollView: View {
                     VStack(spacing:0){Color.clear.frame(height:24);ForEach((lowPitch...lowPitch+23).reversed(),id:\.self){pitch in Button{preview(pitch)}label:{Text(NoteEvent(tick:0,pitch:pitch).name).font(.system(size:11,design:.monospaced)).foregroundStyle(isBlack(pitch) ? Color.white:Color.black).frame(width:48,height:24).background(isBlack(pitch) ? Color(white:0.14):Color.white)}.buttonStyle(StudioQuietButtonStyle()).accessibilityLabel("Preview \(NoteEvent(tick:0,pitch:pitch).name)")}}
                     VStack(spacing:0){
                         HStack(spacing:0){ForEach(0..<p.length/barTicks,id:\.self){bar in Text("\(bar+1)").font(.caption2.monospaced()).frame(width:barWidth,alignment:.leading)}}.foregroundStyle(Color.muted).frame(height:24)
-                        RollCanvas(pattern:p,selected:selected,lowPitch:lowPitch,barWidth:barWidth,snap:snap,tick:session.audio.tick-Double(session.section.start),select:{id in selected=id},insert:{tick,pitch in add(p,tick:tick,pitch:pitch)},move:{id,tick,pitch in change(p.id){NoteEditing.move(id,in:&$0,tick:tick,pitch:pitch,step:snap)}},resize:{id,duration in change(p.id){NoteEditing.resize(id,in:&$0,duration:duration,step:snap)}})
+                        RollCanvas(pattern:p,selected:selected,lowPitch:lowPitch,barWidth:barWidth,snap:snap,tick:sourcePlayhead,select:{id in selected=id},insert:{tick,pitch in add(p,tick:tick,pitch:pitch)},move:{id,tick,pitch in change(p.id){NoteEditing.move(id,in:&$0,tick:tick,pitch:pitch,step:snap)}},resize:{id,duration in change(p.id){NoteEditing.resize(id,in:&$0,duration:duration,step:snap)}})
                             .frame(width:CGFloat(p.length)/CGFloat(barTicks)*barWidth,height:576)
                     }
                 }

@@ -51,11 +51,11 @@ private enum MIDICallbacks {
     @ObservationIgnored private var outputWorker:MIDIOutputWorker?
     @ObservationIgnored private var configuredOutput=MIDIEndpointRef()
     @ObservationIgnored private var outputChannels:[Int32]=[]
+    @ObservationIgnored private var outputNeedsRefresh=true
     @ObservationIgnored private var generation:UInt32=0
     @ObservationIgnored private var connections:[Int32:(endpoint:MIDIEndpointRef,slot:Int,handle:UInt32)]=[:]
     @ObservationIgnored private var settings=MIDISettings()
-    @ObservationIgnored private var configuredTrack:Int = -1
-    @ObservationIgnored private var configuredInstrument:Int = -1
+    @ObservationIgnored private var configuredIdentity:UInt64=0
     @ObservationIgnored private var configuredChannel:Int?
     @ObservationIgnored private var buffer=[LGMIDIEvent](repeating:LGMIDIEvent(),count:512)
     init(hub:MIDIHubHandle){self.hub=hub}
@@ -63,9 +63,9 @@ private enum MIDICallbacks {
         guard client==0 else{return}
         var status=MIDIClientCreateWithBlock("La Grilla" as CFString,&client,MIDICallbacks.notifications(self))
         if status==noErr{status=MIDIInputPortCreateWithBlock(client,"Input" as CFString,&input,MIDICallbacks.input(hub))}
-        if status != noErr{error="MIDI could not start (\(status)).";if client != 0{MIDIClientDispose(client)};client=0;input=0;return}
+        if status != noErr{error=String(format:NSLocalizedString("MIDI could not start (%d).",comment:"MIDI input startup error"),status);if client != 0{MIDIClientDispose(client)};client=0;input=0;return}
         var output=MIDIPortRef();let outputStatus=MIDIOutputPortCreate(client,"Output" as CFString,&output)
-        if outputStatus==noErr{outputWorker=MIDIOutputWorker(hub:hub,port:output)}else{error="MIDI output could not start (\(outputStatus))."}
+        if outputStatus==noErr{outputWorker=MIDIOutputWorker(hub:hub,port:output)}else{error=String(format:NSLocalizedString("MIDI output could not start (%d).",comment:"MIDI output startup error"),outputStatus)}
         refresh()
     }
     private func endpoint(_ ref:MIDIEndpointRef)->MIDIEndpoint? {
@@ -85,10 +85,19 @@ private enum MIDICallbacks {
         return true
     }
     func endpointsChanged(){lastConfiguration=nil;refresh();onConfigurationChange?()}
-    func retry(){lastConfiguration=nil;outputChannels=[];error=nil}
-    private func channels(_ project:Project)->[Int32]{
+    func retry(){lastConfiguration=nil;outputNeedsRefresh=true;error=nil}
+    /// The same stable key is embedded in the audio project snapshot. Track
+    /// indices are deliberately excluded: editing their order must not reconnect
+    /// a keyboard or let a queued packet play a different track.
+    nonisolated static func trackIdentity(_ id:UUID)->UInt64 {
+        var value:UInt64=14_695_981_039_346_656_037
+        var bytes=id.uuid
+        withUnsafeBytes(of:&bytes){for byte in $0{value=(value ^ UInt64(byte)) &* 1_099_511_628_211}}
+        return value==0 ? 1:value
+    }
+    private func channels(_ tracks:[Track])->[Int32]{
         var result=[Int32](repeating:0,count:8);var melody:Int32=2
-        for (i,track) in project.tracks.enumerated(){switch track.role{case .harmony:result[i]=0;case .drums:result[i]=9;case .bass:result[i]=1;case .melody:result[i]=melody;melody+=1}}
+        for (i,track) in tracks.prefix(8).enumerated(){switch track.role{case .harmony:result[i]=0;case .drums:result[i]=9;case .bass:result[i]=1;case .melody:result[i]=melody;melody+=1}}
         return result
     }
     func refresh(){
@@ -98,35 +107,44 @@ private enum MIDICallbacks {
         for (id,connection) in connections where !sources.contains(where:{$0.id==id && $0.reference==connection.endpoint}){disconnect(id)}
     }
     func configure(_ value:MIDISettings,project:Project){
-        let track=project.tracks.firstIndex{$0.id==value.trackID} ?? 0,instrument=project.tracks[track].role.instrument
-        let channelMap=channels(project)
-        if lastConfiguration==value,configuredTrack==track,configuredInstrument==instrument,channelMap==outputChannels{return}
+        configure(value,tracks:project.tracks)
+    }
+    func configure(_ value:MIDISettings,tracks:[Track]){
+        guard let first=tracks.first else{return}
+        let target=value.trackID ?? first.id
+        let track=tracks.firstIndex{$0.id==target} ?? 0,instrument=tracks.first(where:{$0.id==target})?.role.instrument ?? 0
+        let identity=Self.trackIdentity(target),channelMap=channels(tracks)
+        if lastConfiguration==value,configuredIdentity==identity,channelMap==outputChannels,!outputNeedsRefresh{return}
         settings=value
         if client==0 && !value.enabled && value.outputID==nil{return}
         prepare();guard input != 0 else{return};refresh();lastConfiguration=value
         let output=destinations.first{$0.id==value.outputID}?.reference ?? 0
-        if output != configuredOutput || outputChannels != channelMap{outputWorker?.select(output,channels:channelMap);configuredOutput=output;outputChannels=channelMap}
-        let changed=track != configuredTrack || instrument != configuredInstrument || value.channel != configuredChannel
+        // Project channel changes are published by the audio snapshot itself at
+        // its exact boundary. Only endpoint selection/retry changes the worker's
+        // destination epoch and flushes queued output.
+        if output != configuredOutput || outputNeedsRefresh{outputWorker?.select(output,channels:channelMap);configuredOutput=output;outputNeedsRefresh=false}
+        outputChannels=channelMap
+        let changed=identity != configuredIdentity || value.channel != configuredChannel
         if changed{for id in Array(connections.keys){disconnect(id)}}
-        configuredTrack=track;configuredInstrument=instrument;configuredChannel=value.channel
+        configuredIdentity=identity;configuredChannel=value.channel
         let wanted=value.enabled ? Set(value.inputIDs):[]
         for id in Array(connections.keys) where !wanted.contains(id){disconnect(id)}
         for source in sources where wanted.contains(source.id) && connections[source.id]==nil {
             guard let slot=(0..<16).first(where:{index in !connections.values.contains{$0.slot==index}})else{continue}
             generation &+= 1;if generation==0 || generation>0x00ff_ffff{generation=1};let handle=generation<<8|UInt32(slot)
-            lg_midi_configure(hub.pointer,handle,Int32(track),Int32(instrument),value.channel.map{Int32(1<<$0)} ?? 65535)
+            lg_midi_configure_track(hub.pointer,handle,identity,Int32(track),Int32(instrument),value.channel.map{Int32(1<<$0)} ?? 65535)
             let status=MIDIPortConnectSource(input,source.reference,UnsafeMutableRawPointer(bitPattern:UInt(handle)))
-            if status==noErr{connections[source.id]=(source.reference,slot,handle)}else{lg_midi_disconnect(hub.pointer,Int32(slot));error="Could not connect \(source.name) (\(status))."}
+            if status==noErr{connections[source.id]=(source.reference,slot,handle)}else{lg_midi_disconnect(hub.pointer,Int32(slot));error=String(format:NSLocalizedString("Could not connect %@ (%d).",comment:"MIDI device connection error"),source.name,status)}
         }
     }
     private func disconnect(_ id:Int32){guard let connection=connections.removeValue(forKey:id)else{return};MIDIPortDisconnectSource(input,connection.endpoint);lg_midi_disconnect(hub.pointer,Int32(connection.slot))}
     func createFixture()->Int32? {
         guard ProcessInfo.processInfo.arguments.contains("--uitesting")else{return nil};prepare();guard client != 0 else{return nil}
-        if fixtureSource==0{let status=MIDISourceCreate(client,"La Grilla virtual QA keyboard" as CFString,&fixtureSource);guard status==noErr else{error="Virtual MIDI source failed (\(status)).";return nil}}
+        if fixtureSource==0{let status=MIDISourceCreate(client,"La Grilla virtual QA keyboard" as CFString,&fixtureSource);guard status==noErr else{error=String(format:NSLocalizedString("Virtual MIDI source failed (%d).",comment:"Virtual MIDI test source error"),status);return nil}}
         if fixtureDestination==0{
             lg_midi_configure(fixtureProbe.pointer,256,0,0,65535)
             let status=MIDIDestinationCreateWithBlock(client,"La Grilla virtual QA output" as CFString,&fixtureDestination,MIDICallbacks.probe(fixtureProbe))
-            if status != noErr{error="Virtual MIDI destination failed (\(status)).";return nil}
+            if status != noErr{error=String(format:NSLocalizedString("Virtual MIDI destination failed (%d).",comment:"Virtual MIDI test destination error"),status);return nil}
         }
         fixtureOutputID=endpoint(fixtureDestination)?.id;isFixture=true;refresh();return endpoint(fixtureSource)?.id
     }
@@ -147,8 +165,8 @@ private enum MIDICallbacks {
     func isConnected(_ id:Int32)->Bool{connections[id] != nil}
     func poll(replaying:Bool){
         late=lg_midi_late(hub.pointer);dropped=lg_midi_dropped(hub.pointer);outputSent=lg_midi_output_count(hub.pointer)
-        for id in Array(connections.keys){if let connection=connections[id],lg_midi_connected(hub.pointer,connection.handle)==0{disconnect(id);error="MIDI input paused after an overload. Tap Refresh & reconnect."}}
-        if lg_midi_output_error(hub.pointer) != 0{error="MIDI output paused after a send error or overload. Tap Refresh & reconnect."}
+        for id in Array(connections.keys){if let connection=connections[id],lg_midi_connected(hub.pointer,connection.handle)==0{disconnect(id);error=NSLocalizedString("MIDI input paused after an overload. Tap Refresh & reconnect.",comment:"MIDI input overload recovery")}}
+        if lg_midi_output_error(hub.pointer) != 0{error=NSLocalizedString("MIDI output paused after a send error or overload. Tap Refresh & reconnect.",comment:"MIDI output overload recovery")}
         let count=buffer.withUnsafeMutableBufferPointer{lg_midi_monitor_pop(hub.pointer,$0.baseAddress,Int32($0.count))}
         for event in buffer.prefix(Int(count)) {
             let source=connections.first{$0.value.slot==event.source}?.key

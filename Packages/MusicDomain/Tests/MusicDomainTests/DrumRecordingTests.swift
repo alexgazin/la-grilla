@@ -1,0 +1,61 @@
+import Foundation
+import Testing
+@testable import MusicDomain
+
+struct DrumRecordingTests {
+    private func sharedLoop()throws->Project {
+        var p=Project(name:"Shared loop",bars:4)
+        p.patterns[1].length=barTicks;p.patterns[1].drums=[DrumEvent(tick:0,pad:0),DrumEvent(tick:960,pad:1),DrumEvent(tick:2880,pad:2)]
+        p.tracks[1].clips=[Clip(patternID:p.patterns[1].id,start:0,length:2*barTicks),Clip(patternID:p.patterns[1].id,start:2*barTicks,length:2*barTicks)]
+        p.tracks[1].clips[1].offset=960;try p.validate();return p
+    }
+    @Test func offsetRepeatsMaterializeOneIndependentClipWithExactHeardNotes()throws {
+        let p=try sharedLoop(),clip=p.tracks[1].clips[1],before=Compiler.notes(p)
+        let draft=try DrumRecordingDraft(project:p,clipID:clip.id)
+        #expect(Compiler.notes(draft.project)==before)
+        #expect(draft.project.tracks[1].clips[0]==p.tracks[1].clips[0])
+        #expect(draft.project.patterns.first{$0.id==p.patterns[1].id}==p.patterns[1])
+        #expect(draft.project.tracks[1].clips[1].offset==0)
+        #expect(draft.patternID != p.patterns[1].id);#expect(!draft.changed)
+        #expect(draft.project.patterns.first{$0.id==draft.patternID}?.drums.map(\.tick)==[0,1920,2880,3840,5760,6720])
+    }
+    @Test func outsideTouchesNeverWrapIntoFocusedClipAndFractionalEdgesRemainBounded()throws {
+        var p=try sharedLoop();p.tracks[1].clips[1].start+=240;p.tracks[1].clips[1].length-=480
+        let draft=try DrumRecordingDraft(project:p,clipID:p.tracks[1].clips[1].id)
+        #expect(draft.localTick(draft.start-1)==nil);#expect(draft.localTick(draft.start)==0)
+        #expect(draft.localTick(draft.start+draft.length-1)==draft.length-1);#expect(draft.localTick(draft.start+draft.length)==nil)
+        #expect(draft.localTick(Int.max)==nil);#expect(draft.localTick(Int.min)==nil)
+        #expect(draft.project.patterns.first{$0.id==draft.patternID}?.length==2*barTicks)
+        try draft.project.validate()
+    }
+    @Test func multiplePassesAndMaterializationApplyAsOneUndoWhilePreservingMixerChanges()throws {
+        var p=try sharedLoop();let original=p;var draft=try DrumRecordingDraft(project:p,clipID:p.tracks[1].clips[1].id),history=History()
+        try draft.commitPass([DrumEvent(tick:240,pad:3)],replacing:draft.start..<draft.start+barTicks)
+        try draft.commitPass([DrumEvent(tick:barTicks+240,pad:4)])
+        #expect(p==original)
+        try history.apply(&p){$0.tracks[1].gain = -15}
+        let mixed=p
+        try history.apply(&p){$0=try draft.candidate(for:$0)}
+        #expect(p.tracks[1].gain == -15);#expect(p.tracks[1].clips[0]==original.tracks[1].clips[0])
+        #expect(Compiler.notes(p,range:0..<2*barTicks)==Compiler.notes(original,range:0..<2*barTicks))
+        #expect(p.patterns.first{$0.id==draft.patternID}?.drums.contains{$0.pad==4} == true)
+        history.undo(&p);#expect(p.patterns==mixed.patterns);#expect(p.tracks==mixed.tracks)
+        history.undo(&p);#expect(p.patterns==original.patterns);#expect(p.tracks==original.tracks)
+    }
+    @Test func replacingRangeDoesNotEraseOtherPassesAndRejectsBadEventsAtomically()throws {
+        let p=try sharedLoop();var draft=try DrumRecordingDraft(project:p,clipID:p.tracks[1].clips[1].id)
+        let latter=Compiler.notes(draft.project,range:3*barTicks..<4*barTicks)
+        try draft.commitPass([],replacing:draft.start..<draft.start+barTicks)
+        #expect(draft.changed);#expect(Compiler.notes(draft.project,range:3*barTicks..<4*barTicks)==latter)
+        let before=draft.project
+        #expect(throws:MusicError.self){try draft.commitPass([DrumEvent(tick:draft.length,pad:0)])}
+        #expect(throws:MusicError.self){try draft.commitPass([DrumEvent(tick:0,pad:99)])}
+        #expect(draft.project==before)
+    }
+    @Test func staleOrForeignClipCannotReceiveRecordedNotes()throws {
+        let p=try sharedLoop(),draft=try DrumRecordingDraft(project:p,clipID:p.tracks[1].clips[1].id)
+        var foreign=p;foreign.id=UUID();#expect(throws:AssistantError.self){try draft.candidate(for:foreign)}
+        var removed=p;removed.tracks[1].clips.removeLast();#expect(throws:AssistantError.self){try draft.candidate(for:removed)}
+        var changed=p;changed.tracks[1].clips[1].patternID=p.patterns[0].id;#expect(throws:AssistantError.self){try draft.candidate(for:changed)}
+    }
+}
