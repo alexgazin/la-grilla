@@ -129,6 +129,36 @@ import SwiftUI
         try await wait(audio){audio.clock>after}
         return "Actual tap PCM frames: \(stats.frames); Session lease, permission, finite capture, paused-graph prepare, category restoration and continuing engine/kernel clock"
     }
+    static func midiPolicy(_ session:Session)async throws->String {
+        let audio=session.audio,midi=session.midi
+        try audio.prepare()
+        defer{midi.suspend();audio.stop()}
+        guard let source=midi.createFixture(),let output=midi.fixtureOutputID else{throw Failure(message:"Virtual MIDI endpoints could not start")}
+        session.edit{p in
+            p.bpm=40
+            var settings=MIDISettings();settings.enabled=true;settings.inputIDs=[source];settings.outputID=output;settings.trackID=p.tracks[0].id;p.midi=settings
+        }
+        audio.play()
+        try await wait(audio){audio.playing && midi.isConnected(source) && lg_midi_output_active_epoch(audio.midiHub.pointer) != 0}
+        midi.sendFixture()
+        try await wait(audio){midi.fixtureReceivedNotes>0 && midi.lastMessage.contains("74")}
+        let kernel=try pointer(audio)
+        // This seek belongs only to fixture setup. The following two Session
+        // edits run in one MainActor turn, safely away from the six-second bar.
+        audio.seek(240);try await wait(audio){audio.tick>240 && audio.tick<960}
+        let clock=audio.clock
+        session.edit{try $0.addMelody()}
+        try require(audio.pendingSnapshot,"Structural edit did not remain pending")
+        session.edit{p in p.midi?.enabled=false;p.midi?.outputID=nil}
+        try require(!midi.isConnected(source),"Input Off waited for the pending structural bar")
+        try require(lg_midi_output_active_epoch(audio.midiHub.pointer)==0,"Output None waited for the pending structural bar")
+        try require(audio.pendingSnapshot && audio.playing,"MIDI Off adopted or stopped the pending song")
+        try await wait(audio,timeout:8){!audio.pendingSnapshot}
+        try require(!midi.isConnected(source) && lg_midi_output_active_epoch(audio.midiHub.pointer)==0,"Old snapshot settings reconnected a disabled MIDI endpoint")
+        let sameKernel=try pointer(audio)==kernel
+        try require(audio.clock>clock && audio.playing && sameKernel,"MIDI policy update replaced or stopped the live engine")
+        return "Actual Session + virtual CoreMIDI: 40 BPM pending layout, immediate input Off/output None, no reconnect after adoption, continuing kernel clock"
+    }
     @MainActor private final class MicrophoneLease {
         var microphone:LiveMicrophone?
         var failure:String?
@@ -153,18 +183,34 @@ struct AudioRuntimeQAView:View {
     @State private var result="WAITING"
     @State private var details=""
     @State private var started=false
+    private var microphoneCase:Bool {
+        let args=ProcessInfo.processInfo.arguments
+        return args.contains("--audio-runtime-microphone") && !args.contains("--audio-runtime-midi-policy")
+    }
     var body:some View {
         VStack(spacing:12){
             Text(verbatim:result).font(.headline).accessibilityIdentifier("audio.runtime.result")
             Text(verbatim:details).font(.caption).accessibilityIdentifier("audio.runtime.details")
+            if microphoneCase,result=="READY" {
+                Button{Task{await run()}}label:{Text(verbatim:"Start microphone check").frame(minHeight:44)}
+                    .buttonStyle(.borderedProminent).accessibilityIdentifier("audio.runtime.start")
+            }
         }.padding(24).frame(maxWidth:.infinity,maxHeight:.infinity).background(Color.ink).foregroundStyle(Color.studioText)
             .task(id:session.ready){
-                guard session.ready,!started else{return};started=true;result="RUNNING"
-                do {
-                    if ProcessInfo.processInfo.arguments.contains("--audio-runtime-microphone"){details=try await AudioRuntimeQA.microphone(session)}
-                    else{details=try await AudioRuntimeQA.snapshots(session)}
-                    result="PASS"
-                }catch{details=error.localizedDescription;result="FAIL"}
+                guard session.ready,!started else{return}
+                // Requesting permission during app launch can prevent XCTest
+                // from attaching its automation session. Wait for its explicit
+                // button tap before starting the real microphone acceptance.
+                if microphoneCase{result="READY"}else{await run()}
             }
+    }
+    @MainActor private func run()async {
+        guard !started else{return};started=true;result="RUNNING"
+        do {
+            if ProcessInfo.processInfo.arguments.contains("--audio-runtime-midi-policy"){details=try await AudioRuntimeQA.midiPolicy(session)}
+            else if microphoneCase{details=try await AudioRuntimeQA.microphone(session)}
+            else{details=try await AudioRuntimeQA.snapshots(session)}
+            result="PASS"
+        }catch{details=error.localizedDescription;result="FAIL"}
     }
 }

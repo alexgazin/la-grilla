@@ -17,7 +17,9 @@ final class VoiceReviewUITests:XCTestCase {
         XCTAssertTrue(app.staticTexts["voice.note-count"].waitForExistence(timeout:20))
         XCTAssertEqual(app.staticTexts["voice.note-count"].label,"3 notes")
         let pitch=app.steppers["voice.pitch"];reveal(pitch,in:app)
-        pitch.buttons["Increment"].tap()
+        // iOS 26 prefixes native Stepper child identifiers with the parent ID.
+        let increment=pitch.buttons["voice.pitch-Increment"]
+        XCTAssertTrue(increment.waitForExistence(timeout:3));increment.tap()
         let edit=app.buttons["voice.fixture-edit"];reveal(edit,in:app)
         let source=app.staticTexts["voice.fixture-source"].label
         XCTAssertEqual(app.staticTexts["voice.fixture-pitch"].label,"61")

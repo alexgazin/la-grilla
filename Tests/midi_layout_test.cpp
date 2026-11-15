@@ -84,6 +84,26 @@ static void outputMapAndWorkerRace(){
     h=lg_midi_create();lg_midi_output_configure(h,legacyChannels.data(),8,1);assert(h->outputOn(h->outputConfiguration(),0,1,36,100)==9);lg_midi_destroy(h);
 }
 
+static void staleEndpointActivation(){
+    auto*h=lg_midi_create();original(h);
+    const auto stale=lg_midi_output_configure(h,nullptr,0,0);
+    const auto none=lg_midi_output_configure(h,nullptr,0,0);assert(none!=stale);
+    // Deterministically complete an older queued selection after the user chose
+    // None. A stale worker cannot resurrect the endpoint or its old channel map.
+    uint32_t activated=1;std::thread worker([&]{activated=lg_midi_output_activate(h,stale,legacyChannels.data(),8,1);});worker.join();
+    assert(activated==0&&lg_midi_output_active_epoch(h)==0);
+    expand(h);assert(lg_midi_output_activate(h,stale,legacyChannels.data(),8,1)==0);
+    const auto current=lg_midi_output_configure(h,nullptr,0,0);
+    assert(lg_midi_output_activate(h,current,legacyChannels.data(),8,1)==current);
+    assert(lg_midi_output_active_epoch(h)==current&&uint32_t(h->outputConfiguration())==0x21);
+    assert(lg_midi_output_activate(h,current,legacyChannels.data(),8,1)==0);
+    assert(lg_midi_output_activate(h,0,legacyChannels.data(),8,1)==0);
+    assert(lg_midi_output_activate(h,current,nullptr,0,1)==0);
+    // Generation zero is reserved for disabled/failure even after wraparound.
+    h->outputGeneration.store(0x7ffffffe);assert(lg_midi_output_configure(h,nullptr,0,0)==0x7fffffff);
+    assert(lg_midi_output_configure(h,nullptr,0,0)==1);lg_midi_destroy(h);
+}
+
 static void render(LGKernel*k,LGMIDIHub*h,uint64_t time,int frames,float*l,float*r){realtime=true;lg_render_midi(k,h,time,48000,l,r,frames);realtime=false;for(int i=0;i<frames;i++)assert(std::isfinite(l[i])&&std::isfinite(r[i]));}
 static void advance(LGKernel*k,LGMIDIHub*h,uint64_t origin,int frames){std::array<float,1024>l{},r{};while(frames){const int n=std::min(frames,1024);render(k,h,origin+lg_clock(k),n,l.data(),r.data());frames-=n;}}
 static const std::array<LGProjectTrack,2> beforeTracks{{{{0,-1,1},2,0,0,11},{{0,1,1},2,2,1,22}}};
@@ -116,6 +136,29 @@ static void heldSustainAndDeletedSource(){
     LGMIDIEvent input[8];const int n=lg_midi_monitor_pop(h,input,8);assert(n==3);for(int i=0;i<n;i++)assert(input[i].hostTime<origin+48000);assert(lg_midi_connected(h,256));lg_destroy(k);lg_midi_destroy(h);
 }
 
+static void immediateOffWhileLayoutPending(){
+    auto*k=lg_create(48000);auto*h=lg_midi_create();const uint64_t origin=300000;
+    lg_midi_output_configure(h,legacyChannels.data(),8,1);lg_midi_configure_track(h,256,11,0,0,65535);
+    assert(lg_submit_project(k,nullptr,0,240,0,15360,1,1,1,beforeTracks.data(),2,0,0,0));lg_play(k,1);advance(k,h,origin,1000);
+    const LGNote next={3840,960,67,100,0,-1,2};assert(lg_submit_project(k,&next,1,240,0,15360,1,2,2,afterTracks.data(),3,0,0,0));
+    push(h,256,origin+1000,0x90,72,110);push(h,256,origin+1001,0xb0,64,127);push(h,256,origin+1002,0x80,72,0);
+    push(h,256,origin+48000,0x90,74,110);advance(k,h,origin,512);
+    LGMIDIEvent input[8];assert(lg_midi_monitor_pop(h,input,8)==3);assert(lg_revision(k)==1);
+    const auto stale=lg_midi_output_configure(h,nullptr,0,0);
+    lg_midi_disconnect(h,0);lg_midi_output_configure(h,nullptr,0,0);
+    assert(lg_midi_output_activate(h,stale,legacyChannels.data(),8,1)==0);
+    const uint8_t blocked[]={0x90,75,100};assert(!lg_midi_push(h,256,origin+1512,blocked,3));
+    std::array<float,1024>l{},r{};render(k,h,origin+1512,1024,l.data(),r.data());
+    assert(lg_revision(k)==1&&lg_playing(k)&&lg_midi_output_active_epoch(h)==0);
+    for(int i=512;i<1024;i++)assert(l[i]==0&&r[i]==0); // Its bounded 8 ms release ends before the bar.
+    advance(k,h,origin,48000-int(lg_clock(k))+512);assert(lg_revision(k)==2);
+    render(k,h,origin+lg_clock(k),1024,l.data(),r.data());float left=0,right=0;for(int i=0;i<1024;i++){left+=std::abs(l[i]);right+=std::abs(r[i]);}
+    assert(left>0.01f&&right==0); // New project uses its new bus, never stale input.
+    LGMIDIOutput events[8];assert(lg_midi_output_pop(h,events,8)==0);
+    assert(lg_midi_monitor_pop(h,input,8)==0&&!lg_midi_connected(h,256)&&lg_midi_output_active_epoch(h)==0);
+    lg_destroy(k);lg_midi_destroy(h);
+}
+
 static void concurrentEndpointSelection(){
     auto*h=lg_midi_create();original(h);std::atomic<bool>done{false};
     std::thread control([&]{for(int i=0;i<10000;i++)lg_midi_output_configure(h,legacyChannels.data(),8,1);done.store(true,std::memory_order_release);});
@@ -128,4 +171,4 @@ static void concurrentEndpointSelection(){
     control.join();lg_midi_destroy(h);
 }
 
-int main(){keyedFutureInput();staleBindingPackets();outputMapAndWorkerRace();exactKernelBoundary();heldSustainAndDeletedSource();concurrentEndpointSelection();assert(realtimeAllocations.load()==0);std::cout<<"MIDI live layout: UUID input/future/sustain safety, stale packet generations, exact boundary output and input, asynchronous endpoint maps, legacy routing and zero realtime allocations passed\n";}
+int main(){keyedFutureInput();staleBindingPackets();outputMapAndWorkerRace();staleEndpointActivation();exactKernelBoundary();heldSustainAndDeletedSource();immediateOffWhileLayoutPending();concurrentEndpointSelection();assert(realtimeAllocations.load()==0);std::cout<<"MIDI live layout: UUID input/future/sustain safety, stale packet generations, exact boundary output/input, immediate Off during pending layouts, conditional endpoint activation, legacy routing and zero realtime allocations passed\n";}

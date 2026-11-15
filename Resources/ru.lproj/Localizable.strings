@@ -597,3 +597,4 @@
 "Add clip" = "Добавить клип";
 "Add clip to %@" = "Добавить клип на дорожку «%@»";
 "There is no room for another clip. Shorten or move an existing clip first." = "Для нового клипа нет места. Сначала укороти или передвинь существующий клип.";
+"This project has reached its revision limit. Save a copy to continue editing." = "Достигнут лимит версий проекта. Сохрани копию, чтобы продолжить редактирование.";

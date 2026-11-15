@@ -595,3 +595,4 @@
 "Add clip" = "Add clip";
 "Add clip to %@" = "Add clip to %@";
 "There is no room for another clip. Shorten or move an existing clip first." = "There is no room for another clip. Shorten or move an existing clip first.";
+"This project has reached its revision limit. Save a copy to continue editing." = "This project has reached its revision limit. Save a copy to continue editing.";

@@ -24,6 +24,11 @@ final class LiveEditingTests:XCTestCase {
         XCTAssertTrue(element.waitForExistence(timeout:5))
         wait(element,NSPredicate(format:"label == 'PLAYING'"))
     }
+    @MainActor private func toggleThumb(_ toggle:XCUIElement){
+        // SwiftUI exposes the whole Form row as the switch's AX frame. Its
+        // center is the label; the visible native thumb is at the trailing edge.
+        toggle.coordinate(withNormalizedOffset:CGVector(dx:0.9,dy:0.5)).tap()
+    }
 
     @MainActor private func reveal(_ element:XCUIElement,in app:XCUIApplication){
         for _ in 0..<12 {
@@ -45,9 +50,9 @@ final class LiveEditingTests:XCTestCase {
         XCTAssertTrue(toggle.waitForExistence(timeout:5))
         let initial=toggle.value as? String
         XCTAssertNotNil(initial)
-        toggle.tap();wait(toggle,NSPredicate(format:"value != %@",initial ?? ""))
+        toggleThumb(toggle);wait(toggle,NSPredicate(format:"value != %@",initial ?? ""))
         playing(app.staticTexts["bass.playback-state"])
-        toggle.tap();wait(toggle,NSPredicate(format:"value == %@",initial ?? ""))
+        toggleThumb(toggle);wait(toggle,NSPredicate(format:"value == %@",initial ?? ""))
         playing(app.staticTexts["bass.playback-state"])
         app.buttons["Done"].tap()
         XCTAssertTrue(app.buttons["Stop"].waitForExistence(timeout:5))
@@ -72,6 +77,7 @@ final class LiveEditingTests:XCTestCase {
         let app=launchPlaying();app.buttons["sections.open"].tap()
         XCTAssertTrue(app.navigationBars["Song sections"].waitForExistence(timeout:5))
         let menus=app.buttons.matching(NSPredicate(format:"identifier BEGINSWITH 'section.menu.'"))
+        XCTAssertTrue(menus.firstMatch.waitForExistence(timeout:5))
         XCTAssertGreaterThan(menus.count,0)
         let original=menus.allElementsBoundByIndex.map(\.identifier)
         let first=original[0]
@@ -101,8 +107,10 @@ final class LiveEditingTests:XCTestCase {
     @MainActor func testAssistantWholeSongABAndStopRestoreRunningProject(){
         let app=launchPlaying();app.buttons["assistant.open"].tap()
         XCTAssertTrue(app.navigationBars["Assistant"].waitForExistence(timeout:5))
-        app.buttons["Examples"].tap()
-        app.buttons["Song: Intro 4 bars: Dm Gm A Dm; Chorus 8 bars: Dm Gm C F each 2 bars"].tap()
+        app.buttons["assistant.examples"].tap()
+        XCTAssertTrue(app.navigationBars["Examples"].waitForExistence(timeout:5))
+        let example=app.buttons["assistant.example.song-form"];reveal(example,in:app);example.tap()
+        XCTAssertTrue(app.navigationBars["Assistant"].waitForExistence(timeout:5))
         let review=app.buttons["assistant.generate"];reveal(review,in:app);review.tap()
         let proposal=app.buttons["assistant.b"];reveal(proposal,in:app)
         XCTAssertTrue(app.descendants(matching:.any)["assistant.form-review"].exists)

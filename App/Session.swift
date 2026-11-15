@@ -73,7 +73,13 @@ import Observation
         bootstrapTask=task;await task.value
     }
     func ensureAudio() -> Bool {guard !backgrounded || remoteStarting else{return false}; if audio.isPrepared {return true}; do {try audio.prepare(); sync(); return true} catch {audio.error = error.localizedDescription; return false} }
-    func syncMIDI(){guard !backgrounded || audio.playing || remoteStarting else{return};if let adopted=audio.activeMIDIRouting{midi.configure(adopted.midi,tracks:adopted.tracks)}else if !audio.playing{midi.configure(project.midi ?? MIDISettings(),tracks:project.tracks)}}
+    func syncMIDI(){
+        guard !backgrounded || audio.playing || remoteStarting else{return}
+        // Device consent and selection take effect at the touch, even while a
+        // structural edit waits for its bar. Only UUID routing follows the
+        // adopted layout; the hub resolves its current index at the boundary.
+        midi.configure(project.midi ?? MIDISettings(),tracks:audio.activeMIDIRouting?.tracks ?? project.tracks)
+    }
     func ownsMicrophone(_ owner:UUID)->Bool{microphoneOwner==owner && !backgrounded}
     func beginMicrophone(stop:@escaping()->Void)->UUID? {
         guard !backgrounded else{return nil}

@@ -215,7 +215,11 @@ public struct Section: Codable, Equatable, Identifiable, Sendable {
 }
 public struct Project: Codable, Equatable, Identifiable, Sendable {
     public var id: UUID = UUID(); public static let currentSchemaVersion=8
+    /// Portable, nonnegative revision IDs. Exhaustion requires a new project
+    /// copy rather than wrapping an ID used by history, saving and playback.
+    public static let maximumRevision=Int(Int32.max)
     public var schemaVersion = Project.currentSchemaVersion; public var revision = 0
+    fileprivate var nextRevision:Int? {revision>=0 && revision<Self.maximumRevision ? revision+1:nil}
     public var name: String; public var bpm: Double = 120; public var keyRoot = 0; public var minor = false
     public var modified = Date(); public var tracks: [Track]; public var patterns: [Pattern]; public var sections: [Section]
     public var masterFX:MasterFX?;public var performanceTakes:[PerformanceTake]?
@@ -245,7 +249,7 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
     }
     public func validate() throws {
         guard schemaVersion == Self.currentSchemaVersion else { throw MusicError.unsupportedSchema }
-        guard bpm.isFinite, (40...240).contains(bpm), (0..<12).contains(keyRoot), !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, name.count <= 120,
+        guard (0...Self.maximumRevision).contains(revision),bpm.isFinite, (40...240).contains(bpm), (0..<12).contains(keyRoot), !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, name.count <= 120,
               (1...8).contains(sections.count), (barTicks...64*barTicks).contains(length), tracks.count >= 2, tracks.count <= 8,
               bassGate.isFinite, (0.1...1).contains(bassGate), (-1...1).contains(bassOctave), master.isFinite, (-61...6).contains(master),
               tracks[0].role == .harmony, tracks[1].role == .drums, tracks.dropFirst(2).allSatisfy({$0.role == .bass || $0.role == .melody}), tracks.filter({$0.role == .bass}).count <= 1,
@@ -329,13 +333,14 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
 
 }
 public enum MusicError: Error, LocalizedError {
-    case invalidChord, invalidProject, unsupportedSchema, limit, tooDense, trackLimit, assetLimit
+    case invalidChord, invalidProject, unsupportedSchema, limit, tooDense, trackLimit, assetLimit, revisionLimit
     public var errorDescription: String? {
         let key = switch self {
         case .invalidChord: "Unrecognized chord. Choose a chord from the list."
         case .unsupportedSchema: "This project was made with a newer version. The original has been preserved."
         case .limit: "A song can contain up to 8 sections and 64 bars."
         case .assetLimit: "A project can keep up to eight source recordings."
+        case .revisionLimit: "This project has reached its revision limit. Save a copy to continue editing."
         case .trackLimit: "A project can contain up to eight tracks."
         case .tooDense: "This project has too many events."
         case .invalidProject: "The project contains invalid musical data."
@@ -351,11 +356,12 @@ public struct History: Sendable {
     public init() {}
     public var canUndo: Bool { !past.isEmpty }; public var canRedo: Bool { !future.isEmpty }
     public mutating func apply(_ project: inout Project, coalescing: Bool = false, _ change: (inout Project) throws -> Void) throws {
-        var candidate = project; try change(&candidate); candidate.revision = project.revision + 1; candidate.modified = Date(); try candidate.validate()
+        guard let revision=project.nextRevision else{throw MusicError.revisionLimit}
+        var candidate = project; try change(&candidate); candidate.revision = revision; candidate.modified = Date(); try candidate.validate()
         if !coalescing || past.isEmpty { past.append(project) }; if past.count > 80 { past.removeFirst() }; future.removeAll(); project = candidate
     }
-    public mutating func undo(_ project: inout Project) { guard var p = past.popLast() else { return }; future.append(project); p.revision = project.revision + 1; p.modified = Date(); project = p }
-    public mutating func redo(_ project: inout Project) { guard var p = future.popLast() else { return }; past.append(project); p.revision = project.revision + 1; p.modified = Date(); project = p }
+    public mutating func undo(_ project: inout Project) { guard let revision=project.nextRevision,var p = past.last else { return };past.removeLast(); future.append(project); p.revision = revision; p.modified = Date(); project = p }
+    public mutating func redo(_ project: inout Project) { guard let revision=project.nextRevision,var p = future.last else { return };future.removeLast(); past.append(project); p.revision = revision; p.modified = Date(); project = p }
 }
 
 public enum ProjectDocument {

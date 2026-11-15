@@ -24,6 +24,11 @@ uint64_t lg_midi_dropped(LGMIDIHub *hub);
 int lg_midi_connected(LGMIDIHub *hub,uint32_t handle);
 void lg_midi_input_overflow(LGMIDIHub *hub,uint32_t handle);
 uint32_t lg_midi_output_configure(LGMIDIHub *hub,const int32_t *channels,int count,int enabled);
+// Complete asynchronous endpoint selection only if its disabled generation is
+// still current. A newer selection or None cannot be re-enabled by old work.
+uint32_t lg_midi_output_activate(LGMIDIHub *hub,uint32_t generation,const int32_t *channels,int count,int enabled);
+// Zero means disabled; otherwise the currently enabled destination generation.
+uint32_t lg_midi_output_active_epoch(LGMIDIHub *hub);
 int lg_midi_output_pop(LGMIDIHub *hub,LGMIDIOutput *events,int capacity);
 int lg_midi_output_error(LGMIDIHub *hub);
 void lg_midi_output_failed(LGMIDIHub *hub,int error);

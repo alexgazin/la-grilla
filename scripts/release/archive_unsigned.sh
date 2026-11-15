@@ -14,5 +14,6 @@ import pathlib,re
 a,b=[re.findall(r'UUID: ([0-9A-F-]+)',pathlib.Path('ReleaseArtifacts/'+x+'-uuid.txt').read_text()) for x in ['binary','dsym']]
 assert a and a==b,'Binary and dSYM UUID mismatch'
 PY
+python3 scripts/release/audit_binary.py ReleaseArtifacts/LaGrilla-unsigned.xcarchive/Products/Applications/LaGrilla.app/LaGrilla --report ReleaseArtifacts/binary-audit.log
 ditto -c -k --sequesterRsrc --keepParent ReleaseArtifacts/LaGrilla-unsigned.xcarchive ReleaseArtifacts/LaGrilla-unsigned-archive.zip
 echo 'Unsigned archive verified. Signing and installation require the distribution workflow.'

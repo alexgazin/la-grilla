@@ -23,6 +23,7 @@ struct AssistantView:View {
     @State private var generationTask:Task<Void,Never>?
     @State private var timeoutTask:Task<Void,Never>?
     @State private var microphoneLease:UUID?
+    @State private var showExamples=false
     var body:some View {
         NavigationStack {
             ScrollView {
@@ -35,15 +36,7 @@ struct AssistantView:View {
                     TextEditor(text:$input).focused($focused).disabled(dictation.recording || dictation.requesting || dictation.finalizing).frame(height:110).scrollContentBackground(.hidden).padding(8).modifier(StudioSurface()).overlay(alignment:.topLeading){if input.isEmpty && !focused{Text("Try: Tempo 110").font(.subheadline).foregroundStyle(Color.muted).padding(16).allowsHitTesting(false).accessibilityHidden(true)}}.accessibilityLabel("Command").accessibilityIdentifier("assistant.input")
                         .onChange(of:input){_,value in if value.count>2000{input=String(value.prefix(2000))};if value != generatedInput{cancelGeneration();proposal=nil;candidate=nil};session.endHarmonyPreview()}
                     HStack {
-                        Menu("Examples"){
-                            Button("Tempo 110"){input="Tempo 110"}
-                            Button("Key D minor"){input="Key D minor"}
-                            Button("Chorus 8 bars: Am F C G each 2 bars"){input="Chorus 8 bars: Am F C G each 2 bars"}
-                            Button("Припев 8 тактов: Am F C G по два такта"){input="Припев 8 тактов: Am F C G по два такта"}
-                            Button("Jazz up this section"){input="Поджазуй"}
-                            Button("Song: Intro 4 bars: Dm Gm A Dm; Chorus 8 bars: Dm Gm C F each 2 bars"){input="Song: Intro 4 bars: Dm Gm A Dm; Chorus 8 bars: Dm Gm C F each 2 bars"}
-                            Button("Create a complete song form"){input=language.hasPrefix("ru") ? "Создай форму: интро 4 такта, куплет 8 тактов и припев 8 тактов. Тональность Ре минор, темп 108. Используй Dm7 Gm7 A7 Dm7.":"Create a song form: 4-bar intro, 8-bar verse and 8-bar chorus in D minor at 108 BPM, using Dm7 Gm7 A7 Dm7.";mode = .onDeviceAI}
-                        }.frame(minHeight:44).disabled(dictation.recording || dictation.requesting || dictation.finalizing)
+                        Button("Examples"){focused=false;showExamples=true}.frame(minHeight:44).disabled(dictation.recording || dictation.requesting || dictation.finalizing).accessibilityIdentifier("assistant.examples")
                         Spacer()
                         Picker("Dictation language",selection:$language){Text("RU").tag("ru-RU");Text("EN").tag("en-US")}.pickerStyle(.menu).disabled(dictation.recording || dictation.requesting || dictation.finalizing)
                         Button{toggleDictation()}label:{Image(systemName:dictation.recording ? "stop.circle.fill":"mic.fill").frame(width:44,height:44).foregroundStyle(dictation.recording ? Color.record:Color.mint)}.accessibilityLabel(LocalizedStringKey(dictation.recording ? "Stop dictation":"Dictate a command")).disabled(dictation.requesting || dictation.finalizing)
@@ -62,6 +55,7 @@ struct AssistantView:View {
             }.scrollDismissesKeyboard(.interactively).background(Color.ink).navigationTitle("Assistant").navigationBarTitleDisplayMode(.inline)
                 .toolbar{ToolbarItem(placement:.cancellationAction){Button("Cancel"){dismiss()}}}
         }.tint(.mint)
+        .sheet(isPresented:$showExamples){AssistantExamplesView(language:language){text,requiresAI in input=text;if requiresAI{mode = .onDeviceAI};showExamples=false}}
         .onChange(of:dictation.text){_,value in if !value.isEmpty{input=value}}
         .onChange(of:mode){_,_ in cancelGeneration();proposal=nil;candidate=nil;error=nil}
         .onChange(of:language){_,value in cancelGeneration();proposal=nil;candidate=nil;ai.refresh(localeIdentifier:value)}
@@ -143,4 +137,22 @@ struct AssistantView:View {
         Task{guard session.ownsMicrophone(lease)else{return};await dictation.start(locale:language,audio:session.audio);if !dictation.recording{session.endMicrophone(lease);if microphoneLease==lease{microphoneLease=nil}}}
     }
     func restoreAudio(){if let lease=microphoneLease{microphoneLease=nil;session.endMicrophone(lease)}}
+}
+
+/// Long musical examples remain ordinary list buttons with stable hit targets.
+/// A sheet also lets VoiceOver and larger type browse the complete commands.
+private struct AssistantExamplesView:View {
+    let language:String
+    let choose:(String,Bool)->Void
+    @Environment(\.dismiss) private var dismiss
+    var body:some View {NavigationStack{List{
+        Button("Tempo 110"){choose("Tempo 110",false)}
+        Button("Key D minor"){choose("Key D minor",false)}
+        Button("Chorus 8 bars: Am F C G each 2 bars"){choose("Chorus 8 bars: Am F C G each 2 bars",false)}
+        Button("Припев 8 тактов: Am F C G по два такта"){choose("Припев 8 тактов: Am F C G по два такта",false)}
+        Button("Jazz up this section"){choose("Поджазуй",false)}
+        Button("Song: Intro 4 bars: Dm Gm A Dm; Chorus 8 bars: Dm Gm C F each 2 bars"){choose("Song: Intro 4 bars: Dm Gm A Dm; Chorus 8 bars: Dm Gm C F each 2 bars",false)}.accessibilityIdentifier("assistant.example.song-form")
+        Button{choose(language.hasPrefix("ru") ? "Создай форму: интро 4 такта, куплет 8 тактов и припев 8 тактов. Тональность Ре минор, темп 108. Используй Dm7 Gm7 A7 Dm7.":"Create a song form: 4-bar intro, 8-bar verse and 8-bar chorus in D minor at 108 BPM, using Dm7 Gm7 A7 Dm7.",true)}label:{Label("Create a complete song form",systemImage:"sparkles")}
+    }.environment(\.defaultMinListRowHeight,52).navigationTitle("Examples").navigationBarTitleDisplayMode(.inline).toolbar{ToolbarItem(placement:.cancellationAction){Button("Cancel"){dismiss()}}}}
+    .presentationDetents([.large]).tint(.mint)}
 }

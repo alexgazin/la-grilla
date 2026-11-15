@@ -74,6 +74,7 @@ final class PerformControlTests:XCTestCase {
         let app=launch(largeType:true)
         let knob=app.sliders["perform.filter"],reset=app.buttons["perform.filter.reset"]
         XCTAssertTrue(knob.waitForExistence(timeout:5));XCTAssertTrue(app.buttons["perform.play"].isHittable)
+        XCTAssertGreaterThanOrEqual(app.buttons["perform.section.Verse"].frame.width,app.scrollViews.firstMatch.frame.width*0.8)
         app.buttons["perform.play"].tap()
         waitForValue(knob,NSPredicate(format:"enabled == true"))
         let scroll=app.scrollViews.firstMatch

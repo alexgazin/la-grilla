@@ -66,6 +66,28 @@
 
 Для C8 нужны реальные Apple signing ресурсы и оборудование: установленная сборка, человеческие напевы, USB/BLE MIDI, route/latency/thermal/background сессии, настоящая локальная модель, TestFlight и App Review. Независимая программная работа продолжается; недоступность этих ресурсов не превращается в выдуманную отметку «готово».
 
+### C7 — первый нативный прогон и исправления по фактам
+
+Источник `12dc161`, run `43714307514`: обе SDK-сборки и optimized archive проходят. Прошли все 19 прежних Studio-сценариев, два Harmony Catalog, два Assistant Composition, три Perform Control и проверка настоящего AudioController snapshot. Последняя проверила слышимый preview по meter, согласованный pending mix/FX, preset-only invalidation, 80 публикаций, ограниченный routing cache, kernel identity и фазу.
+
+Общий native результат **не принят**. Исправления по hierarchy/video/log:
+
+- Родительский `grid.lane` identifier подменял UUID и frame каждого clip; удалён. Clip/section drag используют один String Transferable с обеих сторон; native gesture tests сохраняют реальный перенос и Undo/Redo с полноценным lift/dwell.
+- Родительский `section.row` identifier подменял menu identifier; удалён, menu получил название секции. У Bass Switch iOS 26 AX frame включает всю строку: тест касался середины label; теперь касается настоящего thumb и по-прежнему проверяет смену значения и Play.
+- Длинная строка команды в native Examples popup не имела рабочего activation point; после повторных таймаутов меню заменено обычным sheet/List с полным текстом и стабильными ID.
+- Mic fixture запрашивал permission во время `app.launch`, до присоединения XCTest; видео показывает WAITING и живой системный alert, CrashReports отсутствуют. Fixture теперь ждёт READY и явного Start после launch, с зарегистрированной обработкой permission. Проверки реального PCM/route/phase не ослаблены; оснований менять production audio graph по этому сбою нет.
+- SwiftUI Stepper экспортирует составной child identifier (`voice.pitch-Increment`), а не голую кнопку Increment; запрос исправлен по фактической hierarchy.
+- Реальные кадры показали непонятный выбор `None` без подписи Slash bass; подписи двух menu pickers добавлены явно. В accessibility-размере DJ section pads переходят в одну колонку, чтобы Chorus не обрезался.
+
+Дополнительно закрыты два обнаруженных дефекта данных/управления:
+
+- Текущее отключение MIDI input/output больше не ждёт музыкального поколения. Output worker активирует только свой ещё актуальный disabled epoch; старая queued selection не включает уже отключённый endpoint. Host regressions проверяют held/sustain release, pending layout, stale input/output, no reconnect после adoption и правильный новый bus. Добавлен actual Session/virtual CoreMIDI native regression.
+- Импортированный `revision = Int.max` раньше принимался и приводил к overflow на следующей правке. Диапазон ограничен `0...Project.maximumRevision`; History проверяет следующий номер до изменения данных/стеков. Пять новых тестов проверили обычные Undo/Redo, границы, JSON/portable/store, сохранность исходника и атомарный отказ. **112 Swift tests проходят**, 14 C++ suites и targeted ASan/UBSan проходят; presentation audit — 588 EN/RU ключей.
+
+Release archive `12dc161` проверен отдельно: iOS 18 minimum, SDK 26.2, version 1.0.0 (14), matching binary/dSYM UUID, privacy/localizations/resources. FoundationModels — weak load, все 77 imports и chained-loader bindings weak; нет startup initializer или unguarded startup call. Reusable `audit_binary.py` включён в archive CI; четыре negative corruption probes корректно отклонены. Это статическая проверка совместимости, а не выдуманный запуск на физическом iOS 18.
+
+В capture collector исправлено ложное распознавание суффикса UUID как stage name (`...A5C2-D263...`). Регрессионный fixture проверяет настоящее suggested screenshot name и побайтовое сохранение PNG. Это исправление метаданных, а не изменение изображения.
+
 ## Формат отчёта каждого этапа
 
 Для C1–C8 добавлять отдельную запись:

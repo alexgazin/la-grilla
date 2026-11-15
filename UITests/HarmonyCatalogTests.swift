@@ -39,6 +39,12 @@ final class HarmonyCatalogTests:XCTestCase {
         replace(formula,with:"0, 3, 7, 11, 14")
         XCTAssertFalse(app.staticTexts["chord.error"].exists)
         XCTAssertEqual(app.staticTexts["chord.notes"].label,"C4 · E♭4 · G4 · B4 · D5")
+        reveal(app.buttons["chord.inversion"],in:app)
+        XCTAssertTrue(app.staticTexts["Inversion"].exists)
+        XCTAssertTrue(app.staticTexts["Slash bass"].exists)
+        XCTAssertGreaterThanOrEqual(app.buttons["chord.inversion"].frame.height,44)
+        reveal(app.buttons["chord.slash-bass"],in:app)
+        XCTAssertGreaterThanOrEqual(app.buttons["chord.slash-bass"].frame.height,44)
         let apply=app.buttons["chord.apply"];reveal(apply,in:app);apply.tap()
         XCTAssertTrue(app.buttons["Undo"].waitForExistence(timeout:5));XCTAssertTrue(app.buttons["Undo"].isEnabled)
         let tile=app.buttons.matching(NSPredicate(format:"identifier BEGINSWITH 'grid.chord.' AND label CONTAINS 'Custom chord'")).firstMatch

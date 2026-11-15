@@ -33,9 +33,21 @@ uint32_t lg_midi_output_configure(LGMIDIHub*h,const int32_t*channels,int count,i
     if(!h||(count!=0&&count!=8)||(count==8&&!channels)||(enabled&&count!=8))return 0;
     uint32_t packed=0;for(int i=0;i<count&&i<8;i++){if(channels[i]<0||channels[i]>15)return 0;packed|=uint32_t(channels[i])<<(i*4);}
     const auto layout=h->projectOutputChannels.load(std::memory_order_acquire);if(layout&(1ull<<32))packed=uint32_t(layout);
-    const uint32_t generation=(h->outputGeneration.fetch_add(1)+1)&0x7fffffffu;
+    uint32_t generation=(h->outputGeneration.fetch_add(1)+1)&0x7fffffffu;
+    if(!generation)generation=(h->outputGeneration.fetch_add(1)+1)&0x7fffffffu;
     h->outputError.store(0);h->outputState.store((uint64_t(generation)<<33)|(uint64_t(enabled!=0)<<32)|packed,std::memory_order_release);return generation;
 }
+uint32_t lg_midi_output_activate(LGMIDIHub*h,uint32_t generation,const int32_t*channels,int count,int enabled){
+    if(!h||!generation||generation>0x7fffffffu||(count!=0&&count!=8)||(count==8&&!channels)||(enabled&&count!=8))return 0;
+    uint32_t packed=0;for(int i=0;i<count;i++){if(channels[i]<0||channels[i]>15)return 0;packed|=uint32_t(channels[i])<<(i*4);}
+    const auto layout=h->projectOutputChannels.load(std::memory_order_acquire);if(layout&(1ull<<32))packed=uint32_t(layout);
+    auto expected=h->outputState.load(std::memory_order_acquire);
+    if(uint32_t(expected>>33)!=generation||(expected&(1ull<<32)))return 0;
+    const auto desired=(uint64_t(generation)<<33)|(uint64_t(enabled!=0)<<32)|packed;
+    if(!h->outputState.compare_exchange_strong(expected,desired,std::memory_order_acq_rel))return 0;
+    h->outputError.store(0);return generation;
+}
+uint32_t lg_midi_output_active_epoch(LGMIDIHub*h){if(!h)return 0;const auto state=h->outputState.load(std::memory_order_acquire);return state&(1ull<<32) ? uint32_t(state>>33):0;}
 int lg_midi_output_pop(LGMIDIHub*h,LGMIDIOutput*events,int capacity){if(!h||!events||capacity<1||capacity>512)return 0;int count=0;while(count<capacity&&h->output.pop(events[count]))count++;return count;}
 int lg_midi_output_error(LGMIDIHub*h){return h?h->outputError.load():0;}
 void lg_midi_output_failed(LGMIDIHub*h,int error){if(h)h->outputError.store(error);}

@@ -95,7 +95,7 @@ struct GridView: View {
                 .foregroundStyle(selected ? Color.ink:Color.studioText)
                 .background(selected ? Color.mint:Color.panel,in:Capsule())
         }.buttonStyle(StudioQuietButtonStyle()).accessibilityIdentifier("grid.section.\(section.id)")
-            .onDrag{editingLocked ? NSItemProvider():NSItemProvider(object:ArrangementDragPayload(project:session.project,sectionID:section.id).encoded() as NSString)}
+            .modifier(ArrangementDragSource(payload:editingLocked ? nil:ArrangementDragPayload(project:session.project,sectionID:section.id).encoded()))
             .dropDestination(for:String.self){items,_ in dropSection(items,on:section.id)}
     }
     private var clipControls:some View {
@@ -136,7 +136,9 @@ struct GridView: View {
             if targetTrack==track.id {Rectangle().fill(Color.mint.opacity(0.09)).allowsHitTesting(false)}
             ForEach(track.clips){clip in clipBlock(track:track,clip:clip,height:height,notes:rendered)}
         }.frame(width:CGFloat(timelineBars)*barWidth,height:height)
-            .accessibilityIdentifier("grid.lane.\(track.id)")
+            // A container identifier propagates to SwiftUI's custom clip
+            // elements, replacing their UUIDs and widening their AX frames to
+            // the whole lane. Each clip owns its accessibility identity.
             .dropDestination(for:String.self,action:{items,point in dropClip(items,on:track.id,at:point)},isTargeted:{targeted in if targeted{targetTrack=track.id}else if targetTrack==track.id{targetTrack=nil}})
     }
     private func clipBlock(track:Track,clip:Clip,height:CGFloat,notes:[CompiledNote])->some View {
@@ -166,12 +168,7 @@ struct GridView: View {
             .simultaneousGesture(DragGesture(minimumDistance:0).onChanged{value in
                 if grabbedClip != clip.id{grabbedClip=clip.id;grabbedOffset=max(0,min(clip.length-1,Int(value.startLocation.x/barWidth*CGFloat(barTicks))))}
             }.onEnded{_ in grabbedClip=nil})
-            .onDrag{
-                guard !editingLocked,resizeDraft==nil else{return NSItemProvider()}
-                let offset=grabbedClip==clip.id ? grabbedOffset:0
-                let token=ArrangementDragPayload(project:session.project,trackID:track.id,clipID:clip.id,grabOffset:offset)
-                return NSItemProvider(object:token.encoded() as NSString)
-            }
+            .modifier(ArrangementDragSource(payload:editingLocked || resizeDraft != nil ? nil:ArrangementDragPayload(project:session.project,trackID:track.id,clipID:clip.id,grabOffset:grabbedClip==clip.id ? grabbedOffset:0).encoded()))
             .contextMenu{
                 Button("Edit clip contents"){pendingClipEditor=ClipEditorSelection(trackID:track.id,clipID:clip.id);openPendingClipEditor()}
                 Button("Clip settings"){clipSelection=ClipEditorSelection(trackID:track.id,clipID:clip.id)}
@@ -398,6 +395,15 @@ struct GridView: View {
         }.frame(height:melodyHeight).contentShape(Rectangle()).onTapGesture{session.openNotes(track.id)}.accessibilityLabel("Edit \(track.displayName)")
     }
     func gridBackground(height: CGFloat)->some View {Canvas{context,size in for step in 0...timelineBars*4 {let x=CGFloat(step)*barWidth/4;var p=Path();p.move(to:CGPoint(x:x,y:0));p.addLine(to:CGPoint(x:x,y:height));context.stroke(p,with:.color(Color.raised.opacity(step%4==0 ? 1:0.4)),lineWidth:1)};var line=Path();line.move(to:CGPoint(x:0,y:height));line.addLine(to:CGPoint(x:size.width,y:height));context.stroke(line,with:.color(.raised),lineWidth:1)}}
+}
+
+/// Keep the drag source and receiver on the same native Transferable contract.
+/// Locked clips retain tap/launch behavior without exporting an empty provider.
+private struct ArrangementDragSource:ViewModifier {
+    let payload:String?
+    @ViewBuilder func body(content:Content)->some View {
+        if let payload{content.draggable(payload)}else{content}
+    }
 }
 
 struct ChordTile: View {

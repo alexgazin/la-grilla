@@ -28,13 +28,15 @@ final class MIDIOutputWorker:@unchecked Sendable {
         // if a snapshot was adopted while this asynchronous selection waited.
         // Invalidate the old destination immediately. An in-flight render buffer
         // can still publish its old epoch; the worker will discard those events.
-        _ = lg_midi_output_configure(hub.pointer,nil,0,0)
+        let request=lg_midi_output_configure(hub.pointer,nil,0,0)
         queue.async{ [self] in
             if destination != 0{releaseAll()}
             while buffer.withUnsafeMutableBufferPointer({lg_midi_output_pop(hub.pointer,$0.baseAddress,Int32($0.count))})>0{}
-            destination=endpoint;failed=false
+            destination=0;failed=false
+            let selected=channels.withUnsafeBufferPointer{lg_midi_output_activate(hub.pointer,request,$0.baseAddress,Int32($0.count),endpoint==0 ? 0:1)}
+            guard selected != 0 else{epoch=0;timer?.cancel();timer=nil;return}
+            destination=endpoint;epoch=selected
             if endpoint==0{timer?.cancel();timer=nil}else{startTimer()}
-            epoch=channels.withUnsafeBufferPointer{lg_midi_output_configure(hub.pointer,$0.baseAddress,Int32($0.count),endpoint==0 ? 0:1)}
         }
     }
     /// Complete note release before iOS can suspend the process. This is called
@@ -65,6 +67,9 @@ final class MIDIOutputWorker:@unchecked Sendable {
         let count=buffer.withUnsafeMutableBufferPointer{lg_midi_output_pop(hub.pointer,$0.baseAddress,Int32($0.count))}
         guard destination != 0,!failed else{return}
         for event in buffer.prefix(Int(count)) where event.epoch==epoch {
+            // A control-thread None/retry invalidates this batch immediately,
+            // before its asynchronous endpoint cleanup reaches this queue.
+            guard lg_midi_output_active_epoch(hub.pointer)==epoch else{return}
             if event.status==0{releaseAll();continue}
             let status=send(time:event.hostTime,status:event.status,a:event.a,b:event.b)
             if status != noErr{lg_midi_output_failed(hub.pointer,status);return};lg_midi_output_sent(hub.pointer,1)
