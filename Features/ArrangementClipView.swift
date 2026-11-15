@@ -1,6 +1,15 @@
 import SwiftUI
 import MusicDomain
 
+extension MusicalPosition {
+    var arrangementAccessibilityDescription: String {
+        if tickWithinBeat == 0 {
+            return String(format:NSLocalizedString("Bar %lld, beat %lld",comment:"Spoken musical position"),Int64(bar),Int64(beat))
+        }
+        return String(format:NSLocalizedString("Bar %lld, beat %lld, tick %lld of 960",comment:"Spoken musical position within a quarter-note beat"),Int64(bar),Int64(beat),Int64(tickWithinBeat))
+    }
+}
+
 struct ClipEditorSelection: Identifiable {
     let trackID: UUID
     let clipID: UUID
@@ -36,7 +45,7 @@ struct ArrangementClipFace: View {
                 }
             }.accessibilityHidden(true)
             if width>=110,height>=85 {
-                Text("\(clip.start/barTicks+1):\(clip.start%barTicks/240+1) → \((clip.start+clip.length)/barTicks+1):\((clip.start+clip.length)%barTicks/240+1)")
+                Text("\(MusicalPosition(tick:clip.start).description) → \(MusicalPosition(tick:clip.start+clip.length).description)")
                     .font(.system(size:11,design:.monospaced)).foregroundStyle(Color.muted).lineLimit(1)
             }
         }.padding(width<62 ? 3:9).frame(width:width,height:height,alignment:.topLeading)
@@ -73,17 +82,23 @@ struct ArrangementClipInspector: View {
                             Text("Editing the source pattern updates every loop of this clip.").font(.caption).foregroundStyle(Color.muted)
                         }
                     }
-                    SwiftUI.Section("Clip position") {
+                    SwiftUI.Section {
                         Picker("Snap",selection:$grid){Text("1 bar").tag(barTicks);Text("1 beat").tag(ppq);Text("1/16").tag(240)}
                         Stepper(value:Binding(get:{clip.start},set:{value in commit{try ClipEditing.move($0,to:selection.trackID,start:value,snap:grid,in:&$1)}}),in:0...max(0,64*barTicks-clip.length),step:grid){
-                            LabeledContent("Start",value:"\(clip.start/barTicks+1):\(clip.start%barTicks/240+1)")
-                        }.accessibilityIdentifier("clip.start").accessibilityValue("\(clip.start/barTicks+1):\(clip.start%barTicks/240+1)")
+                            LabeledContent("Start",value:MusicalPosition(tick:clip.start).description)
+                        }.accessibilityIdentifier("clip.start").accessibilityValue(MusicalPosition(tick:clip.start).description)
+                            .accessibilityHint(MusicalPosition(tick:clip.start).arrangementAccessibilityDescription)
                         Stepper(value:Binding(get:{clip.length},set:{value in commit{try ClipEditing.resize($0,length:value,snap:grid,in:&$1)}}),in:grid...max(grid,64*barTicks-clip.start),step:grid){
                             LabeledContent("Length",value:String(format:NSLocalizedString("%.2f bars",comment:"Clip length"),Double(clip.length)/Double(barTicks)))
                         }.accessibilityIdentifier("clip.length").accessibilityValue(String(format:NSLocalizedString("%.2f bars",comment:"Clip length"),Double(clip.length)/Double(barTicks)))
                         Stepper(value:Binding(get:{clip.offset},set:{value in commit{try ClipEditing.setOffset($0,offset:value,snap:240,in:&$1)}}),in:0...max(0,pattern.length-240),step:240){
-                            LabeledContent("Source offset",value:"\(clip.offset/barTicks+1):\(clip.offset%barTicks/240+1)")
-                        }.accessibilityIdentifier("clip.offset")
+                            LabeledContent("Source offset",value:MusicalPosition(tick:clip.offset).description)
+                        }.accessibilityIdentifier("clip.offset").accessibilityValue(MusicalPosition(tick:clip.offset).description)
+                            .accessibilityHint(String(format:NSLocalizedString("Source pattern: %@",comment:"Distinguish source pattern position from the song timeline"),MusicalPosition(tick:clip.offset).arrangementAccessibilityDescription))
+                    } header: {
+                        Text("Clip position")
+                    } footer: {
+                        Text("Bar:beat:tick · 960 ticks per beat; zero ticks are omitted.")
                     }
                     SwiftUI.Section {
                         Button("Duplicate clip"){commit{try ClipEditing.copy($0,to:selection.trackID,start:clip.start+clip.length,snap:240,in:&$1)}}.frame(minHeight:44).accessibilityIdentifier("clip.duplicate")

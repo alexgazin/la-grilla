@@ -154,7 +154,7 @@ struct GridView: View {
                     .frame(width:corner.width,height:corner.height)
                     .allowsHitTesting(false).accessibilityHidden(true)
             }
-            ArrangementClipControl(label:track.displayName,value:String(format:NSLocalizedString("%.2f bars",comment:"Clip length"),Double(clip.length)/Double(barTicks)),identifier:"grid.clip.\(clip.id)",enabled:!editingLocked,makePayload:{point in
+            ArrangementClipControl(label:track.displayName,value:String(format:NSLocalizedString("%.2f bars",comment:"Clip length"),Double(clip.length)/Double(barTicks)),hint:"\(NSLocalizedString("Clip position",comment:"Song timeline position")): \(MusicalPosition(tick:clip.start).arrangementAccessibilityDescription)",identifier:"grid.clip.\(clip.id)",enabled:!editingLocked,makePayload:{point in
                 guard !editingLocked,resizeDraft==nil,clipSelection==nil,selection==nil,!showClipList,session.sheet==nil,
                       let current=session.project.tracks.first(where:{$0.id==track.id})?.clips.first(where:{$0.id==clip.id})else{return nil}
                 let offset=max(0,min(current.length-1,Int(point.x/barWidth*CGFloat(barTicks))))
@@ -242,14 +242,16 @@ struct GridView: View {
             .disabled(track.role == .bass || editingLocked)
     }
     private func clipListRow(trackID:UUID,clip:Clip)->some View {
-        let position="\(clip.start/barTicks+1):\(clip.start%barTicks/240+1)"
+        let position=MusicalPosition(tick:clip.start)
         let length=String(format:NSLocalizedString("%.2f bars",comment:"Clip length"),Double(clip.length)/Double(barTicks))
         return Button {
             pendingClipInspector=ClipEditorSelection(trackID:trackID,clipID:clip.id)
             showClipList=false
         } label:{
-            HStack{Text(position);Spacer();Text(length).foregroundStyle(Color.muted)}.frame(minHeight:44)
+            HStack{Text(position.description);Spacer();Text(length).foregroundStyle(Color.muted)}.frame(minHeight:44)
         }.accessibilityIdentifier("grid.clip.list.\(clip.id)")
+            .accessibilityLabel(Text("Clip position"))
+            .accessibilityValue("\(position.arrangementAccessibilityDescription), \(length)")
     }
     private func nextFreeClipStart(on track:Track)->Int? {
         var start=0

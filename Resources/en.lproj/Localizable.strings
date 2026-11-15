@@ -596,3 +596,9 @@
 "Add clip to %@" = "Add clip to %@";
 "There is no room for another clip. Shorten or move an existing clip first." = "There is no room for another clip. Shorten or move an existing clip first.";
 "This project has reached its revision limit. Save a copy to continue editing." = "This project has reached its revision limit. Save a copy to continue editing.";
+"Bar %@ · %@ beats (%d ticks)" = "Bar %@ · %@ beats (%d ticks)";
+"No chords in this section." = "No chords in this section.";
+"Bar:beat:tick · 960 ticks per beat; zero ticks are omitted." = "Bar:beat:tick · 960 ticks per beat; zero ticks are omitted.";
+"Bar %lld, beat %lld" = "Bar %lld, beat %lld";
+"Bar %lld, beat %lld, tick %lld of 960" = "Bar %lld, beat %lld, tick %lld of 960";
+"Source pattern: %@" = "Source pattern: %@";

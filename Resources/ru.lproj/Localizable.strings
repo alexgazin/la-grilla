@@ -598,3 +598,9 @@
 "Add clip to %@" = "Добавить клип на дорожку «%@»";
 "There is no room for another clip. Shorten or move an existing clip first." = "Для нового клипа нет места. Сначала укороти или передвинь существующий клип.";
 "This project has reached its revision limit. Save a copy to continue editing." = "Достигнут лимит версий проекта. Сохрани копию, чтобы продолжить редактирование.";
+"Bar %@ · %@ beats (%d ticks)" = "Такт %@ · %@ долей (%d тиков)";
+"No chords in this section." = "В этой секции нет аккордов.";
+"Bar:beat:tick · 960 ticks per beat; zero ticks are omitted." = "Такт:доля:тик · 960 тиков на долю; нулевые тики не показаны.";
+"Bar %lld, beat %lld" = "Такт %lld, доля %lld";
+"Bar %lld, beat %lld, tick %lld of 960" = "Такт %lld, доля %lld, тик %lld из 960";
+"Source pattern: %@" = "Исходный паттерн: %@";

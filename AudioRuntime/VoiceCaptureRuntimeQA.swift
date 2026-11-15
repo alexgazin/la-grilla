@@ -238,7 +238,9 @@ import MusicDomain
         try require(file.length>0 && file.length<=144000,"Production CAF has invalid/unbounded frame count")
         let duration=Double(file.length)/48000
         try require(abs(duration-planned)<=1024.0/48000,"Production CAF lost capture frames or included count-in")
-        try require(abs(result.record.duration-duration)<1.0/48000 && abs(result.analysis.duration-duration)<1.0/48000,"CAF, source metadata and analysis durations disagree")
+        let recordError=abs(result.record.duration-duration),analysisError=abs(result.analysis.duration-duration)
+        let durationFacts=String(format:"fileFrames=%lld fileRate=%.17g fileDuration=%.17g recordDuration=%.17g analysisDuration=%.17g recordFrames=%.17g analysisFrames=%.17g recordError=%.17g analysisError=%.17g tolerance=%.17g sourceBytes=%lld",file.length,format.sampleRate,duration,result.record.duration,result.analysis.duration,result.record.duration*format.sampleRate,result.analysis.duration*format.sampleRate,recordError,analysisError,1.0/48000,Int64(result.data.count))
+        try require(recordError<1.0/48000 && analysisError<1.0/48000,"CAF, source metadata and analysis durations disagree: "+durationFacts)
         try require(result.record.origin == .microphone && result.record.recordedAt != nil && result.record.inputLatencySeconds != nil && result.record.tempoBPM==bpm,"Production source capture provenance is missing")
         guard let buffer=AVAudioPCMBuffer(pcmFormat:format,frameCapacity:AVAudioFrameCount(file.length))else{throw Failure(message:"Cannot allocate bounded source inspection")}
         try file.read(into:buffer)

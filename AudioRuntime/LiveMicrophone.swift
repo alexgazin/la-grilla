@@ -95,9 +95,44 @@ struct LiveInputRouteSnapshot:Codable,Sendable {
 struct LiveInputSetupFailure:Error,LocalizedError,Sendable {
     let message:String
     let routes:[LiveInputRouteSnapshot]
+    private let cleanupFailed:Bool
     var errorDescription:String?{message}
-    var hardwareAbsent:Bool{routes.count==1 && (routes.first.map{$0.stage=="activated-playAndRecord" && $0.hardwareAbsent && $0.category==AVAudioSession.Category.playAndRecord.rawValue} ?? false)}
-    init(_ error:Error,routes:[LiveInputRouteSnapshot]){message=error.localizedDescription;self.routes=routes}
+    var hardwareAbsent:Bool{!cleanupFailed && routes.count==1 && (routes.first.map{$0.stage=="activated-playAndRecord" && $0.hardwareAbsent && $0.category==AVAudioSession.Category.playAndRecord.rawValue} ?? false)}
+    init(_ error:Error,routes:[LiveInputRouteSnapshot],cleanupFailure:Error?=nil){
+        message=cleanupFailure.map{LiveInputCleanupFailure(primary:error,cleanup:$0).localizedDescription} ?? error.localizedDescription
+        self.routes=routes;cleanupFailed=cleanupFailure != nil
+    }
+}
+
+/// Keep the original operation/drain error first without concealing a failed
+/// category/output rollback. Both error messages are retained.
+private struct LiveInputCleanupFailure:Error,LocalizedError {
+    let primary:Error
+    let cleanup:Error
+    var errorDescription:String?{primary.localizedDescription+"\n"+cleanup.localizedDescription}
+}
+
+private struct InputSessionLease {
+    let id:UUID
+    let category:AVAudioSession.Category
+    let mode:AVAudioSession.Mode
+    let options:AVAudioSession.CategoryOptions
+}
+/// AVAudioSession category ownership is global, even across engine instances.
+/// Retain only a token/baseline, never resources or an engine. A failed closed
+/// lease passes its original baseline to its successor; stale deinit work must
+/// not restore over that successor's active recording category.
+@MainActor private enum InputSessionOwnership {
+    private static var current:(lease:InputSessionLease,closed:Bool)?
+    static func acquire(_ session:AVAudioSession)throws->InputSessionLease {
+        guard current?.closed != false else{throw LiveInputError.outputUnavailable}
+        let previous=current?.lease
+        let lease=InputSessionLease(id:UUID(),category:previous?.category ?? session.category,mode:previous?.mode ?? session.mode,options:previous?.options ?? session.categoryOptions)
+        current=(lease,false);return lease
+    }
+    static func owns(_ id:UUID)->Bool{current?.lease.id==id}
+    static func close(_ id:UUID){if owns(id){current?.closed=true}}
+    static func restored(_ id:UUID){if owns(id){current=nil}}
 }
 
 struct LiveInputReceiver:Sendable {
@@ -192,24 +227,40 @@ private final class InputResources:@unchecked Sendable {
     let previousCategory:AVAudioSession.Category
     let previousMode:AVAudioSession.Mode
     let previousOptions:AVAudioSession.CategoryOptions
+    let owner:UUID
     var installed=false
-    var stopped=false
-    init(engine:AVAudioEngine,ring:InputRingHandle,worker:InputDrain,category:AVAudioSession.Category,mode:AVAudioSession.Mode,options:AVAudioSession.CategoryOptions){self.engine=engine;self.ring=ring;self.worker=worker;previousCategory=category;previousMode=mode;previousOptions=options}
+    private var closed=false
+    private(set) var restorationComplete=false
+    private var drainFailure:Error?
+    init(engine:AVAudioEngine,ring:InputRingHandle,worker:InputDrain,lease:InputSessionLease){self.engine=engine;self.ring=ring;self.worker=worker;previousCategory=lease.category;previousMode=lease.mode;previousOptions=lease.options;owner=lease.id}
     @MainActor func stop()throws {
-        guard !stopped else{return};stopped=true
-        if installed{engine.inputNode.removeTap(onBus:0);installed=false}
-        lg_input_close(ring.pointer)
-        var failure:Error?
-        do{try worker.finish()}catch{failure=error}
-        do {
+        if !closed {
+            closed=true
+            InputSessionOwnership.close(owner)
+            if installed{engine.inputNode.removeTap(onBus:0);installed=false}
+            lg_input_close(ring.pointer)
+            do{try worker.finish()}catch{drainFailure=error}
+        }
+        var restorationFailure:Error?
+        if !restorationComplete,InputSessionOwnership.owns(owner) {do {
             // Keep the existing output graph/kernel and active audio session.
             // Category restoration releases microphone access, never deactivates
             // the session or issues Stop/Seek to the backing transport.
             let session=AVAudioSession.sharedInstance()
             try session.setCategory(previousCategory,mode:previousMode,options:previousOptions)
             if !engine.isRunning{try engine.start()}
-        }catch{failure=failure ?? error}
-        if let failure{throw failure}
+            restorationComplete=true
+            InputSessionOwnership.restored(owner)
+        }catch{restorationFailure=error}}
+        // Only the current owner may retry from explicit stop/deinit. Once a
+        // newer lease owns the category, old cleanup cannot change it. Tap and
+        // worker close once; saved drain error stays primary beside any current
+        // restoration error.
+        if let drainFailure {
+            if let restorationFailure{throw LiveInputCleanupFailure(primary:drainFailure,cleanup:restorationFailure)}
+            throw drainFailure
+        }
+        if let restorationFailure{throw restorationFailure}
     }
 }
 
@@ -232,7 +283,9 @@ private final class InputResources:@unchecked Sendable {
     init(audio:AudioController,delay:Double,duration:Double,schedule:(@MainActor(Double)->Double?)?=nil,scheduleDuration:(@MainActor()->Double?)?=nil,receiver:(AVAudioFormat)throws->LiveInputReceiver,onFailure:@escaping @MainActor @Sendable(String)->Void)throws {
         guard delay.isFinite,(0...30).contains(delay),duration.isFinite,duration>0 else{throw LiveInputError.invalidSamples}
         guard let engine=audio.captureEngine,engine.isRunning else{throw LiveInputError.outputUnavailable}
-        let session=AVAudioSession.sharedInstance(),category=session.category,mode=session.mode,options=session.categoryOptions
+        let session=AVAudioSession.sharedInstance()
+        let lease=try InputSessionOwnership.acquire(session)
+        let category=lease.category,mode=lease.mode,options=lease.options
         var pending:InputResources?
         var info=mach_timebase_info_data_t();mach_timebase_info(&info)
         ticksPerSecond=1_000_000_000*Double(info.denom)/Double(info.numer)
@@ -243,30 +296,19 @@ private final class InputResources:@unchecked Sendable {
             // This read must not change input enablement or hardware formats.
             let beforeInputNode=LiveInputRouteSnapshot.IOUnit(engine.outputNode)
             let input=engine.inputNode
-            var format=input.outputFormat(forBus:0)
-            var routes=[LiveInputRouteSnapshot.capture(engine,stage:"activated-playAndRecord",outputUnitBeforeInputNode:beforeInputNode)]
+            let format=input.outputFormat(forBus:0)
+            let routes=[LiveInputRouteSnapshot.capture(engine,stage:"activated-playAndRecord",outputUnitBeforeInputNode:beforeInputNode)]
             func usable(_ format:AVAudioFormat)->Bool{format.sampleRate.isFinite && (8000...192000).contains(format.sampleRate) && format.channelCount>0 && format.channelCount<=32}
             if routes.last?.hardwareAbsent==true{throw LiveInputSetupFailure(LiveInputError.unavailable,routes:routes)}
-            if !usable(format),routes.last?.hardwareAbsent==false {
-                // Input may be created after the playback-only I/O was prepared.
-                // pause() keeps those resources; stop() releases them so the
-                // same attached graph can prepare its actual duplex hardware.
-                // The external source/kernel/music state is retained. Hardware
-                // rendering stops during reprepare: its gap must be measured.
-                // Never reset/replace the engine, seek or manufacture a format.
-                engine.stop()
-                routes.append(.capture(engine,stage:"same-graph-stopped"))
-                do{engine.prepare();try engine.start()}
-                catch{routes.append(.capture(engine,stage:"same-graph-reprepare-failed"));throw LiveInputSetupFailure(error,routes:routes)}
-                format=input.outputFormat(forBus:0)
-                routes.append(.capture(engine,stage:"same-graph-reprepared"))
-            }
+            // Invalid hardware input is an explicit setup failure. Stopping and
+            // repreparing the continuing output did not enable input and caused
+            // measurable render gaps; never stop, rebuild, seek or invent PCM.
             guard usable(format)else{throw LiveInputSetupFailure(LiveInputError.unavailable,routes:routes)}
             guard format.commonFormat == .pcmFormatFloat32,let mono=AVAudioFormat(commonFormat:.pcmFormatFloat32,sampleRate:format.sampleRate,channels:1,interleaved:false)else{throw LiveInputSetupFailure(LiveInputError.unsupportedFormat,routes:routes)}
             routeDiagnostics=routes
             let ring=try InputRingHandle(rate:format.sampleRate,limit:min(30,max(0.2,duration)))
             let worker=InputDrain(ring:ring,format:mono,receiver:try receiver(mono),onFailure:InputNotifications.forward(onFailure))
-            let resources=InputResources(engine:engine,ring:ring,worker:worker,category:category,mode:mode,options:options)
+            let resources=InputResources(engine:engine,ring:ring,worker:worker,lease:lease)
             pending=resources
             self.resources=resources;sampleRate=format.sampleRate
             InputTapCallbacks.install(input:input,format:format,ring:ring);resources.installed=true
@@ -285,8 +327,25 @@ private final class InputResources:@unchecked Sendable {
         }catch{
             // The root lease handles presentation/retry; never silently replace
             // the continuing beat with a separate recording-only audio engine.
-            if let pending{try? pending.stop()}
-            else{try? session.setCategory(category,mode:mode,options:options);if !engine.isRunning{try? engine.start()}}
+            // A failed initializer has no LiveMicrophone deinit to retry a
+            // transient rollback failure. Retry once synchronously, before any
+            // newer lease can begin; never leave an asynchronous stale rollback.
+            InputSessionOwnership.close(lease.id)
+            var cleanupFailure:Error?
+            for _ in 0..<2 {
+                do {
+                    if let pending{try pending.stop()}
+                    else if InputSessionOwnership.owns(lease.id){try session.setCategory(category,mode:mode,options:options);if !engine.isRunning{try engine.start()};InputSessionOwnership.restored(lease.id)}
+                    cleanupFailure=nil;break
+                }catch {
+                    cleanupFailure=error
+                    if pending?.restorationComplete==true{break}
+                }
+            }
+            if let cleanupFailure {
+                if let failure=error as? LiveInputSetupFailure{throw LiveInputSetupFailure(failure,routes:failure.routes,cleanupFailure:cleanupFailure)}
+                throw LiveInputCleanupFailure(primary:error,cleanup:cleanupFailure)
+            }
             throw error
         }
     }

@@ -28,6 +28,7 @@ private enum ArrangementClipProvider {
 struct ArrangementClipControl:UIViewRepresentable {
     let label:String
     let value:String
+    let hint:String
     let identifier:String
     let enabled:Bool
     let makePayload:(CGPoint)->String?
@@ -35,7 +36,7 @@ struct ArrangementClipControl:UIViewRepresentable {
     let activate:()->Void
     func makeUIView(context:Context)->ArrangementClipControlView{ArrangementClipControlView(frame:.zero)}
     func updateUIView(_ view:ArrangementClipControlView,context:Context){
-        view.accessibilityLabel=label;view.accessibilityValue=value;view.accessibilityIdentifier=identifier
+        view.accessibilityLabel=label;view.accessibilityValue=value;view.accessibilityHint=hint;view.accessibilityIdentifier=identifier
         view.accessibilityTraits=enabled ? .button:[.button,.notEnabled]
         view.acceptsInput=enabled;view.isUserInteractionEnabled=enabled
         view.makePayload=makePayload;view.resize=resize;view.activate=activate

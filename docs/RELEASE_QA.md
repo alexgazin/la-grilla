@@ -1,15 +1,19 @@
 # Release candidate evidence
 
-Candidate: **1.0.0 (12)**, `com.alexgazin.LaGrilla`, iPhone / iOS 18+. Current acceptance uses **Xcode 26.3 / iOS 26.2 SDK**. Apple's Xcode 26 / iOS 26 SDK submission requirement has applied since April 28, 2026. See the [release procedure](release/RELEASE.md).
+Integration candidate: **1.0.0 (14), project schema 8**, `com.alexgazin.LaGrilla`, iPhone / iOS 18+. **Final acceptance is still open.** Current acceptance uses **Xcode 26.3 / iOS 26.2 SDK**. Apple's Xcode 26 / iOS 26 SDK submission requirement has applied since April 28, 2026. See the [release procedure](release/RELEASE.md).
 
-## Final software acceptance
+The latest accepted `main` is **1.0.0 (13)**, `912dc483415ad2e59c78a89c08eaa6fda38342f5`: [exact-main run 43719321757](https://github.com/alexgazin/la-grilla/actions/runs/43719321757), all three jobs successful, 64 Swift tests, 11 C++ suites, both SDK builds/archive and 22/22 native functional flows. Its [C2 captures and provenance](../Screenshots/C2) remain historical source-specific evidence.
+
+Candidate 14 adds the expanded harmony/schema, native arranger, atomic live snapshots, shared microphone input and on-device Assistant. The latest local domain suite passes 115 Swift tests; preceding candidate runs passed 15 C++ suites, SDK builds and the weak-link/resource archive audit. Current UI/audio cleanup still requires a new native run. Run [43733352465](https://github.com/alexgazin/la-grilla/actions/runs/43733352465) passed 12/14 focused native cases, including all five arrangement cases and real focused drum recording; both microphone cases failed and were not accepted. Input creation and cold-first-use fixes require new actual PCM/CAF receipts. Full functional/capture acceptance, review of the new screenshot collection, PR #13 integration and exact-main checks are pending. Detailed failures/fixes are in the [implementation log](IMPLEMENTATION_LOG.md); physical/model/distribution gates remain below.
+
+## Historical software acceptance — candidate 12
 
 - Verified implementation/capture source: `72d81cb8a7be054d2e00457f4d30461a99e67b1f`. [Complete run 43700372709](https://github.com/alexgazin/la-grilla/actions/runs/43700372709) passes all three jobs: 64 Swift tests, independent export readers, 11 C++ suites, both SDK builds, 19 native Studio flows, three capture methods (22 native tests across Pro Max and SE), and the optimized device archive/dSYM/resource audit.
 - Design 2026 is implemented and reviewed: shared light/dark palette, readable typography, current native navigation material, simpler Grid/Harmony/Perform/Jam/Mixer and consistent secondary views. The presentation audit checks **480 EN/RU keys**, placeholders, the 11-point fixed-font floor, AA tokens and the opaque original OpenArt icon. [Design QA](DESIGN_QA.md) records the actual touch defect and its passing regression.
 - [54 original native PNGs](../Screenshots/Design2026) have per-file source/run/dimensions/SHA-256. All are opaque RGB; the twelve [Store copies](../Screenshots/AppStore) preserve the original 1320 × 2868 bytes. English/Russian, light/dark, large text, landscape and 375-point views are retained. Root previews follow this collection; [R0](../Screenshots/R0) preserves the former originals.
 - The preceding technical candidate 1.0.0 (11), source `ecfc9b9`, passes [43689852307](https://github.com/alexgazin/la-grilla/actions/runs/43689852307). Its [R10 frames](../Screenshots/R10) remain historical evidence. Earlier iOS 18.5 checks are compatibility evidence; they do not replace the current-SDK archive or installed-device acceptance.
 
-## Release fixes and artifacts
+## Historical release fixes and shared tooling
 
 - Stop/Panic is processed before chasing active notes onto a changed output destination. Zero-length remaining gates cannot produce a new NoteOn. At a shared sample boundary, the preceding NoteOff is sent before a same-pitch retrigger. Regressions reproduced all three defects against the previous implementation and pass after the fix; the suite also covers Panic during handover.
 - Endpoint discovery checks both endpoint and parent-device offline flags, so a disconnected device retained by a MIDI driver cannot remain the selected online endpoint. Actual USB/BLE unplug timing remains a physical-device check.

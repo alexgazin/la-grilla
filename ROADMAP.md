@@ -19,7 +19,7 @@
 | C4 | Атомарный music/mix/preset snapshot; live add/remove/reorder и фазовое A/B без Stop | Реализовано; kernel/MIDI, native live edits и настоящий drum overdub прошли; расширенная проверка audition ожидает C7 |
 | C5 | Общий duplex input, напев/диктовка поверх бита, bounded capture и cleanup | Активный этап: исправлен порядок создания input/output; нужны cold first-use и реальные CAF/analysis/apply receipts |
 | C6 | Реальный AI provider, естественные команды/«поджазовать», whole-song review/Apply/Undo | FoundationModels adapter и Commands реализованы; native review/Apply/Undo прошли; реальная модель/язык проверяются в C8 |
-| C7 | Интеграционная QA, совместимость, новый RC и реальные кадры | Кандидат 1.0.0 (14), schema 8; 112 Swift tests и 15 C++ suites проходят; полная native/визуальная приёмка и merge ожидают C5 |
+| C7 | Интеграционная QA, совместимость, новый RC и реальные кадры | Кандидат 1.0.0 (14), schema 8; 115 Swift tests и 15 C++ suites проходят; полная native/визуальная приёмка и merge ожидают C5 |
 | C8 | Устройства/реальные модели/голоса, signing, TestFlight и App Review | Внешняя приёмка открыта |
 
 Последний принятый `main` — `912dc483`, **1.0.0 (13)**, exact-main run `43719321757`. Расширения кандидата 14 находятся в [PR #13](https://github.com/alexgazin/la-grilla/pull/13). Его частичные прогоны и три [промежуточных оригинальных кадра](Screenshots/OriginalVision-progress) не объявляются финальной приёмкой. Следующая цепочка: C5 cold playback→consent→capture в одном процессе → полный native run и свежая коллекция кадров → merge → проверки точного `main` → C8.
