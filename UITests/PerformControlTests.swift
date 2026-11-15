@@ -3,10 +3,11 @@ import XCTest
 final class PerformControlTests:XCTestCase {
     override func setUp(){super.setUp();continueAfterFailure=false;executionTimeAllowance=120}
 
-    @MainActor private func launch()->XCUIApplication {
+    @MainActor private func launch(largeType:Bool=false)->XCUIApplication {
         XCUIDevice.shared.orientation = .portrait
         let app=XCUIApplication()
         app.launchArguments=["--uitesting","--screen","perform","-AppleLanguages","(en)","-AppleLocale","en_US"]
+        if largeType{app.launchArguments.append("--large-type")}
         app.launch()
         XCTAssertTrue(app.buttons["perform.play"].waitForExistence(timeout:15))
         return app
@@ -66,6 +67,27 @@ final class PerformControlTests:XCTestCase {
         }
         XCTAssertTrue(knob.exists);XCTAssertFalse(knob.isEnabled)
         XCTAssertFalse(app.buttons["perform.filter.reset"].isEnabled)
+        app.buttons["perform.panic"].tap()
+    }
+
+    @MainActor func testLargeTypeFilterAndTransportRemainReachable(){
+        let app=launch(largeType:true)
+        let knob=app.sliders["perform.filter"],reset=app.buttons["perform.filter.reset"]
+        XCTAssertTrue(knob.waitForExistence(timeout:5));XCTAssertTrue(app.buttons["perform.play"].isHittable)
+        app.buttons["perform.play"].tap()
+        waitForValue(knob,NSPredicate(format:"enabled == true"))
+        let scroll=app.scrollViews.firstMatch
+        for _ in 0..<5{
+            if scroll.frame.contains(knob.frame.insetBy(dx:0,dy:-10)),reset.isHittable{break}
+            scroll.swipeUp()
+        }
+        XCTAssertTrue(knob.isHittable);XCTAssertGreaterThanOrEqual(knob.frame.height,44)
+        XCTAssertTrue(reset.isHittable);XCTAssertGreaterThanOrEqual(reset.frame.height,44)
+        XCTAssertTrue(app.buttons["perform.play"].isHittable)
+        turnClockwise(knob);waitForValue(knob,NSPredicate(format:"value BEGINSWITH '+'"))
+        let shot=XCTAttachment(data:XCUIScreen.main.screenshot().pngRepresentation,uniformTypeIdentifier:"public.png")
+        shot.name="C2-qa-large-perform";shot.lifetime = .keepAlways;add(shot)
+        reset.tap();waitForValue(knob,NSPredicate(format:"value == 'BYPASS'"))
         app.buttons["perform.panic"].tap()
     }
 }
