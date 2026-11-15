@@ -48,7 +48,7 @@ struct MIDIDevicesView:View {
                 Text(midi.lastMessage).font(.system(.caption,design:.monospaced)).accessibilityIdentifier("midi.last")
                 LabeledContent("Late input events",value:String(midi.late));LabeledContent("Dropped events",value:String(midi.dropped))
                 Text("Late events play at the first available audio sample. Bluetooth audio latency is separate from Bluetooth MIDI.").font(.caption).foregroundStyle(.secondary)
-                Button("Panic · release all notes",role:.destructive){session.audio.panic();midi.panic();midi.retry();session.syncMIDI()}.frame(minHeight:44).accessibilityIdentifier("midi.panic")
+                Button("Panic · release all notes",role:.destructive){session.panicMIDI()}.frame(minHeight:44).accessibilityIdentifier("midi.panic")
             }
         }.navigationTitle("MIDI devices").toolbar{ToolbarItem(placement:.confirmationAction){Button("Done"){midi.learning=nil;session.sheet=nil}}}}
         .onAppear{midi.prepare();session.syncMIDI()}.onDisappear{midi.learning=nil}
