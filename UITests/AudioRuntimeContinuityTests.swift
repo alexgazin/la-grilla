@@ -10,6 +10,7 @@ final class AudioRuntimeContinuityTests:XCTestCase {
     @MainActor private func run(microphone:Bool,midiPolicy:Bool=false,voiceCapture:Bool=false,inputDiagnostic:Bool=false)throws {
         let app=XCUIApplication()
         app.launchArguments=["--uitesting","--audio-runtime-qa","-AppleLanguages","(en)","-AppleLocale","en_US"]
+        if ProcessInfo.processInfo.environment["GRILLA_RUNTIME_TRACE"]=="1"{app.launchArguments.append("--runtime-trace")}
         if microphone{app.launchArguments.append("--audio-runtime-microphone")}
         if midiPolicy{app.launchArguments.append("--audio-runtime-midi-policy")}
         if voiceCapture{app.launchArguments.append("--audio-runtime-voice-capture")}
