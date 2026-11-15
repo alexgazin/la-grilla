@@ -28,20 +28,29 @@ final class StudioTests: XCTestCase {
         let app=XCUIApplication();app.launchArguments=["--uitesting","--screen","grid","--appearance","light","-AppleLanguages","(ru)","-AppleLocale","ru_RU"];app.launch()
         XCTAssertTrue(app.buttons["Сетка"].waitForExistence(timeout:15));app.buttons["export.open"].tap()
         XCTAssertTrue(app.navigationBars["Экспорт"].waitForExistence(timeout:5));XCTAssertTrue(app.buttons["Отмена"].exists)
-        let shot=XCTAttachment(data:XCUIScreen.main.screenshot().pngRepresentation,uniformTypeIdentifier:"public.png");shot.name="R8-russian-light-export";shot.lifetime = .keepAlways;add(shot)
+        let shot=XCTAttachment(data:XCUIScreen.main.screenshot().pngRepresentation,uniformTypeIdentifier:"public.png");shot.name="Design2026-qa-russian-light-export";shot.lifetime = .keepAlways;add(shot)
         app.buttons["Отмена"].tap();app.buttons["Джем"].tap()
+        for title in ["Пэды","Шаги"]{XCTAssertGreaterThanOrEqual(app.buttons[title].frame.height,44)}
+        let guide=app.buttons["jam.recording-guide"]
+        for _ in 0..<5 {if guide.isHittable{break};app.scrollViews.firstMatch.swipeUp()}
+        XCTAssertTrue(guide.exists);XCTAssertGreaterThanOrEqual(guide.frame.height,44);XCTAssertEqual(guide.value as? String,"Свёрнуто")
+        // Tap the row's center, including its empty spacer, as a finger would.
+        guide.tap();XCTAssertEqual(guide.value as? String,"Развёрнуто")
         let hint=app.staticTexts["Сыграй свой собственный ритм."]
+        for _ in 0..<4 {if hint.isHittable{break};app.scrollViews.firstMatch.swipeUp()}
         XCTAssertTrue(hint.waitForExistence(timeout:5))
         for _ in 0..<4 {if app.staticTexts["Создавай бит слой за слоем."].isHittable{break};app.scrollViews.firstMatch.swipeUp()}
         XCTAssertTrue(app.staticTexts["Создавай бит слой за слоем."].exists)
         XCTAssertFalse(app.staticTexts["Play something only you would."].exists)
         XCTAssertFalse(app.staticTexts["Build your beat, layer by layer."].exists)
+        for _ in 0..<4 {if guide.isHittable{break};app.scrollViews.firstMatch.swipeDown()}
+        guide.tap();XCTAssertEqual(guide.value as? String,"Свёрнуто");XCTAssertFalse(hint.exists)
     }
     @MainActor func testLargeTypeMixerAndAccessibleNoteList() throws {
         XCUIDevice.shared.orientation = .portrait
         let app=XCUIApplication();app.launchArguments=["--uitesting","--screen","notes","--large-type","-AppleLanguages","(en)","-AppleLocale","en_US"];app.launch()
         XCTAssertTrue(app.navigationBars["Piano roll"].waitForExistence(timeout:15));XCTAssertTrue(app.descendants(matching:.any)["notes.list"].waitForExistence(timeout:5))
-        let shot=XCTAttachment(data:XCUIScreen.main.screenshot().pngRepresentation,uniformTypeIdentifier:"public.png");shot.name="R8-large-type-piano-roll";shot.lifetime = .keepAlways;add(shot)
+        let shot=XCTAttachment(data:XCUIScreen.main.screenshot().pngRepresentation,uniformTypeIdentifier:"public.png");shot.name="Design2026-qa-large-type-piano-roll";shot.lifetime = .keepAlways;add(shot)
         app.buttons["Done"].tap();app.buttons["Mixer"].tap();XCTAssertTrue(app.sliders["Gain Harmony"].waitForExistence(timeout:5))
         try app.performAccessibilityAudit(for:[.sufficientElementDescription])
     }
@@ -51,7 +60,7 @@ final class StudioTests: XCTestCase {
         let deadline=Date().addingTimeInterval(8)
         while Date()<deadline && (!app.buttons["Play"].isHittable || !app.buttons["Kick"].isHittable){Thread.sleep(forTimeInterval:0.1)}
         XCTAssertTrue(app.buttons["Play"].isHittable);XCTAssertTrue(app.buttons["Kick"].isHittable);app.buttons["Kick"].tap()
-        let shot=XCTAttachment(data:XCUIScreen.main.screenshot().pngRepresentation,uniformTypeIdentifier:"public.png");shot.name="R8-landscape-jam";shot.lifetime = .keepAlways;add(shot)
+        let shot=XCTAttachment(data:XCUIScreen.main.screenshot().pngRepresentation,uniformTypeIdentifier:"public.png");shot.name="Design2026-qa-landscape-jam";shot.lifetime = .keepAlways;add(shot)
         app.buttons["Play"].tap();XCTAssertTrue(app.buttons["Stop"].waitForExistence(timeout:5));app.buttons["Stop"].tap()
     }
     @MainActor func testVirtualMIDILearnAndActualOutputDestination() {
@@ -71,8 +80,9 @@ final class StudioTests: XCTestCase {
         app.buttons["perform.section.Chorus"].tap()
         app.buttons["perform.done"].tap();app.buttons["Jam"].tap();app.buttons["Kick"].tap()
         app.buttons["perform.transport"].tap();XCTAssertTrue(app.buttons["perform.record"].waitForExistence(timeout:5));app.buttons["perform.record"].tap()
-        app.swipeUp();app.swipeUp();app.swipeUp()
-        XCTAssertTrue(app.staticTexts["perform.saved"].waitForExistence(timeout:5));app.buttons["perform.replay"].tap()
+        let replay=app.buttons["perform.replay"]
+        for _ in 0..<6 {if replay.isHittable{break};app.scrollViews.firstMatch.swipeUp()}
+        XCTAssertTrue(app.staticTexts["perform.saved"].waitForExistence(timeout:5));replay.tap()
         let mode=app.staticTexts["perform.mode"]
         // Stop at the header: another downward swipe at the top dismisses the sheet.
         for _ in 0..<6 {if mode.isHittable{break};app.scrollViews.firstMatch.swipeDown()}
@@ -133,13 +143,15 @@ final class StudioTests: XCTestCase {
         let app=launch();app.buttons["assistant.open"].tap();XCTAssertTrue(app.navigationBars["Assistant"].waitForExistence(timeout:5))
         let input=app.textViews["assistant.input"];XCTAssertTrue(input.waitForExistence(timeout:5));input.tap();input.typeText("tempo 110");app.swipeUp();app.buttons["assistant.generate"].tap();app.swipeUp()
         XCTAssertTrue(app.buttons["assistant.apply"].waitForExistence(timeout:5));app.buttons["assistant.apply"].tap()
-        XCTAssertTrue(app.staticTexts["110"].waitForExistence(timeout:5));app.buttons["Undo"].tap();XCTAssertTrue(app.staticTexts["120"].exists)
+        let tempo=app.staticTexts["studio.tempo"]
+        XCTAssertTrue(tempo.waitForExistence(timeout:5));XCTAssertEqual(tempo.label,"110 BPM")
+        app.buttons["Undo"].tap();XCTAssertEqual(tempo.label,"120 BPM")
     }
     @MainActor func testAssistantAmbiguityKeepsMusicUnchangedUntilApply() {
         let app=launch();app.buttons["assistant.open"].tap();let input=app.textViews["assistant.input"];XCTAssertTrue(input.waitForExistence(timeout:5));input.tap();input.typeText("Am F");app.swipeUp();app.buttons["assistant.generate"].tap();app.swipeUp()
         XCTAssertTrue(app.buttons["Stretch chords evenly"].waitForExistence(timeout:5));XCTAssertFalse(app.buttons["assistant.apply"].exists)
         app.buttons["Stretch chords evenly"].tap();app.swipeUp();XCTAssertTrue(app.buttons["assistant.apply"].exists)
-        app.buttons["Cancel"].tap();XCTAssertTrue(app.staticTexts["120"].exists)
+        app.buttons["Cancel"].tap();XCTAssertEqual(app.staticTexts["studio.tempo"].label,"120 BPM")
     }
     @MainActor func testVoiceFixtureAnalyzePreviewApplyUndoAndPortableExport() {
         let app=launch("voice-draft");XCTAssertTrue(app.staticTexts["voice.note-count"].waitForExistence(timeout:15));XCTAssertEqual(app.staticTexts["voice.note-count"].label,"3 notes")

@@ -1,14 +1,15 @@
 import XCTest
+import UIKit
 final class ScreenshotTests:XCTestCase {
     override func setUp(){super.setUp();executionTimeAllowance=600}
-    @MainActor func testCaptureNativeScreens(){capture(["grid","jam","mixer","projects","export","export-wav","export-stems","notes","notes-mixer","harmony","harmony-proposal","assistant","assistant-proposal","voice","voice-draft","perform","perform-take","perform-export","midi","midi-mapped","grid-light","jam-light","mixer-light","notes-light","export-light","grid-ru","assistant-ru","notes-large","mixer-large","jam-large","settings"])}
+    @MainActor func testCaptureNativeScreens(){capture(["grid","jam","mixer","projects","export","export-wav","export-stems","notes","notes-mixer","harmony","harmony-proposal","assistant","assistant-proposal","voice","voice-draft","perform","perform-take","perform-export","midi","midi-mapped","grid-light","jam-light","mixer-light","notes-light","export-light","grid-ru","assistant-ru","mixer-ru","voice-ru","notes-large","mixer-large","jam-large","settings"])}
     private var russianRecapture:Bool{ProcessInfo.processInfo.environment["GRILLA_RU_RECAPTURE"]=="1"}
     @MainActor func testCaptureStoreScreens(){
         let locales=russianRecapture ? ["ru"]:["en-US","ru"]
         capture(locales.flatMap{locale in ["grid","jam","notes","harmony-proposal","perform-take","export"].map{"store-\(locale)-\($0)"}})
         if russianRecapture{capture(["grid-ru","assistant-ru","mixer-ru","voice-ru"])}
     }
-    @MainActor func testCaptureCompactScreens(){capture(russianRecapture ? ["compact-grid-ru","compact-jam-ru","compact-mixer-ru"]:["compact-grid","compact-jam","compact-mixer"])}
+    @MainActor func testCaptureCompactScreens(){capture(russianRecapture ? ["compact-grid-ru","compact-jam-ru","compact-mixer-ru"]:["compact-grid","compact-jam","compact-mixer","compact-grid-ru","compact-jam-ru","compact-mixer-ru"])}
     @MainActor private func capture(_ screens:[String]){
         for screen in screens {
             XCUIDevice.shared.orientation = .portrait
@@ -24,15 +25,30 @@ final class ScreenshotTests:XCTestCase {
             if screen.hasPrefix("compact-"){
                 for label in language=="ru" ? ["Сетка","Джем","Микшер","Играть"]:["Grid","Jam","Mixer","Play"]{XCTAssertTrue(app.buttons[label].isHittable)}
                 if target=="jam"{XCTAssertTrue(app.buttons[language=="ru" ? "Перкуссия":"Perc"].isHittable)}
+                if target=="mixer"{XCTAssertTrue(app.buttons["mixer.mute.0"].isHittable);XCTAssertTrue(app.buttons["mixer.solo.0"].isHittable);XCTAssertTrue(app.sliders["mixer.pan.0"].isHittable)}
             }
             if target=="voice-draft"{XCTAssertTrue(app.staticTexts["voice.note-count"].waitForExistence(timeout:15))}
             Thread.sleep(forTimeInterval:target.hasPrefix("perform-") ? 5:1)
-            let png=XCUIScreen.main.screenshot().pngRepresentation
+            let png=settledPNG()
             if screen.hasPrefix("store-"){
                 let width=png[16..<20].reduce(0){($0<<8)|Int($1)},height=png[20..<24].reduce(0){($0<<8)|Int($1)}
                 XCTAssertEqual(width,1320,"Store screenshot must preserve the native display width");XCTAssertEqual(height,2868)
             }
-            let shot=XCTAttachment(data:png,uniformTypeIdentifier:"public.png");shot.name="R10-"+screen;shot.lifetime = .keepAlways;add(shot)
+            let shot=XCTAttachment(data:png,uniformTypeIdentifier:"public.png");shot.name="Design2026-"+screen;shot.lifetime = .keepAlways;add(shot)
         }
+    }
+    @MainActor private func settledPNG()->Data {
+        // AX readiness can precede the simulator compositor's completed frame.
+        // Compare actual pixels, excluding timestamp/metadata differences; keep
+        // the final native PNG unchanged. Live Perform views may keep moving.
+        var previous=XCUIScreen.main.screenshot()
+        for _ in 0..<4 {
+            Thread.sleep(forTimeInterval:0.5)
+            let current=XCUIScreen.main.screenshot()
+            if let before=previous.image.cgImage?.dataProvider?.data,
+               let after=current.image.cgImage?.dataProvider?.data,CFEqual(before,after){return current.pngRepresentation}
+            previous=current
+        }
+        return previous.pngRepresentation
     }
 }

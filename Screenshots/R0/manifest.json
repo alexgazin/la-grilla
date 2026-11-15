@@ -1,0 +1,30 @@
+{
+  "note": "Historical originals formerly stored directly in Screenshots/. Preserved without modification before refreshing current-design previews. See docs/QA.md for original acceptance; this is not a new capture.",
+  "repositoryEvidenceCommit": "947a177a3cacad3570213d00ab99ad392ffd3a91",
+  "images": [
+    {
+      "file": "grid.png",
+      "sha256": "b325cf68211e1bea9adc59705567e523d2e2c4ce9e7379f981691aef8b00f968",
+      "width": 1179,
+      "height": 2556
+    },
+    {
+      "file": "jam.png",
+      "sha256": "0210862846be1e3010acd62c7b96aab22d80729950b0e9d694f4139405338f05",
+      "width": 1179,
+      "height": 2556
+    },
+    {
+      "file": "mixer.png",
+      "sha256": "a593ae6166b39486da2eaedfb2385c311ac5bed82512ec8954889598fbf6be77",
+      "width": 1179,
+      "height": 2556
+    },
+    {
+      "file": "projects.png",
+      "sha256": "f89156091ae8aa80eda8c82b24f54b141b98f6f359d1bf58f2c3201f237bf260",
+      "width": 1179,
+      "height": 2556
+    }
+  ]
+}

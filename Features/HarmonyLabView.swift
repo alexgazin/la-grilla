@@ -10,59 +10,82 @@ struct HarmonyLabView:View {
     @State private var proposal:HarmonyProposal?
     @State private var error:String?
     @State private var previewB=false
-    @State private var showOptions=true
+    @State private var showOptions=false
+    @State private var showStyles=true
     var body:some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment:.leading,spacing:20){
-                    HStack{Image(systemName:"wand.and.stars").font(.system(size:32)).foregroundStyle(Color.harmony);Spacer();CapsuleLabel(text:"ON DEVICE",color:.harmony)}
-                    Text("Give your chords a new color.").font(.system(.title2,weight:.medium))
-                    Text("Compare a proposal with your original. Nothing is saved until you apply it.").font(.subheadline).foregroundStyle(Color.muted)
-                    Picker("Section",selection:Binding(get:{session.section.id},set:{id in session.endHarmonyPreview();proposal=nil;if let s=session.project.sections.first(where:{$0.id==id}){session.select(s)}})){ForEach(session.project.sections){s in Text(s.name).tag(s.id)}}.pickerStyle(.menu)
-                    DisclosureGroup("Options",isExpanded:$showOptions){VStack(alignment:.leading,spacing:10){
-                        SmallHeading(text:"STYLE")
-                        ForEach(HarmonyStyle.allCases,id:\.self){s in Button{style=s;invalidate()}label:{HStack{VStack(alignment:.leading,spacing:4){Text(LocalizedStringKey(s.title)).fontWeight(.medium);Text(description(s)).font(.caption).foregroundStyle(Color.muted)};Spacer();Image(systemName:style==s ? "checkmark.circle.fill":"circle").foregroundStyle(style==s ? Color.harmony:Color.muted)}.padding(12).frame(maxWidth:.infinity,minHeight:56).background(style==s ? Color.harmony.opacity(0.1):Color.panel,in:RoundedRectangle(cornerRadius:10))}.buttonStyle(.plain)}}
-                    HStack {
+                VStack(alignment:.leading,spacing:16){
+                    Text("Give your chords a new color.").font(.system(.title2,weight:.semibold)).tracking(-0.6)
+                    HStack{
+                        Picker("Section",selection:Binding(get:{session.section.id},set:{id in invalidate();if let section=session.project.sections.first(where:{$0.id==id}){session.select(section)}})){ForEach(session.project.sections){section in Text(section.name).tag(section.id)}}.pickerStyle(.menu).frame(minHeight:44)
+                        Spacer();CapsuleLabel(text:"ON DEVICE",color:.harmony)
+                    }
+                    if proposal==nil || showStyles {
+                        LazyVGrid(columns:[GridItem(.flexible()),GridItem(.flexible())],spacing:6){ForEach(HarmonyStyle.allCases,id:\.self){value in
+                            Button{style=value;invalidate()}label:{HStack(spacing:6){Text(LocalizedStringKey(value.title)).font(.system(.subheadline,weight:.medium));Spacer(minLength:2);if style==value{Image(systemName:"checkmark").font(.caption.weight(.semibold))}}.padding(.horizontal,12).frame(maxWidth:.infinity,minHeight:44).foregroundStyle(style==value ? Color.ink:Color.studioText).background(style==value ? Color.harmony:Color.panel,in:RoundedRectangle(cornerRadius:12,style:.continuous))}.buttonStyle(StudioQuietButtonStyle())
+                        }}
+                        Text(description(style)).font(.caption).foregroundStyle(Color.muted)
+                    }else{
+                        Button{showStyles=true}label:{HStack{Text(LocalizedStringKey(style.title)).font(.subheadline.weight(.medium));Spacer();Image(systemName:"chevron.down").font(.caption)}}.buttonStyle(StudioQuietButtonStyle()).foregroundStyle(Color.harmony).frame(minHeight:44)
+                    }
+                    if let proposal{comparison(proposal)}else{
+                        Text("Compare a proposal with your original. Nothing is saved until you apply it.").font(.caption).foregroundStyle(Color.muted)
+                    }
+                    if let error{Text(LocalizedStringKey(error)).foregroundStyle(Color.record).font(.callout)}
+                    DisclosureGroup("Options",isExpanded:$showOptions){HStack{
                         Picker("Lowest note",selection:$low){ForEach([36,48,60],id:\.self){pitch in Text(NoteEvent(tick:0,pitch:pitch).name).tag(pitch)}}
                         Spacer()
                         Picker("Highest note",selection:$high){ForEach([72,84,96],id:\.self){pitch in Text(NoteEvent(tick:0,pitch:pitch).name).tag(pitch)}}
-                    }.onChange(of:low){_,_ in invalidate()}.onChange(of:high){_,_ in invalidate()}}
-                    Button{generate()}label:{Label("Generate proposal",systemImage:"sparkles").frame(maxWidth:.infinity,minHeight:48).background(Color.harmony,in:RoundedRectangle(cornerRadius:12)).foregroundStyle(Color.ink).fontWeight(.semibold)}.accessibilityIdentifier("harmony.generate")
-                    if let error{Text(LocalizedStringKey(error)).foregroundStyle(Color.record).font(.callout)}
-                    if let proposal{comparison(proposal)}
-                }.padding(20)
+                    }.frame(minHeight:44).onChange(of:low){_,_ in invalidate()}.onChange(of:high){_,_ in invalidate()}}.font(.subheadline).padding(14).modifier(StudioSurface())
+                }.padding(18)
             }.background(Color.ink).navigationTitle("Harmony lab").navigationBarTitleDisplayMode(.inline)
+            .safeAreaInset(edge:.bottom){actionDock}
             .toolbar{ToolbarItem(placement:.cancellationAction){Button("Cancel"){dismiss()}}}
-        }.tint(.harmony).onAppear{if let i=ProcessInfo.processInfo.arguments.firstIndex(of:"--screen"),ProcessInfo.processInfo.arguments.count>i+1,ProcessInfo.processInfo.arguments[i+1]=="harmony-proposal"{generate()}}.onDisappear{session.endHarmonyPreview()}
+        }.tint(.harmony).onAppear{if let index=ProcessInfo.processInfo.arguments.firstIndex(of:"--screen"),ProcessInfo.processInfo.arguments.count>index+1,ProcessInfo.processInfo.arguments[index+1]=="harmony-proposal"{generate()}}.onDisappear{session.endHarmonyPreview()}
     }
-    func description(_ s:HarmonyStyle)->LocalizedStringKey {
-        switch s{case .voiceLeading:"Keep the harmony; reduce movement between voices.";case .gentle:"Add warm sevenths with a comfortable register.";case .expressive:"Explore ninths and thirteenths with closer voices.";case .reharmonize:"Try borrowed minor IV and tritone dominant substitutions."}
-    }
-    func comparison(_ p:HarmonyProposal)->some View {
-        VStack(alignment:.leading,spacing:16){
-            SmallHeading(text:"ORIGINAL → PROPOSAL")
-            ForEach(p.changes){change in
-                VStack(alignment:.leading,spacing:8){
-                    HStack{Text("\(change.tick/barTicks+1):\(change.tick%barTicks/ppq+1)").font(.caption.monospaced()).foregroundStyle(Color.muted);Text(change.before.symbol);Image(systemName:"arrow.right").foregroundStyle(Color.muted);Text(change.after.symbol).foregroundStyle(Color.harmony);Spacer();if change.chromatic{Image(systemName:"circle.lefthalf.filled").accessibilityLabel("Contains chromatic notes").foregroundStyle(Color.harmony)}}
-                    Text(change.after.notes.map{NoteEvent(tick:0,pitch:$0).name}.joined(separator:" · ")).font(.caption.monospaced()).foregroundStyle(Color.muted)
-                }.padding(12).frame(maxWidth:.infinity,alignment:.leading).background(Color.panel,in:RoundedRectangle(cornerRadius:10))
+    @ViewBuilder private var actionDock:some View {
+        VStack(spacing:8){
+            if let proposal {
+                HStack(spacing:8){
+                    Button{previewB=false;session.previewHarmony(session.project,section:session.section)}label:{Label("A · Original",systemImage:"speaker.wave.2")}.buttonStyle(StudioActionStyle(color:.harmony,prominent:session.harmonyPreview && !previewB)).accessibilityIdentifier("harmony.a")
+                    Button{previewB=true;session.previewHarmony(proposal.candidate,section:session.section)}label:{Label("B · Proposal",systemImage:"speaker.wave.2.fill")}.buttonStyle(StudioActionStyle(color:.harmony,prominent:session.harmonyPreview && previewB)).accessibilityIdentifier("harmony.b")
+                    if session.harmonyPreview{IconButton(symbol:"stop.fill",label:"Stop preview",color:.harmony){session.endHarmonyPreview()}}
+                }
+                Text("Harmony + root bass · one Undo").font(.caption2).foregroundStyle(Color.muted)
+                Button{apply(proposal)}label:{Text(String(format:NSLocalizedString("Apply to %@",comment:"Apply harmony to section"),session.section.name))}.buttonStyle(StudioActionStyle()).accessibilityIdentifier("harmony.apply")
+            }else{
+                Button{generate()}label:{Label("Generate proposal",systemImage:"sparkles")}.buttonStyle(StudioActionStyle()).accessibilityIdentifier("harmony.generate")
             }
-            Text("Harmony and root bass in this section are affected. Melody and drums stay as written. Chromatic tones are marked. This is a deterministic local suggestion.").font(.caption).foregroundStyle(Color.muted)
-            HStack(spacing:10){
-                Button{previewB=false;session.previewHarmony(session.project,section:session.section)}label:{Label("A · Original",systemImage:"speaker.wave.2").frame(maxWidth:.infinity,minHeight:48).background(session.harmonyPreview && !previewB ? Color.harmony.opacity(0.25):Color.raised,in:RoundedRectangle(cornerRadius:10))}.accessibilityIdentifier("harmony.a")
-                Button{previewB=true;session.previewHarmony(p.candidate,section:session.section)}label:{Label("B · Proposal",systemImage:"speaker.wave.2.fill").frame(maxWidth:.infinity,minHeight:48).background(session.harmonyPreview && previewB ? Color.harmony.opacity(0.25):Color.raised,in:RoundedRectangle(cornerRadius:10))}.accessibilityIdentifier("harmony.b")
-            }.font(.subheadline)
-            if session.harmonyPreview{Button("Stop preview"){session.endHarmonyPreview()}.frame(minHeight:44)}
-            Button{apply(p)}label:{Text("Apply proposal").fontWeight(.semibold).foregroundStyle(Color.ink).frame(maxWidth:.infinity,minHeight:48).background(Color.harmony,in:RoundedRectangle(cornerRadius:12))}.accessibilityIdentifier("harmony.apply")
-            Text("One Undo restores your original harmony.").font(.caption).foregroundStyle(Color.muted)
+        }.padding(.horizontal,18).padding(.top,10).padding(.bottom,8).background(Color.ink).overlay(alignment:.top){Rectangle().fill(Color.outline.opacity(0.6)).frame(height:0.5)}
+    }
+    func description(_ style:HarmonyStyle)->LocalizedStringKey {
+        switch style{case .voiceLeading:"Keep the harmony; reduce movement between voices.";case .gentle:"Add warm sevenths with a comfortable register.";case .expressive:"Explore ninths and thirteenths with closer voices.";case .reharmonize:"Try borrowed minor IV and tritone dominant substitutions."}
+    }
+    func comparison(_ proposal:HarmonyProposal)->some View {
+        VStack(alignment:.leading,spacing:8){
+            HStack{SmallHeading(text:"ORIGINAL → PROPOSAL");Spacer();Button{generate()}label:{Image(systemName:"arrow.clockwise").frame(width:44,height:44)}.accessibilityLabel("Generate proposal").accessibilityIdentifier("harmony.generate")}
+            ForEach(proposal.changes){change in
+                HStack(spacing:12){
+                    Text("\(change.tick/barTicks+1):\(change.tick%barTicks/ppq+1)").font(.system(.caption2,design:.monospaced)).foregroundStyle(Color.muted).frame(minWidth:24)
+                    Text(change.before.symbol).font(.system(.title3,weight:.semibold)).lineLimit(1).minimumScaleFactor(0.6).frame(maxWidth:.infinity,alignment:.leading)
+                    Image(systemName:"arrow.right").font(.caption).foregroundStyle(Color.muted)
+                    VStack(alignment:.leading,spacing:4){Text(change.after.symbol).font(.system(.title3,weight:.semibold)).foregroundStyle(Color.harmony).lineLimit(1).minimumScaleFactor(0.6);Text(change.after.notes.map{NoteEvent(tick:0,pitch:$0).name}.joined(separator:" · ")).font(.system(size:11,design:.monospaced)).foregroundStyle(Color.muted).lineLimit(2)}.frame(maxWidth:.infinity,alignment:.leading)
+                    if change.chromatic{Image(systemName:"circle.lefthalf.filled").accessibilityLabel("Contains chromatic notes").foregroundStyle(Color.harmony)}
+                }.padding(12).modifier(StudioSurface())
+            }
+            DisclosureGroup("Change details"){
+                Text("Harmony and root bass in this section are affected. Melody and drums stay as written. Chromatic tones are marked. This is a deterministic local suggestion.").font(.caption).foregroundStyle(Color.muted).padding(.vertical,8)
+                Text("One Undo restores your original harmony.").font(.caption).foregroundStyle(Color.muted)
+            }.font(.caption).padding(.top,8)
         }
     }
     func invalidate(){session.endHarmonyPreview();proposal=nil;error=nil}
-    func generate(){session.endHarmonyPreview();do{proposal=try HarmonyLab.propose(session.project,sectionID:session.section.id,options:HarmonyOptions(style:style,low:low,high:high));showOptions=false;error=nil}catch{self.error=error.localizedDescription;proposal=nil}}
-    func apply(_ p:HarmonyProposal){
-        guard session.project.id==p.projectID,session.project.revision==p.revision else{error=HarmonyError.stale.localizedDescription;return}
+    func generate(){session.endHarmonyPreview();do{proposal=try HarmonyLab.propose(session.project,sectionID:session.section.id,options:HarmonyOptions(style:style,low:low,high:high));showOptions=false;showStyles=false;error=nil}catch{self.error=error.localizedDescription;proposal=nil}}
+    func apply(_ proposal:HarmonyProposal){
+        guard session.project.id==proposal.projectID,session.project.revision==proposal.revision else{error=HarmonyError.stale.localizedDescription;return}
         session.endHarmonyPreview();let revision=session.project.revision
-        session.edit{try p.apply(to:&$0)}
+        session.edit{try proposal.apply(to:&$0)}
         if session.project.revision>revision{dismiss()}
     }
 }

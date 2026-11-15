@@ -27,7 +27,7 @@ echo "Ad-hoc signing simulator application"
 codesign --force --deep --sign - DerivedData/Build/Products/Debug-iphonesimulator/LaGrilla.app
 echo "Installing simulator application"
 run_limited 300 xcrun simctl install "$DEVICE" DerivedData/Build/Products/Debug-iphonesimulator/LaGrilla.app
-SCREENSHOT_DIR=${GRILLA_SCREENSHOT_DIR:-Screenshots/R8}
+SCREENSHOT_DIR=${GRILLA_SCREENSHOT_DIR:-Screenshots/Design2026}
 mkdir -p "$SCREENSHOT_DIR"
 rm -f "$SCREENSHOT_DIR/"*.png
 for SCREEN in grid jam mixer projects export export-wav export-stems notes notes-mixer harmony harmony-proposal assistant assistant-proposal voice voice-draft perform perform-take perform-export midi midi-mapped grid-light jam-light mixer-light notes-light export-light grid-ru assistant-ru notes-large mixer-large jam-large; do

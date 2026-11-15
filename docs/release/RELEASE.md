@@ -1,6 +1,6 @@
 # Release procedure
 
-Current candidate: **1.0.0 (11)**, iPhone / iOS 18+, bundle `com.alexgazin.LaGrilla`. This is a release procedure, not evidence of an App Store upload.
+Current candidate: **1.0.0 (12)**, iPhone / iOS 18+, bundle `com.alexgazin.LaGrilla`. Design 2026 software/native acceptance is recorded in [Design QA](../DESIGN_QA.md) and [Release QA](../RELEASE_QA.md). This is a release procedure, not evidence of an App Store upload.
 
 ## Current Apple submission requirement
 
@@ -15,7 +15,7 @@ The main verification workflow runs domain/export readers, audio suites, EN/RU/p
 Store text is in `docs/store/en-US` and `docs/store/ru`; field lengths are checked. Native store images are captured by XCTest on an iPhone 16 Pro Max simulator at **1320 × 2868**, without resizing, fabricated UI or generated screenshots:
 
 ```sh
-python3 scripts/release/prepare_store_screenshots.py Screenshots/R10 Screenshots/AppStore
+python3 scripts/release/prepare_store_screenshots.py Screenshots/Design2026 Screenshots/AppStore
 ```
 
 Use English and Russian images with their corresponding listing. Inspect the final images and make sure their source SHA matches the release binary; regenerate after a visible change. OpenArt provenance concerns the app icon, not the native screenshots.

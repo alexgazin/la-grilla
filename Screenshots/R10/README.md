@@ -10,4 +10,4 @@
 
 [Small Grid RU](compact-grid-ru.png) · [Small Jam RU](compact-jam-ru.png) · [Small Mixer RU](compact-mixer-ru.png) · [Settings](settings.png)
 
-The Store copies are in [AppStore](../AppStore). These preserve the technical candidate before the separately requested **R8.1 Design 2026** pass. Capture the new native design before using Store images for submission. Physical audio/MIDI and signed-build acceptance remain open.
+These originals preserve the technical candidate before **R8.1 Design 2026**. The current [Store collection](../AppStore) now comes from the accepted [Design2026 originals](../Design2026); the historical R10 `store-*` files remain here unchanged. Physical audio/MIDI and signed-build acceptance remain open.

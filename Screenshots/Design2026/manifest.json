@@ -1,0 +1,445 @@
+{
+  "candidate": "1.0.0 (12)",
+  "captureSource": "72d81cb8a7be054d2e00457f4d30461a99e67b1f",
+  "captureRunID": 43700372709,
+  "toolchain": "Xcode 26.3 / iOS 26.2",
+  "note": "Original XCTest PNG bytes. Landscape retains its native EXIF orientation. Capture methods and functional acceptance are recorded separately in README.md.",
+  "images": [
+    {
+      "file": "assistant-proposal.png",
+      "width": 1320,
+      "height": 2868,
+      "sha256": "e77b9c44668c48ae7cba7dc04a144681334804d30a0fc905d56a7faad04914ab",
+      "source": "72d81cb8a7be054d2e00457f4d30461a99e67b1f",
+      "runID": 43700372709
+    },
+    {
+      "file": "assistant-ru.png",
+      "width": 1320,
+      "height": 2868,
+      "sha256": "097763ae9dff80dbadd9df7e8a75234349a8f39d33b78194fa277072aa85b870",
+      "source": "72d81cb8a7be054d2e00457f4d30461a99e67b1f",
+      "runID": 43700372709
+    },
+    {
+      "file": "assistant.png",
+      "width": 1320,
+      "height": 2868,
+      "sha256": "0f4ae5d73e58d9f59086094aeb3f608b5e36f04724d0d3ba213ac25bcfec55aa",
+      "source": "72d81cb8a7be054d2e00457f4d30461a99e67b1f",
+      "runID": 43700372709
+    },
+    {
+      "file": "compact-grid-ru.png",
+      "width": 750,
+      "height": 1334,
+      "sha256": "e06ddda7c1311eea7597fb8e511afe6688f51c74ca3bc7113a70c966fd51b1eb",
+      "source": "72d81cb8a7be054d2e00457f4d30461a99e67b1f",
+      "runID": 43700372709
+    },
+    {
+      "file": "compact-grid.png",
+      "width": 750,
+      "height": 1334,
+      "sha256": "3a6c98d47c15e9592182cb0ad004289fc7f3b64680ac6adde3bda5eebca7c4d7",
+      "source": "72d81cb8a7be054d2e00457f4d30461a99e67b1f",
+      "runID": 43700372709
+    },
+    {
+      "file": "compact-jam-ru.png",
+      "width": 750,
+      "height": 1334,
+      "sha256": "08e669ecf0eff3744426a5ce0e9da1c56064358959ad7c33803ca987fc822833",
+      "source": "72d81cb8a7be054d2e00457f4d30461a99e67b1f",
+      "runID": 43700372709
+    },
+    {
+      "file": "compact-jam.png",
+      "width": 750,
+      "height": 1334,
+      "sha256": "912a770df2ea80ed66fb5d0fa34eb300754664995133c2f120ee7341250789eb",
+      "source": "72d81cb8a7be054d2e00457f4d30461a99e67b1f",
+      "runID": 43700372709
+    },
+    {
+      "file": "compact-mixer-ru.png",
+      "width": 750,
+      "height": 1334,
+      "sha256": "ccad0c2b88db533b5388f2bf16e8ba70219658815f7aa57e6ec056c1f6d8d0fa",
+      "source": "72d81cb8a7be054d2e00457f4d30461a99e67b1f",
+      "runID": 43700372709
+    },
+    {
+      "file": "compact-mixer.png",
+      "width": 750,
+      "height": 1334,
+      "sha256": "59fc586a03d5cab0f1f20b5b3509617066e792291dbee56efbb9418d2a564989",
+      "source": "72d81cb8a7be054d2e00457f4d30461a99e67b1f",
+      "runID": 43700372709
+    },
+    {
+      "file": "export-light.png",
+      "width": 1320,
+      "height": 2868,
+      "sha256": "001855860317cc427489050c5c192b29d2a204cb3b92da96bfff038f8a147ccf",
+      "source": "72d81cb8a7be054d2e00457f4d30461a99e67b1f",
+      "runID": 43700372709
+    },
+    {
+      "file": "export-stems.png",
+      "width": 1320,
+      "height": 2868,
+      "sha256": "7d70b9fb0c2f525ec9ab5dd8323b06275d654f829ef0cb4245e1143633c07163",
+      "source": "72d81cb8a7be054d2e00457f4d30461a99e67b1f",
+      "runID": 43700372709
+    },
+    {
+      "file": "export-wav.png",
+      "width": 1320,
+      "height": 2868,
+      "sha256": "7a4105ee47362a4336b7f0acf3101d09eced7868b72e00c064ba3168f0068ec3",
+      "source": "72d81cb8a7be054d2e00457f4d30461a99e67b1f",
+      "runID": 43700372709
+    },
+    {
+      "file": "export.png",
+      "width": 1320,
+      "height": 2868,
+      "sha256": "7294eef862e4d2aa4658d3fb02846d2d6b1659931532186b8294826f0e3b128e",
+      "source": "72d81cb8a7be054d2e00457f4d30461a99e67b1f",
+      "runID": 43700372709
+    },
+    {
+      "file": "grid-light.png",
+      "width": 1320,
+      "height": 2868,
+      "sha256": "3015b3534294565acda535c6d4cc79eee06991647850ca9bea1ea97e1f83e7b3",
+      "source": "72d81cb8a7be054d2e00457f4d30461a99e67b1f",
+      "runID": 43700372709
+    },
+    {
+      "file": "grid-ru.png",
+      "width": 1320,
+      "height": 2868,
+      "sha256": "59c705e4c648a63332fbee926da5bb2123956a331c7ba37907ef55cc50f818ec",
+      "source": "72d81cb8a7be054d2e00457f4d30461a99e67b1f",
+      "runID": 43700372709
+    },
+    {
+      "file": "grid.png",
+      "width": 1320,
+      "height": 2868,
+      "sha256": "bf6733fea61e4246a7eeb6dd1b23478aff5d4dd62f55da1bdd1d6d1e870d2766",
+      "source": "72d81cb8a7be054d2e00457f4d30461a99e67b1f",
+      "runID": 43700372709
+    },
+    {
+      "file": "harmony-proposal.png",
+      "width": 1320,
+      "height": 2868,
+      "sha256": "70dcca4efa42417d91f777ee4100ce300bcdb44b1d4128e7e90ffd83f9ab69ad",
+      "source": "72d81cb8a7be054d2e00457f4d30461a99e67b1f",
+      "runID": 43700372709
+    },
+    {
+      "file": "harmony.png",
+      "width": 1320,
+      "height": 2868,
+      "sha256": "2092a0d1efdae545d410e86a969d243e7ac4cd864c509c502ee811dc18159348",
+      "source": "72d81cb8a7be054d2e00457f4d30461a99e67b1f",
+      "runID": 43700372709
+    },
+    {
+      "file": "jam-large.png",
+      "width": 1320,
+      "height": 2868,
+      "sha256": "98a559a748fed451028bd8ecd0032989a441df77a6896cf9e2c1f6425d70f506",
+      "source": "72d81cb8a7be054d2e00457f4d30461a99e67b1f",
+      "runID": 43700372709
+    },
+    {
+      "file": "jam-light.png",
+      "width": 1320,
+      "height": 2868,
+      "sha256": "e3cc9fb7c42dec11a9d21fc9da49cbf2b14d29c66244fbfc1e47434c09dab791",
+      "source": "72d81cb8a7be054d2e00457f4d30461a99e67b1f",
+      "runID": 43700372709
+    },
+    {
+      "file": "jam.png",
+      "width": 1320,
+      "height": 2868,
+      "sha256": "9a89d62af9e07c335a5cd775fc497b43d0f874bad5e51478a34d44ec36508e9d",
+      "source": "72d81cb8a7be054d2e00457f4d30461a99e67b1f",
+      "runID": 43700372709
+    },
+    {
+      "file": "midi-mapped.png",
+      "width": 1320,
+      "height": 2868,
+      "sha256": "eaf3dbb23be604695a75f9cf6759b3622e032d27f8fe81619c991dadfaf4839a",
+      "source": "72d81cb8a7be054d2e00457f4d30461a99e67b1f",
+      "runID": 43700372709
+    },
+    {
+      "file": "midi.png",
+      "width": 1320,
+      "height": 2868,
+      "sha256": "eaf3dbb23be604695a75f9cf6759b3622e032d27f8fe81619c991dadfaf4839a",
+      "source": "72d81cb8a7be054d2e00457f4d30461a99e67b1f",
+      "runID": 43700372709
+    },
+    {
+      "file": "mixer-large.png",
+      "width": 1320,
+      "height": 2868,
+      "sha256": "7b9728acd699c7479cc0b842f9e5988309bd7b363fb64aec8533312058a56aa8",
+      "source": "72d81cb8a7be054d2e00457f4d30461a99e67b1f",
+      "runID": 43700372709
+    },
+    {
+      "file": "mixer-light.png",
+      "width": 1320,
+      "height": 2868,
+      "sha256": "9c002fd959441464b6965ea323f4f7623ddd472aa9bd5945be9a05d773875867",
+      "source": "72d81cb8a7be054d2e00457f4d30461a99e67b1f",
+      "runID": 43700372709
+    },
+    {
+      "file": "mixer-ru.png",
+      "width": 1320,
+      "height": 2868,
+      "sha256": "a91b12cfc4c47b63e75b1bf6d8101a4344246e38ac21cbd6cc6d92f6c6e0e7a3",
+      "source": "72d81cb8a7be054d2e00457f4d30461a99e67b1f",
+      "runID": 43700372709
+    },
+    {
+      "file": "mixer.png",
+      "width": 1320,
+      "height": 2868,
+      "sha256": "e5295e0df274508281bc8098bfebb12eec9145ae4ad6f7501eddfcad6bc1ea05",
+      "source": "72d81cb8a7be054d2e00457f4d30461a99e67b1f",
+      "runID": 43700372709
+    },
+    {
+      "file": "notes-large.png",
+      "width": 1320,
+      "height": 2868,
+      "sha256": "df5646c1657692ce644b72729e209b292449fbe58e94bd4bfa522d12e04cd53b",
+      "source": "72d81cb8a7be054d2e00457f4d30461a99e67b1f",
+      "runID": 43700372709
+    },
+    {
+      "file": "notes-light.png",
+      "width": 1320,
+      "height": 2868,
+      "sha256": "9267b2d3095a5ba781a9e917fa8fba766fe33125ec45ce5cb3837417d610f147",
+      "source": "72d81cb8a7be054d2e00457f4d30461a99e67b1f",
+      "runID": 43700372709
+    },
+    {
+      "file": "notes-mixer.png",
+      "width": 1320,
+      "height": 2868,
+      "sha256": "98a868af91bf8964366c1ccc89ed8fc0ffdaf997d7c5544c72225d2a80f32824",
+      "source": "72d81cb8a7be054d2e00457f4d30461a99e67b1f",
+      "runID": 43700372709
+    },
+    {
+      "file": "notes.png",
+      "width": 1320,
+      "height": 2868,
+      "sha256": "e8cf756d637d42f4a04cd7bc92fb9ec54f13b224da5528cf21c2b211fe08435b",
+      "source": "72d81cb8a7be054d2e00457f4d30461a99e67b1f",
+      "runID": 43700372709
+    },
+    {
+      "file": "perform-export.png",
+      "width": 1320,
+      "height": 2868,
+      "sha256": "5e652596b9351f723518adebbf472e7c1ee56e4152b88562cb4f3da11c3e3bfb",
+      "source": "72d81cb8a7be054d2e00457f4d30461a99e67b1f",
+      "runID": 43700372709
+    },
+    {
+      "file": "perform-take.png",
+      "width": 1320,
+      "height": 2868,
+      "sha256": "3f5885fc78d5aed1659ef0441c2fff6f176c18128cf85c01fa0bc2e57d73e828",
+      "source": "72d81cb8a7be054d2e00457f4d30461a99e67b1f",
+      "runID": 43700372709
+    },
+    {
+      "file": "perform.png",
+      "width": 1320,
+      "height": 2868,
+      "sha256": "53135c89d65fdd34da3926b3049b8442925738858640ecf54116d3695354ff77",
+      "source": "72d81cb8a7be054d2e00457f4d30461a99e67b1f",
+      "runID": 43700372709
+    },
+    {
+      "file": "projects.png",
+      "width": 1320,
+      "height": 2868,
+      "sha256": "6e5070c254ec12e698ef11bdbc8fdfbbae244828c5f163f0c9cbcac621a8c64e",
+      "source": "72d81cb8a7be054d2e00457f4d30461a99e67b1f",
+      "runID": 43700372709
+    },
+    {
+      "file": "qa-landscape-jam.png",
+      "width": 1320,
+      "height": 2868,
+      "sha256": "e7a3ba4d42295d85e0a462b2ff322be054ae9160ad279310a1c1a89af2639be2",
+      "source": "72d81cb8a7be054d2e00457f4d30461a99e67b1f",
+      "runID": 43700372709
+    },
+    {
+      "file": "qa-large-type-piano-roll.png",
+      "width": 1320,
+      "height": 2868,
+      "sha256": "ef416c1dae6c03996e5f8755ceb2a529cd21cdc0d83ec7fcba587ea71aa485b8",
+      "source": "72d81cb8a7be054d2e00457f4d30461a99e67b1f",
+      "runID": 43700372709
+    },
+    {
+      "file": "qa-russian-light-export.png",
+      "width": 1320,
+      "height": 2868,
+      "sha256": "690d0bfc92be0cff84f967122e5a2421ece11b553a78286fcfd33af41e8f51fc",
+      "source": "72d81cb8a7be054d2e00457f4d30461a99e67b1f",
+      "runID": 43700372709
+    },
+    {
+      "file": "settings.png",
+      "width": 1320,
+      "height": 2868,
+      "sha256": "4d253c1e878584ce5e0e3bb6c35c19dafe93ec71362ba6cc71b7068a8554a5df",
+      "source": "72d81cb8a7be054d2e00457f4d30461a99e67b1f",
+      "runID": 43700372709
+    },
+    {
+      "file": "store-en-US-export.png",
+      "width": 1320,
+      "height": 2868,
+      "sha256": "7ebbb706560a9b592a8885355598c5c2377ce324bcb4a6b9f5223c2be8c35cf7",
+      "source": "72d81cb8a7be054d2e00457f4d30461a99e67b1f",
+      "runID": 43700372709
+    },
+    {
+      "file": "store-en-US-grid.png",
+      "width": 1320,
+      "height": 2868,
+      "sha256": "d0f686d55a6b9843803596db3836cf4d7d5907ff03e5cf6e3de0aa794220931e",
+      "source": "72d81cb8a7be054d2e00457f4d30461a99e67b1f",
+      "runID": 43700372709
+    },
+    {
+      "file": "store-en-US-harmony-proposal.png",
+      "width": 1320,
+      "height": 2868,
+      "sha256": "f3c37cb1939812ee7db854a0b097d5a4582601dcf0213d88528b9e7413d6e7ce",
+      "source": "72d81cb8a7be054d2e00457f4d30461a99e67b1f",
+      "runID": 43700372709
+    },
+    {
+      "file": "store-en-US-jam.png",
+      "width": 1320,
+      "height": 2868,
+      "sha256": "caf79a6a97d6f36bffa97e1a46097935a1a733c43ba965df05ded05a3a726fe7",
+      "source": "72d81cb8a7be054d2e00457f4d30461a99e67b1f",
+      "runID": 43700372709
+    },
+    {
+      "file": "store-en-US-notes.png",
+      "width": 1320,
+      "height": 2868,
+      "sha256": "7f4ef9a41c8032bb79278465f9cb6f837d1e4fefacc22bc57a8478643796d123",
+      "source": "72d81cb8a7be054d2e00457f4d30461a99e67b1f",
+      "runID": 43700372709
+    },
+    {
+      "file": "store-en-US-perform-take.png",
+      "width": 1320,
+      "height": 2868,
+      "sha256": "a7088947490c3b17de8953c5054e17105000f70adbe5692e409ac4a8d7c63b34",
+      "source": "72d81cb8a7be054d2e00457f4d30461a99e67b1f",
+      "runID": 43700372709
+    },
+    {
+      "file": "store-ru-export.png",
+      "width": 1320,
+      "height": 2868,
+      "sha256": "5c3a89ced56cb64fb422a4e1e23373dd2e1668524a9dc52d807a569c54b65ecf",
+      "source": "72d81cb8a7be054d2e00457f4d30461a99e67b1f",
+      "runID": 43700372709
+    },
+    {
+      "file": "store-ru-grid.png",
+      "width": 1320,
+      "height": 2868,
+      "sha256": "bd55e5d4e1b70e74244b554dd67561cfa33a8a4a38b2ed672c735af13678025e",
+      "source": "72d81cb8a7be054d2e00457f4d30461a99e67b1f",
+      "runID": 43700372709
+    },
+    {
+      "file": "store-ru-harmony-proposal.png",
+      "width": 1320,
+      "height": 2868,
+      "sha256": "b8be4b021079b4bcfec799c57c72a52a7015350f8fc8ae77c04b519d91e5705a",
+      "source": "72d81cb8a7be054d2e00457f4d30461a99e67b1f",
+      "runID": 43700372709
+    },
+    {
+      "file": "store-ru-jam.png",
+      "width": 1320,
+      "height": 2868,
+      "sha256": "ef042aa40029ac8fb6a1bdfc9b8a73181a43fdc9c493eea73e06bfa584e48c60",
+      "source": "72d81cb8a7be054d2e00457f4d30461a99e67b1f",
+      "runID": 43700372709
+    },
+    {
+      "file": "store-ru-notes.png",
+      "width": 1320,
+      "height": 2868,
+      "sha256": "ecc173729b66a63fc2bca6ed383ee2db2f653b0229b26db758cf7fc161a992ed",
+      "source": "72d81cb8a7be054d2e00457f4d30461a99e67b1f",
+      "runID": 43700372709
+    },
+    {
+      "file": "store-ru-perform-take.png",
+      "width": 1320,
+      "height": 2868,
+      "sha256": "eac567ef534a9a36dc44abd437950fa3247e4560b822bafabd4bc291fc74aaa1",
+      "source": "72d81cb8a7be054d2e00457f4d30461a99e67b1f",
+      "runID": 43700372709
+    },
+    {
+      "file": "voice-draft.png",
+      "width": 1320,
+      "height": 2868,
+      "sha256": "4f29e59c2111cbd0112812e30b7866b356a69f1131f0486ca9dbf57c7884f6a9",
+      "source": "72d81cb8a7be054d2e00457f4d30461a99e67b1f",
+      "runID": 43700372709
+    },
+    {
+      "file": "voice-ru.png",
+      "width": 1320,
+      "height": 2868,
+      "sha256": "d86c298a534b50933df6d8fcbb1c51def1ee9e2e5d047391f6235c19b25432ce",
+      "source": "72d81cb8a7be054d2e00457f4d30461a99e67b1f",
+      "runID": 43700372709
+    },
+    {
+      "file": "voice.png",
+      "width": 1320,
+      "height": 2868,
+      "sha256": "56ec1bec871bc85bd7cca29d00440922b22d19bb4219f512aabb744c04b7425f",
+      "source": "72d81cb8a7be054d2e00457f4d30461a99e67b1f",
+      "runID": 43700372709
+    }
+  ],
+  "colorMode": "RGB",
+  "pngBitDepth": 8,
+  "captureArtifactID": 14156619751,
+  "nativeTestCount": 22
+}

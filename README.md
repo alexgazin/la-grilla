@@ -1,10 +1,12 @@
 # La Grilla
 
+[![iOS verification](https://github.com/alexgazin/la-grilla/actions/workflows/ios.yml/badge.svg?branch=main)](https://github.com/alexgazin/la-grilla/actions/workflows/ios.yml?query=branch%3Amain)
+
 **Карманная студия для iPhone: придумать гармонию, сыграть бит, собрать форму трека и продолжить работу в большой DAW.**
 
 Рабочее название: **La Grilla** («сетка»). Платформа: **iOS, SwiftUI, нативный аудиодвижок**. Основной язык этой спецификации — русский; пользовательский интерфейс проектируется с локализацией RU/EN.
 
-> **Статус на 15 ноября 2026:** Программная база R0–R10 и технический кандидат 1.0.0 (11) реализованы и проверены на Xcode 26 / iOS 26. По запросу владельца выполняется R8.1 — самостоятельный дизайн 2026 с упрощением интерфейса. Текущий план — [ROADMAP](ROADMAP.md), фактические результаты — [QA](docs/QA.md), реальные экраны — [Screenshots](Screenshots). [Сборка](docs/DEVELOPMENT.md) · [Подпись и выпуск](docs/release/RELEASE.md) · [Release QA](docs/RELEASE_QA.md). Физические проверки, Apple signing/TestFlight и публикация пока не выполнены.
+> **Статус на 15 ноября 2026:** Программные этапы R0–R10 и R8.1 реализованы. Кандидат **1.0.0 (12)** получил самостоятельный дизайн 2026: музыкальная сетка, единые формы и типографика, светлая/тёмная палитры и нативная навигация iOS 26. Функциональная приёмка на Xcode 26.3 / iOS 26.2 пройдена. [ROADMAP](ROADMAP.md) · [QA](docs/QA.md) · [Дизайн и проверки](docs/DESIGN_QA.md) · [Реальные экраны](Screenshots) · [Сборка](docs/DEVELOPMENT.md) · [Подпись и выпуск](docs/release/RELEASE.md) · [Release QA](docs/RELEASE_QA.md). Физические проверки, Apple signing/TestFlight и публикация пока не выполнены.
 
 **Дизайн приложения:** [отдельный промпт для UX/UI и прототипа](DESIGN_PROMPT.txt). Он дополняет спецификацию и разделяет MVP и будущие функции.
 
