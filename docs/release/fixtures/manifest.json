@@ -1,0 +1,27 @@
+{
+  "purpose": "Physical iPhone/DAW QA; generated projects, no personal recordings",
+  "schemaVersion": 7,
+  "projects": [
+    {
+      "file": "load-P1.grillapack",
+      "sha256": "94303b07b16af882edf3d064e4f9de7dac7ce72b28c53b135173804488169ac0",
+      "tracks": 3,
+      "bars": 64,
+      "compiledNotes": 768
+    },
+    {
+      "file": "load-P2.grillapack",
+      "sha256": "cd28ba689b756c26858a85c888e945e35e11ee0ecf5b109dee4d13359767b3e1",
+      "tracks": 8,
+      "bars": 64,
+      "compiledNotes": 8192
+    },
+    {
+      "file": "load-P3.grillapack",
+      "sha256": "43582e688266c8b2c5ab2189b819255f17020daef77c27a4033b1448a1d8bffa",
+      "tracks": 8,
+      "bars": 64,
+      "compiledNotes": 16384
+    }
+  ]
+}
