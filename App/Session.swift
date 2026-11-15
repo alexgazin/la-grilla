@@ -293,5 +293,8 @@ import Observation
         }}
     }
     func saveCopy()async{do{_ = try await store.duplicate(project);message="A copy has been saved.";entries=try await store.list()}catch{message=error.localizedDescription}}
+    /// Emergency MIDI stop must complete even if the current audio route is no
+    /// longer delivering render callbacks to acknowledge a queued stop command.
+    func panicMIDI(){interrupt();_ = ensureAudio()}
     func interrupt() {if performance.contextActive{performance.finalizeBeforeReset();pollPerformance()};harmonyPreview=false;finishTake();midi.suspend();midi.retry();audio.reset();Task{await save()}}
 }
