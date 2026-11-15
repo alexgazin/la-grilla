@@ -32,14 +32,15 @@ private enum MIDICallbacks {
 }
 @MainActor @Observable final class MIDIController {
     let hub:MIDIHubHandle
-    var sources:[MIDIEndpoint]=[],destinations:[MIDIEndpoint]=[]
+    var sources:[MIDIEndpoint]=[];var destinations:[MIDIEndpoint]=[]
     var error:String?;var lastMessage="No MIDI input yet";var late:UInt64=0;var dropped:UInt64=0
     var learning:MIDIMapping.Target?;var learningTrack:UUID?
     @ObservationIgnored var onConfigurationChange:(()->Void)?
     @ObservationIgnored private var lastConfiguration:MIDISettings?
     @ObservationIgnored var onLearn:((MIDIMapping)->Void)?
     @ObservationIgnored var onControl:((MIDIMapping,Double)->Void)?
-    @ObservationIgnored private var client=MIDIClientRef(),input=MIDIPortRef()
+    @ObservationIgnored private var client=MIDIClientRef()
+    @ObservationIgnored private var input=MIDIPortRef()
     @ObservationIgnored private var generation:UInt32=0
     @ObservationIgnored private var connections:[Int32:(endpoint:MIDIEndpointRef,slot:Int,handle:UInt32)]=[:]
     @ObservationIgnored private var settings=MIDISettings()
