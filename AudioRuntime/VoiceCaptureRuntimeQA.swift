@@ -242,14 +242,28 @@ import MusicDomain
         let durationFacts=String(format:"fileFrames=%lld fileRate=%.17g fileDuration=%.17g recordDuration=%.17g analysisDuration=%.17g recordFrames=%.17g analysisFrames=%.17g recordError=%.17g analysisError=%.17g tolerance=%.17g sourceBytes=%lld",file.length,format.sampleRate,duration,result.record.duration,result.analysis.duration,result.record.duration*format.sampleRate,result.analysis.duration*format.sampleRate,recordError,analysisError,1.0/48000,Int64(result.data.count))
         try require(recordError<1.0/48000 && analysisError<1.0/48000,"CAF, source metadata and analysis durations disagree: "+durationFacts)
         try require(result.record.origin == .microphone && result.record.recordedAt != nil && result.record.inputLatencySeconds != nil && result.record.tempoBPM==bpm,"Production source capture provenance is missing")
-        guard let buffer=AVAudioPCMBuffer(pcmFormat:format,frameCapacity:AVAudioFrameCount(file.length))else{throw Failure(message:"Cannot allocate bounded source inspection")}
-        try file.read(into:buffer)
-        try require(Int64(buffer.frameLength)==file.length,"Original CAF could not supply all declared frames")
-        guard let values=buffer.floatChannelData?[0]else{throw Failure(message:"No CAF PCM channel")}
-        var peak:Float=0
-        for index in 0..<Int(buffer.frameLength){try require(values[index].isFinite,"Non-finite production source PCM");peak=max(peak,abs(values[index]))}
+        let declaredFrames=file.length
+        // Independent inspection uses a different, non-dividing chunk size.
+        // Verify actual decoded frames/peak, not one possibly short buffer.
+        guard let buffer=AVAudioPCMBuffer(pcmFormat:format,frameCapacity:997),file.framePosition==0 else{throw Failure(message:"Cannot allocate bounded source inspection")}
+        var peak:Float=0,totalRead:AVAudioFramePosition=0
+        while totalRead<declaredFrames {
+            try Task.checkCancellation()
+            let requested=AVAudioFrameCount(min(997,declaredFrames-totalRead)),position=file.framePosition
+            buffer.frameLength=0
+            try file.read(into:buffer,frameCount:requested)
+            let actual=buffer.frameLength
+            try require(actual>0 && actual<=requested && file.framePosition==position+AVAudioFramePosition(actual),"Original CAF read made no valid progress: decoded=\(totalRead) declared=\(declaredFrames) actual=\(actual) position=\(file.framePosition)")
+            guard let values=buffer.floatChannelData?[0]else{throw Failure(message:"No CAF PCM channel")}
+            for index in 0..<Int(actual){try require(values[index].isFinite,"Non-finite production source PCM");peak=max(peak,abs(values[index]))}
+            totalRead+=AVAudioFramePosition(actual)
+        }
+        try require(totalRead==declaredFrames && file.framePosition==declaredFrames && file.length==declaredFrames,"Original CAF could not supply all declared frames")
+        buffer.frameLength=0
+        try file.read(into:buffer,frameCount:1)
+        try require(buffer.frameLength==0 && file.framePosition==declaredFrames && file.length==declaredFrames,"Original CAF supplied frames beyond its declared length")
         try require(peak>0.001,"Actual input CAF is silent; hardware loopback reference did not arrive")
-        return SourceProof(frames:file.length,peak:peak)
+        return SourceProof(frames:totalRead,peak:peak)
     }
     private static func immutableSource(_ result:VoiceCaptureResult)throws {
         let reread=try Data(contentsOf:result.sourceURL)
