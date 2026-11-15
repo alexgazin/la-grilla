@@ -34,6 +34,7 @@ final class StudioTests: XCTestCase {
         for _ in 0..<5 {if guide.isHittable{break};app.scrollViews.firstMatch.swipeUp()}
         XCTAssertTrue(guide.exists);guide.tap()
         let hint=app.staticTexts["Сыграй свой собственный ритм."]
+        for _ in 0..<4 {if hint.isHittable{break};app.scrollViews.firstMatch.swipeUp()}
         XCTAssertTrue(hint.waitForExistence(timeout:5))
         for _ in 0..<4 {if app.staticTexts["Создавай бит слой за слоем."].isHittable{break};app.scrollViews.firstMatch.swipeUp()}
         XCTAssertTrue(app.staticTexts["Создавай бит слой за слоем."].exists)
@@ -137,13 +138,15 @@ final class StudioTests: XCTestCase {
         let app=launch();app.buttons["assistant.open"].tap();XCTAssertTrue(app.navigationBars["Assistant"].waitForExistence(timeout:5))
         let input=app.textViews["assistant.input"];XCTAssertTrue(input.waitForExistence(timeout:5));input.tap();input.typeText("tempo 110");app.swipeUp();app.buttons["assistant.generate"].tap();app.swipeUp()
         XCTAssertTrue(app.buttons["assistant.apply"].waitForExistence(timeout:5));app.buttons["assistant.apply"].tap()
-        XCTAssertTrue(app.staticTexts["110"].waitForExistence(timeout:5));app.buttons["Undo"].tap();XCTAssertTrue(app.staticTexts["120"].exists)
+        let tempo=app.staticTexts["studio.tempo"]
+        XCTAssertTrue(tempo.waitForExistence(timeout:5));XCTAssertEqual(tempo.label,"110 BPM")
+        app.buttons["Undo"].tap();XCTAssertEqual(tempo.label,"120 BPM")
     }
     @MainActor func testAssistantAmbiguityKeepsMusicUnchangedUntilApply() {
         let app=launch();app.buttons["assistant.open"].tap();let input=app.textViews["assistant.input"];XCTAssertTrue(input.waitForExistence(timeout:5));input.tap();input.typeText("Am F");app.swipeUp();app.buttons["assistant.generate"].tap();app.swipeUp()
         XCTAssertTrue(app.buttons["Stretch chords evenly"].waitForExistence(timeout:5));XCTAssertFalse(app.buttons["assistant.apply"].exists)
         app.buttons["Stretch chords evenly"].tap();app.swipeUp();XCTAssertTrue(app.buttons["assistant.apply"].exists)
-        app.buttons["Cancel"].tap();XCTAssertTrue(app.staticTexts["120"].exists)
+        app.buttons["Cancel"].tap();XCTAssertEqual(app.staticTexts["studio.tempo"].label,"120 BPM")
     }
     @MainActor func testVoiceFixtureAnalyzePreviewApplyUndoAndPortableExport() {
         let app=launch("voice-draft");XCTAssertTrue(app.staticTexts["voice.note-count"].waitForExistence(timeout:15));XCTAssertEqual(app.staticTexts["voice.note-count"].label,"3 notes")
