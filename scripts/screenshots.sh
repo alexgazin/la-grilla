@@ -23,8 +23,7 @@ codesign --force --deep --sign - DerivedData/Build/Products/Debug-iphonesimulato
 echo "Installing simulator application"
 run_limited 300 xcrun simctl install "$DEVICE" DerivedData/Build/Products/Debug-iphonesimulator/LaGrilla.app
 if test "${GRILLA_CAPTURE_SCREENS:-1}" = 0; then
-  run_limited 180 xcrun simctl launch "$DEVICE" com.alexgazin.LaGrilla --uitesting --screen grid
-  sleep 5
+  # XCTest owns application launch; simctl launch can stall on a cold hosted simulator.
   exit 0
 fi
 SCREENSHOT_DIR=${GRILLA_SCREENSHOT_DIR:-Screenshots/R8}
