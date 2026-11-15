@@ -7,7 +7,7 @@ final class StudioTests: XCTestCase {
     @MainActor func testPerformRecordingSurvivesNavigationAndReplays() {
         let app=launch("perform")
         XCTAssertTrue(app.buttons["perform.record"].waitForExistence(timeout:5));app.buttons["perform.record"].tap()
-        XCTAssertTrue(app.staticTexts["perform.mode"].waitForExistence(timeout:5))
+        XCTAssertTrue(app.staticTexts["perform.mode"].waitForExistence(timeout:5));XCTAssertEqual(app.staticTexts["perform.mode"].label,"RECORDING")
         app.buttons["perform.section.Chorus"].tap()
         app.buttons["perform.done"].tap();app.buttons["Jam"].tap();app.buttons["Kick"].tap()
         app.buttons["perform.transport"].tap();XCTAssertTrue(app.buttons["perform.record"].waitForExistence(timeout:5));app.buttons["perform.record"].tap()
