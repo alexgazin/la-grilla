@@ -1,6 +1,6 @@
-# Project schema v4
+# Project schema v7
 
-A `.grilla` directory contains `manifest.json`, optional `backup.json`, and no user-supplied assets in v0.1. Foundation JSONEncoder/Decoder encode UUIDs as strings, dates as seconds since 2001-01-01, enum values as documented Swift raw strings, and integral ticks as JSON integers.
+A `.grilla` directory contains `manifest.json`, optional `backup.json`, and optional validated `Assets/<UUID>.caf` originals. Foundation JSONEncoder/Decoder encode UUIDs as strings, dates as seconds since 2001-01-01, enum values as documented Swift raw strings, and integral ticks as JSON integers.
 
 The canonical typed schema is `Packages/MusicDomain/Sources/MusicDomain/Model.swift`. Required top-level fields: `id`, `schemaVersion`, `revision`, `name`, `bpm`, `keyRoot`, `minor`, `modified`, `tracks`, `patterns`, `sections`, `bassOctave`, `bassGate`, `master`.
 
@@ -13,3 +13,10 @@ Version 3 adds optional `slashBass` (pitch class 0–11) and `voicedNotes` (1–
 Assistant proposals use a separate bounded runtime contract, [JSON Schema](assistant-proposal.schema.json). Their project ID/base revision and all section IDs must match the source. The decoder rejects unknown fields/operations and candidate validation runs after every operation. Commands never carry executable code. A proposal is applied through History as one transaction; narration/assumptions are separate from allowlisted operations.
 
 Version 4 adds optional project `audioAssets` and clip `sourceAssetID`. A source record has UUID-derived `Assets/<UUID>.caf` path, SHA-256, exact byte count, mono PCM sample rate/duration, origin (microphone or marked synthetic QA fixture), optional scheduled recording timestamp/input latency/capture tempo. Up to eight bounded source recordings are retained, including for Undo. Package copy/recovery and portable version 2 preserve and validate bytes. v3 migrates in memory. Missing/damaged source files block source playback/export with an error; synthesized MIDI notes remain separate from source audio. Portable import is bounded to 128 MB and never extracts arbitrary paths.
+
+
+Version 5 adds optional master filter/delay state and a finite `performanceTakes` entry, exposed through `performanceTake`. A take freezes a separate source project without a nested take, source revision, instrument versions, sample rate, deterministic seed, frame duration and bounded automation/live events. Replay and export validate the frozen source recursively. The source may reference retained original voice assets; deleting those files invalidates source export rather than silently substituting audio.
+
+Version 6 adds optional `midi` settings: enabled input, selected stable endpoint unique IDs, output ID, optional input channel, destination track UUID and bounded controller mappings. Sustain CC64 and channel-mode controllers are reserved. Deleting a track removes its stale routing/mappings. Input-note, release, sustain and per-source disconnect events are represented in finite takes.
+
+Version 7 makes instrument interpretation explicit. New tracks use preset version 2 with sample-rate-independent one-shot duration and bounded voice-retirement fades. Projects saved by versions 1–6, including frozen take sources, retain preset version 1 during migration. Existing saved music is never silently upgraded to a new instrument sound. Unknown future project or preset versions are rejected. All migrations operate on value copies; save keeps the prior valid manifest as backup.
