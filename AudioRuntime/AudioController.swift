@@ -97,7 +97,7 @@ private enum AudioRender {
     }
     private func resumeConfiguredGraph(){
         guard let engine,handle != nil,!engine.isRunning else{return}
-        do{engine.prepare();try engine.start()}
+        do{engine.prepare();try engine.start();error=nil}
         catch{self.error=error.localizedDescription}
     }
     func poll() {
@@ -180,7 +180,7 @@ private enum AudioRender {
     func pad(_ pad: Int, velocity: Int = 100) {if let k = handle?.pointer { _ = lg_pad(k,Int32(pad),Int32(velocity)) }}
     func preview(_ chord: Chord) {if let k = handle?.pointer {for n in chord.notes {lg_preview(k,Int32(n))}}}
     func previewNote(_ pitch:Int,track:Int){
-        guard let desired=routing[generation],desired.tracks.indices.contains(track)else{return}
+        guard (0...127).contains(pitch),let desired=routing[generation],desired.tracks.indices.contains(track)else{return}
         let id=desired.tracks[track].id
         if !previewNote(pitch,id:id){pendingPreviews.append((id,pitch));if pendingPreviews.count>32{pendingPreviews.removeFirst()}}
     }

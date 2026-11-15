@@ -145,7 +145,8 @@ struct GridView: View {
         let width=max(4,CGFloat(visibleLength)/CGFloat(barTicks)*barWidth-6)
         return ArrangementClipFace(notes:notes,track:track,clip:clip,width:width,height:max(44,height-12),resizing:draft != nil)
             .overlay(alignment:.trailing){
-                Image(systemName:"line.3.horizontal").font(.system(size:11,weight:.semibold)).rotationEffect(.degrees(90)).foregroundStyle(Color.track(track.role)).frame(width:min(18,max(6,width*0.2)),height:44).contentShape(Rectangle())
+                Image(systemName:"line.3.horizontal").font(.system(size:11,weight:.semibold)).rotationEffect(.degrees(90)).foregroundStyle(Color.track(track.role))
+                    .frame(width:min(18,max(6,width*0.2)),height:44).frame(width:44,height:44).contentShape(Rectangle())
                     .highPriorityGesture(DragGesture(minimumDistance:1).onChanged{value in
                         guard !editingLocked else{return}
                         if resizeDraft?.payload.objectID != clip.id {resizeDraft=ClipResizeDraft(payload:.init(project:session.project,trackID:track.id,clipID:clip.id),originalLength:clip.length,length:clip.length,start:clip.start)}
@@ -229,14 +230,23 @@ struct GridView: View {
         }.tint(.mint)
     }
     private var clipListContents:some View {
-        let tracks=session.project.tracks.filter{$0.role != .bass}
+        let tracks=session.project.tracks
         return List{ForEach(tracks){track in clipListSection(track)}}
     }
     private func clipListSection(_ track:Track)->some View {
         let clips=track.clips.sorted{$0.start<$1.start}
         return SwiftUI.Section {
-            ForEach(clips){clip in clipListRow(trackID:track.id,clip:clip)}
+            if track.role != .bass{ForEach(clips){clip in clipListRow(trackID:track.id,clip:clip)}}
+            addClipButton(track)
+            if track.role == .bass{Text("Root bass follows harmony and cannot hold independent clips.").font(.caption).foregroundStyle(Color.muted)}
         } header:{Text(track.displayName)}
+    }
+    private func addClipButton(_ track:Track)->some View {
+        let label=String(format:NSLocalizedString("Add clip to %@",comment:"Create a clip on a track"),track.displayName)
+        return Button{addClip(on:track)}label:{
+            Label("Add clip",systemImage:"plus").frame(maxWidth:.infinity,minHeight:44,alignment:.leading).contentShape(Rectangle())
+        }.accessibilityLabel(label).accessibilityIdentifier("grid.clip.add.\(track.role.rawValue).\(track.id)")
+            .disabled(track.role == .bass || editingLocked)
     }
     private func clipListRow(trackID:UUID,clip:Clip)->some View {
         let position="\(clip.start/barTicks+1):\(clip.start%barTicks/240+1)"
@@ -246,7 +256,29 @@ struct GridView: View {
             showClipList=false
         } label:{
             HStack{Text(position);Spacer();Text(length).foregroundStyle(Color.muted)}.frame(minHeight:44)
+        }.accessibilityIdentifier("grid.clip.list.\(clip.id)")
+    }
+    private func nextFreeClipStart(on track:Track)->Int? {
+        var start=0
+        for clip in track.clips.sorted(by:{$0.start<$1.start}) {
+            if start+barTicks<=clip.start{return start}
+            let end=clip.start+clip.length
+            if end>start{start=((end+clipSnap-1)/clipSnap)*clipSnap}
         }
+        return start+barTicks<=64*barTicks ? start:nil
+    }
+    private func addClip(on track:Track){
+        guard !editingLocked,track.role != .bass else{return}
+        guard let start=nextFreeClipStart(on:track)else{
+            session.message=NSLocalizedString("There is no room for another clip. Shorten or move an existing clip first.",comment:"Arrangement clip creation")
+            return
+        }
+        let existing=Set(track.clips.map(\.id)),revision=session.project.revision
+        session.edit{try ClipEditing.create(on:track.id,start:start,length:barTicks,snap:clipSnap,in:&$0)}
+        guard session.project.revision>revision,
+              let created=session.project.tracks.first(where:{$0.id==track.id})?.clips.first(where:{!existing.contains($0.id)})else{return}
+        pendingClipInspector=ClipEditorSelection(trackID:track.id,clipID:created.id)
+        showClipList=false
     }
     @ViewBuilder private var tools:some View {
         if dynamicType.isAccessibilitySize {
@@ -382,7 +414,8 @@ struct ChordTile: View {
                             .frame(width:max(2,(width-24-CGFloat(max(0,chord.notes.count-1))*(width<64 ? 1:3))/CGFloat(max(1,chord.notes.count))),height:3).offset(y:CGFloat(72-note)/4)
                     }
                 }
-                Text(chord.quality.label).font(.system(size:11)).lineLimit(1).foregroundStyle(Color.harmony.opacity(0.9))
+                Text(chord.customIntervals == nil ? chord.quality.label:NSLocalizedString("Custom chord",comment:"Chord formula label"))
+                    .font(.system(size:11)).lineLimit(1).foregroundStyle(Color.harmony.opacity(0.9))
             }
         }.foregroundStyle(Color.harmony).padding(12).frame(width:width,height:height,alignment:.topLeading)
             .background(Color.harmony.opacity(chord == nil ? 0.04:0.12),in:RoundedRectangle(cornerRadius:10))

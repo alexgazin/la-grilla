@@ -55,7 +55,14 @@
 
 ## C7/C8 — граница текущей проверки
 
-Рабочий интеграционный кандидат — **1.0.0 (14), schema 8**; предыдущий проверенный baseline остаётся 1.0.0 (12), пока новая версия не пройдёт CI. Новые источники не объявляются проверенными только потому, что синтаксический parser Linux их принимает. Для C7 выполняются полные host/export checks, обе Apple SDK, optimized archive, native сценарии и новые original screenshots. Source SHA/run/merge/manifest будут записаны после фактических результатов.
+Рабочий интеграционный кандидат — **1.0.0 (14), schema 8**; предыдущий проверенный baseline остаётся 1.0.0 (12), пока новая версия не пройдёт CI. Новые источники не объявляются проверенными только потому, что синтаксический parser Linux их принимает.
+
+- **Host checkpoint `031f977`:** 107 Swift tests, 0 ошибок; 14 C++ suites и P1/P2/P3 stress проходят, callback allocations = 0. Presentation audit — 584 EN/RU ключа, placeholder parity, contrast/font/icon; Release audit проходит.
+- **Сквозная приёмка:** один короткий проект проходит custom/jazz whole-song proposal decode/review/apply, clip move/resize/offset/copy, section duplicate/reorder/delete, save/load и portable install. Независимый SMF reader проверяет 21 конкретную пару NoteOn/Off с channel/tick/duration/velocity, tempo и markers. Повторный PCM render побайтово совпадает, пять stems выровнены, mute даёт нули, их сумма совпадает с mix в пределах 16-bit quantization. Отдельный Python reader проверил RIFF/ZIP и реальную басовую последовательность D1→E1.
+- **Первая Apple проверка `08fc23d` / run `43713282157`:** обнаружен type-check timeout сложного `GridView.clipList`; body разделён на небольшие builder helpers. Предупреждения захвата AVAudioPCMBuffer/изменяемой локальной переменной converter callback устранены явной confined ownership box, без подавления Sendable diagnostics.
+- **Native acceptance checkpoint:** `031f977`, run `43713870989`, [PR #13](https://github.com/alexgazin/la-grilla/pull/13). Результат ещё не принят. Новые suites проверяют настоящий native drag, whole-song review/Apply/Undo, custom editor, live track/section/A-B, voice rebase и actual engine/kernel clock/PCM; synthetic fixtures обозначены явно. Проверка настоящего mic tap не подменяется синтетическим источником.
+
+Дальше: обе Apple SDK, optimized archive, все native сценарии, оригинальные кадры `Screenshots/OriginalVision`, App Store copies и повторная проверка итогового `main`. Source SHA/run/merge/manifest фиксируются по факту.
 
 Для C8 нужны реальные Apple signing ресурсы и оборудование: установленная сборка, человеческие напевы, USB/BLE MIDI, route/latency/thermal/background сессии, настоящая локальная модель, TestFlight и App Review. Независимая программная работа продолжается; недоступность этих ресурсов не превращается в выдуманную отметку «готово».
 

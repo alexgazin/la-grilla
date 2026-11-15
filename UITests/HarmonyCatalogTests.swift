@@ -32,6 +32,8 @@ final class HarmonyCatalogTests:XCTestCase {
 
     @MainActor func testCustomFormulaPersistsEveryToneAndIsUndoable(){
         let app=launch();openFirstChord(app)
+        XCTAssertGreaterThanOrEqual(app.buttons["chord.set-symbol"].frame.width,44)
+        XCTAssertGreaterThanOrEqual(app.buttons["chord.set-symbol"].frame.height,44)
         let custom=app.switches["chord.custom"];reveal(custom,in:app);custom.tap()
         let formula=app.textFields["chord.formula"];reveal(formula,in:app)
         replace(formula,with:"0, 3, 7, 11, 14")
@@ -39,6 +41,8 @@ final class HarmonyCatalogTests:XCTestCase {
         XCTAssertEqual(app.staticTexts["chord.notes"].label,"C4 · E♭4 · G4 · B4 · D5")
         let apply=app.buttons["chord.apply"];reveal(apply,in:app);apply.tap()
         XCTAssertTrue(app.buttons["Undo"].waitForExistence(timeout:5));XCTAssertTrue(app.buttons["Undo"].isEnabled)
+        let tile=app.buttons.matching(NSPredicate(format:"identifier BEGINSWITH 'grid.chord.' AND label CONTAINS 'Custom chord'")).firstMatch
+        XCTAssertTrue(tile.waitForExistence(timeout:5));XCTAssertFalse(tile.label.contains("Major"))
         openFirstChord(app)
         XCTAssertEqual(app.textFields["chord.symbol"].value as? String,"C{0,3,7,11,14}")
         XCTAssertEqual(app.staticTexts["chord.notes"].label,"C4 · E♭4 · G4 · B4 · D5")

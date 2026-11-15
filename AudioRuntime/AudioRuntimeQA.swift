@@ -60,6 +60,7 @@ import SwiftUI
         try await wait(audio){audio.appliedRevision==project.revision && !audio.pendingSnapshot}
         try require(audio.withKernel{abs(lg_gain_target($0,Int32(added))-powf(10,-9/20))<0.0001 && abs(lg_pan_target($0,Int32(added))+0.6)<0.0001}==true,"Pending generation lost its latest gain/pan")
         try require(audio.withKernel{lg_filter_target($0) == -0.2 && lg_delay_target($0)==0.125}==true,"Pending generation lost its latest FX")
+        try await wait(audio,timeout:1){audio.meters.indices.contains(added) && audio.meters[added]>0.001}
         audio.refreshClock()
         let expected=Double(audio.clock-startClock)*240*Double(ppq)/(60*audio.sampleRate)
         let actual=(audio.tick-startTick+Double(project.length)).truncatingRemainder(dividingBy:Double(project.length))
@@ -93,7 +94,7 @@ import SwiftUI
     }
     static func microphone(_ session:Session)async throws->String {
         let audio=session.audio
-        _ = try await fixture(audio)
+        let project=try await fixture(audio)
         defer{audio.stop()}
         guard await AVAudioApplication.requestRecordPermission()else{throw Failure(message:"Native microphone permission was denied")}
         let kernel=try pointer(audio)
@@ -102,7 +103,7 @@ import SwiftUI
         let lease=MicrophoneLease(),stats=InputStats()
         guard let owner=session.beginMicrophone(stop:{lease.stop()})else{throw Failure(message:"Microphone lease was rejected")}
         defer{lease.stop();session.endMicrophone(owner)}
-        audio.refreshClock();let before=audio.clock
+        audio.refreshClock();let before=audio.clock,beforeTick=audio.tick
         lease.microphone=try LiveMicrophone(audio:audio,delay:0.1,duration:0.3,receiver:{_ in
             LiveInputReceiver(receive:{try stats.append($0)},finish:{stats.finish()})
         },onFailure:{lease.failure=$0})
@@ -119,6 +120,11 @@ import SwiftUI
         try await wait(audio){audio.clock>before && audio.playing && audio.isPrepared}
         try require(AVAudioSession.sharedInstance().category==category,"Microphone category was not restored")
         try require(try pointer(audio)==kernel && audio.captureEngine===engine,"Microphone capture replaced the kernel or engine")
+        let length=Double(project.length)
+        let expected=(Double(audio.clock-before)*project.bpm*Double(ppq)/(60*audio.sampleRate)).truncatingRemainder(dividingBy:length)
+        let actual=(audio.tick-beforeTick+length).truncatingRemainder(dividingBy:length)
+        let difference=abs(actual-expected)
+        try require(min(difference,length-difference)<128,"Microphone category transition reset the musical position")
         let after=audio.clock
         try await wait(audio){audio.clock>after}
         return "Actual tap PCM frames: \(stats.frames); Session lease, permission, finite capture, paused-graph prepare, category restoration and continuing engine/kernel clock"

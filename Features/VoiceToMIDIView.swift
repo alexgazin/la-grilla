@@ -33,6 +33,7 @@ struct VoiceToMIDIView:View {
     @State private var microphoneLease:UUID?
     @State private var context:VoiceReviewContext?
     @State private var pendingContext:VoiceReviewContext?
+    var draftLocked:Bool{applied || applying || capture.isCapturing || capture.state == .analyzing}
     var note:NoteEvent?{notes.first{$0.id==selected}}
     var synthetic:Bool{let args=ProcessInfo.processInfo.arguments;return args.contains("--uitesting") && args.contains("voice-draft")}
     private var displayContext:VoiceReviewContext?{capture.isCapturing ? pendingContext:context}
@@ -76,7 +77,7 @@ struct VoiceToMIDIView:View {
             if capture.state == .analyzing{ProgressView("Analyzing melody…",value:capture.progress).tint(.record)}
             if capture.isCapturing{Button{capture.stop()}label:{Label("Stop recording",systemImage:"stop.fill")}.buttonStyle(StudioActionStyle(color:.record))}
             else if capture.state != .analyzing && !applied{
-                Toggle("One-bar count-in",isOn:$countIn)
+                Toggle("One-bar count-in",isOn:$countIn).disabled(applying)
                 Button{record()}label:{Label(LocalizedStringKey(capture.result==nil ? "Record melody":"Record again"),systemImage:"record.circle")}.buttonStyle(StudioActionStyle(color:.record)).disabled(applying)
             }
         }
@@ -87,15 +88,15 @@ struct VoiceToMIDIView:View {
             HStack{Text("\(notes.count) notes").font(.headline).accessibilityIdentifier("voice.note-count");Spacer();Text("\(notes.filter{($0.confidence ?? 1)<0.9}.count) uncertain").font(.caption).foregroundStyle(Color.harmony)}
             if notes.isEmpty{Text("No stable notes were found. Listen to the original or try a clearer phrase.").font(.callout).foregroundStyle(Color.harmony)}
             HStack(spacing:10){
-                Button{original()}label:{Label(LocalizedStringKey(capture.originalPlaying ? "Stop original":"Original voice"),systemImage:"waveform").frame(maxWidth:.infinity,minHeight:48).background(Color.raised,in:RoundedRectangle(cornerRadius:10))}.accessibilityIdentifier("voice.original")
-                Button{instrument()}label:{Label("Instrument",systemImage:"pianokeys").frame(maxWidth:.infinity,minHeight:48).background(Color.raised,in:RoundedRectangle(cornerRadius:10))}.disabled(notes.isEmpty).accessibilityIdentifier("voice.instrument")
+                Button{original()}label:{Label(LocalizedStringKey(capture.originalPlaying ? "Stop original":"Original voice"),systemImage:"waveform").frame(maxWidth:.infinity,minHeight:48).background(Color.raised,in:RoundedRectangle(cornerRadius:10))}.disabled(applying).accessibilityIdentifier("voice.original")
+                Button{instrument()}label:{Label("Instrument",systemImage:"pianokeys").frame(maxWidth:.infinity,minHeight:48).background(Color.raised,in:RoundedRectangle(cornerRadius:10))}.disabled(notes.isEmpty || applied || applying).accessibilityIdentifier("voice.instrument")
             }.font(.subheadline)
             if session.harmonyPreview{Button("Stop preview"){session.endHarmonyPreview()}.frame(minHeight:44)}
             DisclosureGroup("Rhythm and scale"){
                 VStack(spacing:12){StudioSegments(title:"Quantize",selection:$quantize,options:[(.off,"Original"),(.sixteenth,"1/16"),(.eighth,"1/8")]);Toggle("Snap to project scale",isOn:$snapScale);HStack{Text("Timing offset");Slider(value:$offset,in:-0.25...0.25,step:0.005);Text("\(Int(offset*1000)) ms").font(.caption.monospaced()).frame(width:56)};Button("Rebuild notes from source"){resetNotes()};Text("Rebuilding replaces manual note corrections. The original recording stays available.").font(.caption).foregroundStyle(Color.muted)}.padding(.top,12)
-            }
-            if !notes.isEmpty{noteRoll;eventEditor}
-            Picker("Destination",selection:$target){Text("New melody track").tag(nil as UUID?);ForEach(session.project.tracks.filter{$0.role == .melody}){t in Text(t.displayName).tag(Optional(t.id))}}.pickerStyle(.menu).disabled(applied)
+            }.disabled(draftLocked)
+            if !notes.isEmpty{noteRoll.disabled(draftLocked);eventEditor}
+            Picker("Destination",selection:$target){Text("New melody track").tag(nil as UUID?);ForEach(session.project.tracks.filter{$0.role == .melody}){t in Text(t.displayName).tag(Optional(t.id))}}.pickerStyle(.menu).disabled(draftLocked)
             if target != nil{Text("Melody notes in the selected section will be replaced. Other sections stay as written.").font(.caption).foregroundStyle(Color.harmony)}
             if stale && !applied {
                 Text("The project changed. Review this melody against the current project before applying.").font(.callout).foregroundStyle(Color.harmony)
@@ -103,7 +104,7 @@ struct VoiceToMIDIView:View {
             }
             #if DEBUG
             if synthetic && ProcessInfo.processInfo.arguments.contains("--voice-review-fixture") {
-                Button{if !session.audio.playing{session.audio.play()};session.mixerEdit{$0.master=max(-60,$0.master-1)};session.mixerGesture=false}label:{Text(verbatim:"Change fixture mix")}.frame(minHeight:48).accessibilityIdentifier("voice.fixture-edit")
+                Button{if !session.audio.playing{session.audio.play()};session.mixerEdit{$0.master=max(-60,$0.master-1)};session.mixerGesture=false}label:{Text(verbatim:"Change fixture mix")}.frame(minHeight:48).accessibilityIdentifier("voice.fixture-edit").disabled(draftLocked)
                 Text(verbatim:session.audio.playing ? "PLAYING":"STOPPED").accessibilityIdentifier("voice.fixture-transport")
                 Text(verbatim:String(note?.pitch ?? -1)).accessibilityIdentifier("voice.fixture-pitch")
                 Text(verbatim:result.record.sha256).font(.caption).accessibilityIdentifier("voice.fixture-source")
@@ -138,9 +139,9 @@ struct VoiceToMIDIView:View {
                 Stepper("Length: \(note.duration) ticks",onIncrement:{edit{$0.duration=min(sectionLength-$0.tick,$0.duration+120)}},onDecrement:{edit{$0.duration=max(1,$0.duration-120)}})
                 Button("Delete note",role:.destructive){notes.removeAll{$0.id==note.id};selected=notes.first?.id}.frame(minHeight:44)
             }
-        }.font(.subheadline).disabled(applied || applying)
+        }.font(.subheadline).disabled(draftLocked)
     }
-    func edit(_ action:(inout NoteEvent)->Void){if let i=notes.firstIndex(where:{$0.id==selected}){action(&notes[i])};session.endHarmonyPreview()}
+    func edit(_ action:(inout NoteEvent)->Void){guard !draftLocked else{return};if let i=notes.firstIndex(where:{$0.id==selected}){action(&notes[i])};session.endHarmonyPreview()}
     func move(_ tick:Int){edit{$0.tick=max(0,min(sectionLength-$0.duration,tick))}}
     private func makeContext(minimumLead:Double,playing:Bool?=nil)throws->VoiceReviewContext {
         session.audio.refreshClock()
@@ -150,6 +151,7 @@ struct VoiceToMIDIView:View {
         return VoiceReviewContext(projectID:project.id,revision:project.revision,sectionID:section.id,sectionName:section.name,sectionStart:section.start,sectionLength:section.length,captureBPM:project.bpm,scaleRoot:project.keyRoot,minor:project.minor,plan:plan)
     }
     func record(){
+        guard !draftLocked else{return}
         session.endHarmonyPreview();capture.stopOriginal();session.finishTake();error=nil;pendingContext=nil
         guard let lease=session.beginMicrophone(stop:{capture.stop();capture.stopOriginal()})else{return}
         microphoneLease=lease
@@ -169,11 +171,13 @@ struct VoiceToMIDIView:View {
     }
     func restoreAudio(){if let lease=microphoneLease{microphoneLease=nil;session.endMicrophone(lease)}}
     func resetNotes(){
+        guard !draftLocked else{return}
         guard let result=capture.result,let context else{return};session.endHarmonyPreview()
         let source=VoiceAnalyzer.notes(result.analysis,bpm:context.captureBPM,length:context.plan.captureTicks,quantize:quantize,scaleRoot:snapScale ? context.scaleRoot:nil,minor:context.minor,offset:offset)
         do{notes=try context.plan.place(source,sectionLength:context.sectionLength);selected=notes.first?.id}catch{self.error=error.localizedDescription}
     }
     func rebase(){
+        guard !draftLocked else{return}
         guard var current=context,current.projectID==session.project.id,let section=session.project.sections.first(where:{$0.id==current.sectionID}),current.plan.offsetTicks+current.plan.captureTicks<=section.length else{error=NSLocalizedString("The recorded section is no longer compatible. Restore it or record a new melody.",comment:"");return}
         do {
             guard let result=capture.result else{return}
@@ -183,9 +187,10 @@ struct VoiceToMIDIView:View {
         }catch{self.error=error.localizedDescription}
     }
     func placement()throws->VoicePlacement{guard !stale,let context,let result=capture.result else{throw AssistantError.stale};return try Arrangement.voiceCandidate(session.project,sectionID:context.sectionID,target:target,notes:notes,source:result.record)}
-    func original(){session.endHarmonyPreview();session.audio.stop();do{try capture.toggleOriginal()}catch{self.error=error.localizedDescription}}
-    func instrument(){capture.stopOriginal();do{let p=try placement();if let section=p.project.sections.first(where:{$0.id==context?.sectionID}){session.previewHarmony(p.project,section:section)}}catch{self.error=error.localizedDescription}}
+    func original(){guard !applying,!capture.isCapturing,capture.state != .analyzing else{return};session.endHarmonyPreview();session.audio.stop();do{try capture.toggleOriginal()}catch{self.error=error.localizedDescription}}
+    func instrument(){guard !draftLocked else{return};capture.stopOriginal();do{let p=try placement();if let section=p.project.sections.first(where:{$0.id==context?.sectionID}){session.previewHarmony(p.project,section:section)}}catch{self.error=error.localizedDescription}}
     func apply(){
+        guard !draftLocked else{return}
         guard let result=capture.result,let context else{return};capture.stopOriginal();session.endHarmonyPreview()
         do{let p=try placement();applying=true;Task{do{let saved=try await session.applyVoice(p,data:result.data,record:result.record,projectID:context.projectID,revision:context.revision);applied=true;applying=false;if saved{dismiss()}else{error=session.saveError}}catch{applying=false;self.error=error.localizedDescription}}}catch{self.error=error.localizedDescription}
     }
