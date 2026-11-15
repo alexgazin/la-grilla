@@ -9,10 +9,19 @@ final class LiveEditingTests:XCTestCase {
         XCUIDevice.shared.orientation = .portrait
         let app=XCUIApplication()
         app.launchArguments=["--uitesting","--screen","grid","-AppleLanguages","(en)","-AppleLocale","en_US"]
+        let trace=ProcessInfo.processInfo.environment["GRILLA_RUNTIME_TRACE"]=="1"
+        if trace{app.launchArguments.append("--runtime-trace")}
         app.launch()
         XCTAssertTrue(app.buttons["Play"].waitForExistence(timeout:15))
+        let before=trace ? (app.buttons["perform.transport"].value as? String ?? "Missing transport trace value"):""
         app.buttons["Play"].tap()
-        XCTAssertTrue(app.buttons["Stop"].waitForExistence(timeout:5))
+        let started=app.buttons["Stop"].waitForExistence(timeout:5)
+        if trace{
+            let after=app.buttons["perform.transport"].value as? String ?? "Missing transport trace value"
+            let attachment=XCTAttachment(string:"BEFORE SINGLE PLAY TAP\n\(before)\nAFTER STOP WAIT (started=\(started))\n\(after)")
+            attachment.name="Single-Play actual runtime trace";attachment.lifetime = .keepAlways;add(attachment)
+        }
+        XCTAssertTrue(started)
         return app
     }
 

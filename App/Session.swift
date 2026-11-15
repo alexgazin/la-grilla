@@ -41,12 +41,31 @@ import Observation
     private var remoteActive=false
     @ObservationIgnored private lazy var remote=NowPlayingController{ [weak self] action in self?.remoteCommand(action) }
     var ready = false; private var bootstrapTask:Task<Void,Never>?; var saveTask: Task<Void,Never>?
+    let runtimeTraceEnabled=ProcessInfo.processInfo.arguments.contains("--uitesting") && ProcessInfo.processInfo.arguments.contains("--runtime-trace")
+    private var runtimeTraceEvents:[String]=[]
+    @ObservationIgnored private var runtimeTraceSequence=0
+    private let runtimeTraceStart=ProcessInfo.processInfo.systemUptime
     let store: ProjectStore
     enum Sheet: String, Identifiable {case projects, newProject, export, settings, bass, sections, notes, harmony, assistant, voice, perform, midiDevices; var id: String { rawValue }}
     init() {
         let root = ProcessInfo.processInfo.arguments.contains("--uitesting") ? FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString) : FileManager.default.urls(for: .documentDirectory,in:.userDomainMask)[0].appendingPathComponent("Projects")
         store = ProjectStore(root: root)
         audio.onPoll={ [weak self] in self?.pollRecording() }
+        if runtimeTraceEnabled{audio.onRuntimeTrace={ [weak self] event in self?.runtimeTrace(event) }}
+    }
+    func runtimeTrace(_ event:String){
+        guard runtimeTraceEnabled else{return}
+        runtimeTraceSequence+=1
+        let elapsed=String(format:"%.3f",ProcessInfo.processInfo.systemUptime-runtimeTraceStart)
+        runtimeTraceEvents.append("\(runtimeTraceSequence) +\(elapsed)s \(event) | \(runtimeTraceCurrentState)")
+        if runtimeTraceEvents.count>96{runtimeTraceEvents.removeFirst(runtimeTraceEvents.count-96)}
+    }
+    private var runtimeTraceCurrentState:String{
+        "ready=\(ready) backgrounded=\(backgrounded) project=\(project.id) revision=\(project.revision) preview=\(harmonyPreview) saveError=\(saveError ?? "none") | \(audio.runtimeTraceState)"
+    }
+    var runtimeTraceReport:String{
+        guard runtimeTraceEnabled else{return ""}
+        return "CURRENT | \(runtimeTraceCurrentState)\n"+runtimeTraceEvents.joined(separator:"\n")
     }
     var section: MusicDomain.Section { displayProject.sections.first(where: {$0.id == selectedSection}) ?? displayProject.sections[0] }
     var loopRange: Range<Int> {if performance.contextActive{return section.start..<section.start+section.length};if loop,let clip=focusedDrumClip{return clip.start..<clip.start+clip.length};let start = section.start; return loop ? start..<min(project.length,start + loopBars*barTicks) : 0..<project.length }
@@ -59,6 +78,8 @@ import Observation
         if let drumClipID,!project.tracks.contains(where:{$0.role == .drums && $0.clips.contains{$0.id==drumClipID}}){self.drumClipID=nil}
     }
     func bootstrap() async {
+        runtimeTrace("bootstrap.begin")
+        defer{runtimeTrace("bootstrap.return")}
         if let bootstrapTask {await bootstrapTask.value;return}
         let task=Task { @MainActor in
             do {
@@ -66,13 +87,19 @@ import Observation
                 if let first=entries.first(where:{$0.project != nil})?.project {project=first}
                 else if entries.isEmpty {try await store.save(project);entries=try await store.list()}
                 selectedSection=project.sections[0].id
+                runtimeTrace("bootstrap.prepare.before")
                 try audio.prepare();sync();savedRevision=project.revision
-            } catch {message=error.localizedDescription}
+                runtimeTrace("bootstrap.prepare.after")
+            } catch {message=error.localizedDescription;runtimeTrace("bootstrap.failure \(error.localizedDescription)")}
             ready=true
+            runtimeTrace("bootstrap.ready")
         }
         bootstrapTask=task;await task.value
     }
-    func ensureAudio() -> Bool {guard !backgrounded || remoteStarting else{return false}; if audio.isPrepared {return true}; do {try audio.prepare(); sync(); return true} catch {audio.error = error.localizedDescription; return false} }
+    func ensureAudio() -> Bool {
+        runtimeTrace("ensureAudio.before");defer{runtimeTrace("ensureAudio.after")}
+        guard !backgrounded || remoteStarting else{return false}; if audio.isPrepared {return true}; do {try audio.prepare(); sync(); return true} catch {audio.error = error.localizedDescription; return false}
+    }
     func syncMIDI(){
         guard !backgrounded || audio.playing || remoteStarting else{return}
         // Device consent and selection take effect at the touch, even while a
@@ -102,6 +129,7 @@ import Observation
         else{suspendIdleAudio()}
     }
     func sceneChanged(_ phase:ScenePhase){
+        runtimeTrace("scene.\(phase).before");defer{runtimeTrace("scene.\(phase).after")}
         if phase == .active{backgrounded=false;if ready{_ = ensureAudio();syncMIDI()};return}
         finishTake();Task{await save()}
         if phase == .background{backgrounded=true;stopMicrophone?();microphoneOwner=nil;stopMicrophone=nil;if harmonyPreview{endHarmonyPreview()};suspendIdleAudio()}
@@ -161,6 +189,7 @@ import Observation
         if generation==saveGeneration {saving=false}
     }
     func togglePlay() {
+        runtimeTrace("togglePlay.before");defer{runtimeTrace("togglePlay.after")}
         if performance.contextActive{if performance.playing || performance.starting{Task{await performance.stop();pollPerformance()}}else if performance.replaying,let take=performance.replayTake{replayPerformance(take)}else{startPerformance(record:false)};return}
         if audio.playing {finishTake();audio.stop()}else if ensureAudio(){if audio.tick>=Double(loopRange.upperBound){audio.seek(loopRange.lowerBound)};audio.play()}
     }
@@ -366,5 +395,8 @@ import Observation
     /// Emergency MIDI stop must complete even if the current audio route is no
     /// longer delivering render callbacks to acknowledge a queued stop command.
     func panicMIDI(){interrupt();_ = ensureAudio()}
-    func interrupt() {stopMicrophone?();microphoneOwner=nil;stopMicrophone=nil;if performance.contextActive{performance.finalizeBeforeReset();pollPerformance()};harmonyPreview=false;finishTake();midi.suspend();midi.retry();audio.reset();Task{await save()}}
+    func interrupt(reason:String="unspecified") {
+        runtimeTrace("interrupt.before reason=\(reason)");defer{runtimeTrace("interrupt.after reason=\(reason)")}
+        stopMicrophone?();microphoneOwner=nil;stopMicrophone=nil;if performance.contextActive{performance.finalizeBeforeReset();pollPerformance()};harmonyPreview=false;finishTake();midi.suspend();midi.retry();audio.reset();Task{await save()}
+    }
 }

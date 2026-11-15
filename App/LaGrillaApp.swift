@@ -39,10 +39,17 @@ import MusicDomain
         }
     }.onOpenURL{url in Task{await session.importProject(url)}}
     .onChange(of:phase){_,value in session.sceneChanged(value)}
-    .onReceive(NotificationCenter.default.publisher(for:AVAudioSession.interruptionNotification).receive(on:RunLoop.main)){_ in session.interrupt()}
-    .onReceive(NotificationCenter.default.publisher(for:AVAudioSession.routeChangeNotification).receive(on:RunLoop.main)){n in
-        if let raw=n.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt, let reason=AVAudioSession.RouteChangeReason(rawValue:raw), reason == .oldDeviceUnavailable || reason == .newDeviceAvailable {session.interrupt()}
+    .onReceive(NotificationCenter.default.publisher(for:AVAudioSession.interruptionNotification).receive(on:RunLoop.main)){n in
+        let type=n.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt
+        let options=n.userInfo?[AVAudioSessionInterruptionOptionKey] as? UInt
+        session.runtimeTrace("notification.interruption type=\(type.map(String.init) ?? "none") options=\(options.map(String.init) ?? "none")")
+        session.interrupt(reason:"interruption type=\(type.map(String.init) ?? "none")")
     }
-    .onReceive(NotificationCenter.default.publisher(for:AVAudioSession.mediaServicesWereResetNotification).receive(on:RunLoop.main)){_ in session.interrupt()}
+    .onReceive(NotificationCenter.default.publisher(for:AVAudioSession.routeChangeNotification).receive(on:RunLoop.main)){n in
+        let raw=n.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt
+        session.runtimeTrace("notification.route reason=\(raw.map(String.init) ?? "none")")
+        if let raw, let reason=AVAudioSession.RouteChangeReason(rawValue:raw), reason == .oldDeviceUnavailable || reason == .newDeviceAvailable {session.interrupt(reason:"route reason=\(raw)")}
+    }
+    .onReceive(NotificationCenter.default.publisher(for:AVAudioSession.mediaServicesWereResetNotification).receive(on:RunLoop.main)){_ in session.interrupt(reason:"media services reset")}
     }}
 }

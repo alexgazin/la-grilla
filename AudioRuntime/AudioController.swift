@@ -47,6 +47,8 @@ private enum AudioRender {
     var countRemaining = 0; var error: String?
     var overflows = 0
     @ObservationIgnored var onPoll:(()->Void)?
+    @ObservationIgnored var onRuntimeTrace:((String)->Void)?
+    @ObservationIgnored private var lastRuntimeTracePoll:String?
     private var timer: Timer?
     @ObservationIgnored private var configurationObserver:NSObjectProtocol?
     private var generation = 0
@@ -64,6 +66,13 @@ private enum AudioRender {
     /// Bounded metadata retained alongside the kernel's three musical slots.
     var retainedRoutingCount:Int {routing.count}
     var clock: UInt64 = 0
+    /// Read-only native test diagnostics. Never called from the render thread.
+    var runtimeTraceState:String {
+        let prefix="engineRunning=\(engine?.isRunning == true) controllerPlaying=\(playing) controllerTick=\(tick) controllerClock=\(clock) appliedRevision=\(appliedRevision) submittedGeneration=\(generation)"
+        guard let k=handle?.pointer else{return prefix+" kernel=none error=\(error ?? "none")"}
+        let revision=Int(lg_revision(k))
+        return prefix+" kernel=\(UInt(bitPattern:k)) actualClock=\(lg_clock(k)) actualTick=\(lg_tick(k)) actualPlaying=\(lg_playing(k)) actualGeneration=\(revision) actualRevision=\(sentRevisions[revision] ?? -1) pending=\(generation != revision) error=\(error ?? "none")"
+    }
     func prepare() throws {
         if engine?.isRunning == true { return }
         // A microphone category/configuration change may stop AVAudioEngine.
@@ -100,6 +109,8 @@ private enum AudioRender {
         error = nil
     }
     private func resumeConfiguredGraph(){
+        onRuntimeTrace?("audio.configuration.before")
+        defer{onRuntimeTrace?("audio.configuration.after")}
         guard let engine,handle != nil,!engine.isRunning else{return}
         do{engine.prepare();try engine.start();error=nil}
         catch{self.error=error.localizedDescription}
@@ -108,6 +119,10 @@ private enum AudioRender {
         guard let k = handle?.pointer else { return }
         clock = lg_clock(k); tick = lg_tick(k); playing = lg_playing(k) != 0; appliedRevision = sentRevisions[Int(lg_revision(k))] ?? -1; countRemaining = Int(lg_countremaining(k)); overflows = Int(lg_overflows(k))
         meters = (0...masterBus).map {lg_meter(k,Int32($0))}
+        if let onRuntimeTrace {
+            let state="\(engine?.isRunning == true)/\(playing)/\(lg_revision(k))/\(generation)"
+            if state != lastRuntimeTracePoll{lastRuntimeTracePoll=state;onRuntimeTrace("audio.poll.transition")}
+        }
         flushPreviews();onPoll?()
     }
     /// Read the audio clock at the touch, rather than using the last 30 Hz UI poll.
