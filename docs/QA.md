@@ -60,3 +60,14 @@ Verified app/config source: `b373fca91306b8672904629d821187ad3d60e59c`. [Success
 - Seven native screens captured from live processes, including format/rate/depth/tail/stem settings, in [Screenshots/R1](../Screenshots/R1). Images first captured from `02a2c14`; the subsequent verified commit only fixes the CI test architecture.
 
 Import safety/copy semantics are domain-tested; file-provider interaction, real DAW interoperability, physical audio, signing and App Store distribution remain release checks.
+
+## R2 — piano roll and eight tracks
+
+Verified source/config: `59834d0a1937c4a16860dca23439612d63aa7960`. [Successful workflow, attempt 2](https://github.com/alexgazin/la-grilla/actions/runs/43655337342/attempts/2).
+
+- 28 Swift tests pass: note editing/Undo, independent track/section copies, offsets/repeats, v1 source-preserving migration/backup, MIDI channels and eighth-track WAV/mute.
+- C++ eighth-track/master independence and existing timing/concurrency regressions pass.
+- Both native SDK builds pass; 8 UI scenarios pass, including piano-roll add/copy/paste/Undo/list/playback and eight-track mixer mute/transport.
+- Nine live simulator screens are stored in [Screenshots/R2](../Screenshots/R2). These images were captured from `e24380a`; later source changes only add accessibility IDs/test selectors, while CI configuration handles cold simulator startup.
+
+Physical gestures, performance/latency and external DAW interoperability remain release checks.
