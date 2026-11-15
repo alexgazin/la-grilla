@@ -1,0 +1,12 @@
+{
+  "provider": "OpenArt",
+  "model": "GPT Image 2.5 Sunburst",
+  "historyID": "6CvnpnU7ITzeywHNQPjr",
+  "projectID": "rFe277ka23SUG0FnemRl",
+  "resourceID": "sk0Ykld4TanDCPJbSnqQ",
+  "credits": 32,
+  "date": "2026-11-15",
+  "source": "la-grilla-icon-source.png",
+  "output": "../../Resources/Assets.xcassets/AppIcon.appiconset/AppIcon.png",
+  "processing": "Opaque RGB PNG conversion only, 1024 by 1024; visual artwork unchanged."
+}

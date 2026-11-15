@@ -20,7 +20,7 @@ public enum Quality: String, Codable, CaseIterable, Sendable {
         case .flat9:[0,4,7,10,13];case .sharp9:[0,4,7,10,15];case .sharp11:[0,4,7,10,18];case .flat13:[0,4,7,10,20]
         }
     }
-    public var label: String { self == .major ? "Major" : self == .minor ? "Minor" : rawValue }
+    public var label: String { NSLocalizedString(self == .major ? "Major" : self == .minor ? "Minor" : rawValue,comment:"Chord quality") }
 }
 public struct Chord: Codable, Equatable, Sendable {
     public var root: Int; public var quality: Quality; public var inversion: Int
@@ -70,7 +70,7 @@ public struct Clip: Codable, Equatable, Identifiable, Sendable {
     public init(patternID: UUID, start: Int, length: Int) { self.patternID = patternID; self.start = start; self.length = length }
 }
 public struct Track: Codable, Equatable, Identifiable, Sendable {
-    public var id: UUID = UUID(); public var role: TrackRole; public var name:String?; public var displayName:String{name ?? role.rawValue.capitalized}; public var gain: Double = -6; public var pan: Double = 0
+    public var id: UUID = UUID(); public var role: TrackRole; public var name:String?; public var displayName:String{name ?? NSLocalizedString(role.rawValue.capitalized,comment:"Track role")}; public var gain: Double = -6; public var pan: Double = 0
     public var mute = false; public var solo = false; public var presetVersion = 1; public var clips: [Clip] = []
     public init(role: TrackRole) { self.role = role }
 }
@@ -89,7 +89,7 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
     public var midi:MIDISettings?
     public var bassOctave = 0; public var bassGate = 0.9; public var master: Double = -3
     public var length: Int { sections.reduce(0) { total, section in let (sum, overflow) = total.addingReportingOverflow(section.length); return overflow ? Int.max : sum } }
-    public var keyName: String { Chord.roots[keyRoot] + (minor ? " minor" : " major") }
+    public var keyName: String { Chord.roots[keyRoot] + " " + NSLocalizedString(minor ? "minor":"major",comment:"Key mode") }
     public init(name: String = "Untitled", bars: Int = 4) {
         self.name = name; let length = bars * barTicks
         let harmony = Pattern(length: length); let drums = Pattern(length: length)
@@ -179,7 +179,7 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
     }
     public mutating func addMelody(name:String?=nil)throws {
         guard tracks.count<8 else{throw MusicError.trackLimit}
-        var t=Track(role:.melody);t.name=name ?? "Melody \(tracks.filter{$0.role == .melody}.count+1)"
+        var t=Track(role:.melody);t.name=name ?? String(format:NSLocalizedString("Melody %d",comment:"New track"),tracks.filter{$0.role == .melody}.count+1)
         for section in sections {let p=Pattern(length:section.length);patterns.append(p);t.clips.append(Clip(patternID:p.id,start:section.start,length:section.length))}
         tracks.append(t)
     }

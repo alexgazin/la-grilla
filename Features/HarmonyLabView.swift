@@ -16,7 +16,7 @@ struct HarmonyLabView:View {
             ScrollView {
                 VStack(alignment:.leading,spacing:20){
                     HStack{Image(systemName:"wand.and.stars").font(.system(size:32)).foregroundStyle(Color.harmony);Spacer();CapsuleLabel(text:"ON DEVICE",color:.harmony)}
-                    Text("Give your chords a new color.").font(.system(size:27,weight:.medium))
+                    Text("Give your chords a new color.").font(.system(.title2,weight:.medium))
                     Text("Compare a proposal with your original. Nothing is saved until you apply it.").font(.subheadline).foregroundStyle(Color.muted)
                     Picker("Section",selection:Binding(get:{session.section.id},set:{id in session.endHarmonyPreview();proposal=nil;if let s=session.project.sections.first(where:{$0.id==id}){session.select(s)}})){ForEach(session.project.sections){s in Text(s.name).tag(s.id)}}.pickerStyle(.menu)
                     DisclosureGroup("Options",isExpanded:$showOptions){VStack(alignment:.leading,spacing:10){
@@ -28,7 +28,7 @@ struct HarmonyLabView:View {
                         Picker("Highest note",selection:$high){ForEach([72,84,96],id:\.self){pitch in Text(NoteEvent(tick:0,pitch:pitch).name).tag(pitch)}}
                     }.onChange(of:low){_,_ in invalidate()}.onChange(of:high){_,_ in invalidate()}}
                     Button{generate()}label:{Label("Generate proposal",systemImage:"sparkles").frame(maxWidth:.infinity,minHeight:48).background(Color.harmony,in:RoundedRectangle(cornerRadius:12)).foregroundStyle(Color.ink).fontWeight(.semibold)}.accessibilityIdentifier("harmony.generate")
-                    if let error{Text(error).foregroundStyle(Color.record).font(.callout)}
+                    if let error{Text(LocalizedStringKey(error)).foregroundStyle(Color.record).font(.callout)}
                     if let proposal{comparison(proposal)}
                 }.padding(20)
             }.background(Color.ink).navigationTitle("Harmony lab").navigationBarTitleDisplayMode(.inline)

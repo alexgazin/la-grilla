@@ -2,6 +2,7 @@ import SwiftUI
 import MusicDomain
 struct JamView: View {
     @Bindable var session: Session
+    @Environment(\.dynamicTypeSize) private var dynamicType
     @State private var steps = false
     @State private var selectedPad = 0
     @State private var stepBar = 0
@@ -11,17 +12,22 @@ struct JamView: View {
         VStack(spacing:14){
             HStack{VStack(alignment:.leading,spacing:5){SmallHeading(text:"DRUM MACHINE");Text("Pocket kit").font(.system(size:22,weight:.medium))};Spacer();Picker("Editor",selection:$steps){Text("Pads").tag(false);Text("Steps").tag(true)}.pickerStyle(.segmented).frame(width:145)}.padding(.top,18)
             HStack(spacing:6){Menu{ForEach([1,2,4,8],id:\.self){n in Button("\(n) bars"){session.setLoop(bars:n)}}}label:{HStack(spacing:5){Image(systemName:"repeat");Text("\(session.loopBars) bars");Image(systemName:"chevron.down").font(.system(size:8))}.font(.system(size:11,weight:.medium)).frame(minHeight:40).padding(.horizontal,10).background(Color.raised,in:RoundedRectangle(cornerRadius:8))}.disabled(session.performance.contextActive)
-                Menu{ForEach(Quantize.allCases,id:\.rawValue){q in Button(q == .off ? "Off":q == .eighth ? "1/8":"1/16"){session.quantize=q}}}label:{HStack(spacing:5){Text("Q").foregroundStyle(Color.muted);Text(session.quantize == .off ? "Off":session.quantize == .eighth ? "1/8":"1/16")}.font(.system(size:11,weight:.medium)).frame(minHeight:40).padding(.horizontal,10).background(Color.raised,in:RoundedRectangle(cornerRadius:8))}
+                Menu{ForEach(Quantize.allCases,id:\.rawValue){q in Button(LocalizedStringKey(q == .off ? "Off":q == .eighth ? "1/8":"1/16")){session.quantize=q}}}label:{HStack(spacing:5){Text("Q").foregroundStyle(Color.muted);Text(LocalizedStringKey(session.quantize == .off ? "Off":session.quantize == .eighth ? "1/8":"1/16"))}.font(.system(size:11,weight:.medium)).frame(minHeight:40).padding(.horizontal,10).background(Color.raised,in:RoundedRectangle(cornerRadius:8))}
                 Spacer(minLength:0)
                 IconButton(symbol:"metronome",label:"Metronome",color:session.metronome ? .mint:.muted){session.metronome.toggle();session.audio.metronome(session.metronome)}
-                Menu{Toggle("Count-in",isOn:$session.countIn);Toggle("Overdub",isOn:$session.overdub)}label:{Image(systemName:"slider.horizontal.3").foregroundStyle(Color.muted).frame(width:44,height:44)}
+                Menu{Toggle("Count-in",isOn:$session.countIn);Toggle("Overdub",isOn:$session.overdub)}label:{Image(systemName:"slider.horizontal.3").foregroundStyle(Color.muted).frame(width:44,height:44)}.accessibilityLabel("Drum recording options")
             }
-            if steps {stepEditor.disabled(session.performance.contextActive)}else{padGrid.disabled(session.performance.replaying)}
-            HStack(spacing:8){Circle().fill(session.recording || session.armed ? Color.record:Color.drums).frame(width:5,height:5);Text(session.armed ? "Count-in · get ready" : session.recording ? "Recording drums · tap Record to finish":"Play something only you would.").font(.system(size:11)).foregroundStyle(Color.muted);Spacer()}
-            HStack{VStack(alignment:.leading,spacing:5){SmallHeading(text:"RECORD MODE");Text(session.overdub ? "Overdub":"Replace").font(.system(size:14,weight:.medium))};Spacer();Text(session.overdub ? "Build your beat, layer by layer.":"A new take. Your last one is undoable.").font(.system(size:10)).foregroundStyle(Color.muted).multilineTextAlignment(.trailing).frame(maxWidth:190)}.padding(14).background(Color.panel,in:RoundedRectangle(cornerRadius:10))
+            if steps {stepEditor.disabled(session.performance.contextActive)}else if dynamicType.isAccessibilitySize{accessiblePads}else{padGrid.disabled(session.performance.replaying)}
+            HStack(spacing:8){Circle().fill(session.recording || session.armed ? Color.record:Color.drums).frame(width:5,height:5);Text(LocalizedStringKey(session.armed ? "Count-in · get ready" : session.recording ? "Recording drums · tap Record to finish":"Play something only you would.")).font(.system(size:11)).foregroundStyle(Color.muted);Spacer()}
+            HStack{VStack(alignment:.leading,spacing:5){SmallHeading(text:"RECORD MODE");Text(LocalizedStringKey(session.overdub ? "Overdub":"Replace")).font(.system(size:14,weight:.medium))};Spacer();Text(LocalizedStringKey(session.overdub ? "Build your beat, layer by layer.":"A new take. Your last one is undoable.")).font(.system(size:10)).foregroundStyle(Color.muted).multilineTextAlignment(.trailing).frame(maxWidth:190)}.padding(14).background(Color.panel,in:RoundedRectangle(cornerRadius:10))
             Spacer(minLength:0)
         }.padding(.horizontal,18).padding(.bottom,16)
     }
+    private var accessiblePads:some View {ScrollView{
+        LazyVGrid(columns:[GridItem(.flexible()),GridItem(.flexible())],spacing:10){ForEach(0..<16,id:\.self){pad in
+            Button{session.hit(pad)}label:{Text(LocalizedStringKey(Compiler.padNames[pad])).font(.headline).frame(maxWidth:.infinity,minHeight:72).padding(8).background(Color.drums.opacity(0.15),in:RoundedRectangle(cornerRadius:10))}.buttonStyle(.plain).foregroundStyle(Color.drums)
+        }}
+    }.frame(minHeight:240).disabled(session.performance.replaying)}
     var padGrid: some View {
         GeometryReader{geo in
             let side=max(48,min((geo.size.width-24)/4,(geo.size.height-24)/4))
