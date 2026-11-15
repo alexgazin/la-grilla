@@ -40,9 +40,40 @@ jobs:
         env:
           GRILLA_CXX_BIN: clang++
         run: bash scripts/test_audio.sh
+      - name: Retain original XCTest system attachments for diagnostic evidence
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+          path=Path('LaGrilla.xcodeproj/xcshareddata/xcschemes/LaGrilla.xcscheme')
+          tree=ET.parse(path)
+          action=tree.getroot().find('TestAction')
+          if action is None:raise SystemExit('Missing TestAction')
+          action.set('systemAttachmentLifetime','keepAlways')
+          ET.indent(tree)
+          tree.write(path,encoding='utf-8',xml_declaration=True)
+          actual=ET.parse(path).getroot().find('TestAction').get('systemAttachmentLifetime')
+          if actual!='keepAlways':raise SystemExit('System attachment retention was not set')
+          print('Diagnostic TestAction systemAttachmentLifetime='+actual)
+          PY
       - name: Build iOS app
         id: simulator_build
         run: set -o pipefail; xcodebuild -test-timeouts-enabled YES -maximum-test-execution-time-allowance 600 -project LaGrilla.xcodeproj -scheme LaGrilla -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' ARCHS=arm64 ONLY_ACTIVE_ARCH=YES -configuration Debug -derivedDataPath DerivedData CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO build-for-testing | tee build.log
+      - name: Record actual generated test attachment configuration
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import plistlib
+          def record(value,path):
+              if isinstance(value,dict):
+                  for key,item in value.items():
+                      if 'attachmentlifetime' in key.lower():print(path+'/'+key,repr(item))
+                      record(item,path+'/'+key)
+              elif isinstance(value,list):
+                  for index,item in enumerate(value):record(item,path+'/'+str(index))
+          for path in Path('DerivedData/Build/Products').glob('*.xctestrun'):
+              with path.open('rb') as source:record(plistlib.load(source),path.name)
+          PY
       - name: Package simulator app
         run: ditto -c -k --sequesterRsrc --keepParent DerivedData/Build/Products/Debug-iphonesimulator/LaGrilla.app LaGrilla-Simulator.zip
       - name: Save simulator build
