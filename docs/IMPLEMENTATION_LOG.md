@@ -331,6 +331,15 @@ Isolated source `c821ecc311ad36bb32efe88d0c144afeb350c5b8` добавляет fr
 
 [Learned MIDI filter](../Screenshots/OriginalVision-progress/midi-mapped-0239.png) — неизменённый original1320×2868 из source `0239e442619f8c1a982dda6a29a5f218881eaacb`, [capture-only run 43762614197](https://github.com/alexgazin/la-grilla/actions/runs/43762614197), artifact `14181736312`. Все три jobs и один native capture method PASS526.999 s; это partial evidence, не full acceptance. Baseline71→mapped425 received notes, screenshot позднее454; реальный Learn/Send, zero reconnect/relaunch между состояниями, channel1/CC74 mapping и actual I/O guards. Original artifact SHA/size и native/named PNG byte equality проверены. Седьмая запись manifest имеет собственный source/run; первые шесть файлов/records сохранены. Поздние RU custom chord и accessibility Piano priority originals также индивидуально просмотрены: перевод длительности и stacked layout корректны, новых concrete visual blockers не найдено.
 
+
+### C3/C7 — объединённый кандидат и независимые диагностические повторы
+
+После e428 source-specific baseline в completion интегрированы normal source commits: frozen anchor/clamp и новый44-й native case (`c821ecc`→`ce65d1e`), exact asynchronous geometry settle (`be1bf6d`→`0ea9d1f`), actual visible ruler IDs/leading-edge measurement (`3fb8706`→`5baf72b`) и passive lift lifecycle trace (`f01b1ef`→`a028fd9`). Новая опора ruler устраняет ложное предположение о полном/hittable CGRect частично скрытого clip; движение по-прежнему выполняется настоящим ruler pan и двумя настоящими pinch, данных scroll командами test не задаёт. Host scope теперь118 tests/19 suites, C++15, EN/RU603; native final scope44 functional +3 capture +1 opt-in diagnostic skip, expected73 originals.
+
+Passive trace расширен до32 bounded events: actual source/window identity, mount/dismantle, touch phase, ancestor UIScrollView pan state/offset и lift/cancel animator callback/completion timestamp. Unchanged representable updates только считаются и не публикуют AX update, render-thread работы нет. Нет новых recognizers, provider/drop logic, второго жеста или увеличения durations. Новый zoom переносит MagnifyGesture с content `.gesture` на viewport `.simultaneousGesture`, то есть recognizer topology отличается от e428; её точное участие в старом cancellation не считается доказанным.
+
+Один diagnostic branch выполнит fixed3 iterations всех4 cases (12 исходов), **без retry-on-failure или until-pass**; каждый case сохраняет один исходный gesture и строгие data/Undo/geometry guards. Любой failure остаётся failure. Raw UUID attachments, manifests, xcresult и logs сохраняются для каждого iteration; duplicate managed image aliases не выбираются и не используются как73-frame collection. Параллельный normal FULL запускает все44 функции и все3 capture methods одним проходом. Ни один pending/partial результат не закрывает C7 или distribution.
+
 ## Формат отчёта каждого этапа
 
 Для C1–C8 добавлять отдельную запись:
