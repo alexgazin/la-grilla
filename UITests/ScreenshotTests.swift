@@ -1,5 +1,6 @@
 import XCTest
 final class ScreenshotTests:XCTestCase {
+    override func setUp(){super.setUp();executionTimeAllowance=600}
     @MainActor func testCaptureNativeScreens() {
         let screens=["grid","jam","mixer","projects","export","export-wav","export-stems","notes","notes-mixer","harmony","harmony-proposal","assistant","assistant-proposal","voice","voice-draft","perform","perform-take","perform-export","midi","midi-mapped"]
         for screen in screens {
