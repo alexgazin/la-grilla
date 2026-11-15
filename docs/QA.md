@@ -129,3 +129,14 @@ Verified app source: `223615f`. [Complete successful workflow 43680458783](https
 - Twenty genuine captures are committed in [Screenshots/R7](../Screenshots/R7). [MIDI QA](MIDI_QA.md) records software behavior and the remaining physical-controller checks.
 
 USB/BLE peripherals, hot unplug, actual route latency and import into two DAWs still require the installed signed build and physical equipment. Virtual simulator endpoints are not substituted for those measurements.
+
+## R8 — product polish and accessible layouts
+
+Verified source: `595d4a3`. [Successful workflow 43682961615](https://github.com/alexgazin/la-grilla/actions/runs/43682961615).
+
+- Adaptive system/light/dark appearance, an OpenArt-generated opaque app icon with provenance, EN/RU strings/plurals and localized model labels are implemented. The audit checks 448 static UI keys, format parity, AA token contrast and icon format.
+- Large text opens the note list and native mixer/pad controls. Landscape retains transport and navigation beside the pads; compact portrait keeps the sixteen pads above transport. Source geometry remains proportional to musical time/pitch.
+- Both SDK builds, 62 Swift tests, six C++ suites and all 18 native user scenarios pass, including Russian/light export, accessible note list/mixer and landscape pad/transport interaction. Explicit orientation reset and window-layout waits isolate scenarios from previous rotations.
+- Three additional original-PNG QA views are committed in [Screenshots/R8](../Screenshots/R8). The final flow retry skips duplicate bulk capture; the integrated hardening/release runs retain broader captures and the real 375-point simulator check.
+
+Manual VoiceOver usability and physical-device accessibility remain part of installed release-candidate acceptance.
