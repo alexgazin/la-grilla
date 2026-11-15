@@ -37,7 +37,7 @@ struct GridView: View {
                     }
                 }
                 tools.padding(.horizontal,12).padding(.vertical,7)
-            }.onAppear{configureViewport(geometry.size)}.onChange(of:geometry.size){_,size in configureViewport(size)}
+            }.onAppear{configureViewport(geometry.size)}.onChange(of:geometry.size){_,size in configureViewport(size)}.onChange(of:session.project.id){_,_ in zoomed=false;configureViewport(geometry.size)}.onChange(of:session.displayProject.length){_,_ in configureViewport(geometry.size)}
         }.sheet(item:$selection){selection in ChordEditor(session:session,selection:selection).presentationDetents([.large]).presentationDragIndicator(.visible).presentationBackground(Color.panel)}
     }
     private func configureViewport(_ size:CGSize){

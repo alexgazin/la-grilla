@@ -15,10 +15,10 @@ struct JamView: View {
         VStack(spacing:14){
             HStack(spacing:10){Text("Pocket kit").font(.system(size:26,weight:.semibold)).tracking(-0.6).lineLimit(1).minimumScaleFactor(0.75);Spacer(minLength:0);editorMode}.padding(.top,12)
             HStack(spacing:6){Menu{ForEach([1,2,4,8],id:\.self){n in Button("\(n) bars"){session.setLoop(bars:n)}}}label:{HStack(spacing:5){Image(systemName:"repeat");Text("\(session.loopBars) bars");Image(systemName:"chevron.down").font(.system(size:8))}.font(.system(size:11,weight:.medium)).frame(minHeight:44).padding(.horizontal,12).background(Color.panel,in:RoundedRectangle(cornerRadius:12))}.disabled(session.performance.contextActive)
-                Menu{ForEach(Quantize.allCases,id:\.rawValue){q in Button(LocalizedStringKey(q == .off ? "Off":q == .eighth ? "1/8":"1/16")){session.quantize=q}}}label:{HStack(spacing:5){Text("Q").foregroundStyle(Color.muted);Text(LocalizedStringKey(session.quantize == .off ? "Off":session.quantize == .eighth ? "1/8":"1/16"))}.font(.system(size:11,weight:.medium)).frame(minHeight:44).padding(.horizontal,12).background(Color.panel,in:RoundedRectangle(cornerRadius:12))}
+                Menu{ForEach(Quantize.allCases,id:\.rawValue){q in Button(LocalizedStringKey(q == .off ? "Off":q == .eighth ? "1/8":"1/16")){session.quantize=q}}}label:{HStack(spacing:5){Text("Q").foregroundStyle(Color.muted);Text(LocalizedStringKey(session.quantize == .off ? "Off":session.quantize == .eighth ? "1/8":"1/16"))}.font(.system(size:11,weight:.medium)).frame(minHeight:44).padding(.horizontal,12).background(Color.panel,in:RoundedRectangle(cornerRadius:12))}.disabled(session.performance.contextActive)
                 Spacer(minLength:0)
                 IconButton(symbol:"metronome",label:"Metronome",color:session.metronome ? .mint:.muted){session.metronome.toggle();session.audio.metronome(session.metronome)}
-                Menu{Toggle("Count-in",isOn:$session.countIn);Toggle("Overdub",isOn:$session.overdub)}label:{Image(systemName:"slider.horizontal.3").foregroundStyle(Color.muted).frame(width:44,height:44)}.accessibilityLabel("Drum recording options")
+                Menu{Toggle("Count-in",isOn:$session.countIn);Toggle("Overdub",isOn:$session.overdub)}label:{Image(systemName:"slider.horizontal.3").foregroundStyle(Color.muted).frame(width:44,height:44)}.accessibilityLabel("Drum recording options").disabled(session.performance.contextActive)
             }
             if session.recording || session.armed{HStack(spacing:8){Circle().fill(Color.record).frame(width:5,height:5);Text(LocalizedStringKey(session.armed ? "Count-in · get ready":"Recording drums · tap Record to finish")).font(.caption).foregroundStyle(Color.record);Spacer()}}
             if steps {stepEditor.disabled(session.performance.contextActive)}else if dynamicType.isAccessibilitySize{accessiblePads}else{padGrid(height:(compact ? 264:312)-(compact && (session.recording || session.armed) ? 24:0)).disabled(session.performance.replaying).allowsHitTesting(!session.performance.replaying)}
@@ -35,8 +35,8 @@ struct JamView: View {
         if showGuide{VStack(alignment:.leading,spacing:8){
             Text("Play something only you would.")
             Text(LocalizedStringKey(session.overdub ? "Build your beat, layer by layer.":"A new take. Your last one is undoable."))
-            Toggle("Count-in",isOn:$session.countIn).frame(minHeight:44)
-            Toggle("Overdub",isOn:$session.overdub).frame(minHeight:44)
+            Toggle("Count-in",isOn:$session.countIn).frame(minHeight:44).disabled(session.performance.contextActive)
+            Toggle("Overdub",isOn:$session.overdub).frame(minHeight:44).disabled(session.performance.contextActive)
         }.font(.caption).foregroundStyle(Color.muted).padding(.bottom,12)}
     }.padding(.horizontal,12).modifier(StudioSurface())}
     private var compactJam:some View {VStack(spacing:4){

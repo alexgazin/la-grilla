@@ -1,14 +1,14 @@
 import XCTest
 final class ScreenshotTests:XCTestCase {
     override func setUp(){super.setUp();executionTimeAllowance=600}
-    @MainActor func testCaptureNativeScreens(){capture(["grid","jam","mixer","projects","export","export-wav","export-stems","notes","notes-mixer","harmony","harmony-proposal","assistant","assistant-proposal","voice","voice-draft","perform","perform-take","perform-export","midi","midi-mapped","grid-light","jam-light","mixer-light","notes-light","export-light","grid-ru","assistant-ru","notes-large","mixer-large","jam-large","settings"])}
+    @MainActor func testCaptureNativeScreens(){capture(["grid","jam","mixer","projects","export","export-wav","export-stems","notes","notes-mixer","harmony","harmony-proposal","assistant","assistant-proposal","voice","voice-draft","perform","perform-take","perform-export","midi","midi-mapped","grid-light","jam-light","mixer-light","notes-light","export-light","grid-ru","assistant-ru","mixer-ru","voice-ru","notes-large","mixer-large","jam-large","settings"])}
     private var russianRecapture:Bool{ProcessInfo.processInfo.environment["GRILLA_RU_RECAPTURE"]=="1"}
     @MainActor func testCaptureStoreScreens(){
         let locales=russianRecapture ? ["ru"]:["en-US","ru"]
         capture(locales.flatMap{locale in ["grid","jam","notes","harmony-proposal","perform-take","export"].map{"store-\(locale)-\($0)"}})
         if russianRecapture{capture(["grid-ru","assistant-ru","mixer-ru","voice-ru"])}
     }
-    @MainActor func testCaptureCompactScreens(){capture(russianRecapture ? ["compact-grid-ru","compact-jam-ru","compact-mixer-ru"]:["compact-grid","compact-jam","compact-mixer"])}
+    @MainActor func testCaptureCompactScreens(){capture(russianRecapture ? ["compact-grid-ru","compact-jam-ru","compact-mixer-ru"]:["compact-grid","compact-jam","compact-mixer","compact-grid-ru","compact-jam-ru","compact-mixer-ru"])}
     @MainActor private func capture(_ screens:[String]){
         for screen in screens {
             XCUIDevice.shared.orientation = .portrait
@@ -33,7 +33,7 @@ final class ScreenshotTests:XCTestCase {
                 let width=png[16..<20].reduce(0){($0<<8)|Int($1)},height=png[20..<24].reduce(0){($0<<8)|Int($1)}
                 XCTAssertEqual(width,1320,"Store screenshot must preserve the native display width");XCTAssertEqual(height,2868)
             }
-            let shot=XCTAttachment(data:png,uniformTypeIdentifier:"public.png");shot.name="R10-"+screen;shot.lifetime = .keepAlways;add(shot)
+            let shot=XCTAttachment(data:png,uniformTypeIdentifier:"public.png");shot.name="Design2026-"+screen;shot.lifetime = .keepAlways;add(shot)
         }
     }
 }

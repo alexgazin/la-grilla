@@ -15,6 +15,6 @@ Microphone, Speech and Bluetooth purpose strings are present in English and Russ
 
 `ITSAppUsesNonExemptEncryption = false`: the app implements no non-exempt encryption. SHA-256 asset integrity is a hash, not encryption. System-provided security is used by iOS.
 
-All drum/instrument audio is synthesized by project code; no sample pack or third-party music is bundled. The OpenArt icon's source, generation record and transformation are in `Design/OpenArt` and `Design/README.md`. No OpenArt SDK is embedded. Apple's frameworks and SF Symbols retain Apple's terms. This repository has no granted third-party code dependency requiring an additional license notice. No repository-wide open-source license is inferred or added.
+All drum/instrument audio is synthesized by project code; no sample pack or third-party music is bundled. The OpenArt icon's source, generation record and transformation are in `Design/OpenArt`, `Design/2026` and `Design/README.md`. No OpenArt SDK is embedded. Apple's frameworks and SF Symbols retain Apple's terms. This repository has no granted third-party code dependency requiring an additional license notice. No repository-wide open-source license is inferred or added.
 
 App Store content questionnaire: no user-generated public content, messaging, browsing, gambling, contests, purchases, ads, medical claims, violence or mature content. Answer the current questionnaire against the actual binary; Apple determines the resulting age rating. The app allows users to record their own audio locally, not publish a social feed.

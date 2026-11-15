@@ -2,7 +2,7 @@
 
 The owner requested a modern, strong, simple and distinctive interface before the final release candidate. This is a native SwiftUI implementation pass, with the existing musical behavior preserved.
 
-[OpenArt direction](openart-direction.png) is a **concept board**, not an application screenshot. [Generation record](openart-generation.json): GPT Image 2.6 Sunburst, one 4K/high 16:9 image, 54 credits actually charged; balance 583 → 529. Native product evidence belongs in Screenshots/Design2026 after current-SDK acceptance.
+[OpenArt direction](openart-direction.png) is a **concept board**, not an application screenshot. [Generation record](openart-generation.json): GPT Image 2.6 Sunburst, one 4K/high 16:9 image, 54 credits actually charged; balance 583 → 529. The matching [app icon](openart-icon.png) is an unchanged opaque RGB 1024 × 1024 OpenArt output, with [provenance](openart-icon-generation.json). It cost 32 credits, leaving 497; this design pass used 86 credits total. The same grid/playhead mark is drawn natively in the project header. Native product evidence belongs in Screenshots/Design2026 after current-SDK acceptance.
 
 ## Visual decisions
 

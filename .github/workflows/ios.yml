@@ -79,10 +79,10 @@ jobs:
           if test -d CompactResults.xcresult; then
             xcrun xcresulttool export attachments --path CompactResults.xcresult --output-path NativeAttachments/compact
           fi
-          python3 scripts/collect_native_screenshots.py NativeAttachments Screenshots/R10 R10 "$GRILLA_CAPTURE_OPTION"
+          python3 scripts/collect_native_screenshots.py NativeAttachments Screenshots/Design2026 Design2026 "$GRILLA_CAPTURE_OPTION"
       - name: Prepare validated App Store screenshots
         if: success() && (!contains(github.event.head_commit.message, '[ui-only]') || contains(github.event.head_commit.message, '[ru-capture]'))
-        run: python3 scripts/release/prepare_store_screenshots.py Screenshots/R10 Screenshots/AppStore
+        run: python3 scripts/release/prepare_store_screenshots.py Screenshots/Design2026 Screenshots/AppStore
       - name: Save simulator screenshots
         if: always()
         uses: actions/upload-artifact@v4

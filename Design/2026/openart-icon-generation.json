@@ -1,0 +1,50 @@
+{
+  "params": {
+    "prompt": "Design one original premium app icon for LA GRILLA, a native iPhone music instrument in 2026. Full square 1024x1024 opaque image, no phone mockup and no outer rounded-square border because iOS supplies the mask. A single bold, precise, flat graphic mark centered within the middle 68% of the square. The unique visual idea is a luminous vertical musical playhead crossing three horizontal rhythmic score lanes: one confident acid-pear #D8F780 vertical stroke and three short warm-ivory #F1F2E8 horizontal lane segments, punctuated by a few deliberate amber #EDBF7A note steps. The crossing and carefully staggered gaps create a memorable architectural grid glyph, with balance, asymmetry and strong negative space. Matte graphite #111510 background, uniform and quiet. The logo must read as one coherent musical-grid symbol at 48 pixels, with chunky consistent geometry, flat solid colors, subtly softened geometric corners and generous breathing room. Sophisticated, distinctive, minimal, exact, contemporary Swiss-inspired instrument design. No letters, no wordmark, no music-note clip art, no play triangle, no equalizer bars, no nine-pill keypad, no gradients, no 3D, no metallic texture, no glow, no shadows, no thin hairlines, no decorative frame. This should feel like an original independent music tool, not a stock audio icon. Only the finished square icon.",
+    "imageCount": 1,
+    "aspectRatio": "1:1",
+    "resolutionTier": "1k",
+    "customWidth": 1024,
+    "customHeight": 1024,
+    "lockAspectRatio": true,
+    "quality": "high",
+    "outputFormat": "png",
+    "autoEnhancePrompt": false,
+    "variant": "sunburst"
+  },
+  "result": {
+    "status": "COMPLETED",
+    "historyId": "6c2tOSbjXYquJZ16yXZ5",
+    "projectId": "rFe277ka23SUG0FnemRl",
+    "capabilityId": "gpt-image-2-6-sunburst:text2image",
+    "modelDisplayName": "GPT Image 2.6 Sunburst",
+    "aspectRatio": "1:1",
+    "prompt": "Design one original premium app icon for LA GRILLA, a native iPhone music instrument in 2026. Full square 1024x1024 opaque image, no phone mockup and no outer rounded-square border because iOS supplies the mask. A single bold, precise, flat graphic mark centered within the middle 68% of the square. The unique visual idea is a luminous vertical musical playhead crossing three horizontal rhythmic score lanes: one confident acid-pear #D8F780 vertical stroke and three short warm-ivory #F1F2E8 horizontal lane segments, punctuated by a few deliberate amber #EDBF7A note steps. The crossing and carefully staggered gaps create a memorable architectural grid glyph, with balance, asymmetry and strong negative space. Matte graphite #111510 background, uniform and quiet. The logo must read as one coherent musical-grid symbol at 48 pixels, with chunky consistent geometry, flat solid colors, subtly softened geometric corners and generous breathing room. Sophisticated, distinctive, minimal, exact, contemporary Swiss-inspired instrument design. No letters, no wordmark, no music-note clip art, no play triangle, no equalizer bars, no nine-pill keypad, no gradients, no 3D, no metallic texture, no glow, no shadows, no thin hairlines, no decorative frame. This should feel like an original independent music tool, not a stock audio icon. Only the finished square icon.",
+    "resources": [
+      {
+        "id": "QR7YJDr0cuU7qw11k1wW",
+        "mediaType": "image",
+        "url": "https://cdn.openart.ai/openart-ai/production/2026-11/create-image/nLyAgzcELnIVGocBaHJz/gpt-image-2-6-sunburst-1_1794731464657_96f09fca.png",
+        "status": "completed",
+        "aspectRatio": "1:1",
+        "thumbnailUrl": "https://cdn.openart.ai/openart/thumbnail/production/2026-11/create-image/nLyAgzcELnIVGocBaHJz/gpt-image-2-6-sunburst-1_1794731464860_abd73336.webp",
+        "metadata": {
+          "width": 1024,
+          "height": 1024,
+          "format": "png"
+        }
+      }
+    ]
+  },
+  "billing": {
+    "quotedListCredits": 35,
+    "chargedCredits": 32,
+    "balanceBefore": 529,
+    "balanceAfter": 497
+  },
+  "packaging": {
+    "transformation": "Unchanged original RGB PNG.",
+    "originalSHA256": "766cb7a89b31a2fc7aad07b4006f885e67df67c4f13d48a33e01c8cd9bd95f9b",
+    "assetSHA256": "766cb7a89b31a2fc7aad07b4006f885e67df67c4f13d48a33e01c8cd9bd95f9b"
+  }
+}

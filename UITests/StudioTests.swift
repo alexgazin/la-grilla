@@ -28,7 +28,7 @@ final class StudioTests: XCTestCase {
         let app=XCUIApplication();app.launchArguments=["--uitesting","--screen","grid","--appearance","light","-AppleLanguages","(ru)","-AppleLocale","ru_RU"];app.launch()
         XCTAssertTrue(app.buttons["Сетка"].waitForExistence(timeout:15));app.buttons["export.open"].tap()
         XCTAssertTrue(app.navigationBars["Экспорт"].waitForExistence(timeout:5));XCTAssertTrue(app.buttons["Отмена"].exists)
-        let shot=XCTAttachment(data:XCUIScreen.main.screenshot().pngRepresentation,uniformTypeIdentifier:"public.png");shot.name="R8-russian-light-export";shot.lifetime = .keepAlways;add(shot)
+        let shot=XCTAttachment(data:XCUIScreen.main.screenshot().pngRepresentation,uniformTypeIdentifier:"public.png");shot.name="Design2026-qa-russian-light-export";shot.lifetime = .keepAlways;add(shot)
         app.buttons["Отмена"].tap();app.buttons["Джем"].tap()
         let guide=app.buttons["jam.recording-guide"]
         for _ in 0..<5 {if guide.isHittable{break};app.scrollViews.firstMatch.swipeUp()}
@@ -44,7 +44,7 @@ final class StudioTests: XCTestCase {
         XCUIDevice.shared.orientation = .portrait
         let app=XCUIApplication();app.launchArguments=["--uitesting","--screen","notes","--large-type","-AppleLanguages","(en)","-AppleLocale","en_US"];app.launch()
         XCTAssertTrue(app.navigationBars["Piano roll"].waitForExistence(timeout:15));XCTAssertTrue(app.descendants(matching:.any)["notes.list"].waitForExistence(timeout:5))
-        let shot=XCTAttachment(data:XCUIScreen.main.screenshot().pngRepresentation,uniformTypeIdentifier:"public.png");shot.name="R8-large-type-piano-roll";shot.lifetime = .keepAlways;add(shot)
+        let shot=XCTAttachment(data:XCUIScreen.main.screenshot().pngRepresentation,uniformTypeIdentifier:"public.png");shot.name="Design2026-qa-large-type-piano-roll";shot.lifetime = .keepAlways;add(shot)
         app.buttons["Done"].tap();app.buttons["Mixer"].tap();XCTAssertTrue(app.sliders["Gain Harmony"].waitForExistence(timeout:5))
         try app.performAccessibilityAudit(for:[.sufficientElementDescription])
     }
@@ -54,7 +54,7 @@ final class StudioTests: XCTestCase {
         let deadline=Date().addingTimeInterval(8)
         while Date()<deadline && (!app.buttons["Play"].isHittable || !app.buttons["Kick"].isHittable){Thread.sleep(forTimeInterval:0.1)}
         XCTAssertTrue(app.buttons["Play"].isHittable);XCTAssertTrue(app.buttons["Kick"].isHittable);app.buttons["Kick"].tap()
-        let shot=XCTAttachment(data:XCUIScreen.main.screenshot().pngRepresentation,uniformTypeIdentifier:"public.png");shot.name="R8-landscape-jam";shot.lifetime = .keepAlways;add(shot)
+        let shot=XCTAttachment(data:XCUIScreen.main.screenshot().pngRepresentation,uniformTypeIdentifier:"public.png");shot.name="Design2026-qa-landscape-jam";shot.lifetime = .keepAlways;add(shot)
         app.buttons["Play"].tap();XCTAssertTrue(app.buttons["Stop"].waitForExistence(timeout:5));app.buttons["Stop"].tap()
     }
     @MainActor func testVirtualMIDILearnAndActualOutputDestination() {

@@ -60,7 +60,14 @@ struct StudioActionStyle:ButtonStyle {
     }
 }
 struct StudioMark:View {
-    var body:some View {ZStack(alignment:.leading){VStack(spacing:5){ForEach(0..<3){index in RoundedRectangle(cornerRadius:1).fill(Color.mint.opacity(index==1 ? 1:0.45)).frame(width:24,height:3)}};RoundedRectangle(cornerRadius:1).fill(Color.mint).frame(width:3,height:28).offset(x:7)}.frame(width:30,height:30).accessibilityHidden(true)}
+    var body:some View {Canvas{context,_ in
+        for row in 0..<3 {
+            let y=CGFloat(row)*8+5
+            let segments:[(CGFloat,CGFloat,Color)]=row==1 ? [(2,8,.studioText),(15,5,.harmony),(21,9,.studioText)]:[(1,10,.studioText),(15,10,.studioText),(26,4,.harmony)]
+            for (x,width,color) in segments{context.fill(Path(roundedRect:CGRect(x:x,y:y,width:width,height:4),cornerRadius:1),with:.color(color))}
+        }
+        context.fill(Path(roundedRect:CGRect(x:11,y:1,width:3,height:28),cornerRadius:1.5),with:.color(.mint))
+    }.frame(width:30,height:30).accessibilityHidden(true)}
 }
 
 struct StudioSegments<Value:Equatable>:View {
