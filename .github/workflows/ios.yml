@@ -74,7 +74,7 @@ jobs:
           FILTER=(-skip-testing:LaGrillaUITests/ScreenshotTests/testCaptureCompactScreens)
           if test "$GRILLA_UI_ONLY" = 1; then FILTER=(-skip-testing:LaGrillaUITests/ScreenshotTests); fi
           if test "$GRILLA_INTEGRATION_ONLY" = 1; then
-            FILTER=(-only-testing:LaGrillaUITests/ArrangementUITests -only-testing:LaGrillaUITests/AudioRuntimeContinuityTests -only-testing:LaGrillaUITests/DrumRuntimeContinuityTests -only-testing:LaGrillaUITests/LiveEditingTests -only-testing:LaGrillaUITests/VoiceReviewUITests)
+            FILTER=(-only-testing:LaGrillaUITests/ScreenshotTests/testCaptureNativeScreens)
           fi
           if test "$GRILLA_RU_RECAPTURE" = 1; then FILTER+=(-only-testing:LaGrillaUITests/ScreenshotTests/testCaptureStoreScreens); fi
           if test "$GRILLA_INPUT_DIAGNOSTIC" = 1; then
