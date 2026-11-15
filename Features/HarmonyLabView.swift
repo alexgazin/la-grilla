@@ -44,7 +44,21 @@ struct HarmonyLabView:View {
         }.tint(.harmony).onAppear{if let index=ProcessInfo.processInfo.arguments.firstIndex(of:"--screen"),ProcessInfo.processInfo.arguments.count>index+1,ProcessInfo.processInfo.arguments[index+1]=="harmony-proposal"{generate()}}.onDisappear{session.endHarmonyPreview()}
     }
     private var optionsPanel:some View {
-        DisclosureGroup("Options",isExpanded:$showOptions){VStack(alignment:.leading,spacing:10){
+        VStack(alignment:.leading,spacing:10){
+            Button{showOptions.toggle()}label:{
+                HStack{
+                    Text("Options")
+                    Spacer(minLength:8)
+                    Image(systemName:showOptions ? "chevron.up":"chevron.down").font(.caption.weight(.semibold)).accessibilityHidden(true)
+                }.frame(maxWidth:.infinity,minHeight:44).contentShape(Rectangle())
+            }.buttonStyle(.plain).foregroundStyle(Color.harmony)
+                .accessibilityIdentifier("harmony.options")
+                .accessibilityValue(LocalizedStringKey(showOptions ? "Expanded":"Collapsed"))
+            if showOptions{optionsContent}
+        }.font(.subheadline).padding(14).modifier(StudioSurface())
+    }
+    private var optionsContent:some View {
+        VStack(alignment:.leading,spacing:10){
             optionRow("Voicing"){
                 Picker("Voicing",selection:$voicing){ForEach(HarmonyVoicing.allCases,id:\.self){value in Text(LocalizedStringKey(value.rawValue)).tag(value)}}
                     .labelsHidden().pickerStyle(.menu).frame(minHeight:44).contentShape(Rectangle()).accessibilityIdentifier("harmony.voicing")
@@ -61,7 +75,7 @@ struct HarmonyLabView:View {
                     .labelsHidden().pickerStyle(.menu).frame(minHeight:44).contentShape(Rectangle()).accessibilityIdentifier("harmony.highest-note")
                     .onChange(of:high){_,_ in if high-low>60{low=high-60};invalidate()}
             }
-        }}.font(.subheadline).padding(14).modifier(StudioSurface()).accessibilityIdentifier("harmony.options")
+        }
     }
     @ViewBuilder private func optionRow<Content:View>(_ title:LocalizedStringKey,@ViewBuilder content:()->Content)->some View {
         if sizeClass == .compact || dynamicType.isAccessibilitySize {

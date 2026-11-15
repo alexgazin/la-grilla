@@ -96,13 +96,18 @@ jobs:
         env:
           GRILLA_CAPTURE_OPTION: ${{ (contains(github.event.head_commit.message, '[input-diagnostic]') || (contains(github.event.head_commit.message, '[ui-only]') && !contains(github.event.head_commit.message, '[ru-capture]'))) && '--allow-empty' || '' }}
         run: |
+          GRILLA_ATTACHMENTS_FAILED=0
           if test -d TestResults.xcresult; then
-            xcrun xcresulttool export attachments --path TestResults.xcresult --output-path NativeAttachments/main
+            xcrun xcresulttool export attachments --path TestResults.xcresult --output-path NativeAttachments/main || GRILLA_ATTACHMENTS_FAILED=1
           fi
           if test -d CompactResults.xcresult; then
-            xcrun xcresulttool export attachments --path CompactResults.xcresult --output-path NativeAttachments/compact
+            xcrun xcresulttool export attachments --path CompactResults.xcresult --output-path NativeAttachments/compact || GRILLA_ATTACHMENTS_FAILED=1
           fi
-          python3 scripts/collect_native_screenshots.py NativeAttachments Screenshots/OriginalVision OriginalVision --replace-pngs "$GRILLA_CAPTURE_OPTION"
+          python3 scripts/collect_native_screenshots.py NativeAttachments Screenshots/OriginalVision OriginalVision --replace-pngs "$GRILLA_CAPTURE_OPTION" || GRILLA_ATTACHMENTS_FAILED=1
+          # Preserve every valid original even when another result bundle is
+          # corrupt. The step/run still fails; a partial set cannot authorize
+          # Store preparation or distribution.
+          exit "$GRILLA_ATTACHMENTS_FAILED"
       - name: Prepare validated App Store screenshots
         if: success() && !contains(github.event.head_commit.message, '[input-diagnostic]') && (!contains(github.event.head_commit.message, '[ui-only]') || contains(github.event.head_commit.message, '[ru-capture]'))
         run: python3 scripts/release/prepare_store_screenshots.py Screenshots/OriginalVision Screenshots/AppStore
@@ -126,6 +131,7 @@ jobs:
             ExportFixtures
             build.log
             uitests.log
+            compact-tests.log
             ci-audio.log
             TestResults.xcresult
             CompactResults.xcresult

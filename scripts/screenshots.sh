@@ -15,16 +15,25 @@ test -f DerivedData/Build/Products/Debug-iphonesimulator/LaGrilla.app/Info.plist
 DEVICE=$(python3 scripts/select_simulator.py --name "iPhone 16 Pro Max" --type com.apple.CoreSimulator.SimDeviceType.iPhone-16-Pro-Max)
 echo "$DEVICE" > /tmp/grilla-simulator-id
 GRILLA_XCODE_DEVELOPER_DIR=${DEVELOPER_DIR:-$(xcode-select -p)}
-run_limited 60 open -a "$GRILLA_XCODE_DEVELOPER_DIR/Applications/Simulator.app" --args -CurrentDeviceUDID "$DEVICE" || true
 run_limited 60 xcrun simctl boot "$DEVICE" || true
 run_limited 300 xcrun simctl bootstatus "$DEVICE" -b
+# A fresh Simulator must open an already booted device. Launching the GUI first
+# intermittently exposed a windowless I/O menu with no audio-device entries.
+run_limited 60 open -a "$GRILLA_XCODE_DEVELOPER_DIR/Applications/Simulator.app" --args -CurrentDeviceUDID "$DEVICE"
 if test -f ci-audio.log; then
   {
     echo "Simulator audio preferences after actual device boot:"
     defaults read com.apple.iphonesimulator RecentAudioInputDeviceUIDs || true
     defaults read com.apple.iphonesimulator RecentAudioOutputDeviceUIDs || true
   } 2>&1 | tee -a ci-audio.log
-  bash scripts/select_ci_simulator_audio.sh 2>&1 | tee -a ci-audio.log
+  # AX menus provide supplementary routing evidence. Never let a stale desktop
+  # prevent the strict native HAL/CAF tests from measuring actual input: those
+  # tests still fail on unavailable input, silence or invalid recorded music.
+  if bash scripts/select_ci_simulator_audio.sh 2>&1 | tee -a ci-audio.log; then
+    echo "Supplementary Simulator GUI routing verified." | tee -a ci-audio.log
+  else
+    echo "SUPPLEMENTARY ROUTING UNVERIFIED: Simulator GUI selection failed. Actual native PCM/CAF acceptance is still mandatory; no checkmarks are claimed." | tee -a ci-audio.log
+  fi
 fi
 if test "${GRILLA_CAPTURE_SCREENS:-1}" = 0; then
   # XCTest installs and launches its own correctly signed application.
