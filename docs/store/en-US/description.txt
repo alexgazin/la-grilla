@@ -1,0 +1,21 @@
+Turn a small musical idea into a song on your iPhone.
+
+WRITE YOUR HARMONY
+Arrange chords into sections. Explore voicings, extended chords and reharmonization, compare the original with a proposal, then apply the changes you choose.
+
+FIND A RHYTHM
+Play 16 drum pads or use the step editor. Record with count-in, quantize, overdub and Undo. Add a bass line that follows your harmony.
+
+SHAPE YOUR MELODY
+Edit notes, timing, length and velocity in the piano roll or note list. Record a single hummed melody and review its detected notes before applying them. Keep the original voice recording with the project.
+
+PERFORM YOUR SECTIONS
+Launch sections on the next bar, repeat a fragment, jump beats, and shape the sound with a master filter and delay. Record a finite performance take, replay it and export it.
+
+CONNECT AND EXPORT
+Use compatible USB or Bluetooth MIDI controllers, choose a MIDI destination and map controller knobs. Export MIDI, stereo WAV, aligned stems or a portable project package. Share files through the iOS share sheet.
+
+WORK ON YOUR IPHONE
+Projects, recordings and music processing stay on your device. No account, ads or analytics SDK. The local Assistant understands supported Russian and English commands for tempo, key, sections and chord progressions. Optional command dictation requires on-device speech recognition support for the selected language.
+
+Designed for iPhone, with light and dark appearances and English and Russian interfaces. Up to 8 tracks, 8 sections and 64 bars per song. Original instrument sounds are synthesized by the app. Voice conversion is monophonic and benefits from a quiet room and headphones; always review the result. MIDI exports contain musical events; external instruments determine their own sound.

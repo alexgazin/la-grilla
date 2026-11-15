@@ -12,7 +12,7 @@ except subprocess.TimeoutExpired:
 PYTHON
 }
 test -f DerivedData/Build/Products/Debug-iphonesimulator/LaGrilla.app/Info.plist
-DEVICE=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin); print(next(x["udid"] for group in d["devices"].values() for x in group if "iPhone 16" == x["name"]))')
+DEVICE=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin); print(next(x["udid"] for group in d["devices"].values() for x in group if "iPhone 16 Pro Max" == x["name"]))')
 echo "$DEVICE" > /tmp/grilla-simulator-id
 run_limited 60 open -a Simulator --args -CurrentDeviceUDID "$DEVICE" || true
 run_limited 60 xcrun simctl boot "$DEVICE" || true

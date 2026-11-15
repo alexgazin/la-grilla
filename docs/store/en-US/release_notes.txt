@@ -1,0 +1,1 @@
+First release: arrangement, drums, melody editing, harmony tools, local commands, voice conversion, performances, MIDI devices and audio/project exports.

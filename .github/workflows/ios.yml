@@ -20,6 +20,8 @@ jobs:
         run: python3 scripts/verify_exports.py ExportFixtures && python3 scripts/verify_voice_assets.py ExportFixtures && python3 scripts/verify_performance.py ExportFixtures
       - name: Verify generated project is current
         run: python3 scripts/generate_project.py && git diff --exit-code -- LaGrilla.xcodeproj
+      - name: Release configuration audit
+        run: python3 scripts/release/audit_release.py
       - name: Presentation and localization audit
         run: python3 scripts/audit_presentation.py && plutil -lint Resources/en.lproj/Localizable.strings Resources/ru.lproj/Localizable.strings
       - name: Audio kernel tests
@@ -59,7 +61,7 @@ jobs:
           if test -d CompactResults.xcresult; then
             xcrun xcresulttool export attachments --path CompactResults.xcresult --output-path NativeAttachments/compact
           fi
-          python3 scripts/collect_native_screenshots.py NativeAttachments Screenshots/R8 R8
+          python3 scripts/collect_native_screenshots.py NativeAttachments Screenshots/R10 R10
       - name: Save simulator screenshots
         if: always()
         uses: actions/upload-artifact@v4
@@ -101,3 +103,19 @@ jobs:
         with:
           name: iphone-build-log
           path: iphone-build.log
+
+  release-archive:
+    runs-on: macos-15
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Archive optimized iPhone binary and validate bundled resources
+        run: bash scripts/release/archive_unsigned.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: unsigned-release-archive
+          path: |
+            ReleaseArtifacts/LaGrilla-unsigned-archive.zip
+            ReleaseArtifacts/*.log
+            ReleaseArtifacts/*-uuid.txt

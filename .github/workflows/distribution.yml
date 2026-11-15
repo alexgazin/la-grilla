@@ -1,0 +1,47 @@
+name: Signed archive and optional TestFlight upload
+on:
+  workflow_dispatch:
+    inputs:
+      upload_testflight:
+        description: Upload the verified IPA to App Store Connect for TestFlight
+        type: boolean
+        default: false
+permissions:
+  contents: read
+  checks: read
+concurrency:
+  group: app-store-distribution
+  cancel-in-progress: false
+jobs:
+  distribute:
+    if: github.ref == 'refs/heads/main'
+    runs-on: macos-15
+    timeout-minutes: 25
+    environment: app-store
+    steps:
+      - uses: actions/checkout@v4
+      - name: Require native acceptance for this commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/release/require_native_acceptance.py
+      - name: Create signed archive and IPA
+        env:
+          GRILLA_CERTIFICATE_BASE64: ${{ secrets.APPLE_DISTRIBUTION_P12_BASE64 }}
+          GRILLA_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_DISTRIBUTION_P12_PASSWORD }}
+          GRILLA_PROFILE_BASE64: ${{ secrets.APP_STORE_PROFILE_BASE64 }}
+          GRILLA_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: bash scripts/release/sign_and_export.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: signed-app-store-ipa
+          path: |
+            ReleaseArtifacts/Export/*.ipa
+            ReleaseArtifacts/Export/*.plist
+            ReleaseArtifacts/*.log
+      - name: Upload to App Store Connect
+        if: inputs.upload_testflight
+        env:
+          GRILLA_ASC_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
+          GRILLA_ASC_ISSUER_ID: ${{ secrets.ASC_API_ISSUER_ID }}
+          GRILLA_ASC_PRIVATE_KEY_BASE64: ${{ secrets.ASC_API_PRIVATE_KEY_BASE64 }}
+        run: bash scripts/release/upload_testflight.sh
