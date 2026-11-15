@@ -34,12 +34,14 @@ struct AssistantView:View {
                     HStack{Text(session.section.name).fontWeight(.medium);Spacer();Text("\(session.section.length/barTicks) bars · \(Int(session.project.bpm)) BPM").font(.caption.monospaced()).foregroundStyle(Color.muted);CapsuleLabel(text:generatedWithAI ? "ON-DEVICE AI":"LOCAL",color:.mint)}
                     StudioSegments(title:"Assistant mode",selection:$mode,options:AssistantMode.allCases.map{($0,LocalizedStringKey($0.title))}).disabled(dictation.recording || dictation.requesting || dictation.finalizing)
                     Text(ai.availabilityMessage).font(.caption).foregroundStyle(Color.muted).accessibilityIdentifier("assistant.ai-status")
+                    Text(LocalizedStringKey(session.audio.playing ? "PLAYING":"STOPPED")).font(.caption.monospaced()).foregroundStyle(Color.muted)
+                        .accessibilityValue(LocalizedStringKey(session.harmonyPreview ? "Preview":"Original")).accessibilityIdentifier("assistant.preview-state")
                     TextEditor(text:$input).focused($focused).disabled(dictation.recording || dictation.requesting || dictation.finalizing).frame(height:110).scrollContentBackground(.hidden).padding(8).modifier(StudioSurface()).overlay(alignment:.topLeading){if input.isEmpty && !focused{Text("Try: Tempo 110").font(.subheadline).foregroundStyle(Color.muted).padding(16).allowsHitTesting(false).accessibilityHidden(true)}}.accessibilityLabel("Command").accessibilityIdentifier("assistant.input")
                         .onChange(of:input){_,value in if value.count>2000{input=String(value.prefix(2000))};if value != generatedInput{cancelGeneration();proposal=nil;candidate=nil;proposalSource=nil};session.endHarmonyPreview()}
                     HStack {
                         Button("Examples"){focused=false;showExamples=true}.frame(minHeight:44).disabled(dictation.recording || dictation.requesting || dictation.finalizing).accessibilityIdentifier("assistant.examples")
                         Spacer()
-                        Picker("Dictation language",selection:$language){Text("RU").tag("ru-RU");Text("EN").tag("en-US")}.pickerStyle(.menu).disabled(dictation.recording || dictation.requesting || dictation.finalizing)
+                        Picker("Dictation language",selection:$language){Text("RU").tag("ru-RU");Text("EN").tag("en-US")}.pickerStyle(.menu).disabled(dictation.recording || dictation.requesting || dictation.finalizing).accessibilityIdentifier("assistant.language")
                         Button{toggleDictation()}label:{Image(systemName:dictation.recording ? "stop.circle.fill":"mic.fill").frame(width:44,height:44).foregroundStyle(dictation.recording ? Color.record:Color.mint)}.accessibilityLabel(LocalizedStringKey(dictation.recording ? "Stop dictation":"Dictate a command")).disabled(dictation.requesting || dictation.finalizing)
                     }
                     if dictation.requesting{ProgressView("Preparing dictation…")}
@@ -58,8 +60,8 @@ struct AssistantView:View {
         }.tint(.mint)
         .sheet(isPresented:$showExamples){AssistantExamplesView(language:language){text,requiresAI in input=text;if requiresAI{mode = .onDeviceAI};showExamples=false}}
         .onChange(of:dictation.text){_,value in if !value.isEmpty{input=value}}
-        .onChange(of:mode){_,_ in cancelGeneration();proposal=nil;candidate=nil;proposalSource=nil;error=nil}
-        .onChange(of:language){_,value in cancelGeneration();proposal=nil;candidate=nil;proposalSource=nil;ai.refresh(localeIdentifier:value)}
+        .onChange(of:mode){_,_ in session.endHarmonyPreview();cancelGeneration();proposal=nil;candidate=nil;proposalSource=nil;error=nil}
+        .onChange(of:language){_,value in session.endHarmonyPreview();cancelGeneration();proposal=nil;candidate=nil;proposalSource=nil;ai.refresh(localeIdentifier:value)}
         .onChange(of:dictation.recording){_,recording in if !recording{restoreAudio()}}
         .onChange(of:phase){_,p in if p == .background{cancelGeneration();dictation.cancel();restoreAudio()}else if p == .active{ai.refresh(localeIdentifier:language)}}
         .onReceive(NotificationCenter.default.publisher(for:AVAudioSession.interruptionNotification).receive(on:RunLoop.main)){_ in dictation.cancel();restoreAudio()}
@@ -74,7 +76,6 @@ struct AssistantView:View {
             AssistantHarmonyReview(proposal:proposal,source:source,candidate:candidate)
             if !proposal.assumptions.isEmpty{SmallHeading(text:"ASSUMPTIONS");ForEach(proposal.assumptions,id:\.self){Text($0).font(.caption).foregroundStyle(Color.muted)}}
             ForEach(proposal.warnings,id:\.self){Label($0,systemImage:"exclamationmark.triangle").font(.caption).foregroundStyle(Color.harmony)}
-            Text(LocalizedStringKey(session.audio.playing ? "PLAYING":"STOPPED")).font(.caption.monospaced()).foregroundStyle(Color.muted).accessibilityIdentifier("assistant.preview-state")
             HStack(spacing:10){Button{previewB=false;session.previewAssistant(source,wholeSong:proposal.changesWholeSong,sectionID:proposal.scopeSectionID)}label:{Text("A · Original").frame(maxWidth:.infinity,minHeight:48).background(session.harmonyPreview && !previewB ? Color.mint.opacity(0.2):Color.raised,in:RoundedRectangle(cornerRadius:10))}.accessibilityIdentifier("assistant.a");Button{previewB=true;session.previewAssistant(candidate,wholeSong:proposal.changesWholeSong,sectionID:proposal.scopeSectionID)}label:{Text("B · Proposal").frame(maxWidth:.infinity,minHeight:48).background(session.harmonyPreview && previewB ? Color.mint.opacity(0.2):Color.raised,in:RoundedRectangle(cornerRadius:10))}.accessibilityIdentifier("assistant.b")}
             if session.harmonyPreview{Button("Stop preview"){session.endHarmonyPreview()}.frame(minHeight:44).accessibilityIdentifier("assistant.stop-preview")}
             Button{apply(proposal)}label:{Text("Apply proposal")}.buttonStyle(StudioActionStyle()).accessibilityIdentifier("assistant.apply")

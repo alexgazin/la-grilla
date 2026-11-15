@@ -65,6 +65,44 @@ final class AssistantCompositionTests:XCTestCase {
         firstChord.tap();XCTAssertTrue(app.textFields["chord.symbol"].waitForExistence(timeout:5))
         XCTAssertEqual(app.textFields["chord.symbol"].value as? String,"C")
     }
+    @MainActor func testIdleProposalEndsOnModeAndLanguageChangesWithoutEditing(){
+        for change in ["mode","language"] {
+            let app=launch()
+            let state=app.staticTexts["assistant.preview-state"]
+            XCTAssertTrue(state.waitForExistence(timeout:5));XCTAssertEqual(state.label,"STOPPED")
+            XCTAssertEqual(state.value as? String,"Original")
+            let proposal=app.buttons["assistant.b"];revealFully(proposal,in:app);proposal.tap()
+            wait(state,NSPredicate(format:"label == 'PLAYING' AND value == 'Preview'"))
+            let control=change=="mode" ? app.buttons["Commands"]:app.buttons["assistant.language"]
+            let scroll=app.scrollViews["assistant.review-scroll"]
+            for _ in 0..<10 {
+                let viewport=scroll.frame.intersection(app.frame),frame=control.frame
+                if control.isHittable,frame.minY>=viewport.minY+8,frame.maxY<=viewport.maxY-8{break}
+                scroll.swipeDown()
+            }
+            XCTAssertTrue(control.isHittable);control.tap()
+            if change=="language" {
+                let english=app.buttons["EN"];XCTAssertTrue(english.waitForExistence(timeout:5));english.tap()
+            }
+            // Check the actual Session preview flag and transport even after
+            // the review controls disappear; hiding the proposal is insufficient.
+            wait(state,NSPredicate(format:"label == 'STOPPED' AND value == 'Original'"))
+            XCTAssertFalse(app.buttons["assistant.b"].exists)
+            app.buttons["Cancel"].tap()
+            let tempo=app.staticTexts["studio.tempo"];XCTAssertTrue(tempo.waitForExistence(timeout:5))
+            XCTAssertEqual(tempo.label,"120 BPM");XCTAssertTrue(app.buttons["Play"].exists)
+            XCTAssertFalse(app.buttons["Undo"].isEnabled)
+            XCTAssertFalse(app.buttons.matching(NSPredicate(format:"identifier BEGINSWITH 'grid.section.' AND label CONTAINS 'Intro'")).firstMatch.exists)
+            let chord=app.buttons.matching(NSPredicate(format:"identifier BEGINSWITH 'grid.chord.'")).firstMatch
+            XCTAssertTrue(chord.exists);chord.tap()
+            XCTAssertTrue(app.textFields["chord.symbol"].waitForExistence(timeout:5))
+            XCTAssertEqual(app.textFields["chord.symbol"].value as? String,"C")
+            app.terminate()
+        }
+    }
+    @MainActor private func wait(_ element:XCUIElement,_ predicate:NSPredicate){
+        XCTAssertEqual(XCTWaiter.wait(for:[XCTNSPredicateExpectation(predicate:predicate,object:element)],timeout:5),.completed)
+    }
     @MainActor private func openJazzReview(_ app:XCUIApplication){
         app.buttons["assistant.open"].tap();XCTAssertTrue(app.navigationBars["Assistant"].waitForExistence(timeout:5))
         app.buttons["Examples"].tap()
