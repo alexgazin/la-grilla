@@ -29,7 +29,7 @@ private enum SpeechCallbacks {
         let microphone=await AVAudioApplication.requestRecordPermission()
         guard attempt==generation else{return}
         guard microphone else{error=NSLocalizedString("Microphone access was denied. You can still type a command.",comment:"");return}
-        guard let recognizer=SFSpeechRecognizer(locale:Locale(identifier:locale)),recognizer.isAvailable,recognizer.supportsOnDeviceSpeechRecognition else{error=NSLocalizedString("On-device dictation is unavailable for this language. Type a command.",comment:"");return}
+        guard let recognizer=SFSpeechRecognizer(locale:Locale(identifier:locale)),recognizer.isAvailable,recognizer.supportsOnDeviceRecognition else{error=NSLocalizedString("On-device dictation is unavailable for this language. Type a command.",comment:"");return}
         do {
             let session=AVAudioSession.sharedInstance();try session.setCategory(.record,mode:.measurement,options:[]);try session.setActive(true)
             let engine=AVAudioEngine(),request=SFSpeechAudioBufferRecognitionRequest()
