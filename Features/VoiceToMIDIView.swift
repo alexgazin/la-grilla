@@ -57,7 +57,7 @@ struct VoiceToMIDIView:View {
                     if let error=capture.error{Text(LocalizedStringKey(error)).font(.callout).foregroundStyle(Color.record)}
                     if let error{Text(LocalizedStringKey(error)).font(.callout).foregroundStyle(Color.record)}
                 }.padding(18)
-            }.background(Color.ink).navigationTitle("Voice to MIDI").navigationBarTitleDisplayMode(.inline)
+            }.accessibilityIdentifier("voice.review-scroll").background(Color.ink).navigationTitle("Voice to MIDI").navigationBarTitleDisplayMode(.inline)
                 .toolbar{ToolbarItem(placement:.cancellationAction){Button("Cancel"){dismiss()}.disabled(applying)}}
         }.tint(.record).interactiveDismissDisabled(applying)
         .onChange(of:capture.result?.record.id){_,id in if id != nil{if let pendingContext{context=pendingContext;self.pendingContext=nil};resetNotes()}}

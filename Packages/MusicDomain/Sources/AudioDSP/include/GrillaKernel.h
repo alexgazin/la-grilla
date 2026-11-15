@@ -13,6 +13,12 @@ typedef struct {float gainDB,pan;int32_t audible;} LGTrackMix;
 // instrument is harmony/drums/bass/melody (0...3), midiChannel is 0...15.
 typedef struct {LGTrackMix mix;int32_t presetVersion,instrument,midiChannel;uint64_t identity;} LGProjectTrack;
 typedef struct { uint64_t frame; int32_t epoch,kind,track,a,b,token; float value; } LGPerformanceEvent;
+typedef struct {
+    uint64_t epoch,callbacks,comparedCallbacks;
+    uint64_t maxExcessNanoseconds,maxIntervalNanoseconds,baselineBufferNanoseconds;
+    uint64_t nonIncreasingTimestamps,clockRateChanges;
+    uint32_t baselineFrames,inheritedAnchor;
+} LGOutputTiming;
 LGKernel *lg_create(double sampleRate);
 void lg_destroy(LGKernel *k);
 int lg_submit(LGKernel *k, const LGNote *notes, int count, double bpm, int start, int end, int loop, int revision);
@@ -74,6 +80,17 @@ void lg_tail_on_end(LGKernel *k, int enabled);
 void lg_metronome(LGKernel *k, int enabled);
 void lg_render(LGKernel *k, float *left, float *right, int frames);
 void lg_render_midi(LGKernel *k,LGMIDIHub *hub,uint64_t hostTime,double hostTicksPerSecond,float *left,float *right,int frames);
+// Serialized control owner: request a fresh measurement, adopted by the next
+// valid host-timestamped output callback. The previous callback anchor survives
+// epoch changes, so a first post-restart gap is included. Zero-host offline
+// rendering is ignored. Wait until read.epoch matches the returned nonzero ID.
+uint64_t lg_output_timing_begin(LGKernel *k);
+// Bounded coherent read; returns 0 if busy/invalid and leaves *timing untouched.
+// Excess is callback spacing minus the PREVIOUS callback's frame duration.
+// baselineFrames/baselineBufferNanoseconds describe that initial expected span;
+// inheritedAnchor indicates whether the epoch retained a prior real callback.
+// These timestamp diagnostics do not prove physical output has no dropouts.
+int lg_output_timing_read(LGKernel *k,LGOutputTiming *timing);
 double lg_tick(LGKernel *k);
 uint64_t lg_clock(LGKernel *k);
 int lg_playing(LGKernel *k);

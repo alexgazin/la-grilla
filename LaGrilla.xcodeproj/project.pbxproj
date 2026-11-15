@@ -56,6 +56,16 @@
 			"name" = "App";
 			"sourceTree" = "<group>";
 		};
+		"BAA29D86A3A6243FF7CA89EF" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "Features/ArrangementClipControl.swift";
+			"sourceTree" = "SOURCE_ROOT";
+		};
+		"D56599A09666910E4580ACB7" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "BAA29D86A3A6243FF7CA89EF";
+		};
 		"85B265D86AC02E35D0E8FB67" = {
 			"isa" = "PBXFileReference";
 			"lastKnownFileType" = "sourcecode.swift";
@@ -209,6 +219,7 @@
 		"E64DA6756D6CF253E6CA6FFA" = {
 			"isa" = "PBXGroup";
 			"children" = (
+				"BAA29D86A3A6243FF7CA89EF",
 				"85B265D86AC02E35D0E8FB67",
 				"E313F38A63DE261EE7C9141C",
 				"B5FCEE76D5E5C943FE601284",
@@ -667,6 +678,7 @@
 				"0587407DA031D1B414F3155D",
 				"F8C137E32B1198A64C56AA5B",
 				"E748B01438B0371DC7F9104A",
+				"D56599A09666910E4580ACB7",
 				"3A81CA6969C61D6484E849BC",
 				"107BE4FF9CD20D8A61788BBC",
 				"586A1646E08C306C3B726A7B",

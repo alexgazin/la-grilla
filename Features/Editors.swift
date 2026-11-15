@@ -111,29 +111,30 @@ struct BassView: View {
     }.tint(.bass).navigationTitle("Bass").toolbar{ToolbarItem(placement:.confirmationAction){Button("Done"){session.sheet=nil}}}}.presentationDetents([.medium])}
 }
 
-/// UISwitch keeps its native visual, valueChanged and accessibility behavior.
-/// The host, touch and accessibility rectangles share the same 64×48 bounds.
-/// The extra height retains a 44pt screen target after the system sheet's scale;
-/// the smaller system-drawn thumb does not shrink the interactive target.
+/// The native switch owns its inner frame; its host owns only the surrounding
+/// padding. Both paths emit one native valueChanged event. The actual 64×48 host
+/// remains a 44pt screen target after the system sheet's scale.
 @MainActor private struct RootBassSwitch:UIViewRepresentable {
     @Binding var isOn:Bool
     let enabled:Bool
-    func makeUIView(context:Context)->RootBassUISwitch {
-        let control=RootBassUISwitch()
-        control.addTarget(context.coordinator,action:#selector(Coordinator.changed(_:)),for:.valueChanged)
-        return control
+    func makeUIView(context:Context)->RootBassSwitchHost {
+        let host=RootBassSwitchHost()
+        host.control.addTarget(context.coordinator,action:#selector(Coordinator.changed(_:)),for:.valueChanged)
+        return host
     }
-    func updateUIView(_ control:RootBassUISwitch,context:Context){
+    func updateUIView(_ host:RootBassSwitchHost,context:Context){
         context.coordinator.value=$isOn
+        let control=host.control
         control.isEnabled=enabled && context.environment.isEnabled
+        host.isUserInteractionEnabled=control.isEnabled
         control.accessibilityIdentifier="bass.enabled"
         control.accessibilityLabel=NSLocalizedString("Root bass",comment:"Bass switch")
         control.onTintColor=UIColor(Color.bass)
         if control.isOn != isOn{control.setOn(isOn,animated:control.window != nil)}
     }
     func makeCoordinator()->Coordinator{Coordinator(value:$isOn)}
-    func sizeThatFits(_ proposal:ProposedViewSize,uiView:RootBassUISwitch,context:Context)->CGSize?{CGSize(width:64,height:48)}
-    static func dismantleUIView(_ uiView:RootBassUISwitch,coordinator:Coordinator){uiView.removeTarget(coordinator,action:#selector(Coordinator.changed(_:)),for:.valueChanged)}
+    func sizeThatFits(_ proposal:ProposedViewSize,uiView:RootBassSwitchHost,context:Context)->CGSize?{CGSize(width:64,height:48)}
+    static func dismantleUIView(_ uiView:RootBassSwitchHost,coordinator:Coordinator){uiView.control.removeTarget(coordinator,action:#selector(Coordinator.changed(_:)),for:.valueChanged)}
     @MainActor final class Coordinator:NSObject {
         var value:Binding<Bool>
         init(value:Binding<Bool>){self.value=value}
@@ -146,12 +147,42 @@ struct BassView: View {
     }
 }
 
-@MainActor private final class RootBassUISwitch:UISwitch {
-    private var hitBounds:CGRect{bounds.insetBy(dx:-max(0,64-bounds.width)/2,dy:-max(0,48-bounds.height)/2)}
+@MainActor private final class RootBassSwitchHost:UIView,UIGestureRecognizerDelegate {
+    let control=RootBassUISwitch()
+    override init(frame:CGRect){
+        super.init(frame:frame)
+        isAccessibilityElement=false
+        addSubview(control);control.hitAreaHost=self;control.isAccessibilityElement=true
+        accessibilityElements=[control]
+        let padding=UITapGestureRecognizer(target:self,action:#selector(paddingTapped(_:)))
+        padding.delegate=self;padding.cancelsTouchesInView=false;addGestureRecognizer(padding)
+    }
+    required init?(coder:NSCoder){fatalError("init(coder:) is unavailable")}
     override var intrinsicContentSize:CGSize{CGSize(width:64,height:48)}
-    override func point(inside point:CGPoint,with event:UIEvent?)->Bool{isEnabled && hitBounds.contains(point)}
+    override func layoutSubviews(){
+        super.layoutSubviews();control.sizeToFit();control.center=CGPoint(x:bounds.midX,y:bounds.midY)
+    }
+    override func hitTest(_ point:CGPoint,with event:UIEvent?)->UIView? {
+        guard isUserInteractionEnabled,!isHidden,alpha>0.01,bounds.contains(point)else{return nil}
+        if control.frame.contains(point){return control.hitTest(convert(point,to:control),with:event) ?? control}
+        return self
+    }
+    func gestureRecognizer(_ gestureRecognizer:UIGestureRecognizer,shouldReceive touch:UITouch)->Bool {
+        // A touch dispatched to the native switch is never handled a second
+        // time by its ancestor's padding recognizer.
+        control.isEnabled && !control.frame.contains(touch.location(in:self))
+    }
+    @objc private func paddingTapped(_ gesture:UITapGestureRecognizer){
+        guard gesture.state == .ended,control.isEnabled else{return}
+        control.setOn(!control.isOn,animated:true)
+        control.sendActions(for:.valueChanged)
+    }
+}
+
+@MainActor private final class RootBassUISwitch:UISwitch {
+    weak var hitAreaHost:RootBassSwitchHost?
     override var accessibilityFrame:CGRect {
-        get{guard window != nil else{return super.accessibilityFrame};return UIAccessibility.convertToScreenCoordinates(hitBounds,in:self)}
+        get{guard let host=hitAreaHost,host.window != nil else{return super.accessibilityFrame};return UIAccessibility.convertToScreenCoordinates(host.bounds,in:host)}
         set{super.accessibilityFrame=newValue}
     }
 }

@@ -3,7 +3,10 @@ import XCTest
 final class VoiceReviewUITests:XCTestCase {
     override func setUp(){super.setUp();continueAfterFailure=false;executionTimeAllowance=120}
     @MainActor private func reveal(_ element:XCUIElement,in app:XCUIApplication,up:Bool=true){
-        let scroll=app.scrollViews.firstMatch
+        // The underlying Grid also has a ScrollView in the accessibility tree.
+        // Its shorter viewport must not bound controls in the presented sheet.
+        let scroll=app.scrollViews["voice.review-scroll"]
+        XCTAssertTrue(scroll.waitForExistence(timeout:3))
         func visible()->Bool {
             guard element.exists,element.isHittable else{return false}
             let frame=element.frame,window=app.windows.firstMatch.frame,scrollFrame=scroll.frame
@@ -13,11 +16,14 @@ final class VoiceReviewUITests:XCTestCase {
             // the actual control to be entirely inside the visible viewport.
             return frame.minX.isFinite && frame.minY.isFinite && frame.width.isFinite && frame.height.isFinite && frame.width>0 && frame.height>0 && viewport.contains(frame)
         }
-        for _ in 0..<12 {
+        let deadline=Date().addingTimeInterval(20)
+        for _ in 0..<6 {
             if visible(){return}
+            if Date()>=deadline{break}
             if up{scroll.swipeUp()}else{scroll.swipeDown()}
         }
-        XCTAssertTrue(element.exists);XCTAssertTrue(visible(),"Control is outside the visible scroll viewport: "+element.debugDescription)
+        XCTAssertTrue(element.exists)
+        XCTAssertTrue(visible(),"Control is outside Voice sheet viewport. Target: "+element.debugDescription+"; Voice scroll: "+scroll.debugDescription)
     }
     @MainActor func testLiveMixEditRequiresExplicitReviewAndPreservesManualNotesAndSource(){
         XCUIDevice.shared.orientation = .portrait

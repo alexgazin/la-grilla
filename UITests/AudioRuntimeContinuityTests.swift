@@ -87,6 +87,14 @@ final class AudioRuntimeContinuityTests:XCTestCase {
         XCTAssertGreaterThan(report["continuitySamples"] as? Int ?? 0,10)
         XCTAssertLessThan(report["maximumPhaseErrorTicks"] as? Double ?? .infinity,128)
         XCTAssertLessThan(report["elapsedSeconds"] as? Double ?? .infinity,35)
+        let baseline=try XCTUnwrap(report["outputHostTimingBaseline"] as? [String:Any])
+        let timing=try XCTUnwrap(report["outputHostTiming"] as? [String:Any])
+        XCTAssertGreaterThan(timing["epoch"] as? Int ?? 0,0)
+        XCTAssertEqual(timing["epoch"] as? Int,baseline["epoch"] as? Int)
+        XCTAssertGreaterThan(timing["callbacks"] as? Int ?? 0,baseline["callbacks"] as? Int ?? .max)
+        XCTAssertGreaterThanOrEqual(baseline["comparedCallbacks"] as? Int ?? 0,8)
+        XCTAssertEqual(baseline["inheritedAnchor"] as? Bool,true)
+        XCTAssertEqual(report["physicalDropoutAbsenceVerified"] as? Bool,false)
     }
 
     @MainActor func testProductionVoiceCaptureCAFAnalysisApplyStoreAndUndo()throws {try run(microphone:true,voiceCapture:true)}

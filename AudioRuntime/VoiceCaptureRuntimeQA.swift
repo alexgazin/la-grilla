@@ -98,6 +98,9 @@ import MusicDomain
         let continuitySamples:Int
         let maximumPhaseErrorTicks:Double
         let elapsedSeconds:Double
+        let outputHostTimingBaseline:AudioRuntimeQA.OutputHostTimingReport
+        let outputHostTiming:AudioRuntimeQA.OutputHostTimingReport
+        let physicalDropoutAbsenceVerified=false
     }
     static func run(_ session:Session)async throws->String {
         let started=Date(),deadline=started.addingTimeInterval(33)
@@ -107,6 +110,7 @@ import MusicDomain
         monitor.start()
         let capture=VoiceCaptureController()
         defer{capture.discard();monitor.stop();session.audio.stop()}
+        let baselineTiming=try await beginTiming(monitor)
         let captured=try await record(session,capture:capture,baseline:baseline,monitor:monitor)
         let proof=try validateSource(captured.result,planned:captured.plan.duration,bpm:baseline.bpm)
         try require(session.project==baseline,"Recording mutated the project before review/apply")
@@ -127,9 +131,23 @@ import MusicDomain
         try immutableSource(captured.result)
         try monitor.check()
         try require(session.audio.clock>monitor.firstClock && monitor.samples>10,"No continuing backing callbacks were observed")
-        let report=Report(source:captured.result.record,sourceFrames:proof.frames,sourcePeak:proof.peak,route:captured.route,captureStates:captured.states,detectedPitches:detected.map(\.pitch),reviewedPitches:reviewed.map(\.pitch),appliedTrackID:placement.trackID,appliedRevision:applied.revision,storedSourceMatches:true,storedProjectReopened:true,oneUndoRestoresBaseline:true,redoRestoresExactSourceAndNotes:true,sourceUnchangedAfterReview:true,sameEngineAndKernel:true,backingClockAdvanced:true,continuitySamples:monitor.samples,maximumPhaseErrorTicks:monitor.maximumPhaseError,elapsedSeconds:Date().timeIntervalSince(started))
+        let timing=try await readTiming(monitor,epoch:baselineTiming.epoch,minimumCallbacks:baselineTiming.callbacks+1)
+        let report=Report(source:captured.result.record,sourceFrames:proof.frames,sourcePeak:proof.peak,route:captured.route,captureStates:captured.states,detectedPitches:detected.map(\.pitch),reviewedPitches:reviewed.map(\.pitch),appliedTrackID:placement.trackID,appliedRevision:applied.revision,storedSourceMatches:true,storedProjectReopened:true,oneUndoRestoresBaseline:true,redoRestoresExactSourceAndNotes:true,sourceUnchangedAfterReview:true,sameEngineAndKernel:true,backingClockAdvanced:true,continuitySamples:monitor.samples,maximumPhaseErrorTicks:monitor.maximumPhaseError,elapsedSeconds:Date().timeIntervalSince(started),outputHostTimingBaseline:.init(baselineTiming),outputHostTiming:.init(timing))
         let encoder=JSONEncoder();encoder.outputFormatting=[.prettyPrinted,.sortedKeys]
         return String(decoding:try encoder.encode(report),as:UTF8.self)
+    }
+    private static func beginTiming(_ monitor:Continuity)async throws->LGOutputTiming {
+        let epoch=lg_output_timing_begin(monitor.kernel)
+        try require(epoch != 0,"Production voice output timing could not be armed")
+        return try await readTiming(monitor,epoch:epoch,minimumCallbacks:8)
+    }
+    private static func readTiming(_ monitor:Continuity,epoch:UInt64,minimumCallbacks:UInt64)async throws->LGOutputTiming {
+        while true {
+            try monitor.check()
+            var timing=LGOutputTiming()
+            if lg_output_timing_read(monitor.kernel,&timing) != 0,timing.epoch==epoch,timing.comparedCallbacks>=8,timing.callbacks>=minimumCallbacks{return timing}
+            try await Task.sleep(for:.milliseconds(20))
+        }
     }
     private static func prepareReference(_ session:Session,deadline:Date)async throws {
         try session.audio.prepare()

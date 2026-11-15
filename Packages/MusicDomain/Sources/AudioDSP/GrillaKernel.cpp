@@ -15,8 +15,70 @@ struct MixSnapshot {std::atomic<int> state{0};std::atomic<uint64_t> revision{0};
 struct Voice { bool on=false; int pitch=0,track=0,pad=-1,instrument=0; double phase=0,age=0,duration=0; float velocity=0,level=0;int sourceKey=-1;bool keyDown=false;bool outputAllowed=true;int outputChannel=-1,outputPitch=0;uint32_t outputEpoch=0;uint64_t outputEndFrame=0;int presetVersion=1;double phaseStep=0,decayStep=1,decay=1;uint64_t ageFrames=0;float lastSample=0; };
 struct Retirement {float sample=0;int track=0,remaining=0,total=1;};
 struct Input { int value=0,velocity=100,track=0,instrument=0; bool preview=false;uint64_t identity=0; };
+struct OutputTimingMeter {
+    static_assert(std::atomic<uint64_t>::is_always_lock_free&&std::atomic<uint32_t>::is_always_lock_free,"Output timing publication requires lock-free atomics");
+    std::atomic<uint64_t> request{0},sequence{0},epoch{0},callbacks{0},comparedCallbacks{0};
+    std::atomic<uint64_t> maxExcess{0},maxInterval{0},baselineBuffer{0},nonIncreasing{0},rateChanges{0};
+    std::atomic<uint32_t> baselineFrames{0},inheritedAnchor{0};
+    // One render owner. The published fields above are atomic so bounded
+    // control-thread snapshot reads never race a resetting measurement.
+    LGOutputTiming measured{};uint64_t publication=0,lastHost=0;int lastFrames=0;double lastRate=0;bool anchored=false;
+    static uint64_t nanoseconds(long double value){
+        if(!(value>0))return 0;
+        const long double rounded=std::floor(value+0.5L);
+        return !std::isfinite(rounded)||rounded>=static_cast<long double>(UINT64_MAX)?UINT64_MAX:static_cast<uint64_t>(rounded);
+    }
+    static void increment(uint64_t &value){if(value!=UINT64_MAX)++value;}
+    void observe(uint64_t host,double rate,int frames,double sampleRate){
+        if(host==0||!std::isfinite(rate)||rate<=0||frames<=0)return;
+        const uint64_t requested=request.load(std::memory_order_acquire);
+        if(requested!=0){
+            if(measured.epoch!=requested){
+                measured={};measured.epoch=requested;measured.inheritedAnchor=anchored?1:0;
+                measured.baselineFrames=uint32_t(anchored?lastFrames:frames);
+                measured.baselineBufferNanoseconds=nanoseconds(static_cast<long double>(measured.baselineFrames)*1e9L/sampleRate);
+            }
+            increment(measured.callbacks);
+            if(anchored){
+                if(host<=lastHost)increment(measured.nonIncreasingTimestamps);
+                if(rate!=lastRate)increment(measured.clockRateChanges);
+                if(host>lastHost&&rate==lastRate){
+                    const long double spacing=static_cast<long double>(host-lastHost)*1e9L/rate;
+                    const long double expected=static_cast<long double>(lastFrames)*1e9L/sampleRate;
+                    increment(measured.comparedCallbacks);
+                    measured.maxIntervalNanoseconds=std::max(measured.maxIntervalNanoseconds,nanoseconds(spacing));
+                    measured.maxExcessNanoseconds=std::max(measured.maxExcessNanoseconds,nanoseconds(spacing-expected));
+                }
+            }
+            // Single-writer, bounded atomic stores only. Sequential consistency
+            // gives the reader a coherent versioned snapshot without RT CAS,
+            // locks, allocation or a retry loop on the output callback.
+            sequence.store(++publication);
+            epoch.store(measured.epoch);callbacks.store(measured.callbacks);comparedCallbacks.store(measured.comparedCallbacks);
+            maxExcess.store(measured.maxExcessNanoseconds);maxInterval.store(measured.maxIntervalNanoseconds);baselineBuffer.store(measured.baselineBufferNanoseconds);
+            nonIncreasing.store(measured.nonIncreasingTimestamps);rateChanges.store(measured.clockRateChanges);
+            baselineFrames.store(measured.baselineFrames);inheritedAnchor.store(measured.inheritedAnchor);
+            sequence.store(++publication);
+        }
+        // Never clear this anchor merely because the control thread requested
+        // a new epoch. In particular, retain it through an engine stop/start.
+        lastHost=host;lastFrames=frames;lastRate=rate;anchored=true;
+    }
+    bool read(LGOutputTiming *result)const {
+        if(!result)return false;
+        for(int attempt=0;attempt<4;attempt++){
+            const auto before=sequence.load();if(before&1)continue;
+            LGOutputTiming value{};value.epoch=epoch.load();value.callbacks=callbacks.load();value.comparedCallbacks=comparedCallbacks.load();
+            value.maxExcessNanoseconds=maxExcess.load();value.maxIntervalNanoseconds=maxInterval.load();value.baselineBufferNanoseconds=baselineBuffer.load();
+            value.nonIncreasingTimestamps=nonIncreasing.load();value.clockRateChanges=rateChanges.load();value.baselineFrames=baselineFrames.load();value.inheritedAnchor=inheritedAnchor.load();
+            if(sequence.load()==before){*result=value;return true;}
+        }
+        return false;
+    }
+};
 struct LGKernel {
     LGMIDIHub *renderHub=nullptr;uint64_t hostNow=0,outputState=0;
+    OutputTimingMeter outputTiming;
     double sr; PerformanceFX fx;PerformanceRuntime performance;std::array<float,Buses> capturedGain{},capturedPan{};float capturedFilter=0,capturedDelay=0;std::atomic<float> filterTarget{0},delayTarget{0}; std::array<Snapshot,3> slots; int current=-1;
     std::array<MixSnapshot,3> mixSlots;std::atomic<uint64_t> mixSerial{0},mixPublished{0};uint64_t mixApplied=0,mixSelection=0;std::atomic<bool> panicRequest{false};
     std::array<Voice,MaxVoices> voices{};std::array<bool,256> sustain{};
@@ -313,7 +375,10 @@ float lg_delay_target(LGKernel*k){return k->delayTarget.load();}
 void lg_panic(LGKernel*k){k->panicRequest.store(true,std::memory_order_release);k->command.store(-1);}
 void lg_tail_on_end(LGKernel*k,int enabled){k->tailOnEnd.store(enabled);}
 void lg_metronome(LGKernel*k,int on){k->metro.store(on);}
+uint64_t lg_output_timing_begin(LGKernel*k){if(!k)return 0;const uint64_t old=k->outputTiming.request.load(std::memory_order_relaxed);if(old==UINT64_MAX)return 0;k->outputTiming.request.store(old+1,std::memory_order_release);return old+1;}
+int lg_output_timing_read(LGKernel*k,LGOutputTiming*timing){return k&&k->outputTiming.read(timing)?1:0;}
 void lg_render_midi(LGKernel*k,LGMIDIHub*hub,uint64_t hostTime,double hostTicksPerSecond,float*l,float*r,int frames){
+    k->outputTiming.observe(hostTime,hostTicksPerSecond,frames,k->sr);
     k->renderHub=hub;k->hostNow=hostTime;
     bool outputChanged=false;
     if(hub){const auto state=hub->outputConfiguration();if((state>>32)!=(k->outputState>>32)){outputChanged=true;hub->resetOutputRefs();for(auto &voice:k->voices)voice.outputChannel=-1;}k->outputState=state;}

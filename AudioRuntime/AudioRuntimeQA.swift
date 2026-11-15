@@ -93,6 +93,24 @@ import SwiftUI
         return "Actual engine: boundary mix/FX, deferred keyed preview, preset cache invalidation, reordered MIDI roles, 80 concurrent submissions, bounded routing cache, phase and kernel identity"
     }
     struct InputUnavailable:Error {let details:String}
+    struct OutputHostTimingReport:Encodable {
+        let epoch:UInt64
+        let callbacks:UInt64
+        let comparedCallbacks:UInt64
+        let maxExcessNanoseconds:UInt64
+        let maxIntervalNanoseconds:UInt64
+        let baselineBufferNanoseconds:UInt64
+        let baselineFrames:UInt32
+        let inheritedAnchor:Bool
+        let nonIncreasingTimestamps:UInt64
+        let clockRateChanges:UInt64
+        init(_ value:LGOutputTiming){
+            epoch=value.epoch;callbacks=value.callbacks;comparedCallbacks=value.comparedCallbacks
+            maxExcessNanoseconds=value.maxExcessNanoseconds;maxIntervalNanoseconds=value.maxIntervalNanoseconds
+            baselineBufferNanoseconds=value.baselineBufferNanoseconds;baselineFrames=value.baselineFrames;inheritedAnchor=value.inheritedAnchor != 0
+            nonIncreasingTimestamps=value.nonIncreasingTimestamps;clockRateChanges=value.clockRateChanges
+        }
+    }
     private struct MicrophoneReport:Encodable {
         let outcome:String
         let detail:String
@@ -104,6 +122,11 @@ import SwiftUI
         let outputPlaying:Bool
         let categoryRestored:Bool
         let phaseDifferenceTicks:Double
+        let outputHostTimingBaseline:OutputHostTimingReport
+        let outputHostTiming:OutputHostTimingReport
+        // Host callback timestamps measure scheduling discontinuities, not the
+        // physical speaker waveform. That separate C8 acceptance remains open.
+        let physicalDropoutAbsenceVerified=false
         func json()throws->String{let encoder=JSONEncoder();encoder.outputFormatting=[.prettyPrinted,.sortedKeys];return String(decoding:try encoder.encode(self),as:UTF8.self)}
     }
     static func microphone(_ session:Session)async throws->String {
@@ -114,6 +137,16 @@ import SwiftUI
         let kernel=try pointer(audio)
         guard let engine=audio.captureEngine else{throw Failure(message:"No live engine")}
         let category=AVAudioSession.sharedInstance().category
+        let timingEpoch=lg_output_timing_begin(kernel)
+        try require(timingEpoch != 0,"Output timing measurement could not start")
+        var timingBaseline=LGOutputTiming()
+        // Arm and observe the measurement BEFORE category or hardware changes.
+        // Its retained anchor then includes the first callback after a restart.
+        try await wait(audio){
+            var value=LGOutputTiming()
+            guard lg_output_timing_read(kernel,&value) != 0,value.epoch==timingEpoch,value.comparedCallbacks>=8 else{return false}
+            timingBaseline=value;return true
+        }
         let lease=MicrophoneLease(),stats=InputStats()
         guard let owner=session.beginMicrophone(stop:{lease.stop()})else{throw Failure(message:"Microphone lease was rejected")}
         defer{lease.stop();session.endMicrophone(owner)}
@@ -131,8 +164,13 @@ import SwiftUI
             let difference=abs(actual-expected),phaseDifference=min(difference,length-difference)
             try require(phaseDifference<128,"Microphone category transition reset the musical position")
             let after=audio.clock
-            try await wait(audio){audio.clock>after}
-            return try MicrophoneReport(outcome:outcome,detail:detail,routes:routes,frames:stats.frames,outputEngineRetained:engineRetained,outputKernelRetained:kernelRetained,outputClockAdvanced:audio.clock>before,outputPlaying:audio.playing,categoryRestored:categoryRestored,phaseDifferenceTicks:phaseDifference).json()
+            var timing=LGOutputTiming()
+            try await wait(audio){
+                var value=LGOutputTiming()
+                guard audio.clock>after,lg_output_timing_read(kernel,&value) != 0,value.epoch==timingEpoch,value.callbacks>timingBaseline.callbacks else{return false}
+                timing=value;return true
+            }
+            return try MicrophoneReport(outcome:outcome,detail:detail,routes:routes,frames:stats.frames,outputEngineRetained:engineRetained,outputKernelRetained:kernelRetained,outputClockAdvanced:audio.clock>before,outputPlaying:audio.playing,categoryRestored:categoryRestored,phaseDifferenceTicks:phaseDifference,outputHostTimingBaseline:OutputHostTimingReport(timingBaseline),outputHostTiming:OutputHostTimingReport(timing)).json()
         }
         do {
             lease.microphone=try LiveMicrophone(audio:audio,delay:0.1,duration:0.3,receiver:{_ in
@@ -156,7 +194,7 @@ import SwiftUI
         let routes=lease.microphone?.routeDiagnostics ?? []
         try lease.microphone?.stop();lease.microphone=nil
         try require(stats.frames>0 && stats.finished,"No actual finite microphone PCM reached the consumer")
-        return try await outputReport(outcome:"PASS",detail:"Actual finite PCM, Session lease, permission, paused-graph prepare, restored category and continuing engine/kernel clock",routes:routes)
+        return try await outputReport(outcome:"PASS",detail:"Actual finite PCM, Session lease, permission, restored category and musical phase; host callback gaps measured separately from the retained kernel clock",routes:routes)
     }
     static func midiPolicy(_ session:Session)async throws->String {
         let audio=session.audio,midi=session.midi

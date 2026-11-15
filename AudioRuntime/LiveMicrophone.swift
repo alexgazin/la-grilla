@@ -1,4 +1,5 @@
 import AVFoundation
+import AudioToolbox
 import AudioDSP
 import Darwin
 import Foundation
@@ -21,6 +22,43 @@ enum LiveInputError:Error,LocalizedError {
 /// Values describe the real route; a zero node format alone is not proof that
 /// the host has no microphone. No port UIDs or recorded samples enter this log.
 struct LiveInputRouteSnapshot:Codable,Sendable {
+    struct EnableIO:Codable,Sendable {
+        let scope:UInt32
+        let bus:UInt32
+        let status:OSStatus?
+        let byteCount:UInt32?
+        let value:UInt32?
+        @MainActor init(unit:AudioUnit?,scope:AudioUnitScope,bus:AudioUnitElement){
+            self.scope=scope;self.bus=bus
+            guard let unit else{status=nil;byteCount=nil;value=nil;return}
+            var raw:UInt32=0,bytes=UInt32(MemoryLayout<UInt32>.size)
+            let result=AudioUnitGetProperty(unit,kAudioOutputUnitProperty_EnableIO,scope,bus,&raw,&bytes)
+            status=result;byteCount=bytes
+            value=result==noErr && bytes==UInt32(MemoryLayout<UInt32>.size) ? raw:nil
+        }
+        private enum CodingKeys:String,CodingKey{case scope,bus,status,byteCount,value}
+        func encode(to encoder:Encoder)throws {
+            var fields=encoder.container(keyedBy:CodingKeys.self)
+            try fields.encode(scope,forKey:.scope);try fields.encode(bus,forKey:.bus)
+            // Failed/unsupported reads and missing units remain explicit nulls;
+            // an initialized scratch value must never look like disabled I/O.
+            try fields.encode(status,forKey:.status);try fields.encode(byteCount,forKey:.byteCount);try fields.encode(value,forKey:.value)
+        }
+    }
+    struct IOUnit:Codable,Sendable {
+        let hostTime:UInt64
+        let unitAvailable:Bool
+        let inputEnabled:EnableIO
+        let outputEnabled:EnableIO
+        @MainActor init(_ node:AVAudioIONode){
+            hostTime=mach_absolute_time()
+            let unit=node.audioUnit;unitAvailable=unit != nil
+            // Public read-only queries. AVAudioEngine retains ownership of all
+            // initialization, enablement, formats and connections.
+            inputEnabled=EnableIO(unit:unit,scope:kAudioUnitScope_Input,bus:1)
+            outputEnabled=EnableIO(unit:unit,scope:kAudioUnitScope_Output,bus:0)
+        }
+    }
     struct Port:Codable,Sendable {
         let type:String
         let name:String
@@ -45,10 +83,13 @@ struct LiveInputRouteSnapshot:Codable,Sendable {
     let inputFormat:Format
     let outputFormat:Format
     let engineRunning:Bool
+    let outputUnitBeforeInputNode:IOUnit?
+    let inputUnit:IOUnit
+    let outputUnit:IOUnit
     var hardwareAbsent:Bool{!isInputAvailable && inputs.isEmpty && availableInputs.isEmpty}
-    @MainActor static func capture(_ engine:AVAudioEngine,stage:String)->LiveInputRouteSnapshot {
+    @MainActor static func capture(_ engine:AVAudioEngine,stage:String,outputUnitBeforeInputNode:IOUnit?=nil)->LiveInputRouteSnapshot {
         let session=AVAudioSession.sharedInstance(),input=engine.inputNode
-        return LiveInputRouteSnapshot(stage:stage,category:session.category.rawValue,mode:session.mode.rawValue,sessionSampleRate:session.sampleRate,isInputAvailable:session.isInputAvailable,inputs:session.currentRoute.inputs.map{Port($0)},availableInputs:(session.availableInputs ?? []).map{Port($0)},outputs:session.currentRoute.outputs.map{Port($0)},inputFormat:Format(input.inputFormat(forBus:0)),outputFormat:Format(input.outputFormat(forBus:0)),engineRunning:engine.isRunning)
+        return LiveInputRouteSnapshot(stage:stage,category:session.category.rawValue,mode:session.mode.rawValue,sessionSampleRate:session.sampleRate,isInputAvailable:session.isInputAvailable,inputs:session.currentRoute.inputs.map{Port($0)},availableInputs:(session.availableInputs ?? []).map{Port($0)},outputs:session.currentRoute.outputs.map{Port($0)},inputFormat:Format(input.inputFormat(forBus:0)),outputFormat:Format(input.outputFormat(forBus:0)),engineRunning:engine.isRunning,outputUnitBeforeInputNode:outputUnitBeforeInputNode,inputUnit:IOUnit(input),outputUnit:IOUnit(engine.outputNode))
     }
 }
 struct LiveInputSetupFailure:Error,LocalizedError,Sendable {
@@ -198,21 +239,27 @@ private final class InputResources:@unchecked Sendable {
         do {
             try session.setCategory(.playAndRecord,mode:.measurement,options:[.defaultToSpeaker,.allowBluetoothA2DP])
             try session.setActive(true)
+            // Observe the existing output I/O unit before lazily creating input.
+            // This query must not itself access inputNode or enable hardware.
+            let beforeInputNode=LiveInputRouteSnapshot.IOUnit(engine.outputNode)
             let input=engine.inputNode
             var format=input.outputFormat(forBus:0)
-            var routes=[LiveInputRouteSnapshot.capture(engine,stage:"activated-playAndRecord")]
+            var routes=[LiveInputRouteSnapshot.capture(engine,stage:"activated-playAndRecord",outputUnitBeforeInputNode:beforeInputNode)]
             func usable(_ format:AVAudioFormat)->Bool{format.sampleRate.isFinite && (8000...192000).contains(format.sampleRate) && format.channelCount>0 && format.channelCount<=32}
             if routes.last?.hardwareAbsent==true{throw LiveInputSetupFailure(LiveInputError.unavailable,routes:routes)}
             if !usable(format),routes.last?.hardwareAbsent==false {
-                // Input can be instantiated lazily after a playback-only graph
-                // has already started. Reinitialize that graph's I/O once while
-                // retaining its source node, kernel, pending music and clock.
-                // Never manufacture a format, reset/replace the engine or seek.
-                engine.pause()
+                // Input may be created after the playback-only I/O was prepared.
+                // pause() keeps those resources; stop() releases them so the
+                // same attached graph can prepare its actual duplex hardware.
+                // The external source/kernel/music state is retained. Hardware
+                // rendering stops during reprepare: its gap must be measured.
+                // Never reset/replace the engine, seek or manufacture a format.
+                engine.stop()
+                routes.append(.capture(engine,stage:"same-graph-stopped"))
                 do{engine.prepare();try engine.start()}
-                catch{routes.append(.capture(engine,stage:"same-graph-restart-failed"));throw LiveInputSetupFailure(error,routes:routes)}
+                catch{routes.append(.capture(engine,stage:"same-graph-reprepare-failed"));throw LiveInputSetupFailure(error,routes:routes)}
                 format=input.outputFormat(forBus:0)
-                routes.append(.capture(engine,stage:"same-graph-restarted"))
+                routes.append(.capture(engine,stage:"same-graph-reprepared"))
             }
             guard usable(format)else{throw LiveInputSetupFailure(LiveInputError.unavailable,routes:routes)}
             guard format.commonFormat == .pcmFormatFloat32,let mono=AVAudioFormat(commonFormat:.pcmFormatFloat32,sampleRate:format.sampleRate,channels:1,interleaved:false)else{throw LiveInputSetupFailure(LiveInputError.unsupportedFormat,routes:routes)}

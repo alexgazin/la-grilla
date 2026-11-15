@@ -19,8 +19,6 @@ struct GridView: View {
     @State private var showClipList=false
     @State private var pendingClipInspector:ClipEditorSelection?
     @State private var targetTrack:UUID?
-    @State private var grabbedClip:UUID?
-    @State private var grabbedOffset=0
     @State private var resizeDraft:ClipResizeDraft?
     private struct ClipResizeDraft {let payload:ArrangementDragPayload;let originalLength:Int;var length:Int;let start:Int}
     private let gutter:CGFloat=56
@@ -146,46 +144,42 @@ struct GridView: View {
         let draft=resizeDraft?.payload.objectID==clip.id ? resizeDraft:nil
         let visibleLength=draft?.length ?? clip.length
         let width=max(4,CGFloat(visibleLength)/CGFloat(barTicks)*barWidth-6)
-        let control=Button {
-            guard !editingLocked else{return}
-            clipSelection=ClipEditorSelection(trackID:track.id,clipID:clip.id)
-        } label: {
-            ArrangementClipFace(notes:notes,track:track,clip:clip,width:width,height:max(44,height-12),resizing:draft != nil)
-        }.buttonStyle(.plain).frame(width:width,height:max(44,height-12)).contentShape(Rectangle())
-            .modifier(ArrangementDragSource(payload:editingLocked || resizeDraft != nil ? nil:ArrangementDragPayload(project:session.project,trackID:track.id,clipID:clip.id,grabOffset:grabbedClip==clip.id ? grabbedOffset:0).encoded()))
-            .accessibilityHidden(true)
-            // Rebuild the native source after inspector/model edits; touch
-            // anchor updates leave this revision unchanged during the lift.
-            .id(clip.id.uuidString+"-"+String(session.project.revision))
+        let clipHeight=max(44,height-12)
+        let corner=ArrangementClipTouchLayout.resizeCorner(in:CGRect(x:0,y:0,width:width,height:clipHeight))
         return ZStack(alignment:.bottomTrailing) {
-            control
-            // Resize is a separate corner target. Keep its high-priority pan
-            // outside the drag Button's center hit region on narrow clips.
-            Image(systemName:"line.3.horizontal").font(.system(size:11,weight:.semibold)).rotationEffect(.degrees(90)).foregroundStyle(Color.track(track.role))
-                .frame(width:min(18,max(6,width*0.2)),height:44).frame(width:44,height:44).contentShape(Rectangle())
-                .highPriorityGesture(DragGesture(minimumDistance:1).onChanged{value in
-                    guard !editingLocked else{return}
-                    if resizeDraft?.payload.objectID != clip.id {resizeDraft=ClipResizeDraft(payload:.init(project:session.project,trackID:track.id,clipID:clip.id),originalLength:clip.length,length:clip.length,start:clip.start)}
-                    guard var current=resizeDraft else{return}
-                    let ticks=Double(current.originalLength)+Double(value.translation.width/barWidth)*Double(barTicks)
-                    let bounded=max(Double(clipSnap),min(Double(64*barTicks-current.start),ticks))
-                    current.length=(try? ClipEditing.snapped(Int(bounded),step:clipSnap)) ?? clip.length;resizeDraft=current
-                }.onEnded{_ in
-                    guard let current=resizeDraft,current.payload.objectID==clip.id else{return};resizeDraft=nil
-                    guard current.length != current.originalLength else{return}
-                    let snap=clipSnap
-                    session.edit{try ClipEditing.resize(current.payload,length:current.length,snap:snap,in:&$0)}
-                })
-                .accessibilityLabel("Resize clip").accessibilityHidden(true)
-            ArrangementClipAccessibility(label:track.displayName,value:String(format:NSLocalizedString("%.2f bars",comment:"Clip length"),Double(clip.length)/Double(barTicks)),identifier:"grid.clip.\(clip.id)",enabled:!editingLocked,touchBegan:{point in
-                guard resizeDraft==nil,clipSelection==nil,selection==nil,!showClipList,session.sheet==nil else{return}
-                grabbedClip=clip.id;grabbedOffset=max(0,min(clip.length-1,Int(point.x/barWidth*CGFloat(barTicks))))
+            ArrangementClipFace(notes:notes,track:track,clip:clip,width:width,height:clipHeight,resizing:draft != nil)
+                .allowsHitTesting(false).accessibilityHidden(true)
+            if let corner {
+                Image(systemName:"line.3.horizontal").font(.system(size:11,weight:.semibold)).rotationEffect(.degrees(90)).foregroundStyle(Color.track(track.role))
+                    .frame(width:corner.width,height:corner.height)
+                    .allowsHitTesting(false).accessibilityHidden(true)
+            }
+            ArrangementClipControl(label:track.displayName,value:String(format:NSLocalizedString("%.2f bars",comment:"Clip length"),Double(clip.length)/Double(barTicks)),identifier:"grid.clip.\(clip.id)",enabled:!editingLocked,makePayload:{point in
+                guard !editingLocked,resizeDraft==nil,clipSelection==nil,selection==nil,!showClipList,session.sheet==nil,
+                      let current=session.project.tracks.first(where:{$0.id==track.id})?.clips.first(where:{$0.id==clip.id})else{return nil}
+                let offset=max(0,min(current.length-1,Int(point.x/barWidth*CGFloat(barTicks))))
+                return ArrangementDragPayload(project:session.project,trackID:track.id,clipID:clip.id,grabOffset:offset).encoded()
+            },resize:{state,translation in
+                resizeClip(trackID:track.id,clipID:clip.id,state:state,translation:translation)
             },activate:{
                 clipSelection=ClipEditorSelection(trackID:track.id,clipID:clip.id)
-            }).frame(width:width,height:max(44,height-12))
-        }.frame(width:width,height:max(44,height-12))
+            }).frame(width:width,height:clipHeight)
+        }.frame(width:width,height:clipHeight)
             .offset(x:CGFloat(clip.start)/CGFloat(barTicks)*barWidth+3,y:6)
             .allowsHitTesting(!editingLocked)
+    }
+    private func resizeClip(trackID:UUID,clipID:UUID,state:UIGestureRecognizer.State,translation:CGFloat){
+        guard !editingLocked,let clip=session.project.tracks.first(where:{$0.id==trackID})?.clips.first(where:{$0.id==clipID})else{resizeDraft=nil;return}
+        guard state == .began || state == .changed || state == .ended else{if state == .cancelled || state == .failed{resizeDraft=nil};return}
+        if resizeDraft?.payload.objectID != clipID{resizeDraft=ClipResizeDraft(payload:.init(project:session.project,trackID:trackID,clipID:clipID),originalLength:clip.length,length:clip.length,start:clip.start)}
+        guard var current=resizeDraft else{return}
+        let ticks=Double(current.originalLength)+Double(translation/barWidth)*Double(barTicks)
+        let bounded=max(Double(clipSnap),min(Double(64*barTicks-current.start),ticks))
+        current.length=(try? ClipEditing.snapped(Int(bounded),step:clipSnap)) ?? clip.length
+        if state == .ended {
+            resizeDraft=nil;guard current.length != current.originalLength else{return}
+            let snap=clipSnap;session.edit{try ClipEditing.resize(current.payload,length:current.length,snap:snap,in:&$0)}
+        }else{resizeDraft=current}
     }
     private func dropClip(_ items:[String],on trackID:UUID,at point:CGPoint)->Bool {
         guard !editingLocked,items.count==1 else{return false}
@@ -405,59 +399,6 @@ private struct ArrangementDragSource:ViewModifier {
     let payload:String?
     @ViewBuilder func body(content:Content)->some View {
         if let payload{content.draggable(payload)}else{content}
-    }
-}
-
-/// UIKit's lane drop host can report its full bounds for custom SwiftUI
-/// controls. Use the rendered clip geometry for VoiceOver focus and native hit
-/// coordinates, including after a resize, move, zoom or horizontal scroll.
-private struct ArrangementClipAccessibility:UIViewRepresentable {
-    let label:String
-    let value:String
-    let identifier:String
-    let enabled:Bool
-    let touchBegan:(CGPoint)->Void
-    let activate:()->Void
-    func makeUIView(context:Context)->ArrangementClipAccessibilityView {
-        let view=ArrangementClipAccessibilityView()
-        view.backgroundColor = .clear;view.isOpaque=false
-        view.isUserInteractionEnabled=false;view.isAccessibilityElement=true
-        return view
-    }
-    func updateUIView(_ view:ArrangementClipAccessibilityView,context:Context){
-        view.accessibilityLabel=label;view.accessibilityValue=value;view.accessibilityIdentifier=identifier
-        view.accessibilityTraits=enabled ? .button:[.button,.notEnabled]
-        view.acceptsActivation=enabled;view.activate=activate;view.touchBegan=touchBegan
-    }
-}
-private final class ArrangementClipAccessibilityView:UIView,UIGestureRecognizerDelegate {
-    var acceptsActivation=true
-    var activate:(()->Void)?
-    var touchBegan:((CGPoint)->Void)?
-    private var touchObserver:UILongPressGestureRecognizer?
-    override func didMoveToWindow(){
-        super.didMoveToWindow()
-        if let observer=touchObserver{observer.view?.removeGestureRecognizer(observer)}
-        touchObserver=nil
-        guard let window else{return}
-        let observer=UILongPressGestureRecognizer(target:nil,action:nil)
-        observer.cancelsTouchesInView=false;observer.delaysTouchesBegan=false;observer.delaysTouchesEnded=false
-        observer.delegate=self;window.addGestureRecognizer(observer);touchObserver=observer
-    }
-    func gestureRecognizer(_ gestureRecognizer:UIGestureRecognizer,shouldReceive touch:UITouch)->Bool {
-        // Observe the initial local anchor without entering gesture recognition.
-        // Native SwiftUI drag, taps, resize and scrolling receive every touch.
-        let point=touch.location(in:self)
-        if acceptsActivation,bounds.contains(point){touchBegan?(point)}
-        return false
-    }
-    override var accessibilityFrame:CGRect {
-        get{UIAccessibility.convertToScreenCoordinates(bounds,in:self)}
-        set{super.accessibilityFrame=newValue}
-    }
-    override func accessibilityActivate()->Bool {
-        guard acceptsActivation,let activate else{return false}
-        activate();return true
     }
 }
 

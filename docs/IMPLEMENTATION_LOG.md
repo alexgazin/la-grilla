@@ -55,7 +55,7 @@
 
 ## C7/C8 — граница текущей проверки
 
-Рабочий интеграционный кандидат — **1.0.0 (14), schema 8**; предыдущий проверенный baseline остаётся 1.0.0 (12), пока новая версия не пройдёт CI. Новые источники не объявляются проверенными только потому, что синтаксический parser Linux их принимает.
+Рабочий интеграционный кандидат — **1.0.0 (14), schema 8**; последний принятый baseline — **main `912dc483` / 1.0.0 (13)**, exact-main run `43719321757`. Новая версия принимается отдельно. Новые источники не объявляются проверенными только потому, что синтаксический parser Linux их принимает.
 
 - **Host checkpoint `031f977`:** 107 Swift tests, 0 ошибок; 14 C++ suites и P1/P2/P3 stress проходят, callback allocations = 0. Presentation audit — 584 EN/RU ключа, placeholder parity, contrast/font/icon; Release audit проходит.
 - **Сквозная приёмка:** один короткий проект проходит custom/jazz whole-song proposal decode/review/apply, clip move/resize/offset/copy, section duplicate/reorder/delete, save/load и portable install. Независимый SMF reader проверяет 21 конкретную пару NoteOn/Off с channel/tick/duration/velocity, tempo и markers. Повторный PCM render побайтово совпадает, пять stems выровнены, mute даёт нули, их сумма совпадает с mix в пределах 16-bit quantization. Отдельный Python reader проверил RIFF/ZIP и реальную басовую последовательность D1→E1.
@@ -121,6 +121,22 @@ Source `8a90920684e2e66fb9a159adec975e4af1cfa303`, [run 43726756796](https://git
 - `DrumClipRuntimeQA` ведёт настоящую Session-запись в offset/repeating clip с общим исходным pattern: два прохода по audio clock, отдельная правка gain/pan, самостоятельный audible draft и одна финальная history-транзакция. Проверяются независимость нового источника, сохранность sibling/старых слышимых событий, quantized pads, mixer, Undo/Redo и фаза. Второй сценарий проверяет natural finite end: частичный take сохраняется и снимает recording lock, нажатие за пределами клипа слышно, но не заворачивается в его pattern.
 
 Generated project включает 31 app source file; всего 43 native test methods: 40 функциональных и три capture methods. Focused run теперь выбирает 14 integration tests, не заменяя полный набор. Синтаксический parser, presentation/release и 12 release-gate regressions проходят; это не объявляется Apple typecheck или native выполнением нового кода.
+
+### C7 — 4d1f69: подтверждённый маршрут и устранение реальных touch/I/O причин
+
+[Run 43729615286](https://github.com/alexgazin/la-grilla/actions/runs/43729615286), source `4d1f69ac0abe4ba727a6a12573d2c155e454374c`: обе SDK и optimized archive проходят. GUI automation действительно открыла Simulator I/O и подтвердила `✓` у BlackHole input/output до и после выбора. Несмотря на это, mic вернул 0 frames и 2-channel/0 Hz formats. Гипотеза неверно выбранного input этим результатом отвергнута; это не доказательство отсутствия оборудования.
+
+Строгий native прогон снова не принят. Add clip, section drag, wide off-center drag, snapshot/MIDI, Assistant A/B и section operations прошли. Однобарный drag и новый corner resize не завершили изменение, без domain validation error: физический SwiftUI hit/gesture host не совпал с правильным AX carrier. Вместо дальнейшей правки AX frames вводится настоящий ограниченный UIKit touch surface: UIDragInteraction, tap и отдельный corner UIPan; актуальный payload создаётся в момент drag. Внешний SwiftUI face остаётся рисунком, native lift preview берёт реальную видимую область клипа. Старые проверки реального переноса/resize/Undo не ослаблены.
+
+Bass прошёл минимальную высоту, но касание в расширенном border не включило внутренний UISwitch gesture. Новый UIView host разделяет реальные touch regions: native switch принимает только свою область, padding — только внешние точки и посылает ровно один valueChanged. Его AX frame теперь соответствует фактически работающему целому target. Оригинальные ±20-point касания/обе смены состояния/Play сохранены.
+
+VoiceReview подтвердил `PREVIEW` → настоящий Stop → `ORIGINAL`, исходный hash, ручную C♯4 и Play. Последующее раскрытие Apply превысило timeout: helper измерял ScrollView Grid под представленным Voice sheet. Теперь он адресует именно Voice ScrollView и имеет ограниченные retries с диагностикой target/viewport.
+
+Для C5 Apple [pause](https://developer.apple.com/documentation/avfaudio/avaudioengine/pause()) сохраняет prepared resources, а [stop](https://developer.apple.com/documentation/avfaudio/avaudioengine/stop()) освобождает их. При фактически невалидном input новый guarded fallback освобождает I/O и подготавливает **тот же** engine/source/kernel; он не вызывает музыкальный Stop/Seek/reset и не задаёт выдуманный format. Read-only EnableIO status/size/optional value снимаются до первого input getter и после reprepare; неподдерживаемый query даёт null. Добавляется измерение output host-timestamp gaps, поскольку сохранённые clock/identity сами по себе не доказывают отсутствие аппаратной паузы. Успех этого изменения и реальный PCM ещё требуют Apple SDK/native receipt; непрерывность на физическом iPhone остаётся C8.
+
+Следующий программный checkpoint включает 32 app source files, настоящую нативную поверхность клипов, разделённые touch regions Bass и адресный Voice scroll helper. Для короткой дорожки corner не закрывает центр; очень узкий clip использует всё тело для drag и существующий inspector для resize. NSItemProvider loader создаётся вне MainActor и передаёт только immutable UTF-8 data.
+
+Новый OutputTimingMeter хранит предыдущий host anchor через measurement epoch и engine restart, использует bounded atomic publication/read без callback locks/allocations и не меняет PCM. Проверены непрерывный/переменный buffer spacing, 80/100 ms паузы, первая пауза после epoch, обратные timestamps/rate changes, offline exclusion, 44.1/48/96 kHz, 5000 конкурентных epochs/snapshots и точное сохранение звука. **15 C++ suites + stress прошли**, render allocations = 0. После изменения ядра заново прошли **112 Swift tests**. Generic mic и production VoiceCapture receipts ждут baseline callbacks до записи и сохраняют baseline/final host-timing; `physicalDropoutAbsenceVerified=false` не даёт спутать их с физическим измерением динамика. Apple SDK/UI этого checkpoint ещё не приняты.
 
 ## Формат отчёта каждого этапа
 
