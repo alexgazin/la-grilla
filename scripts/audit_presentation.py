@@ -37,6 +37,8 @@ missing=set()
 paths=list((root/'App').glob('*.swift'))+list((root/'Features').glob('*.swift'))
 for path in paths:
     source=path.read_text()
+    for size in re.findall(r'\.system\(size:\s*(\d+(?:\.\d+)?)(?=[,)])',source):
+        assert float(size)>=11,f'iOS HIG minimum font size is 11 pt: {path.name} uses {size}'
     keys=[match[1] or match[2] for match in ui.finditer(source)]+list(localized_expressions(source))
     for key in keys:
         if '\\(' in key or not re.search('[A-Za-zА-Яа-я]',placeholder.sub('',key)):continue
@@ -60,4 +62,4 @@ icon=root/'Resources/Assets.xcassets/AppIcon.appiconset/AppIcon.png'
 data=icon.read_bytes();assert data[:8]==b'\x89PNG\r\n\x1a\n'
 width,height,depth,color=struct.unpack('>IIBB',data[16:26])
 assert (width,height,depth,color)==(1024,1024,8,2),'App Store icon must be opaque RGB 1024×1024'
-print(f'Presentation audit passed: {len(catalogs["ru"])} EN/RU keys, placeholder parity, AA contrast tokens and opaque 1024px icon.')
+print(f'Presentation audit passed: {len(catalogs["ru"])} EN/RU keys, placeholder parity, 11pt font floor, AA contrast tokens and opaque 1024px icon.')

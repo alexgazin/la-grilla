@@ -22,16 +22,16 @@ struct GridView: View {
             VStack(spacing:0){
                 ScrollView(.vertical,showsIndicators:false){
                     VStack(alignment:.leading,spacing:0){
-                        HStack{SmallHeading(text:"ARRANGEMENT");Spacer();Text("\(session.displayProject.length/barTicks) bars").font(.system(size:10,design:.monospaced)).foregroundStyle(Color.muted);IconButton(symbol:"ellipsis",label:"Edit song sections",color:.muted){session.presentEditor(.sections)}}.padding(.horizontal,16)
+                        HStack{SmallHeading(text:"ARRANGEMENT");Spacer();Text("\(session.displayProject.length/barTicks) bars").font(.system(size:11,design:.monospaced)).foregroundStyle(Color.muted);IconButton(symbol:"ellipsis",label:"Edit song sections",color:.muted){session.presentEditor(.sections)}}.padding(.horizontal,16)
                         ScrollView(.horizontal,showsIndicators:false){HStack(spacing:6){ForEach(session.displayProject.sections){section in
-                            Button{session.select(section)}label:{HStack(spacing:6){Text(section.name).font(.system(size:12,weight:.semibold));Text("\(section.start/barTicks+1)–\((section.start+section.length)/barTicks)").font(.system(size:9,design:.monospaced)).opacity(0.7)}.padding(.horizontal,14).frame(minHeight:44).foregroundStyle(session.section.id==section.id ? Color.ink:Color.studioText).background(session.section.id==section.id ? Color.mint:Color.panel,in:Capsule())}.buttonStyle(.plain)
-                        };Button{session.presentEditor(.sections)}label:{Image(systemName:"plus").frame(width:44,height:44).foregroundStyle(Color.muted)}.buttonStyle(.plain)}.padding(.horizontal,16)}.padding(.bottom,8)
+                            Button{session.select(section)}label:{HStack(spacing:6){Text(section.name).font(.system(size:12,weight:.semibold));Text("\(section.start/barTicks+1)–\((section.start+section.length)/barTicks)").font(.system(size:11,design:.monospaced)).opacity(0.7)}.padding(.horizontal,14).frame(minHeight:44).foregroundStyle(session.section.id==section.id ? Color.ink:Color.studioText).background(session.section.id==section.id ? Color.mint:Color.panel,in:Capsule())}.buttonStyle(StudioQuietButtonStyle())
+                        };Button{session.presentEditor(.sections)}label:{Image(systemName:"plus").frame(width:44,height:44).foregroundStyle(Color.muted)}.buttonStyle(StudioQuietButtonStyle())}.padding(.horizontal,16)}.padding(.bottom,8)
                         HStack(spacing:0){
-                            VStack(spacing:0){Color.clear.frame(height:28);trackLabel(.harmony,height:harmonyHeight);trackLabel(.drums,height:drumHeight);trackLabel(.bass,height:bassHeight);ForEach(session.displayProject.tracks.filter{$0.role == .melody}){track in Button{session.openNotes(track.id)}label:{Text(track.displayName).font(.system(size:9,weight:.semibold)).lineLimit(2).foregroundStyle(Color.mint).padding(8).frame(width:gutter,height:melodyHeight)}.buttonStyle(.plain)}}.frame(width:gutter)
+                            VStack(spacing:0){Color.clear.frame(height:28);trackLabel(.harmony,height:harmonyHeight);trackLabel(.drums,height:drumHeight);trackLabel(.bass,height:bassHeight);ForEach(session.displayProject.tracks.filter{$0.role == .melody}){track in Button{session.openNotes(track.id)}label:{Text(track.displayName).font(.system(size:11,weight:.semibold)).lineLimit(2).foregroundStyle(Color.mint).padding(8).frame(width:gutter,height:melodyHeight)}.buttonStyle(StudioQuietButtonStyle())}}.frame(width:gutter)
                             ScrollView(.horizontal,showsIndicators:true){ZStack(alignment:.topLeading){
                                 timeline
                                 Rectangle().fill(Color.mint).frame(width:2,height:musicHeight).offset(x:CGFloat(session.audio.tick)/CGFloat(barTicks)*barWidth,y:28).allowsHitTesting(false)
-                                Image(systemName:"triangle.fill").font(.system(size:9)).rotationEffect(.degrees(180)).foregroundStyle(Color.mint).offset(x:CGFloat(session.audio.tick)/CGFloat(barTicks)*barWidth-4,y:18).allowsHitTesting(false)
+                                Image(systemName:"triangle.fill").font(.system(size:11)).rotationEffect(.degrees(180)).foregroundStyle(Color.mint).offset(x:CGFloat(session.audio.tick)/CGFloat(barTicks)*barWidth-4,y:18).allowsHitTesting(false)
                             }.frame(width:CGFloat(session.displayProject.length/barTicks)*barWidth).gesture(MagnifyGesture().onChanged{value in zoomed=true;barWidth=min(640,max(68,zoomBase*value.magnification))}.onEnded{_ in zoomBase=barWidth})}
                         }
                     }
@@ -59,12 +59,12 @@ struct GridView: View {
                     Button("Perform",systemImage:"waveform.path"){session.finishTake();session.sheet = .perform}.accessibilityIdentifier("perform.open")
                     Button("MIDI devices",systemImage:"pianokeys"){session.presentEditor(.midiDevices)}.accessibilityIdentifier("midi.open")
                 }label:{Image(systemName:"ellipsis.circle").frame(width:44,height:44)}.accessibilityLabel("More studio tools").accessibilityIdentifier("tools.more")
-            }.buttonStyle(.plain).font(.system(size:11,weight:.medium)).lineLimit(1).minimumScaleFactor(0.8).foregroundStyle(Color.mint).padding(.horizontal,4).modifier(StudioSurface())
+            }.buttonStyle(StudioQuietButtonStyle()).font(.system(size:11,weight:.medium)).lineLimit(1).minimumScaleFactor(0.8).foregroundStyle(Color.mint).padding(.horizontal,4).modifier(StudioSurface())
         }
     }
     func trackLabel(_ role: TrackRole,height: CGFloat)->some View {
         Button{if role == .harmony{session.presentEditor(.harmony)}else if role == .bass {session.presentEditor(.bass)}else if role == .drums{session.tab=1}}
-        label:{VStack(alignment:.leading,spacing:9){RoundedRectangle(cornerRadius:2).fill(Color.track(role)).frame(width:18,height:3);Text(LocalizedStringKey(role == .harmony ? "HARM":role == .drums ? "DRUM":"BASS")).font(.system(size:9,weight:.semibold));Image(systemName:role == .harmony ? "pianokeys":role == .drums ? "square.grid.2x2":"waveform").font(.system(size:14)).foregroundStyle(Color.track(role))}.frame(maxWidth:.infinity,maxHeight:.infinity,alignment:.leading).padding(.leading,12).frame(height:height).background(Color.panel.opacity(0.6)).overlay(alignment:.bottom){Rectangle().fill(Color.raised).frame(height:1)}}.buttonStyle(.plain)
+        label:{VStack(alignment:.leading,spacing:9){RoundedRectangle(cornerRadius:2).fill(Color.track(role)).frame(width:18,height:3);Text(LocalizedStringKey(role == .harmony ? "HARM":role == .drums ? "DRUM":"BASS")).font(.system(size:11,weight:.semibold));Image(systemName:role == .harmony ? "pianokeys":role == .drums ? "square.grid.2x2":"waveform").font(.system(size:14)).foregroundStyle(Color.track(role))}.frame(maxWidth:.infinity,maxHeight:.infinity,alignment:.leading).padding(.leading,12).frame(height:height).background(Color.panel.opacity(0.6)).overlay(alignment:.bottom){Rectangle().fill(Color.raised).frame(height:1)}}.buttonStyle(StudioQuietButtonStyle())
     }
     var timeline: some View {
         VStack(spacing:0) { ruler; harmonyLane; drumLane; bassLane;ForEach(session.displayProject.tracks.filter{$0.role == .melody}){t in melodyLane(t)} }
@@ -72,7 +72,7 @@ struct GridView: View {
     var ruler: some View {
         HStack(spacing:0) {
             ForEach(0..<session.displayProject.length/barTicks,id:\.self) { bar in
-                Text(String(format:"%02d",bar+1)).font(.system(size:10,weight:.medium,design:.monospaced))
+                Text(String(format:"%02d",bar+1)).font(.system(size:11,weight:.medium,design:.monospaced))
                     .foregroundStyle(Color.muted).frame(width:barWidth,alignment:.leading)
             }
         }.frame(height:28).overlay(alignment:.topLeading) {
@@ -107,7 +107,7 @@ struct GridView: View {
                 chord:event?.chord ?? Chord(root:session.displayProject.keyRoot,quality:session.displayProject.minor ? .minor:.major),
                 duration:event?.duration ?? barTicks)
         } label: { ChordTile(chord:event?.chord,width:max(44,CGFloat(event?.duration ?? barTicks)/CGFloat(barTicks)*barWidth-6),height:harmonyHeight-16) }
-        .buttonStyle(.plain).disabled(session.performance.contextActive).offset(x:CGFloat(clip.start+tick)/CGFloat(barTicks)*barWidth+3,y:8)
+        .buttonStyle(StudioQuietButtonStyle()).disabled(session.performance.contextActive).offset(x:CGFloat(clip.start+tick)/CGFloat(barTicks)*barWidth+3,y:8)
         .simultaneousGesture(LongPressGesture(minimumDuration:0.35).sequenced(before:DragGesture()).onEnded { value in
             if case .second(true,let drag?)=value,let event {
                 let delta=Int((drag.translation.width/barWidth*16).rounded())*240
@@ -182,7 +182,7 @@ struct ChordTile: View {
                             .frame(width:max(2,(width-24-CGFloat(max(0,chord.notes.count-1))*(width<64 ? 1:3))/CGFloat(max(1,chord.notes.count))),height:3).offset(y:CGFloat(72-note)/4)
                     }
                 }
-                Text(chord.quality.label).font(.system(size:9)).lineLimit(1).minimumScaleFactor(0.5).foregroundStyle(Color.harmony.opacity(0.9))
+                Text(chord.quality.label).font(.system(size:11)).lineLimit(1).foregroundStyle(Color.harmony.opacity(0.9))
             }
         }.foregroundStyle(Color.harmony).padding(12).frame(width:width,height:height,alignment:.topLeading)
             .background(Color.harmony.opacity(chord == nil ? 0.04:0.12),in:RoundedRectangle(cornerRadius:10))

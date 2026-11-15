@@ -2,8 +2,8 @@ import SwiftUI
 import MusicDomain
 import UIKit
 extension Color {
-    private static func adaptive(_ dark:UInt32,_ light:UInt32)->Color {
-        Color(uiColor:UIColor{trait in let hex=trait.userInterfaceStyle == .dark ? dark:light;return UIColor(red:CGFloat((hex>>16)&255)/255,green:CGFloat((hex>>8)&255)/255,blue:CGFloat(hex&255)/255,alpha:1)})
+    private static func adaptive(_ dark:UInt32,_ light:UInt32,contrastDark:UInt32?=nil,contrastLight:UInt32?=nil)->Color {
+        Color(uiColor:UIColor{trait in let high=trait.accessibilityContrast == .high;let hex=trait.userInterfaceStyle == .dark ? (high ? contrastDark ?? dark:dark):(high ? contrastLight ?? light:light);return UIColor(red:CGFloat((hex>>16)&255)/255,green:CGFloat((hex>>8)&255)/255,blue:CGFloat(hex&255)/255,alpha:1)})
     }
     static let ink=adaptive(0x111510,0xF5F5EF)
     static let panel=adaptive(0x1A2018,0xFFFFFF)
@@ -15,12 +15,12 @@ extension Color {
     static let bass=adaptive(0x86DCC6,0x00675A)
     static let record=adaptive(0xFF7B80,0xAA2D3D)
     static let studioText=adaptive(0xF1F2E8,0x192016)
-    static let outline=adaptive(0x414A3A,0xD0D8C5)
+    static let outline=adaptive(0x414A3A,0xD0D8C5,contrastDark:0xA3B990,contrastLight:0x4A6036)
     static func track(_ role: TrackRole) -> Color {role == .harmony ? .harmony : role == .drums ? .drums : role == .bass ? .bass : .mint}
 }
 struct IconButton: View {
     let symbol: String; let label: LocalizedStringKey; var color: Color = .primary; let action: () -> Void
-    var body: some View {Button(action:action){Image(systemName:symbol).font(.system(size:18,weight:.medium)).foregroundStyle(color).frame(minWidth:44,minHeight:44).contentShape(Rectangle())}.buttonStyle(.plain).accessibilityLabel(label)}
+    var body: some View {Button(action:action){Image(systemName:symbol).font(.system(size:18,weight:.medium)).foregroundStyle(color).frame(minWidth:44,minHeight:44).contentShape(Rectangle())}.buttonStyle(StudioQuietButtonStyle()).accessibilityLabel(label)}
 }
 struct CapsuleLabel: View {
     let text: String; var color: Color = .muted
@@ -44,19 +44,22 @@ struct StudioQATypeSize:ViewModifier {
 
 // Shared surfaces and actions keep the instrument's visual rhythm consistent.
 struct StudioSurface:ViewModifier {
+    @Environment(\.colorSchemeContrast) private var contrast
     var color:Color = .panel
-    func body(content:Content)->some View {content.background(color,in:RoundedRectangle(cornerRadius:16)).overlay{RoundedRectangle(cornerRadius:16).stroke(Color.outline.opacity(0.65),lineWidth:0.6)}}
+    init(color:Color = .panel){self.color=color}
+    func body(content:Content)->some View {content.background(color,in:RoundedRectangle(cornerRadius:16,style:.continuous)).overlay{RoundedRectangle(cornerRadius:16,style:.continuous).stroke(Color.outline.opacity(contrast == .increased ? 1:0.65),lineWidth:contrast == .increased ? 1:0.6)}}
 }
 struct StudioActionStyle:ButtonStyle {
     @Environment(\.isEnabled) private var enabled
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var color:Color = .mint
     var prominent=true
     init(color:Color = .mint,prominent:Bool = true){self.color=color;self.prominent=prominent}
     func makeBody(configuration:Configuration)->some View {
         configuration.label.font(.system(.subheadline,weight:.semibold)).foregroundStyle(prominent ? Color.ink:color)
             .frame(maxWidth:.infinity,minHeight:48).padding(.horizontal,12)
-            .background(prominent ? color:Color.raised,in:RoundedRectangle(cornerRadius:14))
-            .opacity(!enabled ? 0.35:configuration.isPressed ? 0.76:1).scaleEffect(configuration.isPressed ? 0.98:1)
+            .background(prominent ? color:Color.raised,in:RoundedRectangle(cornerRadius:14,style:.continuous))
+            .opacity(!enabled ? 0.35:configuration.isPressed ? 0.76:1).scaleEffect(configuration.isPressed && !reduceMotion ? 0.98:1)
     }
 }
 struct StudioMark:View {
@@ -75,6 +78,20 @@ struct StudioSegments<Value:Equatable>:View {
     @Binding var selection:Value
     let options:[(Value,LocalizedStringKey)]
     var body:some View {HStack(spacing:3){ForEach(options.indices,id:\.self){index in
-        Button{selection=options[index].0}label:{Text(options[index].1).font(.system(.caption,weight:.semibold)).lineLimit(2).minimumScaleFactor(0.8).frame(maxWidth:.infinity,minHeight:44).foregroundStyle(selection==options[index].0 ? Color.ink:Color.muted).background(selection==options[index].0 ? Color.mint:Color.clear,in:RoundedRectangle(cornerRadius:11))}.buttonStyle(.plain).accessibilityAddTraits(selection==options[index].0 ? .isSelected:[])
+        Button{selection=options[index].0}label:{Text(options[index].1).font(.system(.caption,weight:.semibold)).lineLimit(2).minimumScaleFactor(1).frame(maxWidth:.infinity,minHeight:44).foregroundStyle(selection==options[index].0 ? Color.ink:Color.muted).background(selection==options[index].0 ? Color.mint:Color.clear,in:RoundedRectangle(cornerRadius:11,style:.continuous))}.buttonStyle(StudioQuietButtonStyle()).accessibilityAddTraits(selection==options[index].0 ? .isSelected:[])
     }}.padding(3).modifier(StudioSurface()).accessibilityElement(children:.contain).accessibilityLabel(title)}
+}
+
+struct StudioQuietButtonStyle:ButtonStyle {
+    @Environment(\.isEnabled) private var enabled
+    init(){}
+    func makeBody(configuration:Configuration)->some View {configuration.label.opacity(!enabled ? 0.35:configuration.isPressed ? 0.6:1)}
+}
+struct StudioNavigationSurface:ViewModifier {
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    init(){}
+    @ViewBuilder func body(content:Content)->some View {
+        if #available(iOS 26.0,*),!reduceTransparency{content.glassEffect(.regular,in:RoundedRectangle(cornerRadius:20,style:.continuous))}
+        else{content.modifier(StudioSurface())}
+    }
 }

@@ -93,12 +93,12 @@ struct VoiceToMIDIView:View {
                 for row in minimum...maximum{let y=CGFloat(maximum-row)/CGFloat(maximum-minimum+1)*size.height;var line=Path();line.move(to:CGPoint(x:0,y:y));line.addLine(to:CGPoint(x:size.width,y:y));context.stroke(line,with:.color(.raised),lineWidth:1)}
                 for beat in 0...session.section.length/ppq{let x=CGFloat(beat*ppq)/CGFloat(session.section.length)*size.width;var line=Path();line.move(to:CGPoint(x:x,y:0));line.addLine(to:CGPoint(x:x,y:size.height));context.stroke(line,with:.color(.raised),lineWidth:1)}
             }
-            ForEach(notes){n in Button{selected=n.id}label:{RoundedRectangle(cornerRadius:3).fill((n.confidence ?? 1)<0.9 ? Color.harmony:Color.mint).opacity(selected==n.id ? 1:0.7).frame(width:max(8,CGFloat(n.duration)/CGFloat(session.section.length)*geo.size.width),height:max(8,geo.size.height/CGFloat(maximum-minimum+1)-3))}.buttonStyle(.plain).offset(x:CGFloat(n.tick)/CGFloat(session.section.length)*geo.size.width,y:CGFloat(maximum-n.pitch)/CGFloat(maximum-minimum+1)*geo.size.height).accessibilityLabel(n.name)}
+            ForEach(notes){n in Button{selected=n.id}label:{RoundedRectangle(cornerRadius:3).fill((n.confidence ?? 1)<0.9 ? Color.harmony:Color.mint).opacity(selected==n.id ? 1:0.7).frame(width:max(8,CGFloat(n.duration)/CGFloat(session.section.length)*geo.size.width),height:max(8,geo.size.height/CGFloat(maximum-minimum+1)-3))}.buttonStyle(StudioQuietButtonStyle()).offset(x:CGFloat(n.tick)/CGFloat(session.section.length)*geo.size.width,y:CGFloat(maximum-n.pitch)/CGFloat(maximum-minimum+1)*geo.size.height).accessibilityLabel(n.name)}
         }}.frame(height:150).background(Color.panel,in:RoundedRectangle(cornerRadius:10))
     }
     var eventEditor:some View {
         VStack(spacing:10){
-            ScrollView(.horizontal){HStack{ForEach(notes){n in Button{selected=n.id}label:{Text(n.name).font(.caption.monospaced()).padding(12).frame(minHeight:44).background(selected==n.id ? Color.record.opacity(0.2):Color.panel,in:RoundedRectangle(cornerRadius:8))}.buttonStyle(.plain)}}}
+            ScrollView(.horizontal){HStack{ForEach(notes){n in Button{selected=n.id}label:{Text(n.name).font(.caption.monospaced()).padding(12).frame(minHeight:44).background(selected==n.id ? Color.record.opacity(0.2):Color.panel,in:RoundedRectangle(cornerRadius:8))}.buttonStyle(StudioQuietButtonStyle())}}}
             if let note {
                 Stepper("Pitch: \(note.name)",value:Binding(get:{note.pitch},set:{v in edit{$0.pitch=v}}),in:0...127)
                 HStack{Button("Octave down"){edit{$0.pitch=max(0,$0.pitch-12)}};Spacer();Button("Octave up"){edit{$0.pitch=min(127,$0.pitch+12)}}}.frame(minHeight:44)

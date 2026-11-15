@@ -15,6 +15,8 @@ The owner requested a modern, strong, simple and distinctive interface before th
 
 The concept's illustrative pad names, timing values and controls are translated into the app's actual supported functionality: original GM pad order, four real harmony styles, global A/B, fixed eighth-note delay and supported beat-repeat sizes.
 
+[Apple HIG review](HIG_REVIEW.md) records the official typography, color, materials, button and accessibility references, including the 11 pt minimum, explicit press states and the iOS 26 navigation material.
+
 ## Acceptance
 
 - [x] OpenArt direction and provenance retained.

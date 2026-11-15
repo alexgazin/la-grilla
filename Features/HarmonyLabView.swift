@@ -23,11 +23,11 @@ struct HarmonyLabView:View {
                     }
                     if proposal==nil || showStyles {
                         LazyVGrid(columns:[GridItem(.flexible()),GridItem(.flexible())],spacing:6){ForEach(HarmonyStyle.allCases,id:\.self){value in
-                            Button{style=value;invalidate()}label:{HStack(spacing:6){Text(LocalizedStringKey(value.title)).font(.system(.subheadline,weight:.medium));Spacer(minLength:2);if style==value{Image(systemName:"checkmark").font(.caption.weight(.semibold))}}.padding(.horizontal,12).frame(maxWidth:.infinity,minHeight:44).foregroundStyle(style==value ? Color.ink:Color.studioText).background(style==value ? Color.harmony:Color.panel,in:RoundedRectangle(cornerRadius:12))}.buttonStyle(.plain)
+                            Button{style=value;invalidate()}label:{HStack(spacing:6){Text(LocalizedStringKey(value.title)).font(.system(.subheadline,weight:.medium));Spacer(minLength:2);if style==value{Image(systemName:"checkmark").font(.caption.weight(.semibold))}}.padding(.horizontal,12).frame(maxWidth:.infinity,minHeight:44).foregroundStyle(style==value ? Color.ink:Color.studioText).background(style==value ? Color.harmony:Color.panel,in:RoundedRectangle(cornerRadius:12,style:.continuous))}.buttonStyle(StudioQuietButtonStyle())
                         }}
                         Text(description(style)).font(.caption).foregroundStyle(Color.muted)
                     }else{
-                        Button{showStyles=true}label:{HStack{Text(LocalizedStringKey(style.title)).font(.subheadline.weight(.medium));Spacer();Image(systemName:"chevron.down").font(.caption)}}.buttonStyle(.plain).foregroundStyle(Color.harmony).frame(minHeight:44)
+                        Button{showStyles=true}label:{HStack{Text(LocalizedStringKey(style.title)).font(.subheadline.weight(.medium));Spacer();Image(systemName:"chevron.down").font(.caption)}}.buttonStyle(StudioQuietButtonStyle()).foregroundStyle(Color.harmony).frame(minHeight:44)
                     }
                     if let proposal{comparison(proposal)}else{
                         Text("Compare a proposal with your original. Nothing is saved until you apply it.").font(.caption).foregroundStyle(Color.muted)
@@ -70,7 +70,7 @@ struct HarmonyLabView:View {
                     Text("\(change.tick/barTicks+1):\(change.tick%barTicks/ppq+1)").font(.system(.caption2,design:.monospaced)).foregroundStyle(Color.muted).frame(minWidth:24)
                     Text(change.before.symbol).font(.system(.title3,weight:.semibold)).lineLimit(1).minimumScaleFactor(0.6).frame(maxWidth:.infinity,alignment:.leading)
                     Image(systemName:"arrow.right").font(.caption).foregroundStyle(Color.muted)
-                    VStack(alignment:.leading,spacing:4){Text(change.after.symbol).font(.system(.title3,weight:.semibold)).foregroundStyle(Color.harmony).lineLimit(1).minimumScaleFactor(0.6);Text(change.after.notes.map{NoteEvent(tick:0,pitch:$0).name}.joined(separator:" · ")).font(.system(size:9,design:.monospaced)).foregroundStyle(Color.muted).lineLimit(1).minimumScaleFactor(0.7)}.frame(maxWidth:.infinity,alignment:.leading)
+                    VStack(alignment:.leading,spacing:4){Text(change.after.symbol).font(.system(.title3,weight:.semibold)).foregroundStyle(Color.harmony).lineLimit(1).minimumScaleFactor(0.6);Text(change.after.notes.map{NoteEvent(tick:0,pitch:$0).name}.joined(separator:" · ")).font(.system(size:11,design:.monospaced)).foregroundStyle(Color.muted).lineLimit(2)}.frame(maxWidth:.infinity,alignment:.leading)
                     if change.chromatic{Image(systemName:"circle.lefthalf.filled").accessibilityLabel("Contains chromatic notes").foregroundStyle(Color.harmony)}
                 }.padding(12).modifier(StudioSurface())
             }

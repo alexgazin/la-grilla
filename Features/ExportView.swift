@@ -20,7 +20,7 @@ struct ExportView:View {
             ScrollView {VStack(alignment:.leading,spacing:18){
                 Text(LocalizedStringKey(take==nil ? "Take your idea further.":"Export your performance.")).font(.system(.title2,weight:.semibold)).tracking(-0.6)
                 LazyVGrid(columns:[GridItem(.flexible()),GridItem(.flexible())],spacing:10){ForEach(formats){option in
-                    Button{format=option}label:{Text(LocalizedStringKey(option.title)).font(.system(.subheadline,weight:.semibold)).frame(maxWidth:.infinity,minHeight:48).foregroundStyle(format==option ? Color.ink:Color.studioText).background(format==option ? Color.mint:Color.panel,in:RoundedRectangle(cornerRadius:14))}.buttonStyle(.plain).accessibilityIdentifier("format."+option.rawValue)
+                    Button{format=option}label:{Text(LocalizedStringKey(option.title)).font(.system(.subheadline,weight:.semibold)).frame(maxWidth:.infinity,minHeight:48).foregroundStyle(format==option ? Color.ink:Color.studioText).background(format==option ? Color.mint:Color.panel,in:RoundedRectangle(cornerRadius:14))}.buttonStyle(StudioQuietButtonStyle()).accessibilityIdentifier("format."+option.rawValue)
                 }}.disabled(session.exportInProgress)
                 if format != .project && take==nil {
                     StudioSegments(title:"Range",selection:$scope,options:[(0,"Entire song"),(1,"Selected section"),(2,"Bars")]).disabled(session.exportInProgress)
