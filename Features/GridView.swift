@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import MusicDomain
 struct ChordSelection: Identifiable {let id: UUID;let patternID: UUID;let tick: Int;let chord: Chord;var duration: Int = barTicks}
 struct GridView: View {
@@ -145,7 +146,7 @@ struct GridView: View {
         let draft=resizeDraft?.payload.objectID==clip.id ? resizeDraft:nil
         let visibleLength=draft?.length ?? clip.length
         let width=max(4,CGFloat(visibleLength)/CGFloat(barTicks)*barWidth-6)
-        return Button {
+        let control=Button {
             guard !editingLocked else{return}
             clipSelection=ClipEditorSelection(trackID:track.id,clipID:clip.id)
         } label: {
@@ -182,10 +183,13 @@ struct GridView: View {
                 }
                 Button("Delete clip",role:.destructive){let token=ArrangementDragPayload(project:session.project,trackID:track.id,clipID:clip.id);session.edit{try ClipEditing.delete(token,in:&$0)}}
             }
-            .accessibilityElement(children:.ignore).accessibilityLabel(track.displayName)
-            .accessibilityValue(String(format:NSLocalizedString("%.2f bars",comment:"Clip length"),Double(clip.length)/Double(barTicks)))
-            .accessibilityIdentifier("grid.clip.\(clip.id)")
-            .modifier(ArrangementClipAccessibilityFrame())
+            .accessibilityHidden(true)
+        return ZStack {
+            control
+            ArrangementClipAccessibility(label:track.displayName,value:String(format:NSLocalizedString("%.2f bars",comment:"Clip length"),Double(clip.length)/Double(barTicks)),identifier:"grid.clip.\(clip.id)",enabled:!editingLocked){
+                clipSelection=ClipEditorSelection(trackID:track.id,clipID:clip.id)
+            }.frame(width:width,height:max(44,height-12))
+        }.frame(width:width,height:max(44,height-12))
             .offset(x:CGFloat(clip.start)/CGFloat(barTicks)*barWidth+3,y:6)
             .allowsHitTesting(!editingLocked)
     }
@@ -413,13 +417,34 @@ private struct ArrangementDragSource:ViewModifier {
 /// UIKit's lane drop host can report its full bounds for custom SwiftUI
 /// controls. Use the rendered clip geometry for VoiceOver focus and native hit
 /// coordinates, including after a resize, move, zoom or horizontal scroll.
-private struct ArrangementClipAccessibilityFrame:ViewModifier {
-    @State private var frame=CGRect.zero
-    func body(content:Content)->some View {
-        content.onGeometryChange(for:CGRect.self){$0.frame(in:.global)}action:{value in
-            guard value.minX.isFinite,value.minY.isFinite,value.width.isFinite,value.height.isFinite,!value.isEmpty else{return}
-            frame=value
-        }.accessibilityFrame(frame)
+private struct ArrangementClipAccessibility:UIViewRepresentable {
+    let label:String
+    let value:String
+    let identifier:String
+    let enabled:Bool
+    let activate:()->Void
+    func makeUIView(context:Context)->ArrangementClipAccessibilityView {
+        let view=ArrangementClipAccessibilityView()
+        view.backgroundColor = .clear;view.isOpaque=false
+        view.isUserInteractionEnabled=false;view.isAccessibilityElement=true
+        return view
+    }
+    func updateUIView(_ view:ArrangementClipAccessibilityView,context:Context){
+        view.accessibilityLabel=label;view.accessibilityValue=value;view.accessibilityIdentifier=identifier
+        view.accessibilityTraits=enabled ? .button:[.button,.notEnabled]
+        view.acceptsActivation=enabled;view.activate=activate
+    }
+}
+private final class ArrangementClipAccessibilityView:UIView {
+    var acceptsActivation=true
+    var activate:(()->Void)?
+    override var accessibilityFrame:CGRect {
+        get{UIAccessibility.convertToScreenCoordinates(bounds,in:self)}
+        set{super.accessibilityFrame=newValue}
+    }
+    override func accessibilityActivate()->Bool {
+        guard acceptsActivation,let activate else{return false}
+        activate();return true
     }
 }
 
