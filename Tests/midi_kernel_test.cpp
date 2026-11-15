@@ -17,5 +17,10 @@ int main(){
  float difference=0;for(int pos=0;pos<1536;){int n=std::min(257,1536-pos);lg_render(replay,l.data(),r.data(),n);for(int i=0;i<n;i++)difference=std::max(difference,std::max(std::abs(l[i]-capturedL[pos+i]),std::abs(r[i]-capturedR[pos+i])));pos+=n;}assert(difference<1e-6f);
  // Input continues across source-loop boundaries and disconnect releases that source.
  lg_midi_push(h,256,100,note,3);lg_render_midi(k,h,2048,48000,l.data(),r.data(),512);assert(lg_midi_late(h)>0);lg_midi_disconnect(h,0);lg_render_midi(k,h,2560,48000,l.data(),r.data(),512);lg_render_midi(k,h,3072,48000,l.data(),r.data(),512);for(float f:l)assert(f==0);
+ lg_midi_configure(h,768,0,0,65535);lg_midi_configure(h,257,2,2,65535);lg_mix(k,0,0,-1,1);lg_mix(k,2,0,1,1);
+ uint8_t other[]={0x90,67,110};lg_midi_push(h,768,4000,note,3);lg_midi_push(h,257,4000,other,3);
+ for(int i=0;i<10;i++)lg_render_midi(k,h,4000+i*512,48000,l.data(),r.data(),512);
+ lg_midi_disconnect(h,0);for(int i=0;i<10;i++)lg_render_midi(k,h,9120+i*512,48000,l.data(),r.data(),512);
+ float leftPeak=0,rightPeak=0;for(int i=0;i<512;i++){leftPeak=std::max(leftPeak,std::abs(l[i]));rightPeak=std::max(rightPeak,std::abs(r[i]));}assert(leftPeak<1e-5f&&rightPeak>0.001f);
  lg_destroy(replay);lg_destroy(k);lg_midi_destroy(h);std::cout<<"MIDI sample timestamps, sustain/NoteOff, source disconnect and finite take PCM replay passed\n";
 }

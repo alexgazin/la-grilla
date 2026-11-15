@@ -37,7 +37,7 @@ struct BassView: View {
     @Bindable var session: Session
     var enabled: Bool{session.project.tracks.contains(where:{$0.role == .bass})}
     var body: some View {NavigationStack{Form{
-        Section{Toggle("Root bass",isOn:Binding(get:{enabled},set:{on in session.edit{p in if on{p.tracks.append(Track(role:.bass))}else{p.tracks.removeAll(where:{$0.role == .bass})}}}));Text("Bass follows the roots of your chords.").foregroundStyle(.secondary).font(.caption)}
+        Section{Toggle("Root bass",isOn:Binding(get:{enabled},set:{on in session.edit{p in if on{p.tracks.append(Track(role:.bass))}else{if let id=p.tracks.first(where:{$0.role == .bass})?.id{try p.deleteTrack(id)}}}}));Text("Bass follows the roots of your chords.").foregroundStyle(.secondary).font(.caption)}
         if enabled {Section{Picker("Register",selection:Binding(get:{session.project.bassOctave},set:{v in session.edit{$0.bassOctave=v}})){Text("Low").tag(-1);Text("Natural").tag(0);Text("High").tag(1)};HStack{Text("Gate");Slider(value:Binding(get:{session.project.bassGate},set:{v in session.edit{$0.bassGate=v}}),in:0.1...1);Text("\(Int(session.project.bassGate*100))%").monospacedDigit()}}}
     }.tint(.bass).navigationTitle("Bass").toolbar{ToolbarItem(placement:.confirmationAction){Button("Done"){session.sheet=nil}}}}.presentationDetents([.medium])}
 }

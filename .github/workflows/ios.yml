@@ -27,6 +27,7 @@ jobs:
           clang++ -std=c++17 -O2 -Wall -Wextra -Werror Tests/performance_fx_test.cpp -I Packages/MusicDomain/Sources/AudioDSP -o /tmp/perf-fx-test && /tmp/perf-fx-test
           clang++ -std=c++17 -O2 -Wall -Wextra -Werror Tests/midi_hub_test.cpp Packages/MusicDomain/Sources/AudioDSP/MIDIHub.cpp -I Packages/MusicDomain/Sources/AudioDSP -o /tmp/midi-hub-test && /tmp/midi-hub-test
           clang++ -std=c++17 -O2 -Wall -Wextra -Werror Tests/midi_kernel_test.cpp Packages/MusicDomain/Sources/AudioDSP/GrillaKernel.cpp Packages/MusicDomain/Sources/AudioDSP/MIDIHub.cpp -I Packages/MusicDomain/Sources/AudioDSP/include -o /tmp/midi-kernel-test && /tmp/midi-kernel-test
+          clang++ -std=c++17 -O2 -Wall -Wextra -Werror Tests/midi_output_test.cpp Packages/MusicDomain/Sources/AudioDSP/GrillaKernel.cpp Packages/MusicDomain/Sources/AudioDSP/MIDIHub.cpp -I Packages/MusicDomain/Sources/AudioDSP/include -o /tmp/midi-output-test && /tmp/midi-output-test
       - name: Build iOS app
         run: set -o pipefail; xcodebuild -project LaGrilla.xcodeproj -scheme LaGrilla -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' ARCHS=arm64 ONLY_ACTIVE_ARCH=YES -configuration Debug -derivedDataPath DerivedData CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO build | tee build.log
       - name: Package simulator app

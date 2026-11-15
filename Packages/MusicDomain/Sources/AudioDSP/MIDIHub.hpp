@@ -40,6 +40,23 @@ struct LGMIDIHub {
     std::array<MIDIConnection,16> connections{};std::array<MIDIParserState,16> parsers{};
     std::atomic<uint32_t> panic{0};std::atomic<uint64_t> late{0},dropped{0};
     std::array<MIDIPending,2048> future{};size_t count=0;uint64_t order=0;
+    MIDIConsumerQueue<LGMIDIOutput,4096> output;
+    std::atomic<uint64_t> outputState{0},outputSent{0};std::atomic<uint32_t> outputGeneration{0};std::atomic<int> outputError{0};
+    std::array<std::array<uint16_t,128>,16> outputRefs{};
+    void resetOutputRefs(){for(auto &channel:outputRefs)channel.fill(0);}
+    void outputEvent(uint64_t state,uint64_t time,int status,int a,int b){
+        if(!(state&(1ull<<32)))return;
+        if(!output.push({time,uint32_t(state>>33),status,a,b}))outputError.store(-1000,std::memory_order_release);
+    }
+    int outputOn(uint64_t state,uint64_t time,int track,int pitch,int velocity){
+        if(!(state&(1ull<<32))||track<0||track>=8)return -1;
+        const int channel=int((state>>(track*4))&15);outputRefs[channel][pitch]++;
+        outputEvent(state,time,0x90|channel,pitch,velocity);return channel;
+    }
+    void outputOff(uint64_t state,uint64_t time,int channel,int pitch){
+        if(channel<0||channel>=16){return;}auto &count=outputRefs[channel][pitch];
+        if(count>0&&--count==0)outputEvent(state,time,0x80|channel,pitch,0);
+    }
     static bool later(const MIDIPending&a,const MIDIPending&b){return a.event.hostTime==b.event.hostTime?a.order>b.order:a.event.hostTime>b.event.hostTime;}
     void schedule(LGMIDIEvent event){if(count==future.size()){dropped.fetch_add(1);connections[event.source].handle.store(0,std::memory_order_release);panic.fetch_or(1u<<event.source);return;}future[count++]={event,order++};std::push_heap(future.begin(),future.begin()+count,later);}
     void decode(const MIDIRawPacket &packet){

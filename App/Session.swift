@@ -282,5 +282,5 @@ import Observation
         }}
     }
     func saveCopy()async{do{_ = try await store.duplicate(project);message="A copy has been saved.";entries=try await store.list()}catch{message=error.localizedDescription}}
-    func interrupt() {if performance.contextActive{performance.finalizeBeforeReset();pollPerformance()};harmonyPreview=false;finishTake();audio.reset();Task{await save()}}
+    func interrupt() {if performance.contextActive{performance.finalizeBeforeReset();pollPerformance()};harmonyPreview=false;finishTake();midi.panic();midi.retry();audio.reset();Task{await save()}}
 }

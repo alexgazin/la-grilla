@@ -4,6 +4,16 @@ final class StudioTests: XCTestCase {
         let app=XCUIApplication();app.launchArguments=["--uitesting","--screen",screen,"-AppleLanguages","(en)","-AppleLocale","en_US"]
         app.launch();XCTAssertTrue(app.buttons["perform.transport"].waitForExistence(timeout:15));return app
     }
+    @MainActor func testVirtualMIDILearnAndActualOutputDestination() {
+        let app=launch("midi");XCTAssertTrue(app.staticTexts["midi.fixture"].waitForExistence(timeout:15))
+        app.swipeUp();app.swipeUp()
+        XCTAssertTrue(app.buttons["midi.learn"].waitForExistence(timeout:5));app.buttons["midi.learn"].tap();app.buttons["midi.send-fixture"].tap()
+        XCTAssertTrue(app.staticTexts["Ch 1 · CC 74"].waitForExistence(timeout:8))
+        app.swipeUp();XCTAssertTrue(app.staticTexts["midi.last"].waitForExistence(timeout:5));XCTAssertTrue(app.staticTexts["midi.last"].label.contains("CC 74"))
+        app.swipeDown();let received=app.staticTexts["midi.fixture-received"]
+        XCTAssertTrue(received.waitForExistence(timeout:5));XCTAssertGreaterThan(Int(received.label) ?? 0,0)
+        app.swipeUp();app.buttons["midi.panic"].tap();app.buttons["Done"].tap();XCTAssertTrue(app.buttons["Play"].waitForExistence(timeout:5))
+    }
     @MainActor func testPerformRecordingSurvivesNavigationAndReplays() {
         let app=launch("perform")
         XCTAssertTrue(app.buttons["perform.record"].waitForExistence(timeout:5));app.buttons["perform.record"].tap()

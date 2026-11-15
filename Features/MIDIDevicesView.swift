@@ -27,6 +27,12 @@ struct MIDIDevicesView:View {
                 Picker("Input channel",selection:Binding(get:{settings.channel ?? -1},set:{channel in edit{$0.channel=channel<0 ? nil:channel}})){Text("All channels").tag(-1);ForEach(0..<16,id:\.self){i in Text("Channel \(i+1)").tag(i)}}
                 Text("Drums use General MIDI note numbers. NoteOn with velocity zero is NoteOff. CC64 controls sustain. Incoming notes are included when recording a performance take.").font(.caption).foregroundStyle(.secondary)
             }.disabled(!settings.enabled)
+            SwiftUI.Section("MIDI output") {
+                Picker("Destination",selection:Binding(get:{settings.outputID.map(Int64.init) ?? Int64.min},set:{id in edit{$0.outputID=id==Int64.min ? nil:Int32(id)}})){Text("None").tag(Int64.min);ForEach(midi.destinations){endpoint in Text(endpoint.name).tag(Int64(endpoint.id))}}
+                Text("Project notes and live pads are sent to this destination. Incoming MIDI is not forwarded. Harmony uses channel 1, bass 2, drums 10, melodies 3–8.").font(.caption).foregroundStyle(.secondary)
+                LabeledContent("Messages sent",value:String(midi.outputSent)).accessibilityIdentifier("midi.output-count")
+                if midi.isFixture{HStack{Text("Virtual output received notes");Spacer();Text(String(midi.fixtureReceivedNotes)).accessibilityIdentifier("midi.fixture-received")}}
+            }
             SwiftUI.Section("MIDI Learn") {
                 Picker("Control",selection:$target){ForEach(MIDIMapping.Target.allCases,id:\.self){option in Text(title(option)).tag(option)}}
                 if target == .trackGain || target == .trackPan{Picker("Track",selection:Binding(get:{mappingTrack ?? session.project.tracks[0].id},set:{mappingTrack=$0})){ForEach(session.project.tracks){track in Text(track.displayName).tag(track.id)}}}

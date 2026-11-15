@@ -20,7 +20,8 @@ private enum AudioRender {
         AVAudioSourceNode(format:format) { @Sendable [kernel,hub] _, stamp, count, buffers in
             let output=UnsafeMutableAudioBufferListPointer(buffers)
             guard output.count==2,let left=output[0].mData,let right=output[1].mData else {return noErr}
-            lg_render_midi(kernel.pointer,hub.pointer,stamp.pointee.mHostTime,ticks,left.assumingMemoryBound(to:Float.self),right.assumingMemoryBound(to:Float.self),Int32(count))
+            let host=stamp.pointee.mHostTime==0 ? mach_absolute_time():stamp.pointee.mHostTime
+            lg_render_midi(kernel.pointer,hub.pointer,host,ticks,left.assumingMemoryBound(to:Float.self),right.assumingMemoryBound(to:Float.self),Int32(count))
             return noErr
         }
     }
