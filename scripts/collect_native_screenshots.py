@@ -25,7 +25,7 @@ for manifest in source.rglob('*.json'):
 for name,file in files.items():
     match=pattern.search(name)
     if match:mapped.setdefault(match.group(1).rstrip('-'),file)
-assert mapped,'xcresulttool did not export named '+stage+' screenshots; inspect NativeAttachments/manifest.json'
+assert mapped or '--allow-empty' in sys.argv[4:],'xcresulttool did not export named '+stage+' screenshots; inspect NativeAttachments/manifest.json'
 destination.mkdir(parents=True,exist_ok=True)
 for name,file in mapped.items():shutil.copyfile(file,destination/(name+file.suffix.lower()))
 print(f'Collected {len(mapped)} real {stage} screenshots from XCTest attachments.')
