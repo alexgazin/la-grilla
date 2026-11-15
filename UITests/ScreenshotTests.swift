@@ -14,7 +14,7 @@ final class ScreenshotTests:XCTestCase {
             if screen.hasPrefix("store-en-US-"){target=String(screen.dropFirst(12))}
             if screen.hasPrefix("store-ru-"){target=String(screen.dropFirst(9));language="ru";locale="ru_RU"}
             let app=XCUIApplication();app.launchArguments=args+["--screen",target,"-AppleLanguages","(\(language))","-AppleLocale",locale];app.launch()
-            guard app.buttons["perform.transport"].waitForExistence(timeout:20)else{XCTFail("The app did not open for \(screen)");app.terminate();continue}
+            guard app.buttons["perform.transport"].waitForExistence(timeout:20)else{XCTFail("The app did not open for \(screen)");continue}
             if screen.hasPrefix("compact-"){XCTAssertTrue(app.buttons["Grid"].isHittable);XCTAssertTrue(app.buttons["Jam"].isHittable);XCTAssertTrue(app.buttons["Mixer"].isHittable);XCTAssertTrue(app.buttons["Play"].isHittable)}
             if screen=="compact-jam"{XCTAssertTrue(app.buttons["Perc"].isHittable)}
             if target=="voice-draft"{XCTAssertTrue(app.staticTexts["voice.note-count"].waitForExistence(timeout:15))}
@@ -24,7 +24,7 @@ final class ScreenshotTests:XCTestCase {
                 let width=png[16..<20].reduce(0){($0<<8)|Int($1)},height=png[20..<24].reduce(0){($0<<8)|Int($1)}
                 XCTAssertEqual(width,1320,"Store screenshot must preserve the native display width");XCTAssertEqual(height,2868)
             }
-            let shot=XCTAttachment(data:png,uniformTypeIdentifier:"public.png");shot.name="R10-"+screen;shot.lifetime = .keepAlways;add(shot);app.terminate()
+            let shot=XCTAttachment(data:png,uniformTypeIdentifier:"public.png");shot.name="R10-"+screen;shot.lifetime = .keepAlways;add(shot)
         }
     }
 }

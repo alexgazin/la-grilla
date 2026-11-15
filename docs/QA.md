@@ -119,3 +119,13 @@ Verified app/config source: `f1ffe17a9be69ac0053b44f0e07ca6ac2142e36a`. Final fu
 - Eighteen real live-process captures from app source `f1ffe17` are checked in at [Screenshots/R6](../Screenshots/R6).
 
 [Perform QA](PERFORM_QA.md) documents controller semantics and the remaining physical-audio gates. This stage does not claim measured iPhone latency, USB/BLE compatibility or identical MIDI timbres in external music software.
+
+## R7 — Core MIDI devices and Learn
+
+Verified app source: `223615f`. [Complete successful workflow 43680458783](https://github.com/alexgazin/la-grilla/actions/runs/43680458783).
+
+- 62 Swift tests and six C++ suites pass, covering MIDI settings/track cleanup, bounded parsing/running status, sample timestamps, sustain/source disconnect, finite input capture/PCM replay, output gates/channels, destination epochs, no input echo and Panic.
+- Both native SDK builds, all 15 Studio UI flows and the 20-screen capture test pass. The new scenario creates actual Core MIDI virtual endpoints, learns CC74, receives real output notes and returns to stopped transport after emergency Panic.
+- Twenty genuine captures are committed in [Screenshots/R7](../Screenshots/R7). [MIDI QA](MIDI_QA.md) records software behavior and the remaining physical-controller checks.
+
+USB/BLE peripherals, hot unplug, actual route latency and import into two DAWs still require the installed signed build and physical equipment. Virtual simulator endpoints are not substituted for those measurements.
