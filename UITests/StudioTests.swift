@@ -2,8 +2,18 @@ import XCTest
 final class StudioTests: XCTestCase {
     override func setUp(){super.setUp();continueAfterFailure=false;executionTimeAllowance=120}
     @MainActor func launch(_ screen: String = "grid") -> XCUIApplication {
+        XCUIDevice.shared.orientation = .portrait
         let app=XCUIApplication();app.launchArguments=["--uitesting","--screen",screen,"-AppleLanguages","(en)","-AppleLocale","en_US"]
-        app.launch();XCTAssertTrue(app.buttons["perform.transport"].waitForExistence(timeout:15));return app
+        app.launch();XCTAssertTrue(app.buttons["perform.transport"].waitForExistence(timeout:15));waitForOrientation(app,landscape:false);return app
+    }
+    @MainActor func waitForOrientation(_ app:XCUIApplication,landscape:Bool){
+        let deadline=Date().addingTimeInterval(8)
+        while Date()<deadline {
+            let frame=app.windows.firstMatch.frame
+            if frame.width>0,frame.height>0,(frame.width>frame.height)==landscape{return}
+            Thread.sleep(forTimeInterval:0.1)
+        }
+        XCTFail("The application window did not finish rotating")
     }
     @MainActor func testBackgroundPlaybackAndStoppedReturn() {
         let app=launch();app.buttons["Play"].tap();XCTAssertTrue(app.staticTexts["PLAYING"].waitForExistence(timeout:5))
@@ -14,12 +24,14 @@ final class StudioTests: XCTestCase {
         app.buttons["Play"].tap();XCTAssertTrue(app.buttons["Stop"].waitForExistence(timeout:5));app.buttons["Stop"].tap()
     }
     @MainActor func testRussianInterfaceAndLightAppearance() {
+        XCUIDevice.shared.orientation = .portrait
         let app=XCUIApplication();app.launchArguments=["--uitesting","--screen","grid","--appearance","light","-AppleLanguages","(ru)","-AppleLocale","ru_RU"];app.launch()
         XCTAssertTrue(app.buttons["Сетка"].waitForExistence(timeout:15));app.buttons["export.open"].tap()
         XCTAssertTrue(app.navigationBars["Экспорт"].waitForExistence(timeout:5));XCTAssertTrue(app.buttons["Отмена"].exists)
         let shot=XCTAttachment(data:XCUIScreen.main.screenshot().pngRepresentation,uniformTypeIdentifier:"public.png");shot.name="R8-russian-light-export";shot.lifetime = .keepAlways;add(shot)
     }
     @MainActor func testLargeTypeMixerAndAccessibleNoteList() throws {
+        XCUIDevice.shared.orientation = .portrait
         let app=XCUIApplication();app.launchArguments=["--uitesting","--screen","notes","--large-type","-AppleLanguages","(en)","-AppleLocale","en_US"];app.launch()
         XCTAssertTrue(app.navigationBars["Piano roll"].waitForExistence(timeout:15));XCTAssertTrue(app.descendants(matching:.any)["notes.list"].waitForExistence(timeout:5))
         let shot=XCTAttachment(data:XCUIScreen.main.screenshot().pngRepresentation,uniformTypeIdentifier:"public.png");shot.name="R8-large-type-piano-roll";shot.lifetime = .keepAlways;add(shot)
@@ -28,7 +40,10 @@ final class StudioTests: XCTestCase {
     }
     @MainActor func testLandscapeKeepsPadsAndTransportReachable() {
         let app=launch();XCUIDevice.shared.orientation = .landscapeLeft;defer{XCUIDevice.shared.orientation = .portrait}
-        app.buttons["Jam"].tap();XCTAssertTrue(app.buttons["Play"].isHittable);XCTAssertTrue(app.buttons["Kick"].isHittable);app.buttons["Kick"].tap()
+        waitForOrientation(app,landscape:true);app.buttons["Jam"].tap()
+        let deadline=Date().addingTimeInterval(8)
+        while Date()<deadline && (!app.buttons["Play"].isHittable || !app.buttons["Kick"].isHittable){Thread.sleep(forTimeInterval:0.1)}
+        XCTAssertTrue(app.buttons["Play"].isHittable);XCTAssertTrue(app.buttons["Kick"].isHittable);app.buttons["Kick"].tap()
         let shot=XCTAttachment(data:XCUIScreen.main.screenshot().pngRepresentation,uniformTypeIdentifier:"public.png");shot.name="R8-landscape-jam";shot.lifetime = .keepAlways;add(shot)
         app.buttons["Play"].tap();XCTAssertTrue(app.buttons["Stop"].waitForExistence(timeout:5));app.buttons["Stop"].tap()
     }

@@ -5,6 +5,7 @@ final class ScreenshotTests:XCTestCase {
     @MainActor func testCaptureCompactScreens(){capture(["compact-grid","compact-jam","compact-mixer"])}
     @MainActor private func capture(_ screens:[String]){
         for screen in screens {
+            XCUIDevice.shared.orientation = .portrait
             var target=screen,args=["--uitesting"],language="en",locale="en_US"
             if screen.hasSuffix("-light"){target=String(screen.dropLast(6));args += ["--appearance","light"]}
             if screen.hasSuffix("-ru"){target=String(screen.dropLast(3));language="ru";locale="ru_RU"}
