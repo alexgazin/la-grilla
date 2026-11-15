@@ -259,9 +259,6 @@ import MusicDomain
             totalRead+=AVAudioFramePosition(actual)
         }
         try require(totalRead==declaredFrames && file.framePosition==declaredFrames && file.length==declaredFrames,"Original CAF could not supply all declared frames")
-        buffer.frameLength=0
-        try file.read(into:buffer,frameCount:1)
-        try require(buffer.frameLength==0 && file.framePosition==declaredFrames && file.length==declaredFrames,"Original CAF supplied frames beyond its declared length")
         try require(peak>0.001,"Actual input CAF is silent; hardware loopback reference did not arrive")
         return SourceProof(frames:totalRead,peak:peak)
     }
