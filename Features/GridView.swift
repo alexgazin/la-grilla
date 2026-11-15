@@ -6,11 +6,15 @@ struct GridView: View {
     @Bindable var session: Session
     @Environment(\.dynamicTypeSize) private var dynamicType
     @State private var barWidth: CGFloat = 96
-    @State private var zoomBase: CGFloat = 96
     @State private var selection: ChordSelection?
     @State private var dragStart: Int?
     @State private var viewport=CGSize(width:440,height:630)
     @State private var zoomed=false
+    @State private var timelinePosition=ScrollPosition(edge:.leading)
+    @State private var timelineGeometry=TimelineGeometry()
+    @State private var pinchReference:TimelineZoom?
+    @State private var pendingZoom:TimelineZoom.Position?
+    @GestureState private var pinchActive=false
     @State private var clipMode=ProcessInfo.processInfo.arguments.contains("--arrangement-clips")
     @State private var copyOnDrag=false
     @State private var clipSnap=barTicks
@@ -21,6 +25,11 @@ struct GridView: View {
     @State private var targetTrack:UUID?
     @State private var resizeDraft:ClipResizeDraft?
     private struct ClipResizeDraft {let payload:ArrangementDragPayload;let originalLength:Int;var length:Int;let start:Int}
+    private struct TimelineGeometry:Equatable {
+        var offset:CGFloat=0
+        var viewportWidth:CGFloat=0
+        var contentWidth:CGFloat=0
+    }
     private let gutter:CGFloat=56
     private var laneScale:CGFloat{min(1.35,max(0.78,(viewport.height-155)/324))}
     private var harmonyHeight:CGFloat{132*laneScale}
@@ -28,7 +37,7 @@ struct GridView: View {
     private var bassHeight:CGFloat{92*laneScale}
     private var melodyHeight:CGFloat{64}
     private var musicHeight:CGFloat{harmonyHeight+drumHeight+bassHeight+CGFloat(session.displayProject.tracks.filter{$0.role == .melody}.count)*melodyHeight}
-    private var editingLocked:Bool{session.performance.contextActive || session.recording || session.armed}
+    private var editingLocked:Bool{session.performance.contextActive || session.recording || session.armed || pinchReference != nil}
     private var timelineBars:Int {
         let base=session.displayProject.length/barTicks
         let resized=resizeDraft.map{($0.start+$0.length+barTicks-1)/barTicks} ?? 0
@@ -48,19 +57,57 @@ struct GridView: View {
                                 timeline
                                 Rectangle().fill(Color.mint).frame(width:2,height:musicHeight).offset(x:CGFloat(session.audio.tick)/CGFloat(barTicks)*barWidth,y:28).allowsHitTesting(false)
                                 Image(systemName:"triangle.fill").font(.system(size:11)).rotationEffect(.degrees(180)).foregroundStyle(Color.mint).offset(x:CGFloat(session.audio.tick)/CGFloat(barTicks)*barWidth-4,y:18).allowsHitTesting(false)
-                            }.frame(width:CGFloat(timelineBars)*barWidth).gesture(MagnifyGesture().onChanged{value in zoomed=true;barWidth=min(640,max(68,zoomBase*value.magnification))}.onEnded{_ in zoomBase=barWidth})}
+                            }.frame(width:CGFloat(timelineBars)*barWidth)}
+                                .scrollPosition($timelinePosition)
+                                .onScrollGeometryChange(for:TimelineGeometry.self){geometry in
+                                    TimelineGeometry(offset:geometry.contentOffset.x+geometry.contentInsets.leading,viewportWidth:geometry.containerSize.width,contentWidth:geometry.contentSize.width)
+                                }action:{_,geometry in observeTimeline(geometry)}
+                                .onScrollPhaseChange{_,phase in
+                                    if pinchReference==nil,phase == .interacting{pendingZoom=nil}
+                                }
+                                .simultaneousGesture(MagnifyGesture().updating($pinchActive){_,active,_ in active=true}.onChanged{value in
+                                    zoomTimeline(magnification:value.magnification,anchor:value.startAnchor.x)
+                                }.onEnded{_ in pinchReference=nil})
+                                .onChange(of:pinchActive){_,active in if !active{pinchReference=nil}}
+                                .accessibilityIdentifier("grid.timeline")
                         }
                     }
                 }
                 tools.padding(.horizontal,12).padding(.vertical,7)
-            }.onAppear{configureViewport(geometry.size)}.onChange(of:geometry.size){_,size in configureViewport(size)}.onChange(of:session.project.id){_,_ in zoomed=false;configureViewport(geometry.size)}.onChange(of:session.displayProject.length){_,_ in configureViewport(geometry.size)}
+            }.onAppear{configureViewport(geometry.size)}.onChange(of:geometry.size){_,size in cancelTimelineGesture();configureViewport(size)}.onChange(of:session.project.id){_,_ in
+                cancelTimelineGesture();zoomed=false;timelinePosition.scrollTo(edge:.leading);configureViewport(geometry.size)
+            }.onChange(of:session.displayProject.length){_,_ in cancelTimelineGesture();configureViewport(geometry.size)}.onChange(of:clipMode){_,_ in cancelTimelineGesture()}
         }.sheet(item:$selection){selection in ChordEditor(session:session,selection:selection).presentationDetents([.large]).presentationDragIndicator(.visible).presentationBackground(Color.panel)}
             .sheet(item:$clipSelection,onDismiss:openPendingClipEditor){choice in ArrangementClipInspector(session:session,selection:choice){pendingClipEditor=choice;clipSelection=nil}.presentationDragIndicator(.visible).presentationBackground(Color.panel)}
             .sheet(isPresented:$showClipList,onDismiss:{if let choice=pendingClipInspector{pendingClipInspector=nil;clipSelection=choice}}){clipList}
     }
     private func configureViewport(_ size:CGSize){
         viewport=size
-        if !zoomed,size.width>gutter{barWidth=max(68,(size.width-gutter)/CGFloat(min(4,max(1,session.displayProject.length/barTicks))));zoomBase=barWidth}
+        if !zoomed,size.width>gutter{barWidth=CGFloat(TimelineZoom.clampedWidth(Double((size.width-gutter)/CGFloat(min(4,max(1,session.displayProject.length/barTicks))))))}
+    }
+    private func cancelTimelineGesture(){
+        pinchReference=nil;pendingZoom=nil;resizeDraft=nil
+    }
+    private func zoomTimeline(magnification:CGFloat,anchor:CGFloat){
+        guard timelineGeometry.viewportWidth>0 else{return}
+        if pinchReference==nil {
+            resizeDraft=nil;zoomed=true
+            pinchReference=TimelineZoom(barWidth:Double(barWidth),offset:Double(timelineGeometry.offset),viewportWidth:Double(timelineGeometry.viewportWidth),anchorX:Double(anchor*timelineGeometry.viewportWidth),barCount:timelineBars)
+        }
+        guard let next=pinchReference?.position(magnification:Double(magnification))else{return}
+        pendingZoom=next
+        var transaction=Transaction();transaction.animation=nil
+        withTransaction(transaction){barWidth=CGFloat(next.barWidth);timelinePosition.scrollTo(x:CGFloat(next.offset))}
+    }
+    private func observeTimeline(_ geometry:TimelineGeometry){
+        timelineGeometry=geometry
+        guard let target=pendingZoom,
+              abs(geometry.contentWidth-CGFloat(timelineBars)*CGFloat(target.barWidth))<1 else{return}
+        // A point request can clamp against the previous, narrower content.
+        // Reapply only once layout has acknowledged the target content width.
+        if abs(geometry.offset-CGFloat(target.offset))>0.5 {
+            timelinePosition.scrollTo(x:CGFloat(target.offset))
+        }else{pendingZoom=nil}
     }
     private var arrangementHeader:some View {
         HStack {
@@ -180,8 +227,10 @@ struct GridView: View {
     private func resizeClip(trackID:UUID,clipID:UUID,state:UIGestureRecognizer.State,translation:CGFloat){
         guard !editingLocked,let clip=session.project.tracks.first(where:{$0.id==trackID})?.clips.first(where:{$0.id==clipID})else{resizeDraft=nil;return}
         guard state == .began || state == .changed || state == .ended else{if state == .cancelled || state == .failed{resizeDraft=nil};return}
-        if resizeDraft?.payload.objectID != clipID{resizeDraft=ClipResizeDraft(payload:.init(project:session.project,trackID:trackID,clipID:clipID),originalLength:clip.length,length:clip.length,start:clip.start)}
-        guard var current=resizeDraft else{return}
+        if state == .began{resizeDraft=ClipResizeDraft(payload:.init(project:session.project,trackID:trackID,clipID:clipID),originalLength:clip.length,length:clip.length,start:clip.start)}
+        // A pinch/rotation can invalidate an unfinished resize. Later changed
+        // or ended callbacks from that old pan must not recreate its draft.
+        guard var current=resizeDraft,current.payload.objectID==clipID else{return}
         let ticks=Double(current.originalLength)+Double(translation/barWidth)*Double(barTicks)
         let bounded=max(Double(clipSnap),min(Double(64*barTicks-current.start),ticks))
         current.length=(try? ClipEditing.snapped(Int(bounded),step:clipSnap)) ?? clip.length
