@@ -24,11 +24,6 @@ final class LiveEditingTests:XCTestCase {
         XCTAssertTrue(element.waitForExistence(timeout:5))
         wait(element,NSPredicate(format:"label == 'PLAYING'"))
     }
-    @MainActor private func toggleThumb(_ toggle:XCUIElement){
-        // SwiftUI exposes the whole Form row as the switch's AX frame. Its
-        // center is the label; the visible native thumb is at the trailing edge.
-        toggle.coordinate(withNormalizedOffset:CGVector(dx:0.9,dy:0.5)).tap()
-    }
 
     @MainActor private func reveal(_ element:XCUIElement,in app:XCUIApplication){
         for _ in 0..<12 {
@@ -48,11 +43,14 @@ final class LiveEditingTests:XCTestCase {
         app.buttons["bass.open"].tap()
         let toggle=app.switches["bass.enabled"]
         XCTAssertTrue(toggle.waitForExistence(timeout:5))
+        XCTAssertTrue(toggle.isEnabled)
+        XCTAssertLessThanOrEqual(toggle.frame.width,80,"The native switch must not inherit the entire Form row's hit region")
+        XCTAssertGreaterThanOrEqual(toggle.frame.height,44)
         let initial=toggle.value as? String
         XCTAssertNotNil(initial)
-        toggleThumb(toggle);wait(toggle,NSPredicate(format:"value != %@",initial ?? ""))
+        toggle.tap();wait(toggle,NSPredicate(format:"value != %@",initial ?? ""))
         playing(app.staticTexts["bass.playback-state"])
-        toggleThumb(toggle);wait(toggle,NSPredicate(format:"value == %@",initial ?? ""))
+        toggle.tap();wait(toggle,NSPredicate(format:"value == %@",initial ?? ""))
         playing(app.staticTexts["bass.playback-state"])
         app.buttons["Done"].tap()
         XCTAssertTrue(app.buttons["Stop"].waitForExistence(timeout:5))
@@ -61,12 +59,20 @@ final class LiveEditingTests:XCTestCase {
         // and subsequent add/delete actions must retain the running transport.
         app.buttons["notes.open"].tap()
         playing(app.staticTexts["notes.status"])
-        app.buttons["notes.tracks"].tap();app.buttons["Add melody"].tap()
+        app.buttons["notes.tracks"].tap()
+        XCTAssertTrue(app.navigationBars["Track"].waitForExistence(timeout:5))
+        XCTAssertTrue(app.buttons["notes.track.add"].waitForExistence(timeout:5))
+        screenshot("OriginalVision-qa-melody-track-actions")
+        app.buttons["notes.track.add"].tap()
+        XCTAssertTrue(app.navigationBars["Piano roll"].waitForExistence(timeout:5))
         playing(app.staticTexts["notes.status"])
         XCTAssertTrue(app.buttons["notes.add"].exists)
         app.buttons["notes.add"].tap()
         wait(app.staticTexts["notes.count"],NSPredicate(format:"label == '1'"))
-        app.buttons["notes.tracks"].tap();app.buttons["Delete track"].tap()
+        app.buttons["notes.tracks"].tap()
+        XCTAssertTrue(app.navigationBars["Track"].waitForExistence(timeout:5))
+        app.buttons["notes.track.delete"].tap()
+        XCTAssertTrue(app.navigationBars["Piano roll"].waitForExistence(timeout:5))
         playing(app.staticTexts["notes.status"])
         screenshot("OriginalVision-qa-live-track-editing")
         app.buttons["Done"].tap()

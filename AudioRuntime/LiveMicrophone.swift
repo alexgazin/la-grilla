@@ -17,6 +17,48 @@ enum LiveInputError:Error,LocalizedError {
     }
 }
 
+/// Captured while playAndRecord is active, before cleanup restores playback.
+/// Values describe the real route; a zero node format alone is not proof that
+/// the host has no microphone. No port UIDs or recorded samples enter this log.
+struct LiveInputRouteSnapshot:Codable,Sendable {
+    struct Port:Codable,Sendable {
+        let type:String
+        let name:String
+        let channels:Int
+        init(_ port:AVAudioSessionPortDescription){type=port.portType.rawValue;name=port.portName;channels=port.channels?.count ?? 0}
+    }
+    struct Format:Codable,Sendable {
+        let sampleRate:Double?
+        let channels:Int
+        let commonFormat:Int
+        let interleaved:Bool
+        init(_ format:AVAudioFormat){sampleRate=format.sampleRate.isFinite ? format.sampleRate:nil;channels=Int(format.channelCount);commonFormat=Int(format.commonFormat.rawValue);interleaved=format.isInterleaved}
+    }
+    let stage:String
+    let category:String
+    let mode:String
+    let sessionSampleRate:Double
+    let isInputAvailable:Bool
+    let inputs:[Port]
+    let availableInputs:[Port]
+    let outputs:[Port]
+    let inputFormat:Format
+    let outputFormat:Format
+    let engineRunning:Bool
+    var hardwareAbsent:Bool{!isInputAvailable && inputs.isEmpty && availableInputs.isEmpty}
+    @MainActor static func capture(_ engine:AVAudioEngine,stage:String)->LiveInputRouteSnapshot {
+        let session=AVAudioSession.sharedInstance(),input=engine.inputNode
+        return LiveInputRouteSnapshot(stage:stage,category:session.category.rawValue,mode:session.mode.rawValue,sessionSampleRate:session.sampleRate,isInputAvailable:session.isInputAvailable,inputs:session.currentRoute.inputs.map{Port($0)},availableInputs:(session.availableInputs ?? []).map{Port($0)},outputs:session.currentRoute.outputs.map{Port($0)},inputFormat:Format(input.inputFormat(forBus:0)),outputFormat:Format(input.outputFormat(forBus:0)),engineRunning:engine.isRunning)
+    }
+}
+struct LiveInputSetupFailure:Error,LocalizedError,Sendable {
+    let message:String
+    let routes:[LiveInputRouteSnapshot]
+    var errorDescription:String?{message}
+    var hardwareAbsent:Bool{routes.count==1 && (routes.first.map{$0.stage=="activated-playAndRecord" && $0.hardwareAbsent && $0.category==AVAudioSession.Category.playAndRecord.rawValue} ?? false)}
+    init(_ error:Error,routes:[LiveInputRouteSnapshot]){message=error.localizedDescription;self.routes=routes}
+}
+
 struct LiveInputReceiver:Sendable {
     let receive:@Sendable(AVAudioPCMBuffer)throws->Void
     let finish:@Sendable()throws->Void
@@ -135,6 +177,7 @@ private final class InputResources:@unchecked Sendable {
     let sampleRate:Double
     let startHostTime:UInt64
     let duration:Double
+    let routeDiagnostics:[LiveInputRouteSnapshot]
     private let ticksPerSecond:Double
     var elapsed:Double{Double(lg_input_state(resources.ring.pointer).frames)/sampleRate}
     var level:Double{Double(lg_input_state(resources.ring.pointer).peak)}
@@ -155,9 +198,25 @@ private final class InputResources:@unchecked Sendable {
         do {
             try session.setCategory(.playAndRecord,mode:.measurement,options:[.defaultToSpeaker,.allowBluetoothA2DP])
             try session.setActive(true)
-            let input=engine.inputNode,format=input.outputFormat(forBus:0)
-            guard format.sampleRate.isFinite,(8000...192000).contains(format.sampleRate),format.channelCount>0,format.channelCount<=32 else{throw LiveInputError.unavailable}
-            guard format.commonFormat == .pcmFormatFloat32,let mono=AVAudioFormat(commonFormat:.pcmFormatFloat32,sampleRate:format.sampleRate,channels:1,interleaved:false)else{throw LiveInputError.unsupportedFormat}
+            let input=engine.inputNode
+            var format=input.outputFormat(forBus:0)
+            var routes=[LiveInputRouteSnapshot.capture(engine,stage:"activated-playAndRecord")]
+            func usable(_ format:AVAudioFormat)->Bool{format.sampleRate.isFinite && (8000...192000).contains(format.sampleRate) && format.channelCount>0 && format.channelCount<=32}
+            if routes.last?.hardwareAbsent==true{throw LiveInputSetupFailure(LiveInputError.unavailable,routes:routes)}
+            if !usable(format),routes.last?.hardwareAbsent==false {
+                // Input can be instantiated lazily after a playback-only graph
+                // has already started. Reinitialize that graph's I/O once while
+                // retaining its source node, kernel, pending music and clock.
+                // Never manufacture a format, reset/replace the engine or seek.
+                engine.pause()
+                do{engine.prepare();try engine.start()}
+                catch{routes.append(.capture(engine,stage:"same-graph-restart-failed"));throw LiveInputSetupFailure(error,routes:routes)}
+                format=input.outputFormat(forBus:0)
+                routes.append(.capture(engine,stage:"same-graph-restarted"))
+            }
+            guard usable(format)else{throw LiveInputSetupFailure(LiveInputError.unavailable,routes:routes)}
+            guard format.commonFormat == .pcmFormatFloat32,let mono=AVAudioFormat(commonFormat:.pcmFormatFloat32,sampleRate:format.sampleRate,channels:1,interleaved:false)else{throw LiveInputSetupFailure(LiveInputError.unsupportedFormat,routes:routes)}
+            routeDiagnostics=routes
             let ring=try InputRingHandle(rate:format.sampleRate,limit:min(30,max(0.2,duration)))
             let worker=InputDrain(ring:ring,format:mono,receiver:try receiver(mono),onFailure:InputNotifications.forward(onFailure))
             let resources=InputResources(engine:engine,ring:ring,worker:worker,category:category,mode:mode,options:options)

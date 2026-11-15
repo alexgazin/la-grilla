@@ -2,7 +2,8 @@ import XCTest
 
 /// Assertions run inside the app against its actual AVAudioEngine and kernel.
 /// The microphone case requires real simulator input callbacks and fails if
-/// permission, a usable route or finite PCM delivery is unavailable.
+/// permission or finite PCM fails on an available route. Only independently
+/// evidenced absence of host input can skip, after output continuity passes.
 final class AudioRuntimeContinuityTests:XCTestCase {
     override func setUp(){super.setUp();continueAfterFailure=false;executionTimeAllowance=90}
 
@@ -48,11 +49,26 @@ final class AudioRuntimeContinuityTests:XCTestCase {
         let deadline=Date().addingTimeInterval(35)
         while Date()<deadline {
             allowMicrophonePrompt()
-            if result.exists,result.label == "PASS" || result.label == "FAIL"{break}
+            if result.exists,result.label == "PASS" || result.label == "FAIL" || result.label == "UNAVAILABLE"{break}
             RunLoop.current.run(until:Date().addingTimeInterval(0.1))
         }
         let details=app.staticTexts["audio.runtime.details"].label
         let report=XCTAttachment(string:details);report.name=midiPolicy ? "Native-immediate-MIDI-policy":microphone ? "Native-microphone-engine-continuity":"Native-live-snapshot-continuity";report.lifetime = .keepAlways;add(report)
+        if microphone,result.label=="UNAVAILABLE" {
+            guard let data=details.data(using:.utf8),let report=try JSONSerialization.jsonObject(with:data) as? [String:Any],report["outcome"] as? String=="UNAVAILABLE",
+                  let routes=report["routes"] as? [[String:Any]],routes.count==1,let route=routes.first,route["stage"] as? String=="activated-playAndRecord",
+                  route["category"] as? String=="AVAudioSessionCategoryPlayAndRecord",route["isInputAvailable"] as? Bool==false,
+                  let inputs=route["inputs"] as? [[String:Any]],inputs.isEmpty,
+                  let available=route["availableInputs"] as? [[String:Any]],available.isEmpty,
+                  report["outputEngineRetained"] as? Bool==true,report["outputKernelRetained"] as? Bool==true,
+                  report["outputClockAdvanced"] as? Bool==true,report["outputPlaying"] as? Bool==true,report["categoryRestored"] as? Bool==true,
+                  let phaseDifference=report["phaseDifferenceTicks"] as? Double,phaseDifference<128
+            else{XCTFail("UNAVAILABLE lacks real no-input and output-continuity evidence: "+details);return}
+            if ProcessInfo.processInfo.environment["GRILLA_REQUIRE_MIC_INPUT"]=="1" {
+                XCTFail("The configured CI audio fixture did not expose a microphone route: "+details);return
+            }
+            throw XCTSkip("Host exposes no microphone input; output engine/kernel/clock continuity passed. Actual route: "+details)
+        }
         XCTAssertEqual(result.label,"PASS",details)
     }
 

@@ -50,12 +50,16 @@ jobs:
           path: |
             LaGrilla.xcodeproj
             LaGrilla-Simulator.zip
+      - name: Configure virtual host microphone for native PCM
+        run: bash scripts/setup_ci_audio.sh
       - name: Prepare iOS Simulator
         env:
           GRILLA_CAPTURE_SCREENS: '0'
         run: bash scripts/screenshots.sh
       - name: Native user flows
         env:
+          GRILLA_REQUIRE_MIC_INPUT: '1'
+          TEST_RUNNER_GRILLA_REQUIRE_MIC_INPUT: '1'
           GRILLA_UI_ONLY: ${{ contains(github.event.head_commit.message, '[ui-only]') && '1' || '0' }}
           GRILLA_RU_RECAPTURE: ${{ contains(github.event.head_commit.message, '[ru-capture]') && '1' || '0' }}
           TEST_RUNNER_GRILLA_RU_RECAPTURE: ${{ contains(github.event.head_commit.message, '[ru-capture]') && '1' || '0' }}
@@ -107,6 +111,7 @@ jobs:
             ExportFixtures
             build.log
             uitests.log
+            ci-audio.log
             TestResults.xcresult
             CompactResults.xcresult
             CrashReports

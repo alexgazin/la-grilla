@@ -136,16 +136,20 @@ struct GridView: View {
             if targetTrack==track.id {Rectangle().fill(Color.mint.opacity(0.09)).allowsHitTesting(false)}
             ForEach(track.clips){clip in clipBlock(track:track,clip:clip,height:height,notes:rendered)}
         }.frame(width:CGFloat(timelineBars)*barWidth,height:height)
-            // A container identifier propagates to SwiftUI's custom clip
-            // elements, replacing their UUIDs and widening their AX frames to
-            // the whole lane. Each clip owns its accessibility identity.
+            // The drop host contains distinct clip controls. It must not absorb
+            // their accessibility frames into its lane-wide UIKit host view.
+            .accessibilityElement(children:.contain)
             .dropDestination(for:String.self,action:{items,point in dropClip(items,on:track.id,at:point)},isTargeted:{targeted in if targeted{targetTrack=track.id}else if targetTrack==track.id{targetTrack=nil}})
     }
     private func clipBlock(track:Track,clip:Clip,height:CGFloat,notes:[CompiledNote])->some View {
         let draft=resizeDraft?.payload.objectID==clip.id ? resizeDraft:nil
         let visibleLength=draft?.length ?? clip.length
         let width=max(4,CGFloat(visibleLength)/CGFloat(barTicks)*barWidth-6)
-        return ArrangementClipFace(notes:notes,track:track,clip:clip,width:width,height:max(44,height-12),resizing:draft != nil)
+        return Button {
+            guard !editingLocked else{return}
+            clipSelection=ClipEditorSelection(trackID:track.id,clipID:clip.id)
+        } label: {
+            ArrangementClipFace(notes:notes,track:track,clip:clip,width:width,height:max(44,height-12),resizing:draft != nil)
             .overlay(alignment:.trailing){
                 Image(systemName:"line.3.horizontal").font(.system(size:11,weight:.semibold)).rotationEffect(.degrees(90)).foregroundStyle(Color.track(track.role))
                     .frame(width:min(18,max(6,width*0.2)),height:44).frame(width:44,height:44).contentShape(Rectangle())
@@ -164,7 +168,7 @@ struct GridView: View {
                     })
                     .accessibilityLabel("Resize clip").accessibilityHidden(true)
             }
-            .onTapGesture{guard !editingLocked else{return};clipSelection=ClipEditorSelection(trackID:track.id,clipID:clip.id)}
+        }.buttonStyle(.plain).frame(width:width,height:max(44,height-12)).contentShape(Rectangle())
             .simultaneousGesture(DragGesture(minimumDistance:0).onChanged{value in
                 if grabbedClip != clip.id{grabbedClip=clip.id;grabbedOffset=max(0,min(clip.length-1,Int(value.startLocation.x/barWidth*CGFloat(barTicks))))}
             }.onEnded{_ in grabbedClip=nil})
@@ -180,8 +184,8 @@ struct GridView: View {
             }
             .accessibilityElement(children:.ignore).accessibilityLabel(track.displayName)
             .accessibilityValue(String(format:NSLocalizedString("%.2f bars",comment:"Clip length"),Double(clip.length)/Double(barTicks)))
-            .accessibilityAddTraits(.isButton).accessibilityAction{clipSelection=ClipEditorSelection(trackID:track.id,clipID:clip.id)}
             .accessibilityIdentifier("grid.clip.\(clip.id)")
+            .modifier(ArrangementClipAccessibilityFrame())
             .offset(x:CGFloat(clip.start)/CGFloat(barTicks)*barWidth+3,y:6)
             .allowsHitTesting(!editingLocked)
     }
@@ -403,6 +407,19 @@ private struct ArrangementDragSource:ViewModifier {
     let payload:String?
     @ViewBuilder func body(content:Content)->some View {
         if let payload{content.draggable(payload)}else{content}
+    }
+}
+
+/// UIKit's lane drop host can report its full bounds for custom SwiftUI
+/// controls. Use the rendered clip geometry for VoiceOver focus and native hit
+/// coordinates, including after a resize, move, zoom or horizontal scroll.
+private struct ArrangementClipAccessibilityFrame:ViewModifier {
+    @State private var frame=CGRect.zero
+    func body(content:Content)->some View {
+        content.onGeometryChange(for:CGRect.self){$0.frame(in:.global)}action:{value in
+            guard value.minX.isFinite,value.minY.isFinite,value.width.isFinite,value.height.isFinite,!value.isEmpty else{return}
+            frame=value
+        }.accessibilityFrame(frame)
     }
 }
 

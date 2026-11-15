@@ -16,6 +16,9 @@ struct PianoRollView: View {
     @State private var renaming=false
     @State private var trackName=""
     @State private var original:AudioAssetRecord?
+    @State private var showTrackActions=false
+    @State private var pendingTrackRename=false
+    @State private var pendingOriginal:AudioAssetRecord?
     var track:Track?{session.project.tracks.first{$0.id==session.noteTrackID && $0.role == .melody} ?? session.project.tracks.first{$0.role == .melody}}
     var clip:Clip?{guard let track else{return nil};if let id=session.noteClipID,let selected=track.clips.first(where:{$0.id==id}){return selected};return track.clips.first{$0.start<=session.section.start && $0.start+$0.length>session.section.start}}
     var pattern:Pattern?{guard let clip else{return nil};return session.project.patterns.first{$0.id==clip.patternID}}
@@ -41,27 +44,39 @@ struct PianoRollView: View {
         .onChange(of:session.noteTrackID){_,_ in selected=nil}
         .onChange(of:session.noteClipID){_,_ in selected=nil}
         .sheet(item:$original){record in SourceRecordingView(session:session,record:record)}
+        .sheet(isPresented:$showTrackActions,onDismiss:finishTrackAction){trackActions}
         .onChange(of:session.selectedSection){_,_ in selected=nil}
     }
     var controls:some View {
         VStack(spacing:10){
             HStack {
-                Menu {
-                    ForEach(session.project.tracks.filter{$0.role == .melody}){t in Button(t.displayName){session.noteTrackID=t.id;session.noteClipID=nil}}
-                    Button("Add melody",systemImage:"plus"){session.addMelody()}.disabled(session.project.tracks.count>=8)
-                    if let sourceRecord{Button("Original voice",systemImage:"waveform"){original=sourceRecord}}
-                    if let track {
-                        Button("Rename track",systemImage:"pencil"){trackName=track.displayName;renaming=true}
-                        Button("Duplicate track",systemImage:"plus.square.on.square"){session.duplicateMelody(track.id)}.disabled(session.project.tracks.count>=8)
-                        Button("Delete track",systemImage:"trash",role:.destructive){session.deleteMelody(track.id)}
-                    }
-                }label:{Label(track?.displayName ?? NSLocalizedString("Add melody",comment:"Track menu"),systemImage:"pianokeys").lineLimit(1).frame(minHeight:44)}.accessibilityIdentifier("notes.tracks")
+                Button{showTrackActions=true}label:{Label(track?.displayName ?? NSLocalizedString("Add melody",comment:"Track menu"),systemImage:"pianokeys").lineLimit(1).frame(minHeight:44)}.accessibilityIdentifier("notes.tracks")
                 Spacer(minLength:6)
                 Picker("Section",selection:Binding(get:{session.section.id},set:{id in if let s=session.project.sections.first(where:{$0.id==id}){session.noteClipID=nil;session.select(s)}})){ForEach(session.project.sections){s in Text(s.name).tag(s.id)}}.pickerStyle(.menu)
             }
             HStack(spacing:12){StudioSegments(title:"Snap",selection:$snap,options:[(240,"1/16"),(480,"1/8"),(960,"1/4")])
                 Button{listMode.toggle()}label:{Image(systemName:listMode ? "pianokeys":"list.bullet").frame(width:44,height:44)}.accessibilityLabel(LocalizedStringKey(listMode ? "Show piano roll":"Show note list"))}
         }
+    }
+    private var trackActions:some View {NavigationStack{List{
+        ForEach(session.project.tracks.filter{$0.role == .melody}){track in
+            Button{session.noteTrackID=track.id;session.noteClipID=nil;showTrackActions=false}label:{HStack{Text(track.displayName);Spacer();if track.id==session.noteTrackID{Image(systemName:"checkmark")}}}.accessibilityIdentifier("notes.track.select.\(track.id)")
+        }
+        Button("Add melody",systemImage:"plus"){session.addMelody();showTrackActions=false}.disabled(session.project.tracks.count>=8).accessibilityIdentifier("notes.track.add")
+        if let sourceRecord{Button("Original voice",systemImage:"waveform"){pendingOriginal=sourceRecord;showTrackActions=false}.accessibilityIdentifier("notes.track.source")}
+        if let track {
+            Button("Rename track",systemImage:"pencil"){pendingTrackRename=true;showTrackActions=false}.accessibilityIdentifier("notes.track.rename")
+            Button("Duplicate track",systemImage:"plus.square.on.square"){session.duplicateMelody(track.id);showTrackActions=false}.disabled(session.project.tracks.count>=8).accessibilityIdentifier("notes.track.duplicate")
+            Button("Delete track",systemImage:"trash",role:.destructive){session.deleteMelody(track.id);showTrackActions=false}.accessibilityIdentifier("notes.track.delete")
+        }
+    }.environment(\.defaultMinListRowHeight,52).navigationTitle("Track").navigationBarTitleDisplayMode(.inline)
+        .toolbar{ToolbarItem(placement:.cancellationAction){Button("Cancel"){showTrackActions=false}}}}
+        .presentationDetents([.large]).tint(.mint)
+    }
+    private func finishTrackAction(){
+        if pendingTrackRename,let track{trackName=track.displayName;renaming=true}
+        if let pendingOriginal{original=pendingOriginal}
+        pendingTrackRename=false;pendingOriginal=nil
     }
     func roll(_ p:Pattern)->some View {
         VStack(spacing:0){

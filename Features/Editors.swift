@@ -82,24 +82,80 @@ struct SettingsView: View {
 }
 struct BassView: View {
     @Bindable var session: Session
-    var enabled: Bool{session.project.tracks.contains(where:{$0.role == .bass})}
-    var body: some View {NavigationStack{Form{
-        Section{Toggle("Root bass",isOn:Binding(get:{enabled},set:{on in session.edit{p in if on{guard p.tracks.count<8 else{throw MusicError.trackLimit};p.tracks.append(Track(role:.bass))}else{if let id=p.tracks.first(where:{$0.role == .bass})?.id{try p.deleteTrack(id)}}}})).disabled(session.performance.contextActive || session.recording || session.armed).accessibilityIdentifier("bass.enabled");Text("Bass follows the roots of your chords.").foregroundStyle(.secondary).font(.caption);Text(LocalizedStringKey(session.audio.playing ? "PLAYING":"STOPPED")).font(.caption.monospaced()).foregroundStyle(Color.muted).accessibilityIdentifier("bass.playback-state")}
-        if enabled {Section{Picker("Register",selection:Binding(get:{session.project.bassOctave},set:{v in session.edit{$0.bassOctave=v}})){Text("Low").tag(-1);Text("Natural").tag(0);Text("High").tag(1)};HStack{Text("Gate");Slider(value:Binding(get:{session.project.bassGate},set:{v in session.edit{$0.bassGate=v}}),in:0.1...1).accessibilityLabel("Bass gate");Text("\(Int(session.project.bassGate*100))%").monospacedDigit()}}}
+    var enabled:Bool{session.project.tracks.contains(where:{$0.role == .bass})}
+    private var editingLocked:Bool{session.performance.contextActive || session.recording || session.armed}
+    private var bassEnabled:Binding<Bool>{Binding(get:{enabled},set:{on in
+        guard on != enabled else{return}
+        session.edit{project in
+            if on{guard project.tracks.count<8 else{throw MusicError.trackLimit};project.tracks.append(Track(role:.bass))}
+            else if let id=project.tracks.first(where:{$0.role == .bass})?.id{try project.deleteTrack(id)}
+        }
+    })}
+    var body:some View {NavigationStack{Form{
+        Section {
+            HStack {
+                Text("Root bass")
+                Spacer()
+                // Keep the platform switch's hit region independent of the
+                // Form cell and its descriptive/status rows on iOS 26.
+                Toggle("Root bass",isOn:bassEnabled).labelsHidden().toggleStyle(.switch)
+                    .frame(width:64,height:44).accessibilityLabel("Root bass").accessibilityIdentifier("bass.enabled").disabled(editingLocked)
+            }
+            Text("Bass follows the roots of your chords.").foregroundStyle(.secondary).font(.caption)
+            Text(LocalizedStringKey(session.audio.playing ? "PLAYING":"STOPPED")).font(.caption.monospaced()).foregroundStyle(Color.muted).accessibilityIdentifier("bass.playback-state")
+        }
+        if enabled {Section{
+            Picker("Register",selection:Binding(get:{session.project.bassOctave},set:{v in session.edit{$0.bassOctave=v}})){Text("Low").tag(-1);Text("Natural").tag(0);Text("High").tag(1)}
+            HStack{Text("Gate");Slider(value:Binding(get:{session.project.bassGate},set:{v in session.edit{$0.bassGate=v}}),in:0.1...1).accessibilityLabel("Bass gate");Text("\(Int(session.project.bassGate*100))%").monospacedDigit()}
+        }.disabled(editingLocked)}
     }.tint(.bass).navigationTitle("Bass").toolbar{ToolbarItem(placement:.confirmationAction){Button("Done"){session.sheet=nil}}}}.presentationDetents([.medium])}
 }
 struct SectionsView: View {
     @Bindable var session: Session
-    @State private var editing: UUID?;@State private var name="";@State private var deleting: UUID?
-    var body: some View {NavigationStack{List{
-        Section{ForEach(session.project.sections){s in HStack{VStack(alignment:.leading,spacing:5){Text(s.name);Text("Bars \(s.start/barTicks+1)–\((s.start+s.length)/barTicks)").font(.caption).foregroundStyle(.secondary)};Spacer();Menu{Button("Rename"){name=s.name;editing=s.id};Button("Duplicate"){session.edit{try SectionEditing.duplicate(s.id,name:s.name=="Verse" ? "Chorus":String((s.name+" copy").prefix(120)),in:&$0)}}.disabled(session.project.sections.count>=8 || session.project.length+s.length>64*barTicks).accessibilityIdentifier("section.duplicate");Button("Move earlier"){move(s.id,by:-1)}.disabled(session.project.sections.first?.id==s.id).accessibilityIdentifier("section.earlier");Button("Move later"){move(s.id,by:1)}.disabled(session.project.sections.last?.id==s.id).accessibilityIdentifier("section.later");if session.project.sections.count>1{Button("Delete section",role:.destructive){deleting=s.id}.accessibilityIdentifier("section.delete")}}label:{Image(systemName:"ellipsis").frame(width:44,height:44)}.disabled(session.performance.contextActive || session.recording || session.armed).accessibilityLabel(s.name).accessibilityIdentifier("section.menu.\(s.id)")}}}
+    @State private var editing: UUID?
+    @State private var name=""
+    @State private var deleting:UUID?
+    @State private var actions:MusicDomain.Section?
+    @State private var pendingRename:UUID?
+    @State private var pendingDelete:UUID?
+    var body:some View {NavigationStack{List{
+        Section{ForEach(session.project.sections){section in
+            HStack {
+                VStack(alignment:.leading,spacing:5){Text(section.name);Text("Bars \(section.start/barTicks+1)–\((section.start+section.length)/barTicks)").font(.caption).foregroundStyle(.secondary)}
+                Spacer()
+                Button{actions=section}label:{Image(systemName:"ellipsis").frame(width:44,height:44)}
+                    .buttonStyle(.borderless).disabled(editingLocked).accessibilityLabel(section.name).accessibilityIdentifier("section.menu.\(section.id)")
+            }
+        }}
         Section{Text("Duplicated sections have independent chords and drums. Up to 8 sections and 64 bars.").font(.caption).foregroundStyle(.secondary);Text(LocalizedStringKey(session.audio.playing ? "PLAYING":"STOPPED")).font(.caption.monospaced()).foregroundStyle(Color.muted).accessibilityIdentifier("section.playback-state")}
     }.navigationTitle("Song sections").toolbar{ToolbarItem(placement:.confirmationAction){Button("Done"){session.sheet=nil}}}}
-        .alert("Rename section",isPresented:Binding(get:{editing != nil},set:{if !$0{editing=nil}})){TextField("Name",text:$name);Button("Save"){let value=String(name.trimmingCharacters(in:.whitespacesAndNewlines).prefix(120));if let id=editing,!value.isEmpty{session.edit{p in if let i=p.sections.firstIndex(where:{$0.id==id}){p.sections[i].name=value}}};editing=nil};Button("Cancel",role:.cancel){editing=nil}}
+        .sheet(item:$actions,onDismiss:finishAction){section in actionList(section)}
+        .alert("Rename section",isPresented:Binding(get:{editing != nil},set:{if !$0{editing=nil}})){
+            TextField("Name",text:$name)
+            Button("Save"){let value=String(name.trimmingCharacters(in:.whitespacesAndNewlines).prefix(120));if let id=editing,!value.isEmpty{session.edit{p in if let i=p.sections.firstIndex(where:{$0.id==id}){p.sections[i].name=value}}};editing=nil}
+            Button("Cancel",role:.cancel){editing=nil}
+        }
         .alert("Delete section?",isPresented:Binding(get:{deleting != nil},set:{if !$0{deleting=nil}})) {
             Button("Delete",role:.destructive){if let id=deleting{session.edit{try SectionEditing.delete(id,in:&$0)}};deleting=nil}
             Button("Cancel",role:.cancel){deleting=nil}
         } message: {Text("The following sections move earlier. You can undo this change.")}
+    }
+    private var editingLocked:Bool{session.performance.contextActive || session.recording || session.armed}
+    private func actionList(_ section:MusicDomain.Section)->some View {NavigationStack{List{
+        Button("Rename"){pendingRename=section.id;actions=nil}
+        Button("Duplicate"){session.edit{try SectionEditing.duplicate(section.id,name:section.name=="Verse" ? "Chorus":String((section.name+" copy").prefix(120)),in:&$0)};actions=nil}
+            .disabled(session.project.sections.count>=8 || session.project.length+section.length>64*barTicks).accessibilityIdentifier("section.duplicate")
+        Button("Move earlier"){move(section.id,by:-1);actions=nil}.disabled(session.project.sections.first?.id==section.id).accessibilityIdentifier("section.earlier")
+        Button("Move later"){move(section.id,by:1);actions=nil}.disabled(session.project.sections.last?.id==section.id).accessibilityIdentifier("section.later")
+        if session.project.sections.count>1{Button("Delete section",role:.destructive){pendingDelete=section.id;actions=nil}.accessibilityIdentifier("section.delete")}
+    }.environment(\.defaultMinListRowHeight,52).disabled(editingLocked).navigationTitle(section.name).navigationBarTitleDisplayMode(.inline)
+        .toolbar{ToolbarItem(placement:.cancellationAction){Button("Cancel"){actions=nil}}}}
+        .presentationDetents([.medium,.large]).tint(.mint)
+    }
+    private func finishAction(){
+        if let id=pendingRename,let section=session.project.sections.first(where:{$0.id==id}){name=section.name;editing=id}
+        if let id=pendingDelete,session.project.sections.contains(where:{$0.id==id}){deleting=id}
+        pendingRename=nil;pendingDelete=nil
     }
     func move(_ id:UUID,by delta:Int){
         guard let index=session.project.sections.firstIndex(where:{$0.id==id}),session.project.sections.indices.contains(index+delta)else{return}

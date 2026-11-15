@@ -92,6 +92,20 @@ import SwiftUI
         try require(try pointer(audio)==kernel && audio.captureEngine===engine && audio.playing,"Snapshot burst replaced or stopped the engine")
         return "Actual engine: boundary mix/FX, deferred keyed preview, preset cache invalidation, reordered MIDI roles, 80 concurrent submissions, bounded routing cache, phase and kernel identity"
     }
+    struct InputUnavailable:Error {let details:String}
+    private struct MicrophoneReport:Encodable {
+        let outcome:String
+        let detail:String
+        let routes:[LiveInputRouteSnapshot]
+        let frames:Int
+        let outputEngineRetained:Bool
+        let outputKernelRetained:Bool
+        let outputClockAdvanced:Bool
+        let outputPlaying:Bool
+        let categoryRestored:Bool
+        let phaseDifferenceTicks:Double
+        func json()throws->String{let encoder=JSONEncoder();encoder.outputFormatting=[.prettyPrinted,.sortedKeys];return String(decoding:try encoder.encode(self),as:UTF8.self)}
+    }
     static func microphone(_ session:Session)async throws->String {
         let audio=session.audio
         let project=try await fixture(audio)
@@ -104,9 +118,34 @@ import SwiftUI
         guard let owner=session.beginMicrophone(stop:{lease.stop()})else{throw Failure(message:"Microphone lease was rejected")}
         defer{lease.stop();session.endMicrophone(owner)}
         audio.refreshClock();let before=audio.clock,beforeTick=audio.tick
-        lease.microphone=try LiveMicrophone(audio:audio,delay:0.1,duration:0.3,receiver:{_ in
-            LiveInputReceiver(receive:{try stats.append($0)},finish:{stats.finish()})
-        },onFailure:{lease.failure=$0})
+        @MainActor func outputReport(outcome:String,detail:String,routes:[LiveInputRouteSnapshot])async throws->String {
+            session.endMicrophone(owner)
+            try await wait(audio){audio.clock>before && audio.playing && audio.isPrepared}
+            let categoryRestored=AVAudioSession.sharedInstance().category==category
+            let kernelRetained=try pointer(audio)==kernel,engineRetained=audio.captureEngine===engine
+            try require(categoryRestored,"Microphone category was not restored")
+            try require(kernelRetained && engineRetained,"Microphone capture replaced the kernel or engine")
+            let length=Double(project.length)
+            let expected=(Double(audio.clock-before)*project.bpm*Double(ppq)/(60*audio.sampleRate)).truncatingRemainder(dividingBy:length)
+            let actual=(audio.tick-beforeTick+length).truncatingRemainder(dividingBy:length)
+            let difference=abs(actual-expected),phaseDifference=min(difference,length-difference)
+            try require(phaseDifference<128,"Microphone category transition reset the musical position")
+            let after=audio.clock
+            try await wait(audio){audio.clock>after}
+            return try MicrophoneReport(outcome:outcome,detail:detail,routes:routes,frames:stats.frames,outputEngineRetained:engineRetained,outputKernelRetained:kernelRetained,outputClockAdvanced:audio.clock>before,outputPlaying:audio.playing,categoryRestored:categoryRestored,phaseDifferenceTicks:phaseDifference).json()
+        }
+        do {
+            lease.microphone=try LiveMicrophone(audio:audio,delay:0.1,duration:0.3,receiver:{_ in
+                LiveInputReceiver(receive:{try stats.append($0)},finish:{stats.finish()})
+            },onFailure:{lease.failure=$0})
+        }catch let failure as LiveInputSetupFailure {
+            // A zero node format is not an infrastructure skip. Only the actual
+            // activated session declaring no input plus empty current/available
+            // input routes can be unavailable, after output continuity passed.
+            let report=try await outputReport(outcome:failure.hardwareAbsent ? "UNAVAILABLE":"FAIL",detail:failure.message,routes:failure.routes)
+            if failure.hardwareAbsent{throw InputUnavailable(details:report)}
+            throw Failure(message:report)
+        }
         try require(session.ownsMicrophone(owner),"Session lost the microphone lease")
         // A category/configuration event may stop AVAudioEngine. prepare() must
         // restart this graph without restoring playback-only category mid-tap.
@@ -114,20 +153,10 @@ import SwiftUI
         try require(AVAudioSession.sharedInstance().category == .playAndRecord,"prepare() removed the microphone category")
         try await wait(audio){lease.microphone?.complete==true || lease.failure != nil}
         if let failure=lease.failure{throw Failure(message:failure)}
+        let routes=lease.microphone?.routeDiagnostics ?? []
         try lease.microphone?.stop();lease.microphone=nil
         try require(stats.frames>0 && stats.finished,"No actual finite microphone PCM reached the consumer")
-        session.endMicrophone(owner)
-        try await wait(audio){audio.clock>before && audio.playing && audio.isPrepared}
-        try require(AVAudioSession.sharedInstance().category==category,"Microphone category was not restored")
-        try require(try pointer(audio)==kernel && audio.captureEngine===engine,"Microphone capture replaced the kernel or engine")
-        let length=Double(project.length)
-        let expected=(Double(audio.clock-before)*project.bpm*Double(ppq)/(60*audio.sampleRate)).truncatingRemainder(dividingBy:length)
-        let actual=(audio.tick-beforeTick+length).truncatingRemainder(dividingBy:length)
-        let difference=abs(actual-expected)
-        try require(min(difference,length-difference)<128,"Microphone category transition reset the musical position")
-        let after=audio.clock
-        try await wait(audio){audio.clock>after}
-        return "Actual tap PCM frames: \(stats.frames); Session lease, permission, finite capture, paused-graph prepare, category restoration and continuing engine/kernel clock"
+        return try await outputReport(outcome:"PASS",detail:"Actual finite PCM, Session lease, permission, paused-graph prepare, restored category and continuing engine/kernel clock",routes:routes)
     }
     static func midiPolicy(_ session:Session)async throws->String {
         let audio=session.audio,midi=session.midi
@@ -211,6 +240,7 @@ struct AudioRuntimeQAView:View {
             else if microphoneCase{details=try await AudioRuntimeQA.microphone(session)}
             else{details=try await AudioRuntimeQA.snapshots(session)}
             result="PASS"
-        }catch{details=error.localizedDescription;result="FAIL"}
+        }catch let unavailable as AudioRuntimeQA.InputUnavailable{details=unavailable.details;result="UNAVAILABLE"}
+        catch{details=error.localizedDescription;result="FAIL"}
     }
 }

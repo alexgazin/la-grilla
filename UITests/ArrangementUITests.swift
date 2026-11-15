@@ -42,6 +42,7 @@ final class ArrangementUITests: XCTestCase {
         let clip=app.buttons[id]
         wait(clip,NSPredicate(format:"value == '1.00 bars'"))
         wait(clip,NSPredicate(format:"hittable == true"))
+        wait(clip,NSPredicate{_,_ in clip.frame.width+6<app.windows.firstMatch.frame.width/2})
         let initialX=clip.frame.minX,bar=clip.frame.width+6
         XCTAssertLessThan(bar,app.windows.firstMatch.frame.width/2,"Clip accessibility frame must match the one-bar clip, not its entire lane")
         let finger=clip.coordinate(withNormalizedOffset:CGVector(dx:0.4,dy:0.5))
