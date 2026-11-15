@@ -11,7 +11,7 @@ import Observation
         guard enabled else{return}
         let message="\(ProcessInfo.processInfo.systemUptime) \(event().prefix(512))"
         shared.events.append(message)
-        if shared.events.count>16{shared.events.removeFirst(shared.events.count-16)}
+        if shared.events.count>32{shared.events.removeFirst(shared.events.count-32)}
         shared.value=shared.events.joined(separator:"\n")
         print("LA_GRILLA_DRAG "+message)
     }
@@ -64,11 +64,15 @@ struct ArrangementClipControl:UIViewRepresentable {
     let activate:()->Void
     func makeUIView(context:Context)->ArrangementClipControlView{ArrangementClipControlView(frame:.zero)}
     func updateUIView(_ view:ArrangementClipControlView,context:Context){
+        let previousIdentifier=view.accessibilityIdentifier
+        let inputChanged=view.acceptsInput != enabled || view.isUserInteractionEnabled != enabled
         view.accessibilityLabel=label;view.accessibilityValue=value;view.accessibilityHint=hint;view.accessibilityIdentifier=identifier
         view.accessibilityTraits=enabled ? .button:[.button,.notEnabled]
         view.acceptsInput=enabled;view.isUserInteractionEnabled=enabled
         view.makePayload=makePayload;view.resize=resize;view.activate=activate
+        view.noteRepresentableUpdate(previousIdentifier:previousIdentifier,inputChanged:inputChanged)
     }
+    static func dismantleUIView(_ view:ArrangementClipControlView,coordinator:Void){view.recordDiagnostic("dismantle")}
 }
 
 final class ArrangementClipControlView:UIView,UIGestureRecognizerDelegate,UIDragInteractionDelegate {
@@ -80,6 +84,38 @@ final class ArrangementClipControlView:UIView,UIGestureRecognizerDelegate,UIDrag
     private let tap=UITapGestureRecognizer()
     private var initialTouchPoint:CGPoint?
     private var dragInFlight=false
+    private weak var diagnosticTouch:UITouch?
+    private var diagnosticUpdates=0
+    private var diagnosticLastUpdate:TimeInterval=0
+    func noteRepresentableUpdate(previousIdentifier:String?,inputChanged:Bool){
+        guard ArrangementDragDiagnostics.enabled else{return}
+        diagnosticUpdates+=1;diagnosticLastUpdate=ProcessInfo.processInfo.systemUptime
+        // Count unchanged updates without publishing another observable AX
+        // value. Logging every update would create its own feedback loop.
+        if previousIdentifier != accessibilityIdentifier || inputChanged{recordDiagnostic("update previousID=\(previousIdentifier ?? "nil") inputChanged=\(inputChanged)")}
+    }
+    func recordDiagnostic(_ event:@autoclosure()->String){
+        guard ArrangementDragDiagnostics.enabled else{return}
+        var ancestor=superview,pans:[String]=[]
+        while let view=ancestor {
+            if let scroll=view as? UIScrollView {
+                let axis=scroll.contentSize.width>scroll.bounds.width ? "H":"V"
+                pans.append("\(axis):\(scroll.panGestureRecognizer.state.rawValue)@\(scroll.contentOffset),e=\(scroll.isScrollEnabled),d=\(scroll.isDragging)")
+            }
+            ancestor=view.superview
+        }
+        let sourceID=String(UInt(bitPattern:ObjectIdentifier(self)),radix:16)
+        let windowID=window.map{String(UInt(bitPattern:ObjectIdentifier($0)),radix:16)} ?? "nil"
+        let touch=diagnosticTouch.map{"\($0.phase.rawValue)@\($0.timestamp)"} ?? "nil"
+        ArrangementDragDiagnostics.record("\(event()) id=\(accessibilityIdentifier ?? "unknown") source=\(sourceID) window=\(windowID) updates=\(diagnosticUpdates)@\(diagnosticLastUpdate) input=\(acceptsInput)/\(isUserInteractionEnabled) touch=\(touch) pans=\(pans.joined(separator:";"))")
+    }
+    override func didMoveToSuperview(){super.didMoveToSuperview();recordDiagnostic("superview changed")}
+    override func didMoveToWindow(){super.didMoveToWindow();recordDiagnostic("window changed")}
+    deinit {
+        guard ProcessInfo.processInfo.arguments.contains("--uitesting")else{return}
+        let event="deinit source=\(String(UInt(bitPattern:ObjectIdentifier(self)),radix:16)) at=\(ProcessInfo.processInfo.systemUptime)"
+        Task{@MainActor in ArrangementDragDiagnostics.record(event)}
+    }
     private func isResizePoint(_ point:CGPoint)->Bool{ArrangementClipTouchLayout.resizeCorner(in:bounds)?.contains(point) ?? false}
     override init(frame:CGRect){super.init(frame:frame);configure()}
     required init?(coder:NSCoder){super.init(coder:coder);configure()}
@@ -89,6 +125,7 @@ final class ArrangementClipControlView:UIView,UIGestureRecognizerDelegate,UIDrag
         resizePan.addTarget(self,action:#selector(resized(_:)));addGestureRecognizer(resizePan)
         tap.delegate=self;tap.addTarget(self,action:#selector(tapped));tap.require(toFail:resizePan);addGestureRecognizer(tap)
         let drag=UIDragInteraction(delegate:self);drag.isEnabled=true;addInteraction(drag)
+        recordDiagnostic("init")
     }
     override var accessibilityFrame:CGRect {
         get{UIAccessibility.convertToScreenCoordinates(bounds,in:self)}
@@ -98,7 +135,7 @@ final class ArrangementClipControlView:UIView,UIGestureRecognizerDelegate,UIDrag
         guard acceptsInput,let activate else{return false};activate();return true
     }
     @objc private func tapped(){
-        ArrangementDragDiagnostics.record("tap id=\(accessibilityIdentifier ?? "unknown") dragInFlight=\(dragInFlight)")
+        recordDiagnostic("tap dragInFlight=\(dragInFlight)")
         initialTouchPoint=nil
         _ = accessibilityActivate()
     }
@@ -113,7 +150,8 @@ final class ArrangementClipControlView:UIView,UIGestureRecognizerDelegate,UIDrag
             // UIKit instantiates a drag session after finger movement. Its
             // location(in:) is the current point, not this original grip.
             initialTouchPoint=touch.location(in:self)
-            ArrangementDragDiagnostics.record("touchdown id=\(accessibilityIdentifier ?? "unknown") point=\(String(describing:initialTouchPoint)) touchTime=\(touch.timestamp) bounds=\(bounds)")
+            if ArrangementDragDiagnostics.enabled{diagnosticTouch=touch}
+            recordDiagnostic("touchdown point=\(String(describing:initialTouchPoint)) touchTime=\(touch.timestamp) bounds=\(bounds)")
         }
         return gestureRecognizer !== resizePan || isResizePoint(touch.location(in:self))
     }
@@ -124,7 +162,7 @@ final class ArrangementClipControlView:UIView,UIGestureRecognizerDelegate,UIDrag
     }
     func dragInteraction(_ interaction:UIDragInteraction,itemsForBeginning session:UIDragSession)->[UIDragItem] {
         let current=session.location(in:self)
-        ArrangementDragDiagnostics.record("items id=\(accessibilityIdentifier ?? "unknown") current=\(current) initial=\(String(describing:initialTouchPoint))")
+        recordDiagnostic("items current=\(current) initial=\(String(describing:initialTouchPoint))")
         guard acceptsInput,let point=initialTouchPoint,bounds.contains(point),!isResizePoint(point)else{
             ArrangementDragDiagnostics.record("items rejected input=\(acceptsInput) initial=\(String(describing:initialTouchPoint)) bounds=\(bounds)")
             return []
@@ -137,19 +175,46 @@ final class ArrangementClipControlView:UIView,UIGestureRecognizerDelegate,UIDrag
     }
     func dragInteraction(_ interaction:UIDragInteraction,sessionWillBegin session:UIDragSession){
         dragInFlight=true
-        ArrangementDragDiagnostics.record("willBegin id=\(accessibilityIdentifier ?? "unknown") current=\(session.location(in:self)) initial=\(String(describing:initialTouchPoint))")
+        recordDiagnostic("willBegin current=\(session.location(in:self)) initial=\(String(describing:initialTouchPoint))")
     }
     func dragInteraction(_ interaction:UIDragInteraction,session:UIDragSession,willEndWith operation:UIDropOperation){
-        ArrangementDragDiagnostics.record("willEnd id=\(accessibilityIdentifier ?? "unknown") operation=\(operation.rawValue) current=\(session.location(in:self))")
+        recordDiagnostic("willEnd operation=\(operation.rawValue) current=\(session.location(in:self))")
     }
     func dragInteraction(_ interaction:UIDragInteraction,session:UIDragSession,didEndWith operation:UIDropOperation){
-        ArrangementDragDiagnostics.record("didEnd id=\(accessibilityIdentifier ?? "unknown") operation=\(operation.rawValue) current=\(session.location(in:self))")
+        recordDiagnostic("didEnd operation=\(operation.rawValue) current=\(session.location(in:self))")
         dragInFlight=false;initialTouchPoint=nil
+    }
+    func dragInteraction(_ interaction:UIDragInteraction,willAnimateLiftWith animator:UIDragAnimating,session:UIDragSession){
+        guard ArrangementDragDiagnostics.enabled else{return}
+        recordDiagnostic("lift animation begin current=\(session.location(in:self))")
+        let sourceID=String(UInt(bitPattern:ObjectIdentifier(self)),radix:16)
+        animator.addCompletion{[weak self] position in
+            let completed=ProcessInfo.processInfo.systemUptime,result=position.rawValue
+            Task{@MainActor [weak self] in
+                if let self{self.recordDiagnostic("lift animation completed position=\(result) callbackAt=\(completed)")}
+                else{ArrangementDragDiagnostics.record("lift animation completed source=\(sourceID) viewGone=true position=\(result) callbackAt=\(completed)")}
+            }
+        }
+    }
+    func dragInteraction(_ interaction:UIDragInteraction,item:UIDragItem,willAnimateCancelWith animator:UIDragAnimating){
+        guard ArrangementDragDiagnostics.enabled else{return}
+        recordDiagnostic("cancel animation begin")
+        let sourceID=String(UInt(bitPattern:ObjectIdentifier(self)),radix:16)
+        animator.addCompletion{[weak self] position in
+            let completed=ProcessInfo.processInfo.systemUptime,result=position.rawValue
+            Task{@MainActor [weak self] in
+                if let self{self.recordDiagnostic("cancel animation completed position=\(result) callbackAt=\(completed)")}
+                else{ArrangementDragDiagnostics.record("cancel animation completed source=\(sourceID) viewGone=true position=\(result) callbackAt=\(completed)")}
+            }
+        }
+    }
+    func dragInteraction(_ interaction:UIDragInteraction,previewForCancelling item:UIDragItem,withDefault defaultPreview:UITargetedDragPreview)->UITargetedDragPreview? {
+        recordDiagnostic("cancel preview");return nil
     }
     func dragInteraction(_ interaction:UIDragInteraction,sessionAllowsMoveOperation session:UIDragSession)->Bool{true}
     func dragInteraction(_ interaction:UIDragInteraction,previewForLifting item:UIDragItem,session:UIDragSession)->UITargetedDragPreview? {
         let started=ProcessInfo.processInfo.systemUptime
-        defer{ArrangementDragDiagnostics.record("preview return id=\(accessibilityIdentifier ?? "unknown") duration=\(ProcessInfo.processInfo.systemUptime-started)")}
+        defer{recordDiagnostic("preview return duration=\(ProcessInfo.processInfo.systemUptime-started)")}
         guard let window else{return nil}
         var rect=convert(bounds,to:window).intersection(window.bounds)
         var parent=superview
@@ -158,7 +223,7 @@ final class ArrangementClipControlView:UIView,UIGestureRecognizerDelegate,UIDrag
             parent=view.superview
         }
         guard !rect.isNull,!rect.isEmpty else{return nil}
-        ArrangementDragDiagnostics.record("preview id=\(accessibilityIdentifier ?? "unknown") rect=\(rect)")
+        recordDiagnostic("preview rect=\(rect)")
         // Reuse the already rendered clip rectangle. Rasterizing the complete
         // window here can block the lift long enough to consume the gesture.
         let snapshotStarted=ProcessInfo.processInfo.systemUptime
@@ -166,7 +231,7 @@ final class ArrangementClipControlView:UIView,UIGestureRecognizerDelegate,UIDrag
             ArrangementDragDiagnostics.record("preview snapshot unavailable duration=\(ProcessInfo.processInfo.systemUptime-snapshotStarted)")
             return nil
         }
-        ArrangementDragDiagnostics.record("preview snapshot finished duration=\(ProcessInfo.processInfo.systemUptime-snapshotStarted)")
+        recordDiagnostic("preview snapshot finished duration=\(ProcessInfo.processInfo.systemUptime-snapshotStarted)")
         preview.frame=CGRect(origin:.zero,size:rect.size)
         let parameters=UIDragPreviewParameters();parameters.backgroundColor = .clear
         parameters.visiblePath=UIBezierPath(roundedRect:preview.bounds,cornerRadius:11)
