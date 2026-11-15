@@ -2,7 +2,7 @@ import XCTest
 import UIKit
 final class ScreenshotTests:XCTestCase {
     override func setUp(){super.setUp();executionTimeAllowance=600}
-    @MainActor func testCaptureNativeScreens(){capture(["grid","jam","mixer","projects","export","export-wav","export-stems","notes","notes-mixer","harmony","harmony-proposal","harmony-custom","harmony-custom-ru","assistant","assistant-proposal","assistant-song-proposal","voice","voice-draft","perform","perform-take","perform-export","midi","midi-mapped","grid-light","jam-light","mixer-light","notes-light","export-light","grid-ru","assistant-ru","mixer-ru","voice-ru","notes-large","mixer-large","jam-large","settings"])}
+    @MainActor func testCaptureNativeScreens(){capture(["grid","jam","mixer","projects","export","export-wav","export-stems","notes","notes-mixer","harmony","harmony-proposal","harmony-custom","harmony-custom-ru","assistant","assistant-proposal","assistant-song-proposal","voice","voice-draft","perform","perform-take","perform-export","midi","grid-light","jam-light","mixer-light","notes-light","export-light","grid-ru","assistant-ru","mixer-ru","voice-ru","notes-large","mixer-large","jam-large","settings"])}
     private var russianRecapture:Bool{ProcessInfo.processInfo.environment["GRILLA_RU_RECAPTURE"]=="1"}
     @MainActor func testCaptureStoreScreens(){
         let locales=russianRecapture ? ["ru"]:["en-US","ru"]
@@ -33,9 +33,7 @@ final class ScreenshotTests:XCTestCase {
             if customHarmony,!prepareCustomHarmony(app,russian:language=="ru"){continue}
             if harmonyOptions,!prepareHarmonyOptions(app){continue}
             if arrangementClips,!prepareClipInspector(app){continue}
-            if target=="midi" || target=="midi-mapped" {
-                if !prepareMIDICapture(app,mapped:target=="midi-mapped"){continue}
-            }
+            if target=="midi",!prepareMIDICapture(app,mapped:false){continue}
             if target=="voice-draft"{XCTAssertTrue(app.staticTexts["voice.note-count"].waitForExistence(timeout:15))}
             Thread.sleep(forTimeInterval:target.hasPrefix("perform-") ? 5:1)
             let png=settledPNG()
@@ -44,6 +42,13 @@ final class ScreenshotTests:XCTestCase {
                 XCTAssertEqual(width,1320,"Store screenshot must preserve the native display width");XCTAssertEqual(height,2868)
             }
             let shot=XCTAttachment(data:png,uniformTypeIdentifier:"public.png");shot.name="OriginalVision-"+screen;shot.lifetime = .keepAlways;add(shot)
+            if target=="midi" {
+                // Capture the real unmapped → learned transition in this same
+                // launched process, without rebuilding its healthy MIDI client.
+                guard prepareMIDICapture(app,mapped:true,allowReconnect:false)else{continue}
+                let mapped=XCTAttachment(data:settledPNG(),uniformTypeIdentifier:"public.png")
+                mapped.name="OriginalVision-midi-mapped";mapped.lifetime = .keepAlways;add(mapped)
+            }
         }
     }
     @MainActor private func waitForCaptureState(_ element:XCUIElement,_ predicate:NSPredicate,_ message:String)->Bool {
@@ -75,12 +80,13 @@ final class ScreenshotTests:XCTestCase {
          app.tables.containing(.button,identifier:"midi.reconnect").firstMatch,
          app.scrollViews.containing(.button,identifier:"midi.reconnect").firstMatch].first{$0.exists}
     }
-    @MainActor private func prepareMIDICapture(_ app:XCUIApplication,mapped:Bool)->Bool{
+    @MainActor private func prepareMIDICapture(_ app:XCUIApplication,mapped:Bool,allowReconnect:Bool=true)->Bool{
         let status=app.buttons["midi.done"]
         guard status.waitForExistence(timeout:6),let form=midiForm(app)else{XCTFail("The actual MIDI form did not open");return false}
         let ready=NSPredicate{_,_ in self.midiReady(status)}
         if XCTWaiter.wait(for:[XCTNSPredicateExpectation(predicate:ready,object:status)],timeout:6) != .completed {
             preserveMIDIStartup(app,status:status,name:"before-reconnect")
+            guard allowReconnect else{XCTFail("The same-process MIDI mapping transition lost its actual connected input/output state: \(status.value ?? "missing")");return false}
             let state=midiState(status)
             // A recorded startup failure permits one real, visible reconnect.
             // No arbitrary delay, repeated tap or generated mapping replaces it.
@@ -95,6 +101,12 @@ final class ScreenshotTests:XCTestCase {
             }
         }
         guard !app.staticTexts["midi.error"].exists else{preserveMIDIStartup(app,status:status,name:"unexpected-error");XCTFail("A MIDI error cannot be captured as ready");return false}
+        if !mapped {
+            guard midiState(status)["mapping"]=="0",midiState(status)["learningActive"]=="0" else{
+                preserveMIDIStartup(app,status:status,name:"unexpected-mapped-baseline")
+                XCTFail("The connected MIDI baseline must be genuinely unmapped and not armed for learning");return false
+            }
+        }
         if mapped {
             if midiState(status)["mapping"] != "1" {
                 let learn=app.buttons["midi.learn"],send=app.buttons["midi.send-fixture"]
