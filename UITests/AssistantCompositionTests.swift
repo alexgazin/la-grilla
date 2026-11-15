@@ -82,7 +82,20 @@ final class AssistantCompositionTests:XCTestCase {
             }
             XCTAssertTrue(control.isHittable);control.tap()
             if change=="language" {
-                let english=app.buttons["EN"];XCTAssertTrue(english.waitForExistence(timeout:5));english.tap()
+                // iOS 26 exposes the real menu row but can omit its AX
+                // activation point. A single physical tap uses that row's
+                // visible bounds; never tap the underlying language picker.
+                let english=app.buttons.matching(NSPredicate(format:"label == 'EN' AND identifier != 'assistant.language'")).firstMatch
+                XCTAssertTrue(english.waitForExistence(timeout:5))
+                let visible=NSPredicate{_,_ in
+                    guard english.exists,english.isHittable else{return false}
+                    let frame=english.frame,window=app.windows.firstMatch.frame
+                    return frame.width>0 && frame.height>0 && window.contains(frame)
+                }
+                wait(english,visible)
+                english.coordinate(withNormalizedOffset:CGVector(dx:0.5,dy:0.5)).tap()
+                wait(control,NSPredicate(format:"label CONTAINS 'EN' OR value CONTAINS 'EN'"))
+                wait(english,NSPredicate(format:"exists == false"))
             }
             // Check the actual Session preview flag and transport even after
             // the review controls disappear; hiding the proposal is insufficient.
