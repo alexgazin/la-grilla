@@ -19,7 +19,12 @@ final class ScreenshotTests:XCTestCase {
             if screen=="compact-jam"{XCTAssertTrue(app.buttons["Perc"].isHittable)}
             if target=="voice-draft"{XCTAssertTrue(app.staticTexts["voice.note-count"].waitForExistence(timeout:15))}
             Thread.sleep(forTimeInterval:target.hasPrefix("perform-") ? 5:1)
-            let shot=XCTAttachment(screenshot:XCUIScreen.main.screenshot());shot.name="R10-"+screen;shot.lifetime = .keepAlways;add(shot);app.terminate()
+            let png=XCUIScreen.main.screenshot().pngRepresentation
+            if screen.hasPrefix("store-"){
+                let width=png[16..<20].reduce(0){($0<<8)|Int($1)},height=png[20..<24].reduce(0){($0<<8)|Int($1)}
+                XCTAssertEqual(width,1320,"Store screenshot must preserve the native display width");XCTAssertEqual(height,2868)
+            }
+            let shot=XCTAttachment(data:png,uniformTypeIdentifier:"public.png");shot.name="R10-"+screen;shot.lifetime = .keepAlways;add(shot);app.terminate()
         }
     }
 }
