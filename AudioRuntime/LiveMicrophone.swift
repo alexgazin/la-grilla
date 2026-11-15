@@ -239,8 +239,8 @@ private final class InputResources:@unchecked Sendable {
         do {
             try session.setCategory(.playAndRecord,mode:.measurement,options:[.defaultToSpeaker,.allowBluetoothA2DP])
             try session.setActive(true)
-            // Observe the existing output I/O unit before lazily creating input.
-            // This query must not itself access inputNode or enable hardware.
+            // Observe I/O before this lease accesses the pre-created input.
+            // This read must not change input enablement or hardware formats.
             let beforeInputNode=LiveInputRouteSnapshot.IOUnit(engine.outputNode)
             let input=engine.inputNode
             var format=input.outputFormat(forBus:0)

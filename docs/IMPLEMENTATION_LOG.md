@@ -148,6 +148,21 @@ Source `1bfdb22bd7fa60efca90c7a702befbf240c6e986`, [run 43733352465](https://git
 
 При независимой сверке найден реальный state bug: MIDI mixer edit вызывал baseline sync, но оставлял `harmonyPreview=true`; preview из idle продолжал играть baseline. Нормальный sync теперь централизованно сбрасывает audition и восстанавливает исходное idle/run состояние; Performance mix path сохранён. `endHarmonyPreview` использует ту же процедуру, а open очищает старый audition до смены проекта/seek0. Native snapshot QA дополнен running-preview/MIDI gain, rejected edit, accepted idle edit и project-open cases; их новая приёмка ещё предстоит.
 
+### C5 — 94c6a6a: установлен различающий порядок создания I/O
+
+[Run 43736580392](https://github.com/alexgazin/la-grilla/actions/runs/43736580392), source `94c6a6a4822cbe88bad1506728a1d1ae70016239`: обе SDK/archive проходят. Оба production mic tests по-прежнему не приняты. Отдельная сборка диагностических данных прошла и вернула `DIAGNOSTIC`, не `PASS` C5: permission `undetermined → granted`, explicit request=true, 5.169 s для четырёх контролей. Actual host TCC row — grant2/type0; настоящий SimulatorTrampoline code identifier совпадает.
+
+| Локальный контроль | Реальные input formats / EnableIO | Реальные конечные PCM |
+| --- | --- | --- |
+| Duplex, input getter до output | 48 kHz/2ch, input1 | 12000 finite frames, complete |
+| Playback, input getter до output; затем duplex | 48 kHz/2ch, input1 уже на первом этапе | 12000 finite frames, complete |
+| Playback, output-first/late input + reprepare | 0 Hz/2ch, input0 | 0, tap не установлен |
+| Duplex до engine creation, output-first/late input | 0 Hz/2ch, input0 | 0, tap не установлен |
+
+Категория первого локального контроля сменилась на Playback во время наблюдения; поэтому данные не объявляют весь эксперимент идеальной изоляцией глобальной сессии. При этом оба input-first графа дали настоящий ограниченный callback transport, оба output-first — нет. Название старого второго ID «disabled» было гипотезой: фактический EnableIO там1, это явно сохранено в receipt. Generic production failure снова показал сохранённую phase, но 158.662625 ms excess output gap; сам reprepare не исправил disabled singleton.
+
+Минимальная следующая production-правка создаёт `e.inputNode` до output/mainMixer/source preparation существующего AudioController. Категория на старте остаётся Playback, ручного изменения AU/формата или нового capture engine нет. До принятия обязательна новая cold-output проверка: XCTest сбрасывает разрешение в undetermined, запускает настоящий output и отвергает неожиданный microphone alert; helper не вызывает permission API/tap. Реальная запись, CAF/analysis/apply/source/Undo должны пройти прежние строгие тесты. Физический microphone indicator остаётся отдельным C8 наблюдением.
+
 ## Формат отчёта каждого этапа
 
 Для C1–C8 добавлять отдельную запись:

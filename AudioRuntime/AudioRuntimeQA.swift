@@ -38,6 +38,44 @@ import SwiftUI
         guard let pointer=audio.withKernel({$0})else{throw Failure(message:"No live kernel")}
         return pointer
     }
+    /// Observe ordinary output startup without fetching inputNode, installing
+    /// an input tap or invoking any microphone permission request API.
+    static func outputPrivacy(_ session:Session)async throws->String {
+        let audio=session.audio
+        let before=AVAudioApplication.shared.recordPermission
+        _ = try await fixture(audio)
+        defer{audio.stop()}
+        let clockBefore=audio.clock
+        var peak:Float=0
+        try await wait(audio){
+            peak=max(peak,audio.meters.max() ?? 0)
+            return audio.playing && audio.clock>clockBefore && Double(audio.clock-clockBefore)>=audio.sampleRate*0.25 && peak>0.0001
+        }
+        let after=AVAudioApplication.shared.recordPermission
+        func permissionName(_ value:AVAudioApplication.recordPermission)->String {
+            value == .undetermined ? "undetermined":value == .granted ? "granted":"denied"
+        }
+        struct Report:Encodable {
+            let outcome:String
+            let diagnosticOnly=true
+            let productionAcceptance=false
+            let permissionBefore:String
+            let permissionAfter:String
+            let outputPlaying:Bool
+            let outputEngineRunning:Bool
+            let outputClockFramesAdvanced:UInt64
+            let observedOutputPeak:Float
+            let softwareOutputPrivacyVerified:Bool
+            let physicalMicrophoneIndicatorVerified=false
+            let observation="Permission state and output callbacks are software observations. System-alert absence is checked by XCTest; physical microphone-indicator behavior requires device verification."
+        }
+        let verified=before == .undetermined && after == .undetermined && audio.playing && audio.captureEngine?.isRunning==true
+        let report=Report(outcome:verified ? "PASS":"FAIL",permissionBefore:permissionName(before),permissionAfter:permissionName(after),outputPlaying:audio.playing,outputEngineRunning:audio.captureEngine?.isRunning==true,outputClockFramesAdvanced:audio.clock-clockBefore,observedOutputPeak:peak,softwareOutputPrivacyVerified:verified)
+        let encoder=JSONEncoder();encoder.outputFormatting=[.sortedKeys,.prettyPrinted]
+        let details=String(decoding:try encoder.encode(report),as:UTF8.self)
+        try require(verified,details)
+        return details
+    }
     static func snapshots(_ session:Session)async throws->String {
         let audio=session.audio
         let acceptanceDeadline=Date().addingTimeInterval(30)
@@ -349,6 +387,7 @@ struct AudioRuntimeQAView:View {
                 result="DIAGNOSTIC"
                 return
             }
+            if ProcessInfo.processInfo.arguments.contains("--audio-runtime-output-privacy"){details=try await AudioRuntimeQA.outputPrivacy(session);result="PASS";return}
             if ProcessInfo.processInfo.arguments.contains("--audio-runtime-midi-policy"){details=try await AudioRuntimeQA.midiPolicy(session)}
             else if ProcessInfo.processInfo.arguments.contains("--audio-runtime-drum-clip"){details=try await DrumClipRuntimeQA.run(session)}
             else if voiceCaptureCase{details=try await VoiceCaptureRuntimeQA.run(session)}

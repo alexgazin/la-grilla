@@ -63,6 +63,8 @@ final class AudioRuntimeContinuityTests:XCTestCase {
             XCTAssertEqual(diagnostic["diagnosticOnly"] as? Bool,true)
             XCTAssertEqual(diagnostic["productionAcceptance"] as? Bool,false)
             XCTAssertEqual(diagnostic["humanVoiceAccuracyVerified"] as? Bool,false)
+            XCTAssertEqual(diagnostic["permissionAfter"] as? String,"granted")
+            XCTAssertEqual(diagnostic["permissionRequestGranted"] as? Bool,true)
             XCTAssertEqual(diagnostic["originalSessionEngineReleased"] as? Bool,true)
             let cases=try XCTUnwrap(diagnostic["cases"] as? [[String:Any]])
             XCTAssertEqual(cases.count,4)
@@ -112,6 +114,53 @@ final class AudioRuntimeContinuityTests:XCTestCase {
         XCTAssertEqual(report["physicalDropoutAbsenceVerified"] as? Bool,false)
     }
 
+    @MainActor func testAAOutputOnlyLaunchDoesNotRequestMicrophone()throws {
+        let app=XCUIApplication(),springboard=XCUIApplication(bundleIdentifier:"com.apple.springboard")
+        app.terminate()
+        app.resetAuthorizationStatus(for:.microphone)
+        app.launchArguments=["--uitesting","--audio-runtime-qa","--audio-runtime-output-privacy","-AppleLanguages","(en)","-AppleLocale","en_US"]
+        var microphoneAlertObserved=false
+        func rejectMicrophoneAlert(_ alert:XCUIElement)->Bool {
+            let text=([alert.label]+alert.staticTexts.allElementsBoundByIndex.map(\.label)).joined(separator:" ")
+            guard text.localizedCaseInsensitiveContains("microphone") else{return false}
+            microphoneAlertObserved=true
+            // Reject unexpected access rather than granting it. This also lets
+            // the test collect the software receipt before failing privacy.
+            for title in ["Don’t Allow","Don't Allow"] where alert.buttons[title].exists{alert.buttons[title].tap();break}
+            return true
+        }
+        let interruption=addUIInterruptionMonitor(withDescription:"Reject unexpected microphone request during output-only launch"){rejectMicrophoneAlert($0)}
+        defer {
+            app.terminate()
+            for alert in springboard.alerts.allElementsBoundByIndex{_ = rejectMicrophoneAlert(alert)}
+            app.resetAuthorizationStatus(for:.microphone)
+            removeUIInterruptionMonitor(interruption)
+        }
+        app.launch()
+        let result=app.staticTexts["audio.runtime.result"]
+        let deadline=Date().addingTimeInterval(20)
+        while Date()<deadline {
+            for alert in springboard.alerts.allElementsBoundByIndex{_ = rejectMicrophoneAlert(alert)}
+            if result.exists,result.label=="PASS" || result.label=="FAIL"{break}
+            RunLoop.current.run(until:Date().addingTimeInterval(0.1))
+        }
+        for alert in springboard.alerts.allElementsBoundByIndex{_ = rejectMicrophoneAlert(alert)}
+        let details=app.staticTexts["audio.runtime.details"].label
+        let attachment=XCTAttachment(string:details);attachment.name="Cold-output-only-privacy-software-observation";attachment.lifetime = .keepAlways;add(attachment)
+        XCTAssertFalse(microphoneAlertObserved,"Output-only startup requested microphone access.")
+        XCTAssertEqual(result.label,"PASS",details)
+        let data=try XCTUnwrap(details.data(using:.utf8))
+        let report=try XCTUnwrap(JSONSerialization.jsonObject(with:data) as? [String:Any])
+        XCTAssertEqual(report["permissionBefore"] as? String,"undetermined")
+        XCTAssertEqual(report["permissionAfter"] as? String,"undetermined")
+        XCTAssertEqual(report["softwareOutputPrivacyVerified"] as? Bool,true)
+        XCTAssertEqual(report["outputPlaying"] as? Bool,true)
+        XCTAssertEqual(report["outputEngineRunning"] as? Bool,true)
+        XCTAssertGreaterThan(report["outputClockFramesAdvanced"] as? Int ?? 0,0)
+        XCTAssertGreaterThan(report["observedOutputPeak"] as? Double ?? 0,0.0001)
+        XCTAssertEqual(report["physicalMicrophoneIndicatorVerified"] as? Bool,false)
+        XCTAssertEqual(report["productionAcceptance"] as? Bool,false)
+    }
     @MainActor func testProductionVoiceCaptureCAFAnalysisApplyStoreAndUndo()throws {try run(microphone:true,voiceCapture:true)}
     @MainActor func testLiveSnapshotMixRoutingAndClockStayCoherent()throws {try run(microphone:false)}
     @MainActor func testSessionMicrophoneLeaseRetainsLiveEngineAndPCM()throws {try run(microphone:true)}
