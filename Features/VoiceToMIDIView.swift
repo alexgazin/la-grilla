@@ -28,16 +28,16 @@ struct VoiceToMIDIView:View {
         NavigationStack {
             ScrollView {
                 VStack(alignment:.leading,spacing:18){
-                    HStack{Image(systemName:"waveform.badge.mic").font(.system(size:32)).foregroundStyle(Color.record);Spacer();CapsuleLabel(text:"BETA · MONO",color:.record)}
-                    Text("Hum it. Shape it.").font(.system(.title2,weight:.medium))
-                    Text("Record one melody in a quiet room. Use headphones. Microphone monitoring is off. Review uncertain notes before applying.").font(.subheadline).foregroundStyle(Color.muted)
-                    HStack{Text(session.section.name).fontWeight(.medium);Spacer();Text("\(Int(limit)) s · \(Int(session.project.bpm)) BPM").font(.caption.monospaced()).foregroundStyle(Color.muted)}
+                    Text("Hum it. Shape it.").font(.system(.title2,weight:.semibold)).tracking(-0.6)
+                    Text("Record one melody with headphones, then review the notes.").font(.caption).foregroundStyle(Color.muted)
+                    DisclosureGroup{Text("Record one melody in a quiet room. Use headphones. Microphone monitoring is off. Review uncertain notes before applying.").font(.caption).foregroundStyle(Color.muted).padding(.vertical,8)}label:{Text("Recording guide").frame(maxWidth:.infinity,minHeight:44,alignment:.leading)}.font(.caption).foregroundStyle(Color.muted)
+                    HStack{Text(session.section.name).fontWeight(.medium);Spacer();Text("\(Int(limit)) s · \(Int(session.project.bpm)) BPM").font(.caption.monospaced()).foregroundStyle(Color.muted);CapsuleLabel(text:"BETA · MONO",color:.record)}
                     if synthetic{Text("QA FIXTURE · SYNTHETIC SOURCE").font(.caption.monospaced()).foregroundStyle(Color.harmony)}
                     recordingControls
                     if let result=capture.result{draft(result)}
                     if let error=capture.error{Text(LocalizedStringKey(error)).font(.callout).foregroundStyle(Color.record)}
                     if let error{Text(LocalizedStringKey(error)).font(.callout).foregroundStyle(Color.record)}
-                }.padding(20)
+                }.padding(18)
             }.background(Color.ink).navigationTitle("Voice to MIDI").navigationBarTitleDisplayMode(.inline)
                 .toolbar{ToolbarItem(placement:.cancellationAction){Button("Cancel"){dismiss()}.disabled(applying)}}
         }.tint(.record).interactiveDismissDisabled(applying)
@@ -54,10 +54,10 @@ struct VoiceToMIDIView:View {
             if capture.state == .countIn{Text("\(capture.remaining)").font(.system(size:64,weight:.medium,design:.monospaced)).foregroundStyle(Color.record)}
             if capture.state == .recording{HStack{Circle().fill(Color.record).frame(width:9,height:9);Text(String(format:"%.1f s",capture.elapsed)).font(.title2.monospaced());Spacer();ProgressView(value:min(1,capture.level)).tint(.record).frame(width:100)}}
             if capture.state == .analyzing{ProgressView("Analyzing melody…",value:capture.progress).tint(.record)}
-            if capture.isCapturing{Button{capture.stop()}label:{Label("Stop recording",systemImage:"stop.fill").frame(maxWidth:.infinity,minHeight:52).background(Color.record,in:RoundedRectangle(cornerRadius:12)).foregroundStyle(Color.ink)}}
+            if capture.isCapturing{Button{capture.stop()}label:{Label("Stop recording",systemImage:"stop.fill")}.buttonStyle(StudioActionStyle(color:.record))}
             else if capture.state != .analyzing && !applied{
                 Toggle("One-bar count-in",isOn:$countIn)
-                Button{record()}label:{Label(LocalizedStringKey(capture.result==nil ? "Record melody":"Record again"),systemImage:"record.circle").frame(maxWidth:.infinity,minHeight:52).background(Color.record,in:RoundedRectangle(cornerRadius:12)).foregroundStyle(Color.ink).fontWeight(.semibold)}.disabled(applying)
+                Button{record()}label:{Label(LocalizedStringKey(capture.result==nil ? "Record melody":"Record again"),systemImage:"record.circle")}.buttonStyle(StudioActionStyle(color:.record)).disabled(applying)
             }
         }
     }
@@ -72,7 +72,7 @@ struct VoiceToMIDIView:View {
             }.font(.subheadline)
             if session.harmonyPreview{Button("Stop preview"){session.endHarmonyPreview()}.frame(minHeight:44)}
             DisclosureGroup("Rhythm and scale"){
-                VStack(spacing:12){Picker("Quantize",selection:$quantize){Text("Original").tag(Quantize.off);Text("1/16").tag(Quantize.sixteenth);Text("1/8").tag(Quantize.eighth)}.pickerStyle(.segmented);Toggle("Snap to project scale",isOn:$snapScale);HStack{Text("Timing offset");Slider(value:$offset,in:-0.25...0.25,step:0.005);Text("\(Int(offset*1000)) ms").font(.caption.monospaced()).frame(width:56)};Button("Rebuild notes from source"){resetNotes()};Text("Rebuilding replaces manual note corrections. The original recording stays available.").font(.caption).foregroundStyle(Color.muted)}.padding(.top,12)
+                VStack(spacing:12){StudioSegments(title:"Quantize",selection:$quantize,options:[(.off,"Original"),(.sixteenth,"1/16"),(.eighth,"1/8")]);Toggle("Snap to project scale",isOn:$snapScale);HStack{Text("Timing offset");Slider(value:$offset,in:-0.25...0.25,step:0.005);Text("\(Int(offset*1000)) ms").font(.caption.monospaced()).frame(width:56)};Button("Rebuild notes from source"){resetNotes()};Text("Rebuilding replaces manual note corrections. The original recording stays available.").font(.caption).foregroundStyle(Color.muted)}.padding(.top,12)
             }
             if !notes.isEmpty{noteRoll;eventEditor}
             Picker("Destination",selection:$target){Text("New melody track").tag(nil as UUID?);ForEach(session.project.tracks.filter{$0.role == .melody}){t in Text(t.displayName).tag(Optional(t.id))}}.pickerStyle(.menu).disabled(applied)
@@ -81,7 +81,7 @@ struct VoiceToMIDIView:View {
                 Text("Notes applied. Save needs attention.").font(.callout).foregroundStyle(Color.harmony)
                 Button("Retry save"){Task{await session.save();if session.saveError==nil{dismiss()}else{error=session.saveError}}}.frame(minHeight:48)
             }else{
-                Button{apply()}label:{HStack{if applying{ProgressView()};Text("Apply melody")}.fontWeight(.semibold).frame(maxWidth:.infinity,minHeight:52).foregroundStyle(Color.ink).background(Color.record,in:RoundedRectangle(cornerRadius:12))}.disabled(notes.isEmpty || applying || capture.isCapturing || capture.state == .analyzing).accessibilityIdentifier("voice.apply")
+                Button{apply()}label:{HStack{if applying{ProgressView()};Text("Apply melody")}}.buttonStyle(StudioActionStyle()).disabled(notes.isEmpty || applying || capture.isCapturing || capture.state == .analyzing).accessibilityIdentifier("voice.apply")
                 Text("One Undo restores the previous music. Source audio is kept in the project and portable exports.").font(.caption).foregroundStyle(Color.muted)
             }
         }

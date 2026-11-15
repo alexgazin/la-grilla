@@ -30,6 +30,9 @@ final class StudioTests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Экспорт"].waitForExistence(timeout:5));XCTAssertTrue(app.buttons["Отмена"].exists)
         let shot=XCTAttachment(data:XCUIScreen.main.screenshot().pngRepresentation,uniformTypeIdentifier:"public.png");shot.name="R8-russian-light-export";shot.lifetime = .keepAlways;add(shot)
         app.buttons["Отмена"].tap();app.buttons["Джем"].tap()
+        let guide=app.buttons["jam.recording-guide"]
+        for _ in 0..<5 {if guide.isHittable{break};app.scrollViews.firstMatch.swipeUp()}
+        XCTAssertTrue(guide.exists);guide.tap()
         let hint=app.staticTexts["Сыграй свой собственный ритм."]
         XCTAssertTrue(hint.waitForExistence(timeout:5))
         for _ in 0..<4 {if app.staticTexts["Создавай бит слой за слоем."].isHittable{break};app.scrollViews.firstMatch.swipeUp()}

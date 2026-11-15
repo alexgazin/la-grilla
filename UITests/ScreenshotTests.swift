@@ -24,6 +24,7 @@ final class ScreenshotTests:XCTestCase {
             if screen.hasPrefix("compact-"){
                 for label in language=="ru" ? ["Сетка","Джем","Микшер","Играть"]:["Grid","Jam","Mixer","Play"]{XCTAssertTrue(app.buttons[label].isHittable)}
                 if target=="jam"{XCTAssertTrue(app.buttons[language=="ru" ? "Перкуссия":"Perc"].isHittable)}
+                if target=="mixer"{XCTAssertTrue(app.buttons["mixer.mute.0"].isHittable);XCTAssertTrue(app.buttons["mixer.solo.0"].isHittable);XCTAssertTrue(app.sliders["mixer.pan.0"].isHittable)}
             }
             if target=="voice-draft"{XCTAssertTrue(app.staticTexts["voice.note-count"].waitForExistence(timeout:15))}
             Thread.sleep(forTimeInterval:target.hasPrefix("perform-") ? 5:1)

@@ -21,11 +21,10 @@ struct AssistantView:View {
         NavigationStack {
             ScrollView {
                 VStack(alignment:.leading,spacing:18){
-                    HStack{Image(systemName:"text.bubble").font(.system(size:32)).foregroundStyle(Color.mint);Spacer();CapsuleLabel(text:"LOCAL",color:.mint)}
-                    Text("An idea, in your words.").font(.system(.title2,weight:.medium))
-                    Text("Commands create a proposal. Review the section, durations and assumptions before applying.").font(.subheadline).foregroundStyle(Color.muted)
-                    HStack{Text(session.section.name).fontWeight(.medium);Spacer();Text("\(session.section.length/barTicks) bars · \(Int(session.project.bpm)) BPM").font(.caption.monospaced()).foregroundStyle(Color.muted)}
-                    TextEditor(text:$input).focused($focused).frame(height:110).scrollContentBackground(.hidden).padding(8).background(Color.panel,in:RoundedRectangle(cornerRadius:12)).accessibilityLabel("Command").accessibilityIdentifier("assistant.input")
+                    Text("An idea, in your words.").font(.system(.title2,weight:.semibold)).tracking(-0.6)
+                    Text("Commands create a proposal. Review the section, durations and assumptions before applying.").font(.caption).foregroundStyle(Color.muted)
+                    HStack{Text(session.section.name).fontWeight(.medium);Spacer();Text("\(session.section.length/barTicks) bars · \(Int(session.project.bpm)) BPM").font(.caption.monospaced()).foregroundStyle(Color.muted);CapsuleLabel(text:"LOCAL",color:.mint)}
+                    TextEditor(text:$input).focused($focused).frame(height:110).scrollContentBackground(.hidden).padding(8).modifier(StudioSurface()).overlay(alignment:.topLeading){if input.isEmpty && !focused{Text("Try: Tempo 110").font(.subheadline).foregroundStyle(Color.muted).padding(16).allowsHitTesting(false).accessibilityHidden(true)}}.accessibilityLabel("Command").accessibilityIdentifier("assistant.input")
                         .onChange(of:input){_,value in if value.count>2000{input=String(value.prefix(2000))};if value != generatedInput{proposal=nil;candidate=nil};session.endHarmonyPreview()}
                     HStack {
                         Menu("Examples"){
@@ -36,17 +35,17 @@ struct AssistantView:View {
                         }.frame(minHeight:44)
                         Spacer()
                         Picker("Dictation language",selection:$language){Text("RU").tag("ru-RU");Text("EN").tag("en-US")}.pickerStyle(.menu).disabled(dictation.recording || dictation.requesting)
-                        Button{toggleDictation()}label:{Image(systemName:dictation.recording ? "stop.circle.fill":"mic.fill").frame(width:44,height:44).foregroundStyle(dictation.recording ? Color.record:Color.mint)}.accessibilityLabel(dictation.recording ? "Stop dictation":"Dictate a command").disabled(dictation.requesting)
+                        Button{toggleDictation()}label:{Image(systemName:dictation.recording ? "stop.circle.fill":"mic.fill").frame(width:44,height:44).foregroundStyle(dictation.recording ? Color.record:Color.mint)}.accessibilityLabel(LocalizedStringKey(dictation.recording ? "Stop dictation":"Dictate a command")).disabled(dictation.requesting)
                     }
                     if dictation.requesting{ProgressView("Preparing dictation…")}
                     if dictation.recording{Label("LISTENING · COMMAND",systemImage:"waveform").font(.caption.monospaced()).foregroundStyle(Color.record)}
-                    Text("Dictation stops playback and requires on-device recognition. You can always type. Humming requires a separate melody recording.").font(.caption).foregroundStyle(Color.muted)
+                    DisclosureGroup{Text("Dictation stops playback and requires on-device recognition. You can always type. Humming requires a separate melody recording.").font(.caption).foregroundStyle(Color.muted).padding(.vertical,8)}label:{Text("Dictation details").frame(maxWidth:.infinity,minHeight:44,alignment:.leading)}.font(.caption).foregroundStyle(Color.muted)
                     if let error=dictation.error{Text(LocalizedStringKey(error)).font(.caption).foregroundStyle(Color.record)}
-                    Button{generate()}label:{Label("Review command",systemImage:"sparkles").frame(maxWidth:.infinity,minHeight:48).background(Color.mint,in:RoundedRectangle(cornerRadius:12)).foregroundStyle(Color.ink).fontWeight(.semibold)}.disabled(input.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty || dictation.requesting || dictation.recording).accessibilityIdentifier("assistant.generate")
+                    Button{generate()}label:{Label("Review command",systemImage:"sparkles")}.buttonStyle(StudioActionStyle()).disabled(input.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty || dictation.requesting || dictation.recording).accessibilityIdentifier("assistant.generate")
                     if let error{Text(LocalizedStringKey(error)).font(.callout).foregroundStyle(Color.record)}
                     if ambiguous {VStack(spacing:8){Button("Stretch chords evenly"){generate(.stretch)};Button("Repeat, one bar per chord"){generate(.repeatBars)}}.buttonStyle(.bordered).frame(maxWidth:.infinity)}
                     if let proposal,let candidate{review(proposal,candidate:candidate)}
-                }.padding(20)
+                }.padding(18)
             }.scrollDismissesKeyboard(.interactively).background(Color.ink).navigationTitle("Assistant").navigationBarTitleDisplayMode(.inline)
                 .toolbar{ToolbarItem(placement:.cancellationAction){Button("Cancel"){dismiss()}}}
         }.tint(.mint)
@@ -60,12 +59,12 @@ struct AssistantView:View {
     func review(_ proposal:AssistantProposal,candidate:Project)->some View {
         VStack(alignment:.leading,spacing:14){
             SmallHeading(text:"PROPOSAL")
-            ForEach(Array(proposal.operations.enumerated()),id:\.offset){_,op in Text(summary(op,candidate:candidate)).padding(12).frame(maxWidth:.infinity,alignment:.leading).background(Color.panel,in:RoundedRectangle(cornerRadius:10))}
+            ForEach(Array(proposal.operations.enumerated()),id:\.offset){_,op in Text(summary(op,candidate:candidate)).padding(12).frame(maxWidth:.infinity,alignment:.leading).modifier(StudioSurface())}
             if !proposal.assumptions.isEmpty{SmallHeading(text:"ASSUMPTIONS");ForEach(proposal.assumptions,id:\.self){Text($0).font(.caption).foregroundStyle(Color.muted)}}
             ForEach(proposal.warnings,id:\.self){Label($0,systemImage:"exclamationmark.triangle").font(.caption).foregroundStyle(Color.harmony)}
             HStack(spacing:10){Button{if let section=session.project.sections.first(where:{$0.id==proposal.scopeSectionID}){previewB=false;session.previewHarmony(session.project,section:section)}}label:{Text("A · Original").frame(maxWidth:.infinity,minHeight:48).background(session.harmonyPreview && !previewB ? Color.mint.opacity(0.2):Color.raised,in:RoundedRectangle(cornerRadius:10))};Button{if let section=candidate.sections.first(where:{$0.id==proposal.scopeSectionID}){previewB=true;session.previewHarmony(candidate,section:section)}}label:{Text("B · Proposal").frame(maxWidth:.infinity,minHeight:48).background(session.harmonyPreview && previewB ? Color.mint.opacity(0.2):Color.raised,in:RoundedRectangle(cornerRadius:10))}}
             if session.harmonyPreview{Button("Stop preview"){session.endHarmonyPreview()}.frame(minHeight:44)}
-            Button{apply(proposal)}label:{Text("Apply proposal").fontWeight(.semibold).frame(maxWidth:.infinity,minHeight:48).foregroundStyle(Color.ink).background(Color.mint,in:RoundedRectangle(cornerRadius:12))}.accessibilityIdentifier("assistant.apply")
+            Button{apply(proposal)}label:{Text("Apply proposal")}.buttonStyle(StudioActionStyle()).accessibilityIdentifier("assistant.apply")
             Text("One Undo restores the whole change.").font(.caption).foregroundStyle(Color.muted)
         }
     }
@@ -73,7 +72,7 @@ struct AssistantView:View {
         let section=candidate.sections.first{$0.id==op.sectionID}?.name ?? session.section.name
         switch op.type {
         case .setTempo:return "\(Int(op.bpm ?? 120)) BPM"
-        case .setKey:return NSLocalizedString("Key",comment:"")+": "+Chord.roots[op.root ?? 0]+((op.minor ?? false) ? " minor":" major")
+        case .setKey:return NSLocalizedString("Key",comment:"")+": "+Chord.roots[op.root ?? 0]+" "+NSLocalizedString((op.minor ?? false) ? "minor":"major",comment:"Key mode")
         case .renameSection:return session.section.name+" → "+(op.name ?? "")
         case .resizeSection:return section+": \(op.bars ?? 4) "+NSLocalizedString("bars",comment:"")
         case .setProgression:return section+" · "+zip(op.chords ?? [],op.durations ?? []).map{"\($0.symbol) (\($1))"}.joined(separator:" · ")+" "+NSLocalizedString("bars per chord",comment:"")

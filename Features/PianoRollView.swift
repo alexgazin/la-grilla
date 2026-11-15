@@ -51,12 +51,12 @@ struct PianoRollView: View {
                         Button("Duplicate track",systemImage:"plus.square.on.square"){session.duplicateMelody(track.id)}.disabled(session.project.tracks.count>=8)
                         Button("Delete track",systemImage:"trash",role:.destructive){session.deleteMelody(track.id)}
                     }
-                }label:{Label(track?.displayName ?? "Add melody",systemImage:"pianokeys").lineLimit(1).frame(minHeight:44)}.accessibilityIdentifier("notes.tracks")
+                }label:{Label(track?.displayName ?? NSLocalizedString("Add melody",comment:"Track menu"),systemImage:"pianokeys").lineLimit(1).frame(minHeight:44)}.accessibilityIdentifier("notes.tracks")
                 Spacer(minLength:6)
                 Picker("Section",selection:Binding(get:{session.section.id},set:{id in if let s=session.project.sections.first(where:{$0.id==id}){session.select(s)}})){ForEach(session.project.sections){s in Text(s.name).tag(s.id)}}.pickerStyle(.menu)
             }
-            HStack(spacing:12){Picker("Snap",selection:$snap){Text("1/16").tag(240);Text("1/8").tag(480);Text("1/4").tag(960)}.pickerStyle(.segmented)
-                Button{listMode.toggle()}label:{Image(systemName:listMode ? "pianokeys":"list.bullet").frame(width:44,height:44)}.accessibilityLabel(listMode ? "Show piano roll":"Show note list")}
+            HStack(spacing:12){StudioSegments(title:"Snap",selection:$snap,options:[(240,"1/16"),(480,"1/8"),(960,"1/4")])
+                Button{listMode.toggle()}label:{Image(systemName:listMode ? "pianokeys":"list.bullet").frame(width:44,height:44)}.accessibilityLabel(LocalizedStringKey(listMode ? "Show piano roll":"Show note list"))}
         }
     }
     func roll(_ p:Pattern)->some View {

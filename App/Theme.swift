@@ -48,15 +48,26 @@ struct StudioSurface:ViewModifier {
     func body(content:Content)->some View {content.background(color,in:RoundedRectangle(cornerRadius:16)).overlay{RoundedRectangle(cornerRadius:16).stroke(Color.outline.opacity(0.65),lineWidth:0.6)}}
 }
 struct StudioActionStyle:ButtonStyle {
+    @Environment(\.isEnabled) private var enabled
     var color:Color = .mint
     var prominent=true
+    init(color:Color = .mint,prominent:Bool = true){self.color=color;self.prominent=prominent}
     func makeBody(configuration:Configuration)->some View {
         configuration.label.font(.system(.subheadline,weight:.semibold)).foregroundStyle(prominent ? Color.ink:color)
             .frame(maxWidth:.infinity,minHeight:48).padding(.horizontal,12)
             .background(prominent ? color:Color.raised,in:RoundedRectangle(cornerRadius:14))
-            .opacity(configuration.isPressed ? 0.76:1).scaleEffect(configuration.isPressed ? 0.98:1)
+            .opacity(!enabled ? 0.35:configuration.isPressed ? 0.76:1).scaleEffect(configuration.isPressed ? 0.98:1)
     }
 }
 struct StudioMark:View {
     var body:some View {ZStack(alignment:.leading){VStack(spacing:5){ForEach(0..<3){index in RoundedRectangle(cornerRadius:1).fill(Color.mint.opacity(index==1 ? 1:0.45)).frame(width:24,height:3)}};RoundedRectangle(cornerRadius:1).fill(Color.mint).frame(width:3,height:28).offset(x:7)}.frame(width:30,height:30).accessibilityHidden(true)}
+}
+
+struct StudioSegments<Value:Equatable>:View {
+    let title:LocalizedStringKey
+    @Binding var selection:Value
+    let options:[(Value,LocalizedStringKey)]
+    var body:some View {HStack(spacing:3){ForEach(options.indices,id:\.self){index in
+        Button{selection=options[index].0}label:{Text(options[index].1).font(.system(.caption,weight:.semibold)).lineLimit(2).minimumScaleFactor(0.8).frame(maxWidth:.infinity,minHeight:44).foregroundStyle(selection==options[index].0 ? Color.ink:Color.muted).background(selection==options[index].0 ? Color.mint:Color.clear,in:RoundedRectangle(cornerRadius:11))}.buttonStyle(.plain).accessibilityAddTraits(selection==options[index].0 ? .isSelected:[])
+    }}.padding(3).modifier(StudioSurface()).accessibilityElement(children:.contain).accessibilityLabel(title)}
 }

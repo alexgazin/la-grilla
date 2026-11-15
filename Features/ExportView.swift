@@ -17,14 +17,13 @@ struct ExportView:View {
     private var range:Range<Int>{scope==1 ? session.section.start..<session.section.start+session.section.length : scope==2 ? (firstBar-1)*barTicks..<lastBar*barTicks : 0..<session.project.length}
     var body:some View {
         NavigationStack {
-            ScrollView {VStack(alignment:.leading,spacing:22){
-                Image(systemName:"arrow.up.doc").font(.system(size:32,weight:.light)).foregroundStyle(Color.mint).padding(.top,14)
-                Text(LocalizedStringKey(take==nil ? "Take your idea further.":"Export your performance.")).font(.system(.title2,weight:.medium))
+            ScrollView {VStack(alignment:.leading,spacing:18){
+                Text(LocalizedStringKey(take==nil ? "Take your idea further.":"Export your performance.")).font(.system(.title2,weight:.semibold)).tracking(-0.6)
                 LazyVGrid(columns:[GridItem(.flexible()),GridItem(.flexible())],spacing:10){ForEach(formats){option in
-                    Button{format=option}label:{Text(LocalizedStringKey(option.title)).font(.system(.subheadline,weight:.semibold)).frame(maxWidth:.infinity,minHeight:48).foregroundStyle(format==option ? Color.ink:Color.primary).background(format==option ? Color.mint:Color.raised,in:RoundedRectangle(cornerRadius:10))}.buttonStyle(.plain).accessibilityIdentifier("format."+option.rawValue)
+                    Button{format=option}label:{Text(LocalizedStringKey(option.title)).font(.system(.subheadline,weight:.semibold)).frame(maxWidth:.infinity,minHeight:48).foregroundStyle(format==option ? Color.ink:Color.studioText).background(format==option ? Color.mint:Color.panel,in:RoundedRectangle(cornerRadius:14))}.buttonStyle(.plain).accessibilityIdentifier("format."+option.rawValue)
                 }}.disabled(session.exportInProgress)
                 if format != .project && take==nil {
-                    Picker("Range",selection:$scope){Text("Entire song").tag(0);Text("Selected section").tag(1);Text("Bars").tag(2)}.pickerStyle(.segmented).disabled(session.exportInProgress)
+                    StudioSegments(title:"Range",selection:$scope,options:[(0,"Entire song"),(1,"Selected section"),(2,"Bars")]).disabled(session.exportInProgress)
                     if scope==2 {VStack{Stepper("From bar \(firstBar)",value:$firstBar,in:1...lastBar);Stepper("Through bar \(lastBar)",value:$lastBar,in:firstBar...max(1,session.project.length/barTicks))}.font(.system(.subheadline)).disabled(session.exportInProgress)}
                 }
                 if format == .wav || format == .stems {audioSettings}
@@ -34,8 +33,8 @@ struct ExportView:View {
                 Text(description).font(.system(.caption)).foregroundStyle(Color.muted).lineSpacing(4)
                 HStack{Text("\(project.tracks.count) tracks");Spacer();Text("\(Int(project.bpm)) BPM · 4/4")}.font(.system(.caption,design:.monospaced)).foregroundStyle(Color.muted)
                 if session.exportInProgress {VStack(alignment:.leading,spacing:8){ProgressView(value:session.exportProgress).tint(.mint);Text("\(Int(session.exportProgress*100))%").font(.system(.caption,design:.monospaced))}.accessibilityIdentifier("export.progress")}
-                Button{session.export(format:format,settings:WAVSettings(sampleRate:sampleRate,bitDepth:bits,tailSeconds:tail),range:range,tracks:tracks,performance:take)}label:{HStack{if session.exportInProgress{ProgressView()};Text(LocalizedStringKey(session.exportInProgress ? "Exporting…":format == .midi ? "Export MIDI":"Export"));Image(systemName:"arrow.up.right")}.font(.system(.body,weight:.semibold)).foregroundStyle(Color.ink).frame(maxWidth:.infinity,minHeight:52).background(Color.mint,in:RoundedRectangle(cornerRadius:12))}.accessibilityIdentifier("export.confirm").disabled(session.exportInProgress || (format == .stems && tracks.isEmpty))
-            }.padding(24)}.background(Color.panel)
+                Button{session.export(format:format,settings:WAVSettings(sampleRate:sampleRate,bitDepth:bits,tailSeconds:tail),range:range,tracks:tracks,performance:take)}label:{HStack{if session.exportInProgress{ProgressView()};Text(LocalizedStringKey(session.exportInProgress ? "Exporting…":format == .midi ? "Export MIDI":"Export"));Image(systemName:"arrow.up.right")}}.buttonStyle(StudioActionStyle()).accessibilityIdentifier("export.confirm").disabled(session.exportInProgress || (format == .stems && tracks.isEmpty))
+            }.padding(18)}.background(Color.ink)
             .navigationTitle("Export").navigationBarTitleDisplayMode(.inline)
             .toolbar{ToolbarItem(placement:.cancellationAction){Button("Cancel"){session.cancelExport();session.sheet=nil}}}
         }.presentationDetents([.large])
@@ -46,7 +45,7 @@ struct ExportView:View {
         HStack{Text("Sample rate");Spacer();Picker("Sample rate",selection:$sampleRate){Text("44.1 kHz").tag(44100);Text("48 kHz").tag(48000)}.pickerStyle(.menu)}
         HStack{Text("Bit depth");Spacer();Picker("Bit depth",selection:$bits){Text("16 bit").tag(16);Text("24 bit").tag(24)}.pickerStyle(.menu)}
         HStack{Text("Tail");Spacer();Picker("Tail",selection:$tail){Text("0 s").tag(0.0);Text("1 s").tag(1.0);Text("2 s").tag(2.0);Text("5 s").tag(5.0);Text("10 s").tag(10.0)}.pickerStyle(.menu)}
-    }.font(.system(.subheadline)).padding(14).background(Color.raised,in:RoundedRectangle(cornerRadius:10)).disabled(session.exportInProgress)}
+    }.font(.system(.subheadline)).padding(14).modifier(StudioSurface()).disabled(session.exportInProgress)}
     private var description:LocalizedStringKey {
         if take != nil{return format == .midi ? "A finite MIDI sequence with section order, repeated notes, volume, pan and FX controllers. MIDI instruments and effects depend on your music software.":"The recorded section order and automation, rendered with the same instruments and effects as replay. A tail is optional."}
         return switch format {
