@@ -9,7 +9,7 @@ struct JamView: View {
     @State private var stepBar = 0
     @State private var velocity = 100.0
     @State private var pressed: Set<Int> = []
-    var body:some View{Group{if verticalSize == .compact{compactJam}else{ScrollView(.vertical){regularJam}}}
+    var body:some View{Group{if verticalSize == .compact{compactJam}else{ScrollView(.vertical){regularJam}}}}
     private var regularJam: some View {
         VStack(spacing:14){
             HStack{VStack(alignment:.leading,spacing:5){SmallHeading(text:"DRUM MACHINE");Text("Pocket kit").font(.system(size:22,weight:.medium))};Spacer();Picker("Editor",selection:$steps){Text("Pads").tag(false);Text("Steps").tag(true)}.pickerStyle(.segmented).frame(width:145)}.padding(.top,18)
