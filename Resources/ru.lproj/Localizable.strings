@@ -459,3 +459,18 @@
 "Support" = "Поддержка";
 
 "Projects and recordings stay on your iPhone. Portable project exports include their original voice recordings." = "Проекты и записи остаются на iPhone. Переносимые пакеты содержат исходные записи голоса.";
+
+/* Release visual-review corrections: conditional text and badges. */
+"A new take. Your last one is undoable." = "Новый дубль. Предыдущий можно вернуть.";
+"BETA · MONO" = "БЕТА · МОНО";
+"Build your beat, layer by layer." = "Создавай бит слой за слоем.";
+"CLIP" = "ПИК";
+"Could not read project" = "Не удалось прочитать проект";
+"Count-in · get ready" = "Отсчёт · приготовься";
+"Exporting…" = "Экспорт…";
+"LOCAL" = "ЛОКАЛЬНО";
+"ON DEVICE" = "НА УСТРОЙСТВЕ";
+"OUT" = "ВЫХОД";
+"Play something only you would." = "Сыграй свой собственный ритм.";
+"Recording drums · tap Record to finish" = "Запись ритма · нажми кнопку записи для завершения";
+"STEREO" = "СТЕРЕО";

@@ -29,6 +29,13 @@ final class StudioTests: XCTestCase {
         XCTAssertTrue(app.buttons["Сетка"].waitForExistence(timeout:15));app.buttons["export.open"].tap()
         XCTAssertTrue(app.navigationBars["Экспорт"].waitForExistence(timeout:5));XCTAssertTrue(app.buttons["Отмена"].exists)
         let shot=XCTAttachment(data:XCUIScreen.main.screenshot().pngRepresentation,uniformTypeIdentifier:"public.png");shot.name="R8-russian-light-export";shot.lifetime = .keepAlways;add(shot)
+        app.buttons["Отмена"].tap();app.buttons["Джем"].tap()
+        let hint=app.staticTexts["Сыграй свой собственный ритм."]
+        XCTAssertTrue(hint.waitForExistence(timeout:5))
+        for _ in 0..<4 {if app.staticTexts["Создавай бит слой за слоем."].isHittable{break};app.scrollViews.firstMatch.swipeUp()}
+        XCTAssertTrue(app.staticTexts["Создавай бит слой за слоем."].exists)
+        XCTAssertFalse(app.staticTexts["Play something only you would."].exists)
+        XCTAssertFalse(app.staticTexts["Build your beat, layer by layer."].exists)
     }
     @MainActor func testLargeTypeMixerAndAccessibleNoteList() throws {
         XCUIDevice.shared.orientation = .portrait

@@ -51,19 +51,25 @@ jobs:
       - name: Native user flows
         env:
           GRILLA_UI_ONLY: ${{ contains(github.event.head_commit.message, '[ui-only]') && '1' || '0' }}
+          GRILLA_RU_RECAPTURE: ${{ contains(github.event.head_commit.message, '[ru-capture]') && '1' || '0' }}
+          TEST_RUNNER_GRILLA_RU_RECAPTURE: ${{ contains(github.event.head_commit.message, '[ru-capture]') && '1' || '0' }}
         run: |
           set -o pipefail
           DEVICE=$(cat /tmp/grilla-simulator-id)
           FILTER=(-skip-testing:LaGrillaUITests/ScreenshotTests/testCaptureCompactScreens)
           if test "$GRILLA_UI_ONLY" = 1; then FILTER=(-only-testing:LaGrillaUITests/StudioTests); fi
+          if test "$GRILLA_RU_RECAPTURE" = 1; then FILTER+=(-only-testing:LaGrillaUITests/ScreenshotTests/testCaptureStoreScreens); fi
           xcodebuild "${FILTER[@]}" -test-timeouts-enabled YES -maximum-test-execution-time-allowance 600 -project LaGrilla.xcodeproj -scheme LaGrilla -destination "platform=iOS Simulator,id=$DEVICE" -derivedDataPath DerivedData -resultBundlePath TestResults.xcresult ARCHS=arm64 ONLY_ACTIVE_ARCH=YES CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO test-without-building | tee uitests.log
       - name: Compact iPhone screenshots
-        if: always() && !cancelled() && steps.simulator_build.outcome == 'success' && !contains(github.event.head_commit.message, '[ui-only]')
+        if: always() && !cancelled() && steps.simulator_build.outcome == 'success' && (!contains(github.event.head_commit.message, '[ui-only]') || contains(github.event.head_commit.message, '[ru-capture]'))
+        env:
+          GRILLA_RU_RECAPTURE: ${{ contains(github.event.head_commit.message, '[ru-capture]') && '1' || '0' }}
+          TEST_RUNNER_GRILLA_RU_RECAPTURE: ${{ contains(github.event.head_commit.message, '[ru-capture]') && '1' || '0' }}
         run: bash scripts/compact_screenshots.sh
       - name: Export native QA screenshots
         if: always() && !cancelled()
         env:
-          GRILLA_CAPTURE_OPTION: ${{ contains(github.event.head_commit.message, '[ui-only]') && '--allow-empty' || '' }}
+          GRILLA_CAPTURE_OPTION: ${{ contains(github.event.head_commit.message, '[ui-only]') && !contains(github.event.head_commit.message, '[ru-capture]') && '--allow-empty' || '' }}
         run: |
           if test -d TestResults.xcresult; then
             xcrun xcresulttool export attachments --path TestResults.xcresult --output-path NativeAttachments/main
@@ -73,7 +79,7 @@ jobs:
           fi
           python3 scripts/collect_native_screenshots.py NativeAttachments Screenshots/R10 R10 "$GRILLA_CAPTURE_OPTION"
       - name: Prepare validated App Store screenshots
-        if: success() && !contains(github.event.head_commit.message, '[ui-only]')
+        if: success() && (!contains(github.event.head_commit.message, '[ui-only]') || contains(github.event.head_commit.message, '[ru-capture]'))
         run: python3 scripts/release/prepare_store_screenshots.py Screenshots/R10 Screenshots/AppStore
       - name: Save simulator screenshots
         if: always()
