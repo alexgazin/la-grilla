@@ -2,19 +2,19 @@ import XCTest
 final class StudioTests: XCTestCase {
     @MainActor func launch(_ screen: String = "grid") -> XCUIApplication {
         let app=XCUIApplication();app.launchArguments=["--uitesting","--screen",screen,"-AppleLanguages","(en)","-AppleLocale","en_US"]
-        app.launch();XCTAssertTrue(app.buttons["Play"].waitForExistence(timeout:15));return app
+        app.launch();XCTAssertTrue(app.buttons["perform.transport"].waitForExistence(timeout:15));return app
     }
     @MainActor func testPerformRecordingSurvivesNavigationAndReplays() {
         let app=launch("perform")
         XCTAssertTrue(app.buttons["perform.record"].waitForExistence(timeout:5));app.buttons["perform.record"].tap()
-        XCTAssertTrue(app.staticTexts["RECORDING"].waitForExistence(timeout:5))
+        XCTAssertTrue(app.staticTexts["perform.mode"].waitForExistence(timeout:5))
         app.buttons["perform.section.Chorus"].tap()
         app.buttons["perform.done"].tap();app.buttons["Jam"].tap();app.buttons["Kick"].tap()
         app.buttons["perform.transport"].tap();XCTAssertTrue(app.buttons["perform.record"].waitForExistence(timeout:5));app.buttons["perform.record"].tap()
         app.swipeUp();app.swipeUp();app.swipeUp()
         XCTAssertTrue(app.staticTexts["perform.saved"].waitForExistence(timeout:5));app.buttons["perform.replay"].tap()
         app.swipeDown();app.swipeDown();app.swipeDown()
-        XCTAssertTrue(app.staticTexts["TAKE REPLAY"].waitForExistence(timeout:5))
+        XCTAssertTrue(app.staticTexts["perform.mode"].waitForExistence(timeout:5));XCTAssertEqual(app.staticTexts["perform.mode"].label,"TAKE REPLAY")
         app.buttons["perform.panic"].tap();app.buttons["perform.done"].tap()
         XCTAssertTrue(app.buttons["Play"].waitForExistence(timeout:5))
     }

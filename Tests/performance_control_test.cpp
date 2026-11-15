@@ -17,12 +17,12 @@ int main(){
     assert(lg_perform_queue(k,1,0,3840,7680,2));render(512);render(192000-96001-512);assert(lg_perform_active_token(k)==1);
     render(1);assert(lg_perform_active_token(k)==2);assert(lg_tick(k)==3840);
     assert(lg_perform_queue(k,3,480,0,0,0));assert(lg_perform_queue(k,2,1,0,0,0));render(24000);assert(lg_perform_repeat(k)==480);assert(lg_tick(k)>5700&&lg_tick(k)<5800);
-    assert(lg_perform_queue(k,3,0,0,0,0));lg_effects(k,-0.5f,0.25f);render(512);lg_pad(k,0,110);render(512);
+    assert(lg_perform_queue(k,3,0,0,0,0));lg_effects(k,-0.5f,0.25f);lg_mix(k,0,-9,0.35f,1);lg_master(k,-5);render(512);lg_pad(k,0,110);render(512);
     lg_perform_record_stop(k);render(512);assert(!lg_perform_recording(k));const auto duration=lg_perform_duration(k);assert(duration>192000&&duration<240000);
     std::vector<LGPerformanceEvent> events(512);int count=lg_perform_pop(k,events.data(),512);assert(count>=6);assert(events[0].frame==0&&events[0].kind==1);
-    bool launch=false,jump=false,pad=false,filter=false,delay=false;
-    for(int i=0;i<count;i++){const auto &event=events[i];assert(event.epoch==1);assert(event.frame<=duration);if(i)assert(event.frame>=events[i-1].frame);if(event.kind==1&&event.token==2){assert(event.frame==192000);launch=true;}if(event.kind==2){assert(event.frame==216000);jump=true;}if(event.kind==8)pad=true;if(event.kind==4)filter=true;if(event.kind==5)delay=true;}
-    assert(launch&&jump&&pad&&filter&&delay);
+    bool launch=false,jump=false,pad=false,filter=false,delay=false,gain=false,pan=false;
+    for(int i=0;i<count;i++){const auto &event=events[i];assert(event.epoch==1);assert(event.frame<=duration);if(i)assert(event.frame>=events[i-1].frame);if(event.kind==1&&event.token==2){assert(event.frame==192000);launch=true;}if(event.kind==2){assert(event.frame==216000);jump=true;}if(event.kind==8)pad=true;if(event.kind==4)filter=true;if(event.kind==5)delay=true;if(event.kind==6)gain=true;if(event.kind==7)pan=true;}
+    assert(launch&&jump&&pad&&filter&&delay&&gain&&pan);
     events[0].a=0;events[0].b=3840;
     auto *replay=lg_create(48000);assert(lg_submit(replay,notes,2,120,0,3840,1,1));assert(lg_perform_replay_submit(replay,events.data(),count,duration,2));lg_perform_begin(replay,1,2,0,0);
     std::vector<float> replayL(257),replayR(257);float maxDifference=0;
