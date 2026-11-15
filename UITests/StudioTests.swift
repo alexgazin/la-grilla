@@ -69,6 +69,15 @@ final class StudioTests: XCTestCase {
         XCUIDevice.shared.orientation = .portrait
         let app=XCUIApplication();app.launchArguments=["--uitesting","--screen","notes","--large-type","-AppleLanguages","(en)","-AppleLocale","en_US"];app.launch()
         XCTAssertTrue(app.navigationBars["Piano roll"].waitForExistence(timeout:15));XCTAssertTrue(app.descendants(matching:.any)["notes.list"].waitForExistence(timeout:5))
+        let track=app.buttons["notes.tracks"],section=app.buttons["notes.section"]
+        XCTAssertTrue(track.waitForExistence(timeout:5));XCTAssertTrue(section.waitForExistence(timeout:5))
+        XCTAssertTrue(track.label.contains("Melody"));XCTAssertTrue(section.label.contains("Verse") || (section.value as? String)?.contains("Verse")==true)
+        XCTAssertGreaterThanOrEqual(track.frame.height,44)
+        XCTAssertGreaterThanOrEqual(section.frame.minY,track.frame.maxY,"Accessibility-size track and section controls must occupy separate rows")
+        let row=app.buttons.matching(NSPredicate(format:"identifier BEGINSWITH 'notes.row.'")).firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout:5));XCTAssertTrue(row.isHittable)
+        XCTAssertTrue(row.label.contains("G5"));XCTAssertTrue(row.label.contains("960 ticks"));XCTAssertTrue(row.label.contains("v100"))
+        XCTAssertGreaterThanOrEqual(row.frame.height,88,"Large-type note rows must reserve height for pitch and wrapped metadata")
         let shot=XCTAttachment(data:XCUIScreen.main.screenshot().pngRepresentation,uniformTypeIdentifier:"public.png");shot.name="OriginalVision-qa-large-type-piano-roll";shot.lifetime = .keepAlways;add(shot)
         app.buttons["Done"].tap();app.buttons["Mixer"].tap();XCTAssertTrue(app.sliders["Gain Harmony"].waitForExistence(timeout:5))
         try app.performAccessibilityAudit(for:[.sufficientElementDescription])

@@ -49,14 +49,24 @@ struct PianoRollView: View {
     }
     var controls:some View {
         VStack(spacing:10){
-            HStack {
-                Button{showTrackActions=true}label:{Label(track?.displayName ?? NSLocalizedString("Add melody",comment:"Track menu"),systemImage:"pianokeys").lineLimit(1).frame(minHeight:44)}.accessibilityIdentifier("notes.tracks")
-                Spacer(minLength:6)
-                Picker("Section",selection:Binding(get:{session.section.id},set:{id in if let s=session.project.sections.first(where:{$0.id==id}){session.noteClipID=nil;session.select(s)}})){ForEach(session.project.sections){s in Text(s.name).tag(s.id)}}.pickerStyle(.menu)
+            if dynamicType.isAccessibilitySize {
+                VStack(alignment:.leading,spacing:10){
+                    trackControl.frame(maxWidth:.infinity,alignment:.leading)
+                    sectionControl.frame(maxWidth:.infinity,alignment:.leading)
+                }
+            }else{
+                HStack{trackControl;Spacer(minLength:6);sectionControl}
             }
             HStack(spacing:12){StudioSegments(title:"Snap",selection:$snap,options:[(240,"1/16"),(480,"1/8"),(960,"1/4")])
                 Button{listMode.toggle()}label:{Image(systemName:listMode ? "pianokeys":"list.bullet").frame(width:44,height:44)}.accessibilityLabel(LocalizedStringKey(listMode ? "Show piano roll":"Show note list"))}
         }
+    }
+    private var trackControl:some View {
+        Button{showTrackActions=true}label:{Label(track?.displayName ?? NSLocalizedString("Add melody",comment:"Track menu"),systemImage:"pianokeys")
+            .lineLimit(dynamicType.isAccessibilitySize ? nil:1).fixedSize(horizontal:false,vertical:dynamicType.isAccessibilitySize).frame(minHeight:44)}.accessibilityIdentifier("notes.tracks")
+    }
+    private var sectionControl:some View {
+        Picker("Section",selection:Binding(get:{session.section.id},set:{id in if let s=session.project.sections.first(where:{$0.id==id}){session.noteClipID=nil;session.select(s)}})){ForEach(session.project.sections){s in Text(s.name).tag(s.id)}}.pickerStyle(.menu).accessibilityIdentifier("notes.section")
     }
     private var trackActions:some View {NavigationStack{List{
         ForEach(session.project.tracks.filter{$0.role == .melody}){track in
@@ -96,8 +106,22 @@ struct PianoRollView: View {
     }
     func eventList(_ p:Pattern)->some View {
         List {
-            ForEach((p.notes ?? []).sorted{$0.tick<$1.tick}){n in Button{selected=n.id;preview(n.pitch)}label:{HStack{Text(n.name).foregroundStyle(Color.mint);Spacer();Text("\(n.tick/ppq+1):\(n.tick%ppq) · \(n.duration) ticks · v\(n.velocity)").font(.caption.monospaced());if selected==n.id{Image(systemName:"checkmark")}}}.listRowBackground(Color.panel)}
+            ForEach((p.notes ?? []).sorted{$0.tick<$1.tick}){n in
+                Button{selected=n.id;preview(n.pitch)}label:{
+                    if dynamicType.isAccessibilitySize {
+                        VStack(alignment:.leading,spacing:8){
+                            HStack(alignment:.firstTextBaseline){Text(n.name).foregroundStyle(Color.mint);Spacer(minLength:8);if selected==n.id{Image(systemName:"checkmark")}}
+                            noteDetails(n).fixedSize(horizontal:false,vertical:true)
+                        }.frame(maxWidth:.infinity,alignment:.leading)
+                    }else{
+                        HStack{Text(n.name).foregroundStyle(Color.mint);Spacer();noteDetails(n);if selected==n.id{Image(systemName:"checkmark")}}
+                    }
+                }.accessibilityIdentifier("notes.row.\(n.id)").listRowBackground(Color.panel)
+            }
         }.scrollContentBackground(.hidden).accessibilityIdentifier("notes.list")
+    }
+    private func noteDetails(_ note:NoteEvent)->some View {
+        Text("\(note.tick/ppq+1):\(note.tick%ppq) · \(note.duration) ticks · v\(note.velocity)").font(.caption.monospaced())
     }
     func editBar(_ p:Pattern)->some View {
         HStack(spacing:4){
