@@ -340,6 +340,17 @@ Passive trace расширен до32 bounded events: actual source/window ident
 
 Один diagnostic branch выполнит fixed3 iterations всех4 cases (12 исходов), **без retry-on-failure или until-pass**; каждый case сохраняет один исходный gesture и строгие data/Undo/geometry guards. Любой failure остаётся failure. Raw UUID attachments, manifests, xcresult и logs сохраняются для каждого iteration; duplicate managed image aliases не выбираются и не используются как73-frame collection. Параллельный normal FULL запускает все44 функции и все3 capture methods одним проходом. Ни один pending/partial результат не закрывает C7 или distribution.
 
+
+### C3/C7 — raw input опроверг ошибочную QA-геометрию pinch
+
+Diagnostic source `dcc20983c52a66cf9392cce8fcccf27ff048c7e6`, [run 43768859651](https://github.com/alexgazin/la-grilla/actions/runs/43768859651): SDK/archive,118 Swift/19 suites,15 C++ и603 EN/RU PASS; fixed12 native outcomes — **9 PASS,3 FAIL**. Short/corner/wide каждый прошёл все3 fresh-app iterations с одним прежним жестом. Новый anchored case трижды провалил first-pinch geometry, поэтому эти failures не переписаны в PASS и полный806f с тем же тестом не принимается.
+
+Independent decoding **ORIGINAL synthesized touch bplists** установил физический центр pinch globalX223, а test ошибочно предполагал viewport midpoint248. Фактическое отношение distance3.5686798 также отличается от nominal XCTest scale1.6. При правильном physicalX223 реальные ruler frames дают musical bar2.6354166667→2.6355423849, drift **0.0001257183 bar** во всех3. Это не доказательство compounded zoom или неверной production anchor logic. Старый test использовал неверный input point и также требовал visibility labels после неожиданно большого настоящего zoom. Версия о mid-gesture state reset не установлена и не выдаётся за root cause.
+
+Normal `d300ea2` добавляет только bounded read-only framework-input telemetry и корректирует native expectations: BEGIN хранит raw startAnchor и actual viewport metrics вне32-event ring; REQUEST/ACK публикуются по одному, per-frame хранится только fixed-size numeric request. Сам anchor algorithm, scroll logic, source data и gestures не подменяются. Test выводит expected musical point из собственного before-ruler CGRect и raw input именно этого gesture; второй gesture имеет отдельный input ID2 и собственный before-state. Nominal first scale1.1 сохраняет labels в viewport; accuracy0.04 bar,6 s bounded waits, два настоящих pinch, no-history/source/kernel/playing/clock guards сохранены. Final positive evidence дополнительно требует independent ORIGINAL bplist corroboration обоих физических anchors каждого из3 iterations (6 events).
+
+Следующий focused diagnostic запускает только anchored method ×fixed3 (без retry/until-pass), поскольку остальные9 gesture outcomes и их nonpinch source уже проверены. Параллельно новый normal FULL снова выполняет все44 функции +3 captures/73 expected originals одним проходом. Предыдущие неправильные expectations и все неуспешные runs сохраняются как история, а не дополняются выдуманным успехом.
+
 ## Формат отчёта каждого этапа
 
 Для C1–C8 добавлять отдельную запись:
