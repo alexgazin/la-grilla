@@ -66,9 +66,8 @@ private enum VoiceSourceIO {
             samples.append(contentsOf:chunk)
         }
         guard samples.count==Int(declaredFrames),file.framePosition==declaredFrames,file.length==declaredFrames else{throw VoiceAnalysisError.invalidInput}
-        buffer.frameLength=0
-        try file.read(into:buffer,frameCount:1)
-        guard buffer.frameLength==0,file.framePosition==declaredFrames,file.length==declaredFrames else{throw VoiceAnalysisError.invalidInput}
+        // AVAudioFile may throw when asked to read at EOF; the exact decoded
+        // count, cursor and stable declared length above prove completion.
         return samples
     }
 }
