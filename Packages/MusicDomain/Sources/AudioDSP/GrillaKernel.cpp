@@ -89,7 +89,7 @@ struct LGKernel {
     std::atomic<int> command{0},seek{-1},playing{0},applied{-1},metro{0},tailOnEnd{0};
     std::atomic<double> position{0}; std::atomic<uint64_t> clock{0};
     std::array<std::atomic<float>,Buses> gains, pans, meters; std::array<float,Buses> smooth{}, smoothPan{};std::array<float,MaxTracks> panValue{},panLeft{},panRight{};
-    bool active=false; double origin=0; uint64_t elapsed=0,rendered=0; double previous=-1; long long cycle=0; int cursor=0; int lastBeat=-1;
+    bool active=false,pendingInitialPlay=false; double origin=0; uint64_t elapsed=0,rendered=0; double previous=-1; long long cycle=0; int cursor=0; int lastBeat=-1;
     uint64_t trackLayoutToken=0;std::array<uint64_t,MaxTracks> trackLayoutKeys{};int trackLayoutCount=0;float lastLeft=0,lastRight=0,layoutFadeLeft=0,layoutFadeRight=0;int layoutFadeRemaining=0,layoutFadeTotal=1;
     explicit LGKernel(double rate):sr(rate),fx(rate),kitFrames(int(std::ceil(rate))) {
         panValue.fill(std::numeric_limits<float>::quiet_NaN());
@@ -367,7 +367,7 @@ int lg_perform_warning(LGKernel*k){return k->performance.warning.load();}
 uint64_t lg_perform_clock(LGKernel*k){return k->performance.clock.load();}
 uint64_t lg_perform_duration(LGKernel*k){return k->performance.duration.load();}
 // The caller must stop/join its render engine before finalizing a paused kernel.
-void lg_perform_finalize_paused(LGKernel*k){k->performance.stop();k->performance.publish();k->active=false;k->playing.store(0);k->silence(true);k->fx.reset();}
+void lg_perform_finalize_paused(LGKernel*k){k->performance.stop();k->performance.publish();k->active=false;k->pendingInitialPlay=false;k->playing.store(0);k->silence(true);k->fx.reset();}
 float lg_gain_target(LGKernel*k,int t){return t>=0&&t<Buses?k->gains[t].load():0;}
 float lg_pan_target(LGKernel*k,int t){return t>=0&&t<Buses?k->pans[t].load():0;}
 float lg_filter_target(LGKernel*k){return k->filterTarget.load();}
@@ -385,14 +385,20 @@ void lg_render_midi(LGKernel*k,LGMIDIHub*hub,uint64_t hostTime,double hostTicksP
     const double hostPerSample=hostTicksPerSecond/k->sr;
     if(hub)hub->prepare([&](int source){k->midiClear(source);});
     k->adoptMix();const bool panic=k->panicRequest.exchange(false,std::memory_order_acq_rel);if(panic){k->filterTarget.store(0);k->delayTarget.store(0);}
-    int cmd=k->command.exchange(0);if(panic||cmd<0||cmd==2||cmd==3){k->performance.stop();k->active=false;k->counting=0;k->countRequest.store(0);k->countRemaining.store(0);k->fx.reset();k->silence(true);if(hub)hub->outputEvent(k->outputState,k->hostNow,0,0,0);k->read.store(k->write.load());}
+    int cmd=k->command.exchange(0);
+    // A producer can temporarily own the only ready initial snapshot. Keep one
+    // ordinary Play request until adoption succeeds on a later callback; never
+    // spin on the publisher. New commands/Panic replace that deferred intent.
+    if(panic||cmd!=0)k->pendingInitialPlay=false;
+    if(cmd==1&&k->current<0)k->pendingInitialPlay=true;
+    if(panic||cmd<0||cmd==2||cmd==3){k->performance.stop();k->active=false;k->counting=0;k->countRequest.store(0);k->countRemaining.store(0);k->fx.reset();k->silence(true);if(hub)hub->outputEvent(k->outputState,k->hostNow,0,0,0);k->read.store(k->write.load());}
     // An explicit seek is already a discontinuity, so use the newest complete
     // project before interpreting its range. This also handles seeking beyond
     // an old one-bar loop into a newly extended arrangement.
     int seek=k->seek.exchange(-1);const int previousProject=k->current;
     k->adopt(!k->active||seek>=0,seek>=0?seek:k->position.load());
     if(seek>=0){if(k->current==previousProject||k->origin!=seek)k->resetCursor(seek);k->position.store(seek);}
-    if(cmd>0&&k->current>=0){auto&s=k->slots[k->current];double p=k->position.load();k->active=true;k->resetCursor(p>=s.end?s.start:std::max(p,double(s.start)));}
+    if((cmd>0||k->pendingInitialPlay)&&k->current>=0){auto&s=k->slots[k->current];double p=k->position.load();k->active=true;k->pendingInitialPlay=false;k->resetCursor(p>=s.end?s.start:std::max(p,double(s.start)));}
     // A queued project carries FX too; Panic must still win over that payload.
     if(panic){k->filterTarget.store(0);k->delayTarget.store(0);}
     float gainTargets[Buses],panTargets[Buses];
@@ -414,7 +420,9 @@ void lg_render_midi(LGKernel*k,LGMIDIHub*hub,uint64_t hostTime,double hostTicksP
         if(filter!=k->capturedFilter){k->performance.emit(4,-1,filter);}if(delay!=k->capturedDelay){k->performance.emit(5,-1,delay);}
     }
     for(int t=0;t<Buses;t++){k->capturedGain[t]=gainTargets[t];k->capturedPan[t]=panTargets[t];}k->capturedFilter=filter;k->capturedDelay=delay;
-    int request=k->countRequest.exchange(0);if(request>0)k->counting=request;
+    // Count-in needs the adopted tempo too. Retain its request while the first
+    // snapshot is unavailable instead of indexing slots[-1] or advancing it.
+    int request=k->current>=0?k->countRequest.exchange(0):0;if(request>0)k->counting=request;
     unsigned rd=k->read.load(),wr=k->write.load(std::memory_order_acquire);
     float peak[Buses]={};const float ramp=float(1-std::exp(-1/(k->sr*0.005)));
     for(int f=0;f<frames;f++){
