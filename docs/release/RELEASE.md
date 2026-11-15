@@ -2,6 +2,10 @@
 
 Current candidate: **1.0.0 (11)**, iPhone / iOS 18+, bundle `com.alexgazin.LaGrilla`. This is a release procedure, not evidence of an App Store upload.
 
+## Current Apple submission requirement
+
+Checked November 15, 2026: [Apple requires Xcode 26 and iOS 26 SDK or newer since April 28, 2026](https://developer.apple.com/news/upcoming-requirements/). Release and distribution CI explicitly select Xcode 26.3 on macOS 15; archive validation checks the embedded `DTXcode` and `DTSDKName` fields and rejects older SDKs. Native release acceptance selects the newest installed iOS 26 runtime supported by that SDK, with both Pro Max and 375-point SE on the same runtime. The deployment target remains iOS 18. Prior iOS 18.5 checks are compatibility evidence, not a substitute for a current-SDK release archive. Recheck Apple requirements before a later release.
+
 ## Reproducible checks
 
 `python3 scripts/generate_project.py` regenerates the committed Xcode project without requiring XcodeGen. `project.yml` and the generator must keep identical version/build settings; `audit_release.py` checks them. After any uploaded build, increment the build number in both sources and regenerate before another upload.
@@ -44,7 +48,7 @@ Record results in [DEVICE_ACCEPTANCE.md](DEVICE_ACCEPTANCE.md). Resolve blocker/
 - Speaker, wired/USB and Bluetooth routes; headphones unplug, call/Siri interruption, screen lock, background Play/Pause/Stop, media reset and denied microphone/speech permissions.
 - USB and BLE MIDI input/output, sustain, channel filtering, Learn, disconnect/reconnect and Panic. Compare actual events/timing with two DAWs; check exported MIDI/WAV/stems and portable voice assets.
 - Save/reopen/kill/recovery, storage failure, sharing/cancellation, language/appearance, Dynamic Type, VoiceOver and portrait/landscape controls.
-- Public support/privacy URLs, actual store text/screenshots, data-not-collected answers, current age-rating questionnaire, content rights, export compliance, pricing/availability and the owner's legal seller information.
+- Public support/privacy URLs, actual store text/screenshots, data-not-collected answers, current age-rating questionnaire, content rights, export compliance, pricing/availability (including opting out of untested Mac/visionOS compatibility) and the owner's legal seller information.
 
 App Review notes: no login or demo account; start from the included demo. Grid opens harmony/notes/Assistant; More opens voice, Perform and MIDI. Play starts audio; stopping releases notes; record/microphone access is explicit. USB/BLE require a compatible peripheral. Dictation requires a supported local speech model; typed commands remain available. Voice conversion is monophonic and needs review. Original synthesized instruments can sound different from external MIDI instruments.
 

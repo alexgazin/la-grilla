@@ -55,14 +55,14 @@ dep=obj('testdependency','PBXTargetDependency',target=app_id,targetProxy=proxy)
 testsettings=dict(base,PRODUCT_BUNDLE_IDENTIFIER='com.alexgazin.LaGrillaUITests',PRODUCT_NAME='$(TARGET_NAME)',GENERATE_INFOPLIST_FILE='YES',TEST_TARGET_NAME='LaGrilla')
 tests=[build('test:'+str(p.relative_to(ROOT)),ident('file:'+str(p.relative_to(ROOT)))) for p in sorted((ROOT/'UITests').glob('*.swift'))]
 test=obj('target:LaGrillaUITests','PBXNativeTarget',buildConfigurationList=configurations('tests',testsettings),buildPhases=[phase('test-sources','PBXSourcesBuildPhase',tests),phase('test-frameworks','PBXFrameworksBuildPhase',[]),phase('test-resources','PBXResourcesBuildPhase',[])],buildRules=[],dependencies=[dep],name='LaGrillaUITests',productName='LaGrillaUITests',productReference=test_product,productType='com.apple.product-type.bundle.ui-testing')
-project=obj('project','PBXProject',attributes={'BuildIndependentTargetsInParallel':'YES','LastSwiftUpdateCheck':'1640','LastUpgradeCheck':'1640','TargetAttributes':{app_id:{'CreatedOnToolsVersion':'16.4'},test_id:{'CreatedOnToolsVersion':'16.4','TestTargetID':app_id}}},buildConfigurationList=configurations('project',base),compatibilityVersion='Xcode 14.0',developmentRegion='en',hasScannedForEncodings=0,knownRegions=['en','ru','Base'],mainGroup=rootgroup,packageReferences=[package],productRefGroup=productgroup,projectDirPath='',projectRoot='',targets=[app,test])
+project=obj('project','PBXProject',attributes={'BuildIndependentTargetsInParallel':'YES','LastSwiftUpdateCheck':'2630','LastUpgradeCheck':'2630','TargetAttributes':{app_id:{'CreatedOnToolsVersion':'16.4'},test_id:{'CreatedOnToolsVersion':'16.4','TestTargetID':app_id}}},buildConfigurationList=configurations('project',base),compatibilityVersion='Xcode 14.0',developmentRegion='en',hasScannedForEncodings=0,knownRegions=['en','ru','Base'],mainGroup=rootgroup,packageReferences=[package],productRefGroup=productgroup,projectDirPath='',projectRoot='',targets=[app,test])
 def emit(v,level=0):
  if isinstance(v,dict):return '{\n'+''.join('\t'*(level+1)+json.dumps(str(k))+ ' = '+emit(val,level+1)+';\n' for k,val in v.items())+'\t'*level+'}'
  if isinstance(v,list):return '(\n'+''.join('\t'*(level+1)+emit(x,level+1)+',\n' for x in v)+'\t'*level+')'
  return str(v) if isinstance(v,int) else json.dumps(v,ensure_ascii=False)
 pbx=ROOT/'LaGrilla.xcodeproj';pbx.mkdir(exist_ok=True)
 (pbx/'project.pbxproj').write_text('// !$*UTF8*$!\n'+emit({'archiveVersion':1,'classes':{},'objectVersion':56,'objects':objects,'rootObject':project})+'\n')
-scheme=ET.Element('Scheme',LastUpgradeVersion='1640',version='1.3')
+scheme=ET.Element('Scheme',LastUpgradeVersion='2630',version='1.3')
 ba=ET.SubElement(scheme,'BuildAction',parallelizeBuildables='YES',buildImplicitDependencies='YES');entries=ET.SubElement(ba,'BuildActionEntries')
 def buildable(parent,id,name):ET.SubElement(parent,'BuildableReference',BuildableIdentifier='primary',BlueprintIdentifier=id,BuildableName=name,BlueprintName='LaGrilla' if id==app_id else 'LaGrillaUITests',ReferencedContainer='container:LaGrilla.xcodeproj')
 e=ET.SubElement(entries,'BuildActionEntry',buildForTesting='YES',buildForRunning='YES',buildForProfiling='YES',buildForArchiving='YES',buildForAnalyzing='YES');buildable(e,app_id,'LaGrilla.app')

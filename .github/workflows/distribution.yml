@@ -9,6 +9,8 @@ on:
 permissions:
   contents: read
   checks: read
+env:
+  DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
 concurrency:
   group: app-store-distribution
   cancel-in-progress: false
@@ -20,6 +22,8 @@ jobs:
     environment: app-store
     steps:
       - uses: actions/checkout@v4
+      - name: Verify current App Store toolchain
+        run: python3 scripts/release/assert_sdk.py
       - name: Require native acceptance for this commit
         env:
           GH_TOKEN: ${{ github.token }}

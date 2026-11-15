@@ -23,6 +23,8 @@ for locale in ['en-US','ru']:
   assert (ROOT/f'docs/store/{locale}/{field}.txt').read_text().startswith('https://')
 if a.app:
  info=plistlib.loads((a.app/'Info.plist').read_bytes());assert info['CFBundleShortVersionString']==version and info['CFBundleVersion']==build
+    sdk=re.fullmatch(r'iphoneos(\d+)(?:\.\d+)*',info.get('DTSDKName',''))
+    assert sdk and int(sdk[1])>=26 and int(info.get('DTXcode','0'))>=2600,'App Store requires an archive built with Xcode 26 / iOS 26 SDK or newer'
  assert info['CFBundleIdentifier']=='com.alexgazin.LaGrilla'
  assert plistlib.loads((a.app/'PrivacyInfo.xcprivacy').read_bytes())==manifest
  assert (a.app/info['CFBundleExecutable']).is_file() and (a.app/'Assets.car').is_file()

@@ -2,7 +2,7 @@
 
 Native iPhone studio: iOS 18+, Swift 6, SwiftUI, AVAudioEngine and a C++17 render kernel. The original README and DESIGN_PROMPT remain the product requirements; current delivery status is in [ROADMAP](../ROADMAP.md) and [QA](QA.md). Signing and publishing are described in [release procedure](release/RELEASE.md).
 
-On a Mac with Xcode 16.4 or newer selected:
+On a Mac with Xcode 26.3 (or an App Store-supported newer toolchain) selected:
 
 ```sh
 python3 scripts/generate_project.py

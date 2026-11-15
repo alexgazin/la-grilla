@@ -1,5 +1,7 @@
 name: iOS build and verification
 on: [push, workflow_dispatch]
+env:
+  DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
 concurrency:
   group: ios-${{ github.ref }}
   cancel-in-progress: true
@@ -10,6 +12,8 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+      - name: Verify current App Store toolchain
+        run: python3 scripts/release/assert_sdk.py
       - name: Domain behavioral tests
         env:
           GRILLA_VOICE_METRICS: ${{ github.workspace }}/ExportFixtures/voice-metrics.json
@@ -103,6 +107,8 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+      - name: Verify current App Store toolchain
+        run: python3 scripts/release/assert_sdk.py
       - name: Compile for physical iPhone SDK without signing
         run: |
           set -o pipefail
@@ -118,6 +124,8 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+      - name: Verify current App Store toolchain
+        run: python3 scripts/release/assert_sdk.py
       - name: Archive optimized iPhone binary and validate bundled resources
         run: bash scripts/release/archive_unsigned.sh
       - uses: actions/upload-artifact@v4

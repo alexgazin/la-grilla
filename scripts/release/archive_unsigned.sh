@@ -3,6 +3,7 @@ set -euo pipefail
 GRILLA_RELEASE_ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 cd "$GRILLA_RELEASE_ROOT"
 python3 scripts/release/audit_release.py
+python3 scripts/release/assert_sdk.py
 mkdir -p ReleaseArtifacts
 xcodebuild -project LaGrilla.xcodeproj -scheme LaGrilla -configuration Release -destination 'generic/platform=iOS' -archivePath ReleaseArtifacts/LaGrilla-unsigned.xcarchive -derivedDataPath ReleaseDerivedData CODE_SIGNING_ALLOWED=NO archive | tee ReleaseArtifacts/archive.log
 python3 scripts/release/audit_release.py --app ReleaseArtifacts/LaGrilla-unsigned.xcarchive/Products/Applications/LaGrilla.app

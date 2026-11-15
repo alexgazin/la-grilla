@@ -1,6 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 cd "$(dirname "$0")/../.."
+python3 scripts/release/assert_sdk.py
 : "${GRILLA_CERTIFICATE_BASE64:?Missing distribution certificate}"
 : "${GRILLA_CERTIFICATE_PASSWORD:?Missing certificate password}"
 : "${GRILLA_PROFILE_BASE64:?Missing App Store provisioning profile}"

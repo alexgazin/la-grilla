@@ -12,9 +12,10 @@ except subprocess.TimeoutExpired:
 PYTHON
 }
 test -f DerivedData/Build/Products/Debug-iphonesimulator/LaGrilla.app/Info.plist
-DEVICE=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin); print(next(x["udid"] for group in d["devices"].values() for x in group if "iPhone 16 Pro Max" == x["name"]))')
+DEVICE=$(python3 scripts/select_simulator.py --name "iPhone 16 Pro Max" --type com.apple.CoreSimulator.SimDeviceType.iPhone-16-Pro-Max)
 echo "$DEVICE" > /tmp/grilla-simulator-id
-run_limited 60 open -a Simulator --args -CurrentDeviceUDID "$DEVICE" || true
+GRILLA_XCODE_DEVELOPER_DIR=${DEVELOPER_DIR:-$(xcode-select -p)}
+run_limited 60 open -a "$GRILLA_XCODE_DEVELOPER_DIR/Applications/Simulator.app" --args -CurrentDeviceUDID "$DEVICE" || true
 run_limited 60 xcrun simctl boot "$DEVICE" || true
 run_limited 300 xcrun simctl bootstatus "$DEVICE" -b
 if test "${GRILLA_CAPTURE_SCREENS:-1}" = 0; then
@@ -47,11 +48,7 @@ for SCREEN in grid jam mixer projects export export-wav export-stems notes notes
   run_limited 90 xcrun simctl io "$DEVICE" screenshot "$SCREENSHOT_DIR/$SCREEN.png" || run_limited 90 xcrun simctl io "$DEVICE" screenshot "$SCREENSHOT_DIR/$SCREEN.png"
 done
 # A real 375-point iPhone simulator complements the main iPhone 16 captures.
-COMPACT=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin); print(next((x["udid"] for group in d["devices"].values() for x in group if x["name"]=="iPhone SE (3rd generation)"),""))')
-if test -z "$COMPACT"; then
-  RUNTIME=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin); target=open("/tmp/grilla-simulator-id").read().strip(); print(next(k for k,v in d["devices"].items() if any(x["udid"]==target for x in v)))')
-  COMPACT=$(run_limited 60 xcrun simctl create GrillaCompact com.apple.CoreSimulator.SimDeviceType.iPhone-SE-3rd-generation "$RUNTIME")
-fi
+COMPACT=$(python3 scripts/select_simulator.py --name "iPhone SE (3rd generation)" --type com.apple.CoreSimulator.SimDeviceType.iPhone-SE-3rd-generation --same-runtime-as "$DEVICE")
 run_limited 60 xcrun simctl shutdown "$DEVICE" || true
 run_limited 60 xcrun simctl boot "$COMPACT" || true
 run_limited 300 xcrun simctl bootstatus "$COMPACT" -b

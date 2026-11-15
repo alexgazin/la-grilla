@@ -69,9 +69,20 @@ private enum MIDICallbacks {
         refresh()
     }
     private func endpoint(_ ref:MIDIEndpointRef)->MIDIEndpoint? {
+        guard endpointIsOnline(ref) else{return nil}
         var id:Int32=0;guard MIDIObjectGetIntegerProperty(ref,kMIDIPropertyUniqueID,&id)==noErr else{return nil}
         var name:Unmanaged<CFString>?;_ = MIDIObjectGetStringProperty(ref,kMIDIPropertyDisplayName,&name)
         return MIDIEndpoint(id:id,name:name?.takeRetainedValue() as String? ?? "MIDI device",reference:ref)
+    }
+    private func endpointIsOnline(_ ref:MIDIEndpointRef)->Bool {
+        var offline:Int32=0
+        if MIDIObjectGetIntegerProperty(ref,kMIDIPropertyOffline,&offline)==noErr,offline != 0{return false}
+        var entity=MIDIEntityRef(),device=MIDIDeviceRef()
+        // Virtual endpoints have no hardware entity/device and remain usable.
+        if MIDIEndpointGetEntity(ref,&entity)==noErr,entity != 0,
+           MIDIEntityGetDevice(entity,&device)==noErr,device != 0,
+           MIDIObjectGetIntegerProperty(device,kMIDIPropertyOffline,&offline)==noErr{return offline==0}
+        return true
     }
     func endpointsChanged(){lastConfiguration=nil;refresh();onConfigurationChange?()}
     func retry(){lastConfiguration=nil;outputChannels=[];error=nil}
