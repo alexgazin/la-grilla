@@ -2,6 +2,8 @@
 
 Local checks, November 15, 2026: **64 Swift tests and 11 C++ suites pass**. Native simulator acceptance is tracked separately in GitHub Actions; physical-device approval remains open.
 
+Full iOS 18.5 acceptance also passes for app/audio/domain source `cd2ae56`: [run 43681942977](https://github.com/alexgazin/la-grilla/actions/runs/43681942977), both SDK builds, 19 Studio flows and both capture tests. Thirty-six original PNGs are retained in [Screenshots/R9](../Screenshots/R9). Subsequent orientation-isolation changes affect the test harness, not the app/audio/domain implementation. Current App Store SDK validation is completed by the release stage.
+
 - Repeat capture freezes incrementally with constant per-sample work; 18-second holds/releases/recaptures match the previous eager reference at 44.1/48/96/192 kHz.
 - Mixer gain/pan/master/filter/delay publish as a single buffer-boundary snapshot. Thirty thousand concurrent publications preserve coherent values and monotonic ownership. Panic wins queued effect updates.
 - Schema 7 preserves preset version 1 for all legacy projects and recursively frozen take sources. New instruments use version 2, sample-rate-independent cymbal tails and a fixed 128-slot, 3 ms retirement pool for voice stealing, choke and position changes. Stop/Panic clears tails immediately. Unknown preset versions are rejected.
