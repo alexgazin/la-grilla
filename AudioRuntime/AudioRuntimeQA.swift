@@ -200,8 +200,15 @@ import SwiftUI
         try await previewWait("audition before project open"){session.harmonyPreview && audio.playing && !audio.pendingSnapshot}
         var opened=Project.demo();opened.name="Native opened source";opened.bpm=240
         await session.open(opened,force:true)
-        try require(session.project.id==opened.id && !session.harmonyPreview && !audio.playing,"Project open retained an old audition or did not switch the source")
-        try await previewWait("opened source at zero"){!audio.playing && !audio.pendingSnapshot && abs(audio.tick)<1}
+        try require(session.project.id==opened.id && !session.harmonyPreview,
+                    "Project open retained an old audition or did not switch the source (expected \(opened.id), actual \(session.project.id), preview \(session.harmonyPreview), playing \(audio.playing), save error \(session.saveError ?? "none"))")
+        // Stop and snapshot adoption are callback commands. The await in open's
+        // save can let polling observe the prior playing state before those
+        // commands are acknowledged; require the actual renderer to settle.
+        try await previewWait("opened source at zero"){
+            !audio.playing && lg_playing(kernel)==0 && !audio.pendingSnapshot &&
+            audio.appliedRevision==opened.revision && abs(audio.tick)<1
+        }
         try require(audio.captureEngine===engine && (try pointer(audio))==kernel && audio.clock>previewClock,"Project open unnecessarily replaced the engine/kernel or reset its clock")
         return "Actual engine: boundary mix/FX, deferred keyed preview, preset cache invalidation, reordered MIDI roles, 80 concurrent submissions, bounded routing cache; actual Session controller-edit preview invalidation (phase difference \(previewPhase) ticks), rejected edit preserves audition, accepted idle edit restores stopped position \(idlePosition), project open clears audition and restores zero; retained engine/kernel/clock"
     }
