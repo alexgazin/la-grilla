@@ -68,6 +68,11 @@ struct PerformanceTests {
         let first=folder.appendingPathComponent("first.wav"),second=folder.appendingPathComponent("second.wav")
         let receipt=try await OfflineRenderer.renderPerformance(take,to:first,settings:WAVSettings(sampleRate:48000,bitDepth:24,tailSeconds:0,dither:false))
         #expect(receipt.frames==48000);#expect(receipt.peak>0.01)
+        if let path=ProcessInfo.processInfo.environment["GRILLA_EXPORT_FIXTURES"] {
+            let dir=URL(fileURLWithPath:path);try FileManager.default.createDirectory(at:dir,withIntermediateDirectories:true)
+            try Data(contentsOf:first).write(to:dir.appendingPathComponent("performance.wav"))
+            try PerformanceTimeline.midi(take).write(to:dir.appendingPathComponent("performance.mid"))
+        }
         _ = try await OfflineRenderer.renderPerformance(take,to:second,settings:WAVSettings(sampleRate:48000,bitDepth:24,tailSeconds:0,dither:false))
         #expect(try Data(contentsOf:first)==Data(contentsOf:second))
         let alternate=try await OfflineRenderer.renderPerformance(take,to:second,settings:WAVSettings(sampleRate:44100,bitDepth:16,tailSeconds:0.5,dither:false))

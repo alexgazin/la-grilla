@@ -132,7 +132,7 @@ import Observation
         recording=active; replaceNextPass=false; take=[];rawHits=[]
     }
     func hit(_ pad: Int) {
-        guard ensureAudio() else{return}; audio.pad(pad);pollRecording()
+        guard !performance.replaying,ensureAudio() else{return}; audio.pad(pad);pollRecording()
         if recording {
             let local=(Int(audio.tick)-takeStart+takeLength)%takeLength
             let e=DrumEvent(tick:quantize.tick(local,length:takeLength),pad:pad)
@@ -253,7 +253,7 @@ import Observation
     }
     func startPerformance(record:Bool){
         finishTake();guard ensureAudio()else{return};mixerGesture=false
-        do{try performance.begin(project,sectionID:section.id,record:record)}catch{performance.error=error.localizedDescription}
+        do{let id=project.sections.first(where:{$0.id==selectedSection})?.id ?? project.sections[0].id;try performance.begin(project,sectionID:id,record:record)}catch{performance.error=error.localizedDescription}
     }
     func replayPerformance(_ take:PerformanceTake){finishTake();guard ensureAudio()else{return};do{try performance.playTake(take)}catch{performance.error=error.localizedDescription}}
     func pollPerformance(){
