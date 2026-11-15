@@ -3,6 +3,7 @@ import MusicDomain
 struct ChordSelection: Identifiable {let id: UUID;let patternID: UUID;let tick: Int;let chord: Chord;var duration: Int = barTicks}
 struct GridView: View {
     @Bindable var session: Session
+    @Environment(\.dynamicTypeSize) private var dynamicType
     @State private var barWidth: CGFloat = 112
     @State private var zoomBase: CGFloat = 112
     @State private var selection: ChordSelection?
@@ -11,7 +12,11 @@ struct GridView: View {
         ScrollView(.vertical,showsIndicators:false) {
         VStack(alignment:.leading,spacing:0){
             HStack{SmallHeading(text:"ARRANGEMENT");Spacer();Text("\(session.displayProject.length/barTicks) bars").font(.system(size:11,design:.monospaced)).foregroundStyle(Color.muted);IconButton(symbol:"ellipsis",label:"Edit song sections",color:.muted){session.presentEditor(.sections)}}.padding(.horizontal,18).padding(.top,8)
-            ScrollView(.horizontal,showsIndicators:false){HStack(spacing:8){
+            if dynamicType.isAccessibilitySize {
+                Menu("Studio tools"){
+                    Button("Harmony lab"){session.presentEditor(.harmony)};Button("Piano roll"){session.openNotes()};Button("Assistant"){session.presentEditor(.assistant)};Button("Voice to MIDI"){session.presentEditor(.voice)};Button("Perform"){session.sheet = .perform};Button("MIDI devices"){session.presentEditor(.midiDevices)}
+                }.font(.headline).frame(minHeight:44).padding(.horizontal,18)
+            }else{ScrollView(.horizontal,showsIndicators:false){HStack(spacing:8){
                 Button{session.presentEditor(.harmony)}label:{Label("Harmony",systemImage:"wand.and.stars").frame(minWidth:92,minHeight:44)}.accessibilityLabel("Harmony lab").accessibilityIdentifier("harmony.open")
                 Button{session.openNotes()}label:{Label("Notes",systemImage:"pianokeys").frame(minWidth:80,minHeight:44)}.accessibilityLabel("Open piano roll").accessibilityIdentifier("notes.open")
                 Button{session.presentEditor(.assistant)}label:{Label("Assistant",systemImage:"text.bubble").frame(minWidth:96,minHeight:44)}.accessibilityIdentifier("assistant.open")
@@ -20,7 +25,7 @@ struct GridView: View {
                     Button("Perform",systemImage:"waveform.path"){session.finishTake();session.sheet = .perform}.accessibilityIdentifier("perform.open")
                     Button("MIDI devices",systemImage:"pianokeys"){session.presentEditor(.midiDevices)}.accessibilityIdentifier("midi.open")
                 }label:{Image(systemName:"ellipsis.circle").frame(width:44,height:44)}.accessibilityLabel("More studio tools").accessibilityIdentifier("tools.more")
-            }}.font(.system(size:12,weight:.medium)).foregroundStyle(Color.mint).padding(.horizontal,18).padding(.bottom,10)
+            }}.font(.system(size:12,weight:.medium)).foregroundStyle(Color.mint).padding(.horizontal,18).padding(.bottom,10)}
             ScrollView(.horizontal,showsIndicators:false){HStack(spacing:8){ForEach(session.displayProject.sections){s in Button{session.select(s)}label:{HStack(spacing:8){RoundedRectangle(cornerRadius:1).fill(session.section.id==s.id ? Color.mint:Color.muted).frame(width:3,height:20);VStack(alignment:.leading,spacing:3){Text(s.name).font(.system(size:12,weight:.semibold));Text("\(s.start/barTicks+1)–\((s.start+s.length)/barTicks)").font(.system(size:9,design:.monospaced)).foregroundStyle(Color.muted)}}.padding(.horizontal,12).padding(.vertical,10).background(session.section.id==s.id ? Color.raised:Color.panel,in:RoundedRectangle(cornerRadius:8)).overlay{RoundedRectangle(cornerRadius:8).stroke(session.section.id==s.id ? Color.mint.opacity(0.4):Color.clear,lineWidth:1)}}.buttonStyle(.plain)}
                 Button{session.presentEditor(.sections)}label:{Image(systemName:"plus").frame(width:44,height:48).foregroundStyle(Color.muted)}
             }.padding(.horizontal,18)}.padding(.bottom,18)
@@ -40,7 +45,7 @@ struct GridView: View {
     }
     func trackLabel(_ role: TrackRole,height: CGFloat)->some View {
         Button{if role == .harmony{session.presentEditor(.harmony)}else if role == .bass {session.presentEditor(.bass)}else if role == .drums{session.tab=1}}
-        label:{VStack(alignment:.leading,spacing:9){RoundedRectangle(cornerRadius:2).fill(Color.track(role)).frame(width:18,height:3);Text(role == .harmony ? "HARM":role == .drums ? "DRUM":"BASS").font(.system(size:9,weight:.semibold));Image(systemName:role == .harmony ? "pianokeys":role == .drums ? "square.grid.2x2":"waveform").font(.system(size:14)).foregroundStyle(Color.track(role))}.frame(maxWidth:.infinity,maxHeight:.infinity,alignment:.leading).padding(.leading,16).frame(height:height).background(Color.panel.opacity(0.6)).overlay(alignment:.bottom){Rectangle().fill(Color.raised).frame(height:1)}}.buttonStyle(.plain)
+        label:{VStack(alignment:.leading,spacing:9){RoundedRectangle(cornerRadius:2).fill(Color.track(role)).frame(width:18,height:3);Text(LocalizedStringKey(role == .harmony ? "HARM":role == .drums ? "DRUM":"BASS")).font(.system(size:9,weight:.semibold));Image(systemName:role == .harmony ? "pianokeys":role == .drums ? "square.grid.2x2":"waveform").font(.system(size:14)).foregroundStyle(Color.track(role))}.frame(maxWidth:.infinity,maxHeight:.infinity,alignment:.leading).padding(.leading,16).frame(height:height).background(Color.panel.opacity(0.6)).overlay(alignment:.bottom){Rectangle().fill(Color.raised).frame(height:1)}}.buttonStyle(.plain)
     }
     var timeline: some View {
         VStack(spacing:0) { ruler; harmonyLane; drumLane; bassLane;ForEach(session.displayProject.tracks.filter{$0.role == .melody}){t in melodyLane(t)} }
@@ -157,7 +162,7 @@ struct ChordTile: View {
                             .frame(width:width/6,height:3).offset(y:CGFloat(72-note)/4)
                     }
                 }
-                Text(chord.quality.label).font(.system(size:9)).lineLimit(1).minimumScaleFactor(0.5).foregroundStyle(Color.harmony.opacity(0.65))
+                Text(chord.quality.label).font(.system(size:9)).lineLimit(1).minimumScaleFactor(0.5).foregroundStyle(Color.harmony.opacity(0.9))
             }
         }.foregroundStyle(Color.harmony).padding(12).frame(width:width,height:116,alignment:.topLeading)
             .background(Color.harmony.opacity(chord == nil ? 0.04:0.12),in:RoundedRectangle(cornerRadius:7))

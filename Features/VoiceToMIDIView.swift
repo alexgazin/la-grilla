@@ -28,14 +28,14 @@ struct VoiceToMIDIView:View {
             ScrollView {
                 VStack(alignment:.leading,spacing:18){
                     HStack{Image(systemName:"waveform.badge.mic").font(.system(size:32)).foregroundStyle(Color.record);Spacer();CapsuleLabel(text:"BETA · MONO",color:.record)}
-                    Text("Hum it. Shape it.").font(.system(size:27,weight:.medium))
+                    Text("Hum it. Shape it.").font(.system(.title2,weight:.medium))
                     Text("Record one melody in a quiet room. Use headphones. Microphone monitoring is off. Review uncertain notes before applying.").font(.subheadline).foregroundStyle(Color.muted)
                     HStack{Text(session.section.name).fontWeight(.medium);Spacer();Text("\(Int(limit)) s · \(Int(session.project.bpm)) BPM").font(.caption.monospaced()).foregroundStyle(Color.muted)}
                     if synthetic{Text("QA FIXTURE · SYNTHETIC SOURCE").font(.caption.monospaced()).foregroundStyle(Color.harmony)}
                     recordingControls
                     if let result=capture.result{draft(result)}
-                    if let error=capture.error{Text(error).font(.callout).foregroundStyle(Color.record)}
-                    if let error{Text(error).font(.callout).foregroundStyle(Color.record)}
+                    if let error=capture.error{Text(LocalizedStringKey(error)).font(.callout).foregroundStyle(Color.record)}
+                    if let error{Text(LocalizedStringKey(error)).font(.callout).foregroundStyle(Color.record)}
                 }.padding(20)
             }.background(Color.ink).navigationTitle("Voice to MIDI").navigationBarTitleDisplayMode(.inline)
                 .toolbar{ToolbarItem(placement:.cancellationAction){Button("Cancel"){dismiss()}.disabled(applying)}}
@@ -56,7 +56,7 @@ struct VoiceToMIDIView:View {
             if capture.isCapturing{Button{capture.stop()}label:{Label("Stop recording",systemImage:"stop.fill").frame(maxWidth:.infinity,minHeight:52).background(Color.record,in:RoundedRectangle(cornerRadius:12)).foregroundStyle(Color.ink)}}
             else if capture.state != .analyzing && !applied{
                 Toggle("One-bar count-in",isOn:$countIn)
-                Button{record()}label:{Label(capture.result==nil ? "Record melody":"Record again",systemImage:"record.circle").frame(maxWidth:.infinity,minHeight:52).background(Color.record,in:RoundedRectangle(cornerRadius:12)).foregroundStyle(Color.ink).fontWeight(.semibold)}.disabled(applying)
+                Button{record()}label:{Label(LocalizedStringKey(capture.result==nil ? "Record melody":"Record again"),systemImage:"record.circle").frame(maxWidth:.infinity,minHeight:52).background(Color.record,in:RoundedRectangle(cornerRadius:12)).foregroundStyle(Color.ink).fontWeight(.semibold)}.disabled(applying)
             }
         }
     }
@@ -66,7 +66,7 @@ struct VoiceToMIDIView:View {
             HStack{Text("\(notes.count) notes").font(.headline).accessibilityIdentifier("voice.note-count");Spacer();Text("\(notes.filter{($0.confidence ?? 1)<0.9}.count) uncertain").font(.caption).foregroundStyle(Color.harmony)}
             if notes.isEmpty{Text("No stable notes were found. Listen to the original or try a clearer phrase.").font(.callout).foregroundStyle(Color.harmony)}
             HStack(spacing:10){
-                Button{original()}label:{Label(capture.originalPlaying ? "Stop original":"Original voice",systemImage:"waveform").frame(maxWidth:.infinity,minHeight:48).background(Color.raised,in:RoundedRectangle(cornerRadius:10))}.accessibilityIdentifier("voice.original")
+                Button{original()}label:{Label(LocalizedStringKey(capture.originalPlaying ? "Stop original":"Original voice"),systemImage:"waveform").frame(maxWidth:.infinity,minHeight:48).background(Color.raised,in:RoundedRectangle(cornerRadius:10))}.accessibilityIdentifier("voice.original")
                 Button{instrument()}label:{Label("Instrument",systemImage:"pianokeys").frame(maxWidth:.infinity,minHeight:48).background(Color.raised,in:RoundedRectangle(cornerRadius:10))}.disabled(notes.isEmpty).accessibilityIdentifier("voice.instrument")
             }.font(.subheadline)
             if session.harmonyPreview{Button("Stop preview"){session.endHarmonyPreview()}.frame(minHeight:44)}

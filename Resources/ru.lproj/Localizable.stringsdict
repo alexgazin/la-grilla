@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>%lld notes</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld нота</string>
+			<key>few</key>
+			<string>%lld ноты</string>
+			<key>many</key>
+			<string>%lld нот</string>
+			<key>other</key>
+			<string>%lld ноты</string>
+		</dict>
+	</dict>
+	<key>%lld bars</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld такт</string>
+			<key>few</key>
+			<string>%lld такта</string>
+			<key>many</key>
+			<string>%lld тактов</string>
+			<key>other</key>
+			<string>%lld такта</string>
+		</dict>
+	</dict>
+	<key>%lld tracks</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld дорожка</string>
+			<key>few</key>
+			<string>%lld дорожки</string>
+			<key>many</key>
+			<string>%lld дорожек</string>
+			<key>other</key>
+			<string>%lld дорожки</string>
+		</dict>
+	</dict>
+	<key>%lld projects</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld проект</string>
+			<key>few</key>
+			<string>%lld проекта</string>
+			<key>many</key>
+			<string>%lld проектов</string>
+			<key>other</key>
+			<string>%lld проекта</string>
+		</dict>
+	</dict>
+	<key>%lld uncertain</key>
+	<dict>
+		<key>NSStringLocalizedFormatKey</key>
+		<string>%#@count@</string>
+		<key>count</key>
+		<dict>
+			<key>NSStringFormatSpecTypeKey</key>
+			<string>NSStringPluralRuleType</string>
+			<key>NSStringFormatValueTypeKey</key>
+			<string>lld</string>
+			<key>one</key>
+			<string>%lld сомнительная нота</string>
+			<key>few</key>
+			<string>%lld сомнительные ноты</string>
+			<key>many</key>
+			<string>%lld сомнительных нот</string>
+			<key>other</key>
+			<string>%lld сомнительные ноты</string>
+		</dict>
+	</dict>
+</dict>
+</plist>

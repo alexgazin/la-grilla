@@ -141,9 +141,9 @@ private enum MIDICallbacks {
         let count=buffer.withUnsafeMutableBufferPointer{lg_midi_monitor_pop(hub.pointer,$0.baseAddress,Int32($0.count))}
         for event in buffer.prefix(Int(count)) {
             let source=connections.first{$0.value.slot==event.source}?.key
-            if event.status==9{lastMessage="Ch \(event.channel+1) · note \(event.a) · velocity \(event.b)"}
+            if event.status==9{lastMessage=String(format:NSLocalizedString("Ch %d · note %d · velocity %d",comment:"MIDI activity"),event.channel+1,event.a,event.b)}
             guard event.status==11,event.a != 64,event.a<120,let source,!replaying else{continue}
-            lastMessage="Ch \(event.channel+1) · CC \(event.a) = \(event.b)"
+            lastMessage=String(format:NSLocalizedString("Ch %d · CC %d = %d",comment:"MIDI activity"),event.channel+1,event.a,event.b)
             if let learning {
                 let mapping=MIDIMapping(sourceID:source,channel:Int(event.channel),controller:Int(event.a),target:learning,trackID:learningTrack)
                 self.learning=nil;learningTrack=nil;onLearn?(mapping)

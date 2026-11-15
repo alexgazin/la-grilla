@@ -22,7 +22,7 @@ struct AssistantView:View {
             ScrollView {
                 VStack(alignment:.leading,spacing:18){
                     HStack{Image(systemName:"text.bubble").font(.system(size:32)).foregroundStyle(Color.mint);Spacer();CapsuleLabel(text:"LOCAL",color:.mint)}
-                    Text("An idea, in your words.").font(.system(size:27,weight:.medium))
+                    Text("An idea, in your words.").font(.system(.title2,weight:.medium))
                     Text("Commands create a proposal. Review the section, durations and assumptions before applying.").font(.subheadline).foregroundStyle(Color.muted)
                     HStack{Text(session.section.name).fontWeight(.medium);Spacer();Text("\(session.section.length/barTicks) bars · \(Int(session.project.bpm)) BPM").font(.caption.monospaced()).foregroundStyle(Color.muted)}
                     TextEditor(text:$input).focused($focused).frame(height:110).scrollContentBackground(.hidden).padding(8).background(Color.panel,in:RoundedRectangle(cornerRadius:12)).accessibilityLabel("Command").accessibilityIdentifier("assistant.input")
@@ -41,9 +41,9 @@ struct AssistantView:View {
                     if dictation.requesting{ProgressView("Preparing dictation…")}
                     if dictation.recording{Label("LISTENING · COMMAND",systemImage:"waveform").font(.caption.monospaced()).foregroundStyle(Color.record)}
                     Text("Dictation stops playback and requires on-device recognition. You can always type. Humming requires a separate melody recording.").font(.caption).foregroundStyle(Color.muted)
-                    if let error=dictation.error{Text(error).font(.caption).foregroundStyle(Color.record)}
+                    if let error=dictation.error{Text(LocalizedStringKey(error)).font(.caption).foregroundStyle(Color.record)}
                     Button{generate()}label:{Label("Review command",systemImage:"sparkles").frame(maxWidth:.infinity,minHeight:48).background(Color.mint,in:RoundedRectangle(cornerRadius:12)).foregroundStyle(Color.ink).fontWeight(.semibold)}.disabled(input.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty || dictation.requesting || dictation.recording).accessibilityIdentifier("assistant.generate")
-                    if let error{Text(error).font(.callout).foregroundStyle(Color.record)}
+                    if let error{Text(LocalizedStringKey(error)).font(.callout).foregroundStyle(Color.record)}
                     if ambiguous {VStack(spacing:8){Button("Stretch chords evenly"){generate(.stretch)};Button("Repeat, one bar per chord"){generate(.repeatBars)}}.buttonStyle(.bordered).frame(maxWidth:.infinity)}
                     if let proposal,let candidate{review(proposal,candidate:candidate)}
                 }.padding(20)
