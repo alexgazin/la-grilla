@@ -38,13 +38,15 @@ import SwiftUI
         guard let pointer=audio.withKernel({$0})else{throw Failure(message:"No live kernel")}
         return pointer
     }
-    /// Observe ordinary output startup without fetching inputNode, installing
-    /// an input tap or invoking any microphone permission request API.
+    /// Phase one prepares only the musical reference and observes output.
+    /// It never requests recording permission or installs an input tap; the
+    /// exact engine keeps playing for phase two's explicit first recording.
     static func outputPrivacy(_ session:Session)async throws->String {
         let audio=session.audio
         let before=AVAudioApplication.shared.recordPermission
-        _ = try await fixture(audio)
-        defer{audio.stop()}
+        guard let initialEngine=audio.captureEngine else{throw Failure(message:"No cold-start output engine")}
+        let initialKernel=try pointer(audio)
+        try await VoiceCaptureRuntimeQA.prepareReference(session,deadline:Date().addingTimeInterval(10))
         let clockBefore=audio.clock
         var peak:Float=0
         try await wait(audio){
@@ -66,11 +68,16 @@ import SwiftUI
             let outputClockFramesAdvanced:UInt64
             let observedOutputPeak:Float
             let softwareOutputPrivacyVerified:Bool
+            let preparedMonophonicReference=true
+            let referenceEngineKernelRetained:Bool
+            let processIdentifier:Int
             let physicalMicrophoneIndicatorVerified=false
-            let observation="Permission state and output callbacks are software observations. System-alert absence is checked by XCTest; physical microphone-indicator behavior requires device verification."
+            let observation="Phase one: live musical reference and undetermined permission; output remains running for explicit first-use capture. Physical indicator behavior still requires device verification."
         }
-        let verified=before == .undetermined && after == .undetermined && audio.playing && audio.captureEngine?.isRunning==true
-        let report=Report(outcome:verified ? "PASS":"FAIL",permissionBefore:permissionName(before),permissionAfter:permissionName(after),outputPlaying:audio.playing,outputEngineRunning:audio.captureEngine?.isRunning==true,outputClockFramesAdvanced:audio.clock-clockBefore,observedOutputPeak:peak,softwareOutputPrivacyVerified:verified)
+        let sameKernel=try pointer(audio)==initialKernel
+        let retained=audio.captureEngine===initialEngine && sameKernel
+        let verified=before == .undetermined && after == .undetermined && audio.playing && audio.captureEngine?.isRunning==true && retained
+        let report=Report(outcome:verified ? "PASS":"FAIL",permissionBefore:permissionName(before),permissionAfter:permissionName(after),outputPlaying:audio.playing,outputEngineRunning:audio.captureEngine?.isRunning==true,outputClockFramesAdvanced:audio.clock-clockBefore,observedOutputPeak:peak,softwareOutputPrivacyVerified:verified,referenceEngineKernelRetained:retained,processIdentifier:Int(ProcessInfo.processInfo.processIdentifier))
         let encoder=JSONEncoder();encoder.outputFormatting=[.sortedKeys,.prettyPrinted]
         let details=String(decoding:try encoder.encode(report),as:UTF8.self)
         try require(verified,details)
@@ -356,8 +363,15 @@ struct AudioRuntimeQAView:View {
     @State private var result="WAITING"
     @State private var details=""
     @State private var started=false
+    @State private var coldPrivacyDetails:String?
+    @State private var coldEngine:AVAudioEngine?
+    @State private var coldKernel:OpaquePointer?
+    @State private var coldProject:Project?
+    @State private var coldClock:UInt64=0
+    @State private var coldTick=0.0
     private var inputDiagnosticCase:Bool{ProcessInfo.processInfo.arguments.contains("--audio-input-lifecycle-controls")}
     private var voiceCaptureCase:Bool{ProcessInfo.processInfo.arguments.contains("--audio-runtime-voice-capture")}
+    private var outputPrivacyCase:Bool{ProcessInfo.processInfo.arguments.contains("--audio-runtime-output-privacy")}
     private var microphoneCase:Bool {
         let args=ProcessInfo.processInfo.arguments
         return (args.contains("--audio-runtime-microphone") || voiceCaptureCase || inputDiagnosticCase) && !args.contains("--audio-runtime-midi-policy")
@@ -366,28 +380,66 @@ struct AudioRuntimeQAView:View {
         VStack(spacing:12){
             Text(verbatim:result).font(.headline).accessibilityIdentifier("audio.runtime.result")
             Text(verbatim:details).font(.caption).accessibilityIdentifier("audio.runtime.details")
-            if microphoneCase,result=="READY" {
-                Button{Task{await run()}}label:{Text(verbatim:inputDiagnosticCase ? "Start input diagnostics":"Start microphone check").frame(minHeight:44)}
+            if (microphoneCase || outputPrivacyCase),result=="READY" {
+                Button{Task{await run()}}label:{Text(verbatim:inputDiagnosticCase ? "Start input diagnostics":outputPrivacyCase ? "Start first recording":"Start microphone check").frame(minHeight:44)}
                     .buttonStyle(.borderedProminent).accessibilityIdentifier("audio.runtime.start")
             }
         }.padding(24).frame(maxWidth:.infinity,maxHeight:.infinity).background(Color.ink).foregroundStyle(Color.studioText)
             .task(id:session.ready){
                 guard session.ready,!started else{return}
-                // Requesting permission during app launch can prevent XCTest
-                // from attaching its automation session. Wait for its explicit
-                // button tap before starting the real microphone acceptance.
-                if microphoneCase{result="READY"}else{await run()}
+                if outputPrivacyCase{await run()}
+                else if microphoneCase{result="READY"}
+                else{await run()}
             }
+    }
+    @MainActor private func prepareColdPrivacyPhase()async throws {
+        details=try await AudioRuntimeQA.outputPrivacy(session)
+        session.audio.refreshClock()
+        coldEngine=session.audio.captureEngine;coldKernel=session.audio.withKernel{$0}
+        coldProject=session.project;coldClock=session.audio.clock;coldTick=session.audio.tick
+        coldPrivacyDetails=details
+        // No permission request has occurred. XCTest first attaches/verifies
+        // this receipt, then enables its Allow handler and taps Start.
+        result="READY";started=false
+    }
+    @MainActor private func completeColdFirstUse()async throws {
+        let audio=session.audio
+        guard let coldEngine,let coldKernel,let coldProject,let coldPrivacyDetails,
+              audio.captureEngine===coldEngine,audio.withKernel({$0==coldKernel})==true,
+              session.project==coldProject,AVAudioApplication.shared.recordPermission == .undetermined
+        else{throw NSError(domain:"LaGrilla.ColdFirstUse",code:1,userInfo:[NSLocalizedDescriptionKey:"Cold first-use engine, project or permission changed before explicit Start"])}
+        audio.refreshClock()
+        guard audio.playing,audio.clock>coldClock else{throw NSError(domain:"LaGrilla.ColdFirstUse",code:2,userInfo:[NSLocalizedDescriptionKey:"Cold reference stopped between privacy observation and Start"])}
+        let length=Double(session.loopRange.count)
+        let expected=(Double(audio.clock-coldClock)*coldProject.bpm*Double(ppq)/(60*audio.sampleRate)).truncatingRemainder(dividingBy:length)
+        var actual=(audio.tick-coldTick).truncatingRemainder(dividingBy:length)
+        if actual<0{actual+=length}
+        let difference=abs(actual-expected),phaseError=min(difference,length-difference)
+        guard phaseError<128 else{throw NSError(domain:"LaGrilla.ColdFirstUse",code:3,userInfo:[NSLocalizedDescriptionKey:"Cold reference phase changed before first capture"])}
+        let captured=try await VoiceCaptureRuntimeQA.run(session,reusePreparedReference:true)
+        guard audio.captureEngine===coldEngine,audio.withKernel({$0==coldKernel})==true,
+              AVAudioApplication.shared.recordPermission == .granted
+        else{throw NSError(domain:"LaGrilla.ColdFirstUse",code:4,userInfo:[NSLocalizedDescriptionKey:"First-use recording lost the original engine/kernel or recording consent"])}
+        guard let data=captured.data(using:.utf8),var report=try JSONSerialization.jsonObject(with:data) as? [String:Any],let privacyData=coldPrivacyDetails.data(using:.utf8)
+        else{throw NSError(domain:"LaGrilla.ColdFirstUse",code:5)}
+        report["coldFirstUse"]=["sameProcess":true,"phaseOneEngineKernelRetained":true,"referenceReusedWithoutPreparation":true,"permissionAtExplicitStart":"undetermined","permissionAfterCapture":"granted","phaseErrorBeforeCaptureTicks":phaseError,"processIdentifier":Int(ProcessInfo.processInfo.processIdentifier)]
+        report["outputPrivacy"]=try JSONSerialization.jsonObject(with:privacyData)
+        details=String(decoding:try JSONSerialization.data(withJSONObject:report,options:[.sortedKeys,.prettyPrinted]),as:UTF8.self)
+        result="PASS"
     }
     @MainActor private func run()async {
         guard !started else{return};started=true;result="RUNNING"
         do {
+            if outputPrivacyCase {
+                if coldPrivacyDetails==nil{try await prepareColdPrivacyPhase()}
+                else{try await completeColdFirstUse()}
+                return
+            }
             if inputDiagnosticCase {
                 details=try await InputLifecycleDiagnostics.run(session)
                 result="DIAGNOSTIC"
                 return
             }
-            if ProcessInfo.processInfo.arguments.contains("--audio-runtime-output-privacy"){details=try await AudioRuntimeQA.outputPrivacy(session);result="PASS";return}
             if ProcessInfo.processInfo.arguments.contains("--audio-runtime-midi-policy"){details=try await AudioRuntimeQA.midiPolicy(session)}
             else if ProcessInfo.processInfo.arguments.contains("--audio-runtime-drum-clip"){details=try await DrumClipRuntimeQA.run(session)}
             else if voiceCaptureCase{details=try await VoiceCaptureRuntimeQA.run(session)}

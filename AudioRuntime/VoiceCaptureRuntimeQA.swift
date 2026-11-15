@@ -101,10 +101,15 @@ import MusicDomain
         let outputHostTimingBaseline:AudioRuntimeQA.OutputHostTimingReport
         let outputHostTiming:AudioRuntimeQA.OutputHostTimingReport
         let physicalDropoutAbsenceVerified=false
+        let referenceReusedWithoutPreparation:Bool
+        let permissionBeforeCapture:String
+        let permissionAfterCapture:String
     }
-    static func run(_ session:Session)async throws->String {
+    static func run(_ session:Session,reusePreparedReference:Bool=false)async throws->String {
         let started=Date(),deadline=started.addingTimeInterval(33)
-        try await prepareReference(session,deadline:deadline)
+        if reusePreparedReference{try validatePreparedReference(session)}
+        else{try await prepareReference(session,deadline:deadline)}
+        let permissionBefore=permissionName(AVAudioApplication.shared.recordPermission)
         let baseline=session.project
         let monitor=try Continuity(session:session,deadline:deadline)
         monitor.start()
@@ -132,7 +137,7 @@ import MusicDomain
         try monitor.check()
         try require(session.audio.clock>monitor.firstClock && monitor.samples>10,"No continuing backing callbacks were observed")
         let timing=try await readTiming(monitor,epoch:baselineTiming.epoch,minimumCallbacks:baselineTiming.callbacks+1)
-        let report=Report(source:captured.result.record,sourceFrames:proof.frames,sourcePeak:proof.peak,route:captured.route,captureStates:captured.states,detectedPitches:detected.map(\.pitch),reviewedPitches:reviewed.map(\.pitch),appliedTrackID:placement.trackID,appliedRevision:applied.revision,storedSourceMatches:true,storedProjectReopened:true,oneUndoRestoresBaseline:true,redoRestoresExactSourceAndNotes:true,sourceUnchangedAfterReview:true,sameEngineAndKernel:true,backingClockAdvanced:true,continuitySamples:monitor.samples,maximumPhaseErrorTicks:monitor.maximumPhaseError,elapsedSeconds:Date().timeIntervalSince(started),outputHostTimingBaseline:.init(baselineTiming),outputHostTiming:.init(timing))
+        let report=Report(source:captured.result.record,sourceFrames:proof.frames,sourcePeak:proof.peak,route:captured.route,captureStates:captured.states,detectedPitches:detected.map(\.pitch),reviewedPitches:reviewed.map(\.pitch),appliedTrackID:placement.trackID,appliedRevision:applied.revision,storedSourceMatches:true,storedProjectReopened:true,oneUndoRestoresBaseline:true,redoRestoresExactSourceAndNotes:true,sourceUnchangedAfterReview:true,sameEngineAndKernel:true,backingClockAdvanced:true,continuitySamples:monitor.samples,maximumPhaseErrorTicks:monitor.maximumPhaseError,elapsedSeconds:Date().timeIntervalSince(started),outputHostTimingBaseline:.init(baselineTiming),outputHostTiming:.init(timing),referenceReusedWithoutPreparation:reusePreparedReference,permissionBeforeCapture:permissionBefore,permissionAfterCapture:permissionName(AVAudioApplication.shared.recordPermission))
         let encoder=JSONEncoder();encoder.outputFormatting=[.prettyPrinted,.sortedKeys]
         return String(decoding:try encoder.encode(report),as:UTF8.self)
     }
@@ -149,7 +154,18 @@ import MusicDomain
             try await Task.sleep(for:.milliseconds(20))
         }
     }
-    private static func prepareReference(_ session:Session,deadline:Date)async throws {
+    private static func permissionName(_ value:AVAudioApplication.recordPermission)->String {
+        value == .undetermined ? "undetermined":value == .granted ? "granted":"denied"
+    }
+    private static func validatePreparedReference(_ session:Session)throws {
+        // The cold first-use path must not call prepare, edit, seek or play here:
+        // it continues the exact graph/music observed before consent.
+        try session.project.validate()
+        let ready=session.audio.isPrepared && session.audio.playing && session.audio.appliedRevision==session.project.revision
+        let reference=session.project.tracks.contains{$0.name=="Hardware loopback reference" && $0.role == .melody}
+        try require(ready && reference && session.project.bpm==120 && session.loop && session.loopRange.count==2*barTicks,"Cold first-use reference is no longer running/prepared")
+    }
+    static func prepareReference(_ session:Session,deadline:Date)async throws {
         try session.audio.prepare()
         session.edit{project in
             project.bpm=120;project.masterFX=nil;project.midi=nil

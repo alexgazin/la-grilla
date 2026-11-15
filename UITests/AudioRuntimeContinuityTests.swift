@@ -119,47 +119,95 @@ final class AudioRuntimeContinuityTests:XCTestCase {
         app.terminate()
         app.resetAuthorizationStatus(for:.microphone)
         app.launchArguments=["--uitesting","--audio-runtime-qa","--audio-runtime-output-privacy","-AppleLanguages","(en)","-AppleLocale","en_US"]
-        var microphoneAlertObserved=false
-        func rejectMicrophoneAlert(_ alert:XCUIElement)->Bool {
+        var allowExplicitRequest=false,earlyMicrophoneAlert=false,requestedAlertObserved=false
+        func handleMicrophoneAlert(_ alert:XCUIElement)->Bool {
             let text=([alert.label]+alert.staticTexts.allElementsBoundByIndex.map(\.label)).joined(separator:" ")
             guard text.localizedCaseInsensitiveContains("microphone") else{return false}
-            microphoneAlertObserved=true
-            // Reject unexpected access rather than granting it. This also lets
-            // the test collect the software receipt before failing privacy.
-            for title in ["Don’t Allow","Don't Allow"] where alert.buttons[title].exists{alert.buttons[title].tap();break}
-            return true
+            if allowExplicitRequest {
+                requestedAlertObserved=true
+                for title in ["Allow","OK"] where alert.buttons[title].exists{alert.buttons[title].tap();return true}
+                return false
+            }
+            earlyMicrophoneAlert=true
+            // Until phase one's receipt is attached and Start is about to be
+            // tapped, an automatic request is a privacy failure, never consent.
+            for title in ["Don’t Allow","Don't Allow"] where alert.buttons[title].exists{alert.buttons[title].tap();return true}
+            return false
         }
-        let interruption=addUIInterruptionMonitor(withDescription:"Reject unexpected microphone request during output-only launch"){rejectMicrophoneAlert($0)}
+        let interruption=addUIInterruptionMonitor(withDescription:"Cold output then explicit first recording consent"){handleMicrophoneAlert($0)}
         defer {
+            allowExplicitRequest=false
             app.terminate()
-            for alert in springboard.alerts.allElementsBoundByIndex{_ = rejectMicrophoneAlert(alert)}
+            for alert in springboard.alerts.allElementsBoundByIndex{_ = handleMicrophoneAlert(alert)}
             app.resetAuthorizationStatus(for:.microphone)
             removeUIInterruptionMonitor(interruption)
         }
         app.launch()
         let result=app.staticTexts["audio.runtime.result"]
-        let deadline=Date().addingTimeInterval(20)
-        while Date()<deadline {
-            for alert in springboard.alerts.allElementsBoundByIndex{_ = rejectMicrophoneAlert(alert)}
-            if result.exists,result.label=="PASS" || result.label=="FAIL"{break}
+        let phaseOneDeadline=Date().addingTimeInterval(20)
+        while Date()<phaseOneDeadline {
+            for alert in springboard.alerts.allElementsBoundByIndex{_ = handleMicrophoneAlert(alert)}
+            if result.exists,result.label=="READY" || result.label=="FAIL"{break}
             RunLoop.current.run(until:Date().addingTimeInterval(0.1))
         }
-        for alert in springboard.alerts.allElementsBoundByIndex{_ = rejectMicrophoneAlert(alert)}
-        let details=app.staticTexts["audio.runtime.details"].label
-        let attachment=XCTAttachment(string:details);attachment.name="Cold-output-only-privacy-software-observation";attachment.lifetime = .keepAlways;add(attachment)
-        XCTAssertFalse(microphoneAlertObserved,"Output-only startup requested microphone access.")
-        XCTAssertEqual(result.label,"PASS",details)
-        let data=try XCTUnwrap(details.data(using:.utf8))
-        let report=try XCTUnwrap(JSONSerialization.jsonObject(with:data) as? [String:Any])
-        XCTAssertEqual(report["permissionBefore"] as? String,"undetermined")
-        XCTAssertEqual(report["permissionAfter"] as? String,"undetermined")
-        XCTAssertEqual(report["softwareOutputPrivacyVerified"] as? Bool,true)
-        XCTAssertEqual(report["outputPlaying"] as? Bool,true)
-        XCTAssertEqual(report["outputEngineRunning"] as? Bool,true)
-        XCTAssertGreaterThan(report["outputClockFramesAdvanced"] as? Int ?? 0,0)
-        XCTAssertGreaterThan(report["observedOutputPeak"] as? Double ?? 0,0.0001)
-        XCTAssertEqual(report["physicalMicrophoneIndicatorVerified"] as? Bool,false)
-        XCTAssertEqual(report["productionAcceptance"] as? Bool,false)
+        for alert in springboard.alerts.allElementsBoundByIndex{_ = handleMicrophoneAlert(alert)}
+        let privacyDetails=app.staticTexts["audio.runtime.details"].label
+        let privacyAttachment=XCTAttachment(string:privacyDetails);privacyAttachment.name="Cold-output-only-privacy-software-observation";privacyAttachment.lifetime = .keepAlways;add(privacyAttachment)
+        XCTAssertFalse(earlyMicrophoneAlert,"Output-only startup requested microphone access.")
+        XCTAssertEqual(result.label,"READY",privacyDetails)
+        let data=try XCTUnwrap(privacyDetails.data(using:.utf8))
+        let privacy=try XCTUnwrap(JSONSerialization.jsonObject(with:data) as? [String:Any])
+        XCTAssertEqual(privacy["permissionBefore"] as? String,"undetermined")
+        XCTAssertEqual(privacy["permissionAfter"] as? String,"undetermined")
+        XCTAssertEqual(privacy["softwareOutputPrivacyVerified"] as? Bool,true)
+        XCTAssertEqual(privacy["preparedMonophonicReference"] as? Bool,true)
+        XCTAssertEqual(privacy["referenceEngineKernelRetained"] as? Bool,true)
+        XCTAssertEqual(privacy["outputPlaying"] as? Bool,true)
+        XCTAssertEqual(privacy["outputEngineRunning"] as? Bool,true)
+        XCTAssertGreaterThan(privacy["outputClockFramesAdvanced"] as? Int ?? 0,0)
+        XCTAssertGreaterThan(privacy["observedOutputPeak"] as? Double ?? 0,0.0001)
+        XCTAssertEqual(privacy["physicalMicrophoneIndicatorVerified"] as? Bool,false)
+        XCTAssertEqual(privacy["productionAcceptance"] as? Bool,false)
+        let process=try XCTUnwrap(privacy["processIdentifier"] as? Int)
+        XCTAssertGreaterThan(process,0)
+        let start=app.buttons["audio.runtime.start"]
+        XCTAssertTrue(start.waitForExistence(timeout:5));XCTAssertGreaterThanOrEqual(start.frame.height,44)
+        for alert in springboard.alerts.allElementsBoundByIndex{_ = handleMicrophoneAlert(alert)}
+        guard !earlyMicrophoneAlert,result.label=="READY",
+              privacy["softwareOutputPrivacyVerified"] as? Bool==true,
+              privacy["permissionBefore"] as? String=="undetermined",
+              privacy["permissionAfter"] as? String=="undetermined",
+              start.exists,start.isHittable
+        else{XCTFail("Cold output privacy/READY preconditions failed; recording consent will not be granted");return}
+        // Same app and engine: no terminate/relaunch, music setup or seek between
+        // the privacy observation and the production capture/application flow.
+        allowExplicitRequest=true
+        start.tap()
+        let phaseTwoDeadline=Date().addingTimeInterval(35)
+        while Date()<phaseTwoDeadline {
+            for alert in springboard.alerts.allElementsBoundByIndex{_ = handleMicrophoneAlert(alert)}
+            if result.exists,result.label=="PASS" || result.label=="FAIL" || result.label=="UNAVAILABLE"{break}
+            RunLoop.current.run(until:Date().addingTimeInterval(0.1))
+        }
+        let captureDetails=app.staticTexts["audio.runtime.details"].label
+        let captureAttachment=XCTAttachment(string:captureDetails);captureAttachment.name="Cold-first-use-production-voice-capture-lifecycle";captureAttachment.lifetime = .keepAlways;add(captureAttachment)
+        XCTAssertFalse(earlyMicrophoneAlert)
+        XCTAssertTrue(requestedAlertObserved,"Fresh first-use recording permission prompt was not observed after Start")
+        XCTAssertEqual(result.label,"PASS",captureDetails)
+        try assertVoiceReceipt(captureDetails)
+        let captureData=try XCTUnwrap(captureDetails.data(using:.utf8))
+        let capture=try XCTUnwrap(JSONSerialization.jsonObject(with:captureData) as? [String:Any])
+        XCTAssertEqual(capture["referenceReusedWithoutPreparation"] as? Bool,true)
+        XCTAssertEqual(capture["permissionBeforeCapture"] as? String,"undetermined")
+        XCTAssertEqual(capture["permissionAfterCapture"] as? String,"granted")
+        let cold=try XCTUnwrap(capture["coldFirstUse"] as? [String:Any])
+        XCTAssertEqual(cold["sameProcess"] as? Bool,true)
+        XCTAssertEqual(cold["processIdentifier"] as? Int,process)
+        XCTAssertEqual(cold["phaseOneEngineKernelRetained"] as? Bool,true)
+        XCTAssertEqual(cold["referenceReusedWithoutPreparation"] as? Bool,true)
+        XCTAssertEqual(cold["permissionAtExplicitStart"] as? String,"undetermined")
+        XCTAssertEqual(cold["permissionAfterCapture"] as? String,"granted")
+        XCTAssertLessThan(cold["phaseErrorBeforeCaptureTicks"] as? Double ?? .infinity,128)
     }
     @MainActor func testProductionVoiceCaptureCAFAnalysisApplyStoreAndUndo()throws {try run(microphone:true,voiceCapture:true)}
     @MainActor func testLiveSnapshotMixRoutingAndClockStayCoherent()throws {try run(microphone:false)}

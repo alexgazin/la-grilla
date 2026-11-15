@@ -163,6 +163,14 @@ Source `1bfdb22bd7fa60efca90c7a702befbf240c6e986`, [run 43733352465](https://git
 
 Минимальная следующая production-правка создаёт `e.inputNode` до output/mainMixer/source preparation существующего AudioController. Категория на старте остаётся Playback, ручного изменения AU/формата или нового capture engine нет. До принятия обязательна новая cold-output проверка: XCTest сбрасывает разрешение в undetermined, запускает настоящий output и отвергает неожиданный microphone alert; helper не вызывает permission API/tap. Реальная запись, CAF/analysis/apply/source/Undo должны пройти прежние строгие тесты. Физический microphone indicator остаётся отдельным C8 наблюдением.
 
+### C5/C7 — холодный первый захват и готовность Simulator
+
+Source `d9250ae`, [run 43738952980](https://github.com/alexgazin/la-grilla/actions/runs/43738952980): simulator build, iPhone SDK и optimized archive прошли. Оба запуска iOS job остановились **до native tests** на настройке Simulator: attempt 1 — timeout System Events 45 s; attempt 2 — доступное меню I/O с ещё пустым Audio Input, без BlackHole item. Ни privacy, ни PCM, ни CAF результата этот run не установил. Ни один из этих setup failures не переименован в успешную или недоступную запись.
+
+Настройка GUI теперь делает до трёх ограниченных попыток (каждая ≤45 s), ожидает реальные окна/наполнение меню и повторно читает фактические checkmarks. Для успеха по-прежнему необходимы **оба** выбранных и включённых BlackHole input/output. Нет fallback route, отключения native-проверок, перезапуска Simulator или изменения TCC. Host shell/Python parse и mock проверки retry→success, missing→failure, timeout→124 прошли; настоящее GUI поведение ожидает следующего macOS run.
+
+Cold privacy acceptance усилена: один процесс и первоначальные engine/kernel сначала играют монофонический reference с permission `undetermined`, без запроса микрофона. XCTest сохраняет и проверяет отдельный phase-one JSON; любой ранний alert отвергается и проваливает сценарий. Только после явного Start разрешается ожидаемый prompt и запускается **тот же production VoiceCaptureController**: реальные HAL/input callbacks → CAF → analysis → ручная правка → apply/store/reopen → одна Undo/Redo. Между фазами не вызываются prepare/edit/seek/play и не пересоздаётся reference. Проверяются PID, engine/kernel, исходный проект, clock/phase и permission до/после; warm microphone и VoiceCapture cases сохранены отдельно. Это исключает ложный успех, при котором запись начинает работать лишь после перезапуска уже разрешённого приложения. Результат новой проверки пока не получен; человеческий голос и физический microphone indicator остаются C8.
+
 ## Формат отчёта каждого этапа
 
 Для C1–C8 добавлять отдельную запись:
