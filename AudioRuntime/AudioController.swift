@@ -70,6 +70,8 @@ private enum AudioRender {
         clock = lg_clock(k); tick = lg_tick(k); playing = lg_playing(k) != 0; appliedRevision = sentRevisions[Int(lg_revision(k))] ?? -1; countRemaining = Int(lg_countremaining(k)); overflows = Int(lg_overflows(k))
         meters = (0...masterBus).map {lg_meter(k,Int32($0))};onPoll?()
     }
+    /// Read the audio clock at the touch, rather than using the last 30 Hz UI poll.
+    func refreshClock(){guard let k=handle?.pointer else{return};clock=lg_clock(k);tick=lg_tick(k);playing=lg_playing(k) != 0;countRemaining=Int(lg_countremaining(k))}
     func submit(_ p: Project, loop: Bool, range: Range<Int>) {
         guard let k = handle?.pointer else { return }
         let compiled=Compiler.notes(p)

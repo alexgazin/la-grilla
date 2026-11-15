@@ -6,6 +6,7 @@ import Observation
 @MainActor @Observable final class PerformanceController {
     let audio:AudioController
     var contextActive=false;var playing=false;var recording=false;var starting=false;var replaying=false
+    var stopping=false
     var runtimeProject:Project?;var activeSectionID:UUID?;var queuedSectionID:UUID?
     var repeatSize=480;var repeating=false;var seconds=0.0;var beatsToLaunch=0.0;var eventCount=0
     var error:String?;var notice:String?;var takeReady:PerformanceTake?
@@ -19,7 +20,7 @@ import Observation
     init(audio:AudioController){self.audio=audio}
     var fx:MasterFX{runtimeProject?.masterFX ?? MasterFX()}
     func begin(_ project:Project,sectionID:UUID,record:Bool)throws {
-        guard !starting,!recording,takeReady==nil else{return}
+        guard !starting,!stopping,!recording,takeReady==nil else{return}
         var source=project;source.performanceTake=nil
         if let old=runtimeProject,contextActive,!replaying,old.tracks.map(\.id)==source.tracks.map(\.id){
             for i in source.tracks.indices{source.tracks[i].gain=old.tracks[i].gain;source.tracks[i].pan=old.tracks[i].pan;source.tracks[i].mute=old.tracks[i].mute;source.tracks[i].solo=old.tracks[i].solo};source.master=old.master;source.masterFX=old.masterFX
@@ -33,7 +34,7 @@ import Observation
         epoch=try audio.beginPerformance(source,section:section,token:source.sections.firstIndex(where:{$0.id==section.id})!+1,recording:record)
     }
     func playTake(_ take:PerformanceTake)throws {
-        guard !recording,!starting else{return};try take.validate()
+        guard !recording,!starting,!stopping else{return};try take.validate()
         guard let first=take.events.first,let section=take.source.sections.first(where:{$0.id==first.sectionID})else{throw MusicError.invalidProject}
         let encoded=try PerformanceCodec.kernelEvents(take,targetRate:audio.sampleRate)
         let duration=UInt64((take.durationSeconds*audio.sampleRate).rounded())
@@ -60,8 +61,12 @@ import Observation
         runtimeProject=value;audio.mix(value)
     }
     func stopRecording(){guard recording else{return};audio.withKernel{lg_perform_record_stop($0)}}
-    func panic(){audio.panic();repeating=false;queuedSectionID=nil;if var source=runtimeProject{source.masterFX=MasterFX();runtimeProject=source};poll()}
+    func panic(){guard !stopping else{return};stopping=true;audio.panic();repeating=false;queuedSectionID=nil;if var source=runtimeProject{source.masterFX=MasterFX();runtimeProject=source};Task{await finishStop();stopping=false}}
     func stop()async {
+        if stopping{while stopping{try? await Task.sleep(for:.milliseconds(10))};return}
+        stopping=true;defer{stopping=false};await finishStop()
+    }
+    private func finishStop()async {
         audio.stop();let deadline=Date().addingTimeInterval(1)
         while Date()<deadline {
             poll();if !(audio.withKernel{lg_perform_mode($0) != 0} ?? false){break}

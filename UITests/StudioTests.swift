@@ -4,6 +4,14 @@ final class StudioTests: XCTestCase {
         let app=XCUIApplication();app.launchArguments=["--uitesting","--screen",screen,"-AppleLanguages","(en)","-AppleLocale","en_US"]
         app.launch();XCTAssertTrue(app.buttons["perform.transport"].waitForExistence(timeout:15));return app
     }
+    @MainActor func testBackgroundPlaybackAndStoppedReturn() {
+        let app=launch();app.buttons["Play"].tap();XCTAssertTrue(app.staticTexts["PLAYING"].waitForExistence(timeout:5))
+        XCUIDevice.shared.press(.home);Thread.sleep(forTimeInterval:2);app.activate()
+        XCTAssertTrue(app.buttons["Stop"].waitForExistence(timeout:10));app.buttons["Stop"].tap()
+        XCUIDevice.shared.press(.home);Thread.sleep(forTimeInterval:1);app.activate()
+        XCTAssertTrue(app.buttons["Play"].waitForExistence(timeout:10));XCTAssertTrue(app.staticTexts["STOPPED"].exists)
+        app.buttons["Play"].tap();XCTAssertTrue(app.buttons["Stop"].waitForExistence(timeout:5));app.buttons["Stop"].tap()
+    }
     @MainActor func testRussianInterfaceAndLightAppearance() {
         let app=XCUIApplication();app.launchArguments=["--uitesting","--screen","grid","--appearance","light","-AppleLanguages","(ru)","-AppleLocale","ru_RU"];app.launch()
         XCTAssertTrue(app.buttons["Сетка"].waitForExistence(timeout:15));app.buttons["export.open"].tap()

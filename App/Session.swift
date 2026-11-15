@@ -33,6 +33,11 @@ import Observation
     var noteTrackID:UUID?
     var importing=false
     private var backgrounded=false
+    private var microphoneOwner:UUID?
+    @ObservationIgnored private var stopMicrophone:(()->Void)?
+    @ObservationIgnored private var remoteStarting=false
+    private var remoteActive=false
+    @ObservationIgnored private lazy var remote=NowPlayingController{ [weak self] action in self?.remoteCommand(action) }
     var ready = false; private var bootstrapTask:Task<Void,Never>?; var saveTask: Task<Void,Never>?
     let store: ProjectStore
     enum Sheet: String, Identifiable {case projects, newProject, export, settings, bass, sections, notes, harmony, assistant, voice, perform, midiDevices; var id: String { rawValue }}
@@ -58,16 +63,47 @@ import Observation
         }
         bootstrapTask=task;await task.value
     }
-    func ensureAudio() -> Bool {guard !backgrounded else{return false}; if audio.isPrepared {return true}; do {try audio.prepare(); sync(); return true} catch {audio.error = error.localizedDescription; return false} }
-    func syncMIDI(){guard !backgrounded || audio.playing else{return};midi.configure(project.midi ?? MIDISettings(),project:project)}
+    func ensureAudio() -> Bool {guard !backgrounded || remoteStarting,microphoneOwner==nil else{return false}; if audio.isPrepared {return true}; do {try audio.prepare(); sync(); return true} catch {audio.error = error.localizedDescription; return false} }
+    func syncMIDI(){guard microphoneOwner==nil, !backgrounded || audio.playing || remoteStarting else{return};midi.configure(project.midi ?? MIDISettings(),project:project)}
+    func ownsMicrophone(_ owner:UUID)->Bool{microphoneOwner==owner && !backgrounded}
+    func beginMicrophone(stop:@escaping()->Void)->UUID? {
+        guard !backgrounded else{return nil}
+        stopMicrophone?()
+        if performance.contextActive{performance.finalizeBeforeReset();pollPerformance()}
+        finishTake();harmonyPreview=false;midi.suspend();audio.reset()
+        let owner=UUID();microphoneOwner=owner;stopMicrophone=stop;return owner
+    }
+    func endMicrophone(_ owner:UUID){
+        guard microphoneOwner==owner else{return}
+        microphoneOwner=nil;stopMicrophone=nil
+        if !backgrounded,UIApplication.shared.applicationState == .active{_ = ensureAudio()}
+        else{try? AVAudioSession.sharedInstance().setActive(false,options:.notifyOthersOnDeactivation)}
+    }
     func sceneChanged(_ phase:ScenePhase){
         if phase == .active{backgrounded=false;if ready{_ = ensureAudio();syncMIDI()};return}
         finishTake();Task{await save()}
-        if phase == .background{backgrounded=true;suspendIdleAudio()}
+        if phase == .background{backgrounded=true;stopMicrophone?();microphoneOwner=nil;stopMicrophone=nil;if harmonyPreview{endHarmonyPreview()};suspendIdleAudio()}
     }
     private func suspendIdleAudio(){
-        guard backgrounded,!audio.playing else{return}
+        guard backgrounded,!audio.playing,!performance.stopping else{return}
         midi.suspend();audio.reset();try? AVAudioSession.sharedInstance().setActive(false,options:.notifyOthersOnDeactivation)
+    }
+    private func updateNowPlaying(){
+        guard !harmonyPreview,microphoneOwner==nil else{return}
+        if audio.playing{remoteActive=true}
+        guard remoteActive else{return}
+        let source=displayProject,seconds=performance.contextActive ? performance.seconds:audio.tick/Double(ppq)*60/source.bpm
+        remote.update(title:source.name,seconds:seconds,duration:Double(source.length)/Double(ppq)*60/source.bpm,playing:audio.playing)
+    }
+    private func remoteCommand(_ action:StudioRemoteAction){
+        guard microphoneOwner==nil else{return}
+        switch action {
+        case .play:if !audio.playing{remoteStarting=true;togglePlay();remoteStarting=false}
+        case .pause:if audio.playing{togglePlay()}
+        case .toggle:remoteStarting=true;togglePlay();remoteStarting=false
+        case .stop:interrupt();remote.clear();remoteActive=false
+        }
+        updateNowPlaying();suspendIdleAudio()
     }
     func sync() {syncMIDI();if performance.contextActive{if let p=performance.runtimeProject{audio.mix(p)};return}; audio.submit(project,loop:loop,range:loopRange); audio.metronome(metronome) }
     func edit(_ change: (inout Project) throws -> Void) {
@@ -107,6 +143,7 @@ import Observation
         guard !performance.contextActive else{message="Return to editing before recording a drum loop.";return}
         if recording || armed {finishTake();return}
         guard ensureAudio(), let t = project.tracks.first(where: {$0.role == .drums}),let clip=t.clips.first(where: {$0.start<=section.start && $0.start+$0.length>section.start}),let p=project.patterns.first(where: {$0.id==clip.patternID}) else{return}
+        audio.refreshClock()
         take = [];rawHits=[];takePattern=p.id;takeStart=clip.start;takeLength=p.length
         let barFrames=audio.sampleRate*240/project.bpm
         if audio.playing {
@@ -120,6 +157,7 @@ import Observation
     }
     func pollRecording() {
         midi.poll(replaying:performance.replaying);pollPerformance()
+        updateNowPlaying()
         if backgrounded,!audio.playing{suspendIdleAudio();return}
         if armed && audio.clock>=armClock { armed=false; recording=true }
         guard recording else { return }
@@ -143,7 +181,7 @@ import Observation
         recording=active; replaceNextPass=false; take=[];rawHits=[]
     }
     func hit(_ pad: Int) {
-        guard !performance.replaying,ensureAudio() else{return}; audio.pad(pad);pollRecording()
+        guard !performance.replaying,ensureAudio() else{return};audio.refreshClock();audio.pad(pad);pollRecording()
         if recording {
             let local=(Int(audio.tick)-takeStart+takeLength)%takeLength
             let e=DrumEvent(tick:quantize.tick(local,length:takeLength),pad:pad)
@@ -293,5 +331,5 @@ import Observation
         }}
     }
     func saveCopy()async{do{_ = try await store.duplicate(project);message="A copy has been saved.";entries=try await store.list()}catch{message=error.localizedDescription}}
-    func interrupt() {if performance.contextActive{performance.finalizeBeforeReset();pollPerformance()};harmonyPreview=false;finishTake();midi.suspend();midi.retry();audio.reset();Task{await save()}}
+    func interrupt() {stopMicrophone?();microphoneOwner=nil;stopMicrophone=nil;if performance.contextActive{performance.finalizeBeforeReset();pollPerformance()};harmonyPreview=false;finishTake();midi.suspend();midi.retry();audio.reset();Task{await save()}}
 }
