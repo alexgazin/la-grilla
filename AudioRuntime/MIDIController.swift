@@ -110,7 +110,7 @@ private enum MIDICallbacks {
     }
     private func disconnect(_ id:Int32){guard let connection=connections.removeValue(forKey:id)else{return};MIDIPortDisconnectSource(input,connection.endpoint);lg_midi_disconnect(hub.pointer,Int32(connection.slot))}
     func createFixture()->Int32? {
-        guard ProcessInfo.processInfo.arguments.contains("--uitesting")else{return nil};prepare()
+        guard ProcessInfo.processInfo.arguments.contains("--uitesting")else{return nil};prepare();guard client != 0 else{return nil}
         if fixtureSource==0{let status=MIDISourceCreate(client,"La Grilla virtual QA keyboard" as CFString,&fixtureSource);guard status==noErr else{error="Virtual MIDI source failed (\(status)).";return nil}}
         if fixtureDestination==0{
             lg_midi_configure(fixtureProbe.pointer,256,0,0,65535)
@@ -132,6 +132,7 @@ private enum MIDICallbacks {
     }
     deinit{if fixtureDestination != 0{MIDIEndpointDispose(fixtureDestination)};if fixtureSource != 0{MIDIEndpointDispose(fixtureSource)};if input != 0{MIDIPortDispose(input)};if client != 0{MIDIClientDispose(client)}}
     func panic(){for id in Array(connections.keys){disconnect(id)};outputWorker?.select(configuredOutput,channels:outputChannels);learning=nil}
+    func suspend(){for id in Array(connections.keys){disconnect(id)};outputWorker?.suspend();configuredOutput=0;lastConfiguration=nil;learning=nil}
     func isConnected(_ id:Int32)->Bool{connections[id] != nil}
     func poll(replaying:Bool){
         late=lg_midi_late(hub.pointer);dropped=lg_midi_dropped(hub.pointer);outputSent=lg_midi_output_count(hub.pointer)

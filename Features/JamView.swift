@@ -9,7 +9,7 @@ struct JamView: View {
     @State private var stepBar = 0
     @State private var velocity = 100.0
     @State private var pressed: Set<Int> = []
-    var body:some View{Group{if verticalSize == .compact{compactJam}else{regularJam}}}
+    var body:some View{Group{if verticalSize == .compact{compactJam}else{ScrollView(.vertical){regularJam}}}
     private var regularJam: some View {
         VStack(spacing:14){
             HStack{VStack(alignment:.leading,spacing:5){SmallHeading(text:"DRUM MACHINE");Text("Pocket kit").font(.system(size:22,weight:.medium))};Spacer();Picker("Editor",selection:$steps){Text("Pads").tag(false);Text("Steps").tag(true)}.pickerStyle(.segmented).frame(width:145)}.padding(.top,18)
@@ -50,7 +50,7 @@ struct JamView: View {
                     .gesture(DragGesture(minimumDistance:0).onChanged{_ in if !pressed.contains(pad){pressed.insert(pad);session.hit(pad)}}.onEnded{_ in pressed.remove(pad)})
                     .accessibilityElement(children:.ignore).accessibilityLabel(LocalizedStringKey(Compiler.padNames[pad])).accessibilityAddTraits(.isButton).accessibilityAction{session.hit(pad)}
             }}.frame(maxHeight:.infinity,alignment:.center)
-        }.frame(minHeight:verticalSize == .compact ? 200:240,maxHeight:380)
+        }.frame(height:verticalSize == .compact ? 200:312)
     }
     var drumPattern: Pattern? {
         guard let t=session.displayProject.tracks.first(where:{$0.role == .drums}),let c=t.clips.first(where:{$0.start==session.section.start})else{return nil}

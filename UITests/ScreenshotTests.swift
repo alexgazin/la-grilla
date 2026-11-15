@@ -13,7 +13,7 @@ final class ScreenshotTests:XCTestCase {
             guard app.buttons["perform.transport"].waitForExistence(timeout:20)else{XCTFail("The app did not open for \(screen)");app.terminate();continue}
             if target=="voice-draft"{XCTAssertTrue(app.staticTexts["voice.note-count"].waitForExistence(timeout:15))}
             Thread.sleep(forTimeInterval:target.hasPrefix("perform-") ? 5:1)
-            let shot=XCTAttachment(screenshot:app.screenshot());shot.name="R8-"+screen;shot.lifetime = .keepAlways;add(shot);app.terminate()
+            let shot=XCTAttachment(screenshot:XCUIScreen.main.screenshot());shot.name="R8-"+screen;shot.lifetime = .keepAlways;add(shot);app.terminate()
         }
     }
 }

@@ -34,7 +34,7 @@ struct PianoRollView: View {
             .navigationTitle("Piano roll").navigationBarTitleDisplayMode(.inline)
             .toolbar{ToolbarItem(placement:.topBarTrailing){Button("Done"){dismiss()}}}
         }.tint(.mint).alert("Rename track",isPresented:$renaming){TextField("Track name",text:$trackName);Button("Save"){if let id=track?.id{let name=String(trackName.trimmingCharacters(in:.whitespacesAndNewlines).prefix(40));if !name.isEmpty{session.edit{p in if let i=p.tracks.firstIndex(where:{$0.id==id}){p.tracks[i].name=name}}}}};Button("Cancel",role:.cancel){}}
-        .onAppear{if dynamicType.isAccessibilitySize || UIAccessibility.isVoiceOverRunning{listMode=true}}
+        .onChange(of:dynamicType,initial:true){_,size in if size.isAccessibilitySize || UIAccessibility.isVoiceOverRunning{listMode=true}}
         .onChange(of:session.noteTrackID){_,_ in selected=nil}
         .sheet(item:$original){record in SourceRecordingView(session:session,record:record)}
         .onChange(of:session.selectedSection){_,_ in selected=nil}
