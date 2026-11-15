@@ -91,17 +91,29 @@ end selectAndVerify
 
 on run argv
     set deviceTitle to item 1 of argv
+    set expectedWindowTitle to item 2 of argv
     tell application "System Events"
         if not (exists process "Simulator") then error "Simulator must be running before audio menu selection"
         tell process "Simulator"
             set frontmost to true
             -- A booted guest can precede its accessible device window. Retry
             -- this whole script if System Events still cannot expose that UI.
-            set windowDeadline to (current date) + 8
-            repeat while (count of windows) is 0
-                if (current date) is greater than or equal to windowDeadline then error "Simulator has no accessible device window yet"
+            set windowDeadline to (current date) + 12
+            set targetWindow to missing value
+            repeat
+                repeat with candidateWindow in windows
+                    set candidateTitle to get name of candidateWindow
+                    if candidateTitle is not missing value then
+                        if (candidateTitle as text) contains expectedWindowTitle then set targetWindow to candidateWindow
+                    end if
+                end repeat
+                if targetWindow is not missing value then exit repeat
+                if (current date) is greater than or equal to windowDeadline then error "Simulator has no named window for the booted target: " & expectedWindowTitle
                 delay 0.2
             end repeat
+            try
+                perform action "AXRaise" of targetWindow
+            end try
             key code 53
             key code 53
             set windowNames to get name of every window
@@ -136,7 +148,7 @@ began=time.monotonic()
 for attempt in range(1,4):
     print(f'Simulator audio menu attempt {attempt}/3 (elapsed {time.monotonic()-began:.1f}s).',flush=True)
     try:
-        result=subprocess.run(['/usr/bin/osascript','-','BlackHole 2ch'],input=script,text=True,
+        result=subprocess.run(['/usr/bin/osascript','-','BlackHole 2ch','iPhone 16 Pro Max'],input=script,text=True,
                               stdout=subprocess.PIPE,stderr=subprocess.STDOUT,timeout=45)
         print(result.stdout,end='',flush=True)
         last_status=result.returncode
