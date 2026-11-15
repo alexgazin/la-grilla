@@ -6,6 +6,8 @@ import Observation
 
 @MainActor @Observable final class Session {
     var project = Project.demo(); var history = History(); let audio = AudioController()
+    @ObservationIgnored lazy var performance=PerformanceController(audio:audio)
+    var displayProject:Project{performance.contextActive ? (performance.runtimeProject ?? project):project}
     var selectedSection: UUID?; var tab = 0; var loop = true; var loopBars = 4; var metronome = false
     var quantize: Quantize = .sixteenth; var overdub = true; var countIn = true
     var recording = false; var armed = false; var armClock: UInt64 = 0
@@ -29,10 +31,11 @@ import Observation
     init() {
         let root = ProcessInfo.processInfo.arguments.contains("--uitesting") ? FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString) : FileManager.default.urls(for: .documentDirectory,in:.userDomainMask)[0].appendingPathComponent("Projects")
         store = ProjectStore(root: root)
+        audio.onPoll={ [weak self] in self?.pollRecording() }
     }
-    var section: MusicDomain.Section { project.sections.first(where: {$0.id == selectedSection}) ?? project.sections[0] }
-    var loopRange: Range<Int> { let start = section.start; return loop ? start..<min(project.length,start + loopBars*barTicks) : 0..<project.length }
-    var pending: Bool { audio.playing && audio.appliedRevision != project.revision }
+    var section: MusicDomain.Section { displayProject.sections.first(where: {$0.id == selectedSection}) ?? displayProject.sections[0] }
+    var loopRange: Range<Int> {if performance.contextActive{return section.start..<section.start+section.length}; let start = section.start; return loop ? start..<min(project.length,start + loopBars*barTicks) : 0..<project.length }
+    var pending: Bool { !performance.contextActive && audio.playing && audio.appliedRevision != project.revision }
     func bootstrap() async {
         if let bootstrapTask {await bootstrapTask.value;return}
         let task=Task { @MainActor in
@@ -48,22 +51,24 @@ import Observation
         bootstrapTask=task;await task.value
     }
     func ensureAudio() -> Bool { if audio.isPrepared {return true}; do {try audio.prepare(); sync(); return true} catch {audio.error = error.localizedDescription; return false} }
-    func sync() { audio.submit(project,loop:loop,range:loopRange); audio.metronome(metronome) }
+    func sync() {if performance.contextActive{if let p=performance.runtimeProject{audio.mix(p)};return}; audio.submit(project,loop:loop,range:loopRange); audio.metronome(metronome) }
     func edit(_ change: (inout Project) throws -> Void) {
         mixerGesture=false
+        guard !performance.contextActive else{message="Return to editing before changing the source project.";return}
         guard !recording && !armed else {message = "Finish the drum take before editing the project.";return}
         do {try history.apply(&project,change); sync(); scheduleSave()} catch {message = error.localizedDescription}
     }
     var mixerGesture = false
     func mixerEdit(_ change: (inout Project) throws -> Void) {
+        if performance.contextActive{do{try performance.editMix(change)}catch{message=error.localizedDescription};return}
         do { try history.apply(&project, coalescing: mixerGesture, change); mixerGesture = true; sync(); scheduleSave() }
         catch { message = error.localizedDescription }
     }
     func mixerImmediate(_ change: (inout Project) throws -> Void) {
         mixerGesture=false; mixerEdit(change); mixerGesture=false
     }
-    func undo() {guard !recording && !armed else {return}; mixerGesture=false;history.undo(&project); sync();scheduleSave()}
-    func redo() {guard !recording && !armed else {return}; mixerGesture=false;history.redo(&project); sync();scheduleSave()}
+    func undo() {if performance.contextActive{Task{await leavePerformance();undo()};return};guard !recording && !armed else {return}; mixerGesture=false;history.undo(&project); sync();scheduleSave()}
+    func redo() {if performance.contextActive{Task{await leavePerformance();redo()};return};guard !recording && !armed else {return}; mixerGesture=false;history.redo(&project); sync();scheduleSave()}
     func scheduleSave() {saveTask?.cancel();saveTask = Task {try? await Task.sleep(for:.milliseconds(700));guard !Task.isCancelled else{return};await save()} }
     func save() async {
         saveGeneration += 1; let generation=saveGeneration
@@ -76,10 +81,12 @@ import Observation
         if generation==saveGeneration {saving=false}
     }
     func togglePlay() {
+        if performance.contextActive{if performance.playing || performance.starting{Task{await performance.stop();pollPerformance()}}else{startPerformance(record:false)};return}
         if audio.playing {finishTake();audio.stop()}else if ensureAudio(){if audio.tick>=Double(loopRange.upperBound){audio.seek(loopRange.lowerBound)};audio.play()}
     }
-    func rewind() {finishTake();audio.stop();audio.seek(loopRange.lowerBound)}
+    func rewind() {if performance.contextActive{Task{await leavePerformance();rewind()};return};finishTake();audio.stop();audio.seek(loopRange.lowerBound)}
     func record() {
+        guard !performance.contextActive else{message="Return to editing before recording a drum loop.";return}
         if recording || armed {finishTake();return}
         guard ensureAudio(), let t = project.tracks.first(where: {$0.role == .drums}),let clip=t.clips.first(where: {$0.start<=section.start && $0.start+$0.length>section.start}),let p=project.patterns.first(where: {$0.id==clip.patternID}) else{return}
         take = [];rawHits=[];takePattern=p.id;takeStart=clip.start;takeLength=p.length
@@ -94,6 +101,7 @@ import Observation
         passClock=armClock; replaceNextPass = !overdub; armed=true
     }
     func pollRecording() {
+        pollPerformance()
         if armed && audio.clock>=armClock { armed=false; recording=true }
         guard recording else { return }
         let frames = UInt64(Double(loopRange.count)/960*60/project.bpm*audio.sampleRate)
@@ -146,7 +154,9 @@ import Observation
         if previewPlaying{audio.audition(project,range:loopRange,tick:min(loopRange.upperBound-1,max(loopRange.lowerBound,previewPosition)),loop:loop)}
         else{audio.stop();audio.seek(previewPosition);sync()}
     }
+    func presentEditor(_ sheet:Sheet){if performance.contextActive{Task{await leavePerformance();self.sheet=sheet}}else{finishTake();self.sheet=sheet}}
     func openNotes(_ id:UUID?=nil){
+        if performance.contextActive{Task{await leavePerformance();openNotes(id)};return}
         finishTake()
         if let id{noteTrackID=id}
         else if project.tracks.first(where:{$0.id==noteTrackID && $0.role == .melody})==nil{noteTrackID=project.tracks.first{$0.role == .melody}?.id}
@@ -157,8 +167,9 @@ import Observation
     func duplicateMelody(_ id:UUID){finishTake();audio.stop();let count=project.tracks.count;edit{try $0.duplicateTrack(id)};if project.tracks.count>count{noteTrackID=project.tracks.last?.id}}
     func deleteMelody(_ id:UUID){finishTake();audio.stop();edit{try $0.deleteTrack(id)};noteTrackID=project.tracks.first{$0.role == .melody}?.id}
     func setLoop(bars: Int? = nil, enabled: Bool? = nil) {guard !recording && !armed else{message="Finish the take before changing the loop.";return};if let bars{loopBars=bars};if let enabled{loop=enabled};sync()}
-    func select(_ section: MusicDomain.Section) {guard !recording && !armed else{return};selectedSection=section.id;sync();if !audio.playing{audio.seek(section.start)}}
+    func select(_ section: MusicDomain.Section) {if performance.contextActive{performance.queueSection(section.id);return};guard !recording && !armed else{return};selectedSection=section.id;sync();if !audio.playing{audio.seek(section.start)}}
     func open(_ p: Project, force: Bool = false) async {
+        if performance.contextActive{await leavePerformance()}
         if !force && p.id==project.id {sheet=nil;return}
         if exportInProgress{cancelExport()}
         finishTake();audio.stop();await save()
@@ -231,6 +242,24 @@ import Observation
         catch{await store.removeStagedAsset(record,projectID:projectID);throw error}
         noteTrackID=placement.trackID;sync();await save();return saveError==nil
     }
+    func startPerformance(record:Bool){
+        finishTake();guard ensureAudio()else{return};mixerGesture=false
+        do{try performance.begin(project,sectionID:section.id,record:record)}catch{performance.error=error.localizedDescription}
+    }
+    func replayPerformance(_ take:PerformanceTake){finishTake();guard ensureAudio()else{return};do{try performance.playTake(take)}catch{performance.error=error.localizedDescription}}
+    func pollPerformance(){
+        performance.poll()
+        if performance.contextActive,let id=performance.activeSectionID{selectedSection=id}
+        guard let take=performance.takeReady else{return}
+        guard take.source.id==project.id else{performance.error="The project changed. Export the performance before closing it.";return}
+        do{try history.apply(&project){$0.performanceTake=take};performance.takeReady=nil;scheduleSave()}
+        catch{performance.error=error.localizedDescription}
+    }
+    func leavePerformance()async{await performance.exit();pollPerformance();mixerGesture=false;audio.invalidateMusicSnapshot();sync();audio.seek(loopRange.lowerBound)}
+    func commitPerformanceMix(){
+        guard !performance.recording,!performance.replaying,let runtime=performance.runtimeProject,runtime.tracks.map(\.id)==project.tracks.map(\.id)else{return}
+        do{try history.apply(&project){p in for i in p.tracks.indices{p.tracks[i].gain=runtime.tracks[i].gain;p.tracks[i].pan=runtime.tracks[i].pan;p.tracks[i].mute=runtime.tracks[i].mute;p.tracks[i].solo=runtime.tracks[i].solo};p.master=runtime.master;p.masterFX=runtime.masterFX};scheduleSave()}catch{performance.error=error.localizedDescription}
+    }
     func saveCopy()async{do{_ = try await store.duplicate(project);message="A copy has been saved.";entries=try await store.list()}catch{message=error.localizedDescription}}
-    func interrupt() {harmonyPreview=false;finishTake();audio.reset();Task{await save()}}
+    func interrupt() {if performance.contextActive{performance.finalizeBeforeReset();pollPerformance()};harmonyPreview=false;finishTake();audio.reset();Task{await save()}}
 }

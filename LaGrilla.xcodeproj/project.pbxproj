@@ -204,6 +204,16 @@
 			"isa" = "PBXBuildFile";
 			"fileRef" = "D47395E0F8A10472F577507F";
 		};
+		"50EFCA92ED90918AC4CF9320" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "AudioRuntime/PerformanceController.swift";
+			"sourceTree" = "SOURCE_ROOT";
+		};
+		"5BE39AACE90005978AE10180" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "50EFCA92ED90918AC4CF9320";
+		};
 		"054DDA7442421BAE75E3379C" = {
 			"isa" = "PBXFileReference";
 			"lastKnownFileType" = "sourcecode.swift";
@@ -219,6 +229,7 @@
 			"children" = (
 				"55B6A9A0F0A957043461C53F",
 				"D47395E0F8A10472F577507F",
+				"50EFCA92ED90918AC4CF9320",
 				"054DDA7442421BAE75E3379C",
 			);
 			"name" = "AudioRuntime";
@@ -443,6 +454,7 @@
 				"6F6E8C6658B354FED0C521EB",
 				"7589B598023E170057C43C61",
 				"06478C887723CAE93F422E89",
+				"5BE39AACE90005978AE10180",
 				"8EF2BE99443073CB04C654ED",
 			);
 			"runOnlyForDeploymentPostprocessing" = 0;

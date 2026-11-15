@@ -157,6 +157,7 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
         }}
         guard upperBound <= 65536 else { throw MusicError.tooDense }
         guard Compiler.notes(self).count <= 32768 else { throw MusicError.tooDense }
+        guard try JSONEncoder().encode(self).count<=8_000_000 else{throw MusicError.tooDense}
     }
     public mutating func duplicateSection(_ id: UUID, name: String) throws {
         guard let index = sections.firstIndex(where: {$0.id == id}), sections.count < 8, length + sections[index].length <= 64 * barTicks else { throw MusicError.limit }
