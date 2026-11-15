@@ -28,7 +28,7 @@ jobs:
         run: bash scripts/test_audio.sh
       - name: Build iOS app
         id: simulator_build
-        run: set -o pipefail; xcodebuild -project LaGrilla.xcodeproj -scheme LaGrilla -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' ARCHS=arm64 ONLY_ACTIVE_ARCH=YES -configuration Debug -derivedDataPath DerivedData CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO build | tee build.log
+        run: set -o pipefail; xcodebuild -test-timeouts-enabled YES -maximum-test-execution-time-allowance 600 -project LaGrilla.xcodeproj -scheme LaGrilla -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' ARCHS=arm64 ONLY_ACTIVE_ARCH=YES -configuration Debug -derivedDataPath DerivedData CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO build | tee build.log
       - name: Package simulator app
         run: ditto -c -k --sequesterRsrc --keepParent DerivedData/Build/Products/Debug-iphonesimulator/LaGrilla.app LaGrilla-Simulator.zip
       - name: Save simulator build
@@ -46,7 +46,7 @@ jobs:
         run: |
           set -o pipefail
           DEVICE=$(cat /tmp/grilla-simulator-id)
-          xcodebuild -project LaGrilla.xcodeproj -scheme LaGrilla -destination "platform=iOS Simulator,id=$DEVICE" -derivedDataPath DerivedData -resultBundlePath TestResults.xcresult ARCHS=arm64 ONLY_ACTIVE_ARCH=YES CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO -skip-testing:LaGrillaUITests/ScreenshotTests/testCaptureCompactScreens test | tee uitests.log
+          xcodebuild -test-timeouts-enabled YES -maximum-test-execution-time-allowance 600 -project LaGrilla.xcodeproj -scheme LaGrilla -destination "platform=iOS Simulator,id=$DEVICE" -derivedDataPath DerivedData -resultBundlePath TestResults.xcresult ARCHS=arm64 ONLY_ACTIVE_ARCH=YES CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO -skip-testing:LaGrillaUITests/ScreenshotTests/testCaptureCompactScreens test | tee uitests.log
       - name: Compact iPhone screenshots
         if: always() && steps.simulator_build.outcome == 'success'
         run: bash scripts/compact_screenshots.sh
@@ -95,7 +95,7 @@ jobs:
       - name: Compile for physical iPhone SDK without signing
         run: |
           set -o pipefail
-          xcodebuild -project LaGrilla.xcodeproj -scheme LaGrilla -sdk iphoneos -destination 'generic/platform=iOS' -configuration Debug -derivedDataPath DeviceDerivedData CODE_SIGNING_ALLOWED=NO build | tee iphone-build.log
+          xcodebuild -test-timeouts-enabled YES -maximum-test-execution-time-allowance 600 -project LaGrilla.xcodeproj -scheme LaGrilla -sdk iphoneos -destination 'generic/platform=iOS' -configuration Debug -derivedDataPath DeviceDerivedData CODE_SIGNING_ALLOWED=NO build | tee iphone-build.log
       - uses: actions/upload-artifact@v4
         if: always()
         with:

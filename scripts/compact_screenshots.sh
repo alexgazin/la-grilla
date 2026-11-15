@@ -17,4 +17,4 @@ run_limited 60 xcrun simctl shutdown "$DEVICE" || true
 run_limited 60 xcrun simctl boot "$COMPACT" || true
 run_limited 300 xcrun simctl bootstatus "$COMPACT" -b
 set -o pipefail
-xcodebuild -project LaGrilla.xcodeproj -scheme LaGrilla -destination "platform=iOS Simulator,id=$COMPACT" -derivedDataPath DerivedData -resultBundlePath CompactResults.xcresult ARCHS=arm64 ONLY_ACTIVE_ARCH=YES CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO -only-testing:LaGrillaUITests/ScreenshotTests/testCaptureCompactScreens test | tee compact-tests.log
+run_limited 360 xcodebuild -test-timeouts-enabled YES -maximum-test-execution-time-allowance 180 -project LaGrilla.xcodeproj -scheme LaGrilla -destination "platform=iOS Simulator,id=$COMPACT" -derivedDataPath DerivedData -resultBundlePath CompactResults.xcresult ARCHS=arm64 ONLY_ACTIVE_ARCH=YES CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO -only-testing:LaGrillaUITests/ScreenshotTests/testCaptureCompactScreens test | tee compact-tests.log

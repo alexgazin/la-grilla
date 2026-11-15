@@ -1,5 +1,6 @@
 import XCTest
 final class ScreenshotTests:XCTestCase {
+    override func setUp(){super.setUp();executionTimeAllowance=600}
     @MainActor func testCaptureNativeScreens(){capture(["grid","jam","mixer","projects","export","export-wav","export-stems","notes","notes-mixer","harmony","harmony-proposal","assistant","assistant-proposal","voice","voice-draft","perform","perform-take","perform-export","midi","midi-mapped","grid-light","jam-light","mixer-light","notes-light","export-light","grid-ru","assistant-ru","notes-large","mixer-large","jam-large"])}
     @MainActor func testCaptureCompactScreens(){capture(["compact-grid","compact-jam","compact-mixer"])}
     @MainActor private func capture(_ screens:[String]){
