@@ -9,9 +9,10 @@ jobs:
   ios:
     if: "!contains(github.event.head_commit.message, '[device-only]')"
     runs-on: macos-15
-    # The expanded native suite and two display sizes share this job. Each test
-    # still has its own execution limit; allow the full capture set to finish.
-    timeout-minutes: 60
+    # 43 functional flows, three capture methods and two device boots share
+    # this job (the measured candidate took 53.5 minutes with failures). Keep
+    # every individual test limit unchanged and allow result/artifact cleanup.
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
       - name: Verify current App Store toolchain
