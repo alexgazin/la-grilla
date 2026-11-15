@@ -64,7 +64,7 @@ struct GridView: View {
     }
     private var arrangementHeader:some View {
         HStack {
-            SmallHeading(text:"ARRANGEMENT")
+            SmallHeading(text:"ARRANGEMENT").modifier(ArrangementDragTraceValue())
             Spacer()
             Text("\(session.displayProject.length/barTicks) bars")
                 .font(.system(size:11,design:.monospaced)).foregroundStyle(Color.muted)
@@ -155,9 +155,15 @@ struct GridView: View {
                     .allowsHitTesting(false).accessibilityHidden(true)
             }
             ArrangementClipControl(label:track.displayName,value:String(format:NSLocalizedString("%.2f bars",comment:"Clip length"),Double(clip.length)/Double(barTicks)),hint:"\(NSLocalizedString("Clip position",comment:"Song timeline position")): \(MusicalPosition(tick:clip.start).arrangementAccessibilityDescription)",identifier:"grid.clip.\(clip.id)",enabled:!editingLocked,makePayload:{point in
-                guard !editingLocked,resizeDraft==nil,clipSelection==nil,selection==nil,!showClipList,session.sheet==nil,
-                      let current=session.project.tracks.first(where:{$0.id==track.id})?.clips.first(where:{$0.id==clip.id})else{return nil}
+                guard !editingLocked,resizeDraft==nil,clipSelection==nil,selection==nil,!showClipList,session.sheet==nil else{
+                    ArrangementDragDiagnostics.record("payload rejected locked=\(editingLocked) resizing=\(resizeDraft != nil) inspector=\(clipSelection != nil) chordEditor=\(selection != nil) list=\(showClipList) sheet=\(String(describing:session.sheet))")
+                    return nil
+                }
+                guard let current=session.project.tracks.first(where:{$0.id==track.id})?.clips.first(where:{$0.id==clip.id})else{
+                    ArrangementDragDiagnostics.record("payload rejected missing clip=\(clip.id)");return nil
+                }
                 let offset=max(0,min(current.length-1,Int(point.x/barWidth*CGFloat(barTicks))))
+                ArrangementDragDiagnostics.record("payload clip=\(clip.id) revision=\(session.project.revision) anchor=\(point) grabOffset=\(offset) start=\(current.start) length=\(current.length) barWidth=\(barWidth)")
                 return ArrangementDragPayload(project:session.project,trackID:track.id,clipID:clip.id,grabOffset:offset).encoded()
             },resize:{state,translation in
                 resizeClip(trackID:track.id,clipID:clip.id,state:state,translation:translation)
@@ -182,6 +188,7 @@ struct GridView: View {
         }else{resizeDraft=current}
     }
     private func dropClip(_ items:[String],on trackID:UUID,at point:CGPoint)->Bool {
+        ArrangementDragDiagnostics.record("drop received track=\(trackID) point=\(point) count=\(items.count) locked=\(editingLocked)")
         guard !editingLocked,items.count==1 else{return false}
         do {
             let payload=try ArrangementDragPayload.decode(items[0])
@@ -189,13 +196,15 @@ struct GridView: View {
             let raw=Double((point.x-3)/barWidth)*Double(barTicks)-Double(payload.grabOffset)
             let tick=max(0,min(64*barTicks,Int(raw)))
             let copy=copyOnDrag,snap=clipSnap
+            ArrangementDragDiagnostics.record("drop clip=\(payload.objectID) revision=\(payload.revision)/\(session.project.revision) point=\(point) grabOffset=\(payload.grabOffset) raw=\(raw) bounded=\(tick) snapped=\(String(describing:try? ClipEditing.snapped(tick,step:snap))) copy=\(copy)")
             if !copy,payload.sourceTrackID==trackID,let track=session.project.tracks.first(where:{$0.id==trackID}),let clip=track.clips.first(where:{$0.id==payload.objectID}),try ClipEditing.snapped(tick,step:snap)==clip.start{
-                try payload.validate(in:session.project,kind:.clip);return true
+                try payload.validate(in:session.project,kind:.clip);ArrangementDragDiagnostics.record("drop result valid-no-op clip=\(payload.objectID)");return true
             }
             var applied=false
             session.edit{project in if copy{try ClipEditing.copy(payload,to:trackID,start:tick,snap:snap,in:&project)}else{try ClipEditing.move(payload,to:trackID,start:tick,snap:snap,in:&project)};applied=true}
+            ArrangementDragDiagnostics.record("drop result applied=\(applied) revision=\(session.project.revision) clip=\(payload.objectID)")
             return applied
-        } catch {session.message=error.localizedDescription;return false}
+        } catch {ArrangementDragDiagnostics.record("drop rejected error=\(error.localizedDescription)");session.message=error.localizedDescription;return false}
     }
     private func dropSection(_ items:[String],on sectionID:UUID)->Bool {
         guard !editingLocked,items.count==1 else{return false}

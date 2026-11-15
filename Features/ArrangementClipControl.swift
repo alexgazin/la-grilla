@@ -1,5 +1,33 @@
 import SwiftUI
 import UIKit
+import Observation
+
+@MainActor @Observable final class ArrangementDragDiagnostics {
+    static let shared=ArrangementDragDiagnostics()
+    static let enabled=ProcessInfo.processInfo.arguments.contains("--uitesting")
+    private(set) var value=""
+    @ObservationIgnored private var events:[String]=[]
+    static func record(_ event:@autoclosure()->String){
+        guard enabled else{return}
+        let message="\(ProcessInfo.processInfo.systemUptime) \(event().prefix(512))"
+        shared.events.append(message)
+        if shared.events.count>16{shared.events.removeFirst(shared.events.count-16)}
+        shared.value=shared.events.joined(separator:"\n")
+        print("LA_GRILLA_DRAG "+message)
+    }
+}
+
+/// The existing heading exposes bounded QA data without drawing a debug overlay
+/// or invalidating the clip gesture hosts when diagnostics change.
+struct ArrangementDragTraceValue:ViewModifier {
+    @ViewBuilder
+    func body(content:Content)->some View {
+        if ArrangementDragDiagnostics.enabled {
+            content.accessibilityIdentifier("grid.drag-diagnostics")
+                .accessibilityValue(Text(verbatim:ArrangementDragDiagnostics.shared.value))
+        }else{content}
+    }
+}
 
 enum ArrangementClipTouchLayout {
     nonisolated static func resizeCorner(in bounds:CGRect)->CGRect? {
@@ -50,6 +78,8 @@ final class ArrangementClipControlView:UIView,UIGestureRecognizerDelegate,UIDrag
     var activate:(()->Void)?
     private let resizePan=UIPanGestureRecognizer()
     private let tap=UITapGestureRecognizer()
+    private var initialTouchPoint:CGPoint?
+    private var dragInFlight=false
     private func isResizePoint(_ point:CGPoint)->Bool{ArrangementClipTouchLayout.resizeCorner(in:bounds)?.contains(point) ?? false}
     override init(frame:CGRect){super.init(frame:frame);configure()}
     required init?(coder:NSCoder){super.init(coder:coder);configure()}
@@ -67,13 +97,24 @@ final class ArrangementClipControlView:UIView,UIGestureRecognizerDelegate,UIDrag
     override func accessibilityActivate()->Bool {
         guard acceptsInput,let activate else{return false};activate();return true
     }
-    @objc private func tapped(){_ = accessibilityActivate()}
+    @objc private func tapped(){
+        ArrangementDragDiagnostics.record("tap id=\(accessibilityIdentifier ?? "unknown") dragInFlight=\(dragInFlight)")
+        initialTouchPoint=nil
+        _ = accessibilityActivate()
+    }
     @objc private func resized(_ recognizer:UIPanGestureRecognizer){
         // Window coordinates stay fixed while SwiftUI changes the clip width.
         resize?(recognizer.state,recognizer.translation(in:window).x)
+        if [.ended,.cancelled,.failed].contains(recognizer.state){initialTouchPoint=nil}
     }
     func gestureRecognizer(_ gestureRecognizer:UIGestureRecognizer,shouldReceive touch:UITouch)->Bool {
         guard acceptsInput else{return false}
+        if gestureRecognizer === tap,!dragInFlight {
+            // UIKit instantiates a drag session after finger movement. Its
+            // location(in:) is the current point, not this original grip.
+            initialTouchPoint=touch.location(in:self)
+            ArrangementDragDiagnostics.record("touchdown id=\(accessibilityIdentifier ?? "unknown") point=\(String(describing:initialTouchPoint)) touchTime=\(touch.timestamp) bounds=\(bounds)")
+        }
         return gestureRecognizer !== resizePan || isResizePoint(touch.location(in:self))
     }
     override func gestureRecognizerShouldBegin(_ gestureRecognizer:UIGestureRecognizer)->Bool {
@@ -82,11 +123,28 @@ final class ArrangementClipControlView:UIView,UIGestureRecognizerDelegate,UIDrag
         return true
     }
     func dragInteraction(_ interaction:UIDragInteraction,itemsForBeginning session:UIDragSession)->[UIDragItem] {
-        let point=session.location(in:self)
-        guard acceptsInput,!isResizePoint(point),let payload=makePayload?(point)else{return []}
+        let current=session.location(in:self)
+        ArrangementDragDiagnostics.record("items id=\(accessibilityIdentifier ?? "unknown") current=\(current) initial=\(String(describing:initialTouchPoint))")
+        guard acceptsInput,let point=initialTouchPoint,bounds.contains(point),!isResizePoint(point)else{
+            ArrangementDragDiagnostics.record("items rejected input=\(acceptsInput) initial=\(String(describing:initialTouchPoint)) bounds=\(bounds)")
+            return []
+        }
+        guard let payload=makePayload?(point)else{ArrangementDragDiagnostics.record("items rejected payload id=\(accessibilityIdentifier ?? "unknown")");return []}
         // This is String's native Transferable representation. There is no
-        // NSString bridge and no cached pre-resize project revision or anchor.
+        // NSString bridge. The revision is fresh; only this touch's original
+        // grip is retained while UIKit instantiates the drag session.
         return [UIDragItem(itemProvider:ArrangementClipProvider.make(payload))]
+    }
+    func dragInteraction(_ interaction:UIDragInteraction,sessionWillBegin session:UIDragSession){
+        dragInFlight=true
+        ArrangementDragDiagnostics.record("willBegin id=\(accessibilityIdentifier ?? "unknown") current=\(session.location(in:self)) initial=\(String(describing:initialTouchPoint))")
+    }
+    func dragInteraction(_ interaction:UIDragInteraction,session:UIDragSession,willEndWith operation:UIDropOperation){
+        ArrangementDragDiagnostics.record("willEnd id=\(accessibilityIdentifier ?? "unknown") operation=\(operation.rawValue) current=\(session.location(in:self))")
+    }
+    func dragInteraction(_ interaction:UIDragInteraction,session:UIDragSession,didEndWith operation:UIDropOperation){
+        ArrangementDragDiagnostics.record("didEnd id=\(accessibilityIdentifier ?? "unknown") operation=\(operation.rawValue) current=\(session.location(in:self))")
+        dragInFlight=false;initialTouchPoint=nil
     }
     func dragInteraction(_ interaction:UIDragInteraction,sessionAllowsMoveOperation session:UIDragSession)->Bool{true}
     func dragInteraction(_ interaction:UIDragInteraction,previewForLifting item:UIDragItem,session:UIDragSession)->UITargetedDragPreview? {
@@ -98,6 +156,7 @@ final class ArrangementClipControlView:UIView,UIGestureRecognizerDelegate,UIDrag
             parent=view.superview
         }
         guard !rect.isNull,!rect.isEmpty else{return nil}
+        ArrangementDragDiagnostics.record("preview id=\(accessibilityIdentifier ?? "unknown") rect=\(rect)")
         let format=UIGraphicsImageRendererFormat();format.scale=window.screen.scale
         let image=UIGraphicsImageRenderer(size:rect.size,format:format).image{context in
             context.cgContext.translateBy(x:-rect.minX,y:-rect.minY)
