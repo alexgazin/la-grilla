@@ -2,6 +2,7 @@ import AVFoundation
 import AudioDSP
 import MusicDomain
 import Observation
+import Darwin
 
 final class KernelHandle: @unchecked Sendable {
     let pointer: OpaquePointer
@@ -12,16 +13,20 @@ final class KernelHandle: @unchecked Sendable {
 /// type does not express Sendable; creating it in prepare() inherits MainActor
 /// and Swift 6 traps when the engine calls it on the real-time audio thread.
 private enum AudioRender {
-    nonisolated static func makeSource(format: AVAudioFormat, kernel: KernelHandle) -> AVAudioSourceNode {
-        AVAudioSourceNode(format:format) { @Sendable [kernel] _, _, count, buffers in
+    nonisolated static func makeSource(format: AVAudioFormat, kernel: KernelHandle,hub:MIDIHubHandle) -> AVAudioSourceNode {
+        var info=mach_timebase_info_data_t();mach_timebase_info(&info)
+        let ticks=1_000_000_000*Double(info.denom)/Double(info.numer)
+        return
+        AVAudioSourceNode(format:format) { @Sendable [kernel,hub] _, stamp, count, buffers in
             let output=UnsafeMutableAudioBufferListPointer(buffers)
             guard output.count==2,let left=output[0].mData,let right=output[1].mData else {return noErr}
-            lg_render(kernel.pointer,left.assumingMemoryBound(to:Float.self),right.assumingMemoryBound(to:Float.self),Int32(count))
+            lg_render_midi(kernel.pointer,hub.pointer,stamp.pointee.mHostTime,ticks,left.assumingMemoryBound(to:Float.self),right.assumingMemoryBound(to:Float.self),Int32(count))
             return noErr
         }
     }
 }
 @MainActor @Observable final class AudioController {
+    let midiHub=MIDIHubHandle()
     private var engine: AVAudioEngine?
     private var source: AVAudioSourceNode?
     private var handle: KernelHandle?
@@ -51,7 +56,7 @@ private enum AudioRender {
         // Preserve musical position when rebuilding after an interruption or route change.
         lg_seek(h.pointer,Int32(max(0,tick).rounded(.down)))
         let format = AVAudioFormat(standardFormatWithSampleRate: sampleRate, channels: 2)!
-        let node = AudioRender.makeSource(format:format, kernel:h)
+        let node = AudioRender.makeSource(format:format, kernel:h,hub:midiHub)
         e.attach(node); e.connect(node, to: e.mainMixerNode, format: format); e.prepare(); try e.start()
         handle = h; source = node; engine = e;submittedNotes=nil
         timer?.invalidate(); timer = Timer.scheduledTimer(withTimeInterval: 1/30, repeats: true) { [weak self] _ in

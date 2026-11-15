@@ -57,7 +57,7 @@ struct PerformanceTests {
     @Test func versionFourProjectsMigrateWithoutEffectsOrTakes()throws {
         var p=Project.demo();p.schemaVersion=4
         let migrated=try ProjectDocument.decode(JSONEncoder().encode(p))
-        #expect(migrated.schemaVersion==5);#expect(migrated.masterFX==nil);#expect(migrated.performanceTake==nil)
+        #expect(migrated.schemaVersion==Project.currentSchemaVersion);#expect(migrated.masterFX==nil);#expect(migrated.performanceTake==nil)
         var invalid=migrated;invalid.masterFX=MasterFX(filter:2);#expect(throws:MusicError.self){try invalid.validate()}
     }
     @Test func finitePerformanceWAVUsesTheCapturedTimelineAndCanResample()async throws {

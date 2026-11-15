@@ -7,6 +7,13 @@ import Observation
 @MainActor @Observable final class Session {
     var project = Project.demo(); var history = History(); let audio = AudioController()
     @ObservationIgnored lazy var performance=PerformanceController(audio:audio)
+    @ObservationIgnored lazy var midi:MIDIController={
+        let controller=MIDIController(hub:audio.midiHub)
+        controller.onConfigurationChange={ [weak self] in self?.syncMIDI() }
+        controller.onLearn={ [weak self] mapping in self?.edit{p in var settings=p.midi ?? MIDISettings();settings.mappings.removeAll{$0.sourceID==mapping.sourceID && $0.channel==mapping.channel && $0.controller==mapping.controller};settings.mappings.append(mapping);p.midi=settings} }
+        controller.onControl={ [weak self] mapping,value in self?.applyMIDI(mapping,value:value) }
+        return controller
+    }()
     var displayProject:Project{performance.contextActive ? (performance.runtimeProject ?? project):project}
     var selectedSection: UUID?; var tab = 0; var loop = true; var loopBars = 4; var metronome = false
     var quantize: Quantize = .sixteenth; var overdub = true; var countIn = true
@@ -51,7 +58,8 @@ import Observation
         bootstrapTask=task;await task.value
     }
     func ensureAudio() -> Bool { if audio.isPrepared {return true}; do {try audio.prepare(); sync(); return true} catch {audio.error = error.localizedDescription; return false} }
-    func sync() {if performance.contextActive{if let p=performance.runtimeProject{audio.mix(p)};return}; audio.submit(project,loop:loop,range:loopRange); audio.metronome(metronome) }
+    func syncMIDI(){midi.configure(project.midi ?? MIDISettings(),project:project)}
+    func sync() {syncMIDI();if performance.contextActive{if let p=performance.runtimeProject{audio.mix(p)};return}; audio.submit(project,loop:loop,range:loopRange); audio.metronome(metronome) }
     func edit(_ change: (inout Project) throws -> Void) {
         mixerGesture=false
         guard !performance.contextActive else{message="Return to editing before changing the source project.";return}
@@ -101,7 +109,7 @@ import Observation
         passClock=armClock; replaceNextPass = !overdub; armed=true
     }
     func pollRecording() {
-        pollPerformance()
+        midi.poll(replaying:performance.replaying);pollPerformance()
         if armed && audio.clock>=armClock { armed=false; recording=true }
         guard recording else { return }
         let frames = UInt64(Double(loopRange.count)/960*60/project.bpm*audio.sampleRate)
@@ -260,6 +268,18 @@ import Observation
     func commitPerformanceMix(){
         guard !performance.recording,!performance.replaying,let runtime=performance.runtimeProject,runtime.tracks.map(\.id)==project.tracks.map(\.id)else{return}
         do{try history.apply(&project){p in for i in p.tracks.indices{p.tracks[i].gain=runtime.tracks[i].gain;p.tracks[i].pan=runtime.tracks[i].pan;p.tracks[i].mute=runtime.tracks[i].mute;p.tracks[i].solo=runtime.tracks[i].solo};p.master=runtime.master;p.masterFX=runtime.masterFX};scheduleSave()}catch{performance.error=error.localizedDescription}
+    }
+    func applyMIDI(_ mapping:MIDIMapping,value:Double){
+        guard !performance.replaying else{return}
+        if performance.contextActive,mapping.target == .filter{performance.setEffects(filter:value);return}
+        if performance.contextActive,mapping.target == .delay{performance.setEffects(delay:value);return}
+        mixerEdit{p in switch mapping.target {
+        case .masterGain:p.master=value
+        case .trackGain:if let i=p.tracks.firstIndex(where:{$0.id==mapping.trackID}){p.tracks[i].gain=value}
+        case .trackPan:if let i=p.tracks.firstIndex(where:{$0.id==mapping.trackID}){p.tracks[i].pan=value}
+        case .filter:var fx=p.masterFX ?? MasterFX();fx.filter=value;p.masterFX=fx
+        case .delay:var fx=p.masterFX ?? MasterFX();fx.delayWet=value;p.masterFX=fx
+        }}
     }
     func saveCopy()async{do{_ = try await store.duplicate(project);message="A copy has been saved.";entries=try await store.list()}catch{message=error.localizedDescription}}
     func interrupt() {if performance.contextActive{performance.finalizeBeforeReset();pollPerformance()};harmonyPreview=false;finishTake();audio.reset();Task{await save()}}

@@ -1,6 +1,7 @@
 #include "GrillaKernel.h"
 #include "PerformanceFX.hpp"
 #include "PerformanceRuntime.hpp"
+#include "MIDIHub.hpp"
 #include <atomic>
 #include <cmath>
 #include <algorithm>
@@ -9,11 +10,11 @@
 constexpr int MaxNotes=32768, MaxTracks=8, Master=8, Buses=9, MaxVoices=64, KitFrames=48000;
 constexpr double Pi=3.14159265358979323846;
 struct Snapshot { std::atomic<int> state{0}, revision{-1}; std::array<LGNote,MaxNotes> notes{}; int count=0,start=0,end=15360; double bpm=120; bool loop=true; };
-struct Voice { bool on=false; int pitch=0,track=0,pad=-1,instrument=0; double phase=0,age=0,duration=0; float velocity=0,level=0; };
+struct Voice { bool on=false; int pitch=0,track=0,pad=-1,instrument=0; double phase=0,age=0,duration=0; float velocity=0,level=0;int sourceKey=-1;bool keyDown=false; };
 struct Input { int value=0,velocity=100,track=0,instrument=0; bool preview=false; };
 struct LGKernel {
     double sr; PerformanceFX fx;PerformanceRuntime performance;std::array<float,Buses> capturedGain{},capturedPan{};float capturedFilter=0,capturedDelay=0;std::atomic<float> filterTarget{0},delayTarget{0}; std::array<Snapshot,3> slots; int current=-1;
-    std::array<Voice,MaxVoices> voices{};
+    std::array<Voice,MaxVoices> voices{};std::array<bool,256> sustain{};
     std::array<std::vector<float>,16> kit;
     std::array<Input,256> input{}; std::atomic<unsigned> write{0},read{0}; std::atomic<int> overflow{0};
     std::atomic<int> countRequest{0},countRemaining{0}; int counting=0;
@@ -38,12 +39,37 @@ struct LGKernel {
             }
         }
     }
-    void silence(){ for(auto &v:voices)v.on=false; }
-    void trigger(int pitch,int velocity,int track,int pad,int instrument,double duration){
+    void silence(bool all=false){for(auto &v:voices)if(all||v.sourceKey<0)v.on=false;if(all)sustain.fill(false);}
+    Voice *trigger(int pitch,int velocity,int track,int pad,int instrument,double duration){
         if(pad==2)for(auto &v:voices)if(v.pad==3)v.duration=std::min(v.duration,v.age+0.004);
         Voice *v=nullptr; for(auto &x:voices)if(!x.on){v=&x;break;}
         if(!v) v=&*std::min_element(voices.begin(),voices.end(),[](auto&a,auto&b){return a.level<b.level;});
-        *v=Voice{true,pitch,track,pad,instrument,0,0,duration,float(velocity/127.0),0};
+        *v=Voice{true,pitch,track,pad,instrument,0,0,duration,float(velocity/127.0),0};return v;
+    }
+    void midiClear(int source,bool capture=true){
+        for(auto &v:voices)if(v.on&&v.sourceKey>=0&&v.sourceKey/16==source)v.duration=std::min(v.duration,v.age+0.008);
+        for(int channel=0;channel<16;channel++)sustain[source*16+channel]=false;
+        if(capture)performance.emit(13,-1,0,0,source);
+    }
+    void midiEvent(const LGMIDIEvent &e,bool capture=true){
+        const int key=e.source*16+e.channel;
+        if(e.status==9){
+            if(e.instrument==1){
+                constexpr int map[16]={36,38,42,46,39,37,45,47,50,49,51,54,56,75,70,82};int pad=-1;
+                for(int i=0;i<16;i++)if(map[i]==e.a){pad=i;break;}
+                if(pad>=0){trigger(36,e.b,1,pad,1,1);if(capture)performance.emit(8,1,float(e.b),pad);}return;
+            }
+            for(auto &v:voices)if(v.on&&v.sourceKey==key&&v.pitch==e.a)v.duration=std::min(v.duration,v.age+0.008);
+            auto *voice=trigger(e.a,e.b,e.track,-1,e.instrument,1e9);voice->sourceKey=key;voice->keyDown=true;
+            if(capture)performance.emit(10,e.track,float(e.b),e.a,key,e.instrument);
+        }else if(e.status==8){
+            if(e.instrument==1)return;
+            for(auto &v:voices)if(v.on&&v.sourceKey==key&&v.pitch==e.a){v.keyDown=false;if(!sustain[key])v.duration=std::min(v.duration,v.age+0.008);}
+            if(capture)performance.emit(11,e.track,0,e.a,key,e.instrument);
+        }else if(e.status==11&&e.a==64){
+            sustain[key]=e.b>=64;if(!sustain[key])for(auto &v:voices)if(v.on&&v.sourceKey==key&&!v.keyDown)v.duration=std::min(v.duration,v.age+0.008);
+            if(capture)performance.emit(12,-1,sustain[key]?1.f:0.f,0,key);
+        }else if(e.status==11&&(e.a==120||e.a==123)){midiClear(e.source,capture);}
     }
     double ticksPerFrame() { return current<0?0:slots[current].bpm*960/(60*sr); }
     void resetCursor(double tick){cursor=0;cycle=0;origin=tick;elapsed=0;previous=tick-1;lastBeat=-1;silence();
@@ -112,6 +138,9 @@ int lg_perform_replay_submit(LGKernel*k,const LGPerformanceEvent*events,int coun
         else if(e.kind==7){if(e.track<0||e.track>=8||e.value < -1||e.value>1)return 0;}
         else if(e.kind==8){if(e.a<0||e.a>15||e.value<1||e.value>127)return 0;}
         else if(e.kind==9){if(e.a<0||e.a>127||e.b<0||e.b>3||e.track<0||e.track>=8||e.value<1||e.value>127)return 0;}
+        else if(e.kind==10||e.kind==11){if(e.track<0||e.track>=8||e.a<0||e.a>127||e.b<0||e.b>=256||e.token<0||e.token>3||e.value<0||e.value>127||(e.kind==10&&e.value<1))return 0;}
+        else if(e.kind==12){if(e.b<0||e.b>=256||(e.value!=0&&e.value!=1))return 0;}
+        else if(e.kind==13){if(e.b<0||e.b>=16)return 0;}
         else return 0;
     }
     return k->performance.submitReplay(events,count,duration,epoch);
@@ -138,7 +167,7 @@ int lg_perform_warning(LGKernel*k){return k->performance.warning.load();}
 uint64_t lg_perform_clock(LGKernel*k){return k->performance.clock.load();}
 uint64_t lg_perform_duration(LGKernel*k){return k->performance.duration.load();}
 // The caller must stop/join its render engine before finalizing a paused kernel.
-void lg_perform_finalize_paused(LGKernel*k){k->performance.stop();k->performance.publish();k->active=false;k->playing.store(0);k->silence();k->fx.reset();}
+void lg_perform_finalize_paused(LGKernel*k){k->performance.stop();k->performance.publish();k->active=false;k->playing.store(0);k->silence(true);k->fx.reset();}
 float lg_gain_target(LGKernel*k,int t){return t>=0&&t<Buses?k->gains[t].load():0;}
 float lg_pan_target(LGKernel*k,int t){return t>=0&&t<Buses?k->pans[t].load():0;}
 float lg_filter_target(LGKernel*k){return k->filterTarget.load();}
@@ -146,8 +175,10 @@ float lg_delay_target(LGKernel*k){return k->delayTarget.load();}
 void lg_panic(LGKernel*k){k->filterTarget.store(0);k->delayTarget.store(0);k->command.store(-1);}
 void lg_tail_on_end(LGKernel*k,int enabled){k->tailOnEnd.store(enabled);}
 void lg_metronome(LGKernel*k,int on){k->metro.store(on);}
-void lg_render(LGKernel*k,float*l,float*r,int frames){
-    int cmd=k->command.exchange(0);if(cmd<0||cmd==2||cmd==3){k->performance.stop();k->active=false;k->counting=0;k->countRequest.store(0);k->countRemaining.store(0);k->fx.reset();k->silence();k->read.store(k->write.load());}
+void lg_render_midi(LGKernel*k,LGMIDIHub*hub,uint64_t hostTime,double hostTicksPerSecond,float*l,float*r,int frames){
+    const double hostPerSample=hostTicksPerSecond/k->sr;
+    if(hub)hub->prepare([&](int source){k->midiClear(source);});
+    int cmd=k->command.exchange(0);if(cmd<0||cmd==2||cmd==3){k->performance.stop();k->active=false;k->counting=0;k->countRequest.store(0);k->countRemaining.store(0);k->fx.reset();k->silence(true);k->read.store(k->write.load());}
     k->adopt(!k->active,k->position.load());
     int seek=k->seek.exchange(-1);if(seek>=0){k->resetCursor(seek);k->position.store(seek);}
     if(cmd>0&&k->current>=0){auto&s=k->slots[k->current];double p=k->position.load();k->active=true;k->resetCursor(p>=s.end?s.start:std::max(p,double(s.start)));}
@@ -174,6 +205,7 @@ void lg_render(LGKernel*k,float*l,float*r,int frames){
     k->read.store(rd,std::memory_order_release);
     float peak[Buses]={};const float ramp=float(1-std::exp(-1/(k->sr*0.005)));
     for(int f=0;f<frames;f++){
+        if(hub)hub->due(hostTime+uint64_t(double(f)*hostPerSample),uint64_t(std::max(1.0,hostPerSample)),[&](const LGMIDIEvent &event){if(!k->performance.replaying())k->midiEvent(event);});
         if(k->active&&k->performance.enabled){
             bool replay=k->performance.replayDue([&](const LGPerformanceEvent &event){
                 if(event.kind>=1&&event.kind<=3){k->performAction({event.kind,event.a,event.b,event.token,event.value});}
@@ -183,14 +215,17 @@ void lg_render(LGKernel*k,float*l,float*r,int frames){
                 else if(event.kind==7){panTargets[event.track]=event.value;k->pans[event.track].store(event.value);}
                 else if(event.kind==8){k->trigger(36,int(event.value),1,event.a,1,1);}
                 else if(event.kind==9){k->trigger(event.a,int(event.value),event.track,-1,event.b,0.65);}
-                else if(event.kind==99){k->active=false;k->fx.releaseRepeat();if(k->tailOnEnd.load()){for(auto &voice:k->voices)if(voice.on&&voice.pad<0)voice.duration=std::min(voice.duration,voice.age+0.008);}else{k->silence();k->fx.reset();}}
+                else if(event.kind==10||event.kind==11){k->midiEvent({0,event.b/16,event.kind==10?9:8,event.b%16,event.a,int(event.value),event.track,event.token},false);}
+                else if(event.kind==12){k->midiEvent({0,event.b/16,11,event.b%16,64,event.value>0?127:0,0,0},false);}
+                else if(event.kind==13){k->midiClear(event.b,false);}
+                else if(event.kind==99){k->active=false;k->fx.releaseRepeat();if(k->tailOnEnd.load()){for(auto &voice:k->voices)if(voice.on&&voice.pad<0)voice.duration=std::min(voice.duration,voice.age+0.008);}else{k->silence(true);k->fx.reset();}}
             });
             if(!replay)k->performance.due(k->ticksPerFrame(),[&](PerformanceControl control){return k->performAction(control);});
         }
         if(k->counting>0){int beatFrames=int(k->sr*60/k->slots[k->current].bpm);if(k->counting%beatFrames==0)k->trigger(k->counting>beatFrames*3?96:84,65,Master,-1,0,0.035);k->counting--;k->countRemaining.store(k->counting);}
         else if(k->active&&k->current>=0){
             auto*s=&k->slots[k->current];double tp=k->ticksPerFrame();double raw=k->origin+k->elapsed*tp;double tick=raw-k->cycle*(s->end-s->start);
-            if(tick>=s->end-0.5*tp){if(s->loop){k->cycle++;tick-=s->end-s->start;k->cursor=0;k->silence();while(k->cursor<s->count&&s->notes[k->cursor].tick<s->start)k->cursor++;k->lastBeat=-1;}else{k->active=false;if(!k->tailOnEnd.load()){k->silence();k->fx.reset();}tick=s->end;}}
+            if(tick>=s->end-0.5*tp){if(s->loop){k->cycle++;tick-=s->end-s->start;k->cursor=0;k->silence();while(k->cursor<s->count&&s->notes[k->cursor].tick<s->start)k->cursor++;k->lastBeat=-1;}else{k->active=false;if(!k->tailOnEnd.load()){k->silence(true);k->fx.reset();}tick=s->end;}}
             int old=k->current;k->adopt(false,tick);if(k->current!=old){s=&k->slots[k->current];tick=k->origin;tp=k->ticksPerFrame();}
             if(k->active){
                 while(k->cursor<s->count&&s->notes[k->cursor].tick<=tick+0.5*tp){auto&n=s->notes[k->cursor++];if(n.tick>=s->start&&n.tick<s->end)k->trigger(n.pitch,n.velocity,n.track,n.pad,n.instrument,n.pad>=0?KitFrames/k->sr:std::min(n.duration,s->end-n.tick)/960.0*60/s->bpm);}
@@ -226,4 +261,6 @@ double lg_tick(LGKernel*k){return k->position.load();}uint64_t lg_clock(LGKernel
 int lg_playing(LGKernel*k){return k->playing.load();}int lg_revision(LGKernel*k){return k->applied.load();}
 float lg_meter(LGKernel*k,int t){return t>=0&&t<Buses?k->meters[t].load():0;}
 int lg_overflows(LGKernel*k){return k->overflow.load();}
+void lg_render(LGKernel*k,float*l,float*r,int frames){lg_render_midi(k,nullptr,0,0,l,r,frames);}
+
 }
