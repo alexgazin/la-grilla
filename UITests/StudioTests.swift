@@ -28,7 +28,7 @@ final class StudioTests: XCTestCase {
         let app=XCUIApplication();app.launchArguments=["--uitesting","--screen","grid","--appearance","light","-AppleLanguages","(ru)","-AppleLocale","ru_RU"];app.launch()
         XCTAssertTrue(app.buttons["Сетка"].waitForExistence(timeout:15));app.buttons["export.open"].tap()
         XCTAssertTrue(app.navigationBars["Экспорт"].waitForExistence(timeout:5));XCTAssertTrue(app.buttons["Отмена"].exists)
-        let shot=XCTAttachment(data:XCUIScreen.main.screenshot().pngRepresentation,uniformTypeIdentifier:"public.png");shot.name="Design2026-qa-russian-light-export";shot.lifetime = .keepAlways;add(shot)
+        let shot=XCTAttachment(data:XCUIScreen.main.screenshot().pngRepresentation,uniformTypeIdentifier:"public.png");shot.name="C2-qa-russian-light-export";shot.lifetime = .keepAlways;add(shot)
         app.buttons["Отмена"].tap();app.buttons["Джем"].tap()
         for title in ["Пэды","Шаги"]{XCTAssertGreaterThanOrEqual(app.buttons[title].frame.height,44)}
         let guide=app.buttons["jam.recording-guide"]
@@ -50,7 +50,7 @@ final class StudioTests: XCTestCase {
         XCUIDevice.shared.orientation = .portrait
         let app=XCUIApplication();app.launchArguments=["--uitesting","--screen","notes","--large-type","-AppleLanguages","(en)","-AppleLocale","en_US"];app.launch()
         XCTAssertTrue(app.navigationBars["Piano roll"].waitForExistence(timeout:15));XCTAssertTrue(app.descendants(matching:.any)["notes.list"].waitForExistence(timeout:5))
-        let shot=XCTAttachment(data:XCUIScreen.main.screenshot().pngRepresentation,uniformTypeIdentifier:"public.png");shot.name="Design2026-qa-large-type-piano-roll";shot.lifetime = .keepAlways;add(shot)
+        let shot=XCTAttachment(data:XCUIScreen.main.screenshot().pngRepresentation,uniformTypeIdentifier:"public.png");shot.name="C2-qa-large-type-piano-roll";shot.lifetime = .keepAlways;add(shot)
         app.buttons["Done"].tap();app.buttons["Mixer"].tap();XCTAssertTrue(app.sliders["Gain Harmony"].waitForExistence(timeout:5))
         try app.performAccessibilityAudit(for:[.sufficientElementDescription])
     }
@@ -60,18 +60,31 @@ final class StudioTests: XCTestCase {
         let deadline=Date().addingTimeInterval(8)
         while Date()<deadline && (!app.buttons["Play"].isHittable || !app.buttons["Kick"].isHittable){Thread.sleep(forTimeInterval:0.1)}
         XCTAssertTrue(app.buttons["Play"].isHittable);XCTAssertTrue(app.buttons["Kick"].isHittable);app.buttons["Kick"].tap()
-        let shot=XCTAttachment(data:XCUIScreen.main.screenshot().pngRepresentation,uniformTypeIdentifier:"public.png");shot.name="Design2026-qa-landscape-jam";shot.lifetime = .keepAlways;add(shot)
+        let shot=XCTAttachment(data:XCUIScreen.main.screenshot().pngRepresentation,uniformTypeIdentifier:"public.png");shot.name="C2-qa-landscape-jam";shot.lifetime = .keepAlways;add(shot)
         app.buttons["Play"].tap();XCTAssertTrue(app.buttons["Stop"].waitForExistence(timeout:5));app.buttons["Stop"].tap()
     }
     @MainActor func testVirtualMIDILearnAndActualOutputDestination() {
         let app=launch("midi");guard app.staticTexts["midi.fixture"].waitForExistence(timeout:15)else{let shot=XCTAttachment(data:XCUIScreen.main.screenshot().pngRepresentation,uniformTypeIdentifier:"public.png");shot.name="R7-midi-error";shot.lifetime = .keepAlways;add(shot);let error=app.staticTexts["midi.error"];XCTFail("Virtual MIDI setup: "+(error.exists ? error.label:app.debugDescription));return}
-        app.swipeUp();app.swipeUp()
-        XCTAssertTrue(app.buttons["midi.learn"].waitForExistence(timeout:5));app.buttons["midi.learn"].tap();app.buttons["midi.send-fixture"].tap()
+        let form=app.collectionViews.firstMatch.exists ? app.collectionViews.firstMatch:app.tables.firstMatch.exists ? app.tables.firstMatch:app.scrollViews.firstMatch
+        reveal(app.buttons["midi.learn"],in:form);app.buttons["midi.learn"].tap()
+        reveal(app.buttons["midi.send-fixture"],in:form);app.buttons["midi.send-fixture"].tap()
         XCTAssertTrue(app.staticTexts["Ch 1 · CC 74"].waitForExistence(timeout:8))
-        app.swipeUp();XCTAssertTrue(app.staticTexts["midi.last"].waitForExistence(timeout:5));XCTAssertTrue(app.staticTexts["midi.last"].label.contains("CC 74"))
-        app.swipeDown();let received=app.staticTexts["midi.fixture-received"]
-        XCTAssertTrue(received.waitForExistence(timeout:5));XCTAssertGreaterThan(Int(received.label) ?? 0,0)
-        app.swipeUp();app.buttons["midi.panic"].tap();app.buttons["Done"].tap();XCTAssertTrue(app.buttons["Play"].waitForExistence(timeout:5))
+        reveal(app.staticTexts["midi.last"],in:form);XCTAssertTrue(app.staticTexts["midi.last"].label.contains("CC 74"))
+        let received=app.staticTexts["midi.fixture-received"]
+        reveal(received,in:form,up:false);XCTAssertGreaterThan(Int(received.label) ?? 0,0)
+        reveal(app.buttons["midi.panic"],in:form);app.buttons["midi.panic"].tap()
+        app.buttons["Done"].tap();XCTAssertTrue(app.buttons["Play"].waitForExistence(timeout:5))
+    }
+    @MainActor private func reveal(_ element:XCUIElement,in scroll:XCUIElement,up:Bool=true){
+        // Form rows are virtualized. Scroll only the form and stop when the
+        // target is reachable; an application-wide downward swipe can dismiss
+        // the sheet before a row has been measured.
+        for _ in 0..<8{
+            if element.exists && element.isHittable{return}
+            if up{scroll.swipeUp()}else{scroll.swipeDown()}
+        }
+        XCTAssertTrue(element.exists,"Expected the requested MIDI form row")
+        XCTAssertTrue(element.isHittable,"Expected the MIDI form row to be reachable")
     }
     @MainActor func testPerformRecordingSurvivesNavigationAndReplays() {
         let app=launch("perform")

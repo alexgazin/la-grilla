@@ -34,7 +34,7 @@ final class ScreenshotTests:XCTestCase {
                 let width=png[16..<20].reduce(0){($0<<8)|Int($1)},height=png[20..<24].reduce(0){($0<<8)|Int($1)}
                 XCTAssertEqual(width,1320,"Store screenshot must preserve the native display width");XCTAssertEqual(height,2868)
             }
-            let shot=XCTAttachment(data:png,uniformTypeIdentifier:"public.png");shot.name="Design2026-"+screen;shot.lifetime = .keepAlways;add(shot)
+            let shot=XCTAttachment(data:png,uniformTypeIdentifier:"public.png");shot.name="C2-"+screen;shot.lifetime = .keepAlways;add(shot)
         }
     }
     @MainActor private func settledPNG()->Data {

@@ -1,0 +1,14 @@
+{
+  "file": "perform-native-recording-frame.png",
+  "source": "4d6d656b06bac39d030541400504bfc94b0f0129",
+  "runID": 43711639450,
+  "artifactID": 14161481989,
+  "test": "PerformControlTests/testCircularFilterChangesLiveValueAndResets()",
+  "sourceAttachment": "NativeAttachments/main/2B90BD7E-AA54-4FCF-AF33-331BC0DE9A92.mp4",
+  "videoTimestampSeconds": 15,
+  "width": 1320,
+  "height": 2868,
+  "sha256": "557329476414a363684879dcfe8cfb12a20c867a53aac90fd909f1cf34a22670",
+  "kind": "Frame decoded from actual XCTest screen recording; not an original screenshot PNG and not Store evidence.",
+  "acceptance": "Native run failed simulator launch assertion. This frame shows actual rendered idle Perform UI only."
+}
