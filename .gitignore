@@ -17,3 +17,6 @@ ReleaseArtifacts/
 TestResults.xcresult/
 CompactResults.xcresult/
 NativeAttachments/
+
+__pycache__/
+*.pyc
