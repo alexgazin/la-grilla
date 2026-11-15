@@ -1,0 +1,142 @@
+name: Diagnostic minimum iOS 18.5 smoke - never release
+on:
+  push:
+    branches: [verify/minimum-ios18-smoke]
+  workflow_dispatch:
+permissions:
+  contents: read
+env:
+  DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
+  GRILLA_APP_SOURCE_SHA: 77fb72ab82cd800eb8131136628c416ad83c9046
+jobs:
+  minimum-ios18-diagnostic:
+    runs-on: macos-15
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.GRILLA_APP_SOURCE_SHA }}
+          path: app
+          persist-credentials: false
+      - name: Record isolated diagnostic provenance and supported runtime options
+        working-directory: app
+        run: |
+          set -euo pipefail
+          mkdir -p ../Diagnostics
+          git rev-parse HEAD > ../Diagnostics/app-source-sha.txt
+          test "$(git rev-parse HEAD)" = "$GRILLA_APP_SOURCE_SHA"
+          git rev-parse HEAD^{tree} > ../Diagnostics/app-source-tree.txt
+          printf '%s\n' "$GITHUB_SHA" > ../Diagnostics/helper-workflow-sha.txt
+          printf '%s\n' "$GITHUB_WORKFLOW_REF" > ../Diagnostics/helper-workflow-ref.txt
+          printf '%s\n' 'DIAGNOSTIC ONLY: unrelated orphan workflow origin; never distribution evidence. Simulator software smoke, not physical iOS 18 acceptance.' > ../Diagnostics/scope.txt
+          xcodebuild -version | tee ../Diagnostics/xcode-version.txt
+          sw_vers | tee ../Diagnostics/host-version.txt
+          uname -m | tee ../Diagnostics/host-architecture.txt
+          df -h | tee ../Diagnostics/disk-before.txt
+          xcodebuild -help > ../Diagnostics/xcodebuild-help.txt 2>&1
+          python3 - <<'PY'
+          from pathlib import Path
+          text=Path('../Diagnostics/xcodebuild-help.txt').read_text()
+          for flag in ['-downloadPlatform', '-buildVersion']:
+              assert flag in text, f'Installed public xcodebuild does not support {flag}'
+          print('Installed public xcodebuild documents downloadPlatform and buildVersion.')
+          PY
+          xcrun simctl list runtimes -j > ../Diagnostics/runtimes-before.json
+      - name: Download the explicitly requested public iOS 18.5 runtime
+        timeout-minutes: 12
+        working-directory: app
+        run: |
+          set -euo pipefail
+          xcodebuild -downloadPlatform iOS -buildVersion 18.5 2>&1 | tee ../Diagnostics/runtime-download.log
+      - name: Require actual installed iOS 18.5 and create its own device
+        working-directory: app
+        run: |
+          set -euo pipefail
+          xcrun simctl list runtimes -j > ../Diagnostics/runtimes-after.json
+          python3 - <<'PY'
+          import json,os,pathlib,subprocess
+          rows=json.loads(pathlib.Path('../Diagnostics/runtimes-after.json').read_text())['runtimes']
+          candidates=[r for r in rows if r.get('version')=='18.5' and r.get('isAvailable') and r.get('identifier','').startswith('com.apple.CoreSimulator.SimRuntime.iOS-')]
+          assert len(candidates)==1, 'Exactly one available actual iOS 18.5 runtime is required; no iOS 26 fallback permitted: '+repr(rows)
+          runtime=candidates[0]
+          device=subprocess.check_output(['xcrun','simctl','create','iPhone 16 Pro Max','com.apple.CoreSimulator.SimDeviceType.iPhone-16-Pro-Max',runtime['identifier']],text=True).strip()
+          pathlib.Path('../Diagnostics/selected-runtime.json').write_text(json.dumps({'runtime':runtime,'device_udid':device,'device_type':'com.apple.CoreSimulator.SimDeviceType.iPhone-16-Pro-Max'},indent=2)+'\n')
+          with open(os.environ['GITHUB_ENV'],'a') as env: env.write('GRILLA_MINIMUM_DEVICE='+device+'\n')
+          print(json.dumps(runtime,indent=2));print('Exact minimum-runtime device:',device)
+          PY
+      - name: Build unchanged source and project with deployment target 18
+        timeout-minutes: 10
+        working-directory: app
+        run: |
+          set -euo pipefail
+          python3 scripts/release/assert_sdk.py
+          xcodebuild -test-timeouts-enabled YES -maximum-test-execution-time-allowance 600 -project LaGrilla.xcodeproj -scheme LaGrilla -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' ARCHS=arm64 ONLY_ACTIVE_ARCH=YES -configuration Debug -derivedDataPath DerivedData CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO build-for-testing 2>&1 | tee ../Diagnostics/build.log
+          plutil -convert xml1 -o ../Diagnostics/built-app-info.plist DerivedData/Build/Products/Debug-iphonesimulator/LaGrilla.app/Info.plist
+          python3 - <<'PY'
+          import plistlib
+          info=plistlib.load(open('../Diagnostics/built-app-info.plist','rb'))
+          assert info['MinimumOSVersion']=='18.0', repr(info)
+          assert info['CFBundleShortVersionString']=='1.0.0' and info['CFBundleVersion']=='14'
+          print('Built app:', info['CFBundleIdentifier'],info['CFBundleShortVersionString'],info['CFBundleVersion'],'minimum',info['MinimumOSVersion'])
+          PY
+          git diff --exit-code
+      - name: Configure the existing official virtual host audio fixture
+        timeout-minutes: 4
+        working-directory: app
+        run: bash scripts/setup_ci_audio.sh
+      - name: Boot and identify the actual minimum-runtime device
+        timeout-minutes: 6
+        working-directory: app
+        run: |
+          set -euo pipefail
+          xcrun simctl boot "$GRILLA_MINIMUM_DEVICE"
+          xcrun simctl bootstatus "$GRILLA_MINIMUM_DEVICE" -b
+          open -a "$DEVELOPER_DIR/Applications/Simulator.app" --args -CurrentDeviceUDID "$GRILLA_MINIMUM_DEVICE"
+          xcrun simctl list devices -j > ../Diagnostics/devices-booted.json
+          python3 - <<'PY'
+          import json,pathlib
+          selected=json.loads(pathlib.Path('../Diagnostics/selected-runtime.json').read_text())
+          groups=json.loads(pathlib.Path('../Diagnostics/devices-booted.json').read_text())['devices']
+          rows=groups[selected['runtime']['identifier']]
+          device=next(row for row in rows if row['udid']==selected['device_udid'])
+          assert device['state']=='Booted' and device['isAvailable'], repr(device)
+          assert selected['runtime']['version']=='18.5'
+          pathlib.Path('../Diagnostics/booted-runtime-device.json').write_text(json.dumps({'runtime':selected['runtime'],'booted_device':device},indent=2)+'\n')
+          print('Booted device belongs to verified installed iOS 18.5 runtime:',json.dumps(device))
+          PY
+          if bash scripts/select_ci_simulator_audio.sh 2>&1 | tee -a ci-audio.log; then
+            printf '%s\n' 'Supplementary Simulator GUI routing verified.' | tee -a ci-audio.log
+          else
+            printf '%s\n' 'SUPPLEMENTARY ROUTING UNVERIFIED; no native input or physical-device claim.' | tee -a ci-audio.log
+          fi
+      - name: Existing native minimum-runtime music Commands and schema 8 cases
+        timeout-minutes: 8
+        working-directory: app
+        run: |
+          set -euo pipefail
+          xcodebuild -only-testing:LaGrillaUITests/StudioTests/testNavigationKeepsTransportAlive -only-testing:LaGrillaUITests/AssistantCompositionTests/testFullSongReviewAppliesAsOneUndoOnCommandFallback -only-testing:LaGrillaUITests/HarmonyCatalogTests/testCustomFormulaPersistsEveryToneAndIsUndoable -test-timeouts-enabled YES -maximum-test-execution-time-allowance 600 -project LaGrilla.xcodeproj -scheme LaGrilla -destination "platform=iOS Simulator,id=$GRILLA_MINIMUM_DEVICE" -derivedDataPath DerivedData -resultBundlePath Minimum18Results.xcresult ARCHS=arm64 ONLY_ACTIVE_ARCH=YES CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO test-without-building 2>&1 | tee ../Diagnostics/minimum18-tests.log
+          git diff --exit-code
+      - name: Preserve actual result bundle attachments crashes and environment
+        if: always()
+        working-directory: app
+        run: |
+          mkdir -p ../Diagnostics/CrashReports
+          xcrun simctl list runtimes -j > ../Diagnostics/runtimes-final.json 2>&1 || true
+          df -h > ../Diagnostics/disk-final.txt
+          if test -d Minimum18Results.xcresult; then
+            xcrun xcresulttool get test-results summary --path Minimum18Results.xcresult > ../Diagnostics/xcresult-summary.json 2>&1 || true
+            xcrun xcresulttool export attachments --path Minimum18Results.xcresult --output-path ../Diagnostics/NativeAttachments || true
+          fi
+          if test -f ci-audio.log; then cp ci-audio.log ../Diagnostics/; fi
+          find "$HOME/Library/Logs/DiagnosticReports" -iname '*LaGrilla*' -exec cp {} ../Diagnostics/CrashReports/ \; || true
+          git rev-parse HEAD > ../Diagnostics/app-source-sha-final.txt
+          git diff --exit-code > ../Diagnostics/source-diff-final.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: minimum-ios18-diagnostic-never-release
+          retention-days: 14
+          if-no-files-found: error
+          path: |
+            Diagnostics
+            app/Minimum18Results.xcresult
