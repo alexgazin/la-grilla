@@ -1,6 +1,6 @@
 # Release procedure
 
-Current candidate: **1.0.0 (12)**, iPhone / iOS 18+, bundle `com.alexgazin.LaGrilla`. Design 2026 is under native acceptance. This is a release procedure, not evidence of an App Store upload.
+Current candidate: **1.0.0 (12)**, iPhone / iOS 18+, bundle `com.alexgazin.LaGrilla`. Design 2026 software/native acceptance is recorded in [Design QA](../DESIGN_QA.md) and [Release QA](../RELEASE_QA.md). This is a release procedure, not evidence of an App Store upload.
 
 ## Current Apple submission requirement
 

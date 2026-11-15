@@ -1,102 +1,126 @@
 {
-  "candidate": "1.0.0 (11)",
-  "designRevisionPending": "R8.1",
+  "candidate": "1.0.0 (12)",
+  "designRevision": "R8.1 Design 2026",
   "images": [
     {
       "file": "en-US/01-grid.png",
-      "source": "e1d13da4d8276d1d1843bcbb2ea7a71c58bbae20",
-      "runID": 43686737452,
-      "sha256": "0e80108e121079b4173508c3db13f7f1600dbc41578df7cc7f7ddda5cae7ad8a",
+      "sourceFile": "../Design2026/store-en-US-grid.png",
+      "source": "72d81cb8a7be054d2e00457f4d30461a99e67b1f",
+      "runID": 43700372709,
+      "sha256": "d0f686d55a6b9843803596db3836cf4d7d5907ff03e5cf6e3de0aa794220931e",
       "width": 1320,
-      "height": 2868
+      "height": 2868,
+      "colorMode": "RGB"
     },
     {
       "file": "en-US/02-jam.png",
-      "source": "e1d13da4d8276d1d1843bcbb2ea7a71c58bbae20",
-      "runID": 43686737452,
-      "sha256": "f6c7b795a08b8c31ac2da72250dac3309372d111ec3098c56716d219957cd03c",
+      "sourceFile": "../Design2026/store-en-US-jam.png",
+      "source": "72d81cb8a7be054d2e00457f4d30461a99e67b1f",
+      "runID": 43700372709,
+      "sha256": "caf79a6a97d6f36bffa97e1a46097935a1a733c43ba965df05ded05a3a726fe7",
       "width": 1320,
-      "height": 2868
+      "height": 2868,
+      "colorMode": "RGB"
     },
     {
       "file": "en-US/03-notes.png",
-      "source": "e1d13da4d8276d1d1843bcbb2ea7a71c58bbae20",
-      "runID": 43686737452,
-      "sha256": "efaddef7ea061b6e24d3038acff9d3e2e438a6d00e0572c001be9ac521a0bb9d",
+      "sourceFile": "../Design2026/store-en-US-notes.png",
+      "source": "72d81cb8a7be054d2e00457f4d30461a99e67b1f",
+      "runID": 43700372709,
+      "sha256": "7f4ef9a41c8032bb79278465f9cb6f837d1e4fefacc22bc57a8478643796d123",
       "width": 1320,
-      "height": 2868
+      "height": 2868,
+      "colorMode": "RGB"
     },
     {
       "file": "en-US/04-harmony-proposal.png",
-      "source": "e1d13da4d8276d1d1843bcbb2ea7a71c58bbae20",
-      "runID": 43686737452,
-      "sha256": "a84014a232dceb81c4bba8fa367c8508a4c7848eff8d9cfb74d9979b88ac7422",
+      "sourceFile": "../Design2026/store-en-US-harmony-proposal.png",
+      "source": "72d81cb8a7be054d2e00457f4d30461a99e67b1f",
+      "runID": 43700372709,
+      "sha256": "f3c37cb1939812ee7db854a0b097d5a4582601dcf0213d88528b9e7413d6e7ce",
       "width": 1320,
-      "height": 2868
+      "height": 2868,
+      "colorMode": "RGB"
     },
     {
       "file": "en-US/05-perform-take.png",
-      "source": "e1d13da4d8276d1d1843bcbb2ea7a71c58bbae20",
-      "runID": 43686737452,
-      "sha256": "8eb39c24e8be2f083fe75f6abf296bf095c858367f7ba3df64ba4b3c95dae600",
+      "sourceFile": "../Design2026/store-en-US-perform-take.png",
+      "source": "72d81cb8a7be054d2e00457f4d30461a99e67b1f",
+      "runID": 43700372709,
+      "sha256": "a7088947490c3b17de8953c5054e17105000f70adbe5692e409ac4a8d7c63b34",
       "width": 1320,
-      "height": 2868
+      "height": 2868,
+      "colorMode": "RGB"
     },
     {
       "file": "en-US/06-export.png",
-      "source": "e1d13da4d8276d1d1843bcbb2ea7a71c58bbae20",
-      "runID": 43686737452,
-      "sha256": "0d230516db8865115c64be16ea730b5190542f76b186e039e22c419339c948ca",
+      "sourceFile": "../Design2026/store-en-US-export.png",
+      "source": "72d81cb8a7be054d2e00457f4d30461a99e67b1f",
+      "runID": 43700372709,
+      "sha256": "7ebbb706560a9b592a8885355598c5c2377ce324bcb4a6b9f5223c2be8c35cf7",
       "width": 1320,
-      "height": 2868
+      "height": 2868,
+      "colorMode": "RGB"
     },
     {
       "file": "ru/01-grid.png",
-      "source": "ecfc9b9c18fad9e3d5c8a821d498f536910d8140",
-      "runID": 43689852307,
-      "sha256": "04eb2bb649d9e10ec4e40d4ad674fb7357f41cb620c3a5fbc439a37ae1b24159",
+      "sourceFile": "../Design2026/store-ru-grid.png",
+      "source": "72d81cb8a7be054d2e00457f4d30461a99e67b1f",
+      "runID": 43700372709,
+      "sha256": "bd55e5d4e1b70e74244b554dd67561cfa33a8a4a38b2ed672c735af13678025e",
       "width": 1320,
-      "height": 2868
+      "height": 2868,
+      "colorMode": "RGB"
     },
     {
       "file": "ru/02-jam.png",
-      "source": "ecfc9b9c18fad9e3d5c8a821d498f536910d8140",
-      "runID": 43689852307,
-      "sha256": "d2a9f7cad32128dc8708d74316289ec47f211360410549eb4a9315bc16fd92dd",
+      "sourceFile": "../Design2026/store-ru-jam.png",
+      "source": "72d81cb8a7be054d2e00457f4d30461a99e67b1f",
+      "runID": 43700372709,
+      "sha256": "ef042aa40029ac8fb6a1bdfc9b8a73181a43fdc9c493eea73e06bfa584e48c60",
       "width": 1320,
-      "height": 2868
+      "height": 2868,
+      "colorMode": "RGB"
     },
     {
       "file": "ru/03-notes.png",
-      "source": "ecfc9b9c18fad9e3d5c8a821d498f536910d8140",
-      "runID": 43689852307,
-      "sha256": "fcda96e32207ff1c68c1e23e48c13e3a0136dc663f53b5362cb26b5eab6c6127",
+      "sourceFile": "../Design2026/store-ru-notes.png",
+      "source": "72d81cb8a7be054d2e00457f4d30461a99e67b1f",
+      "runID": 43700372709,
+      "sha256": "ecc173729b66a63fc2bca6ed383ee2db2f653b0229b26db758cf7fc161a992ed",
       "width": 1320,
-      "height": 2868
+      "height": 2868,
+      "colorMode": "RGB"
     },
     {
       "file": "ru/04-harmony-proposal.png",
-      "source": "ecfc9b9c18fad9e3d5c8a821d498f536910d8140",
-      "runID": 43689852307,
-      "sha256": "5f9eafc643afcef87b887292d2241a3142c73bd911912ae6da4333f602239ade",
+      "sourceFile": "../Design2026/store-ru-harmony-proposal.png",
+      "source": "72d81cb8a7be054d2e00457f4d30461a99e67b1f",
+      "runID": 43700372709,
+      "sha256": "b8be4b021079b4bcfec799c57c72a52a7015350f8fc8ae77c04b519d91e5705a",
       "width": 1320,
-      "height": 2868
+      "height": 2868,
+      "colorMode": "RGB"
     },
     {
       "file": "ru/05-perform-take.png",
-      "source": "ecfc9b9c18fad9e3d5c8a821d498f536910d8140",
-      "runID": 43689852307,
-      "sha256": "29ba57af4120ad6238b0388da8b30aaac4eb2f4a7138e4da6bdee2fa10ac02fd",
+      "sourceFile": "../Design2026/store-ru-perform-take.png",
+      "source": "72d81cb8a7be054d2e00457f4d30461a99e67b1f",
+      "runID": 43700372709,
+      "sha256": "eac567ef534a9a36dc44abd437950fa3247e4560b822bafabd4bc291fc74aaa1",
       "width": 1320,
-      "height": 2868
+      "height": 2868,
+      "colorMode": "RGB"
     },
     {
       "file": "ru/06-export.png",
-      "source": "ecfc9b9c18fad9e3d5c8a821d498f536910d8140",
-      "runID": 43689852307,
-      "sha256": "43aabaf588ef9b6dbd89cca2d51f4df7646f7c3874734fbd8ae4a39984fe0768",
+      "sourceFile": "../Design2026/store-ru-export.png",
+      "source": "72d81cb8a7be054d2e00457f4d30461a99e67b1f",
+      "runID": 43700372709,
+      "sha256": "5c3a89ced56cb64fb422a4e1e23373dd2e1668524a9dc52d807a569c54b65ecf",
       "width": 1320,
-      "height": 2868
+      "height": 2868,
+      "colorMode": "RGB"
     }
   ]
 }

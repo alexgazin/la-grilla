@@ -29,6 +29,7 @@ On Linux, `scripts/test_domain.sh` supports `GRILLA_SWIFT_BIN` for a locally ins
 | `App`, `Features` | Shared session, autosave/recovery, Grid/Jam/Mixer/editors, explicit capture ownership and native share/import flows |
 | `Tests`, `UITests` | Host DSP/stress tests and actual iOS user-flow/screenshot tests |
 | `Resources`, `Design` | EN/RU strings/plurals/purpose strings, adaptive colors, privacy manifest, icon and OpenArt provenance |
+| `Screenshots/Design2026`, `Screenshots/AppStore` | Original native PNG evidence and unchanged localized Store copies, with source/run/dimensions/SHA-256 records |
 | `docs/release`, `docs/store` | Hardware acceptance record, importable P1/P2/P3 projects, signing procedure, privacy/support and localized store metadata |
 
 Up to 8 tracks, 8 sections and 64 bars; PPQ 960. Harmony/Drums are first, with optional root Bass and independent Melody tracks. All music uses the same compiler for live playback, MIDI and offline audio. New preset version 2 uses rate-independent one-shots and bounded retirement tails; migrations preserve preset version 1, including frozen performance sources.
@@ -42,5 +43,7 @@ The Assistant is local and supports an explicit RU/EN command grammar. Proposals
 Playback can continue in the background after the user starts it, with system Play/Pause/Stop. Idle background graphs stop and release MIDI/audio resources. Microphone ownership is exclusive; background/interruption stops capture. Returning from an interruption preserves musical position and does not automatically resume recording.
 
 CI saves both SDK logs, real XCTest screenshots, result bundles, portable/export fixtures, a simulator app and an optimized unsigned device archive. Screenshots are not generated artwork. Host timing, sanitizer and simulator results do not substitute for the final 30-minute physical/audio/MIDI/DAW matrix. [Hardening evidence](HARDENING_QA.md) records what is measured and what remains open.
+
+The default verification run captures the complete native design. A commit message containing `[ui-only]` retains all 19 Studio flows, domain/audio checks, both SDK builds and the Release archive while skipping duplicate bulk captures. Adding `[compact-capture]` to that mode also captures all six English/Russian 375-point views. Capture waits for settled raw pixels where possible and keeps the selected native PNG unchanged. Use a full capture after a visible interface change; record the actual source SHA and inspect individual originals before preparing Store copies. Distribution still requires all three verification jobs to pass for the exact `main` commit.
 
 All instrument audio is synthesized by the app. The icon was generated through OpenArt; provenance is retained. No downloaded sample pack, telemetry SDK, account backend, client API key or repository-wide open-source license is included.

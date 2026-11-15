@@ -21,9 +21,9 @@ The concept's illustrative pad names, timing values and controls are translated 
 
 - [x] OpenArt direction and provenance retained.
 - [x] Shared contrast tokens, compact shell, Grid, Harmony and Perform implemented in SwiftUI.
-- [x] Implement Jam, adaptive Mixer and secondary surfaces; native review remains pending.
-- [ ] Current-SDK iPhone/simulator/Release builds and all functional scenarios.
-- [ ] Original native EN/RU, light/dark, large text, landscape and 375-point evidence.
-- [ ] Regenerated Store sets, source/hash records and verified merge into main.
+- [x] Jam, adaptive Mixer and secondary surfaces implemented and reviewed natively.
+- [x] Current-SDK iPhone/simulator/Release builds and all 19 functional scenarios.
+- [x] 54 original native EN/RU, light/dark, large text, landscape and 375-point frames.
+- [x] Regenerated twelve Store frames, source/hash records and reviewable [PR #12](https://github.com/alexgazin/la-grilla/pull/12).
 
-Physical audio/MIDI, manual VoiceOver usability and installed signed-build acceptance remain separate release gates. The first foundation passes the iPhone SDK build and optimized archive in run 43693468957. The complete interface still requires native flow and screenshot acceptance.
+Source `72d81cb` passes all three jobs in [43700372709](https://github.com/alexgazin/la-grilla/actions/runs/43700372709): 64 Swift tests, 11 C++ suites, both SDK builds, optimized archive and 22 native tests across Pro Max/SE. [Native evidence](../../Screenshots/Design2026) · [Design QA](../../docs/DESIGN_QA.md). Physical audio/MIDI, manual VoiceOver usability and installed signed-build acceptance remain separate release gates.

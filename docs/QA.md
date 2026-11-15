@@ -32,7 +32,7 @@ Native launch initially exposed a Swift 6 actor-isolation trap in AVAudioSourceN
 - [Signed simulator build and generated Xcode project](https://github.com/alexgazin/la-grilla/actions/runs/43619270902/artifacts/14123692358)
 - [Screenshots](https://github.com/alexgazin/la-grilla/actions/runs/43619270902/artifacts/14123887716)
 - [Full build/test logs and XCTest result bundle](https://github.com/alexgazin/la-grilla/actions/runs/43619270902/artifacts/14123018272)
-- Checked-in images: [Grid](../Screenshots/grid.png), [Jam](../Screenshots/jam.png), [Mixer](../Screenshots/mixer.png), [Projects](../Screenshots/projects.png).
+- Historical checked-in images: [Grid](../Screenshots/R0/grid.png), [Jam](../Screenshots/R0/jam.png), [Mixer](../Screenshots/R0/mixer.png), [Projects](../Screenshots/R0/projects.png). The root previews now follow the current design.
 
 The simulator binary is a **Debug ARM64 iOS Simulator app**, not an installable iPhone IPA. The packaged simulator ZIP delivered in chat restores executable file modes that GitHub's raw directory artifact can flatten. A physical build needs the owner's Apple development team/signing configuration in Xcode.
 
@@ -155,4 +155,12 @@ This is iOS 18.5 compatibility evidence. The release stage separately selects an
 
 App/UI source `ecfc9b9` passes [run 43689852307](https://github.com/alexgazin/la-grilla/actions/runs/43689852307): 64 Swift tests, independent export readers, 11 C++ suites, both SDK builds, 19 Studio flows, two Russian capture tests and optimized archive/dSYM/resource audit on Xcode 26.3 / iOS 26.2. The preceding [full capture](https://github.com/alexgazin/la-grilla/actions/runs/43686737452) supplies unchanged English frames. [R10 screenshots](../Screenshots/R10) contain 51 original PNGs with per-file source/hash; [Store sets](../Screenshots/AppStore) contain twelve unchanged native copies.
 
-[Release QA](RELEASE_QA.md) records reproduced MIDI boundary defects, visual-review localization fixes and signing preparation. R8.1 design, installed physical acceptance, signing/TestFlight and App Review remain open; these are technical-candidate images, not final acceptance of the requested design revision.
+[Release QA](RELEASE_QA.md) records reproduced MIDI boundary defects, visual-review localization fixes and signing preparation. These R10 images preserve the technical candidate before the later R8.1 design acceptance recorded below. Installed physical acceptance, signing/TestFlight and App Review remain open.
+
+## R8.1 — Design 2026
+
+Verified implementation/capture source `72d81cb8a7be054d2e00457f4d30461a99e67b1f` passes all three jobs in [43700372709](https://github.com/alexgazin/la-grilla/actions/runs/43700372709): 64 Swift tests, independent readers, 11 C++ suites, both SDK builds, optimized archive and 22 native tests across Pro Max/SE (19 Studio flows and three capture methods). The 480-key presentation audit passes.
+
+The native design uses a proportional musical grid/playhead, graphite/ivory surfaces, lime primary actions and consistent musical role colors. Harmony, Perform, Jam, Mixer and secondary views share readable typography and actions; navigation uses the current native material with an opaque fallback. The actual guide-center hit defect and Jam mode bounds are fixed and verified through tap/state/44-point assertions. Apply/Undo/Cancel assert actual tempo values. [Design QA](DESIGN_QA.md) records implementation and limits.
+
+[54 original PNGs](../Screenshots/Design2026) and [12 unchanged Store frames](../Screenshots/AppStore) are preserved with source/run/dimensions/SHA-256; the four root previews now show this design. Original R0 previews remain in their historical folder. OpenArt concept/icon provenance is in [Design/2026](../Design/2026). Signing, installed physical audio/MIDI/VoiceOver acceptance, TestFlight and App Review remain open.
