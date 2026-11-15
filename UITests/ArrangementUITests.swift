@@ -21,6 +21,17 @@ final class ArrangementUITests: XCTestCase {
         // lift/target registration in the recorded iOS 26 simulator run.
         source.press(forDuration:1.2,thenDragTo:destination,withVelocity:.slow,thenHoldForDuration:0.6)
     }
+    @MainActor private func waitForClipPosition(_ clip:XCUIElement,x:CGFloat,length:String){
+        // Releasing the native gesture precedes asynchronous String item loading
+        // and SwiftUI's publication of the validated drop. Wait for the exact
+        // result of this single gesture; an unmoved or incorrectly snapped clip
+        // must still fail, and no second drag is attempted.
+        let settled=NSPredicate{_,_ in
+            clip.exists && abs(clip.frame.minX-x)<=3 && clip.value as? String==length
+        }
+        let result=XCTWaiter.wait(for:[XCTNSPredicateExpectation(predicate:settled,object:clip)],timeout:6)
+        XCTAssertEqual(result,.completed,"Clip did not settle at x=\(x), length=\(length); actual frame=\(clip.frame), value=\(String(describing:clip.value))")
+    }
 
     @MainActor func testClipTapResizeNativeDragAndUndo(){
         let app=launch()
@@ -47,16 +58,20 @@ final class ArrangementUITests: XCTestCase {
         XCTAssertLessThan(bar,app.windows.firstMatch.frame.width/2,"Clip accessibility frame must match the one-bar clip, not its entire lane")
         let finger=clip.coordinate(withNormalizedOffset:CGVector(dx:0.4,dy:0.5))
         drag(finger,to:finger.withOffset(CGVector(dx:bar,dy:0)))
+        waitForClipPosition(clip,x:initialX+bar,length:"1.00 bars")
         XCTAssertGreaterThan(clip.frame.minX,initialX+bar*0.5)
+        XCTAssertEqual(clip.frame.minX,initialX+bar,accuracy:3)
         clip.tap();XCTAssertTrue(app.navigationBars["Clip settings"].waitForExistence(timeout:5))
         XCTAssertEqual(app.steppers["clip.start"].value as? String,"2:1")
         app.buttons["Done"].tap()
         let shot=XCTAttachment(data:XCUIScreen.main.screenshot().pngRepresentation,uniformTypeIdentifier:"public.png")
         shot.name="OriginalVision-original-vision-arrangement-clips";shot.lifetime = .keepAlways;add(shot)
         app.buttons["Undo"].tap()
+        waitForClipPosition(clip,x:initialX,length:"1.00 bars")
         XCTAssertEqual(clip.frame.minX,initialX,accuracy:3)
         XCTAssertEqual(clip.value as? String,"1.00 bars")
         app.buttons["Redo"].tap()
+        waitForClipPosition(clip,x:initialX+bar,length:"1.00 bars")
         XCTAssertGreaterThan(clip.frame.minX,initialX+bar*0.5)
     }
 
@@ -99,11 +114,13 @@ final class ArrangementUITests: XCTestCase {
         // one-bar finger movement to bar three. The musical start must be two.
         let finger=clip.coordinate(withNormalizedOffset:CGVector(dx:0.2,dy:0.25))
         drag(finger,to:finger.withOffset(CGVector(dx:bar,dy:0)))
+        waitForClipPosition(clip,x:initialX+bar,length:"4.00 bars")
         XCTAssertEqual(clip.frame.minX,initialX+bar,accuracy:3)
         clip.tap();XCTAssertTrue(app.navigationBars["Clip settings"].waitForExistence(timeout:5))
         XCTAssertEqual(app.steppers["clip.start"].value as? String,"2:1")
         XCTAssertEqual(app.steppers["clip.length"].value as? String,"4.00 bars")
         app.buttons["Done"].tap();app.buttons["Undo"].tap()
+        waitForClipPosition(clip,x:initialX,length:"4.00 bars")
         XCTAssertEqual(clip.frame.minX,initialX,accuracy:3)
         XCTAssertEqual(clip.value as? String,"4.00 bars")
     }
