@@ -24,6 +24,7 @@ echo "Installing simulator application"
 run_limited 300 xcrun simctl install "$DEVICE" DerivedData/Build/Products/Debug-iphonesimulator/LaGrilla.app
 SCREENSHOT_DIR=${GRILLA_SCREENSHOT_DIR:-Screenshots/R7}
 mkdir -p "$SCREENSHOT_DIR"
+rm -f "$SCREENSHOT_DIR/"*.png
 for SCREEN in grid jam mixer projects export export-wav export-stems notes notes-mixer harmony harmony-proposal assistant assistant-proposal voice voice-draft perform perform-take perform-export midi midi-mapped; do
   run_limited 15 xcrun simctl terminate "$DEVICE" com.alexgazin.LaGrilla || true
   echo "Launching $SCREEN"
@@ -32,5 +33,5 @@ for SCREEN in grid jam mixer projects export export-wav export-stems notes notes
   APP_PID=$(echo "$APP_LAUNCH" | python3 -c 'import sys,re; print(re.search(r": ([0-9]+)",sys.stdin.read()).group(1))')
   sleep 8
   kill -0 "$APP_PID"
-  run_limited 45 xcrun simctl io "$DEVICE" screenshot "$SCREENSHOT_DIR/$SCREEN.png"
+  run_limited 90 xcrun simctl io "$DEVICE" screenshot "$SCREENSHOT_DIR/$SCREEN.png" || run_limited 90 xcrun simctl io "$DEVICE" screenshot "$SCREENSHOT_DIR/$SCREEN.png"
 done
