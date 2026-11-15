@@ -51,7 +51,7 @@ import Observation
     func toggleRepeat(){guard playing,!replaying else{return};let ticks=repeating ? 0:repeatSize;if audio.withKernel({lg_perform_queue($0,3,Float(ticks),0,0,0)})==0{error="The performance control queue is full. Try again."}}
     func setRepeatSize(_ ticks:Int){repeatSize=ticks;if repeating,!replaying{if audio.withKernel({lg_perform_queue($0,3,Float(ticks),0,0,0)})==0{error="The performance control queue is full. Try again."}}}
     func setEffects(filter:Double?=nil,delay:Double?=nil){
-        guard contextActive,!replaying,var project=runtimeProject else{return};var value=project.masterFX ?? MasterFX();if let filter{value.filter=min(1,max(-1,filter))};if let delay{value.delayWet=min(0.5,max(0,delay))};project.masterFX=value;runtimeProject=project;audio.effects(value)
+        guard contextActive,!replaying,var project=runtimeProject else{return};var value=project.masterFX ?? MasterFX();if let filter{value.filter=min(1,max(-1,filter))};if let delay{value.delayWet=min(0.5,max(0,delay))};project.masterFX=value;runtimeProject=project;audio.mix(project)
     }
     func editMix(_ change:(inout Project)throws->Void)throws {
         guard contextActive,!replaying,var value=runtimeProject else{return};let before=value;try change(&value)

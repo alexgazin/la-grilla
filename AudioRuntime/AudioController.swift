@@ -83,10 +83,13 @@ private enum AudioRender {
         if ok == 0 { error = "Audio update could not be queued. Stop and retry." }else{submittedNotes=compiled;submittedBPM=p.bpm;submittedRange=range;submittedLoop=loop;submittedProject=p.id}
         mix(p)
     }
-    func mix(_ p: Project) {
-        guard let k = handle?.pointer else { return }; let solo = p.tracks.contains(where: \.solo)
-        for (i,t) in p.tracks.enumerated() {lg_mix(k,Int32(i),Float(t.gain),Float(t.pan),!t.mute && (!solo || t.solo) ? 1 : 0)}
-        lg_master(k,Float(p.master));let fx=p.masterFX ?? MasterFX();lg_effects(k,Float(fx.filter),Float(fx.delayWet))
+    @discardableResult func mix(_ p: Project)->Bool {
+        guard let k=handle?.pointer else{return false};let solo=p.tracks.contains(where: \.solo)
+        for (index,track) in p.tracks.enumerated(){_ = lg_preset_version(k,Int32(index),Int32(track.presetVersion))}
+        let tracks=p.tracks.map{LGTrackMix(gainDB:Float($0.gain),pan:Float($0.pan),audible:!$0.mute && (!solo || $0.solo) ? 1:0)}
+        let fx=p.masterFX ?? MasterFX()
+        let accepted=tracks.withUnsafeBufferPointer{lg_mix_snapshot(k,$0.baseAddress,Int32($0.count),Float(p.master),Float(fx.filter),Float(fx.delayWet))} != 0
+        if !accepted{error="Audio update could not be queued. Stop and retry."};return accepted
     }
     func play(countInBPM: Double? = nil) {
         guard let k = handle?.pointer else { return }
