@@ -87,7 +87,7 @@ final class ArrangementUITests: XCTestCase {
             let a=third.frame,b=fourth.frame,view=timeline.frame,width=b.minX-a.minX
             guard width>0 else{return false}
             let center=2+(view.midX-a.minX)/width
-            return width>widthBefore*1.2 && abs(center-barsBefore)<=0.04
+            return width>widthBefore*1.2 && abs(center-barsBefore)<=0.04 && a.minX>=view.minX && b.maxX<=view.maxX+1
         },object:third)],timeout:6)
         let enlargedThird=third.frame,enlargedFourth=fourth.frame
         let enlargedWidth=enlargedFourth.minX-enlargedThird.minX
@@ -102,7 +102,7 @@ final class ArrangementUITests: XCTestCase {
             let a=third.frame,b=fourth.frame,view=timeline.frame,width=b.minX-a.minX
             guard width>0 else{return false}
             let center=2+(view.midX-a.minX)/width
-            return width<enlargedWidth*0.9 && abs(center-barsEnlarged)<=0.04
+            return width<enlargedWidth*0.9 && abs(center-barsEnlarged)<=0.04 && a.minX>=view.minX && b.maxX<=view.maxX+1
         },object:third)],timeout:6)
         let reducedThird=third.frame,reducedFourth=fourth.frame
         let reducedWidth=reducedFourth.minX-reducedThird.minX
