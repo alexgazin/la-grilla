@@ -5,7 +5,7 @@ final class StudioTests: XCTestCase {
         app.launch();XCTAssertTrue(app.buttons["perform.transport"].waitForExistence(timeout:15));return app
     }
     @MainActor func testVirtualMIDILearnAndActualOutputDestination() {
-        let app=launch("midi");XCTAssertTrue(app.staticTexts["midi.fixture"].waitForExistence(timeout:15))
+        let app=launch("midi");guard app.staticTexts["midi.fixture"].waitForExistence(timeout:15)else{let shot=XCTAttachment(screenshot:XCUIScreen.main.screenshot());shot.name="R7-midi-error";shot.lifetime = .keepAlways;add(shot);let error=app.staticTexts["midi.error"];XCTFail("Virtual MIDI setup: "+(error.exists ? error.label:app.debugDescription));return}
         app.swipeUp();app.swipeUp()
         XCTAssertTrue(app.buttons["midi.learn"].waitForExistence(timeout:5));app.buttons["midi.learn"].tap();app.buttons["midi.send-fixture"].tap()
         XCTAssertTrue(app.staticTexts["Ch 1 · CC 74"].waitForExistence(timeout:8))

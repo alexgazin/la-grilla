@@ -110,7 +110,7 @@ private enum MIDICallbacks {
     }
     private func disconnect(_ id:Int32){guard let connection=connections.removeValue(forKey:id)else{return};MIDIPortDisconnectSource(input,connection.endpoint);lg_midi_disconnect(hub.pointer,Int32(connection.slot))}
     func createFixture()->Int32? {
-        guard ProcessInfo.processInfo.arguments.contains("--uitesting")else{return nil};prepare()
+        guard ProcessInfo.processInfo.arguments.contains("--uitesting")else{return nil};prepare();guard client != 0 else{return nil}
         if fixtureSource==0{let status=MIDISourceCreate(client,"La Grilla virtual QA keyboard" as CFString,&fixtureSource);guard status==noErr else{error="Virtual MIDI source failed (\(status)).";return nil}}
         if fixtureDestination==0{
             lg_midi_configure(fixtureProbe.pointer,256,0,0,65535)

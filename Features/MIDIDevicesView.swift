@@ -12,6 +12,7 @@ struct MIDIDevicesView:View {
     var body:some View {
         NavigationStack {Form {
             SwiftUI.Section {
+                if let error=midi.error{Text(error).foregroundStyle(Color.record).accessibilityIdentifier("midi.error")}
                 Toggle("MIDI input",isOn:Binding(get:{settings.enabled},set:{value in edit{$0.enabled=value}})).accessibilityIdentifier("midi.enabled")
                 Text("Play this project's instruments from a USB or Bluetooth MIDI controller. Mappings are saved with this project.").font(.caption).foregroundStyle(.secondary)
                 if midi.isFixture{Text("Virtual MIDI QA source").font(.caption).foregroundStyle(Color.drums).accessibilityIdentifier("midi.fixture")}
@@ -47,7 +48,6 @@ struct MIDIDevicesView:View {
                 Text(midi.lastMessage).font(.system(.caption,design:.monospaced)).accessibilityIdentifier("midi.last")
                 LabeledContent("Late input events",value:String(midi.late));LabeledContent("Dropped events",value:String(midi.dropped))
                 Text("Late events play at the first available audio sample. Bluetooth audio latency is separate from Bluetooth MIDI.").font(.caption).foregroundStyle(.secondary)
-                if let error=midi.error{Text(error).foregroundStyle(Color.record)}
                 Button("Panic · release all notes",role:.destructive){session.audio.panic();midi.panic();midi.retry();session.syncMIDI()}.frame(minHeight:44).accessibilityIdentifier("midi.panic")
             }
         }.navigationTitle("MIDI devices").toolbar{ToolbarItem(placement:.confirmationAction){Button("Done"){midi.learning=nil;session.sheet=nil}}}}
