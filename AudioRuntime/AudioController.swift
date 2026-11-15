@@ -26,7 +26,7 @@ private enum AudioRender {
     private var source: AVAudioSourceNode?
     private var handle: KernelHandle?
     var tick: Double = 0; var playing = false; var appliedRevision = -1
-    var meters: [Float] = [0,0,0,0]; var sampleRate: Double = 48000
+    var meters: [Float] = Array(repeating:0,count:masterBus+1); var sampleRate: Double = 48000
     var countRemaining = 0; var error: String?
     var overflows = 0
     private var timer: Timer?
@@ -58,13 +58,13 @@ private enum AudioRender {
     func poll() {
         guard let k = handle?.pointer else { return }
         clock = lg_clock(k); tick = lg_tick(k); playing = lg_playing(k) != 0; appliedRevision = sentRevisions[Int(lg_revision(k))] ?? -1; countRemaining = Int(lg_countremaining(k)); overflows = Int(lg_overflows(k))
-        meters = (0..<4).map {lg_meter(k,Int32($0))}
+        meters = (0...masterBus).map {lg_meter(k,Int32($0))}
     }
     func submit(_ p: Project, loop: Bool, range: Range<Int>) {
         guard let k = handle?.pointer else { return }
         generation += 1; sentRevisions[generation] = p.revision
         if sentRevisions.count > 100 { sentRevisions = sentRevisions.filter { $0.key >= generation - 50 } }
-        let notes = Compiler.notes(p).map { LGNote(tick: Int32($0.tick), duration: Int32($0.duration), pitch: Int32($0.pitch), velocity: Int32($0.velocity), track: Int32($0.track), pad: Int32($0.pad)) }
+        let notes = Compiler.notes(p).map { LGNote(tick: Int32($0.tick), duration: Int32($0.duration), pitch: Int32($0.pitch), velocity: Int32($0.velocity), track: Int32($0.track), pad: Int32($0.pad),instrument:Int32($0.instrument)) }
         let ok = notes.withUnsafeBufferPointer {lg_submit(k,$0.baseAddress,Int32($0.count),p.bpm,Int32(range.lowerBound),Int32(range.upperBound),loop ? 1 : 0,Int32(generation))}
         if ok == 0 { error = "Audio update could not be queued. Stop and retry." }
         mix(p)
@@ -83,6 +83,7 @@ private enum AudioRender {
     func seek(_ tick: Int) {if let k = handle?.pointer {lg_seek(k,Int32(tick))}; self.tick = Double(tick)}
     func pad(_ pad: Int, velocity: Int = 100) {if let k = handle?.pointer { _ = lg_pad(k,Int32(pad),Int32(velocity)) }}
     func preview(_ chord: Chord) {if let k = handle?.pointer {for n in chord.notes {lg_preview(k,Int32(n))}}}
+    func previewNote(_ pitch:Int,track:Int){if let k=handle?.pointer{lg_note_preview(k,Int32(pitch),Int32(track),3)}}
     func metronome(_ on: Bool) {if let k = handle?.pointer {lg_metronome(k,on ? 1 : 0)}}
     func reset() { stop(); timer?.invalidate(); engine?.stop(); engine = nil; source = nil; handle = nil }
 }

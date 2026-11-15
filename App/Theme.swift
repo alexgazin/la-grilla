@@ -10,7 +10,7 @@ extension Color {
     static let drums = Color(red:0.518,green:0.616,blue:1)
     static let bass = Color(red:0.729,green:0.612,blue:0.957)
     static let record = Color(red:1,green:0.396,blue:0.467)
-    static func track(_ role: TrackRole) -> Color {role == .harmony ? .harmony : role == .drums ? .drums : .bass}
+    static func track(_ role: TrackRole) -> Color {role == .harmony ? .harmony : role == .drums ? .drums : role == .bass ? .bass : .mint}
 }
 struct IconButton: View {
     let symbol: String; let label: LocalizedStringKey; var color: Color = .white; let action: () -> Void

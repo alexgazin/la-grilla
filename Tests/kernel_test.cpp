@@ -7,7 +7,7 @@
 int main(){
  assert(lg_create(0)==nullptr);
  auto*k=lg_create(48000); std::vector<float> l(512),r(512);
- LGNote n[]={{0,3840,60,100,0,-1},{3840,3840,57,100,0,-1},{0,120,36,100,1,0}};
+ LGNote n[]={{0,3840,60,100,0,-1,0},{3840,3840,57,100,0,-1,0},{0,120,36,100,1,0,1}};
  assert(lg_submit(k,n,3,120,0,15360,1,1));lg_play(k,1);float peak=0;
  for(int i=0;i<750;i++){lg_render(k,l.data(),r.data(),512);for(float f:l){assert(std::isfinite(f));peak=std::max(peak,std::abs(f));}}
  assert(peak>0.02&&peak<=0.98);assert(lg_tick(k)>15359&&lg_tick(k)<15360);
@@ -34,5 +34,11 @@ int main(){
  for(int i=0;i<4000;i++){lg_render(k,l.data(),r.data(),512);for(float f:l)assert(std::isfinite(f));}
  producer.join();for(int i=0;i<200;i++){lg_render(k,l.data(),r.data(),512);}assert(lg_revision(k)==1999);lg_destroy(k);
  k=lg_create(48000);assert(lg_submit(k,nullptr,0,120,0,15360,1,1));lg_countin(k,96000);lg_play(k,1);lg_play(k,0);lg_render(k,l.data(),r.data(),512);assert(lg_countremaining(k)==0);for(float f:l)assert(f==0);lg_destroy(k);
+ // Eighth channel and master have separate controls; bus 3 is an ordinary track.
+ k=lg_create(48000);LGNote eighth={0,3840,76,100,7,-1,3};assert(lg_submit(k,&eighth,1,120,0,3840,0,1));
+ for(int t=0;t<8;t++){lg_mix(k,t,0,0,t==7);}lg_master(k,0);lg_mix(k,3,-61,0,0);lg_play(k,1);
+ peak=0;for(int i=0;i<10;i++){lg_render(k,l.data(),r.data(),512);for(float f:l)peak=std::max(peak,std::abs(f));}
+ assert(peak>0.01);assert(lg_meter(k,7)>0.01);assert(lg_meter(k,8)>0.01);assert(lg_meter(k,3)==0);
+ lg_mix(k,7,-61,0,0);for(int i=0;i<20;i++)lg_render(k,l.data(),r.data(),512);for(float f:l)assert(std::abs(f)<0.00001);lg_destroy(k);
  std::cout<<"Kernel: render, loop boundary, pending revision, stop, pad, overflow, 10 minute clock, concurrent snapshot ownership passed\n";
 }

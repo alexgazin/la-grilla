@@ -25,7 +25,7 @@ struct ExportView:View {
                     if scope==2 {VStack{Stepper("From bar \(firstBar)",value:$firstBar,in:1...lastBar);Stepper("Through bar \(lastBar)",value:$lastBar,in:firstBar...max(1,session.project.length/barTicks))}.font(.system(size:13)).disabled(session.exportInProgress)}
                 }
                 if format == .wav || format == .stems {audioSettings}
-                if format == .stems {VStack(alignment:.leading,spacing:10){SmallHeading(text:"TRACKS");ForEach(session.project.tracks){t in Toggle(t.role.rawValue.capitalized,isOn:Binding(get:{tracks.contains(t.id)},set:{on in if on{tracks.insert(t.id)}else{tracks.remove(t.id)}})).tint(.mint)}}.disabled(session.exportInProgress)}
+                if format == .stems {VStack(alignment:.leading,spacing:10){SmallHeading(text:"TRACKS");ForEach(session.project.tracks){t in Toggle(t.displayName,isOn:Binding(get:{tracks.contains(t.id)},set:{on in if on{tracks.insert(t.id)}else{tracks.remove(t.id)}})).tint(.mint)}}.disabled(session.exportInProgress)}
                 if let error=session.exportError {Text(error).font(.system(size:12)).foregroundStyle(Color.record).accessibilityIdentifier("export.error")}
                 if format == .stems && tracks.isEmpty {Text("Select at least one track.").font(.caption).foregroundStyle(Color.muted)}
                 Text(description).font(.system(size:12)).foregroundStyle(Color.muted).lineSpacing(4)

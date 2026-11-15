@@ -86,7 +86,7 @@ public enum PortableProject {
     public static func decode(_ data:Data,asCopy:Bool=true)throws->Project {
         let entries=try ProjectArchive.decode(data)
         guard Set(entries.map(\.name))==["manifest.json","metadata.json"],let manifest=entries.first(where:{$0.name=="manifest.json"})?.data,manifest.count<=8_000_000,let meta=entries.first(where:{$0.name=="metadata.json"})?.data,let metadata=try JSONSerialization.jsonObject(with:meta) as? [String:String],metadata["version"]=="1",metadata["manifestCRC32"]==String(format:"%08x",ProjectArchive.checksum(manifest))else{throw ExportError.invalidArchive}
-        var p=try JSONDecoder().decode(Project.self,from:manifest);try p.validate()
+        var p=try ProjectDocument.decode(manifest)
         if asCopy{p.id=UUID();p.revision=0;p.modified=Date();p.name=String(p.name.prefix(110))+" imported"}
         return p
     }

@@ -1,6 +1,6 @@
 # La Grilla — roadmap до App Store
 
-Обновлено: 14 ноября 2026. Источник требований: [README](README.md), [дизайн](DESIGN_PROMPT.txt). Это рабочий план реализации, а не обещание готовности неизмеренных функций.
+Обновлено: 15 ноября 2026. Источник требований: [README](README.md), [дизайн](DESIGN_PROMPT.txt). Это рабочий план реализации, а не обещание готовности неизмеренных функций.
 
 **Правило работы:** реализовать законченный сценарий → поведенческие тесты → native build/UI QA → реальные скриншоты в `Screenshots/<этап>/` → PR и merge в `main` → обновить этот файл и журнал проверок. По запросу владельца проверенные этапы интегрируются в `main`; проверки физического устройства остаются обязательным условием выпуска. Изменения дизайна и графику при необходимости делать через OpenArt. Скриншоты продукта — только из работающего приложения.
 
@@ -8,7 +8,7 @@
 | --- | --- | --- | --- |
 | R0. База v0.1 | Grid, Harmony/Drums/Bass, Jam, takes, Mixer, projects, Undo, autosave/recovery, MIDI | 14 domain/storage tests + C++ + 4 native UI tests, обе SDK-сборки, 4 скриншота. [QA](docs/QA.md), [PR #1](https://github.com/alexgazin/la-grilla/pull/1) | **Слито в main** |
 | R1. Переносимый результат | WAV mixdown, stems, 44.1/48 kHz, 16/24 bit, tail, диапазон; export progress/cancel; переносимый `.grillapack`, импорт копией | Файлы открываются независимым WAV/ZIP reader; mix/stem alignment, deterministic render, finite duration, cancel cleanup, project round-trip. Live transport не переключается в offline mode | **Слито в main** |
-| R2. Полный нотный редактор | Melody/piano roll, до 8 дорожек, add/move/resize/delete notes, velocity, selection, copy/paste, clip/section operations, zoom/drag arbitration | Создать мелодию, изменить ноты, Undo, сохранить/открыть и услышать/экспортировать ровно те же ноты. Нет потери v1-проектов | Запланировано |
+| R2. Полный нотный редактор | Melody/piano roll, до 8 дорожек, add/move/resize/delete notes, velocity, selection, copy/paste, clip/section operations, zoom/drag arbitration | Создать мелодию, изменить ноты, Undo, сохранить/открыть и услышать/экспортировать ровно те же ноты. Нет потери v1-проектов | **Слито в main** |
 | R3. Гармоническая лаборатория | 9/11/13, alterations/slash bass, voicing/range/voice leading; мягкая/выразительная стилизация и reharm | Объяснимое предложение с исходными/новыми аккордами, A/B, Apply/Cancel, одна Undo-транзакция. Хроматика и ограничения видны | Запланировано |
 | R4. Assistant | RU/EN локальные команды tempo/key/sections/progressions; dictation отдельно от напева; typed proposals, scope, assumptions, stale/double-apply guards | Команда → preview → Apply или Cancel. Нет скрытого редактирования, неподтверждённых сетевых обещаний или ключей в клиенте. Cloud provider только через защищённый backend, если понадобится | Запланировано |
 | R5. Voice-to-MIDI | Microphone permission, headphones guidance, count-in, запись исходного mono audio, monophonic pitch/onset/confidence, quantize/scale snap, piano-roll correction/A-B | Синус/напев/пауза/шум/octave-jump набор; сомнительные ноты видны, тишина остаётся тишиной, Apply/Cancel сохраняют исходник до решения | Запланировано |
@@ -23,7 +23,7 @@
 
 R1 → R2 → R3 → R4; R2 и аудиосессия → R5; transport/compiler → R6 → R7. R8 и R9 сопровождают каждый этап, R10/R11 завершают выпуск. Аппаратные и внешние проверки не блокируют независимую разработку, но не могут быть отмечены выполненными по результату симулятора.
 
-### Завершено: R1
+### Завершено: R1–R2
 
 - [x] Offline renderer использует тот же compiler и DSP kernel, отдельный экземпляр, без изменения live engine.
 - [x] WAV PCM stereo 44.1/48 kHz, 16/24 bit, range, release tail, progress/cancel.
@@ -40,3 +40,5 @@ R1 → R2 → R3 → R4; R2 и аудиосессия → R5; transport/compiler
 ## Условия, которые нельзя заменить кодом или макетом
 
 Физический iPhone/наушники/USB и BLE MIDI нужны для аппаратных измерений; DAW — для фактического импорта; Apple Developer signing/App Store Connect — для TestFlight и публикации. В среде пока нет этих устройств/учётных данных. Все независимые программные этапы продолжаются; доступ запрашивается только когда соответствующий конкретный результат готов к этой внешней проверке/публикации.
+
+- **15.11.2026 — R2:** piano roll, melody, 8 каналов и schema migration реализованы; 28 Swift tests, C++ routing, обе SDK-сборки и 8 native UI tests проходят. Реальные экраны — `Screenshots/R2`.

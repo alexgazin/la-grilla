@@ -5,7 +5,7 @@
 extern "C" {
 #endif
 typedef struct LGKernel LGKernel;
-typedef struct { int32_t tick, duration, pitch, velocity, track, pad; } LGNote;
+typedef struct { int32_t tick, duration, pitch, velocity, track, pad, instrument; } LGNote;
 LGKernel *lg_create(double sampleRate);
 void lg_destroy(LGKernel *k);
 int lg_submit(LGKernel *k, const LGNote *notes, int count, double bpm, int start, int end, int loop, int revision);
@@ -15,6 +15,7 @@ void lg_play(LGKernel *k, int play);
 void lg_seek(LGKernel *k, int tick);
 int lg_pad(LGKernel *k, int pad, int velocity);
 void lg_preview(LGKernel *k, int pitch);
+void lg_note_preview(LGKernel *k, int pitch, int track, int instrument);
 void lg_mix(LGKernel *k, int track, float db, float pan, int audible);
 void lg_master(LGKernel *k, float db);
 void lg_tail_on_end(LGKernel *k, int enabled);

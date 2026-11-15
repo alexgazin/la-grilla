@@ -103,7 +103,7 @@ struct MusicDomainTests {
         #expect(try await store.save(old)==2)
         #expect(try await store.load(p.id).name=="Newest")
         let manifest=root.appendingPathComponent(p.id.uuidString+".grilla/manifest.json")
-        p.schemaVersion=2;let future=try JSONEncoder().encode(p);try future.write(to:manifest)
+        p.schemaVersion=99;let future=try JSONEncoder().encode(p);try future.write(to:manifest)
         do {try await store.save(old);Issue.record("A newer schema was overwritten")} catch {}
         #expect(try Data(contentsOf:manifest)==future)
     }
@@ -116,6 +116,6 @@ struct MusicDomainTests {
         try Data("broken".utf8).write(to:manifest)
         let entries=try await store.list();#expect(entries.count==1);#expect(entries[0].project==nil)
         #expect(try await store.load(p.id,backup:true).name=="First light")
-        p.schemaVersion=2;#expect(throws:MusicError.self){try p.validate()}
+        p.schemaVersion=99;#expect(throws:MusicError.self){try p.validate()}
     }
 }
