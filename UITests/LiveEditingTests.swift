@@ -109,6 +109,7 @@ final class LiveEditingTests:XCTestCase {
         XCTAssertTrue(app.navigationBars["Assistant"].waitForExistence(timeout:5))
         app.buttons["assistant.examples"].tap()
         XCTAssertTrue(app.navigationBars["Examples"].waitForExistence(timeout:5))
+        screenshot("OriginalVision-qa-assistant-examples")
         let example=app.buttons["assistant.example.song-form"];reveal(example,in:app);example.tap()
         XCTAssertTrue(app.navigationBars["Assistant"].waitForExistence(timeout:5))
         let review=app.buttons["assistant.generate"];reveal(review,in:app);review.tap()
