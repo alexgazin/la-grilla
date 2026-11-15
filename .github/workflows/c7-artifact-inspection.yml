@@ -1,0 +1,62 @@
+name: Inspect original C7 diagnostic receipts
+on:
+  push:
+    branches: [verify/c7-artifact-inspection]
+permissions:
+  actions: read
+  contents: read
+jobs:
+  original-receipts:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Verify original failed-run artifact identity
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 - <<'PY'
+          import json,os,pathlib,urllib.request
+          endpoint='https://api.github.com/repos/alexgazin/la-grilla/actions/artifacts/14179907862'
+          request=urllib.request.Request(endpoint,headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json'})
+          with urllib.request.urlopen(request,timeout=30) as response: artifact=json.load(response)
+          assert artifact['id']==14179907862 and artifact['name']=='ios-verification' and not artifact['expired']
+          assert artifact['size_in_bytes']==557287135
+          assert artifact['digest']=='sha256:f142cbcf258eff4705fa4c95fc648ccf4d8b72a923bf86af4bf9f7a9f5bb1a6c'
+          assert artifact['workflow_run']['id']==43754981384
+          assert artifact['workflow_run']['head_sha']=='0de6677bb946e0ed749a00d0a34355832bdf4f7a'
+          provenance={key:artifact[key] for key in ['id','name','size_in_bytes','digest','workflow_run']}
+          provenance.update(diagnostic_subset_only=True,original_run_conclusion='failure',new_app_capture=False,release_acceptance=False,download_transport='actions/download-artifact@v4',original_zip_digest_independently_recomputed_by_this_subset_step=False)
+          pathlib.Path('Receipts').mkdir()
+          pathlib.Path('Receipts/original-artifact.json').write_text(json.dumps(provenance,indent=2)+'\n')
+          print('Verified original failed C7 source/run/artifact metadata; no application is built or launched.')
+          PY
+      - uses: actions/download-artifact@v4
+        with:
+          name: ios-verification
+          repository: alexgazin/la-grilla
+          run-id: 43754981384
+          github-token: ${{ github.token }}
+          path: Original
+      - name: Preserve only unchanged native text and JSON receipts
+        run: |
+          python3 - <<'PY'
+          import hashlib,json,pathlib,shutil
+          source=pathlib.Path('Original');destination=pathlib.Path('Receipts');files=[];pngs=[]
+          for path in sorted(source.rglob('*')):
+              if not path.is_file(): continue
+              relative=path.relative_to(source)
+              if relative.parts[0]=='NativeAttachments' and path.suffix.lower() in ['.txt','.json']:
+                  target=destination/relative;target.parent.mkdir(parents=True,exist_ok=True);shutil.copyfile(path,target)
+                  files.append({'original_entry':str(relative),'sha256':hashlib.sha256(path.read_bytes()).hexdigest(),'bytes':path.stat().st_size})
+              if 'OriginalVision' in relative.parts and path.suffix.lower()=='.png':
+                  pngs.append({'original_entry':str(relative),'sha256':hashlib.sha256(path.read_bytes()).hexdigest(),'bytes':path.stat().st_size})
+          assert files and any(pathlib.Path(item['original_entry']).name=='manifest.json' for item in files)
+          (destination/'subset-files.json').write_text(json.dumps(files,indent=2)+'\n')
+          (destination/'original-png-inventory.json').write_text(json.dumps(pngs,indent=2)+'\n')
+          print('Copied',len(files),'unchanged native TXT/JSON receipts; inventoried',len(pngs),'original PNG names without copying images.')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c7-native-receipts-original-run-43754981384
+          path: Receipts
