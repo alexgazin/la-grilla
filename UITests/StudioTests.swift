@@ -63,7 +63,9 @@ final class StudioTests: XCTestCase {
         XCTAssertTrue(reset.waitForExistence(timeout:5));reveal(reset,in:app.scrollViews.firstMatch)
         XCTAssertTrue(reset.label.contains("децибела"));XCTAssertTrue(reset.label.contains("Нажми для сброса."))
         XCTAssertFalse(reset.label.contains("decibels"));XCTAssertFalse(reset.label.contains("Tap to reset"))
-        XCTAssertGreaterThanOrEqual(reset.frame.height,44)
+        // AX CGRect subtraction can report 43.99999999999997 for the actual
+        // 44-point source target. Tolerance is far below one display pixel.
+        XCTAssertGreaterThanOrEqual(reset.frame.height+0.000001,44)
     }
     @MainActor func testLargeTypeMixerAndAccessibleNoteList() throws {
         XCUIDevice.shared.orientation = .portrait
