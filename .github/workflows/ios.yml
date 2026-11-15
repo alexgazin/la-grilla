@@ -60,6 +60,8 @@ jobs:
       - name: Native user flows
         env:
           GRILLA_REQUIRE_MIC_INPUT: '1'
+          GRILLA_RUNTIME_TRACE: '1'
+          TEST_RUNNER_GRILLA_RUNTIME_TRACE: '1'
           TEST_RUNNER_GRILLA_REQUIRE_MIC_INPUT: '1'
           GRILLA_UI_ONLY: ${{ contains(github.event.head_commit.message, '[ui-only]') && '1' || '0' }}
           GRILLA_INTEGRATION_ONLY: ${{ contains(github.event.head_commit.message, '[integration-only]') && '1' || '0' }}
@@ -73,7 +75,7 @@ jobs:
           FILTER=(-skip-testing:LaGrillaUITests/ScreenshotTests/testCaptureCompactScreens)
           if test "$GRILLA_UI_ONLY" = 1; then FILTER=(-skip-testing:LaGrillaUITests/ScreenshotTests); fi
           if test "$GRILLA_INTEGRATION_ONLY" = 1; then
-            FILTER=(-only-testing:LaGrillaUITests/ArrangementUITests -only-testing:LaGrillaUITests/AudioRuntimeContinuityTests -only-testing:LaGrillaUITests/DrumRuntimeContinuityTests -only-testing:LaGrillaUITests/LiveEditingTests -only-testing:LaGrillaUITests/VoiceReviewUITests)
+            FILTER=(-only-testing:LaGrillaUITests/ArrangementUITests/testClipTapResizeNativeDragAndUndo -only-testing:LaGrillaUITests/AudioRuntimeContinuityTests/testLiveSnapshotMixRoutingAndClockStayCoherent -only-testing:LaGrillaUITests/LiveEditingTests/testDuplicateMoveAndDeleteSectionDuringPlayback)
           fi
           if test "$GRILLA_RU_RECAPTURE" = 1; then FILTER+=(-only-testing:LaGrillaUITests/ScreenshotTests/testCaptureStoreScreens); fi
           if test "$GRILLA_INPUT_DIAGNOSTIC" = 1; then
