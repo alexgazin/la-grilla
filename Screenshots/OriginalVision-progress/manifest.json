@@ -4,7 +4,7 @@
   "version": "1.0.0 (14)",
   "repository": "alexgazin/la-grilla",
   "provenance_scope": "Every file has its own source commit, run, artifact and scenario result. Sources intentionally differ; no global source is implied.",
-  "acceptance": "Intermediate passed-scene evidence from overall failed integration runs. Not Store frames or full release acceptance.",
+  "acceptance": "Intermediate passed-scene evidence from failed complete runs and successful partial diagnostic runs. Not Store frames or full release acceptance.",
   "files": [
     {
       "path": "assistant-live-form.png",
@@ -158,6 +158,37 @@
         "finding": "375pt light Russian clip inspector shows track, Edit contents, snap, start, length and source offset without text clipping or overlapping controls. Lower duplicate/delete actions are reached by scrolling."
       },
       "purpose": "Intermediate progress evidence from a failed run; not final OriginalVision acceptance or Store artwork."
+    },
+    {
+      "path": "midi-mapped-0239.png",
+      "source_sha": "0239e442619f8c1a982dda6a29a5f218881eaacb",
+      "app_source_sha": "e4284e9c213f5ef0016e6f1da21e1e34293c9dce",
+      "run_id": 43762614197,
+      "ios_job_id": 132960555266,
+      "artifact_id": 14181736312,
+      "artifact_name": "ios-verification",
+      "artifact_api_digest": "sha256:bbcec2d7be65b4384d98a04733d7697d9bc342a4390bb8f89f931f2377542c8f",
+      "artifact_bytes": 79051469,
+      "run_conclusion": "success",
+      "scope": "[ui-only] [integration-only]; one native capture method, not complete functional acceptance",
+      "scenario": "ScreenshotTests/testCaptureNativeScreens()",
+      "scenario_result": "passed",
+      "scenario_duration_seconds": 526.999,
+      "fixture": "Actual CoreMIDI virtual source/input/output. Unmapped baseline followed by real Learn and Send in the same process; no reconnect or relaunch between the two states.",
+      "source_attachment_name": "OriginalVision-midi-mapped_0_33C477BC-CB03-4300-9C0A-C80DFF9E00E0.png",
+      "source_attachment_file": "NativeAttachments/main/872F1672-D5E0-41E6-A603-15F8F04E9146.png",
+      "source_archive_entry": "Screenshots/OriginalVision/midi-mapped.png",
+      "width": 1320,
+      "height": 2868,
+      "sha256": "615e33593efd0ca0ace61f6bddfe43a7e6ce1b007f82d4b302c6df99c3db05b1",
+      "native_to_named_byte_equal": true,
+      "visual_review": {
+        "outcome": "no concrete issue found",
+        "finding": "Actual virtual output selected,454 received notes visible,filter mapping Ch1CC74 and latest CC74=80 readable. Lower Activity content continues by normal scrolling.",
+        "views": "Viewed individually by arrangement reviewer,root and integration coordinator."
+      },
+      "pixel_preservation": "Original XCTest PNG bytes; unchanged.",
+      "purpose": "Progress evidence only. It does not establish fixed CoreMIDI-304 startup API behavior, physical MIDI or full C7 acceptance."
     }
   ]
 }
