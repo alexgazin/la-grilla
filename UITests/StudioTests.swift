@@ -1,8 +1,19 @@
 import XCTest
 final class StudioTests: XCTestCase {
+    override func setUp(){super.setUp();continueAfterFailure=false;executionTimeAllowance=120}
     @MainActor func launch(_ screen: String = "grid") -> XCUIApplication {
         let app=XCUIApplication();app.launchArguments=["--uitesting","--screen",screen,"-AppleLanguages","(en)","-AppleLocale","en_US"]
         app.launch();XCTAssertTrue(app.buttons["perform.transport"].waitForExistence(timeout:15));return app
+    }
+    @MainActor func testVirtualMIDILearnAndActualOutputDestination() {
+        let app=launch("midi");guard app.staticTexts["midi.fixture"].waitForExistence(timeout:15)else{let shot=XCTAttachment(screenshot:XCUIScreen.main.screenshot());shot.name="R7-midi-error";shot.lifetime = .keepAlways;add(shot);let error=app.staticTexts["midi.error"];XCTFail("Virtual MIDI setup: "+(error.exists ? error.label:app.debugDescription));return}
+        app.swipeUp();app.swipeUp()
+        XCTAssertTrue(app.buttons["midi.learn"].waitForExistence(timeout:5));app.buttons["midi.learn"].tap();app.buttons["midi.send-fixture"].tap()
+        XCTAssertTrue(app.staticTexts["Ch 1 · CC 74"].waitForExistence(timeout:8))
+        app.swipeUp();XCTAssertTrue(app.staticTexts["midi.last"].waitForExistence(timeout:5));XCTAssertTrue(app.staticTexts["midi.last"].label.contains("CC 74"))
+        app.swipeDown();let received=app.staticTexts["midi.fixture-received"]
+        XCTAssertTrue(received.waitForExistence(timeout:5));XCTAssertGreaterThan(Int(received.label) ?? 0,0)
+        app.swipeUp();app.buttons["midi.panic"].tap();app.buttons["Done"].tap();XCTAssertTrue(app.buttons["Play"].waitForExistence(timeout:5))
     }
     @MainActor func testPerformRecordingSurvivesNavigationAndReplays() {
         let app=launch("perform")

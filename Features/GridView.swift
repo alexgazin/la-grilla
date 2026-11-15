@@ -12,11 +12,14 @@ struct GridView: View {
         VStack(alignment:.leading,spacing:0){
             HStack{SmallHeading(text:"ARRANGEMENT");Spacer();Text("\(session.displayProject.length/barTicks) bars").font(.system(size:11,design:.monospaced)).foregroundStyle(Color.muted);IconButton(symbol:"ellipsis",label:"Edit song sections",color:.muted){session.presentEditor(.sections)}}.padding(.horizontal,18).padding(.top,8)
             ScrollView(.horizontal,showsIndicators:false){HStack(spacing:8){
-                Button{session.finishTake();session.sheet = .perform}label:{Label("Perform",systemImage:"waveform.path").frame(minWidth:90,minHeight:44)}.accessibilityIdentifier("perform.open")
                 Button{session.presentEditor(.harmony)}label:{Label("Harmony",systemImage:"wand.and.stars").frame(minWidth:92,minHeight:44)}.accessibilityLabel("Harmony lab").accessibilityIdentifier("harmony.open")
                 Button{session.openNotes()}label:{Label("Notes",systemImage:"pianokeys").frame(minWidth:80,minHeight:44)}.accessibilityLabel("Open piano roll").accessibilityIdentifier("notes.open")
                 Button{session.presentEditor(.assistant)}label:{Label("Assistant",systemImage:"text.bubble").frame(minWidth:96,minHeight:44)}.accessibilityIdentifier("assistant.open")
-                Button{session.presentEditor(.voice)}label:{Label("Voice",systemImage:"waveform.badge.mic").frame(minWidth:76,minHeight:44)}.accessibilityIdentifier("voice.open")
+                Menu{
+                    Button("Voice",systemImage:"waveform.badge.mic"){session.presentEditor(.voice)}.accessibilityIdentifier("voice.open")
+                    Button("Perform",systemImage:"waveform.path"){session.finishTake();session.sheet = .perform}.accessibilityIdentifier("perform.open")
+                    Button("MIDI devices",systemImage:"pianokeys"){session.presentEditor(.midiDevices)}.accessibilityIdentifier("midi.open")
+                }label:{Image(systemName:"ellipsis.circle").frame(width:44,height:44)}.accessibilityLabel("More studio tools").accessibilityIdentifier("tools.more")
             }}.font(.system(size:12,weight:.medium)).foregroundStyle(Color.mint).padding(.horizontal,18).padding(.bottom,10)
             ScrollView(.horizontal,showsIndicators:false){HStack(spacing:8){ForEach(session.displayProject.sections){s in Button{session.select(s)}label:{HStack(spacing:8){RoundedRectangle(cornerRadius:1).fill(session.section.id==s.id ? Color.mint:Color.muted).frame(width:3,height:20);VStack(alignment:.leading,spacing:3){Text(s.name).font(.system(size:12,weight:.semibold));Text("\(s.start/barTicks+1)–\((s.start+s.length)/barTicks)").font(.system(size:9,design:.monospaced)).foregroundStyle(Color.muted)}}.padding(.horizontal,12).padding(.vertical,10).background(session.section.id==s.id ? Color.raised:Color.panel,in:RoundedRectangle(cornerRadius:8)).overlay{RoundedRectangle(cornerRadius:8).stroke(session.section.id==s.id ? Color.mint.opacity(0.4):Color.clear,lineWidth:1)}}.buttonStyle(.plain)}
                 Button{session.presentEditor(.sections)}label:{Image(systemName:"plus").frame(width:44,height:48).foregroundStyle(Color.muted)}

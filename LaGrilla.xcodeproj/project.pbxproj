@@ -116,6 +116,16 @@
 			"isa" = "PBXBuildFile";
 			"fileRef" = "060265E3518DFE54215D381C";
 		};
+		"63A710D81FE05D4384456D81" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "Features/MIDIDevicesView.swift";
+			"sourceTree" = "SOURCE_ROOT";
+		};
+		"17823D32EA18EDCE74541437" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "63A710D81FE05D4384456D81";
+		};
 		"9B48047AFD08E98106571BBB" = {
 			"isa" = "PBXFileReference";
 			"lastKnownFileType" = "sourcecode.swift";
@@ -185,6 +195,7 @@
 				"6DB07D8C3FB8DBA25E51BB33",
 				"AD913CD535A5E90A9F712FBE",
 				"060265E3518DFE54215D381C",
+				"63A710D81FE05D4384456D81",
 				"9B48047AFD08E98106571BBB",
 				"2EB0F0CE106DA1F3082877CF",
 				"805A362062A0D68F9C0DA85A",
@@ -215,6 +226,26 @@
 			"isa" = "PBXBuildFile";
 			"fileRef" = "D47395E0F8A10472F577507F";
 		};
+		"058BFE929877CFA701366E0B" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "AudioRuntime/MIDIController.swift";
+			"sourceTree" = "SOURCE_ROOT";
+		};
+		"D32FC44D9C67BCE26465606B" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "058BFE929877CFA701366E0B";
+		};
+		"B65D08933DE3CAC548D760AF" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "AudioRuntime/MIDIOutputWorker.swift";
+			"sourceTree" = "SOURCE_ROOT";
+		};
+		"B062059690D8A73DE8E2C1A9" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "B65D08933DE3CAC548D760AF";
+		};
 		"50EFCA92ED90918AC4CF9320" = {
 			"isa" = "PBXFileReference";
 			"lastKnownFileType" = "sourcecode.swift";
@@ -240,11 +271,19 @@
 			"children" = (
 				"55B6A9A0F0A957043461C53F",
 				"D47395E0F8A10472F577507F",
+				"058BFE929877CFA701366E0B",
+				"B65D08933DE3CAC548D760AF",
 				"50EFCA92ED90918AC4CF9320",
 				"054DDA7442421BAE75E3379C",
 			);
 			"name" = "AudioRuntime";
 			"sourceTree" = "<group>";
+		};
+		"7AB0A957D41402ED44864770" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "UITests/ScreenshotTests.swift";
+			"sourceTree" = "SOURCE_ROOT";
 		};
 		"6CEC7797EFD984DB66DA1BF1" = {
 			"isa" = "PBXFileReference";
@@ -255,6 +294,7 @@
 		"121BB60E85DEE453365B9ECD" = {
 			"isa" = "PBXGroup";
 			"children" = (
+				"7AB0A957D41402ED44864770",
 				"6CEC7797EFD984DB66DA1BF1",
 			);
 			"name" = "UITests";
@@ -389,7 +429,7 @@
 				"GENERATE_INFOPLIST_FILE" = "NO";
 				"INFOPLIST_FILE" = "App/Info.plist";
 				"MARKETING_VERSION" = "0.5.0";
-				"CURRENT_PROJECT_VERSION" = "7";
+				"CURRENT_PROJECT_VERSION" = "8";
 				"ASSETCATALOG_COMPILER_APPICON_NAME" = "AppIcon";
 				"INFOPLIST_KEY_CFBundleDisplayName" = "La Grilla";
 				"INFOPLIST_KEY_LSApplicationCategoryType" = "public.app-category.music";
@@ -423,7 +463,7 @@
 				"GENERATE_INFOPLIST_FILE" = "NO";
 				"INFOPLIST_FILE" = "App/Info.plist";
 				"MARKETING_VERSION" = "0.5.0";
-				"CURRENT_PROJECT_VERSION" = "7";
+				"CURRENT_PROJECT_VERSION" = "8";
 				"ASSETCATALOG_COMPILER_APPICON_NAME" = "AppIcon";
 				"INFOPLIST_KEY_CFBundleDisplayName" = "La Grilla";
 				"INFOPLIST_KEY_LSApplicationCategoryType" = "public.app-category.music";
@@ -458,6 +498,7 @@
 				"51D56D53A08999B70DE92723",
 				"E2B4C1F4E80F805885F9E911",
 				"BD9CCAF7C2E61E71DC9DEB7F",
+				"17823D32EA18EDCE74541437",
 				"BA68A99EB23A344259050E22",
 				"B531C11C9BE1F3C5C6B1FB4C",
 				"232CAC420194A5C143AD9586",
@@ -466,6 +507,8 @@
 				"6F6E8C6658B354FED0C521EB",
 				"7589B598023E170057C43C61",
 				"06478C887723CAE93F422E89",
+				"D32FC44D9C67BCE26465606B",
+				"B062059690D8A73DE8E2C1A9",
 				"5BE39AACE90005978AE10180",
 				"8EF2BE99443073CB04C654ED",
 			);
@@ -543,6 +586,10 @@
 			"target" = "363B6F88CC29451360E8EBAB";
 			"targetProxy" = "1241936D4DD3AAD68FE7BFBD";
 		};
+		"2AA4DDE7108A4144C8FF84E5" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "7AB0A957D41402ED44864770";
+		};
 		"15672B1CBB107926D06E61FF" = {
 			"isa" = "PBXBuildFile";
 			"fileRef" = "6CEC7797EFD984DB66DA1BF1";
@@ -610,6 +657,7 @@
 			"isa" = "PBXSourcesBuildPhase";
 			"buildActionMask" = 2147483647;
 			"files" = (
+				"2AA4DDE7108A4144C8FF84E5",
 				"15672B1CBB107926D06E61FF",
 			);
 			"runOnlyForDeploymentPostprocessing" = 0;

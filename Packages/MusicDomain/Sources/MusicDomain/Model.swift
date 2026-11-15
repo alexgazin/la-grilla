@@ -79,13 +79,14 @@ public struct Section: Codable, Equatable, Identifiable, Sendable {
     public init(name: String, start: Int = 0, length: Int) { self.name = name; self.start = start; self.length = length }
 }
 public struct Project: Codable, Equatable, Identifiable, Sendable {
-    public var id: UUID = UUID(); public static let currentSchemaVersion=5
-    public var schemaVersion = 5; public var revision = 0
+    public var id: UUID = UUID(); public static let currentSchemaVersion=6
+    public var schemaVersion = Project.currentSchemaVersion; public var revision = 0
     public var name: String; public var bpm: Double = 120; public var keyRoot = 0; public var minor = false
     public var modified = Date(); public var tracks: [Track]; public var patterns: [Pattern]; public var sections: [Section]
     public var masterFX:MasterFX?;public var performanceTakes:[PerformanceTake]?
     public var performanceTake:PerformanceTake?{get{performanceTakes?.first}set{performanceTakes=newValue.map{[$0]}}}
     public var audioAssets:[AudioAssetRecord]?
+    public var midi:MIDISettings?
     public var bassOctave = 0; public var bassGate = 0.9; public var master: Double = -3
     public var length: Int { sections.reduce(0) { total, section in let (sum, overflow) = total.addingReportingOverflow(section.length); return overflow ? Int.max : sum } }
     public var keyName: String { Chord.roots[keyRoot] + (minor ? " minor" : " major") }
@@ -116,6 +117,7 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
               patterns.count <= 64, Set(patterns.map(\.id)).count == patterns.count, Set(sections.map(\.id)).count == sections.count,
               Set(tracks.map(\.id)).count == tracks.count else { throw MusicError.invalidProject }
         guard (performanceTakes ?? []).count<=1 else{throw MusicError.limit}
+        try midi?.validate(self)
         try masterFX?.validate();try performanceTake?.validate()
         if let take=performanceTake{guard (take.source.audioAssets ?? []).allSatisfy({asset in (audioAssets ?? []).contains(asset)})else{throw MusicError.invalidProject}}
         guard (audioAssets ?? []).count<=8 else{throw MusicError.tooDense}
@@ -184,6 +186,7 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
     public mutating func deleteTrack(_ id:UUID)throws {
         guard let i=tracks.firstIndex(where:{$0.id==id}),i>=2 else{throw MusicError.invalidProject}
         tracks.remove(at:i);let referenced=Set(tracks.flatMap{$0.clips.map(\.patternID)});patterns.removeAll{!referenced.contains($0.id)}
+        midi?.mappings.removeAll{$0.trackID==id};if midi?.trackID==id{midi?.trackID=nil}
     }
     public mutating func duplicateTrack(_ id:UUID)throws {
         guard tracks.count<8,let t=tracks.first(where:{$0.id==id}),t.role == .melody else{throw MusicError.trackLimit}
@@ -251,12 +254,17 @@ public enum ProjectDocument {
     /// Read/migrate a value copy. The source bytes are preserved until an explicit save.
     public static func decode(_ data:Data)throws->Project {
         guard data.count<=8_000_000 else{throw MusicError.tooDense}
-        var p=try JSONDecoder().decode(Project.self,from:data)
+        return try migrated(JSONDecoder().decode(Project.self,from:data))
+    }
+    private static func migrated(_ value:Project)throws->Project {
+        var p=value
         guard (1...Project.currentSchemaVersion).contains(p.schemaVersion)else{throw MusicError.unsupportedSchema}
         if p.schemaVersion==1 {p.schemaVersion=2;for i in p.patterns.indices{if p.patterns[i].notes==nil{p.patterns[i].notes=[]}}}
         if p.schemaVersion==2{p.schemaVersion=3}
         if p.schemaVersion==3{p.schemaVersion=4}
         if p.schemaVersion==4{p.schemaVersion=5}
+        if p.schemaVersion==5{p.schemaVersion=6}
+        if var take=p.performanceTake{take.source=try migrated(take.source);p.performanceTake=take}
         try p.validate();return p
     }
 }

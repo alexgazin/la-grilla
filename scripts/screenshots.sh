@@ -17,19 +17,19 @@ echo "$DEVICE" > /tmp/grilla-simulator-id
 run_limited 60 open -a Simulator --args -CurrentDeviceUDID "$DEVICE" || true
 run_limited 60 xcrun simctl boot "$DEVICE" || true
 run_limited 300 xcrun simctl bootstatus "$DEVICE" -b
+if test "${GRILLA_CAPTURE_SCREENS:-1}" = 0; then
+  # XCTest installs and launches its own correctly signed application.
+  exit 0
+fi
 # Keep the simulator's status bar; appearance overrides can block on hosted runners.
 echo "Ad-hoc signing simulator application"
 codesign --force --deep --sign - DerivedData/Build/Products/Debug-iphonesimulator/LaGrilla.app
 echo "Installing simulator application"
 run_limited 300 xcrun simctl install "$DEVICE" DerivedData/Build/Products/Debug-iphonesimulator/LaGrilla.app
-if test "${GRILLA_CAPTURE_SCREENS:-1}" = 0; then
-  run_limited 180 xcrun simctl launch "$DEVICE" com.alexgazin.LaGrilla --uitesting --screen grid
-  sleep 5
-  exit 0
-fi
-SCREENSHOT_DIR=${GRILLA_SCREENSHOT_DIR:-Screenshots/R6}
+SCREENSHOT_DIR=${GRILLA_SCREENSHOT_DIR:-Screenshots/R7}
 mkdir -p "$SCREENSHOT_DIR"
-for SCREEN in grid jam mixer projects export export-wav export-stems notes notes-mixer harmony harmony-proposal assistant assistant-proposal voice voice-draft perform perform-take perform-export; do
+rm -f "$SCREENSHOT_DIR/"*.png
+for SCREEN in grid jam mixer projects export export-wav export-stems notes notes-mixer harmony harmony-proposal assistant assistant-proposal voice voice-draft perform perform-take perform-export midi midi-mapped; do
   run_limited 15 xcrun simctl terminate "$DEVICE" com.alexgazin.LaGrilla || true
   echo "Launching $SCREEN"
   APP_LAUNCH=$(run_limited 180 xcrun simctl launch "$DEVICE" com.alexgazin.LaGrilla --uitesting --screen "$SCREEN")
@@ -37,5 +37,5 @@ for SCREEN in grid jam mixer projects export export-wav export-stems notes notes
   APP_PID=$(echo "$APP_LAUNCH" | python3 -c 'import sys,re; print(re.search(r": ([0-9]+)",sys.stdin.read()).group(1))')
   sleep 8
   kill -0 "$APP_PID"
-  run_limited 45 xcrun simctl io "$DEVICE" screenshot "$SCREENSHOT_DIR/$SCREEN.png"
+  run_limited 90 xcrun simctl io "$DEVICE" screenshot "$SCREENSHOT_DIR/$SCREEN.png" || run_limited 90 xcrun simctl io "$DEVICE" screenshot "$SCREENSHOT_DIR/$SCREEN.png"
 done

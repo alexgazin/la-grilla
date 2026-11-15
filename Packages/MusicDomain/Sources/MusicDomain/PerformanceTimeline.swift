@@ -16,6 +16,9 @@ public enum PerformanceTimeline {
         try take.validate();let source=take.source,total=durationTicks(take)
         var section=source.sections.first(where:{$0.id==take.events[0].sectionID})!,position=0,clock=0,result:[CompiledNote]=[]
         position=section.start
+        struct Held{var start:Int;var note:CompiledNote;var down:Bool}
+        var held:[Int:Held]=[:],sustained:Set<Int>=[]
+        func close(_ key:Int,_ t:Int){if let h=held.removeValue(forKey:key),t>h.start{var n=h.note;n.tick=h.start;n.duration=t-h.start;result.append(n)}}
         func advance(_ end:Int)throws {
             while clock<end {
                 let length=min(end-clock,section.start+section.length-position)
@@ -33,10 +36,21 @@ public enum PerformanceTimeline {
             case .jump:let local=position-section.start+Int(event.value)*ppq;position=section.start+((local%section.length)+section.length)%section.length
             case .pad:if t<total{result.append(CompiledNote(tick:t,duration:min(120,total-t),pitch:Compiler.drumMap[event.pad!],velocity:Int(event.value),track:1,pad:event.pad!,instrument:1))}
             case .preview:if t<total,let note=event.note{result.append(CompiledNote(tick:t,duration:min(note.duration,total-t),pitch:note.pitch,velocity:note.velocity,track:event.track!,instrument:event.instrument!))}
+            case .midiNoteOn:
+                let key=event.midiKey!*128+event.note!.pitch;close(key,t)
+                held[key]=Held(start:t,note:CompiledNote(tick:t,duration:1,pitch:event.note!.pitch,velocity:event.note!.velocity,track:event.track!,instrument:event.instrument!),down:true)
+            case .midiNoteOff:
+                let key=event.midiKey!*128+event.note!.pitch
+                if sustained.contains(event.midiKey!){held[key]?.down=false}else{close(key,t)}
+            case .midiSustain:
+                let source=event.midiKey!
+                if event.value>0{sustained.insert(source)}else{sustained.remove(source);for key in Array(held.keys) where key/128==source && held[key]?.down==false{close(key,t)}}
+            case .midiClear:
+                let source=event.midiKey!;for key in Array(held.keys) where key/128/16==source{close(key,t)};sustained=sustained.filter{$0/16 != source}
             default:break
             }
         }
-        try advance(total);return result.sorted{$0.tick==$1.tick ? $0.pitch<$1.pitch:$0.tick<$1.tick}
+        try advance(total);for key in Array(held.keys){close(key,total)};guard result.count<=200_000 else{throw MusicError.tooDense};return result.sorted{$0.tick==$1.tick ? $0.pitch<$1.pitch:$0.tick<$1.tick}
     }
     public static func notes(_ take:PerformanceTake)throws->[CompiledNote] {
         let backing=try backingNotes(take),total=durationTicks(take)

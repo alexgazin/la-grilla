@@ -7,7 +7,7 @@ jobs:
   ios:
     if: "!contains(github.event.head_commit.message, '[device-only]')"
     runs-on: macos-15
-    timeout-minutes: 35
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - name: Domain behavioral tests
@@ -25,8 +25,11 @@ jobs:
           clang++ -std=c++17 -O2 -Wall -Wextra -Werror Tests/kernel_test.cpp Packages/MusicDomain/Sources/AudioDSP/GrillaKernel.cpp -I Packages/MusicDomain/Sources/AudioDSP/include -o /tmp/kernel-test && /tmp/kernel-test
           clang++ -std=c++17 -O2 -Wall -Wextra -Werror Tests/performance_control_test.cpp Packages/MusicDomain/Sources/AudioDSP/GrillaKernel.cpp -I Packages/MusicDomain/Sources/AudioDSP/include -o /tmp/perf-control-test && /tmp/perf-control-test
           clang++ -std=c++17 -O2 -Wall -Wextra -Werror Tests/performance_fx_test.cpp -I Packages/MusicDomain/Sources/AudioDSP -o /tmp/perf-fx-test && /tmp/perf-fx-test
+          clang++ -std=c++17 -O2 -Wall -Wextra -Werror Tests/midi_hub_test.cpp Packages/MusicDomain/Sources/AudioDSP/MIDIHub.cpp -I Packages/MusicDomain/Sources/AudioDSP -o /tmp/midi-hub-test && /tmp/midi-hub-test
+          clang++ -std=c++17 -O2 -Wall -Wextra -Werror Tests/midi_kernel_test.cpp Packages/MusicDomain/Sources/AudioDSP/GrillaKernel.cpp Packages/MusicDomain/Sources/AudioDSP/MIDIHub.cpp -I Packages/MusicDomain/Sources/AudioDSP/include -o /tmp/midi-kernel-test && /tmp/midi-kernel-test
+          clang++ -std=c++17 -O2 -Wall -Wextra -Werror Tests/midi_output_test.cpp Packages/MusicDomain/Sources/AudioDSP/GrillaKernel.cpp Packages/MusicDomain/Sources/AudioDSP/MIDIHub.cpp -I Packages/MusicDomain/Sources/AudioDSP/include -o /tmp/midi-output-test && /tmp/midi-output-test
       - name: Build iOS app
-        run: set -o pipefail; xcodebuild -project LaGrilla.xcodeproj -scheme LaGrilla -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' ARCHS=arm64 ONLY_ACTIVE_ARCH=YES -configuration Debug -derivedDataPath DerivedData CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO build | tee build.log
+        run: set -o pipefail; xcodebuild -project LaGrilla.xcodeproj -scheme LaGrilla -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' ARCHS=arm64 ONLY_ACTIVE_ARCH=YES -configuration Debug -derivedDataPath DerivedData CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO build-for-testing | tee build.log
       - name: Package simulator app
         run: ditto -c -k --sequesterRsrc --keepParent DerivedData/Build/Products/Debug-iphonesimulator/LaGrilla.app LaGrilla-Simulator.zip
       - name: Save simulator build
@@ -36,21 +39,32 @@ jobs:
           path: |
             LaGrilla.xcodeproj
             LaGrilla-Simulator.zip
-      - name: Capture simulator screens
+      - name: Prepare iOS Simulator
         env:
-          GRILLA_CAPTURE_SCREENS: ${{ contains(github.event.head_commit.message, '[ui-only]') && '0' || '1' }}
+          GRILLA_CAPTURE_SCREENS: '0'
         run: bash scripts/screenshots.sh
+      - name: Native user flows
+        env:
+          GRILLA_MIDI_ONLY: ${{ contains(github.event.head_commit.message, '[midi-check]') && '1' || '0' }}
+        run: |
+          set -o pipefail
+          DEVICE=$(cat /tmp/grilla-simulator-id)
+          FILTER=()
+          if test "$GRILLA_MIDI_ONLY" = 1; then FILTER=(-only-testing:LaGrillaUITests/StudioTests/testVirtualMIDILearnAndActualOutputDestination); fi
+          xcodebuild "${FILTER[@]}" -test-timeouts-enabled YES -maximum-test-execution-time-allowance 600 -project LaGrilla.xcodeproj -scheme LaGrilla -destination "platform=iOS Simulator,id=$DEVICE" -derivedDataPath DerivedData -resultBundlePath TestResults.xcresult ARCHS=arm64 ONLY_ACTIVE_ARCH=YES CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO test-without-building | tee uitests.log
+      - name: Export native screenshots
+        if: always()
+        run: |
+          if test -d TestResults.xcresult; then
+            xcrun xcresulttool export attachments --path TestResults.xcresult --output-path NativeAttachments
+            python3 scripts/collect_native_screenshots.py NativeAttachments Screenshots/R7 R7
+          fi
       - name: Save simulator screenshots
-        if: always() && !contains(github.event.head_commit.message, '[ui-only]')
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: simulator-screenshots
           path: Screenshots/**/*.png
-      - name: Native user flows
-        run: |
-          set -o pipefail
-          DEVICE=$(cat /tmp/grilla-simulator-id)
-          xcodebuild -project LaGrilla.xcodeproj -scheme LaGrilla -destination "platform=iOS Simulator,id=$DEVICE" -derivedDataPath DerivedData -resultBundlePath TestResults.xcresult ARCHS=arm64 ONLY_ACTIVE_ARCH=YES CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO test | tee uitests.log
       - name: Collect app crash reports
         if: always()
         run: |
@@ -67,6 +81,7 @@ jobs:
             uitests.log
             TestResults.xcresult
             CrashReports
+            NativeAttachments
             LaGrilla.xcodeproj
             LaGrilla-Simulator.zip
 

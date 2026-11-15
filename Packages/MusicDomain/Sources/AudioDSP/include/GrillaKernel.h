@@ -1,6 +1,7 @@
 #ifndef GRILLA_KERNEL_H
 #define GRILLA_KERNEL_H
 #include <stdint.h>
+#include "GrillaMIDI.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -47,6 +48,7 @@ float lg_delay_target(LGKernel *k);
 void lg_tail_on_end(LGKernel *k, int enabled);
 void lg_metronome(LGKernel *k, int enabled);
 void lg_render(LGKernel *k, float *left, float *right, int frames);
+void lg_render_midi(LGKernel *k,LGMIDIHub *hub,uint64_t hostTime,double hostTicksPerSecond,float *left,float *right,int frames);
 double lg_tick(LGKernel *k);
 uint64_t lg_clock(LGKernel *k);
 int lg_playing(LGKernel *k);

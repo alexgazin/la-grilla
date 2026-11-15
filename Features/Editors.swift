@@ -29,6 +29,7 @@ struct SettingsView: View {
         Section("Tempo"){Stepper(value:Binding(get:{session.project.bpm},set:{v in session.edit{$0.bpm=v}}),in:40...240,step:1){Text("\(Int(session.project.bpm)) BPM").monospacedDigit()}.disabled(session.recording || session.armed)}
         Section("Key"){Picker("Root",selection:Binding(get:{session.project.keyRoot},set:{v in session.edit{$0.keyRoot=v}})){ForEach(0..<12,id:\.self){i in Text(Chord.roots[i]).tag(i)}};Toggle("Minor",isOn:Binding(get:{session.project.minor},set:{v in session.edit{$0.minor=v}}));Text("Changing the key updates suggestions. Existing notes stay as written.").font(.caption).foregroundStyle(.secondary)}
         Section("Transport"){Toggle("Loop",isOn:Binding(get:{session.loop},set:{session.setLoop(enabled:$0)}));Picker("Loop length",selection:Binding(get:{session.loopBars},set:{session.setLoop(bars:$0)})){ForEach([1,2,4,8],id:\.self){n in Text("\(n) bars").tag(n)}}}
+        Section("MIDI"){Button("MIDI devices"){session.sheet = .midiDevices}}
         Section("Audio"){LabeledContent("Sample rate",value:"\(Int(session.audio.sampleRate)) Hz");Text("Wireless headphones add latency. For live pads, use the speaker or wired audio.").font(.caption).foregroundStyle(.secondary)}
     }.navigationTitle("Project settings").toolbar{ToolbarItem(placement:.confirmationAction){Button("Done"){session.sheet=nil}}}}.presentationDetents([.medium,.large])}
 }
@@ -36,7 +37,7 @@ struct BassView: View {
     @Bindable var session: Session
     var enabled: Bool{session.project.tracks.contains(where:{$0.role == .bass})}
     var body: some View {NavigationStack{Form{
-        Section{Toggle("Root bass",isOn:Binding(get:{enabled},set:{on in session.edit{p in if on{p.tracks.append(Track(role:.bass))}else{p.tracks.removeAll(where:{$0.role == .bass})}}}));Text("Bass follows the roots of your chords.").foregroundStyle(.secondary).font(.caption)}
+        Section{Toggle("Root bass",isOn:Binding(get:{enabled},set:{on in session.edit{p in if on{p.tracks.append(Track(role:.bass))}else{if let id=p.tracks.first(where:{$0.role == .bass})?.id{try p.deleteTrack(id)}}}}));Text("Bass follows the roots of your chords.").foregroundStyle(.secondary).font(.caption)}
         if enabled {Section{Picker("Register",selection:Binding(get:{session.project.bassOctave},set:{v in session.edit{$0.bassOctave=v}})){Text("Low").tag(-1);Text("Natural").tag(0);Text("High").tag(1)};HStack{Text("Gate");Slider(value:Binding(get:{session.project.bassGate},set:{v in session.edit{$0.bassGate=v}}),in:0.1...1);Text("\(Int(session.project.bassGate*100))%").monospacedDigit()}}}
     }.tint(.bass).navigationTitle("Bass").toolbar{ToolbarItem(placement:.confirmationAction){Button("Done"){session.sheet=nil}}}}.presentationDetents([.medium])}
 }
