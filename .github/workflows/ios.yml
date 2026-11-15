@@ -83,7 +83,7 @@ jobs:
           if test -d CompactResults.xcresult; then
             xcrun xcresulttool export attachments --path CompactResults.xcresult --output-path NativeAttachments/compact
           fi
-          python3 scripts/collect_native_screenshots.py NativeAttachments Screenshots/OriginalVision OriginalVision "$GRILLA_CAPTURE_OPTION"
+          python3 scripts/collect_native_screenshots.py NativeAttachments Screenshots/OriginalVision OriginalVision --replace-pngs "$GRILLA_CAPTURE_OPTION"
       - name: Prepare validated App Store screenshots
         if: success() && (!contains(github.event.head_commit.message, '[ui-only]') || contains(github.event.head_commit.message, '[ru-capture]'))
         run: python3 scripts/release/prepare_store_screenshots.py Screenshots/OriginalVision Screenshots/AppStore
