@@ -25,7 +25,7 @@ import Observation
     var importing=false
     var ready = false; private var bootstrapTask:Task<Void,Never>?; var saveTask: Task<Void,Never>?
     let store: ProjectStore
-    enum Sheet: String, Identifiable {case projects, newProject, export, settings, bass, sections, notes, harmony, assistant; var id: String { rawValue }}
+    enum Sheet: String, Identifiable {case projects, newProject, export, settings, bass, sections, notes, harmony, assistant, voice; var id: String { rawValue }}
     init() {
         let root = ProcessInfo.processInfo.arguments.contains("--uitesting") ? FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString) : FileManager.default.urls(for: .documentDirectory,in:.userDomainMask)[0].appendingPathComponent("Projects")
         store = ProjectStore(root: root)
@@ -169,9 +169,9 @@ import Observation
         var p=Project(name:name.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty ? "Untitled" : name,bars:bars);p.bpm=bpm;p.keyRoot=root;p.minor=minor
         await open(p);await save()
     }
-    func duplicateProject(_ p: Project) async {var copy=p.id==project.id ? project:p;copy.id=UUID();copy.name += " copy";copy.modified=Date();do{try await store.save(copy);entries=try await store.list()}catch{message=error.localizedDescription}}
+    func duplicateProject(_ p:Project) async {do{_ = try await store.duplicate(p.id==project.id ? project:p);entries=try await store.list()}catch{message=error.localizedDescription}}
     func delete(_ id: UUID) async {do{try await store.delete(id);entries=try await store.list()}catch{message=error.localizedDescription}}
-    func recover(_ id: UUID) async {do{var p=try await store.load(id,backup:true);p.id=UUID();p.name=String(p.name.prefix(110))+" recovered";p.revision=0;await open(p,force:true);await save();message="Recovered the last working copy."}catch{message=error.localizedDescription}}
+    func recover(_ id:UUID)async{do{let original=try await store.load(id,backup:true);let p=try await store.duplicate(original,suffix:" recovered");await open(p,force:true);if project.id==p.id{await save();message="Recovered the last working copy."}}catch{message=error.localizedDescription}}
     enum ExportFormat:String,CaseIterable,Identifiable {
         case midi,wav,stems,project
         var id:String{rawValue}
@@ -191,7 +191,7 @@ import Observation
                 let progress:@Sendable(Double)->Void={ [weak self] value in Task { @MainActor in guard let self,self.exportGeneration==generation else{return};self.exportProgress=value } }
                 switch format {
                 case .midi:try MIDIExporter.data(snapshot,range:range).write(to:url,options:.atomic)
-                case .project:try PortableProject.data(snapshot).write(to:url,options:.atomic)
+                case .project:try await store.portable(snapshot,to:url)
                 case .wav:
                     let receipt=try await OfflineRenderer.render(snapshot,to:url,settings:settings,range:range,progress:progress)
                     if receipt.clipped{exportWarning="Clipping was detected. Lower track or master gain for a cleaner export."}
@@ -217,15 +217,20 @@ import Observation
         do {
             let imported=try await Task.detached(priority:.userInitiated){
                 let handle=try FileHandle(forReadingFrom:url);defer{try? handle.close()}
-                let data=try handle.read(upToCount:20_000_001) ?? Data();guard data.count<=20_000_000 else{throw ExportError.archiveTooLarge}
-                return try PortableProject.decode(data)
+                let data=try handle.read(upToCount:128_000_001) ?? Data();guard data.count<=128_000_000 else{throw ExportError.archiveTooLarge}
+                return try PortableProject.decodeBundle(data)
             }.value
-            await open(imported);if project.id==imported.id{await save()}
+            let installed=try await store.install(imported);await open(installed);if project.id==installed.id{await save()}
         }catch{message=error.localizedDescription}
     }
-    func saveCopy() async {
-        var copy=project; copy.id=UUID(); copy.name += " copy"
-        do {try await store.save(copy); message="A copy has been saved.";entries=try await store.list()}catch{message=error.localizedDescription}
+    func applyVoice(_ placement:VoicePlacement,data:Data,record:AudioAssetRecord,projectID:UUID,revision:Int)async throws->Bool {
+        guard project.id==projectID,project.revision==revision,!recording,!armed else{throw AssistantError.stale}
+        try await store.writeAsset(data,record:record,projectID:projectID)
+        guard project.id==projectID,project.revision==revision else{await store.removeStagedAsset(record,projectID:projectID);throw AssistantError.stale}
+        do{try history.apply(&project){$0=placement.project}}
+        catch{await store.removeStagedAsset(record,projectID:projectID);throw error}
+        noteTrackID=placement.trackID;sync();await save();return saveError==nil
     }
+    func saveCopy()async{do{_ = try await store.duplicate(project);message="A copy has been saved.";entries=try await store.list()}catch{message=error.localizedDescription}}
     func interrupt() {harmonyPreview=false;finishTake();audio.reset();Task{await save()}}
 }

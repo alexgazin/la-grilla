@@ -60,7 +60,7 @@ struct HarmonyTests {
         var p=Project.demo();let proposal=try HarmonyLab.propose(p,sectionID:p.sections[0].id);p=proposal.candidate
         #expect(try PortableProject.decode(PortableProject.data(p),asCopy:false)==p)
         p.schemaVersion=2;for i in p.patterns.indices{for j in p.patterns[i].chords.indices{p.patterns[i].chords[j].chord.voicedNotes=nil}}
-        let data=try JSONEncoder().encode(p);let migrated=try ProjectDocument.decode(data);#expect(migrated.schemaVersion==3)
+        let data=try JSONEncoder().encode(p);let migrated=try ProjectDocument.decode(data);#expect(migrated.schemaVersion==Project.currentSchemaVersion)
         var invalid=migrated;let index=invalid.patterns.firstIndex{!$0.chords.isEmpty}!;invalid.patterns[index].chords[0].chord.voicedNotes=[60,61,67];#expect(throws:MusicError.self){try invalid.validate()}
     }
 }

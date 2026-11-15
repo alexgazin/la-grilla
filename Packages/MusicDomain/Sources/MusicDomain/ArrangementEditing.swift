@@ -40,7 +40,7 @@ extension Arrangement {
                 var pattern=materialize(project,track:track,section:section);pattern.length=length
                 pattern.chords=pattern.chords.compactMap{e in guard e.tick<length else{return nil};var copy=e;copy.duration=min(e.duration,length-e.tick);return copy}
                 pattern.notes=pattern.notes?.compactMap{e in guard e.tick<length else{return nil};var copy=e;copy.duration=min(e.duration,length-e.tick);return copy}
-                pattern.drums.removeAll{$0.tick>=length};result.patterns.append(pattern);clips.append(Clip(patternID:pattern.id,start:section.start,length:length))
+                pattern.drums.removeAll{$0.tick>=length};result.patterns.append(pattern);var clip=Clip(patternID:pattern.id,start:section.start,length:length);let sources=Set(track.clips.filter{$0.start<end && $0.start+$0.length>section.start}.compactMap(\.sourceAssetID));if sources.count==1{clip.sourceAssetID=sources.first};clips.append(clip)
             }
             result.tracks[i].clips=clips.sorted{$0.start<$1.start}
         }

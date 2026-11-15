@@ -95,3 +95,15 @@ Verified app/config source: `56091ed` (Speech capability API fix on top of `eba8
 - App/domain/audio/test sources remain unchanged when reconciling verified R3 main.
 
 No free-form cloud provider or client API key is included.
+
+## R5 — monophonic voice-to-MIDI and original sources
+
+Verified app/config source: `4dc5f5d0260a6dca1c5edb7bbb9ffb093229036a`. [Successful workflow](https://github.com/alexgazin/la-grilla/actions/runs/43658663933).
+
+- 54 Swift tests pass, including two pitch detectors on identical clean fixtures, silence/noise/pause/resampling/cancellation, source-preserving quantize/scale projection, scoped voice placement/Undo, SHA-256 known vectors, CAF metadata/byte validation, package copy/recovery/import and redundant-save backup preservation.
+- Independent Python CAF/hashlib/ZIP readers validate the portable source fixture.
+- Both native SDK builds and all 12 UI scenarios pass. The new flow analyses an explicitly labelled synthetic PCM source, verifies three notes, auditions Original/Instrument, applies/Undo/Redo and exports a portable project with its source.
+- Fifteen real screenshots are checked in at [Screenshots/R5](../Screenshots/R5); `voice-draft` visibly labels its synthetic QA source.
+- [Voice QA](VOICE_QA.md) records the controlled metrics and hardware/human-voice gates. The feature remains **Beta / monophonic**. Simulator fixtures prove software flow, not microphone permission/route/count-in quality or recognition accuracy for human voices.
+
+The implementation compiles the actual AVAudioRecorder scheduled-count-in and Apple Speech adapters. Physical microphone and language-model acceptance remain unverified.

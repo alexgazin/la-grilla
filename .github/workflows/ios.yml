@@ -12,10 +12,12 @@ jobs:
       - uses: actions/checkout@v4
       - name: Domain behavioral tests
         env:
+          GRILLA_VOICE_METRICS: ${{ github.workspace }}/ExportFixtures/voice-metrics.json
+          GRILLA_VOICE_FIXTURES: ${{ github.workspace }}/ExportFixtures
           GRILLA_EXPORT_FIXTURES: ${{ github.workspace }}/ExportFixtures
         run: swift test --package-path Packages/MusicDomain
       - name: Verify WAV and ZIP using independent readers
-        run: python3 scripts/verify_exports.py ExportFixtures
+        run: python3 scripts/verify_exports.py ExportFixtures && python3 scripts/verify_voice_assets.py ExportFixtures
       - name: Verify generated project is current
         run: python3 scripts/generate_project.py && git diff --exit-code -- LaGrilla.xcodeproj
       - name: Audio kernel tests

@@ -13,8 +13,10 @@ struct PianoRollView: View {
     @State private var listMode=false
     @State private var renaming=false
     @State private var trackName=""
+    @State private var original:AudioAssetRecord?
     var track:Track?{session.project.tracks.first{$0.id==session.noteTrackID && $0.role == .melody} ?? session.project.tracks.first{$0.role == .melody}}
     var pattern:Pattern?{guard let t=track,let c=t.clips.first(where:{$0.start<=session.section.start && $0.start+$0.length>session.section.start})else{return nil};return session.project.patterns.first{$0.id==c.patternID}}
+    var sourceRecord:AudioAssetRecord?{guard let clip=track?.clips.first(where:{$0.start<=session.section.start && $0.start+$0.length>session.section.start}),let id=clip.sourceAssetID else{return nil};return session.project.audioAssets?.first{$0.id==id}}
     var note:NoteEvent?{pattern?.notes?.first{$0.id==selected}}
     var body:some View {
         NavigationStack {
@@ -31,6 +33,7 @@ struct PianoRollView: View {
             .toolbar{ToolbarItem(placement:.topBarTrailing){Button("Done"){dismiss()}}}
         }.tint(.mint).alert("Rename track",isPresented:$renaming){TextField("Track name",text:$trackName);Button("Save"){if let id=track?.id{let name=String(trackName.trimmingCharacters(in:.whitespacesAndNewlines).prefix(40));if !name.isEmpty{session.edit{p in if let i=p.tracks.firstIndex(where:{$0.id==id}){p.tracks[i].name=name}}}}};Button("Cancel",role:.cancel){}}
         .onChange(of:session.noteTrackID){_,_ in selected=nil}
+        .sheet(item:$original){record in SourceRecordingView(session:session,record:record)}
         .onChange(of:session.selectedSection){_,_ in selected=nil}
     }
     var controls:some View {
@@ -39,6 +42,7 @@ struct PianoRollView: View {
                 Menu {
                     ForEach(session.project.tracks.filter{$0.role == .melody}){t in Button(t.displayName){session.noteTrackID=t.id}}
                     Button("Add melody",systemImage:"plus"){session.addMelody()}.disabled(session.project.tracks.count>=8)
+                    if let sourceRecord{Button("Original voice",systemImage:"waveform"){original=sourceRecord}}
                     if let track {
                         Button("Rename track",systemImage:"pencil"){trackName=track.displayName;renaming=true}
                         Button("Duplicate track",systemImage:"plus.square.on.square"){session.duplicateMelody(track.id)}.disabled(session.project.tracks.count>=8)

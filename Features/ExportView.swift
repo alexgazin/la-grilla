@@ -49,7 +49,7 @@ struct ExportView:View {
         case .midi:"For editing notes in your music software. Instrument sounds are not included in MIDI."
         case .wav:"A stereo audio file using the same instruments as playback. Your live transport keeps running during export."
         case .stems:"Aligned stereo WAV files with a common start and tail. Track gain/pan and mute/solo are included; master gain is excluded."
-        case .project:"A portable copy of the entire project, including notes, sections and mixer settings. Import creates a separate project."
+        case .project:"A portable copy of the entire project, including notes, source recordings, sections and mixer settings. Import creates a separate project."
         }
     }
 }
