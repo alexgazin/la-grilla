@@ -137,7 +137,14 @@ private final class VoicePCMSink:@unchecked Sendable {
     private var countPlayer:AVAudioPlayer?;private var originalPlayer:AVAudioPlayer?
     private var timer:Timer?;private var worker:Task<VoiceCaptureResult,Error>?
     private var generation=0;private var recordedAt:Date?;private var inputLatency:Double?;private var tempoBPM:Double?;private var origin:AudioAssetRecord.Origin = .microphone;private var activeURL:URL?
-    func start(audio:AudioController,bpm:Double,duration:Double,countIn:Bool,schedule:(@MainActor(Double)->Double?)?=nil,scheduleDuration:(@MainActor()->Double?)?=nil)async {
+    func start(
+        audio: AudioController,
+        bpm: Double,
+        duration: Double,
+        countIn: Bool,
+        schedule: (@MainActor (Double) -> Double?)? = nil,
+        scheduleDuration: (@MainActor () -> Double?)? = nil
+    ) async {
         guard !isCapturing,state != .analyzing else{return};stopOriginal();state = .preparing;plannedDuration=0;waitingSeconds=0;elapsed=0;level=0;error=nil;generation+=1;let attempt=generation
         let permission=await AVAudioApplication.requestRecordPermission()
         guard attempt==generation else{return}

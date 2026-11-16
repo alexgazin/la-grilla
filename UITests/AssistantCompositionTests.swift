@@ -93,12 +93,17 @@ final class AssistantCompositionTests:XCTestCase {
             wait(state,NSPredicate(format:"label == 'STOPPED' AND value == 'Original'"))
             XCTAssertFalse(app.buttons["assistant.b"].exists)
             app.buttons["Cancel"].tap()
+            // Grid's accessibility elements can exist beneath Assistant.
+            // Require the actual sheet to close before touching the editor.
+            wait(app.navigationBars["Assistant"],NSPredicate(format:"exists == false"))
             let tempo=app.staticTexts["studio.tempo"];XCTAssertTrue(tempo.waitForExistence(timeout:5))
             XCTAssertEqual(tempo.label,"120 BPM");XCTAssertTrue(app.buttons["Play"].exists)
             XCTAssertFalse(app.buttons["Undo"].isEnabled)
             XCTAssertFalse(app.buttons.matching(NSPredicate(format:"identifier BEGINSWITH 'grid.section.' AND label CONTAINS 'Intro'")).firstMatch.exists)
             let chord=app.buttons.matching(NSPredicate(format:"identifier BEGINSWITH 'grid.chord.'")).firstMatch
-            XCTAssertTrue(chord.exists);chord.tap()
+            XCTAssertTrue(chord.exists)
+            wait(chord,NSPredicate{_,_ in chord.exists && chord.isHittable})
+            chord.tap()
             XCTAssertTrue(app.textFields["chord.symbol"].waitForExistence(timeout:5))
             XCTAssertEqual(app.textFields["chord.symbol"].value as? String,"C")
             app.terminate()
