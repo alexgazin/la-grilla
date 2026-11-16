@@ -466,6 +466,20 @@
 			"name" = "UITests";
 			"sourceTree" = "<group>";
 		};
+		"F03C1830086CDF5D12DCD935" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "Demos/NativeDemoTests.swift";
+			"sourceTree" = "SOURCE_ROOT";
+		};
+		"5AC656BE3D8C82529F790AE3" = {
+			"isa" = "PBXGroup";
+			"children" = (
+				"F03C1830086CDF5D12DCD935",
+			);
+			"name" = "Demos";
+			"sourceTree" = "<group>";
+		};
 		"B8FA18644A594FE11B39A425" = {
 			"isa" = "PBXFileReference";
 			"lastKnownFileType" = "folder.assetcatalog";
@@ -585,11 +599,19 @@
 			"sourceTree" = "BUILT_PRODUCTS_DIR";
 			"includeInIndex" = 0;
 		};
+		"835784A6A0DF8EFFFF38E11C" = {
+			"isa" = "PBXFileReference";
+			"explicitFileType" = "wrapper.cfbundle";
+			"path" = "LaGrillaDemoTests.xctest";
+			"sourceTree" = "BUILT_PRODUCTS_DIR";
+			"includeInIndex" = 0;
+		};
 		"0A3E27B8CA818264D75C8D81" = {
 			"isa" = "PBXGroup";
 			"children" = (
 				"681C948D238C526E9E3424E0",
 				"F739566ED5280322FF98A798",
+				"835784A6A0DF8EFFFF38E11C",
 			);
 			"name" = "Products";
 			"sourceTree" = "<group>";
@@ -601,6 +623,7 @@
 				"E64DA6756D6CF253E6CA6FFA",
 				"23B7E063E34C2F873A615B1C",
 				"121BB60E85DEE453365B9ECD",
+				"5AC656BE3D8C82529F790AE3",
 				"369366657F0CC118760331FE",
 				"0A3E27B8CA818264D75C8D81",
 			);
@@ -626,7 +649,7 @@
 				"GENERATE_INFOPLIST_FILE" = "NO";
 				"INFOPLIST_FILE" = "App/Info.plist";
 				"MARKETING_VERSION" = "1.0.0";
-				"CURRENT_PROJECT_VERSION" = "14";
+				"CURRENT_PROJECT_VERSION" = "15";
 				"ASSETCATALOG_COMPILER_APPICON_NAME" = "AppIcon";
 				"INFOPLIST_KEY_CFBundleDisplayName" = "La Grilla";
 				"INFOPLIST_KEY_LSApplicationCategoryType" = "public.app-category.music";
@@ -659,7 +682,7 @@
 				"GENERATE_INFOPLIST_FILE" = "NO";
 				"INFOPLIST_FILE" = "App/Info.plist";
 				"MARKETING_VERSION" = "1.0.0";
-				"CURRENT_PROJECT_VERSION" = "14";
+				"CURRENT_PROJECT_VERSION" = "15";
 				"ASSETCATALOG_COMPILER_APPICON_NAME" = "AppIcon";
 				"INFOPLIST_KEY_CFBundleDisplayName" = "La Grilla";
 				"INFOPLIST_KEY_LSApplicationCategoryType" = "public.app-category.music";
@@ -949,6 +972,109 @@
 			"productReference" = "F739566ED5280322FF98A798";
 			"productType" = "com.apple.product-type.bundle.ui-testing";
 		};
+		"8F179E58AA9BAA55AA2C2411" = {
+			"isa" = "XCBuildConfiguration";
+			"buildSettings" = {
+				"SWIFT_VERSION" = "6.0";
+				"CLANG_CXX_LANGUAGE_STANDARD" = "c++17";
+				"IPHONEOS_DEPLOYMENT_TARGET" = "18.0";
+				"SDKROOT" = "iphoneos";
+				"TARGETED_DEVICE_FAMILY" = "1";
+				"CODE_SIGN_STYLE" = "Automatic";
+				"DEVELOPMENT_TEAM" = "";
+				"CLANG_ENABLE_MODULES" = "YES";
+				"CLANG_ENABLE_OBJC_ARC" = "YES";
+				"ENABLE_USER_SCRIPT_SANDBOXING" = "YES";
+				"SUPPORTED_PLATFORMS" = "iphoneos iphonesimulator";
+				"SUPPORTS_MACCATALYST" = "NO";
+				"PRODUCT_BUNDLE_IDENTIFIER" = "com.alexgazin.LaGrillaDemoTests";
+				"PRODUCT_NAME" = "$(TARGET_NAME)";
+				"GENERATE_INFOPLIST_FILE" = "YES";
+				"TEST_TARGET_NAME" = "LaGrilla";
+				"SWIFT_OPTIMIZATION_LEVEL" = "-Onone";
+				"GCC_OPTIMIZATION_LEVEL" = "0";
+				"SWIFT_ACTIVE_COMPILATION_CONDITIONS" = "DEBUG";
+				"ENABLE_TESTABILITY" = "YES";
+			};
+			"name" = "Debug";
+		};
+		"F9C9852C66D214BA4B5F1303" = {
+			"isa" = "XCBuildConfiguration";
+			"buildSettings" = {
+				"SWIFT_VERSION" = "6.0";
+				"CLANG_CXX_LANGUAGE_STANDARD" = "c++17";
+				"IPHONEOS_DEPLOYMENT_TARGET" = "18.0";
+				"SDKROOT" = "iphoneos";
+				"TARGETED_DEVICE_FAMILY" = "1";
+				"CODE_SIGN_STYLE" = "Automatic";
+				"DEVELOPMENT_TEAM" = "";
+				"CLANG_ENABLE_MODULES" = "YES";
+				"CLANG_ENABLE_OBJC_ARC" = "YES";
+				"ENABLE_USER_SCRIPT_SANDBOXING" = "YES";
+				"SUPPORTED_PLATFORMS" = "iphoneos iphonesimulator";
+				"SUPPORTS_MACCATALYST" = "NO";
+				"PRODUCT_BUNDLE_IDENTIFIER" = "com.alexgazin.LaGrillaDemoTests";
+				"PRODUCT_NAME" = "$(TARGET_NAME)";
+				"GENERATE_INFOPLIST_FILE" = "YES";
+				"TEST_TARGET_NAME" = "LaGrilla";
+				"SWIFT_OPTIMIZATION_LEVEL" = "-O";
+				"GCC_OPTIMIZATION_LEVEL" = "s";
+			};
+			"name" = "Release";
+		};
+		"F1579A32C5C5AD6CAEEFAFA8" = {
+			"isa" = "XCConfigurationList";
+			"buildConfigurations" = (
+				"8F179E58AA9BAA55AA2C2411",
+				"F9C9852C66D214BA4B5F1303",
+			);
+			"defaultConfigurationIsVisible" = 0;
+			"defaultConfigurationName" = "Release";
+		};
+		"78384067E97B61F2B35AA336" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "F03C1830086CDF5D12DCD935";
+		};
+		"3D5C8229EF5DD125BA441779" = {
+			"isa" = "PBXSourcesBuildPhase";
+			"buildActionMask" = 2147483647;
+			"files" = (
+				"78384067E97B61F2B35AA336",
+			);
+			"runOnlyForDeploymentPostprocessing" = 0;
+		};
+		"57F6ED87F6DAE2B2745FA7AD" = {
+			"isa" = "PBXFrameworksBuildPhase";
+			"buildActionMask" = 2147483647;
+			"files" = (
+			);
+			"runOnlyForDeploymentPostprocessing" = 0;
+		};
+		"2874AA9D08E279896CB757A3" = {
+			"isa" = "PBXResourcesBuildPhase";
+			"buildActionMask" = 2147483647;
+			"files" = (
+			);
+			"runOnlyForDeploymentPostprocessing" = 0;
+		};
+		"B0784C202198A69C6124F6FC" = {
+			"isa" = "PBXNativeTarget";
+			"buildConfigurationList" = "F1579A32C5C5AD6CAEEFAFA8";
+			"buildPhases" = (
+				"3D5C8229EF5DD125BA441779",
+				"57F6ED87F6DAE2B2745FA7AD",
+				"2874AA9D08E279896CB757A3",
+			);
+			"buildRules" = (
+			);
+			"dependencies" = (
+				"25E506C77AE10A94A633D071",
+			);
+			"name" = "LaGrillaDemoTests";
+			"productName" = "LaGrillaDemoTests";
+			"productReference" = "835784A6A0DF8EFFFF38E11C";
+			"productType" = "com.apple.product-type.bundle.ui-testing";
+		};
 		"184B519F8E1416CCE38CFFD7" = {
 			"isa" = "XCBuildConfiguration";
 			"buildSettings" = {
@@ -1014,6 +1140,10 @@
 						"CreatedOnToolsVersion" = "16.4";
 						"TestTargetID" = "363B6F88CC29451360E8EBAB";
 					};
+					"B0784C202198A69C6124F6FC" = {
+						"CreatedOnToolsVersion" = "26.3";
+						"TestTargetID" = "363B6F88CC29451360E8EBAB";
+					};
 				};
 			};
 			"buildConfigurationList" = "9F6B1A7BCFF26D263B843F95";
@@ -1035,6 +1165,7 @@
 			"targets" = (
 				"363B6F88CC29451360E8EBAB",
 				"CBBD3F3A14B1315E11D7E065",
+				"B0784C202198A69C6124F6FC",
 			);
 		};
 	};

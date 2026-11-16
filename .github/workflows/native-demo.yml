@@ -1,0 +1,53 @@
+name: Native app demonstration recording
+on:
+  push:
+    branches: [feat/native-working-demo]
+  workflow_dispatch:
+concurrency:
+  group: native-demo-${{ github.ref }}
+  cancel-in-progress: true
+env:
+  DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
+jobs:
+  record-native-demo:
+    runs-on: macos-15
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify toolchain and generated project
+        run: |
+          python3 scripts/release/assert_sdk.py
+          python3 scripts/generate_project.py
+          git diff --exit-code -- LaGrilla.xcodeproj
+          xcrun simctl io help > simctl-io-help.txt 2>&1 || true
+          command -v ffmpeg || brew install ffmpeg
+          ffmpeg -version | head -1
+      - name: Build the separate authored demonstration target
+        run: |
+          set -o pipefail
+          xcodebuild -test-timeouts-enabled YES -maximum-test-execution-time-allowance 300 -project LaGrilla.xcodeproj -scheme LaGrillaDemo -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' ARCHS=arm64 ONLY_ACTIVE_ARCH=YES -configuration Debug -derivedDataPath DerivedData CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO build-for-testing | tee demo-build.log
+      - name: Configure actual BlackHole host loopback
+        run: bash scripts/setup_ci_audio.sh
+      - name: Boot native iPhone simulator
+        env:
+          GRILLA_CAPTURE_SCREENS: '0'
+        run: bash scripts/screenshots.sh
+      - name: Record actual user interactions and actual app audio
+        run: python3 scripts/record_native_demo.py
+      - name: Preserve native result attachments
+        if: always()
+        run: |
+          if test -d NativeDemoResults.xcresult; then
+            xcrun xcresulttool export attachments --path NativeDemoResults.xcresult --output-path NativeDemoAttachments
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-demo-raw
+          path: |
+            NativeDemoRaw
+            NativeDemoAttachments
+            NativeDemoResults.xcresult
+            demo-build.log
+            ci-audio.log
+            simctl-io-help.txt
