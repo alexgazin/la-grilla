@@ -5,12 +5,33 @@ Native iPhone studio: iOS 18+, Swift 6, SwiftUI, AVAudioEngine and a C++17 rende
 
 ## Run on your own iPhone
 
+Use **Xcode 26.3 or newer** on the Mac; the iPhone can run **iOS 18 or newer**.
+The deployment target is the oldest supported phone OS, not the SDK needed to
+compile the source. The project uses iOS 26 SDK APIs with runtime availability
+checks, so Xcode 16's iOS 18 SDK is insufficient even for an iOS 18 phone.
+
 1. Pull the latest `main` and open the committed `LaGrilla.xcodeproj` in Xcode. Select the **LaGrilla** scheme and app target.
 2. In **Xcode → Settings → Accounts**, add your Apple ID. In the app target's **Signing & Capabilities**, enable **Automatically manage signing** and select your own **Team**.
 3. Connect an iPhone running **iOS 18 or later** by USB. Complete pairing and **Trust** prompts; enable **Settings → Privacy & Security → Developer Mode** on the iPhone if Xcode requests it.
 4. Select that iPhone as the run destination and press **Run**. Xcode builds and signs a local development app. If Xcode says the bundle identifier is unavailable for your team, use a unique identifier for your local build.
 
 A free **Personal Team** can support local development installation; its provisioning normally expires after seven days and can be renewed by running from Xcode again. App Store/TestFlight distribution uses the owner's distribution certificate and provisioning profile. The unsigned CI device archive is evidence of compilation, **not an installable IPA**. Actual installed-device results belong in [device acceptance](release/DEVICE_ACCEPTANCE.md); opening the project does not fill those pending fields.
+
+### Local build troubleshooting
+
+- **“Signing requires a development team”:** choose your **Personal Team** in
+  the **LaGrilla app target → Signing & Capabilities → Team**, leaving automatic
+  signing enabled. Personal Team is a valid development team; paid Apple Developer
+  Program membership is not required for this local installation.
+- **“Expected type” in the microphone scheduling parameters:** pull current
+  `main`, which spells the global-actor closure types with an explicit separator,
+  for example `(@MainActor (Double) -> Double?)?`. Check **Xcode → About Xcode**
+  against the toolchain requirement above. If old diagnostics remain after the
+  update, use **Product → Clean Build Folder** (Shift–Command–K), then Run.
+- **Keep local signing choices:** the checked-in project intentionally has no
+  development team. Regenerating it with `scripts/generate_project.py` resets
+  that field; select your Personal Team again afterward. A normal source update
+  does not require project regeneration.
 
 On a Mac with Xcode 26.3 (or an App Store-supported newer toolchain) selected:
 

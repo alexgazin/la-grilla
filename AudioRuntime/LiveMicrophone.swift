@@ -280,7 +280,15 @@ private final class InputResources:@unchecked Sendable {
         let host=lg_input_state(resources.ring.pointer).firstHostTime
         return host==0 ? nil:Date(timeIntervalSinceNow:(Double(host)-Double(mach_absolute_time()))/ticksPerSecond)
     }
-    init(audio:AudioController,delay:Double,duration:Double,schedule:(@MainActor(Double)->Double?)?=nil,scheduleDuration:(@MainActor()->Double?)?=nil,receiver:(AVAudioFormat)throws->LiveInputReceiver,onFailure:@escaping @MainActor @Sendable(String)->Void)throws {
+    init(
+        audio: AudioController,
+        delay: Double,
+        duration: Double,
+        schedule: (@MainActor (Double) -> Double?)? = nil,
+        scheduleDuration: (@MainActor () -> Double?)? = nil,
+        receiver: (AVAudioFormat) throws -> LiveInputReceiver,
+        onFailure: @escaping @MainActor @Sendable (String) -> Void
+    ) throws {
         guard delay.isFinite,(0...30).contains(delay),duration.isFinite,duration>0 else{throw LiveInputError.invalidSamples}
         guard let engine=audio.captureEngine,engine.isRunning else{throw LiveInputError.outputUnavailable}
         let session=AVAudioSession.sharedInstance()
