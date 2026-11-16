@@ -16,11 +16,11 @@ final class ArrangementUITests: XCTestCase {
         let expectation=XCTNSPredicateExpectation(predicate:predicate,object:element)
         XCTAssertEqual(XCTWaiter.wait(for:[expectation],timeout:6),.completed)
     }
-    @MainActor private func drag(_ source:XCUICoordinate,to destination:XCUICoordinate){
+    @MainActor private func drag(_ source:XCUICoordinate,to destination:XCUICoordinate,liftHold:TimeInterval=1.2){
         // Give UIKit time to lift the native Transferable before moving, then
         // dwell over the receiver. A 0.6s press with immediate release raced the
         // lift/target registration in the recorded iOS 26 simulator run.
-        source.press(forDuration:1.2,thenDragTo:destination,withVelocity:.slow,thenHoldForDuration:0.6)
+        source.press(forDuration:liftHold,thenDragTo:destination,withVelocity:.slow,thenHoldForDuration:0.6)
     }
     @MainActor private func waitForClipPosition(_ clip:XCUIElement,x:CGFloat,length:String,in app:XCUIApplication){
         // Releasing the native gesture precedes asynchronous String item loading
@@ -243,7 +243,10 @@ final class ArrangementUITests: XCTestCase {
         let initialX=clip.frame.minX,bar=clip.frame.width+6
         XCTAssertLessThan(bar,app.windows.firstMatch.frame.width/2,"Clip accessibility frame must match the one-bar clip, not its entire lane")
         let finger=clip.coordinate(withNormalizedOffset:CGVector(dx:0.4,dy:0.5))
-        drag(finger,to:finger.withOffset(CGVector(dx:bar,dy:0)))
+        // The recorded resized-clip lift took 3.75s and cancelled after the
+        // 2.184s touch ended. Keep contact through that lift before moving;
+        // the six-second position wait still measures the actual drop result.
+        drag(finger,to:finger.withOffset(CGVector(dx:bar,dy:0)),liftHold:5)
         waitForClipPosition(clip,x:initialX+bar,length:"1.00 bars",in:app)
         XCTAssertGreaterThan(clip.frame.minX,initialX+bar*0.5)
         XCTAssertEqual(clip.frame.minX,initialX+bar,accuracy:3)

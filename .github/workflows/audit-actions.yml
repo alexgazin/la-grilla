@@ -52,8 +52,8 @@ jobs:
           GRILLA_RUNTIME_TRACE: '1'
         run: |
           GRILLA_AUDIT_DEVICE=$(cat /tmp/grilla-simulator-id)
-          # Seventeen real methods include portable full-range import/reopen,
-          # anchored pinch, independent AI setup/local-review and sketch journeys.
+          # Twenty real methods include the resized native clip drag, both preview invalidations,
+          # portable full-range import/reopen, anchored pinch and sketch journeys.
           # This 30-minute batch retains
           # every method's 120s cap and
           # the shared 40-minute cutoff/50-minute job evidence reserve.
@@ -64,6 +64,9 @@ jobs:
             --require-test FirstResultTests/testPortableMultisectionImportPlaysWholeArrangementAfterFreshRelaunch \
             --require-test AIAvailabilityTests/testActualUnavailableModelRecheckPreservesIndependentLanguagesInputAndProject \
             --require-test AIAvailabilityTests/testActualUnavailableModelLocallyReviewsJazzAppliesAndUndoesOnce \
+            --require-test AssistantCompositionTests/testIdleProposalEndsOnModeChangeWithoutEditing \
+            --require-test AssistantCompositionTests/testIdleProposalEndsOnLanguageChangeWithoutEditing \
+            --require-test ArrangementUITests/testClipTapResizeNativeDragAndUndo \
             --require-test ArrangementUITests/testPinchRetainsScrolledMusicalCenterWithoutEditingOrStopping \
             --require-test HarmonyCatalogTests/testCustomFormulaPersistsEveryToneAndIsUndoable \
             --require-test HarmonyCatalogTests/testAlteredNotationAndInvalidFormulaNeverSilentlySave \
@@ -81,6 +84,9 @@ jobs:
             -derivedDataPath DerivedData -resultBundlePath AuditResults.xcresult \
             -only-testing:LaGrillaUITests/FirstResultTests \
             -only-testing:LaGrillaUITests/AIAvailabilityTests \
+            -only-testing:LaGrillaUITests/AssistantCompositionTests/testIdleProposalEndsOnModeChangeWithoutEditing \
+            -only-testing:LaGrillaUITests/AssistantCompositionTests/testIdleProposalEndsOnLanguageChangeWithoutEditing \
+            -only-testing:LaGrillaUITests/ArrangementUITests/testClipTapResizeNativeDragAndUndo \
             -only-testing:LaGrillaUITests/ArrangementUITests/testPinchRetainsScrolledMusicalCenterWithoutEditingOrStopping \
             -only-testing:LaGrillaUITests/HarmonyCatalogTests \
             -only-testing:LaGrillaUITests/TranspositionUITests \

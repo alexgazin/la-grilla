@@ -1,0 +1,99 @@
+{
+  "run": "43923399760",
+  "sourceArtifact": "native-process-evidence-artifact14258531634.zip",
+  "failedTest": "ArrangementUITests/testClipTapResizeNativeDragAndUndo",
+  "eventPayloadRef": "0~PJVUEMf3DCi4xzPYuWUGw2sfWZaiW2aLV4vLd3hpwlaX2KBTUVxoL5RgxbsglmhWPUckLGJdckXxPKD-gM7Mjg==",
+  "recordingPayloadRef": "0~hbD2xMjG11kHx17wQ_YAzGADkqN5bnAb9yg_BdlvYkDvyZjd4-bLY4qxSlJ8Qtb-2WE96A62AGTU0j3kmyPGvQ==",
+  "eventPoints": [
+    {
+      "type": 1,
+      "x": 95.0,
+      "y": 404.16666666666663,
+      "offsetSeconds": 0.0
+    },
+    {
+      "type": 2,
+      "x": 95.0,
+      "y": 404.16666666666663,
+      "offsetSeconds": 1.2
+    },
+    {
+      "type": 2,
+      "x": 191.0,
+      "y": 404.16666666666663,
+      "offsetSeconds": 1.584
+    },
+    {
+      "type": 3,
+      "x": 191.0,
+      "y": 404.16666666666663,
+      "offsetSeconds": 2.184
+    }
+  ],
+  "touchDownUptime": 945.2907590416667,
+  "liftBeginUptime": 945.7918800000001,
+  "liftCompletionCallbackUptime": 949.5398433333334,
+  "liftCompletionPosition": 1,
+  "liftBeginToCallbackSeconds": 3.747963333333246,
+  "nativePayload": {
+    "revision": 3,
+    "clipStart": 0,
+    "clipLength": 3840,
+    "grabOffset": 1440,
+    "barWidth": 96.0,
+    "originalAnchor": [
+      36,
+      83
+    ]
+  },
+  "observedOutcome": "No sessionWillBegin, receiver targeting, or drop callback for failed clip. Lift completion returned position 1 after the 2.184-second synthesized touch ended. Actual clip stayed x59, length1.00bars; exact expected x155 assertion correctly failed.",
+  "historicalComparator": "/workspace/Artifacts/DeviceRecovery/run43887481738-attempt1/NativeAttachments/main/0061EF4E-ED64-447E-AD19-90E915DBD640.txt",
+  "historicalComparatorLiftToWillBeginSeconds": 1.9171466666666674,
+  "classification": "Native lift failed to establish a drag before synthesized contact ended. Valid target, payload, stable control, no ancestor scrolling. Host macOS change is correlated; not proven causal. Production clip/control/drop and this test/helper unchanged since historical comparator.",
+  "correction": {
+    "file": "/workspace/la-grilla-music-completion/UITests/ArrangementUITests.swift",
+    "helper": "optional liftHold:TimeInterval=1.2",
+    "onlyOverriddenCall": "resized one-bar clip drag in testClipTapResizeNativeDragAndUndo",
+    "initialPressSeconds": 5,
+    "receiverDwellSeconds": 0.6,
+    "positionWaitSeconds": 6,
+    "caseCapSeconds": 120,
+    "nativeGestureCount": 1,
+    "nativeValidation": "Not run; current CI left running as requested.",
+    "localValidation": "Swift6.1.2 swiftc -frontend -parse PASS; git diff --check PASS.",
+    "sourceFileSHA256": "bc7aade05efa5045c9665d0ba35e9edb5626bbc2fc0ecb65527f5f5fb5145196"
+  },
+  "files": {
+    "original-synthesized-drag-event.plist": {
+      "bytes": 2304,
+      "sha256": "08b066f76385e7432d67b55d031c028930dba1e0c2bceff927b4e4e8b11231b9"
+    },
+    "forensic-recording-contact-sheet-32-40s.png": {
+      "bytes": 588972,
+      "sha256": "b2a410ca7794a2d1085fb77d54f4f615509988282a3e54b5f8ceb4ff4f17d64f"
+    },
+    "StandardOutputAndStandardError-com.alexgazin.LaGrilla.txt": {
+      "bytes": 78810459,
+      "sha256": "bdead9d974932a6f1a3cb248f2c6ca98aded5d2874663bba3b38174b1a386c0e"
+    },
+    "forensic-recording-contact-sheet-25-34s.png": {
+      "bytes": 472293,
+      "sha256": "02d751b11a08deab1364071f9b58af68524e1ced64a4b57ef80e98c20efb17f0"
+    },
+    "testClipTapResizeNativeDragAndUndo-xcresult-object.txt": {
+      "bytes": 63502,
+      "sha256": "94d7447eb548ee1d2bd02bdd1defe838a431c8be3775abcc47163936af347367"
+    },
+    "original-testClipTapResizeNativeDragAndUndo-recording.mp4": {
+      "bytes": 3960806,
+      "sha256": "16ee6ad47049ef1e411d59733b37976a8d6b6bac554539b9f438138ff2437352"
+    },
+    "failure-native-drop-trace.txt": {
+      "bytes": 4264,
+      "sha256": "00577d8731654255861433b69b41ac848f052d5166947c49e7a29699113d4222"
+    }
+  },
+  "visualProvenance": "original-...mp4 is original XCResult recording payload. forensic-recording-contact-sheet-*.png are ffmpeg forensic derivatives, not original gallery screenshots.",
+  "analysisCheckoutSHA": "3be39188791cf694f185eed0a90216af5fb013c8",
+  "sourceSHA": "b3bac31623193360c1ed234bcb02e7a8f6d62c01"
+}
