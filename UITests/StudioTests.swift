@@ -107,9 +107,16 @@ final class StudioTests: XCTestCase {
         guard rendered else{return nil}
         // Background occupies most of a normal Form row; the median ignores
         // text/checkmarks and remains independent of exact font/glyph geometry.
-        let values=stride(from:0,to:pixels.count,by:4).map { offset in
-            (0.2126*Double(pixels[offset])+0.7152*Double(pixels[offset+1])+0.0722*Double(pixels[offset+2]))/255
-        }.sorted()
+        var values:[Double]=[]
+        values.reserveCapacity(width*height)
+        for offset in stride(from:0,to:pixels.count,by:4) {
+            let red=Double(pixels[offset])/255.0
+            let green=Double(pixels[offset+1])/255.0
+            let blue=Double(pixels[offset+2])/255.0
+            let luminance:Double=0.2126*red+0.7152*green+0.0722*blue
+            values.append(luminance)
+        }
+        values.sort()
         return values[values.count/2]
     }
     @MainActor func testRussianInterfaceAndLightAppearance() {
