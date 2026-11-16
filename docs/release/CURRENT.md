@@ -1,0 +1,56 @@
+# Текущий кандидат и границы приёмки
+
+Срез: **16 ноября 2026**. Этот файл — единая текущая сводка; [журнал](../IMPLEMENTATION_LOG.md) сохраняет последовательность попыток, а [роадмап](../../ROADMAP.md) — следующую работу.
+
+## Текущий статус
+
+**Функциональная альфа, кандидат 1.0.0 (17), schema 8; software gate и физический P0-retest открыты.** Код приложения и тестов — `5adbadb37c39911c4acc2c2ef511198867098040`, **651 EN/RU ключ**; интеграция подготовлена в [PR #20](https://github.com/alexgazin/la-grilla/pull/20).
+
+Метаданные/аудиты на `main` затем обновлены docs-only merge `70cad3e04d2ccf6e1e02912f40cfefc09d8067d7`; код кандидата 17 этим не интегрирован.
+
+Последняя полная принятая программная база — **main 1.0.0 (16)**, точный source `9dfec7e117ef768c28cdfe12f342baf466f55682`: [run 43858734785](https://github.com/alexgazin/la-grilla/actions/runs/43858734785) завершился успешно всеми тремя jobs, **51 functional native PASS / 0 FAIL / 1 opt-in diagnostic SKIP**. Bulk capture повторно не запускался. Этот результат не переносится на изменения кандидата 17 и не подтверждает устранение пользовательского дефекта на телефоне.
+
+## Доказательства по исходникам
+
+| Исходник и проверка | Фактический результат и его предел |
+| --- | --- |
+| **17 / `5adbadb` — текущий код** | [iPhone Debug / archive 43876565718](https://github.com/alexgazin/la-grilla/actions/runs/43876565718): Debug PASS на Xcode 26.3 / iPhoneOS SDK 26.2; archive ожидает исполнения после инфраструктурного повтора. [Compatibility 43876575685](https://github.com/alexgazin/la-grilla/actions/runs/43876575685): полные приложения с ресурсами на Xcode 16.4 / SDK 18.5 и 26.0.1 / SDK 26.0 PASS. [Focused 7 native 43876565702](https://github.com/alexgazin/la-grilla/actions/runs/43876565702) ожидает исполнения. Полная native-регрессия 17 ещё не принята. |
+| **17 / `29adf6c398173faf830de8f6249702628b8a3f76`** | [Native 43870504379](https://github.com/alexgazin/la-grilla/actions/runs/43870504379): **5 PASS / 2 execution-allowance timeouts по 120 s**. Все строгие PCM/CAF, input retirement и Splash прошли. Два целых метода — granted Speech/Assistant и AI availability — не прошли; xcodebuild завершился 65, отдельный 600 s watchdog не сработал. Реальная Speech-цепь получила **842 752 frames** после настоящих разрешений, затем сообщила NoSpeech 1110; timeout наступил позднее при Review. Это не подтверждение транскрипции человеческого голоса и не PASS всего Speech-метода. |
+| **17 / `9fb52e01340d060f3424ae5ea3d38a90b0893b83`** | [Native 43864455841](https://github.com/alexgazin/la-grilla/actions/runs/43864455841): **6 PASS / 1 granted-Speech timeout по 120 s**, затем сработал общий watchdog. Сценарий и run не объявляются принятыми. Эта версия исправила первоначальную ошибку компиляции splash `bde2caa`; исходная ошибка и неисполненные тесты сохранены в журнале. |
+| **16 / точный main `9dfec7e`** | [Полная проверка 43858734785](https://github.com/alexgazin/la-grilla/actions/runs/43858734785): все три jobs SUCCESS; 51 functional native PASS, 0 FAIL, 1 diagnostic SKIP. Старый результат ветки `01fb8b7` с 49 PASS / 2 FAIL / 1 SKIP остаётся отдельной историей, а не текущим результатом main 16. |
+
+У первого запуска `5adbadb` focused job и archive были отменены **до исполнения**: GitHub сообщил “The job was not acquired by Runner of type hosted even after multiple attempts”. Это проблема доступности hosted ARM runner, без результатов native-методов. Повторены только эти задания; успешные Debug и compatibility сохраняют собственные подтверждения. Состояние очереди не является ни PASS, ни выявленным app assertion.
+
+## Что изменено в кандидате 17
+
+- Разрешённый захват подготавливает duplex I/O до первого доступа к ленивому input node; проверяет реальные разрешения, маршруты и hardware/engine formats. В конфигурации разрешён Bluetooth HFP для входа, A2DP — для выхода; реальные Bluetooth-маршруты остаются аппаратной проверкой.
+- После захвата input-использующий граф может быть заменён на input-free граф. DSP/kernel, музыкальное состояние и MIDI сохраняются; одновременно работает один граф. Native retirement проверил новую identity графа, отсутствие input и продолжающийся clock. Переходы могут давать паузу звука; zero-gap и поведение индикатора микрофона на физическом iPhone пока не приняты.
+- AI и диктовка имеют отдельные явно выбранные языки. Есть Recheck и пояснения причин недоступности. Переключатели Siri для отдельного приложения не показывают глобальную готовность FoundationModels. Локальные Commands остаются отдельным рабочим механизмом.
+- Помощник показывает ввод идеи первым, а AI setup — компактно. Музыкальный review использует такты, доли и ноты без служебных ticks. Это не новый генератор ударных, баса и мелодии: существующая модель управляет формой/гармонией и переиспользует музыкальный материал.
+- Добавлены статичный системный Launch Screen и анимация сетки/курсора во время настоящего bootstrap, без искусственного минимального ожидания и процентов.
+
+## Splash и медиа
+
+OS Launch Screen следует системной Light/Dark-теме; сохранённая тема самого приложения может отличаться от неё. Статичная и SwiftUI-композиции согласованы, но универсальный pixel-perfect переход между разными темами не заявляется.
+
+`--uitesting --splash-preview` показывает **тот же компонент** после настоящего bootstrap, удерживая только представление для воспроизводимого кадра. QA receipt отдельно записывает `qaPreview`, `bootstrapReady`, системный Reduce Motion и явный preview override. Три preview-кадра и реальный normal launch / Welcome Skip / relaunch проверяются отдельно. PASS preview не измеряет cold-launch latency.
+
+Ранее принятые [DeviceRepair PNG](../../Screenshots/DeviceRepair), [ProfessionalShell PNG](../../Screenshots/ProfessionalShell) и [рабочая запись](../../Media/WorkingDemo/README.md) сохраняют собственные версии/source/hash. Новые кадры кандидата 17 публикуются только после индивидуального просмотра и манифеста; прошлые изображения не переименовываются в evidence нового source.
+
+## Что ещё требуется
+
+1. Получить исполненный PASS всех семи focused methods текущего кода и завершить его archive/full native regression, сохранив реальные логи и исходы каждого метода.
+2. Повторить на установленном кандидате первоначальный дефект: Play, granted/denied dictation, повторный capture/Stop, новые проекты, save/reopen/export; записать точные модель, iOS и build. Проверить реальный mic indicator и маршруты.
+3. Отдельно принять настоящий человеческий напев и FoundationModels на eligible-устройстве с выбранным поддерживаемым языком. PCM loopback и proposal fixtures не заменяют эти проверки.
+4. Закрыть [аппаратную C8-матрицу](DEVICE_ACCEPTANCE.md): 30-минутные сессии, latency/thermal/dropouts, USB/BLE MIDI и импорт в две DAW. Затем — distribution signing, TestFlight и App Review по [процедуре](RELEASE.md).
+
+Формальные hardware-поля остаются **Pending**. Отчёты владельца не отвергаются зелёным Simulator CI; устранение симптомов на его телефоне пока не подтверждено.
+
+## Независимые аудиты
+
+- [Архитектура](../review/2026-11-16/architecture.md).
+- [Продуктовый аналитик](../review/2026-11-16/analyst.md).
+- [Product Manager](../review/2026-11-16/product-manager.md).
+- [QA](../review/2026-11-16/qa.md).
+
+Каждый отчёт сохраняет свой audited source, доказательства и список задач. Рекомендация, host benchmark и изменение в отдельной ветке не считаются принятой функцией кандидата 17. Последующие исправления проходят собственную приёмку; аппаратная и Store-готовность из этих отчётов не следуют.

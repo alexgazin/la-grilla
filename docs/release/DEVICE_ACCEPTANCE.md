@@ -2,18 +2,23 @@
 
 **Status: owner-reported device failures; formal acceptance Pending.** The owner has installed and tried the app on an iPhone, but its exact model, iOS version and installed source/build have not yet been recorded. This execution environment has no connected physical iPhone, USB/BLE controller, two DAWs or distribution signing credentials. Simulator and host benchmarks must not be entered as hardware results.
 
-Prepared repair candidate: **1.0.0 (16), schema 8**, app/test source **`01fb8b7f9891e04287c91b21d5998f98e66cbad7`**; original P0 verification is separately source `27cbf09a0d6266d728df9fef889d2caa94ee0c8b`. This identifies the software to retest, not an accepted physical build. Every formal evidence field below remains **Pending** until the actual device/model/signing session is recorded.
+Prepared repair candidate: **1.0.0 (17), schema 8**, [PR #20](https://github.com/alexgazin/la-grilla/pull/20), based on `main` 16. The exact current app/test source and separate software results are maintained in [CURRENT](CURRENT.md). This identifies software to retest, not an accepted installed build. Every formal evidence field below remains **Pending** until the actual device/model/signing session is recorded.
 
 ## Preliminary owner report — 16 November 2026
 
 | Reported observation | Acceptance status |
 | --- | --- |
-| Audio banner/alert shows `com.apple.coreaudio.avfaudio`, code `2003329396` (`what`); playback is unavailable. | Pending: repeat cold launch, Play and route recovery on candidate 16. |
+| Audio banner/alert shows `com.apple.coreaudio.avfaudio`, code `2003329396` (`what`); playback is unavailable. | Pending: repeat cold launch, Play and route recovery on candidate 17. |
 | Tapping Dictate reportedly terminates the app; no crash stack or exact installed build is recorded. | Pending: repeat authorization allowed/denied and capture on the actual phone. |
-| Assistant displays that Apple Intelligence is disabled. No successful real-model proposal is recorded. | Pending: verify clear availability and working local Commands separately from an eligible, ready model. |
+| New screenshots show Mic and Speech permissions granted, but capture still reports `LiveInputError.unavailable`. | Pending: repeat authorized capture, record actual route/formats and retain sanitized audio diagnostics; permission alone does not establish usable input. |
+| Assistant reports unavailable Apple Intelligence; owner says it is enabled. The supplied settings page shows per-app Siri suggestions, not global model readiness. No real-model proposal is recorded. | Pending: record global Apple Intelligence/model readiness and selected request language, use Recheck, and verify local Commands separately. |
 | New projects/tracks reportedly do not work. | Pending: distinguish empty content from audio failure; repeat create → add content → save → reopen → export. |
 
-These observations are defect reports, not completed hardware measurements or proof of a specific crash cause. Candidate 16 has a successful [Release archive](https://github.com/alexgazin/la-grilla/actions/runs/43845748680), [16.4 / 26.0.1 full-resource compatibility builds](https://github.com/alexgazin/la-grilla/actions/runs/43847686116) and 634 EN/RU keys. Its [native recovery / strict PCM run](https://github.com/alexgazin/la-grilla/actions/runs/43845748716) passed 8 methods with zero failures/skips; [five accepted original screenshots](../../Screenshots/DeviceRepair) retain that source. Integration `01fb8b7` has successful current Debug/archive and full 16.4 / 26.0.1 builds; its expanded ten-method run was cancelled at the 35-minute workflow limit, with unavailable logs/artifacts and unknown individual outcomes. The full native regression is still running; integration acceptance remains open. None verifies the reported phone fix. Exact `main` source `224e248` also retains two Arrangement failures and a separate 16.2 infrastructure failure in the [implementation log](../IMPLEMENTATION_LOG.md).
+These observations are defect reports, not completed hardware measurements or proof of a specific crash cause. Exact `main` 16 source `9dfec7e117ef768c28cdfe12f342baf466f55682` passed [43858734785](https://github.com/alexgazin/la-grilla/actions/runs/43858734785): all three jobs SUCCESS, 51 functional native PASS / 0 FAIL / 1 diagnostic SKIP. Earlier `01fb8b7` / `224e248` failures remain recorded in the [implementation log](../IMPLEMENTATION_LOG.md); neither an earlier failure nor this later Simulator pass determines the owner's phone result.
+
+Candidate 17 adds controlled authorized-input preparation and retirement of input-using I/O, retaining DSP/kernel/music/MIDI state while permitting a new input-free engine identity after Stop. Transitions may interrupt output; physical zero-gap behavior and the mic indicator are unmeasured. Partial native results already prove actual host PCM, retirement and the splash component on their own sources, but incomplete Speech/AI methods are not marked passed. Current code, key count, build/compatibility proof, seven-method outcomes and queued infrastructure retries are separated in [CURRENT](CURRENT.md).
+
+AI has independent request/dictation languages and Recheck. Per-app Siri controls do not establish global model readiness. Static launch and animated loading are implemented; a held QA preview of the same component is explicitly distinguished from actual cold-launch timing. No software result populates a physical evidence field below.
 
 ## Formal acceptance record
 
