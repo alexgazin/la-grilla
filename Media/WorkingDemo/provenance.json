@@ -1,0 +1,437 @@
+{
+  "schema_version": 1,
+  "created_utc": "2026-11-16",
+  "kind": "Real native app operation and same-session host-loopback sound; edited promotional presentation",
+  "app": {
+    "version": "1.0.0",
+    "build": 15,
+    "schema": 8,
+    "capture_source_sha": "b4a584fc1cc60d73a97386986c2330ca7e45980c",
+    "device": "iPhone 16 Pro Max, iOS 26.2 Simulator",
+    "physical_device": false
+  },
+  "capture": {
+    "run_id": 43813957218,
+    "url": "https://github.com/alexgazin/la-grilla/actions/runs/43813957218",
+    "original_workflow_conclusion": "failure",
+    "reason": "Original wall-stop coverage guard included unused post-test Xcode result bookkeeping beyond the 600-second PCM. This status remains failure.",
+    "actual_passed_methods": [
+      "test01ComposeJamAndMix",
+      "test02HarmonyCommandsAndVoiceSetup",
+      "test03PerformAndExport"
+    ],
+    "method_duration_seconds": [
+      267.834,
+      69.662,
+      110.545
+    ],
+    "test_exit_code": 0,
+    "artifact": {
+      "id": 14202272642,
+      "bytes": 299123707,
+      "sha256": "7ee6093af8ec154d3f4f1350ed551e45b9cc919b0c409409739de399321bc58f",
+      "url": "https://github.com/alexgazin/la-grilla/actions/runs/43813957218/artifacts/14202272642",
+      "retention_note": "Actions retention is finite; full viewable session is committed separately."
+    },
+    "raw_inputs": {
+      "video": {
+        "path": "/workspace/Artifacts/NativeDemoB4A/NativeDemoRaw/screen.mp4",
+        "sha256": "d2936282e82006e8bf9223037c2e6b292839bf3a3a707b1ab5eeac928859ede9"
+      },
+      "audio": {
+        "path": "/workspace/Artifacts/NativeDemoB4A/NativeDemoRaw/audio.caf",
+        "sha256": "69384894d532321600118a8a62d1bee128f66c7571b53f4a11a435bd538c2ab0"
+      },
+      "timing": {
+        "path": "/workspace/Artifacts/NativeDemoB4A/NativeDemoRaw/capture-timing.json",
+        "sha256": "5c56f32ce3fc68d467c25596fd95152cf87a00fee3d0aeb59a068aa3fa73eca2"
+      },
+      "audio_receipt": {
+        "path": "/workspace/Artifacts/NativeDemoB4A/NativeDemoRaw/audio-receipt.json",
+        "sha256": "83a5ddbe84499376ddf38a96cc9331d0801e5fd114ee60300e0c68db9754d728"
+      },
+      "edl": {
+        "path": "/workspace/Artifacts/NativeDemoB4A/accepted-edl.json",
+        "sha256": "ed255007361ccb1563261fa15c376e4d7c0e03bd4a795c0867cd099783221851"
+      }
+    },
+    "qualified_acceptance": {
+      "accepted_scope": "Actual selected video/PCM and all authored UI actions; original capture job remains failed",
+      "original_capture_job_conclusion": "failure: original full wall-stop PCM coverage guard rejected unused post-test bookkeeping tail; 3 actual UI methods passed",
+      "original_capture_run_id": 43813957218,
+      "note": "Original workflow43813957218 remains FAILED: its wall-stop coverage guard compared audio end1379.782680125 with recorder stop1389.120674458. All3actualUIjourneys passed; last authored UI event1323.431269375 and actual encoded MP4 ends at calibrated host1330.390868, both fully covered by captured PCM. Only unused wall-clock bookkeeping extends beyond audio; raw receipts unchanged.",
+      "event_log_sha256": "0f404c10fb07747583a9e3a02912c098c232da3f176788e27d9f42a5b34c306c",
+      "authored_event_count": 29,
+      "authored_events": [
+        {
+          "phase": "app.ready",
+          "unix_seconds": 1794809519.053955,
+          "uptime_seconds": 908.6175997916667,
+          "window_height": 956,
+          "window_width": 440
+        },
+        {
+          "phase": "grid",
+          "unix_seconds": 1794809520.317245,
+          "uptime_seconds": 909.88089275,
+          "window_height": 956,
+          "window_width": 440
+        },
+        {
+          "phase": "transport.before-play",
+          "unix_seconds": 1794809520.5145578,
+          "uptime_seconds": 910.0782062500001,
+          "window_height": 956,
+          "window_width": 440
+        },
+        {
+          "phase": "transport.playing",
+          "unix_seconds": 1794809523.901538,
+          "uptime_seconds": 913.4651859166668,
+          "window_height": 956,
+          "window_width": 440
+        },
+        {
+          "phase": "chord.edit",
+          "unix_seconds": 1794809610.051671,
+          "uptime_seconds": 999.6153194583334,
+          "window_height": 956,
+          "window_width": 440
+        },
+        {
+          "phase": "chord.applied",
+          "unix_seconds": 1794809632.092593,
+          "uptime_seconds": 1021.6562420833334,
+          "window_height": 956,
+          "window_width": 440
+        },
+        {
+          "phase": "grid.pinch",
+          "unix_seconds": 1794809642.239367,
+          "uptime_seconds": 1031.8030161666668,
+          "window_height": 956,
+          "window_width": 440
+        },
+        {
+          "phase": "jam.pads",
+          "unix_seconds": 1794809652.053369,
+          "uptime_seconds": 1041.6170177083334,
+          "window_height": 956,
+          "window_width": 440
+        },
+        {
+          "phase": "jam.recording",
+          "unix_seconds": 1794809664.385851,
+          "uptime_seconds": 1053.9494994166666,
+          "window_height": 956,
+          "window_width": 440
+        },
+        {
+          "phase": "jam.steps",
+          "unix_seconds": 1794809676.489178,
+          "uptime_seconds": 1066.0528270833333,
+          "window_height": 956,
+          "window_width": 440
+        },
+        {
+          "phase": "mixer",
+          "unix_seconds": 1794809680.577312,
+          "uptime_seconds": 1070.1409599583335,
+          "window_height": 956,
+          "window_width": 440
+        },
+        {
+          "phase": "mixer.changed",
+          "unix_seconds": 1794809692.5096822,
+          "uptime_seconds": 1082.0733309583334,
+          "window_height": 956,
+          "window_width": 440
+        },
+        {
+          "phase": "notes.added",
+          "unix_seconds": 1794809714.470119,
+          "uptime_seconds": 1104.0337669583334,
+          "window_height": 956,
+          "window_width": 440
+        },
+        {
+          "phase": "notes.undo",
+          "unix_seconds": 1794809735.667721,
+          "uptime_seconds": 1125.2313694166667,
+          "window_height": 956,
+          "window_width": 440
+        },
+        {
+          "phase": "compose.end",
+          "unix_seconds": 1794809754.701328,
+          "uptime_seconds": 1144.2649767083335,
+          "window_height": 956,
+          "window_width": 440
+        },
+        {
+          "phase": "app.ready",
+          "unix_seconds": 1794809774.446387,
+          "uptime_seconds": 1164.0095934583335,
+          "window_height": 956,
+          "window_width": 440
+        },
+        {
+          "phase": "harmony.proposal",
+          "unix_seconds": 1794809779.027945,
+          "uptime_seconds": 1168.5915938333335,
+          "window_height": 956,
+          "window_width": 440
+        },
+        {
+          "phase": "harmony.preview-b",
+          "unix_seconds": 1794809784.259359,
+          "uptime_seconds": 1173.823007375,
+          "window_height": 956,
+          "window_width": 440
+        },
+        {
+          "phase": "harmony.applied",
+          "unix_seconds": 1794809796.250359,
+          "uptime_seconds": 1185.8140045416667,
+          "window_height": 956,
+          "window_width": 440
+        },
+        {
+          "phase": "assistant.local-review",
+          "unix_seconds": 1794809807.574593,
+          "uptime_seconds": 1197.1382420416667,
+          "window_height": 956,
+          "window_width": 440
+        },
+        {
+          "phase": "assistant.applied",
+          "unix_seconds": 1794809811.941564,
+          "uptime_seconds": 1201.5052129583335,
+          "window_height": 956,
+          "window_width": 440
+        },
+        {
+          "phase": "voice.beta-preparation",
+          "unix_seconds": 1794809821.779285,
+          "uptime_seconds": 1211.3429335833334,
+          "window_height": 956,
+          "window_width": 440
+        },
+        {
+          "phase": "commands.end",
+          "unix_seconds": 1794809826.4998422,
+          "uptime_seconds": 1216.0634903333334,
+          "window_height": 956,
+          "window_width": 440
+        },
+        {
+          "phase": "app.ready",
+          "unix_seconds": 1794809839.029848,
+          "uptime_seconds": 1228.5934969166667,
+          "window_height": 956,
+          "window_width": 440
+        },
+        {
+          "phase": "perform",
+          "unix_seconds": 1794809849.2149801,
+          "uptime_seconds": 1238.7786287083334,
+          "window_height": 956,
+          "window_width": 440
+        },
+        {
+          "phase": "perform.filter",
+          "unix_seconds": 1794809873.071375,
+          "uptime_seconds": 1262.6350234166669,
+          "window_height": 956,
+          "window_width": 440
+        },
+        {
+          "phase": "perform.saved-take",
+          "unix_seconds": 1794809903.284573,
+          "uptime_seconds": 1292.8482219166667,
+          "window_height": 956,
+          "window_width": 440
+        },
+        {
+          "phase": "export.wav-options",
+          "unix_seconds": 1794809918.7021,
+          "uptime_seconds": 1308.2657485,
+          "window_height": 956,
+          "window_width": 440
+        },
+        {
+          "phase": "export.actual-share-sheet",
+          "unix_seconds": 1794809933.867621,
+          "uptime_seconds": 1323.431269375,
+          "window_height": 956,
+          "window_width": 440
+        }
+      ],
+      "first_authored_event_host": 908.6175997916667,
+      "last_authored_event_host": 1323.431269375,
+      "authored_ui_guard_end_host": 1326.431269375,
+      "actual_video_media_end_host": 1330.390868,
+      "entire_actual_video_pts_audio_covered": true,
+      "audio_end_host": 1379.782680125,
+      "wall_stop_without_pcm_seconds": 9.33799433299987,
+      "wall_stop_after_last_encoded_video_pts_seconds": 58.729806457999985,
+      "video_duration_was_not_rescaled": true
+    }
+  },
+  "sound": {
+    "source": "Actual Simulator output routed through BlackHole 2ch and recorded by separate macOS AVAudioEngine helper",
+    "permission": "Ordinary system microphone consent; no TCC database override",
+    "independent_probe_run": 43813559668,
+    "probe_tone_used_in_film": false,
+    "offline_audio_substitution": false,
+    "sample_rate": 48000,
+    "channels": 2,
+    "decoded_pcm": {
+      "frames": 28800000,
+      "samples": 57600000,
+      "peak": 0.08486740291118622,
+      "rms": 0.0076112472990823195
+    },
+    "duration_seconds": 600,
+    "sample_time_discontinuities": 0,
+    "gain_db": 17,
+    "cut_fade_seconds": 0.015,
+    "time_stretch": false,
+    "final_decoded_aac": {
+      "frames": 6345728,
+      "samples": 12691456,
+      "peak": 0.5984035730361938,
+      "rms": 0.06619156194272237
+    }
+  },
+  "sync": {
+    "video_host_start_calibrated": 792.654201,
+    "caf_offset_seconds": 12.871520875,
+    "first_play_pcm_onset_host": 910.899200958,
+    "visible_first_stop_glyph_pts": 118.245,
+    "independent_compose_stop_pcm_host": 1143.896263458,
+    "independent_visible_play_glyph_pts": 351.401667,
+    "independent_residual_seconds": 0.1596045,
+    "independent_source_vfr_gap_seconds": 1.203,
+    "qualification": "Constant offset, no rescale; practical Simulator audiovisual fit, not physical-device latency measurement."
+  },
+  "edit": {
+    "sections": 15,
+    "source_intervals": 36,
+    "duration_seconds": 132.2,
+    "real_action_speed": 1,
+    "waiting_shortened_by_explicit_cuts": true,
+    "ui_generated_or_recreated": false,
+    "source_full_pts_normalized_before_cuts": true,
+    "sampling": "CFR30 holds preceding real frame; no optical interpolation",
+    "captions_frame_progress_waveform": "Video presentation outside native UI",
+    "edl": {
+      "path": "accepted-edl.json",
+      "bytes": 26916,
+      "sha256": "ed255007361ccb1563261fa15c376e4d7c0e03bd4a795c0867cd099783221851"
+    },
+    "edl_status_note": "EDL bytes are bound to render receipt and preserve the pre-review status. Final visual acceptance is recorded separately in visual-review.json."
+  },
+  "deliverables": {
+    "promo": {
+      "path": "la-grilla-working-demo.mp4",
+      "bytes": 16067650,
+      "sha256": "7d767693277bc85062c0f3db117c86fbcfefb5dc32e412f74675e9bb2960a8c2",
+      "duration_seconds": 132.2,
+      "frames": 3966,
+      "video": "H.264 1920x1080 yuv420p BT.709 30fps",
+      "audio": "AAC 48kHz stereo",
+      "full_decode_passed": true
+    },
+    "full_session": {
+      "path": "la-grilla-session-original.mp4",
+      "bytes": 28594308,
+      "sha256": "ff7268139bb81c0cabea80eabfaae4c25c78c8ca4b10d40b15e745e315de59bd",
+      "format_duration_seconds": 537.736,
+      "video_frames": 2519,
+      "video_payload_sha256": "32464917438844f085a51a0787b8dedcddd2a90f662dabcbdfec5b32e0590d8b",
+      "source_video_payload_sha256": "32464917438844f085a51a0787b8dedcddd2a90f662dabcbdfec5b32e0590d8b",
+      "all_source_video_packets_preserved": true,
+      "video_stream_duration_seconds": 537.696667,
+      "source_video_stream_duration_seconds": 537.736667,
+      "last_packet_duration_metadata_difference_seconds": 0.04,
+      "audio": "Same recorded CAF with constant calibrated offset and +17dB gain, AAC 48kHz stereo",
+      "full_decode_passed": true,
+      "decode_command": "ffmpeg -v error -xerror -i la-grilla-session-original.mp4 -map 0:v:0 -map 0:a:0 -fps_mode:v passthrough -enc_time_base:v demux -f null -"
+    },
+    "poster": {
+      "path": "poster.jpg",
+      "bytes": 135145,
+      "sha256": "9cc6fdd2b0c0e06a16d8da2849ef03dfaaf4b603694ebb874a499c0b264178f5",
+      "source": "la-grilla-working-demo.mp4",
+      "source_time_seconds": 3.8
+    },
+    "teaser": {
+      "path": "teaser.gif",
+      "bytes": 485020,
+      "sha256": "ab29725fcbacd6985ceb9dfdf99e8110e3904bb0bdea4b19e18514727c0acece",
+      "frames": 60,
+      "size": [
+        960,
+        540
+      ],
+      "loop": 0,
+      "audio": false,
+      "source": "la-grilla-working-demo.mp4",
+      "source_interval_seconds": [
+        0,
+        6
+      ],
+      "sampling_fps": 10,
+      "width": 960
+    }
+  },
+  "reviews": {
+    "visual": "visual-review.json",
+    "caption_glyphs": "Source/caption-glyph-check.json",
+    "pcm": "Source/independent-pcm-audit.json",
+    "precise_audio_anchors": "Source/precise-audio-anchors.json",
+    "render": "render-receipt.json"
+  },
+  "scope_limits": [
+    "Three real XCTest-driven journeys in disposable built-in demo project, not manual physical-device acceptance.",
+    "Voice shows beta/mono preparation; no live singing recognition is demonstrated.",
+    "Commands use local parser, not a claim of successful FoundationModels inference.",
+    "WAV is ordinary project export, not export of the displayed live take.",
+    "New Settings theme fix and screenshots are from later source014a00b, separately verified; the video is captured from b4a584f.",
+    "C8 physical MIDI/audio routes, live voice/model, signing, TestFlight and App Review remain open."
+  ],
+  "evidence_files": [
+    {
+      "path": "Source/audio-receipt.json",
+      "bytes": 741,
+      "sha256": "83a5ddbe84499376ddf38a96cc9331d0801e5fd114ee60300e0c68db9754d728"
+    },
+    {
+      "path": "Source/caption-glyph-check.json",
+      "bytes": 91,
+      "sha256": "d7ffa4a1cadaf028c839fd2bac3ea9a5452a6c4f096d8dc1008069c9f53e29ae"
+    },
+    {
+      "path": "Source/capture-timing.json",
+      "bytes": 917,
+      "sha256": "5c56f32ce3fc68d467c25596fd95152cf87a00fee3d0aeb59a068aa3fa73eca2"
+    },
+    {
+      "path": "Source/demo-tests.log",
+      "bytes": 47503,
+      "sha256": "0f404c10fb07747583a9e3a02912c098c232da3f176788e27d9f42a5b34c306c"
+    },
+    {
+      "path": "Source/independent-pcm-audit.json",
+      "bytes": 18588,
+      "sha256": "9d3ff4b9dcf91aeb914c76a2c13fa94178e42254bd62a4bf4c771ad6065fcbd8"
+    },
+    {
+      "path": "Source/precise-audio-anchors.json",
+      "bytes": 19472,
+      "sha256": "2da7b0d977b9d4501d1944be9eae4149448542be2edf4d052b60aeb44c1f6612"
+    }
+  ],
+  "new_openart_credits_used": 0
+}

@@ -1,0 +1,163 @@
+{
+  "kind": "Independent individual-frame visual review of actual app working-demo composition",
+  "reviewer": "/root/audit_professional_shell",
+  "review_date": "2026-11-16",
+  "movie": {
+    "path": "la-grilla-working-demo.mp4",
+    "sha256": "7d767693277bc85062c0f3db117c86fbcfefb5dc32e412f74675e9bb2960a8c2",
+    "bytes": 16067650
+  },
+  "source_app_sha": "b4a584fc1cc60d73a97386986c2330ca7e45980c",
+  "review_method": [
+    "All 15 chapter frames from the preceding full render were viewed individually at native output size, not inferred from the contact sheet.",
+    "Actual UI, native viewport clipping and caption context were accepted in all 15; two promo captions were initially rejected for missing arrow glyphs.",
+    "After replacing unsupported arrows with middle-dot separators, both changed final chapter frames were viewed individually again and accepted. The other 13 chapter captions and their accepted UI content remain unchanged."
+  ],
+  "initial_review": {
+    "ui_frames_reviewed": 15,
+    "ui_frames_accepted": 15,
+    "promo_frames_accepted": 13,
+    "promo_frames_rejected": 2,
+    "rejected_chapters": [
+      "02-chord",
+      "09-commands"
+    ],
+    "finding": "Unsupported arrow glyphs appeared as hollow boxes in two promotional subtitles; app pixels were unaffected."
+  },
+  "corrected_final_review": [
+    {
+      "chapter": "02-chord",
+      "outcome": "ACCEPT",
+      "frame_sha256": "dbde2267a1d38576789f49a5ab669e604bb97f3f3911949d47197fab9a23d661",
+      "finding": "The subtitle now reads «Открыть · набрать Cmaj7 · Set · Apply.» with no missing glyphs; original live typing UI remains intact."
+    },
+    {
+      "chapter": "09-commands",
+      "outcome": "ACCEPT",
+      "frame_sha256": "3c6e783da79b5ff4b3ae1811b2863948486de034296bb44248cea9c5facf7641",
+      "finding": "The subtitle now reads «Локальные Commands: tempo 108 · Apply · Undo.» with no missing glyphs; local-mode status and actual proposal remain visible."
+    }
+  ],
+  "chapter_reviews": [
+    {
+      "chapter": "01-grid",
+      "ui_outcome": "ACCEPT",
+      "promo_outcome": "ACCEPT",
+      "review_stage": "initial complete individual-frame review; unchanged chapter content",
+      "reviewed_frame_sha256": "a935e4441c10931ca6f7e2ce907e77fbdcfa395b316673fd59771aa022a51678"
+    },
+    {
+      "chapter": "02-chord",
+      "ui_outcome": "ACCEPT",
+      "promo_outcome": "ACCEPT",
+      "review_stage": "corrected final frame",
+      "reviewed_frame_sha256": "dbde2267a1d38576789f49a5ab669e604bb97f3f3911949d47197fab9a23d661"
+    },
+    {
+      "chapter": "03-zoom",
+      "ui_outcome": "ACCEPT",
+      "promo_outcome": "ACCEPT",
+      "review_stage": "initial complete individual-frame review; unchanged chapter content",
+      "reviewed_frame_sha256": "f978366045a68f5365bee181190422784ef49748aecb80eff8923777b71e5de8"
+    },
+    {
+      "chapter": "04-pads",
+      "ui_outcome": "ACCEPT",
+      "promo_outcome": "ACCEPT",
+      "review_stage": "initial complete individual-frame review; unchanged chapter content",
+      "reviewed_frame_sha256": "3fe164abb7bf84a2590688391b2919095a7b96ed7b3ce54c50352dc4ee2f5c7e"
+    },
+    {
+      "chapter": "05-jam",
+      "ui_outcome": "ACCEPT",
+      "promo_outcome": "ACCEPT",
+      "review_stage": "initial complete individual-frame review; unchanged chapter content",
+      "reviewed_frame_sha256": "f4aeaafe1dbc67a655cccc7df3cfa052069f1822111bd27074f826227d10b76e"
+    },
+    {
+      "chapter": "06-mixer",
+      "ui_outcome": "ACCEPT",
+      "promo_outcome": "ACCEPT",
+      "review_stage": "initial complete individual-frame review; unchanged chapter content",
+      "reviewed_frame_sha256": "89e5e304489241b8f79c5460d8a8369e7be969d3960d00000baa3c894f89aa10"
+    },
+    {
+      "chapter": "07-notes",
+      "ui_outcome": "ACCEPT",
+      "promo_outcome": "ACCEPT",
+      "review_stage": "initial complete individual-frame review; unchanged chapter content",
+      "reviewed_frame_sha256": "761c7ac8b7fbc91c4d51e29656876e8c416a7d230d3a275422e4b54ee0d4f71a"
+    },
+    {
+      "chapter": "08-harmony",
+      "ui_outcome": "ACCEPT",
+      "promo_outcome": "ACCEPT",
+      "review_stage": "initial complete individual-frame review; unchanged chapter content",
+      "reviewed_frame_sha256": "6686ad56f2baa3c5bbb07ba5e675206f0c708bf68fda960ffa68db9ce4e15c44"
+    },
+    {
+      "chapter": "09-commands",
+      "ui_outcome": "ACCEPT",
+      "promo_outcome": "ACCEPT",
+      "review_stage": "corrected final frame",
+      "reviewed_frame_sha256": "3c6e783da79b5ff4b3ae1811b2863948486de034296bb44248cea9c5facf7641"
+    },
+    {
+      "chapter": "10-voice",
+      "ui_outcome": "ACCEPT",
+      "promo_outcome": "ACCEPT",
+      "review_stage": "initial complete individual-frame review; unchanged chapter content",
+      "reviewed_frame_sha256": "f098c1258c4771e69f65ee9cfdc4a443621b03b2fdca8a1c7728bea825237473"
+    },
+    {
+      "chapter": "11-perform",
+      "ui_outcome": "ACCEPT",
+      "promo_outcome": "ACCEPT",
+      "review_stage": "initial complete individual-frame review; unchanged chapter content",
+      "reviewed_frame_sha256": "07824176e33f497f84dd8af4f1a0b1e0d49223a95ec20e677b161a10217f093f"
+    },
+    {
+      "chapter": "12-repeat",
+      "ui_outcome": "ACCEPT",
+      "promo_outcome": "ACCEPT",
+      "review_stage": "initial complete individual-frame review; unchanged chapter content",
+      "reviewed_frame_sha256": "abb46ac67b773cfde2a2554b6297b13ec6ded06ef3a979b612b3ffde75240a70"
+    },
+    {
+      "chapter": "13-take",
+      "ui_outcome": "ACCEPT",
+      "promo_outcome": "ACCEPT",
+      "review_stage": "initial complete individual-frame review; unchanged chapter content",
+      "reviewed_frame_sha256": "a5f4cb61df7b0871491132b9b16985c47bfd55a891fee569133392a9b25b551a"
+    },
+    {
+      "chapter": "14-export",
+      "ui_outcome": "ACCEPT",
+      "promo_outcome": "ACCEPT",
+      "review_stage": "initial complete individual-frame review; unchanged chapter content",
+      "reviewed_frame_sha256": "edd8fc51595266488b1a6dfa6d0ec6bf9da025d5155b41c2c105c1f9ba3f8c72"
+    },
+    {
+      "chapter": "15-share",
+      "ui_outcome": "ACCEPT",
+      "promo_outcome": "ACCEPT",
+      "review_stage": "initial complete individual-frame review; unchanged chapter content",
+      "reviewed_frame_sha256": "83f0d8d827f7f45e49ed0e28a8f4bb338e69caa3bf18a5e9158a24def6834bac"
+    }
+  ],
+  "result": {
+    "ui_chapters_accepted": 15,
+    "promo_chapters_accepted": 15,
+    "blocking_visual_findings_remaining": 0
+  },
+  "scope_and_limitations": [
+    "The movie shows real iOS Simulator application capture from b4a584f, composed from three actual sessions with pauses shortened by editing. It is not a physical iPhone recording or a claim of one uninterrupted session.",
+    "This review accepts UI appearance, readable captions and context at the reviewed chapter samples. Audio capture, synchronization, levels and complete-stream decoding are verified separately by the root agent; this reviewer does not claim listening approval.",
+    "Voice shows recording preparation only, explicitly BETA MONO with manual-result review; no actual human voice recognition or Voice-to-MIDI conversion result is demonstrated.",
+    "Assistant shows local Commands with visible on-device-model unavailability; there is no real FoundationModels generation claim.",
+    "The saved performance shown is 53.1 seconds and 10 events. The following export/share chapters demonstrate ordinary project WAV mixdown, not export of that live take.",
+    "No external MIDI controller, physical audio-route, device-latency, thermal or App Store release claim is established.",
+    "The later Settings theme fix and first-run guide are not demonstrated by this older b4a capture. Their accepted native screenshots and focused tests are separate evidence.",
+    "Visual acceptance does not turn the original capture job into a successful test run; its postroll failure remains preserved in the separate source/render provenance."
+  ]
+}

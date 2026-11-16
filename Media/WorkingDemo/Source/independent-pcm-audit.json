@@ -1,0 +1,620 @@
+{
+  "qualification": "Independent full FFmpeg decode and PCM/receipt analysis; no human listening approval. Source workflow FAILED its untrimmed-video coverage guard; this does not relabel that run as successful.",
+  "sha256_caf": "69384894d532321600118a8a62d1bee128f66c7571b53f4a11a435bd538c2ab0",
+  "decoded_frames": 28800000,
+  "rate": 48000,
+  "channels": 2,
+  "finite": true,
+  "peak_channels": [
+    0.08486740291118622,
+    0.08232185244560242
+  ],
+  "rms_channels": [
+    0.007926477060145943,
+    0.00728238507019316
+  ],
+  "rms": 0.007611247299082855,
+  "dc_channels": [
+    1.0686034511870677e-05,
+    1.0744490947235816e-05
+  ],
+  "samples_ge_engine_ceiling_098": 0,
+  "nonzero_samples": 29715922,
+  "sample_time_discontinuities_receipt": 0,
+  "first_host_seconds": 779.7826801250001,
+  "last_host_seconds": 1379.6826801250002,
+  "last_buffer_frames_inferred": 4800,
+  "end_host_seconds_exclusive": 1379.782680125,
+  "host_span_plus_last_buffer_seconds": 600.0,
+  "decoded_duration_seconds": 600.0,
+  "all_marker_times_inside_pcm": true,
+  "markers": [
+    {
+      "phase": "app.ready",
+      "unix_seconds": 1794809519.053955,
+      "uptime_seconds": 908.6175997916667,
+      "window_height": 956,
+      "window_width": 440
+    },
+    {
+      "phase": "grid",
+      "unix_seconds": 1794809520.317245,
+      "uptime_seconds": 909.88089275,
+      "window_height": 956,
+      "window_width": 440
+    },
+    {
+      "phase": "transport.before-play",
+      "unix_seconds": 1794809520.5145578,
+      "uptime_seconds": 910.0782062500001,
+      "window_height": 956,
+      "window_width": 440
+    },
+    {
+      "phase": "transport.playing",
+      "unix_seconds": 1794809523.901538,
+      "uptime_seconds": 913.4651859166668,
+      "window_height": 956,
+      "window_width": 440
+    },
+    {
+      "phase": "chord.edit",
+      "unix_seconds": 1794809610.051671,
+      "uptime_seconds": 999.6153194583334,
+      "window_height": 956,
+      "window_width": 440
+    },
+    {
+      "phase": "chord.applied",
+      "unix_seconds": 1794809632.092593,
+      "uptime_seconds": 1021.6562420833334,
+      "window_height": 956,
+      "window_width": 440
+    },
+    {
+      "phase": "grid.pinch",
+      "unix_seconds": 1794809642.239367,
+      "uptime_seconds": 1031.8030161666668,
+      "window_height": 956,
+      "window_width": 440
+    },
+    {
+      "phase": "jam.pads",
+      "unix_seconds": 1794809652.053369,
+      "uptime_seconds": 1041.6170177083334,
+      "window_height": 956,
+      "window_width": 440
+    },
+    {
+      "phase": "jam.recording",
+      "unix_seconds": 1794809664.385851,
+      "uptime_seconds": 1053.9494994166666,
+      "window_height": 956,
+      "window_width": 440
+    },
+    {
+      "phase": "jam.steps",
+      "unix_seconds": 1794809676.489178,
+      "uptime_seconds": 1066.0528270833333,
+      "window_height": 956,
+      "window_width": 440
+    },
+    {
+      "phase": "mixer",
+      "unix_seconds": 1794809680.577312,
+      "uptime_seconds": 1070.1409599583335,
+      "window_height": 956,
+      "window_width": 440
+    },
+    {
+      "phase": "mixer.changed",
+      "unix_seconds": 1794809692.5096822,
+      "uptime_seconds": 1082.0733309583334,
+      "window_height": 956,
+      "window_width": 440
+    },
+    {
+      "phase": "notes.added",
+      "unix_seconds": 1794809714.470119,
+      "uptime_seconds": 1104.0337669583334,
+      "window_height": 956,
+      "window_width": 440
+    },
+    {
+      "phase": "notes.undo",
+      "unix_seconds": 1794809735.667721,
+      "uptime_seconds": 1125.2313694166667,
+      "window_height": 956,
+      "window_width": 440
+    },
+    {
+      "phase": "compose.end",
+      "unix_seconds": 1794809754.701328,
+      "uptime_seconds": 1144.2649767083335,
+      "window_height": 956,
+      "window_width": 440
+    },
+    {
+      "phase": "app.ready",
+      "unix_seconds": 1794809774.446387,
+      "uptime_seconds": 1164.0095934583335,
+      "window_height": 956,
+      "window_width": 440
+    },
+    {
+      "phase": "harmony.proposal",
+      "unix_seconds": 1794809779.027945,
+      "uptime_seconds": 1168.5915938333335,
+      "window_height": 956,
+      "window_width": 440
+    },
+    {
+      "phase": "harmony.preview-b",
+      "unix_seconds": 1794809784.259359,
+      "uptime_seconds": 1173.823007375,
+      "window_height": 956,
+      "window_width": 440
+    },
+    {
+      "phase": "harmony.applied",
+      "unix_seconds": 1794809796.250359,
+      "uptime_seconds": 1185.8140045416667,
+      "window_height": 956,
+      "window_width": 440
+    },
+    {
+      "phase": "assistant.local-review",
+      "unix_seconds": 1794809807.574593,
+      "uptime_seconds": 1197.1382420416667,
+      "window_height": 956,
+      "window_width": 440
+    },
+    {
+      "phase": "assistant.applied",
+      "unix_seconds": 1794809811.941564,
+      "uptime_seconds": 1201.5052129583335,
+      "window_height": 956,
+      "window_width": 440
+    },
+    {
+      "phase": "voice.beta-preparation",
+      "unix_seconds": 1794809821.779285,
+      "uptime_seconds": 1211.3429335833334,
+      "window_height": 956,
+      "window_width": 440
+    },
+    {
+      "phase": "commands.end",
+      "unix_seconds": 1794809826.4998422,
+      "uptime_seconds": 1216.0634903333334,
+      "window_height": 956,
+      "window_width": 440
+    },
+    {
+      "phase": "app.ready",
+      "unix_seconds": 1794809839.029848,
+      "uptime_seconds": 1228.5934969166667,
+      "window_height": 956,
+      "window_width": 440
+    },
+    {
+      "phase": "perform",
+      "unix_seconds": 1794809849.2149801,
+      "uptime_seconds": 1238.7786287083334,
+      "window_height": 956,
+      "window_width": 440
+    },
+    {
+      "phase": "perform.filter",
+      "unix_seconds": 1794809873.071375,
+      "uptime_seconds": 1262.6350234166669,
+      "window_height": 956,
+      "window_width": 440
+    },
+    {
+      "phase": "perform.saved-take",
+      "unix_seconds": 1794809903.284573,
+      "uptime_seconds": 1292.8482219166667,
+      "window_height": 956,
+      "window_width": 440
+    },
+    {
+      "phase": "export.wav-options",
+      "unix_seconds": 1794809918.7021,
+      "uptime_seconds": 1308.2657485,
+      "window_height": 956,
+      "window_width": 440
+    },
+    {
+      "phase": "export.actual-share-sheet",
+      "unix_seconds": 1794809933.867621,
+      "uptime_seconds": 1323.431269375,
+      "window_height": 956,
+      "window_width": 440
+    }
+  ],
+  "windows": {
+    "journey1_compose": {
+      "host_start": 879.634649,
+      "host_end": 1147.468649,
+      "frames": 12856032,
+      "peak": 0.08486740291118622,
+      "rms": 0.010043464079038339,
+      "rms_channels": [
+        0.010575610325015285,
+        0.009481498176315958
+      ],
+      "rms_dbfs": -39.962329387374254,
+      "right_left_rms_ratio": 0.8965438291432372,
+      "stereo_difference_rms": 0.0035971370836996174,
+      "nonzero_samples": 22335070,
+      "low_40_600_power": 3100376269.652982,
+      "high_2k_12k_power": 124179710.74988602,
+      "high_low_ratio": 0.04005310967103524
+    },
+    "journey2_harmony_commands": {
+      "host_start": 1147.471648,
+      "host_end": 1217.133648,
+      "frames": 3343776,
+      "peak": 0.08043514937162399,
+      "rms": 0.004783171016472593,
+      "rms_channels": [
+        0.004783171016472971,
+        0.004783171016472971
+      ],
+      "rms_dbfs": -46.40568182357011,
+      "right_left_rms_ratio": 1.0,
+      "stereo_difference_rms": 0.0,
+      "nonzero_samples": 1219582,
+      "low_40_600_power": 90623797.84283043,
+      "high_2k_12k_power": 3205649.586642738,
+      "high_low_ratio": 0.035373154325338704
+    },
+    "journey3_perform_export": {
+      "host_start": 1217.132648,
+      "host_end": 1327.677648,
+      "frames": 5306160,
+      "peak": 0.08026563376188278,
+      "rms": 0.007457658242779752,
+      "rms_channels": [
+        0.0074576582427809636,
+        0.0074576582427809636
+      ],
+      "rms_dbfs": -42.54795045295012,
+      "right_left_rms_ratio": 1.0,
+      "stereo_difference_rms": 0.0,
+      "nonzero_samples": 6161270,
+      "low_40_600_power": 398635529.0200635,
+      "high_2k_12k_power": 20316196.455439977,
+      "high_low_ratio": 0.05096433954439985
+    },
+    "before_play_silence": {
+      "host_start": 909,
+      "host_end": 910,
+      "frames": 48000,
+      "peak": 0.0,
+      "rms": 0.0,
+      "rms_channels": [
+        0.0,
+        0.0
+      ],
+      "rms_dbfs": null,
+      "right_left_rms_ratio": null,
+      "stereo_difference_rms": 0.0,
+      "nonzero_samples": 0,
+      "low_40_600_power": 0.0,
+      "high_2k_12k_power": 0.0,
+      "high_low_ratio": null
+    },
+    "after_play_music": {
+      "host_start": 915,
+      "host_end": 919,
+      "frames": 192000,
+      "peak": 0.07015307247638702,
+      "rms": 0.010287373154404589,
+      "rms_channels": [
+        0.010287373154405026,
+        0.010287373154405026
+      ],
+      "rms_dbfs": -39.753910133881234,
+      "right_left_rms_ratio": 1.0,
+      "stereo_difference_rms": 0.0,
+      "nonzero_samples": 384000,
+      "low_40_600_power": 703960.6878676384,
+      "high_2k_12k_power": 26729.433075102217,
+      "high_low_ratio": 0.03797006499903869
+    },
+    "mixer_before_pan": {
+      "host_start": 1067,
+      "host_end": 1070,
+      "frames": 144000,
+      "peak": 0.0701528862118721,
+      "rms": 0.011412553062745195,
+      "rms_channels": [
+        0.011412553062745572,
+        0.011412553062745572
+      ],
+      "rms_dbfs": -38.852343803954454,
+      "right_left_rms_ratio": 1.0,
+      "stereo_difference_rms": 0.0,
+      "nonzero_samples": 288000,
+      "low_40_600_power": 306255.82202886377,
+      "high_2k_12k_power": 22784.606034032255,
+      "high_low_ratio": 0.07439729923529378
+    },
+    "mixer_pan_right": {
+      "host_start": 1072,
+      "host_end": 1074,
+      "frames": 96000,
+      "peak": 0.07745059579610825,
+      "rms": 0.010657727804243119,
+      "rms_channels": [
+        0.007091796881409878,
+        0.013299651908659456
+      ],
+      "rms_dbfs": -39.44670751456261,
+      "right_left_rms_ratio": 1.8753571388264902,
+      "stereo_difference_rms": 0.011110383037831666,
+      "nonzero_samples": 192000,
+      "low_40_600_power": 173301.16920137082,
+      "high_2k_12k_power": 6160.659683528471,
+      "high_low_ratio": 0.03554886393391822
+    },
+    "mixer_pan_reset": {
+      "host_start": 1076.4,
+      "host_end": 1077.5,
+      "frames": 52800,
+      "peak": 0.07325012981891632,
+      "rms": 0.010733357702799914,
+      "rms_channels": [
+        0.01280779875408627,
+        0.008146792388869563
+      ],
+      "rms_dbfs": -39.38528793964524,
+      "right_left_rms_ratio": 0.6360806056755355,
+      "stereo_difference_rms": 0.006751163884574776,
+      "nonzero_samples": 105600,
+      "low_40_600_power": 60018.96328068072,
+      "high_2k_12k_power": 879.6482637061565,
+      "high_low_ratio": 0.014656172243303362
+    },
+    "mixer_muted_harmony": {
+      "host_start": 1078.5,
+      "host_end": 1079.7,
+      "frames": 57600,
+      "peak": 0.05767897143959999,
+      "rms": 0.009956621935958736,
+      "rms_channels": [
+        0.009956621935958953,
+        0.009956621935958953
+      ],
+      "rms_dbfs": -40.03775966409159,
+      "right_left_rms_ratio": 1.0,
+      "stereo_difference_rms": 0.0,
+      "nonzero_samples": 115200,
+      "low_40_600_power": 100428.33089902469,
+      "high_2k_12k_power": 1064.5664984800994,
+      "high_low_ratio": 0.010600260792449733
+    },
+    "mixer_unmuted": {
+      "host_start": 1080.8,
+      "host_end": 1082,
+      "frames": 57600,
+      "peak": 0.07638150453567505,
+      "rms": 0.010826669559154496,
+      "rms_channels": [
+        0.013233966310119197,
+        0.007700369029396119
+      ],
+      "rms_dbfs": -39.31010236246,
+      "right_left_rms_ratio": 0.5818640344813423,
+      "stereo_difference_rms": 0.0072947641987761176,
+      "nonzero_samples": 109904,
+      "low_40_600_power": 69418.49786408778,
+      "high_2k_12k_power": 3431.3360085690874,
+      "high_low_ratio": 0.04942970698223964
+    },
+    "harmony_preview_b": {
+      "host_start": 1170.8,
+      "host_end": 1173.5,
+      "frames": 129600,
+      "peak": 0.08043514937162399,
+      "rms": 0.011557894986147243,
+      "rms_channels": [
+        0.01155789498614754,
+        0.01155789498614754
+      ],
+      "rms_dbfs": -38.74242511613984,
+      "right_left_rms_ratio": 1.0,
+      "stereo_difference_rms": 0.0,
+      "nonzero_samples": 259200,
+      "low_40_600_power": 338902.9657283098,
+      "high_2k_12k_power": 11971.4484016664,
+      "high_low_ratio": 0.03532411814673707
+    },
+    "harmony_preview_a": {
+      "host_start": 1176,
+      "host_end": 1179,
+      "frames": 144000,
+      "peak": 0.06164034083485603,
+      "rms": 0.01002515267542871,
+      "rms_channels": [
+        0.010025152675429064,
+        0.010025152675429064
+      ],
+      "rms_dbfs": -39.97818009367418,
+      "right_left_rms_ratio": 1.0,
+      "stereo_difference_rms": 0.0,
+      "nonzero_samples": 288000,
+      "low_40_600_power": 488154.5774370034,
+      "high_2k_12k_power": 15035.30759144064,
+      "high_low_ratio": 0.030800300327780816
+    },
+    "perform_before_filter": {
+      "host_start": 1241,
+      "host_end": 1244,
+      "frames": 144000,
+      "peak": 0.07229717075824738,
+      "rms": 0.010739786382101916,
+      "rms_channels": [
+        0.010739786382102164,
+        0.010739786382102164
+      ],
+      "rms_dbfs": -39.38008713622463,
+      "right_left_rms_ratio": 1.0,
+      "stereo_difference_rms": 0.0,
+      "nonzero_samples": 288000,
+      "low_40_600_power": 334953.69802285905,
+      "high_2k_12k_power": 15035.13086358945,
+      "high_low_ratio": 0.04488719172929797
+    },
+    "perform_filter_applied": {
+      "host_start": 1260,
+      "host_end": 1263,
+      "frames": 144000,
+      "peak": 0.05606267228722572,
+      "rms": 0.0040673369013922035,
+      "rms_channels": [
+        0.004067336901392288,
+        0.004067336901392288
+      ],
+      "rms_dbfs": -47.81379706159239,
+      "right_left_rms_ratio": 1.0,
+      "stereo_difference_rms": 0.0,
+      "nonzero_samples": 288000,
+      "low_40_600_power": 497.6227106005588,
+      "high_2k_12k_power": 6899.382390109724,
+      "high_low_ratio": 13.864685520046232
+    },
+    "perform_after_reset": {
+      "host_start": 1269,
+      "host_end": 1270.5,
+      "frames": 72000,
+      "peak": 0.07015307247638702,
+      "rms": 0.010463456158248426,
+      "rms_channels": [
+        0.010463456158248693,
+        0.010463456158248693
+      ],
+      "rms_dbfs": -39.60649682078147,
+      "right_left_rms_ratio": 1.0,
+      "stereo_difference_rms": 0.0,
+      "nonzero_samples": 144000,
+      "low_40_600_power": 157916.61074331793,
+      "high_2k_12k_power": 3161.5576050388763,
+      "high_low_ratio": 0.020020424641570864
+    },
+    "perform_delay": {
+      "host_start": 1276,
+      "host_end": 1278.5,
+      "frames": 120000,
+      "peak": 0.08006507158279419,
+      "rms": 0.010982093497213803,
+      "rms_channels": [
+        0.010982093497214232,
+        0.010982093497214232
+      ],
+      "rms_dbfs": -39.18629726397852,
+      "right_left_rms_ratio": 1.0,
+      "stereo_difference_rms": 0.0,
+      "nonzero_samples": 240000,
+      "low_40_600_power": 237796.74274845707,
+      "high_2k_12k_power": 16398.5627059601,
+      "high_low_ratio": 0.0689604176929648
+    },
+    "perform_repeat": {
+      "host_start": 1282.5,
+      "host_end": 1284.5,
+      "frames": 96000,
+      "peak": 0.06292901188135147,
+      "rms": 0.008619151585889655,
+      "rms_channels": [
+        0.008619151585889953,
+        0.008619151585889953
+      ],
+      "rms_dbfs": -41.29070962480597,
+      "right_left_rms_ratio": 1.0,
+      "stereo_difference_rms": 0.0,
+      "nonzero_samples": 192000,
+      "low_40_600_power": 92388.68597720437,
+      "high_2k_12k_power": 5607.59236522486,
+      "high_low_ratio": 0.060695661009925565
+    },
+    "perform_repeat_released": {
+      "host_start": 1289,
+      "host_end": 1291,
+      "frames": 96000,
+      "peak": 0.06517882645130157,
+      "rms": 0.008757737883437996,
+      "rms_channels": [
+        0.008757737883438265,
+        0.008757737883438265
+      ],
+      "rms_dbfs": -41.152161145152384,
+      "right_left_rms_ratio": 1.0,
+      "stereo_difference_rms": 0.0,
+      "nonzero_samples": 192000,
+      "low_40_600_power": 109451.02979262522,
+      "high_2k_12k_power": 5500.844708669821,
+      "high_low_ratio": 0.05025850116798505
+    },
+    "export_share_silence": {
+      "host_start": 1323.5,
+      "host_end": 1327,
+      "frames": 168000,
+      "peak": 0.0,
+      "rms": 0.0,
+      "rms_channels": [
+        0.0,
+        0.0
+      ],
+      "rms_dbfs": null,
+      "right_left_rms_ratio": null,
+      "stereo_difference_rms": 0.0,
+      "nonzero_samples": 0,
+      "low_40_600_power": 0.0,
+      "high_2k_12k_power": 0.0,
+      "high_low_ratio": null
+    }
+  },
+  "source_workflow": {
+    "source_sha": "b4a584fc1cc60d73a97386986c2330ca7e45980c",
+    "run_id": 43813957218,
+    "outer_conclusion": "FAILURE",
+    "ui_methods_passed": 3,
+    "ui_failures": 0,
+    "test_exit_code": 0,
+    "failure_qualification": "The 600-second recorder ended before untrimmed video capture bookkeeping stopped. This audit does not relabel the original run as successful."
+  },
+  "independent_video_decode": {
+    "file": "NativeDemoRaw/screen.mp4",
+    "ffmpeg_full_passthrough_decode_exit": 0,
+    "stderr_bytes": 0,
+    "duration_seconds": 537.736667,
+    "qualification": "Decode integrity only; wall clock to PTS alignment requires visual/frame anchors. Default null-output timebase rounding produced duplicate-DTS output warnings; preserving demux timebase and passthrough FPS decoded without warnings."
+  },
+  "journey_bounds_host_seconds": {
+    "test01ComposeJamAndMix": [
+      879.634649,
+      1147.468649
+    ],
+    "test02HarmonyCommandsAndVoiceSetup": [
+      1147.471648,
+      1217.133648
+    ],
+    "test03PerformAndExport": [
+      1217.132648,
+      1327.677648
+    ]
+  },
+  "coverage_decision": {
+    "all_29_authored_markers_covered": true,
+    "all_3_full_test_intervals_covered": true,
+    "last_authored_marker_host_seconds": 1323.431269375,
+    "test_suite_end_host_seconds_approx": 1327.677648,
+    "proposed_edl_max_host_seconds": 1328,
+    "margin_after_proposed_edl_end_seconds": 51.78268012500007,
+    "source_audio_suitable_for_fully_covered_edited_clips": true,
+    "qualification": "Qualified YES for cuts whose complete host-time bounds lie within this PCM and whose source-video PTS anchors are independently established. No approval of an unreviewed edited/muxed file; no synthetic postroll padding, substitute audio, or workflow-success relabeling."
+  }
+}

@@ -1,4 +1,5 @@
 import XCTest
+import UIKit
 final class StudioTests: XCTestCase {
     override func setUp(){super.setUp();continueAfterFailure=false;executionTimeAllowance=120}
     @MainActor func launch(_ screen: String = "grid") -> XCUIApplication {
@@ -22,6 +23,101 @@ final class StudioTests: XCTestCase {
         XCUIDevice.shared.press(.home);Thread.sleep(forTimeInterval:1);app.activate()
         XCTAssertTrue(app.buttons["Play"].waitForExistence(timeout:10));XCTAssertTrue(app.staticTexts["STOPPED"].exists)
         app.buttons["Play"].tap();XCTAssertTrue(app.buttons["Stop"].waitForExistence(timeout:5));app.buttons["Stop"].tap()
+    }
+    @MainActor func testWelcomeCanBeSkippedAndReopenedWithoutRepeatingOnLaunch() {
+        XCUIDevice.shared.orientation = .portrait
+        let app=XCUIApplication()
+        app.launchArguments=["--uitesting","--respect-welcome","--show-welcome","-AppleLanguages","(en)","-AppleLocale","en_US"]
+        app.launch()
+        XCTAssertTrue(app.staticTexts["welcome.title"].waitForExistence(timeout:15))
+        XCTAssertTrue(app.buttons["welcome.skip"].isHittable)
+        let welcomeShot=XCTAttachment(screenshot:XCUIScreen.main.screenshot());welcomeShot.name="ProfessionalShell-welcome";welcomeShot.lifetime = .keepAlways;add(welcomeShot)
+        app.buttons["welcome.skip"].tap()
+        XCTAssertTrue(app.buttons["perform.transport"].waitForExistence(timeout:5))
+        app.terminate();app.launchArguments.removeAll{$0=="--show-welcome"};app.launch()
+        XCTAssertTrue(app.buttons["perform.transport"].waitForExistence(timeout:15))
+        XCTAssertFalse(app.staticTexts["welcome.title"].waitForExistence(timeout:2),"A completed first session guide must not block the returning studio")
+        app.buttons["tools.more"].tap();app.buttons["Settings"].tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout:5))
+        let help=app.buttons["settings.help"]
+        let scroll=app.collectionViews.firstMatch.exists ? app.collectionViews.firstMatch:app.tables.firstMatch.exists ? app.tables.firstMatch:app.scrollViews.firstMatch
+        reveal(help,in:scroll);XCTAssertTrue(help.isHittable);help.tap()
+        XCTAssertTrue(app.staticTexts["welcome.title"].waitForExistence(timeout:5))
+        app.buttons["welcome.skip"].tap()
+        XCTAssertTrue(app.buttons["perform.transport"].waitForExistence(timeout:5))
+    }
+    @MainActor func testAppThemePersistsAndSystemSettingsEntryIsReachable() {
+        XCUIDevice.shared.orientation = .portrait
+        let app=XCUIApplication()
+        app.launchArguments=["--uitesting","--respect-appearance","-AppleLanguages","(en)","-AppleLocale","en_US"]
+        app.launch();XCTAssertTrue(app.buttons["perform.transport"].waitForExistence(timeout:15))
+        app.buttons["tools.more"].tap();app.buttons["Settings"].tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout:5))
+        let theme=app.buttons["settings.theme"]
+        XCTAssertTrue(theme.waitForExistence(timeout:5));theme.tap();app.buttons["Light"].tap()
+        waitForSettingsTheme(theme,light:true)
+        XCTAssertTrue(app.buttons["settings.system"].isHittable)
+        let shot=XCTAttachment(data:XCUIScreen.main.screenshot().pngRepresentation,uniformTypeIdentifier:"public.png");shot.name="ProfessionalShell-settings-light";shot.lifetime = .keepAlways;add(shot)
+        app.terminate();app.launch()
+        XCTAssertTrue(app.buttons["perform.transport"].waitForExistence(timeout:15))
+        app.buttons["tools.more"].tap();app.buttons["Settings"].tap()
+        XCTAssertTrue(theme.waitForExistence(timeout:5))
+        XCTAssertTrue(theme.label.contains("Light") || (theme.value as? String)=="Light","Theme selection must survive relaunch")
+        waitForSettingsTheme(theme,light:true)
+        theme.tap();app.buttons["Dark"].tap()
+        waitForSettingsTheme(theme,light:false)
+        let darkShot=XCTAttachment(screenshot:XCUIScreen.main.screenshot());darkShot.name="ProfessionalShell-settings-dark";darkShot.lifetime = .keepAlways;add(darkShot)
+        app.buttons["Done"].tap()
+    }
+    /// A selected Picker value can update before its presented Form has adopted
+    /// the requested appearance. Check rendered cell pixels, not the stored
+    /// preference, before preserving a light/dark screenshot. A persistent modal
+    /// trait mismatch fails instead of being accepted after a fixed sleep.
+    @MainActor private func waitForSettingsTheme(_ element:XCUIElement,light:Bool) {
+        let deadline=Date().addingTimeInterval(5)
+        var matchingSamples=0
+        var lastLuma:Double?
+        var lastScreenshot:XCUIScreenshot?
+        repeat {
+            let shot=element.screenshot();lastScreenshot=shot
+            if let luma=backgroundLuma(shot) {
+                lastLuma=luma
+                matchingSamples = (light ? luma>0.72:luma<0.28) ? matchingSamples+1:0
+                if matchingSamples>=2{return}
+            } else {matchingSamples=0}
+            Thread.sleep(forTimeInterval:0.15)
+        } while Date()<deadline
+        if let lastScreenshot {
+            let shot=XCTAttachment(screenshot:lastScreenshot)
+            shot.name=light ? "ProfessionalShell-theme-unsettled-light":"ProfessionalShell-theme-unsettled-dark"
+            shot.lifetime = .keepAlways;add(shot)
+        }
+        XCTFail("The presented Settings row did not adopt \(light ? "light":"dark") appearance; median rendered luminance=\(lastLuma.map(String.init(describing:)) ?? "unreadable")")
+    }
+    @MainActor private func backgroundLuma(_ screenshot:XCUIScreenshot)->Double? {
+        guard let image=UIImage(data:screenshot.pngRepresentation)?.cgImage else{return nil}
+        let width=40,height=20
+        var pixels=[UInt8](repeating:0,count:width*height*4)
+        let rendered=pixels.withUnsafeMutableBytes { bytes -> Bool in
+            guard let context=CGContext(data:bytes.baseAddress,width:width,height:height,bitsPerComponent:8,bytesPerRow:width*4,space:CGColorSpaceCreateDeviceRGB(),bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue|CGBitmapInfo.byteOrder32Big.rawValue)else{return false}
+            context.interpolationQuality = .low
+            context.draw(image,in:CGRect(x:0,y:0,width:CGFloat(width),height:CGFloat(height)))
+            return true
+        }
+        guard rendered else{return nil}
+        // Background occupies most of a normal Form row; the median ignores
+        // text/checkmarks and remains independent of exact font/glyph geometry.
+        var values:[Double]=[]
+        values.reserveCapacity(width*height)
+        for offset in stride(from:0,to:pixels.count,by:4) {
+            let red=Double(pixels[offset])/255.0
+            let green=Double(pixels[offset+1])/255.0
+            let blue=Double(pixels[offset+2])/255.0
+            let luminance:Double=0.2126*red+0.7152*green+0.0722*blue
+            values.append(luminance)
+        }
+        values.sort()
+        return values[values.count/2]
     }
     @MainActor func testRussianInterfaceAndLightAppearance() {
         XCUIDevice.shared.orientation = .portrait

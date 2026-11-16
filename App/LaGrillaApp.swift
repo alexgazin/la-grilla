@@ -5,8 +5,8 @@ import MusicDomain
     @State private var session = Session()
     @AppStorage("studio.appearance") private var appearance=0
     @Environment(\.scenePhase) private var phase
-    var body: some Scene {WindowGroup {StudioView(session:session).modifier(StudioQATypeSize()).preferredColorScheme(appearance==1 ? .light:appearance==2 ? .dark:nil).tint(.mint).task {
-        if ProcessInfo.processInfo.arguments.contains("--uitesting"){appearance=2}
+    var body: some Scene {WindowGroup {AppStartView(session:session).modifier(StudioQATypeSize()).preferredColorScheme(appearance==1 ? .light:appearance==2 ? .dark:nil).tint(.mint).task {
+        if ProcessInfo.processInfo.arguments.contains("--uitesting") && !ProcessInfo.processInfo.arguments.contains("--respect-appearance"){appearance=2}
         if let index=ProcessInfo.processInfo.arguments.firstIndex(of:"--appearance"),ProcessInfo.processInfo.arguments.count>index+1{appearance=ProcessInfo.processInfo.arguments[index+1]=="light" ? 1:2}
         await session.bootstrap()
         if let index=ProcessInfo.processInfo.arguments.firstIndex(of:"--screen"),ProcessInfo.processInfo.arguments.count>index+1 {

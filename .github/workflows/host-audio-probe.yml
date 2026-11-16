@@ -1,0 +1,37 @@
+name: Host audio capture probe
+on:
+  workflow_dispatch:
+  push:
+    branches: [feat/host-audio-probe]
+    paths:
+      - Demos/record_host_audio.swift
+      - Demos/AudioRecorderInfo.plist
+      - scripts/host_audio_probe.py
+      - scripts/host_audio_consent.py
+      - .github/workflows/host-audio-probe.yml
+concurrency:
+  group: host-audio-probe-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  probe:
+    runs-on: macos-15
+    timeout-minutes: 12
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare real virtual audio route without launching Simulator
+        env:
+          GRILLA_CI_AUDIO_LOG: host-audio-route.log
+        run: bash scripts/setup_ci_audio.sh
+      - name: Exercise normal host consent and actual loopback capture
+        run: python3 scripts/host_audio_probe.py --output HostAudioProbe
+      - name: Preserve actual probe and normal-consent diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: host-audio-probe
+          retention-days: 3
+          path: |
+            HostAudioProbe
+            host-audio-route.log

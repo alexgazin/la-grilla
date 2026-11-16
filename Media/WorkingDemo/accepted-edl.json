@@ -1,0 +1,1028 @@
+{
+  "status": "Actual source clips accepted; final promo caption glyph replacement pending two-frame visual re-review",
+  "source_sha": "b4a584fc1cc60d73a97386986c2330ca7e45980c",
+  "source_run_id": 43813957218,
+  "source_run_conclusion": "failure: original full wall-stop PCM coverage guard rejected unused post-test bookkeeping tail; 3 actual UI methods passed",
+  "video": "/workspace/Artifacts/NativeDemoB4A/NativeDemoRaw/screen.mp4",
+  "audio": "/workspace/Artifacts/NativeDemoB4A/NativeDemoRaw/audio.caf",
+  "video_duration": 537.736667,
+  "video_t0_host": 792.654201,
+  "audio_video_offset_seconds": 12.871520875,
+  "fixed_audio_gain_db": 17,
+  "sync_qualification": "First actual Play glyph transition aligned with first PCM onset; second Compose stop residual +0.1596s, no time rescaling. Original VFR transition uncertainty remains disclosed.",
+  "scope_qualification": "Every selected clip and all authored interactions are inside actual captured PCM. Raw originals and original workflow failure remain unchanged. Cuts remove idle waits, three app sessions are separate, playback speed stays 1x.",
+  "duration_seconds": 132.2,
+  "blocks": [
+    {
+      "id": "grid",
+      "title": [
+        "Сначала идея.",
+        "Потом грув."
+      ],
+      "caption": "Настоящий Play и движение по сетке.",
+      "timeline_start": 0,
+      "clips": [
+        {
+          "source_start": 117.4,
+          "source_end": 125.0,
+          "duration": 7.6,
+          "output_start": 0,
+          "output_end": 7.6,
+          "speed": 1.0,
+          "audio_start": 130.271520875,
+          "audio_end": 137.871520875,
+          "audio_gain_db": 17
+        }
+      ],
+      "timeline_end": 7.6
+    },
+    {
+      "id": "chord",
+      "title": [
+        "Каждый аккорд",
+        "под рукой."
+      ],
+      "caption": "Открыть · набрать Cmaj7 · Set · Apply.",
+      "timeline_start": 7.6,
+      "clips": [
+        {
+          "source_start": 127.0,
+          "source_end": 130.4,
+          "duration": 3.4,
+          "output_start": 7.6,
+          "output_end": 11.0,
+          "speed": 1.0,
+          "audio_start": 139.871520875,
+          "audio_end": 143.271520875,
+          "audio_gain_db": 17
+        },
+        {
+          "source_start": 173.2,
+          "source_end": 176.8,
+          "duration": 3.6,
+          "output_start": 11.0,
+          "output_end": 14.6,
+          "speed": 1.0,
+          "audio_start": 186.071520875,
+          "audio_end": 189.671520875,
+          "audio_gain_db": 17
+        },
+        {
+          "source_start": 197.0,
+          "source_end": 201.5,
+          "duration": 4.5,
+          "output_start": 14.6,
+          "output_end": 19.1,
+          "speed": 1.0,
+          "audio_start": 209.871520875,
+          "audio_end": 214.371520875,
+          "audio_gain_db": 17
+        },
+        {
+          "source_start": 216.8,
+          "source_end": 221.0,
+          "duration": 4.2,
+          "output_start": 19.1,
+          "output_end": 23.3,
+          "speed": 1.0,
+          "audio_start": 229.671520875,
+          "audio_end": 233.871520875,
+          "audio_gain_db": 17
+        }
+      ],
+      "timeline_end": 23.3
+    },
+    {
+      "id": "zoom",
+      "title": [
+        "Ближе.",
+        "И шире."
+      ],
+      "caption": "Два настоящих pinch-жеста на таймлайне.",
+      "timeline_start": 23.3,
+      "clips": [
+        {
+          "source_start": 235.5,
+          "source_end": 240.0,
+          "duration": 4.5,
+          "output_start": 23.3,
+          "output_end": 27.8,
+          "speed": 1.0,
+          "audio_start": 248.371520875,
+          "audio_end": 252.871520875,
+          "audio_gain_db": 17
+        },
+        {
+          "source_start": 242.7,
+          "source_end": 246.4,
+          "duration": 3.7,
+          "output_start": 27.8,
+          "output_end": 31.5,
+          "speed": 1.0,
+          "audio_start": 255.571520875,
+          "audio_end": 259.271520875,
+          "audio_gain_db": 17
+        }
+      ],
+      "timeline_end": 31.5
+    },
+    {
+      "id": "pads",
+      "title": [
+        "Играй",
+        "пальцами."
+      ],
+      "caption": "Kick, Closed hat, Snare и Open hat.",
+      "timeline_start": 31.5,
+      "clips": [
+        {
+          "source_start": 250.0,
+          "source_end": 258.1,
+          "duration": 8.1,
+          "output_start": 31.5,
+          "output_end": 39.6,
+          "speed": 1.0,
+          "audio_start": 262.871520875,
+          "audio_end": 270.971520875,
+          "audio_gain_db": 17
+        }
+      ],
+      "timeline_end": 39.6
+    },
+    {
+      "id": "jam",
+      "title": [
+        "Запиши грув.",
+        "Измени шаг."
+      ],
+      "caption": "Count-in, настоящий overdub и step editor.",
+      "timeline_start": 39.6,
+      "clips": [
+        {
+          "source_start": 258.2,
+          "source_end": 269.4,
+          "duration": 11.2,
+          "output_start": 39.6,
+          "output_end": 50.8,
+          "speed": 1.0,
+          "audio_start": 271.071520875,
+          "audio_end": 282.271520875,
+          "audio_gain_db": 17
+        },
+        {
+          "source_start": 271.1,
+          "source_end": 274.3,
+          "duration": 3.2,
+          "output_start": 50.8,
+          "output_end": 54.0,
+          "speed": 1.0,
+          "audio_start": 283.971520875,
+          "audio_end": 287.171520875,
+          "audio_gain_db": 17
+        }
+      ],
+      "timeline_end": 54.0
+    },
+    {
+      "id": "mixer",
+      "title": [
+        "Найди",
+        "свой баланс."
+      ],
+      "caption": "Реальные pan и mute меняют звук.",
+      "timeline_start": 54.0,
+      "clips": [
+        {
+          "source_start": 278.4,
+          "source_end": 280.5,
+          "duration": 2.1,
+          "output_start": 54.0,
+          "output_end": 56.1,
+          "speed": 1.0,
+          "audio_start": 291.271520875,
+          "audio_end": 293.371520875,
+          "audio_gain_db": 17
+        },
+        {
+          "source_start": 283.0,
+          "source_end": 284.6,
+          "duration": 1.6,
+          "output_start": 56.1,
+          "output_end": 57.7,
+          "speed": 1.0,
+          "audio_start": 295.871520875,
+          "audio_end": 297.471520875,
+          "audio_gain_db": 17
+        },
+        {
+          "source_start": 285.0,
+          "source_end": 288.9,
+          "duration": 3.9,
+          "output_start": 57.7,
+          "output_end": 61.6,
+          "speed": 1.0,
+          "audio_start": 297.871520875,
+          "audio_end": 301.771520875,
+          "audio_gain_db": 17
+        }
+      ],
+      "timeline_end": 61.6
+    },
+    {
+      "id": "notes",
+      "title": [
+        "Добавляй.",
+        "Копируй."
+      ],
+      "caption": "Ноты, Paste и один Undo — через живые контролы.",
+      "timeline_start": 61.6,
+      "clips": [
+        {
+          "source_start": 300.6,
+          "source_end": 302.1,
+          "duration": 1.5,
+          "output_start": 61.6,
+          "output_end": 63.1,
+          "speed": 1.0,
+          "audio_start": 313.471520875,
+          "audio_end": 314.971520875,
+          "audio_gain_db": 17
+        },
+        {
+          "source_start": 304.3,
+          "source_end": 306.0,
+          "duration": 1.7,
+          "output_start": 63.1,
+          "output_end": 64.8,
+          "speed": 1.0,
+          "audio_start": 317.171520875,
+          "audio_end": 318.871520875,
+          "audio_gain_db": 17
+        },
+        {
+          "source_start": 309.0,
+          "source_end": 311.0,
+          "duration": 2.0,
+          "output_start": 64.8,
+          "output_end": 66.8,
+          "speed": 1.0,
+          "audio_start": 321.871520875,
+          "audio_end": 323.871520875,
+          "audio_gain_db": 17
+        },
+        {
+          "source_start": 317.7,
+          "source_end": 319.3,
+          "duration": 1.6,
+          "output_start": 66.8,
+          "output_end": 68.4,
+          "speed": 1.0,
+          "audio_start": 330.571520875,
+          "audio_end": 332.171520875,
+          "audio_gain_db": 17
+        },
+        {
+          "source_start": 322.3,
+          "source_end": 324.9,
+          "duration": 2.6,
+          "output_start": 68.4,
+          "output_end": 71.0,
+          "speed": 1.0,
+          "audio_start": 335.171520875,
+          "audio_end": 337.771520875,
+          "audio_gain_db": 17
+        },
+        {
+          "source_start": 330.3,
+          "source_end": 333.3,
+          "duration": 3.0,
+          "output_start": 71.0,
+          "output_end": 74.0,
+          "speed": 1.0,
+          "audio_start": 343.171520875,
+          "audio_end": 346.171520875,
+          "audio_gain_db": 17
+        }
+      ],
+      "timeline_end": 74.0
+    },
+    {
+      "id": "harmony",
+      "title": [
+        "Почувствуй",
+        "новый цвет."
+      ],
+      "caption": "Настоящее сравнение A/B и применение гармонии.",
+      "timeline_start": 74.0,
+      "clips": [
+        {
+          "source_start": 375.0,
+          "source_end": 385.3,
+          "duration": 10.3,
+          "output_start": 74.0,
+          "output_end": 84.3,
+          "speed": 1.0,
+          "audio_start": 387.871520875,
+          "audio_end": 398.171520875,
+          "audio_gain_db": 17
+        },
+        {
+          "source_start": 388.6,
+          "source_end": 391.2,
+          "duration": 2.6,
+          "output_start": 84.3,
+          "output_end": 86.9,
+          "speed": 1.0,
+          "audio_start": 401.471520875,
+          "audio_end": 404.071520875,
+          "audio_gain_db": 17
+        }
+      ],
+      "timeline_end": 86.9
+    },
+    {
+      "id": "commands",
+      "title": [
+        "Опиши",
+        "свою идею."
+      ],
+      "caption": "Локальные Commands: tempo 108 · Apply · Undo.",
+      "timeline_start": 86.9,
+      "clips": [
+        {
+          "source_start": 397.8,
+          "source_end": 400.0,
+          "duration": 2.2,
+          "output_start": 86.9,
+          "output_end": 89.1,
+          "speed": 1.0,
+          "audio_start": 410.671520875,
+          "audio_end": 412.871520875,
+          "audio_gain_db": 17
+        },
+        {
+          "source_start": 402.4,
+          "source_end": 405.2,
+          "duration": 2.8,
+          "output_start": 89.1,
+          "output_end": 91.9,
+          "speed": 1.0,
+          "audio_start": 415.271520875,
+          "audio_end": 418.071520875,
+          "audio_gain_db": 17
+        },
+        {
+          "source_start": 406.8,
+          "source_end": 409.8,
+          "duration": 3.0,
+          "output_start": 91.9,
+          "output_end": 94.9,
+          "speed": 1.0,
+          "audio_start": 419.671520875,
+          "audio_end": 422.671520875,
+          "audio_gain_db": 17
+        },
+        {
+          "source_start": 411.0,
+          "source_end": 412.1,
+          "duration": 1.1,
+          "output_start": 94.9,
+          "output_end": 96.0,
+          "speed": 1.0,
+          "audio_start": 423.871520875,
+          "audio_end": 424.971520875,
+          "audio_gain_db": 17
+        }
+      ],
+      "timeline_end": 96.0
+    },
+    {
+      "id": "voice",
+      "title": [
+        "Напеть идею.",
+        "BETA · MONO."
+      ],
+      "caption": "Подготовка записи; результат проверяют вручную.",
+      "timeline_start": 96.0,
+      "clips": [
+        {
+          "source_start": 418.0,
+          "source_end": 421.5,
+          "duration": 3.5,
+          "output_start": 96.0,
+          "output_end": 99.5,
+          "speed": 1.0,
+          "audio_start": 430.871520875,
+          "audio_end": 434.371520875,
+          "audio_gain_db": 17
+        }
+      ],
+      "timeline_end": 99.5
+    },
+    {
+      "id": "perform",
+      "title": [
+        "Теперь",
+        "сыграй трек."
+      ],
+      "caption": "Record take, круговой фильтр, reset и delay.",
+      "timeline_start": 99.5,
+      "clips": [
+        {
+          "source_start": 446.2,
+          "source_end": 449.2,
+          "duration": 3.0,
+          "output_start": 99.5,
+          "output_end": 102.5,
+          "speed": 1.0,
+          "audio_start": 459.071520875,
+          "audio_end": 462.071520875,
+          "audio_gain_db": 17
+        },
+        {
+          "source_start": 466.4,
+          "source_end": 471.4,
+          "duration": 5.0,
+          "output_start": 102.5,
+          "output_end": 107.5,
+          "speed": 1.0,
+          "audio_start": 479.271520875,
+          "audio_end": 484.271520875,
+          "audio_gain_db": 17
+        },
+        {
+          "source_start": 475.0,
+          "source_end": 477.6,
+          "duration": 2.6,
+          "output_start": 107.5,
+          "output_end": 110.1,
+          "speed": 1.0,
+          "audio_start": 487.871520875,
+          "audio_end": 490.471520875,
+          "audio_gain_db": 17
+        },
+        {
+          "source_start": 481.8,
+          "source_end": 485.0,
+          "duration": 3.2,
+          "output_start": 110.1,
+          "output_end": 113.3,
+          "speed": 1.0,
+          "audio_start": 494.671520875,
+          "audio_end": 497.871520875,
+          "audio_gain_db": 17
+        }
+      ],
+      "timeline_end": 113.3
+    },
+    {
+      "id": "repeat",
+      "title": [
+        "Поймай",
+        "момент."
+      ],
+      "caption": "Настоящий Repeat и возврат к исполнению.",
+      "timeline_start": 113.3,
+      "clips": [
+        {
+          "source_start": 489.5,
+          "source_end": 492.3,
+          "duration": 2.8,
+          "output_start": 113.3,
+          "output_end": 116.1,
+          "speed": 1.0,
+          "audio_start": 502.371520875,
+          "audio_end": 505.171520875,
+          "audio_gain_db": 17
+        },
+        {
+          "source_start": 496.9,
+          "source_end": 498.8,
+          "duration": 1.9,
+          "output_start": 116.1,
+          "output_end": 118.0,
+          "speed": 1.0,
+          "audio_start": 509.771520875,
+          "audio_end": 511.671520875,
+          "audio_gain_db": 17
+        }
+      ],
+      "timeline_end": 118.0
+    },
+    {
+      "id": "take",
+      "title": [
+        "Исполнение",
+        "сохранено."
+      ],
+      "caption": "Законченный live take: 53,1 секунды и 10 событий.",
+      "timeline_start": 118.0,
+      "clips": [
+        {
+          "source_start": 499.3,
+          "source_end": 503.8,
+          "duration": 4.5,
+          "output_start": 118.0,
+          "output_end": 122.5,
+          "speed": 1.0,
+          "audio_start": 512.171520875,
+          "audio_end": 516.671520875,
+          "audio_gain_db": 17
+        }
+      ],
+      "timeline_end": 122.5
+    },
+    {
+      "id": "export",
+      "title": [
+        "Продолжай",
+        "в своей DAW."
+      ],
+      "caption": "Настройки WAV 48 kHz / 24 bit и настоящий Export.",
+      "timeline_start": 122.5,
+      "clips": [
+        {
+          "source_start": 514.8,
+          "source_end": 517.8,
+          "duration": 3.0,
+          "output_start": 122.5,
+          "output_end": 125.5,
+          "speed": 1.0,
+          "audio_start": 527.671520875,
+          "audio_end": 530.671520875,
+          "audio_gain_db": 17
+        },
+        {
+          "source_start": 519.0,
+          "source_end": 522.0,
+          "duration": 3.0,
+          "output_start": 125.5,
+          "output_end": 128.5,
+          "speed": 1.0,
+          "audio_start": 531.871520875,
+          "audio_end": 534.871520875,
+          "audio_gain_db": 17
+        }
+      ],
+      "timeline_end": 128.5
+    },
+    {
+      "id": "share",
+      "title": [
+        "Твоя музыка.",
+        "С собой."
+      ],
+      "caption": "Готовый WAV в системном меню iOS.",
+      "timeline_start": 128.5,
+      "clips": [
+        {
+          "source_start": 531.0,
+          "source_end": 534.7,
+          "duration": 3.7,
+          "output_start": 128.5,
+          "output_end": 132.2,
+          "speed": 1.0,
+          "audio_start": 543.871520875,
+          "audio_end": 547.571520875,
+          "audio_gain_db": 17
+        }
+      ],
+      "timeline_end": 132.2
+    }
+  ],
+  "clips": [
+    {
+      "block": "grid",
+      "source_start": 117.4,
+      "source_end": 125.0,
+      "duration": 7.6,
+      "output_start": 0,
+      "output_end": 7.6,
+      "speed": 1.0,
+      "audio_start": 130.271520875,
+      "audio_end": 137.871520875,
+      "audio_gain_db": 17
+    },
+    {
+      "block": "chord",
+      "source_start": 127.0,
+      "source_end": 130.4,
+      "duration": 3.4,
+      "output_start": 7.6,
+      "output_end": 11.0,
+      "speed": 1.0,
+      "audio_start": 139.871520875,
+      "audio_end": 143.271520875,
+      "audio_gain_db": 17
+    },
+    {
+      "block": "chord",
+      "source_start": 173.2,
+      "source_end": 176.8,
+      "duration": 3.6,
+      "output_start": 11.0,
+      "output_end": 14.6,
+      "speed": 1.0,
+      "audio_start": 186.071520875,
+      "audio_end": 189.671520875,
+      "audio_gain_db": 17
+    },
+    {
+      "block": "chord",
+      "source_start": 197.0,
+      "source_end": 201.5,
+      "duration": 4.5,
+      "output_start": 14.6,
+      "output_end": 19.1,
+      "speed": 1.0,
+      "audio_start": 209.871520875,
+      "audio_end": 214.371520875,
+      "audio_gain_db": 17
+    },
+    {
+      "block": "chord",
+      "source_start": 216.8,
+      "source_end": 221.0,
+      "duration": 4.2,
+      "output_start": 19.1,
+      "output_end": 23.3,
+      "speed": 1.0,
+      "audio_start": 229.671520875,
+      "audio_end": 233.871520875,
+      "audio_gain_db": 17
+    },
+    {
+      "block": "zoom",
+      "source_start": 235.5,
+      "source_end": 240.0,
+      "duration": 4.5,
+      "output_start": 23.3,
+      "output_end": 27.8,
+      "speed": 1.0,
+      "audio_start": 248.371520875,
+      "audio_end": 252.871520875,
+      "audio_gain_db": 17
+    },
+    {
+      "block": "zoom",
+      "source_start": 242.7,
+      "source_end": 246.4,
+      "duration": 3.7,
+      "output_start": 27.8,
+      "output_end": 31.5,
+      "speed": 1.0,
+      "audio_start": 255.571520875,
+      "audio_end": 259.271520875,
+      "audio_gain_db": 17
+    },
+    {
+      "block": "pads",
+      "source_start": 250.0,
+      "source_end": 258.1,
+      "duration": 8.1,
+      "output_start": 31.5,
+      "output_end": 39.6,
+      "speed": 1.0,
+      "audio_start": 262.871520875,
+      "audio_end": 270.971520875,
+      "audio_gain_db": 17
+    },
+    {
+      "block": "jam",
+      "source_start": 258.2,
+      "source_end": 269.4,
+      "duration": 11.2,
+      "output_start": 39.6,
+      "output_end": 50.8,
+      "speed": 1.0,
+      "audio_start": 271.071520875,
+      "audio_end": 282.271520875,
+      "audio_gain_db": 17
+    },
+    {
+      "block": "jam",
+      "source_start": 271.1,
+      "source_end": 274.3,
+      "duration": 3.2,
+      "output_start": 50.8,
+      "output_end": 54.0,
+      "speed": 1.0,
+      "audio_start": 283.971520875,
+      "audio_end": 287.171520875,
+      "audio_gain_db": 17
+    },
+    {
+      "block": "mixer",
+      "source_start": 278.4,
+      "source_end": 280.5,
+      "duration": 2.1,
+      "output_start": 54.0,
+      "output_end": 56.1,
+      "speed": 1.0,
+      "audio_start": 291.271520875,
+      "audio_end": 293.371520875,
+      "audio_gain_db": 17
+    },
+    {
+      "block": "mixer",
+      "source_start": 283.0,
+      "source_end": 284.6,
+      "duration": 1.6,
+      "output_start": 56.1,
+      "output_end": 57.7,
+      "speed": 1.0,
+      "audio_start": 295.871520875,
+      "audio_end": 297.471520875,
+      "audio_gain_db": 17
+    },
+    {
+      "block": "mixer",
+      "source_start": 285.0,
+      "source_end": 288.9,
+      "duration": 3.9,
+      "output_start": 57.7,
+      "output_end": 61.6,
+      "speed": 1.0,
+      "audio_start": 297.871520875,
+      "audio_end": 301.771520875,
+      "audio_gain_db": 17
+    },
+    {
+      "block": "notes",
+      "source_start": 300.6,
+      "source_end": 302.1,
+      "duration": 1.5,
+      "output_start": 61.6,
+      "output_end": 63.1,
+      "speed": 1.0,
+      "audio_start": 313.471520875,
+      "audio_end": 314.971520875,
+      "audio_gain_db": 17
+    },
+    {
+      "block": "notes",
+      "source_start": 304.3,
+      "source_end": 306.0,
+      "duration": 1.7,
+      "output_start": 63.1,
+      "output_end": 64.8,
+      "speed": 1.0,
+      "audio_start": 317.171520875,
+      "audio_end": 318.871520875,
+      "audio_gain_db": 17
+    },
+    {
+      "block": "notes",
+      "source_start": 309.0,
+      "source_end": 311.0,
+      "duration": 2.0,
+      "output_start": 64.8,
+      "output_end": 66.8,
+      "speed": 1.0,
+      "audio_start": 321.871520875,
+      "audio_end": 323.871520875,
+      "audio_gain_db": 17
+    },
+    {
+      "block": "notes",
+      "source_start": 317.7,
+      "source_end": 319.3,
+      "duration": 1.6,
+      "output_start": 66.8,
+      "output_end": 68.4,
+      "speed": 1.0,
+      "audio_start": 330.571520875,
+      "audio_end": 332.171520875,
+      "audio_gain_db": 17
+    },
+    {
+      "block": "notes",
+      "source_start": 322.3,
+      "source_end": 324.9,
+      "duration": 2.6,
+      "output_start": 68.4,
+      "output_end": 71.0,
+      "speed": 1.0,
+      "audio_start": 335.171520875,
+      "audio_end": 337.771520875,
+      "audio_gain_db": 17
+    },
+    {
+      "block": "notes",
+      "source_start": 330.3,
+      "source_end": 333.3,
+      "duration": 3.0,
+      "output_start": 71.0,
+      "output_end": 74.0,
+      "speed": 1.0,
+      "audio_start": 343.171520875,
+      "audio_end": 346.171520875,
+      "audio_gain_db": 17
+    },
+    {
+      "block": "harmony",
+      "source_start": 375.0,
+      "source_end": 385.3,
+      "duration": 10.3,
+      "output_start": 74.0,
+      "output_end": 84.3,
+      "speed": 1.0,
+      "audio_start": 387.871520875,
+      "audio_end": 398.171520875,
+      "audio_gain_db": 17
+    },
+    {
+      "block": "harmony",
+      "source_start": 388.6,
+      "source_end": 391.2,
+      "duration": 2.6,
+      "output_start": 84.3,
+      "output_end": 86.9,
+      "speed": 1.0,
+      "audio_start": 401.471520875,
+      "audio_end": 404.071520875,
+      "audio_gain_db": 17
+    },
+    {
+      "block": "commands",
+      "source_start": 397.8,
+      "source_end": 400.0,
+      "duration": 2.2,
+      "output_start": 86.9,
+      "output_end": 89.1,
+      "speed": 1.0,
+      "audio_start": 410.671520875,
+      "audio_end": 412.871520875,
+      "audio_gain_db": 17
+    },
+    {
+      "block": "commands",
+      "source_start": 402.4,
+      "source_end": 405.2,
+      "duration": 2.8,
+      "output_start": 89.1,
+      "output_end": 91.9,
+      "speed": 1.0,
+      "audio_start": 415.271520875,
+      "audio_end": 418.071520875,
+      "audio_gain_db": 17
+    },
+    {
+      "block": "commands",
+      "source_start": 406.8,
+      "source_end": 409.8,
+      "duration": 3.0,
+      "output_start": 91.9,
+      "output_end": 94.9,
+      "speed": 1.0,
+      "audio_start": 419.671520875,
+      "audio_end": 422.671520875,
+      "audio_gain_db": 17
+    },
+    {
+      "block": "commands",
+      "source_start": 411.0,
+      "source_end": 412.1,
+      "duration": 1.1,
+      "output_start": 94.9,
+      "output_end": 96.0,
+      "speed": 1.0,
+      "audio_start": 423.871520875,
+      "audio_end": 424.971520875,
+      "audio_gain_db": 17
+    },
+    {
+      "block": "voice",
+      "source_start": 418.0,
+      "source_end": 421.5,
+      "duration": 3.5,
+      "output_start": 96.0,
+      "output_end": 99.5,
+      "speed": 1.0,
+      "audio_start": 430.871520875,
+      "audio_end": 434.371520875,
+      "audio_gain_db": 17
+    },
+    {
+      "block": "perform",
+      "source_start": 446.2,
+      "source_end": 449.2,
+      "duration": 3.0,
+      "output_start": 99.5,
+      "output_end": 102.5,
+      "speed": 1.0,
+      "audio_start": 459.071520875,
+      "audio_end": 462.071520875,
+      "audio_gain_db": 17
+    },
+    {
+      "block": "perform",
+      "source_start": 466.4,
+      "source_end": 471.4,
+      "duration": 5.0,
+      "output_start": 102.5,
+      "output_end": 107.5,
+      "speed": 1.0,
+      "audio_start": 479.271520875,
+      "audio_end": 484.271520875,
+      "audio_gain_db": 17
+    },
+    {
+      "block": "perform",
+      "source_start": 475.0,
+      "source_end": 477.6,
+      "duration": 2.6,
+      "output_start": 107.5,
+      "output_end": 110.1,
+      "speed": 1.0,
+      "audio_start": 487.871520875,
+      "audio_end": 490.471520875,
+      "audio_gain_db": 17
+    },
+    {
+      "block": "perform",
+      "source_start": 481.8,
+      "source_end": 485.0,
+      "duration": 3.2,
+      "output_start": 110.1,
+      "output_end": 113.3,
+      "speed": 1.0,
+      "audio_start": 494.671520875,
+      "audio_end": 497.871520875,
+      "audio_gain_db": 17
+    },
+    {
+      "block": "repeat",
+      "source_start": 489.5,
+      "source_end": 492.3,
+      "duration": 2.8,
+      "output_start": 113.3,
+      "output_end": 116.1,
+      "speed": 1.0,
+      "audio_start": 502.371520875,
+      "audio_end": 505.171520875,
+      "audio_gain_db": 17
+    },
+    {
+      "block": "repeat",
+      "source_start": 496.9,
+      "source_end": 498.8,
+      "duration": 1.9,
+      "output_start": 116.1,
+      "output_end": 118.0,
+      "speed": 1.0,
+      "audio_start": 509.771520875,
+      "audio_end": 511.671520875,
+      "audio_gain_db": 17
+    },
+    {
+      "block": "take",
+      "source_start": 499.3,
+      "source_end": 503.8,
+      "duration": 4.5,
+      "output_start": 118.0,
+      "output_end": 122.5,
+      "speed": 1.0,
+      "audio_start": 512.171520875,
+      "audio_end": 516.671520875,
+      "audio_gain_db": 17
+    },
+    {
+      "block": "export",
+      "source_start": 514.8,
+      "source_end": 517.8,
+      "duration": 3.0,
+      "output_start": 122.5,
+      "output_end": 125.5,
+      "speed": 1.0,
+      "audio_start": 527.671520875,
+      "audio_end": 530.671520875,
+      "audio_gain_db": 17
+    },
+    {
+      "block": "export",
+      "source_start": 519.0,
+      "source_end": 522.0,
+      "duration": 3.0,
+      "output_start": 125.5,
+      "output_end": 128.5,
+      "speed": 1.0,
+      "audio_start": 531.871520875,
+      "audio_end": 534.871520875,
+      "audio_gain_db": 17
+    },
+    {
+      "block": "share",
+      "source_start": 531.0,
+      "source_end": 534.7,
+      "duration": 3.7,
+      "output_start": 128.5,
+      "output_end": 132.2,
+      "speed": 1.0,
+      "audio_start": 543.871520875,
+      "audio_end": 547.571520875,
+      "audio_gain_db": 17
+    }
+  ],
+  "caption_revision": "Promotional caption arrows replaced by middots; native video/UI/clip timings/audio unchanged"
+}

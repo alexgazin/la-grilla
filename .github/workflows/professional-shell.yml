@@ -1,0 +1,51 @@
+name: Professional shell visual verification
+on:
+  workflow_dispatch:
+  push:
+    branches: [feat/professional-shell-check]
+concurrency:
+  group: professional-shell-${{ github.ref }}
+  cancel-in-progress: true
+env:
+  DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
+jobs:
+  verify-shell:
+    runs-on: macos-15
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Audit sources and compile native tests
+        run: |
+          python3 scripts/release/assert_sdk.py
+          python3 scripts/generate_project.py
+          git diff --exit-code -- LaGrilla.xcodeproj
+          python3 scripts/audit_presentation.py
+          set -o pipefail
+          xcodebuild -project LaGrilla.xcodeproj -scheme LaGrilla -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' ARCHS=arm64 ONLY_ACTIVE_ARCH=YES -configuration Debug -derivedDataPath DerivedData CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO build-for-testing | tee shell-build.log
+      - name: Configure actual simulator audio route
+        run: bash scripts/setup_ci_audio.sh
+      - name: Boot native iPhone simulator
+        env:
+          GRILLA_CAPTURE_SCREENS: '0'
+        run: bash scripts/screenshots.sh
+      - name: Check rendered appearance and first-session persistence
+        run: |
+          set -o pipefail
+          DEVICE=$(cat /tmp/grilla-simulator-id)
+          xcodebuild -project LaGrilla.xcodeproj -scheme LaGrilla -destination "platform=iOS Simulator,id=$DEVICE" -derivedDataPath DerivedData -resultBundlePath ProfessionalShellResults.xcresult -only-testing:LaGrillaUITests/StudioTests/testAppThemePersistsAndSystemSettingsEntryIsReachable -only-testing:LaGrillaUITests/StudioTests/testWelcomeCanBeSkippedAndReopenedWithoutRepeatingOnLaunch -test-timeouts-enabled YES -maximum-test-execution-time-allowance 180 ARCHS=arm64 ONLY_ACTIVE_ARCH=YES CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO test-without-building | tee shell-tests.log
+      - name: Preserve original native attachments
+        if: always()
+        run: |
+          if test -d ProfessionalShellResults.xcresult; then
+            xcrun xcresulttool export attachments --path ProfessionalShellResults.xcresult --output-path ProfessionalShellAttachments
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: professional-shell-visual
+          path: |
+            ProfessionalShellAttachments
+            ProfessionalShellResults.xcresult
+            shell-build.log
+            shell-tests.log
+            ci-audio.log

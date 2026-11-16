@@ -397,6 +397,8 @@ struct GridView: View {
         if dynamicType.isAccessibilitySize {
             Menu("Studio tools"){
                 Button("Harmony lab"){session.presentEditor(.harmony)};Button("Piano roll"){session.openNotes()};Button("Assistant"){session.presentEditor(.assistant)};Button("Voice to MIDI"){session.presentEditor(.voice)};Button("Perform"){session.sheet = .perform};Button("MIDI devices"){session.presentEditor(.midiDevices)}
+                Divider()
+                Button("Settings",systemImage:"gearshape"){session.presentEditor(.settings)}.accessibilityIdentifier("settings.open")
             }.font(.headline).frame(maxWidth:.infinity,minHeight:44).modifier(StudioSurface())
         }else{
             HStack(spacing:2){
@@ -407,6 +409,8 @@ struct GridView: View {
                     Button("Voice",systemImage:"waveform.badge.mic"){session.presentEditor(.voice)}.accessibilityIdentifier("voice.open")
                     Button("Perform",systemImage:"waveform.path"){session.finishTake();session.sheet = .perform}.accessibilityIdentifier("perform.open")
                     Button("MIDI devices",systemImage:"pianokeys"){session.presentEditor(.midiDevices)}.accessibilityIdentifier("midi.open")
+                    Divider()
+                    Button("Settings",systemImage:"gearshape"){session.presentEditor(.settings)}.accessibilityIdentifier("settings.open")
                 }label:{Image(systemName:"ellipsis.circle").frame(width:44,height:44)}.accessibilityLabel("More studio tools").accessibilityIdentifier("tools.more")
             }.buttonStyle(StudioQuietButtonStyle()).font(.system(size:11,weight:.medium)).lineLimit(1).minimumScaleFactor(1).foregroundStyle(Color.mint).padding(.horizontal,4).modifier(StudioSurface())
         }

@@ -46,7 +46,8 @@ import Observation
     @ObservationIgnored private var runtimeTraceSequence=0
     private let runtimeTraceStart=ProcessInfo.processInfo.systemUptime
     let store: ProjectStore
-    enum Sheet: String, Identifiable {case projects, newProject, export, settings, bass, sections, notes, harmony, assistant, voice, perform, midiDevices; var id: String { rawValue }}
+    enum Sheet: String, Identifiable {case projects, newProject, export, settings, gettingStarted, bass, sections, notes, harmony, assistant, voice, perform, midiDevices; var id: String { rawValue }}
+    private var lastProjectKey:String {ProcessInfo.processInfo.arguments.contains("--uitesting") ? "studio.qa.lastProjectID":"studio.lastProjectID"}
     init() {
         let root = ProcessInfo.processInfo.arguments.contains("--uitesting") ? FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString) : FileManager.default.urls(for: .documentDirectory,in:.userDomainMask)[0].appendingPathComponent("Projects")
         store = ProjectStore(root: root)
@@ -84,11 +85,13 @@ import Observation
         let task=Task { @MainActor in
             do {
                 entries=try await store.list()
-                if let first=entries.first(where:{$0.project != nil})?.project {project=first}
+                let remembered=UserDefaults.standard.string(forKey:lastProjectKey).flatMap(UUID.init(uuidString:))
+                if let previous=entries.first(where:{$0.id==remembered})?.project ?? entries.first(where:{$0.project != nil})?.project {project=previous}
                 else if entries.isEmpty {try await store.save(project);entries=try await store.list()}
                 selectedSection=project.sections[0].id
                 runtimeTrace("bootstrap.prepare.before")
                 try audio.prepare();sync();savedRevision=project.revision
+                UserDefaults.standard.set(project.id.uuidString,forKey:lastProjectKey)
                 runtimeTrace("bootstrap.prepare.after")
             } catch {message=error.localizedDescription;runtimeTrace("bootstrap.failure \(error.localizedDescription)")}
             ready=true
@@ -179,6 +182,10 @@ import Observation
     func redo() {if performance.contextActive{Task{await leavePerformance();redo()};return};guard !recording && !armed else {return}; mixerGesture=false;history.redo(&project); sync();scheduleSave()}
     func scheduleSave() {saveTask?.cancel();saveTask = Task {try? await Task.sleep(for:.milliseconds(700));guard !Task.isCancelled else{return};await save()} }
     func save() async {
+        // Scene/background notifications may arrive while store.list() is
+        // suspended. Never persist the temporary seed before bootstrap loads
+        // the user's document; a later ready save uses the restored project.
+        guard ready else{return}
         saveGeneration += 1; let generation=saveGeneration
         saving=true; let snapshot=project
         do {
@@ -293,6 +300,7 @@ import Observation
         finishTake();endHarmonyPreview();audio.stop();await save()
         guard saveError==nil else {message="Save the current project or save a copy before opening another project.";return}
         project=p;history=History();noteTrackID=nil;noteClipID=nil;drumClipID=nil;selectedSection=p.sections[0].id;savedRevision=p.revision;audio.seek(0);sync();sheet=nil
+        UserDefaults.standard.set(p.id.uuidString,forKey:lastProjectKey)
     }
     func create(name: String,bpm: Double,root: Int,minor: Bool,bars: Int) async {
         var p=Project(name:name.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty ? "Untitled" : name,bars:bars);p.bpm=bpm;p.keyRoot=root;p.minor=minor
