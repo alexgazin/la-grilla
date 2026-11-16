@@ -30,6 +30,7 @@ final class StudioTests: XCTestCase {
         app.launch()
         XCTAssertTrue(app.staticTexts["welcome.title"].waitForExistence(timeout:15))
         XCTAssertTrue(app.buttons["welcome.skip"].isHittable)
+        let welcomeShot=XCTAttachment(screenshot:XCUIScreen.main.screenshot());welcomeShot.name="ProfessionalShell-welcome";welcomeShot.lifetime = .keepAlways;add(welcomeShot)
         app.buttons["welcome.skip"].tap()
         XCTAssertTrue(app.buttons["perform.transport"].waitForExistence(timeout:5))
         app.terminate();app.launchArguments.removeAll{$0=="--show-welcome"};app.launch()
@@ -60,7 +61,9 @@ final class StudioTests: XCTestCase {
         app.buttons["tools.more"].tap();app.buttons["Settings"].tap()
         XCTAssertTrue(theme.waitForExistence(timeout:5))
         XCTAssertTrue(theme.label.contains("Light") || (theme.value as? String)=="Light","Theme selection must survive relaunch")
-        theme.tap();app.buttons["Dark"].tap();app.buttons["Done"].tap()
+        theme.tap();app.buttons["Dark"].tap()
+        let darkShot=XCTAttachment(screenshot:XCUIScreen.main.screenshot());darkShot.name="ProfessionalShell-settings-dark";darkShot.lifetime = .keepAlways;add(darkShot)
+        app.buttons["Done"].tap()
     }
     @MainActor func testRussianInterfaceAndLightAppearance() {
         XCUIDevice.shared.orientation = .portrait

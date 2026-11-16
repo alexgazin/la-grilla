@@ -21,6 +21,9 @@ BlackHole UID, uses normal system microphone authorization, and refuses
 invalid or silent captures. It does not change TCC databases or attribute
 itself to another application's preapproval. The orchestrator may accept
 only the ordinary system dialog naming **La Grilla Demo Audio Recorder**.
+The capture host needs no FFmpeg installation. If `ffprobe` is available it
+records a probe; otherwise an explicit pending receipt requires independent
+full video/audio decoding after artifact download before publication.
 
 The raw artifact keeps `screen.mp4`, `audio.caf`, audio/frame/timing receipts,
 the complete XCTest log/result bundle and event screenshots. Action markers

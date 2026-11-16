@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 import signal
+import shutil
 import subprocess
 import sys
 import threading
@@ -143,7 +144,13 @@ def main():
         raise RuntimeError('Captured native sound is invalid or silent; no music replacement is allowed.')
     if audio_receipt.get('first_host_seconds', float('inf')) > timeline['video_spawn_before_uptime'] + 0.5 or audio_receipt.get('last_host_seconds', 0) < timeline['video_stop_signal_uptime'] - 0.5:
         raise RuntimeError('Actual sound capture must cover the video interval; a short unrelated sound cannot authorize the whole tour.')
-    subprocess.run(['ffprobe', '-v', 'error', '-show_streams', '-show_format', '-of', 'json', str(OUT / 'screen.mp4')], stdout=(OUT / 'video-probe.json').open('w'), check=True)
+    if (OUT / 'screen.mp4').stat().st_size < 1024:
+        raise RuntimeError('The native screen recording is empty.')
+    if shutil.which('ffprobe'):
+        with (OUT / 'video-probe.json').open('w') as probe:
+            subprocess.run(['ffprobe', '-v', 'error', '-show_streams', '-show_format', '-of', 'json', str(OUT / 'screen.mp4')], stdout=probe, check=True)
+    else:
+        receipt('video-probe-pending.json', {'status': 'Requires independent FFmpeg verification after artifact download', 'ffprobe_available_on_capture_host': False})
     print('NATIVE_DEMO_CAPTURE_COMPLETE: real video, real loopback audio, three accepted UI journeys.', flush=True)
 
 

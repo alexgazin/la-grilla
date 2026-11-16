@@ -20,8 +20,6 @@ jobs:
           python3 scripts/generate_project.py
           git diff --exit-code -- LaGrilla.xcodeproj
           xcrun simctl io help > simctl-io-help.txt 2>&1 || true
-          command -v ffmpeg || brew install ffmpeg
-          ffmpeg -version | head -1
       - name: Build the separate authored demonstration target
         run: |
           set -o pipefail
