@@ -1,0 +1,216 @@
+{
+  "manifest_version": 2,
+  "collection": "Professional shell — accepted native screenshots",
+  "candidate": "1.0.0 (15)",
+  "project_schema": 8,
+  "source_policy": "Mixed accepted native sources. Every file retains its own source SHA, run, artifact and attachment; the historical welcome is not relabelled as the focused theme source.",
+  "sources": [
+    {
+      "source_sha": "838b4847c63d97f1ee57fd9a423e6489746603a4",
+      "run_id": 43812214574,
+      "run_url": "https://github.com/alexgazin/la-grilla/actions/runs/43812214574",
+      "run_conclusion": "success",
+      "verification_artifact": {
+        "id": 14202191969,
+        "name": "ios-verification",
+        "bytes": 200085353,
+        "sha256": "be149878cbb87b48cccf19174ab79a71e314d419bd110263a8124548c2595ac6",
+        "url": "https://github.com/alexgazin/la-grilla/actions/runs/43812214574/artifacts/14202191969",
+        "native_manifest_entry": "NativeAttachments/main/manifest.json",
+        "native_manifest_sha256": "db171ece1e627fc81193e41f4bb8ed4ef0f1b2a79aa0000204f72aab9995cfef"
+      },
+      "accepted_scope": {
+        "swift_tests": 118,
+        "swift_suites": 19,
+        "cpp_suites": 15,
+        "en_ru_keys": 623,
+        "functional_native_passed": 46,
+        "diagnostic_skipped": 1,
+        "bulk_capture_methods_run": false,
+        "bulk_capture_methods_not_run": 3,
+        "reason": "[ui-only]; ordinary functional-test attachments still preserve their actual native provenance"
+      }
+    },
+    {
+      "source_sha": "014a00b9d6069e55150ae1f794810216cea63be3",
+      "run_id": 43819149979,
+      "run_url": "https://github.com/alexgazin/la-grilla/actions/runs/43819149979",
+      "run_conclusion": "success",
+      "job_id": 133137941861,
+      "job_name": "verify-shell",
+      "verification_artifact": {
+        "id": 14203764427,
+        "name": "professional-shell-visual",
+        "bytes": 64293458,
+        "sha256": "1a463005a6987e8d7259019a068a34cbdf594d54452e116c7a94b0b9dbaf9bf0",
+        "url": "https://github.com/alexgazin/la-grilla/actions/runs/43819149979/artifacts/14203764427",
+        "native_manifest_entry": "ProfessionalShellAttachments/manifest.json",
+        "native_manifest_sha256": "7346ad9aa4d730b0ea786b8c06038835fc62277118b9a50d1830401f23dd6070"
+      },
+      "accepted_scope": {
+        "kind": "Focused shell native verification, not the complete 46-functional-test regression",
+        "native_methods_passed": 2,
+        "native_methods_failed": 0,
+        "full_functional_suite_run": false,
+        "native_methods": [
+          {
+            "identifier": "StudioTests/testAppThemePersistsAndSystemSettingsEntryIsReachable()",
+            "result": "passed",
+            "duration_seconds": 86.895
+          },
+          {
+            "identifier": "StudioTests/testWelcomeCanBeSkippedAndReopenedWithoutRepeatingOnLaunch()",
+            "result": "passed",
+            "duration_seconds": 49.722
+          }
+        ],
+        "promoted_images": [
+          "settings-light.png",
+          "settings-dark.png"
+        ],
+        "welcome_capture_promoted": false
+      }
+    }
+  ],
+  "files": [
+    {
+      "path": "welcome.png",
+      "source_sha": "838b4847c63d97f1ee57fd9a423e6489746603a4",
+      "run_id": 43812214574,
+      "native_job_id": 133116185752,
+      "native_test_identifier": "StudioTests/testWelcomeCanBeSkippedAndReopenedWithoutRepeatingOnLaunch()",
+      "native_test_identifier_url": "test://com.apple.xcode/LaGrilla/LaGrillaUITests/StudioTests/testWelcomeCanBeSkippedAndReopenedWithoutRepeatingOnLaunch",
+      "final_native_test_result": "passed",
+      "final_native_test_duration_seconds": 30.697,
+      "final_result_basis": "uitests.log in the complete verified ios-verification ZIP",
+      "configuration": "Test Scheme Action",
+      "device_name": "iPhone 16 Pro Max",
+      "device_id": "FA1105A3-CFB2-45AC-B4DB-EBAC55DD946D",
+      "platform": "iOS Simulator",
+      "language": "en",
+      "native_attachment": {
+        "archive_entry": "NativeAttachments/main/ADF91E11-2C11-41C3-922B-BAB50D60468A.png",
+        "exported_file_name": "ADF91E11-2C11-41C3-922B-BAB50D60468A.png",
+        "suggested_human_readable_name": "ProfessionalShell-welcome_0_91244256-8B0B-4AE9-AFAF-AD72D2B4F67C.png",
+        "timestamp": 1794809355.933,
+        "timestamp_utc": "2026-11-16T06:09:15.933000+00:00",
+        "is_associated_with_failure": false
+      },
+      "bytes": 322708,
+      "sha256": "a5b5518a0c1ccc2060009a0a418dea5e0176ebc233a2b0f6fe5c536db2fffa52",
+      "width": 1320,
+      "height": 2868,
+      "bit_depth": 8,
+      "png_color_type": 2,
+      "mode": "RGB",
+      "exif_orientation": 1,
+      "opaque_rgb8": true,
+      "matches_original_native_attachment_and_verified_zip": true,
+      "individual_visual_review": {
+        "outcome": "accepted",
+        "finding": "English Getting started guide: brand mark, Grid/Jam/Export steps, Skip, Start creating and reopen-in-Settings guidance are visible, readable and unobstructed. This is a still screenshot of the real native app, not video evidence."
+      },
+      "verification_artifact_id": 14202191969
+    },
+    {
+      "path": "settings-light.png",
+      "source_sha": "014a00b9d6069e55150ae1f794810216cea63be3",
+      "run_id": 43819149979,
+      "verification_artifact_id": 14203764427,
+      "native_job_id": 133137941861,
+      "native_test_identifier": "StudioTests/testAppThemePersistsAndSystemSettingsEntryIsReachable()",
+      "native_test_identifier_url": "test://com.apple.xcode/LaGrilla/LaGrillaUITests/StudioTests/testAppThemePersistsAndSystemSettingsEntryIsReachable",
+      "final_native_test_result": "passed",
+      "final_native_test_duration_seconds": 86.895,
+      "final_result_basis": "shell-tests.log in the complete verified professional-shell-visual ZIP",
+      "configuration": "Test Scheme Action",
+      "device_name": "iPhone 16 Pro Max",
+      "device_id": "FA1105A3-CFB2-45AC-B4DB-EBAC55DD946D",
+      "platform": "iOS Simulator",
+      "language": "en",
+      "appearance": "light",
+      "native_attachment": {
+        "archive_entry": "ProfessionalShellAttachments/47DF6777-67D7-44ED-9128-CD4DC313AA81.png",
+        "exported_file_name": "47DF6777-67D7-44ED-9128-CD4DC313AA81.png",
+        "suggested_human_readable_name": "ProfessionalShell-settings-light_0_2322C4C2-C0DA-4C2A-96C9-B8710DC01CC8.png",
+        "timestamp": 1794812152.66,
+        "timestamp_utc": "2026-11-16T06:55:52.660000+00:00",
+        "is_associated_with_failure": false
+      },
+      "bytes": 267893,
+      "sha256": "d4b6eab284f9496a2ff25dfc957df6183c60a6a9079eaa4c08c679c1d15e1e76",
+      "width": 1320,
+      "height": 2868,
+      "bit_depth": 8,
+      "png_color_type": 2,
+      "mode": "RGB",
+      "exif_orientation": 1,
+      "opaque_rgb8": true,
+      "matches_original_native_attachment_and_verified_zip": true,
+      "pixel_check": {
+        "result": "passed",
+        "consecutive_matching_form_background_samples_required": 2,
+        "scope": "Native test checks rendered presented Form pixels, selected appearance and persistence; this screenshot was retained after the relevant pixel guard."
+      },
+      "individual_visual_review": {
+        "outcome": "accepted",
+        "finding": "Selected Light, light presented Form and fields, dark text, and light underlying studio are coherent. Language and permissions entry and tempo controls are readable."
+      }
+    },
+    {
+      "path": "settings-dark.png",
+      "source_sha": "014a00b9d6069e55150ae1f794810216cea63be3",
+      "run_id": 43819149979,
+      "verification_artifact_id": 14203764427,
+      "native_job_id": 133137941861,
+      "native_test_identifier": "StudioTests/testAppThemePersistsAndSystemSettingsEntryIsReachable()",
+      "native_test_identifier_url": "test://com.apple.xcode/LaGrilla/LaGrillaUITests/StudioTests/testAppThemePersistsAndSystemSettingsEntryIsReachable",
+      "final_native_test_result": "passed",
+      "final_native_test_duration_seconds": 86.895,
+      "final_result_basis": "shell-tests.log in the complete verified professional-shell-visual ZIP",
+      "configuration": "Test Scheme Action",
+      "device_name": "iPhone 16 Pro Max",
+      "device_id": "FA1105A3-CFB2-45AC-B4DB-EBAC55DD946D",
+      "platform": "iOS Simulator",
+      "language": "en",
+      "appearance": "dark",
+      "native_attachment": {
+        "archive_entry": "ProfessionalShellAttachments/94EA8049-5A43-4294-BA63-5BE140B9FE32.png",
+        "exported_file_name": "94EA8049-5A43-4294-BA63-5BE140B9FE32.png",
+        "suggested_human_readable_name": "ProfessionalShell-settings-dark_0_F0185251-7ABA-4446-B431-8B492E07CD0F.png",
+        "timestamp": 1794812177.351,
+        "timestamp_utc": "2026-11-16T06:56:17.351000+00:00",
+        "is_associated_with_failure": false
+      },
+      "bytes": 261794,
+      "sha256": "882fd6dc1080d09cf79d97e99b895fd2fa7572bcd7cda86a1c8426f1c6852c6d",
+      "width": 1320,
+      "height": 2868,
+      "bit_depth": 8,
+      "png_color_type": 2,
+      "mode": "RGB",
+      "exif_orientation": 1,
+      "opaque_rgb8": true,
+      "matches_original_native_attachment_and_verified_zip": true,
+      "pixel_check": {
+        "result": "passed",
+        "consecutive_matching_form_background_samples_required": 2,
+        "scope": "Native test checks rendered presented Form pixels, selected appearance and persistence; this screenshot was retained after the relevant pixel guard."
+      },
+      "individual_visual_review": {
+        "outcome": "accepted",
+        "finding": "Selected Dark, dark presented Form and fields, light text, and dark underlying studio are coherent. Language and permissions entry and tempo controls are readable."
+      }
+    }
+  ],
+  "preservation": "All three PNG files are byte-identical copies of their original native XCTest attachments; no resizing, retouching, overlays or reconstructed UI.",
+  "scope_notes": [
+    "Historical English welcome.png remains source 838b4847 / run 43812214574. The focused 014a00b9 run also captured welcome, but that newer welcome is not copied or promoted here.",
+    "Settings light/dark PNGs are source 014a00b9 / run 43819149979. Their actual Form appearance and selected value match; both passed consecutive-pixel guards and individual visual review.",
+    "Two raw Settings theme PNGs from source 838b4847 were rejected for stale inverse Form appearance and remain unpromoted. Their history is not erased by the subsequent fix.",
+    "Raw method exports retain issue-description attachments; all three promoted PNGs have isAssociatedWithFailure=false. Final method PASS comes from the corresponding verified test log. No absence of earlier issues or retries is claimed.",
+    "The 014a00b9 run contains two focused native methods. The complete 46-functional-test software acceptance belongs to source 838b4847, not to this focused run.",
+    "New Russian/compact/large-type guide visuals and all physical iPhone routes/model/voice/signing acceptance remain open. Historical OriginalVision screenshots retain their original source.",
+    "A separate working-app recording is accepted in Media/WorkingDemo: actual Simulator UI and same-session audio, 132.2 seconds / 15 sections / 36 disclosed intervals. Source b4a584fc run 43813957218 retains FAILURE for the post-roll coverage guard although its three UI methods passed; complete actual-media audio coverage and visual acceptance are recorded separately. These screenshots do not themselves establish video acceptance."
+  ]
+}

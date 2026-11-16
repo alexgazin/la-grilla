@@ -13,13 +13,24 @@
 
 <p align="center"><a href="#что-уже-работает">Возможности</a> · <a href="#установить-на-свой-iphone">На свой iPhone</a> · <a href="ROADMAP.md">Роадмап</a> · <a href="docs/IMPLEMENTATION_LOG.md">Журнал разработки</a></p>
 
-## Идея → грув → трек · промо со звуком
+## La Grilla в работе · настоящее видео со звуком
+
+[![La Grilla в работе — настоящие нажатия, жесты и звук приложения](Media/WorkingDemo/teaser.gif)](https://github.com/alexgazin/la-grilla/raw/refs/heads/main/Media/WorkingDemo/la-grilla-working-demo.mp4)
+
+**[▶ Смотреть рабочую демонстрацию — 2:12, Full HD, со звуком](https://github.com/alexgazin/la-grilla/raw/refs/heads/main/Media/WorkingDemo/la-grilla-working-demo.mp4)** · [Полная запись без монтажных сокращений](https://github.com/alexgazin/la-grilla/raw/refs/heads/main/Media/WorkingDemo/la-grilla-session-original.mp4)
+
+Запись **iOS Simulator, сборка 1.0.0 (15)**: настоящий Play, редактирование аккорда, pinch-to-zoom, пэды и overdub, шаги, микшер, ноты, Harmony A/B, Commands, Perform и WAV в системном меню экспорта. Звук записан с аудиовыхода тех же сессий; слышны pan, mute и фильтр. Три сессии смонтированы с сокращением ожиданий, действия идут в обычном темпе. Voice показан на этапе подготовки записи, beta/mono. [Происхождение, монтаж и проверки](Media/WorkingDemo/README.md).
+
+<details>
+<summary>Презентация возможностей на настоящих скриншотах · 1:36</summary>
 
 [![La Grilla — анимированное превью промо: идея, грув, трек](Media/Promo/teaser.gif)](https://github.com/alexgazin/la-grilla/raw/refs/heads/main/Media/Promo/la-grilla-promo.mp4)
 
 **[▶ Смотреть / скачать полное видео — 1:36, Full HD, со звуком](https://github.com/alexgazin/la-grilla/raw/refs/heads/main/Media/Promo/la-grilla-promo.mp4)**
 
 11 глав: Grid → Arrange → Jam → Notes → Harmony → Assistant → Voice → Perform → Mixer → MIDI → Export. Анимация собрана из настоящих экранов приложения; оригинальная музыка создана штатным синтезатором и offline-рендерером La Grilla. GIF без звука; полный саундтрек — в MP4. [Главы, исходники и музыкальный проект](Media/Promo/README.md).
+
+</details>
 
 ## Студия в девяти экранах
 
@@ -74,6 +85,18 @@
 
 PNG сохранены без изменений; [манифест](Screenshots/OriginalVision/manifest.json) содержит источник, запуск тестов, размеры и SHA-256 каждого кадра. У Assistant на показанном экране работает локальный режим Commands; это не демонстрация генерации реальной моделью.
 
+## Первый запуск и настройки · сборка 15
+
+<table>
+  <tr>
+    <td align="center" valign="top" width="33%"><strong>Быстрый старт</strong><br><sub>Можно сразу пропустить</sub><br><br><a href="Screenshots/ProfessionalShell/welcome.png"><img src="Screenshots/ProfessionalShell/welcome.png" width="220" alt="Getting started: Grid, Jam, Export, Skip и Start creating"></a></td>
+    <td align="center" valign="top" width="33%"><strong>Settings · Light</strong><br><sub>Тема сохраняется при перезапуске</sub><br><br><a href="Screenshots/ProfessionalShell/settings-light.png"><img src="Screenshots/ProfessionalShell/settings-light.png" width="220" alt="Settings: Light выбрана, форма настроек отрисована в светлой теме"></a></td>
+    <td align="center" valign="top" width="33%"><strong>Settings · Dark</strong><br><sub>Настройки приложения и проекта</sub><br><br><a href="Screenshots/ProfessionalShell/settings-dark.png"><img src="Screenshots/ProfessionalShell/settings-dark.png" width="220" alt="Settings: Dark выбрана, форма настроек отрисована в тёмной теме"></a></td>
+  </tr>
+</table>
+
+Оригиналы из iOS Simulator: welcome — source `838b484`, Settings — `014a00b`. [Источники и проверки каждого PNG](Screenshots/ProfessionalShell/README.md) · [20 технических критериев доводки](docs/PRODUCT_FINISHING.md).
+
 ## Что уже работает
 
 | Часть студии | Возможности текущей сборки |
@@ -88,6 +111,7 @@ PNG сохранены без изменений; [манифест](Screenshots
 | **Микшер и MIDI** | Вертикальные фейдеры, pan, mute / solo, Master и индикаторы. CoreMIDI input / output, выбор каналов, CC Learn, Panic и интерфейс подключения BLE MIDI. |
 | **Экспорт и проекты** | MIDI Type 1, WAV mixdown и выровненные stems: 44.1 / 48 kHz, 16 / 24 bit. Переносимый `.grillapack` сохраняет исходные записи. Автосохранение, восстановление, Undo / Redo. |
 | **Интерфейс** | Русский и английский, светлая и тёмная темы, Dynamic Type, VoiceOver и Reduce Motion; компактные и горизонтальные экраны. [Дизайн и OpenArt-источники](Design/2026). |
+| **Первый запуск и настройки** | Нативный брендированный Launch Screen, загрузка без доступа к временному проекту, необязательное знакомство и повторная справка. Последний открытый проект, System / Light / Dark с сохранением, ссылка на системные язык и разрешения, версия, privacy и support. [Новые оригинальные экраны](Screenshots/ProfessionalShell) · [20 пунктов доводки](docs/PRODUCT_FINISHING.md). |
 
 **On-device AI:** адаптер Apple FoundationModels включается на совместимом устройстве с iOS 26+, Apple Intelligence, готовой моделью и поддерживаемым языком. Локальные RU/EN Commands доступны отдельно. Качество и задержка генерации реальной моделью ещё требуют проверки на устройстве.
 
@@ -108,7 +132,7 @@ PNG сохранены без изменений; [манифест](Screenshots
 
 ## Проверки и готовность
 
-Текущий программный кандидат — **1.0.0 (14), schema 8**. Этапы C1–C7 приняты; интеграция — [PR #13](https://github.com/alexgazin/la-grilla/pull/13).
+Текущий программный кандидат — **1.0.0 (15), schema 8**. Первоначальная приёмка C1–C7 относится к сборке 14 ([PR #13](https://github.com/alexgazin/la-grilla/pull/13)); пакет первого запуска и настроек сборки 15 проверен отдельно.
 
 | Подтверждение | Результат и источник |
 | --- | --- |
@@ -116,6 +140,8 @@ PNG сохранены без изменений; [манифест](Screenshots
 | Интеграция в `main` | [Run 43777618996](https://github.com/alexgazin/la-grilla/actions/runs/43777618996) для merge commit `8e5b1f7`: все три CI jobs и **44/44 функциональных native-сценария** прошли; повторный массовый захват кадров не запускался. Актуальные проверки ветки — в badge наверху. |
 | Дополнительная совместимость | [Run 43777646531](https://github.com/alexgazin/la-grilla/actions/runs/43777646531): неизменные исходники приложения `77fb72a`, **iOS 18.5 Simulator**, **3/3 сценария** — whole-song Commands Apply / Undo, custom chord save / Undo, переходы между экранами при воспроизведении. Это отдельная ограниченная проверка, не полный прогон и не физический iPhone. |
 | Визуальная приёмка | 73 индивидуально просмотренных оригинала; 12 Store-копий EN/RU и четыре корневых превью сохраняют исходные байты. 603 локализованных ключа EN/RU. [Сводка и ограничения C7](docs/release/C7_ACCEPTANCE.md). |
+| Доводка сборки 15 | [Run 43812214574](https://github.com/alexgazin/la-grilla/actions/runs/43812214574), source `838b484`: все три jobs, **46 функциональных native-сценариев**, 118 Swift / 19 suites, 15 C++ suites и **623 EN/RU ключа** прошли. Один отдельный diagnostic пропущен; массовый захват кадров не запускался. |
+| Видимые темы и первый запуск | После локальной правки темы открытой формы [run 43819149979](https://github.com/alexgazin/la-grilla/actions/runs/43819149979), source `014a00b`: **2/2 native-сценария** с проверкой отрисованных пикселей Light / Dark, сохранения темы, Skip / relaunch / Help. Три оригинала сохранены в [ProfessionalShell](Screenshots/ProfessionalShell). Это focused-проверка, а не повтор всех 46 сценариев. |
 
 **До App Store остаётся C8:** установка и приёмка на физических iPhone, включая минимальную ОС; 30-минутные проверки задержки, нагрева и непрерывности звука; speaker / wired / USB / Bluetooth-маршруты; настоящие USB/BLE MIDI-контроллеры и импорт в две DAW; живой напев и реальная FoundationModels; distribution signing, TestFlight и App Review. [Чек-лист устройства](docs/release/DEVICE_ACCEPTANCE.md) и [процедура выпуска](docs/release/RELEASE.md).
 

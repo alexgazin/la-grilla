@@ -1,0 +1,27 @@
+{
+  "actual_passed_methods": [
+    "test01ComposeJamAndMix",
+    "test02HarmonyCommandsAndVoiceSetup",
+    "test03PerformAndExport"
+  ],
+  "audio_ready_uptime": 780.061116833,
+  "capture_finished_uptime": 1389.413987916,
+  "device": "FA1105A3-CFB2-45AC-B4DB-EBAC55DD946D",
+  "expected_methods": [
+    "test01ComposeJamAndMix",
+    "test02HarmonyCommandsAndVoiceSetup",
+    "test03PerformAndExport"
+  ],
+  "kind": "Real simctl video plus actual host BlackHole loopback",
+  "offline_soundtrack_substitution": false,
+  "physical_device": false,
+  "source_sha": "b4a584fc1cc60d73a97386986c2330ca7e45980c",
+  "test_exit_code": 0,
+  "test_finish_uptime": 1389.072387,
+  "test_start_uptime": 794.575038,
+  "video_exit_code": 0,
+  "video_recording_started_notice_uptime": 794.572013041,
+  "video_spawn_after_uptime": 780.164146958,
+  "video_spawn_before_uptime": 780.061128458,
+  "video_stop_signal_uptime": 1389.120674458
+}

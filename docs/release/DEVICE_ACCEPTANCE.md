@@ -2,7 +2,9 @@
 
 **Status: not measured.** This environment has no connected physical iPhone, USB/BLE controller, two DAWs or Apple signing account. Simulator and host benchmarks must not be entered as hardware results.
 
-Prepared candidate: **1.0.0 (14), schema 8**. This identifies the software to test, not an installed or accepted build. Every evidence field below remains **Pending** until the actual device/model/signing session is recorded.
+Prepared candidate: **1.0.0 (15), schema 8**. This identifies the software to test, not an installed or accepted build. Every evidence field below remains **Pending** until the actual device/model/signing session is recorded.
+
+Software-only evidence stays separate: [C1–C7](C7_ACCEPTANCE.md) preserves historical version 14 source `77fb72a`; version 15 full regression is source `838b4847`, [run 43812214574](https://github.com/alexgazin/la-grilla/actions/runs/43812214574), with 46 functional native methods and 623 EN/RU keys. The later appearance fix has only the recorded [two-method focused verification](https://github.com/alexgazin/la-grilla/actions/runs/43819149979), source `014a00b9`. Neither substitutes for exact-final-main verification or any field in this physical matrix. The [professional finishing checklist](../PRODUCT_FINISHING.md), [original welcome/settings frames](../../Screenshots/ProfessionalShell/README.md) and [132.2-second real working-app video](../../Media/WorkingDemo/README.md) document separate Simulator/software scopes; none establishes C8 device/model/signing acceptance.
 
 Copy this record per tested release candidate. Keep the source SHA, version/build and installed TestFlight build identifier together.
 

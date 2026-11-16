@@ -1,0 +1,23 @@
+{
+  "channels" : 2,
+  "device_uid" : "BlackHole2ch_UID",
+  "duration_seconds" : 600,
+  "first_host_seconds" : 779.78268012500007,
+  "first_host_time" : 18714784323,
+  "first_sample_time" : 0,
+  "frames" : 28800000,
+  "kind" : "Actual Simulator host output recorded through BlackHole loopback",
+  "last_host_seconds" : 1379.6826801250002,
+  "last_host_time" : 33112384323,
+  "last_sample_time" : 28795200,
+  "offline_audio_substitution" : false,
+  "peak" : 0.084867402911186218,
+  "physical_device_acceptance" : false,
+  "physical_microphone_selected" : false,
+  "receipt_host_time" : 33116257805,
+  "rms" : 0.0076112472990874959,
+  "sample_rate" : 48000,
+  "sample_time_discontinuities" : 0,
+  "samples" : 57600000,
+  "status" : "finished"
+}

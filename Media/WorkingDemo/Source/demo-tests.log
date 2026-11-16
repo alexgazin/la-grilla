@@ -1,0 +1,737 @@
+Command line invocation:
+    /Applications/Xcode_26.3.app/Contents/Developer/usr/bin/xcodebuild -test-timeouts-enabled YES -maximum-test-execution-time-allowance 300 -project LaGrilla.xcodeproj -scheme LaGrillaDemo -destination "platform=iOS Simulator,id=FA1105A3-CFB2-45AC-B4DB-EBAC55DD946D" -derivedDataPath DerivedData -resultBundlePath NativeDemoResults.xcresult ARCHS=arm64 ONLY_ACTIVE_ARCH=YES CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO test-without-building
+
+Build settings from command line:
+    ARCHS = arm64
+    CODE_SIGN_IDENTITY = -
+    CODE_SIGNING_REQUIRED = NO
+    ONLY_ACTIVE_ARCH = YES
+
+Resolve Package Graph
+
+
+Resolved source packages:
+  MusicDomain: /Users/runner/work/la-grilla/la-grilla/Packages/MusicDomain @ local
+
+Writing result bundle at path:
+	/Users/runner/work/la-grilla/la-grilla/NativeDemoResults.xcresult
+
+--- xcodebuild: WARNING: Using the first of multiple matching destinations:
+{ platform:iOS Simulator, arch:arm64, id:FA1105A3-CFB2-45AC-B4DB-EBAC55DD946D, OS:26.2, name:iPhone 16 Pro Max }
+{ platform:iOS Simulator, arch:x86_64, id:FA1105A3-CFB2-45AC-B4DB-EBAC55DD946D, OS:26.2, name:iPhone 16 Pro Max }
+2026-11-16 06:11:22.317829+0000 LaGrillaDemoTests-Runner[19492:59255] [Default] Running tests...
+    t =      nans Interface orientation changed to Portrait
+Test Suite 'All tests' started at 2026-11-16 06:11:30.069.
+Test Suite 'LaGrillaDemoTests.xctest' started at 2026-11-16 06:11:30.070.
+Test Suite 'NativeDemoTests' started at 2026-11-16 06:11:30.070.
+Test Case '-[LaGrillaDemoTests.NativeDemoTests test01ComposeJamAndMix]' started.
+    t =     0.00s Start Test at 2026-11-16 06:11:30.071
+    t =     0.64s Set Up
+    t =     0.65s Setting device orientation to Portrait
+    t =     0.69s     Device orientation changed to Portrait
+    t =     0.82s     Wait for com.apple.springboard to idle
+    t =     0.97s Open com.alexgazin.LaGrilla
+    t =     0.97s     Launch com.alexgazin.LaGrilla
+    t =    19.43s         Setting up automation session
+    t =    22.52s         Wait for com.alexgazin.LaGrilla to idle
+    t =    24.64s Waiting 20.0s for "perform.transport" Button to exist
+    t =    25.71s     Checking `Expect predicate `existsNoRetry == 1` for object "perform.transport" Button`
+    t =    25.71s         Checking existence of `"perform.transport" Button`
+    t =    27.88s Waiting 10.0s for "Play" Button to exist
+    t =    28.91s     Checking `Expect predicate `existsNoRetry == 1` for object "Play" Button`
+    t =    28.91s         Checking existence of `"Play" Button`
+    t =    28.98s Find the Window (First Match)
+    t =    29.00s Find the Window (First Match)
+NATIVE_DEMO_EVENT {"phase":"app.ready","unix_seconds":1794809519.0539551,"uptime_seconds":908.61759979166675,"window_height":956,"window_width":440}
+    t =    29.03s Added attachment named 'NativeDemo-app.ready'
+    t =    29.24s Added attachment named 'NativeDemo-app.ready'
+    t =    30.25s Find the Window (First Match)
+    t =    30.27s Find the Window (First Match)
+NATIVE_DEMO_EVENT {"phase":"grid","unix_seconds":1794809520.317245,"uptime_seconds":909.88089275000004,"window_height":956,"window_width":440}
+    t =    30.28s Added attachment named 'NativeDemo-grid'
+    t =    30.44s Added attachment named 'NativeDemo-grid'
+    t =    30.44s Find the Window (First Match)
+    t =    30.48s Find the Window (First Match)
+NATIVE_DEMO_EVENT {"phase":"transport.before-play","unix_seconds":1794809520.5145578,"uptime_seconds":910.07820625000011,"window_height":956,"window_width":440}
+    t =    30.49s Added attachment named 'NativeDemo-transport.before-play'
+    t =    30.66s Added attachment named 'NativeDemo-transport.before-play'
+    t =    30.66s Tap "Play" Button
+    t =    30.67s     Wait for com.alexgazin.LaGrilla to idle
+    t =    30.67s     Find the "Play" Button
+    t =    30.78s     Check for interrupting elements affecting "play.fill" Button
+    t =    30.94s     Synthesize event
+    t =    31.46s     Wait for com.alexgazin.LaGrilla to idle
+    t =    31.81s Waiting 8.0s for "PLAYING" StaticText to exist
+    t =    32.85s     Checking `Expect predicate `existsNoRetry == 1` for object "PLAYING" StaticText`
+    t =    32.86s         Checking existence of `"PLAYING" StaticText`
+    t =    33.83s Find the Window (First Match)
+    t =    33.96s Find the Window (First Match)
+NATIVE_DEMO_EVENT {"phase":"transport.playing","unix_seconds":1794809523.9015379,"uptime_seconds":913.46518591666677,"window_height":956,"window_width":440}
+    t =    34.29s Added attachment named 'NativeDemo-transport.playing'
+    t =    34.73s Added attachment named 'NativeDemo-transport.playing'
+    t =    37.76s Waiting 5.0s for Button (First Match) to exist
+    t =    38.86s     Checking `Expect predicate `existsNoRetry == 1` for object Button (First Match)`
+    t =    38.86s         Checking existence of `Button (First Match)`
+    t =    39.31s Tap Button (First Match)
+    t =    39.31s     Wait for com.alexgazin.LaGrilla to idle
+    t =    39.35s     Find the Button (First Match)
+    t =    40.13s     Check for interrupting elements affecting "grid.chord.CC13B3D3-21EE-4258-B3AF-359E9AC55A15.BCA4A44F-9AF0-4594-9B10-F4D9E5872033.0" Button
+    t =    40.44s     Synthesize event
+    t =    40.88s     Wait for com.alexgazin.LaGrilla to idle
+    t =    41.57s Waiting 5.0s for "chord.symbol" TextField to exist
+    t =    42.65s     Checking `Expect predicate `existsNoRetry == 1` for object "chord.symbol" TextField`
+    t =    42.66s         Checking existence of `"chord.symbol" TextField`
+    t =    46.98s         Capturing element debug description
+    t =    47.03s     Checking existence of `"chord.symbol" TextField`
+    t =    53.31s Tap "chord.symbol" TextField
+    t =    53.31s     Wait for com.alexgazin.LaGrilla to idle
+    t =    53.44s     Find the "chord.symbol" TextField
+    t =    60.25s     Check for interrupting elements affecting "chord.symbol" TextField
+    t =    62.36s     Synthesize event
+    t =    64.86s     Wait for com.alexgazin.LaGrilla to idle
+    t =    67.74s Find the "chord.symbol" TextField
+    t =    81.73s Type 'Cmaj7' into "chord.symbol" TextField
+    t =    81.73s     Wait for com.alexgazin.LaGrilla to idle
+    t =    81.79s     Find the "chord.symbol" TextField
+    t =    85.32s     Check for interrupting elements affecting "chord.symbol" TextField
+    t =    86.94s     Synthesize event
+    t =    87.47s     Wait for com.alexgazin.LaGrilla to idle
+    t =    88.04s Tap "chord.set-symbol" Button
+    t =    88.04s     Wait for com.alexgazin.LaGrilla to idle
+    t =    88.96s     Find the "chord.set-symbol" Button
+    t =    95.46s     Check for interrupting elements affecting "chord.set-symbol" Button
+    t =    99.15s     Synthesize event
+    t =   111.53s     Wait for com.alexgazin.LaGrilla to idle
+    t =   112.68s Checking existence of `"chord.error" StaticText`
+    t =   119.98s Find the Window (First Match)
+    t =   121.02s Find the Window (First Match)
+NATIVE_DEMO_EVENT {"phase":"chord.edit","unix_seconds":1794809610.051671,"uptime_seconds":999.61531945833337,"window_height":956,"window_width":440}
+    t =   122.10s Added attachment named 'NativeDemo-chord.edit'
+    t =   122.36s Added attachment named 'NativeDemo-chord.edit'
+    t =   122.36s Checking existence of `"chord.apply" Button`
+    t =   123.65s Find the "chord.apply" Button
+    t =   127.34s Tap "chord.apply" Button
+    t =   127.35s     Wait for com.alexgazin.LaGrilla to idle
+    t =   127.41s     Find the "chord.apply" Button
+    t =   128.53s     Check for interrupting elements affecting "chord.apply" Button
+    t =   130.07s     Synthesize event
+    t =   130.86s     Wait for com.alexgazin.LaGrilla to idle
+    t =   131.28s Waiting 5.0s for "Undo" Button to exist
+    t =   132.29s     Checking `Expect predicate `existsNoRetry == 1` for object "Undo" Button`
+    t =   132.32s         Checking existence of `"Undo" Button`
+    t =   136.61s     Checking existence of `"Undo" Button`
+    t =   138.94s Find the "Undo" Button
+    t =   142.02s Find the Window (First Match)
+    t =   142.61s Find the Window (First Match)
+NATIVE_DEMO_EVENT {"phase":"chord.applied","unix_seconds":1794809632.092593,"uptime_seconds":1021.6562420833334,"window_height":956,"window_width":440}
+    t =   143.33s Added attachment named 'NativeDemo-chord.applied'
+    t =   143.84s Added attachment named 'NativeDemo-chord.applied'
+    t =   143.85s Checking existence of `"grid.timeline" ScrollView`
+    t =   144.94s Pinch with scale 1.1, velocity 1 in "grid.timeline" ScrollView
+    t =   144.94s     Wait for com.alexgazin.LaGrilla to idle
+    t =   144.98s     Find the "grid.timeline" ScrollView
+    t =   146.20s     Check for interrupting elements affecting "grid.timeline" ScrollView
+    t =   147.51s     Synthesize event
+    t =   149.31s         Pinching with rect {{56, 235}, {334, 465.33333333333337}}
+    t =   150.84s     Wait for com.alexgazin.LaGrilla to idle
+    t =   152.17s Find the Window (First Match)
+    t =   152.30s Find the Window (First Match)
+NATIVE_DEMO_EVENT {"phase":"grid.pinch","unix_seconds":1794809642.239367,"uptime_seconds":1031.8030161666668,"window_height":956,"window_width":440}
+    t =   152.88s Added attachment named 'NativeDemo-grid.pinch'
+    t =   153.26s Added attachment named 'NativeDemo-grid.pinch'
+    t =   153.27s Pinch with scale 0.75, velocity -1 in "grid.timeline" ScrollView
+    t =   153.27s     Wait for com.alexgazin.LaGrilla to idle
+    t =   153.29s     Find the "grid.timeline" ScrollView
+    t =   154.14s     Check for interrupting elements affecting "grid.timeline" ScrollView
+    t =   155.11s     Synthesize event
+    t =   156.67s         Pinching with rect {{56, 235}, {334, 465.33333333333337}}
+    t =   157.91s     Wait for com.alexgazin.LaGrilla to idle
+    t =   159.31s Tap "Jam" Button
+    t =   159.31s     Wait for com.alexgazin.LaGrilla to idle
+    t =   159.33s     Find the "Jam" Button
+    t =   159.57s     Check for interrupting elements affecting "Jam" Button
+    t =   159.93s     Synthesize event
+    t =   160.45s     Wait for com.alexgazin.LaGrilla to idle
+    t =   160.49s Waiting 5.0s for "Kick" Button to exist
+    t =   161.57s     Checking `Expect predicate `existsNoRetry == 1` for object "Kick" Button`
+    t =   161.58s         Checking existence of `"Kick" Button`
+    t =   161.98s Find the Window (First Match)
+    t =   162.06s Find the Window (First Match)
+NATIVE_DEMO_EVENT {"phase":"jam.pads","unix_seconds":1794809652.053369,"uptime_seconds":1041.6170177083334,"window_height":956,"window_width":440}
+    t =   162.26s Added attachment named 'NativeDemo-jam.pads'
+    t =   162.41s Added attachment named 'NativeDemo-jam.pads'
+    t =   162.41s Tap "Kick" Button
+    t =   162.41s     Wait for com.alexgazin.LaGrilla to idle
+    t =   162.42s     Find the "Kick" Button
+    t =   162.89s     Check for interrupting elements affecting "Kick" Button
+    t =   163.32s     Synthesize event
+    t =   163.77s     Wait for com.alexgazin.LaGrilla to idle
+    t =   164.03s Tap "Closed hat" Button
+    t =   164.03s     Wait for com.alexgazin.LaGrilla to idle
+    t =   164.03s     Find the "Closed hat" Button
+    t =   164.28s     Check for interrupting elements affecting "Closed hat" Button
+    t =   164.93s     Synthesize event
+    t =   165.40s     Wait for com.alexgazin.LaGrilla to idle
+    t =   165.68s Tap "Snare" Button
+    t =   165.68s     Wait for com.alexgazin.LaGrilla to idle
+    t =   165.69s     Find the "Snare" Button
+    t =   166.72s     Check for interrupting elements affecting "Snare" Button
+    t =   167.62s     Synthesize event
+    t =   168.30s     Wait for com.alexgazin.LaGrilla to idle
+    t =   168.59s Tap "Open hat" Button
+    t =   168.59s     Wait for com.alexgazin.LaGrilla to idle
+    t =   168.59s     Find the "Open hat" Button
+    t =   169.37s     Check for interrupting elements affecting "Open hat" Button
+    t =   170.04s     Synthesize event
+    t =   170.56s     Wait for com.alexgazin.LaGrilla to idle
+    t =   170.82s Tap "Record drums" Button
+    t =   170.82s     Wait for com.alexgazin.LaGrilla to idle
+    t =   170.82s     Find the "Record drums" Button
+    t =   171.15s     Check for interrupting elements affecting "record.circle" Button
+    t =   171.36s     Synthesize event
+    t =   171.76s     Wait for com.alexgazin.LaGrilla to idle
+    t =   171.77s Waiting 10.0s for "REC · DRUMS" StaticText to exist
+    t =   172.82s     Checking `Expect predicate `existsNoRetry == 1` for object "REC · DRUMS" StaticText`
+    t =   172.83s         Checking existence of `"REC · DRUMS" StaticText`
+    t =   173.08s         Capturing element debug description
+    t =   173.84s     Checking `Expect predicate `existsNoRetry == 1` for object "REC · DRUMS" StaticText`
+    t =   173.84s         Checking existence of `"REC · DRUMS" StaticText`
+    t =   174.32s Find the Window (First Match)
+    t =   174.42s Find the Window (First Match)
+NATIVE_DEMO_EVENT {"phase":"jam.recording","unix_seconds":1794809664.3858509,"uptime_seconds":1053.9494994166666,"window_height":956,"window_width":440}
+    t =   174.53s Added attachment named 'NativeDemo-jam.recording'
+    t =   174.77s Added attachment named 'NativeDemo-jam.recording'
+    t =   174.78s Tap "Kick" Button
+    t =   174.78s     Wait for com.alexgazin.LaGrilla to idle
+    t =   174.78s     Find the "Kick" Button
+    t =   175.15s     Check for interrupting elements affecting "Kick" Button
+    t =   175.45s     Synthesize event
+    t =   175.96s     Wait for com.alexgazin.LaGrilla to idle
+    t =   176.19s Tap "Closed hat" Button
+    t =   176.19s     Wait for com.alexgazin.LaGrilla to idle
+    t =   176.19s     Find the "Closed hat" Button
+    t =   176.56s     Check for interrupting elements affecting "Closed hat" Button
+    t =   176.82s     Synthesize event
+    t =   177.15s     Wait for com.alexgazin.LaGrilla to idle
+    t =   177.39s Tap "Snare" Button
+    t =   177.39s     Wait for com.alexgazin.LaGrilla to idle
+    t =   177.39s     Find the "Snare" Button
+    t =   177.99s     Check for interrupting elements affecting "Snare" Button
+    t =   178.18s     Synthesize event
+    t =   178.54s     Wait for com.alexgazin.LaGrilla to idle
+    t =   178.77s Tap "Closed hat" Button
+    t =   178.77s     Wait for com.alexgazin.LaGrilla to idle
+    t =   178.78s     Find the "Closed hat" Button
+    t =   178.94s     Check for interrupting elements affecting "Closed hat" Button
+    t =   179.06s     Synthesize event
+    t =   179.39s     Wait for com.alexgazin.LaGrilla to idle
+    t =   179.62s Tap "Kick" Button
+    t =   179.62s     Wait for com.alexgazin.LaGrilla to idle
+    t =   179.63s     Find the "Kick" Button
+    t =   179.78s     Check for interrupting elements affecting "Kick" Button
+    t =   179.90s     Synthesize event
+    t =   180.24s     Wait for com.alexgazin.LaGrilla to idle
+    t =   180.47s Tap "Snare" Button
+    t =   180.47s     Wait for com.alexgazin.LaGrilla to idle
+    t =   180.48s     Find the "Snare" Button
+    t =   180.61s     Check for interrupting elements affecting "Snare" Button
+    t =   180.68s     Synthesize event
+    t =   180.99s     Wait for com.alexgazin.LaGrilla to idle
+    t =   181.22s Tap "Finish drum take" Button
+    t =   181.22s     Wait for com.alexgazin.LaGrilla to idle
+    t =   181.22s     Find the "Finish drum take" Button
+    t =   181.33s     Check for interrupting elements affecting "stop.circle.fill" Button
+    t =   181.44s     Synthesize event
+    t =   181.75s     Wait for com.alexgazin.LaGrilla to idle
+    t =   181.95s Find the "Undo" Button
+    t =   184.10s Tap "Steps" Button
+    t =   184.10s     Wait for com.alexgazin.LaGrilla to idle
+    t =   184.11s     Find the "Steps" Button
+    t =   184.26s     Check for interrupting elements affecting "Steps" Button
+    t =   184.41s     Synthesize event
+    t =   184.74s     Wait for com.alexgazin.LaGrilla to idle
+    t =   184.88s Checking existence of `"jam.step.1" Button`
+    t =   185.08s Find the "jam.step.1" Button
+    t =   185.39s Find the "jam.step.1" Button
+    t =   185.57s Tap "jam.step.1" Button
+    t =   185.57s     Wait for com.alexgazin.LaGrilla to idle
+    t =   185.60s     Find the "jam.step.1" Button
+    t =   185.75s     Check for interrupting elements affecting "jam.step.1" Button
+    t =   185.95s     Synthesize event
+    t =   186.28s     Wait for com.alexgazin.LaGrilla to idle
+    t =   186.30s Find the "jam.step.1" Button
+    t =   186.42s Find the Window (First Match)
+    t =   186.43s Find the Window (First Match)
+NATIVE_DEMO_EVENT {"phase":"jam.steps","unix_seconds":1794809676.4891779,"uptime_seconds":1066.0528270833333,"window_height":956,"window_width":440}
+    t =   186.46s Added attachment named 'NativeDemo-jam.steps'
+    t =   186.71s Added attachment named 'NativeDemo-jam.steps'
+    t =   188.72s Tap "Mixer" Button
+    t =   188.72s     Wait for com.alexgazin.LaGrilla to idle
+    t =   188.72s     Find the "Mixer" Button
+    t =   188.79s     Check for interrupting elements affecting "Mixer" Button
+    t =   188.93s     Synthesize event
+    t =   189.23s     Wait for com.alexgazin.LaGrilla to idle
+    t =   189.30s Waiting 5.0s for "mixer.pan.0" Slider to exist
+    t =   190.36s     Checking `Expect predicate `existsNoRetry == 1` for object "mixer.pan.0" Slider`
+    t =   190.36s         Checking existence of `"mixer.pan.0" Slider`
+    t =   190.51s Find the Window (First Match)
+    t =   190.57s Find the Window (First Match)
+NATIVE_DEMO_EVENT {"phase":"mixer","unix_seconds":1794809680.577312,"uptime_seconds":1070.1409599583335,"window_height":956,"window_width":440}
+    t =   190.60s Added attachment named 'NativeDemo-mixer'
+    t =   190.86s Added attachment named 'NativeDemo-mixer'
+    t =   190.86s Set normalized position of "mixer.pan.0" Slider to 0.75
+    t =   190.86s     Wait for com.alexgazin.LaGrilla to idle
+    t =   190.92s     Find the "mixer.pan.0" Slider
+    t =   191.54s     Check for interrupting elements affecting "mixer.pan.0" Slider
+    t =   191.74s     Synthesize event
+    t =   192.31s     Wait for com.alexgazin.LaGrilla to idle
+    t =   194.96s Set normalized position of "mixer.pan.0" Slider to 0.50
+    t =   194.96s     Wait for com.alexgazin.LaGrilla to idle
+    t =   195.06s     Find the "mixer.pan.0" Slider
+    t =   195.59s     Check for interrupting elements affecting "mixer.pan.0" Slider
+    t =   196.22s     Synthesize event
+    t =   196.91s     Wait for com.alexgazin.LaGrilla to idle
+    t =   197.87s Tap "mixer.mute.0" Button
+    t =   197.87s     Wait for com.alexgazin.LaGrilla to idle
+    t =   197.99s     Find the "mixer.mute.0" Button
+    t =   198.22s     Check for interrupting elements affecting "mixer.mute.0" Button
+    t =   198.40s     Synthesize event
+    t =   198.79s     Wait for com.alexgazin.LaGrilla to idle
+    t =   198.80s Find the "mixer.mute.0" Button
+    t =   200.29s Tap "mixer.mute.0" Button
+    t =   200.29s     Wait for com.alexgazin.LaGrilla to idle
+    t =   200.30s     Find the "mixer.mute.0" Button
+    t =   200.45s     Check for interrupting elements affecting "mixer.mute.0" Button
+    t =   200.57s     Synthesize event
+    t =   200.93s     Wait for com.alexgazin.LaGrilla to idle
+    t =   202.44s Find the Window (First Match)
+    t =   202.46s Find the Window (First Match)
+NATIVE_DEMO_EVENT {"phase":"mixer.changed","unix_seconds":1794809692.5096822,"uptime_seconds":1082.0733309583334,"window_height":956,"window_width":440}
+    t =   202.48s Added attachment named 'NativeDemo-mixer.changed'
+    t =   202.70s Added attachment named 'NativeDemo-mixer.changed'
+    t =   202.70s Tap "Grid" Button
+    t =   202.70s     Wait for com.alexgazin.LaGrilla to idle
+    t =   202.71s     Find the "Grid" Button
+    t =   203.13s     Check for interrupting elements affecting "Grid" Button
+    t =   203.26s     Synthesize event
+    t =   203.70s     Wait for com.alexgazin.LaGrilla to idle
+    t =   203.73s Tap "notes.open" Button
+    t =   203.73s     Wait for com.alexgazin.LaGrilla to idle
+    t =   203.87s     Find the "notes.open" Button
+    t =   204.51s     Check for interrupting elements affecting "notes.open" Button
+    t =   205.46s     Synthesize event
+    t =   206.24s     Wait for com.alexgazin.LaGrilla to idle
+    t =   206.80s Waiting 5.0s for "Piano roll" NavigationBar to exist
+    t =   207.87s     Checking `Expect predicate `existsNoRetry == 1` for object "Piano roll" NavigationBar`
+    t =   207.87s         Checking existence of `"Piano roll" NavigationBar`
+    t =   210.95s Tap "notes.add" Button
+    t =   210.95s     Wait for com.alexgazin.LaGrilla to idle
+    t =   211.11s     Find the "notes.add" Button
+    t =   212.40s     Check for interrupting elements affecting "notes.add" Button
+    t =   213.69s     Synthesize event
+    t =   214.33s     Wait for com.alexgazin.LaGrilla to idle
+    t =   214.88s Tap "notes.add" Button
+    t =   214.88s     Wait for com.alexgazin.LaGrilla to idle
+    t =   214.96s     Find the "notes.add" Button
+    t =   215.97s     Check for interrupting elements affecting "notes.add" Button
+    t =   217.42s     Synthesize event
+    t =   218.06s     Wait for com.alexgazin.LaGrilla to idle
+    t =   218.53s Tap "notes.add" Button
+    t =   218.53s     Wait for com.alexgazin.LaGrilla to idle
+    t =   218.62s     Find the "notes.add" Button
+    t =   220.30s     Check for interrupting elements affecting "notes.add" Button
+    t =   222.00s     Synthesize event
+    t =   222.73s     Wait for com.alexgazin.LaGrilla to idle
+    t =   223.25s Find the "notes.count" StaticText
+    t =   224.40s Find the Window (First Match)
+    t =   224.99s Find the Window (First Match)
+NATIVE_DEMO_EVENT {"phase":"notes.added","unix_seconds":1794809714.470119,"uptime_seconds":1104.0337669583334,"window_height":956,"window_width":440}
+    t =   225.35s Added attachment named 'NativeDemo-notes.added'
+    t =   226.05s Added attachment named 'NativeDemo-notes.added'
+    t =   226.05s Tap "Copy note" Button
+    t =   226.05s     Wait for com.alexgazin.LaGrilla to idle
+    t =   226.12s     Find the "Copy note" Button
+    t =   229.75s     Check for interrupting elements affecting "doc.on.doc" Button
+    t =   230.97s     Synthesize event
+    t =   231.62s     Wait for com.alexgazin.LaGrilla to idle
+    t =   231.69s Tap "Paste note" Button
+    t =   231.69s     Wait for com.alexgazin.LaGrilla to idle
+    t =   231.82s     Find the "Paste note" Button
+    t =   233.37s     Check for interrupting elements affecting "doc.on.clipboard" Button
+    t =   234.46s     Synthesize event
+    t =   236.18s     Wait for com.alexgazin.LaGrilla to idle
+    t =   236.27s Find the "notes.count" StaticText
+    t =   239.57s Tap "notes.undo" Button
+    t =   239.57s     Wait for com.alexgazin.LaGrilla to idle
+    t =   239.69s     Find the "notes.undo" Button
+    t =   242.38s     Check for interrupting elements affecting "notes.undo" Button
+    t =   243.50s     Synthesize event
+    t =   244.10s     Wait for com.alexgazin.LaGrilla to idle
+    t =   244.19s Find the "notes.count" StaticText
+    t =   245.60s Find the Window (First Match)
+    t =   247.34s Find the Window (First Match)
+NATIVE_DEMO_EVENT {"phase":"notes.undo","unix_seconds":1794809735.667721,"uptime_seconds":1125.2313694166667,"window_height":956,"window_width":440}
+    t =   248.59s Added attachment named 'NativeDemo-notes.undo'
+    t =   248.92s Added attachment named 'NativeDemo-notes.undo'
+    t =   248.92s Tap "Done" Button
+    t =   248.92s     Wait for com.alexgazin.LaGrilla to idle
+    t =   249.04s     Find the "Done" Button
+    t =   252.04s     Check for interrupting elements affecting "Done" Button
+    t =   254.34s     Synthesize event
+    t =   255.46s     Wait for com.alexgazin.LaGrilla to idle
+    t =   256.09s Tap "Stop" Button
+    t =   256.09s     Wait for com.alexgazin.LaGrilla to idle
+    t =   256.22s     Find the "Stop" Button
+    t =   258.47s     Check for interrupting elements affecting "stop.fill" Button
+    t =   261.71s     Synthesize event
+    t =   264.62s     Wait for com.alexgazin.LaGrilla to idle
+    t =   264.63s Find the Window (First Match)
+    t =   265.82s Find the Window (First Match)
+NATIVE_DEMO_EVENT {"phase":"compose.end","unix_seconds":1794809754.701328,"uptime_seconds":1144.2649767083335,"window_height":956,"window_width":440}
+    t =   265.90s Added attachment named 'NativeDemo-compose.end'
+    t =   266.09s Added attachment named 'NativeDemo-compose.end'
+    t =   266.11s Tear Down
+Test Case '-[LaGrillaDemoTests.NativeDemoTests test01ComposeJamAndMix]' passed (267.834 seconds).
+Test Case '-[LaGrillaDemoTests.NativeDemoTests test02HarmonyCommandsAndVoiceSetup]' started.
+    t =     0.00s Start Test at 2026-11-16 06:15:57.908
+    t =     0.13s Set Up
+    t =     0.13s Setting device orientation to Portrait
+    t =     0.15s     Wait for com.alexgazin.LaGrilla to idle
+    t =     0.15s Open com.alexgazin.LaGrilla
+    t =     0.15s     Launch com.alexgazin.LaGrilla
+    t =     0.15s         Terminate com.alexgazin.LaGrilla:20162
+    t =     8.54s         Setting up automation session
+    t =    11.75s         Wait for com.alexgazin.LaGrilla to idle
+    t =    13.62s Waiting 20.0s for "perform.transport" Button to exist
+    t =    14.64s     Checking `Expect predicate `existsNoRetry == 1` for object "perform.transport" Button`
+    t =    14.65s         Checking existence of `"perform.transport" Button`
+    t =    15.39s Waiting 10.0s for "Play" Button to exist
+    t =    16.44s     Checking `Expect predicate `existsNoRetry == 1` for object "Play" Button`
+    t =    16.44s         Checking existence of `"Play" Button`
+    t =    16.54s Find the Window (First Match)
+    t =    16.58s Find the Window (First Match)
+NATIVE_DEMO_EVENT {"phase":"app.ready","unix_seconds":1794809774.4463871,"uptime_seconds":1164.0095934583335,"window_height":956,"window_width":440}
+    t =    16.62s Added attachment named 'NativeDemo-app.ready'
+    t =    16.82s Added attachment named 'NativeDemo-app.ready'
+    t =    17.83s Tap "harmony.open" Button
+    t =    17.83s     Wait for com.alexgazin.LaGrilla to idle
+    t =    17.84s     Find the "harmony.open" Button
+    t =    17.92s     Check for interrupting elements affecting "harmony.open" Button
+    t =    17.99s     Synthesize event
+    t =    18.33s     Wait for com.alexgazin.LaGrilla to idle
+    t =    18.87s Waiting 5.0s for "Harmony lab" NavigationBar to exist
+    t =    19.87s     Checking `Expect predicate `existsNoRetry == 1` for object "Harmony lab" NavigationBar`
+    t =    19.88s         Checking existence of `"Harmony lab" NavigationBar`
+    t =    20.16s Tap "harmony.generate" Button
+    t =    20.16s     Wait for com.alexgazin.LaGrilla to idle
+    t =    20.17s     Find the "harmony.generate" Button
+    t =    20.32s     Check for interrupting elements affecting "harmony.generate" Button
+    t =    20.46s     Synthesize event
+    t =    20.77s     Wait for com.alexgazin.LaGrilla to idle
+    t =    20.81s Checking existence of `"harmony.b" Button`
+    t =    20.98s Find the "harmony.b" Button
+    t =    21.12s Find the Window (First Match)
+    t =    21.13s Find the Window (First Match)
+NATIVE_DEMO_EVENT {"phase":"harmony.proposal","unix_seconds":1794809779.027945,"uptime_seconds":1168.5915938333335,"window_height":956,"window_width":440}
+    t =    21.15s Added attachment named 'NativeDemo-harmony.proposal'
+    t =    21.35s Added attachment named 'NativeDemo-harmony.proposal'
+    t =    21.35s Tap "harmony.b" Button
+    t =    21.35s     Wait for com.alexgazin.LaGrilla to idle
+    t =    21.36s     Find the "harmony.b" Button
+    t =    21.54s     Check for interrupting elements affecting "harmony.b" Button
+    t =    21.61s     Synthesize event
+    t =    21.96s     Wait for com.alexgazin.LaGrilla to idle
+    t =    22.04s Checking existence of `"Stop preview" Button`
+    t =    26.35s Find the Window (First Match)
+    t =    26.59s Find the Window (First Match)
+NATIVE_DEMO_EVENT {"phase":"harmony.preview-b","unix_seconds":1794809784.2593589,"uptime_seconds":1173.8230073750001,"window_height":956,"window_width":440}
+    t =    26.85s Added attachment named 'NativeDemo-harmony.preview-b'
+    t =    27.13s Added attachment named 'NativeDemo-harmony.preview-b'
+    t =    27.13s Tap "harmony.a" Button
+    t =    27.13s     Wait for com.alexgazin.LaGrilla to idle
+    t =    27.25s     Find the "harmony.a" Button
+    t =    27.83s     Check for interrupting elements affecting "harmony.a" Button
+    t =    28.49s     Synthesize event
+    t =    29.14s     Wait for com.alexgazin.LaGrilla to idle
+    t =    32.19s Tap "harmony.apply" Button
+    t =    32.19s     Wait for com.alexgazin.LaGrilla to idle
+    t =    32.31s     Find the "harmony.apply" Button
+    t =    33.05s     Check for interrupting elements affecting "harmony.apply" Button
+    t =    34.00s     Synthesize event
+    t =    34.63s     Wait for com.alexgazin.LaGrilla to idle
+    t =    35.21s Waiting 5.0s for "Undo" Button to exist
+    t =    36.27s     Checking `Expect predicate `existsNoRetry == 1` for object "Undo" Button`
+    t =    36.27s         Checking existence of `"Undo" Button`
+    t =    38.35s Find the Window (First Match)
+    t =    38.37s Find the Window (First Match)
+NATIVE_DEMO_EVENT {"phase":"harmony.applied","unix_seconds":1794809796.2503591,"uptime_seconds":1185.8140045416667,"window_height":956,"window_width":440}
+    t =    38.39s Added attachment named 'NativeDemo-harmony.applied'
+    t =    38.59s Added attachment named 'NativeDemo-harmony.applied'
+    t =    38.59s Tap "assistant.open" Button
+    t =    38.59s     Wait for com.alexgazin.LaGrilla to idle
+    t =    38.59s     Find the "assistant.open" Button
+    t =    38.69s     Check for interrupting elements affecting "assistant.open" Button
+    t =    38.77s     Synthesize event
+    t =    39.07s     Wait for com.alexgazin.LaGrilla to idle
+    t =    39.36s Waiting 5.0s for "Assistant" NavigationBar to exist
+    t =    40.43s     Checking `Expect predicate `existsNoRetry == 1` for object "Assistant" NavigationBar`
+    t =    40.43s         Checking existence of `"Assistant" NavigationBar`
+    t =    40.72s Tap "assistant.input" TextView
+    t =    40.72s     Wait for com.alexgazin.LaGrilla to idle
+    t =    40.73s     Find the "assistant.input" TextView
+    t =    40.83s     Check for interrupting elements affecting "assistant.input" TextView
+    t =    40.94s     Synthesize event
+    t =    41.25s     Wait for com.alexgazin.LaGrilla to idle
+    t =    42.48s Type 'tempo 108' into "assistant.input" TextView
+    t =    42.48s     Wait for com.alexgazin.LaGrilla to idle
+    t =    42.57s     Find the "assistant.input" TextView
+    t =    43.18s     Check for interrupting elements affecting "assistant.input" TextView
+    t =    43.47s     Synthesize event
+    t =    43.86s     Wait for com.alexgazin.LaGrilla to idle
+    t =    44.47s Swipe up Target Application 'com.alexgazin.LaGrilla'
+    t =    44.47s     Wait for com.alexgazin.LaGrilla to idle
+    t =    44.49s     Find the Target Application 'com.alexgazin.LaGrilla'
+    t =    44.99s     Check for interrupting elements affecting "La Grilla" Application
+    t =    45.17s     Synthesize event
+    t =    45.76s     Wait for com.alexgazin.LaGrilla to idle
+    t =    47.07s Checking existence of `"assistant.generate" Button`
+    t =    47.32s Find the "assistant.generate" Button
+    t =    47.56s Tap "assistant.generate" Button
+    t =    47.57s     Wait for com.alexgazin.LaGrilla to idle
+    t =    47.60s     Find the "assistant.generate" Button
+    t =    47.78s     Check for interrupting elements affecting "assistant.generate" Button
+    t =    47.91s     Synthesize event
+    t =    48.26s     Wait for com.alexgazin.LaGrilla to idle
+    t =    48.36s Checking existence of `"assistant.apply" Button`
+    t =    49.45s Find the "assistant.apply" Button
+    t =    49.67s Find the Window (First Match)
+    t =    49.70s Find the Window (First Match)
+NATIVE_DEMO_EVENT {"phase":"assistant.local-review","unix_seconds":1794809807.5745931,"uptime_seconds":1197.1382420416667,"window_height":956,"window_width":440}
+    t =    49.77s Added attachment named 'NativeDemo-assistant.local-review'
+    t =    50.04s Added attachment named 'NativeDemo-assistant.local-review'
+    t =    52.05s Tap "assistant.apply" Button
+    t =    52.05s     Wait for com.alexgazin.LaGrilla to idle
+    t =    52.06s     Find the "assistant.apply" Button
+    t =    52.24s     Check for interrupting elements affecting "assistant.apply" Button
+    t =    52.36s     Synthesize event
+    t =    52.69s     Wait for com.alexgazin.LaGrilla to idle
+    t =    52.79s Waiting 5.0s for "studio.tempo" StaticText to exist
+    t =    53.83s     Checking `Expect predicate `existsNoRetry == 1` for object "studio.tempo" StaticText`
+    t =    53.83s         Checking existence of `"studio.tempo" StaticText`
+    t =    53.94s Find the "studio.tempo" StaticText
+    t =    54.04s Find the Window (First Match)
+    t =    54.05s Find the Window (First Match)
+NATIVE_DEMO_EVENT {"phase":"assistant.applied","unix_seconds":1794809811.9415641,"uptime_seconds":1201.5052129583335,"window_height":956,"window_width":440}
+    t =    54.07s Added attachment named 'NativeDemo-assistant.applied'
+    t =    54.28s Added attachment named 'NativeDemo-assistant.applied'
+    t =    56.29s Tap "Undo" Button
+    t =    56.29s     Wait for com.alexgazin.LaGrilla to idle
+    t =    56.30s     Find the "Undo" Button
+    t =    56.43s     Check for interrupting elements affecting "arrow.uturn.backward" Button
+    t =    56.54s     Synthesize event
+    t =    56.89s     Wait for com.alexgazin.LaGrilla to idle
+    t =    56.96s Find the "studio.tempo" StaticText
+    t =    57.17s Tap "More studio tools" Button
+    t =    57.17s     Wait for com.alexgazin.LaGrilla to idle
+    t =    57.18s     Find the "More studio tools" Button
+    t =    57.29s     Check for interrupting elements affecting "tools.more" Button
+    t =    57.43s     Synthesize event
+    t =    57.82s     Wait for com.alexgazin.LaGrilla to idle
+    t =    59.77s Tap "voice.open" Button
+    t =    59.77s     Wait for com.alexgazin.LaGrilla to idle
+    t =    59.81s     Find the "voice.open" Button
+    t =    60.08s     Check for interrupting elements affecting "voice.open" Button
+    t =    60.24s     Synthesize event
+    t =    61.06s     Wait for com.alexgazin.LaGrilla to idle
+    t =    62.55s Waiting 5.0s for "Voice to MIDI" NavigationBar to exist
+    t =    63.59s     Checking `Expect predicate `existsNoRetry == 1` for object "Voice to MIDI" NavigationBar`
+    t =    63.59s         Checking existence of `"Voice to MIDI" NavigationBar`
+    t =    63.87s Find the Window (First Match)
+    t =    63.89s Find the Window (First Match)
+NATIVE_DEMO_EVENT {"phase":"voice.beta-preparation","unix_seconds":1794809821.779285,"uptime_seconds":1211.3429335833334,"window_height":956,"window_width":440}
+    t =    63.92s Added attachment named 'NativeDemo-voice.beta-preparation'
+    t =    64.13s Added attachment named 'NativeDemo-voice.beta-preparation'
+    t =    67.14s Tap "Cancel" Button
+    t =    67.14s     Wait for com.alexgazin.LaGrilla to idle
+    t =    67.15s     Find the "Cancel" Button
+    t =    67.24s     Check for interrupting elements affecting "Cancel" Button
+    t =    67.37s     Synthesize event
+    t =    67.75s     Wait for com.alexgazin.LaGrilla to idle
+    t =    68.59s Find the Window (First Match)
+    t =    68.62s Find the Window (First Match)
+NATIVE_DEMO_EVENT {"phase":"commands.end","unix_seconds":1794809826.4998422,"uptime_seconds":1216.0634903333334,"window_height":956,"window_width":440}
+    t =    68.66s Added attachment named 'NativeDemo-commands.end'
+    t =    68.88s Added attachment named 'NativeDemo-commands.end'
+    t =    68.89s Tear Down
+Test Case '-[LaGrillaDemoTests.NativeDemoTests test02HarmonyCommandsAndVoiceSetup]' passed (69.662 seconds).
+Test Case '-[LaGrillaDemoTests.NativeDemoTests test03PerformAndExport]' started.
+    t =     0.00s Start Test at 2026-11-16 06:17:07.569
+    t =     0.16s Set Up
+    t =     0.16s Setting device orientation to Portrait
+    t =     0.17s     Wait for com.alexgazin.LaGrilla to idle
+    t =     0.18s Open com.alexgazin.LaGrilla
+    t =     0.18s     Launch com.alexgazin.LaGrilla
+    t =     0.18s         Terminate com.alexgazin.LaGrilla:22786
+    t =     5.38s         Setting up automation session
+    t =     7.35s         Wait for com.alexgazin.LaGrilla to idle
+    t =     8.96s Waiting 20.0s for "perform.transport" Button to exist
+    t =     9.96s     Checking `Expect predicate `existsNoRetry == 1` for object "perform.transport" Button`
+    t =     9.96s         Checking existence of `"perform.transport" Button`
+    t =    10.33s Waiting 10.0s for "Play" Button to exist
+    t =    11.36s     Checking `Expect predicate `existsNoRetry == 1` for object "Play" Button`
+    t =    11.36s         Checking existence of `"Play" Button`
+    t =    11.46s Find the Window (First Match)
+    t =    11.48s Find the Window (First Match)
+NATIVE_DEMO_EVENT {"phase":"app.ready","unix_seconds":1794809839.0298481,"uptime_seconds":1228.5934969166667,"window_height":956,"window_width":440}
+    t =    11.52s Added attachment named 'NativeDemo-app.ready'
+    t =    11.71s Added attachment named 'NativeDemo-app.ready'
+    t =    12.72s Tap "More studio tools" Button
+    t =    12.72s     Wait for com.alexgazin.LaGrilla to idle
+    t =    12.72s     Find the "More studio tools" Button
+    t =    12.81s     Check for interrupting elements affecting "tools.more" Button
+    t =    12.92s     Synthesize event
+    t =    13.25s     Wait for com.alexgazin.LaGrilla to idle
+    t =    13.58s Tap "perform.open" Button
+    t =    13.58s     Wait for com.alexgazin.LaGrilla to idle
+    t =    14.63s     Find the "perform.open" Button
+    t =    15.06s     Check for interrupting elements affecting "perform.open" Button
+    t =    15.56s     Synthesize event
+    t =    15.88s     Wait for com.alexgazin.LaGrilla to idle
+    t =    20.40s Waiting 5.0s for "perform.record" Button to exist
+    t =    21.40s     Checking `Expect predicate `existsNoRetry == 1` for object "perform.record" Button`
+    t =    21.41s         Checking existence of `"perform.record" Button`
+    t =    21.65s Find the Window (First Match)
+    t =    21.66s Find the Window (First Match)
+NATIVE_DEMO_EVENT {"phase":"perform","unix_seconds":1794809849.2149801,"uptime_seconds":1238.7786287083334,"window_height":956,"window_width":440}
+    t =    21.68s Added attachment named 'NativeDemo-perform'
+    t =    21.90s Added attachment named 'NativeDemo-perform'
+    t =    21.90s Tap "perform.record" Button
+    t =    21.90s     Wait for com.alexgazin.LaGrilla to idle
+    t =    21.91s     Find the "perform.record" Button
+    t =    22.05s     Check for interrupting elements affecting "perform.record" Button
+    t =    22.17s     Synthesize event
+    t =    22.50s     Wait for com.alexgazin.LaGrilla to idle
+    t =    22.63s Waiting 5.0s for "perform.filter" Slider to exist
+    t =    23.65s     Checking `Expect predicate `existsNoRetry == 1` for object "perform.filter" Slider`
+    t =    23.66s         Checking existence of `"perform.filter" Slider`
+    t =    25.10s Checking `Expect predicate `enabled == 1` for object "perform.filter" Slider`
+    t =    25.11s     Find the "perform.filter" Slider
+    t =    27.92s Press "perform.filter" Slider[0.50, 0.50] -> (0.0, -44.0) for 0.1 seconds, then drag to "perform.filter" Slider[0.50, 0.50] -> (44.0, 0.0) with velocity of 500.00 pixels per second, and then hold for 0.0 seconds 
+    t =    27.92s     Wait for com.alexgazin.LaGrilla to idle
+    t =    27.96s     Find the "perform.filter" Slider
+    t =    28.78s     Check for interrupting elements affecting "perform.filter" Slider
+    t =    31.03s     Synthesize event
+    t =    31.03s         Find the "perform.filter" Slider
+    t =    34.32s         Find the "perform.filter" Slider
+    t =    38.05s         Find the "perform.filter" Slider
+    t =    40.47s         Find the "perform.filter" Slider
+    t =    41.90s         Find the "perform.filter" Slider
+    t =    43.43s     Wait for com.alexgazin.LaGrilla to idle
+    t =    45.50s Find the Window (First Match)
+    t =    46.45s Find the Window (First Match)
+NATIVE_DEMO_EVENT {"phase":"perform.filter","unix_seconds":1794809873.0713749,"uptime_seconds":1262.6350234166669,"window_height":956,"window_width":440}
+    t =    46.69s Added attachment named 'NativeDemo-perform.filter'
+    t =    47.02s Added attachment named 'NativeDemo-perform.filter'
+    t =    47.04s Tap "perform.filter.reset" Button
+    t =    47.04s     Wait for com.alexgazin.LaGrilla to idle
+    t =    47.13s     Find the "perform.filter.reset" Button
+    t =    48.67s     Check for interrupting elements affecting "perform.filter.reset" Button
+    t =    50.40s     Synthesize event
+    t =    51.33s     Wait for com.alexgazin.LaGrilla to idle
+    t =    51.40s Set normalized position of "Delay wet" Slider to 0.50
+    t =    51.40s     Wait for com.alexgazin.LaGrilla to idle
+    t =    51.49s     Find the "Delay wet" Slider
+    t =    54.78s     Check for interrupting elements affecting "Delay wet" Slider
+    t =    56.01s     Synthesize event
+    t =    58.21s     Wait for com.alexgazin.LaGrilla to idle
+    t =    62.52s Tap "perform.repeat" Button
+    t =    62.53s     Wait for com.alexgazin.LaGrilla to idle
+    t =    62.73s     Find the "perform.repeat" Button
+    t =    63.55s     Check for interrupting elements affecting "perform.repeat" Button
+    t =    64.42s     Synthesize event
+    t =    65.94s     Wait for com.alexgazin.LaGrilla to idle
+    t =    68.03s Tap "perform.repeat" Button
+    t =    68.03s     Wait for com.alexgazin.LaGrilla to idle
+    t =    68.17s     Find the "perform.repeat" Button
+    t =    69.51s     Check for interrupting elements affecting "perform.repeat" Button
+    t =    72.55s     Synthesize event
+    t =    73.38s     Wait for com.alexgazin.LaGrilla to idle
+    t =    73.40s Tap "perform.record" Button
+    t =    73.40s     Wait for com.alexgazin.LaGrilla to idle
+    t =    73.54s     Find the "perform.record" Button
+    t =    74.18s     Check for interrupting elements affecting "perform.record" Button
+    t =    75.00s     Synthesize event
+    t =    75.67s     Wait for com.alexgazin.LaGrilla to idle
+    t =    75.72s Find the Window (First Match)
+    t =    76.58s Find the Window (First Match)
+NATIVE_DEMO_EVENT {"phase":"perform.saved-take","unix_seconds":1794809903.2845731,"uptime_seconds":1292.8482219166667,"window_height":956,"window_width":440}
+    t =    76.95s Added attachment named 'NativeDemo-perform.saved-take'
+    t =    77.24s Added attachment named 'NativeDemo-perform.saved-take'
+    t =    77.26s Checking existence of `"perform.edit" Button`
+    t =    79.45s Find the "perform.edit" Button
+    t =    83.37s Tap "perform.edit" Button
+    t =    83.37s     Wait for com.alexgazin.LaGrilla to idle
+    t =    83.44s     Find the "perform.edit" Button
+    t =    85.20s     Check for interrupting elements affecting "perform.edit" Button
+    t =    85.88s     Synthesize event
+    t =    86.64s     Wait for com.alexgazin.LaGrilla to idle
+    t =    86.73s Waiting 8.0s for "export.open" Button to exist
+    t =    87.80s     Checking `Expect predicate `existsNoRetry == 1` for object "export.open" Button`
+    t =    87.81s         Checking existence of `"export.open" Button`
+    t =    87.96s Tap "export.open" Button
+    t =    87.96s     Wait for com.alexgazin.LaGrilla to idle
+    t =    87.96s     Find the "export.open" Button
+    t =    88.24s     Check for interrupting elements affecting "export.open" Button
+    t =    88.38s     Synthesize event
+    t =    88.77s     Wait for com.alexgazin.LaGrilla to idle
+    t =    89.22s Tap "format.wav" Button
+    t =    89.22s     Wait for com.alexgazin.LaGrilla to idle
+    t =    90.08s     Find the "format.wav" Button
+    t =    90.43s     Check for interrupting elements affecting "format.wav" Button
+    t =    90.57s     Synthesize event
+    t =    91.12s     Wait for com.alexgazin.LaGrilla to idle
+    t =    91.13s Find the Window (First Match)
+    t =    91.62s Find the Window (First Match)
+NATIVE_DEMO_EVENT {"phase":"export.wav-options","unix_seconds":1794809918.7021,"uptime_seconds":1308.2657485,"window_height":956,"window_width":440}
+    t =    92.15s Added attachment named 'NativeDemo-export.wav-options'
+    t =    92.36s Added attachment named 'NativeDemo-export.wav-options'
+    t =    94.36s Checking existence of `"export.confirm" Button`
+    t =    94.48s Find the "export.confirm" Button
+    t =    94.61s Tap "export.confirm" Button
+    t =    94.61s     Wait for com.alexgazin.LaGrilla to idle
+    t =    94.61s     Find the "export.confirm" Button
+    t =    94.71s     Check for interrupting elements affecting "export.confirm" Button
+    t =    94.83s     Synthesize event
+    t =    95.15s     Wait for com.alexgazin.LaGrilla to idle
+    t =    95.17s Waiting 30.0s for "ActivityListView" Other to exist
+    t =    96.26s     Checking `Expect predicate `existsNoRetry == 1` for object "ActivityListView" Other`
+    t =    96.26s         Checking existence of `"ActivityListView" Other`
+    t =    97.60s         Capturing element debug description
+    t =    98.21s     Checking `Expect predicate `existsNoRetry == 1` for object "ActivityListView" Other`
+    t =    98.21s         Checking existence of `"ActivityListView" Other`
+    t =   104.35s         Capturing element debug description
+    t =   105.21s     Checking `Expect predicate `existsNoRetry == 1` for object "ActivityListView" Other`
+    t =   105.21s         Checking existence of `"ActivityListView" Other`
+    t =   106.30s Find the Window (First Match)
+    t =   106.37s Find the Window (First Match)
+NATIVE_DEMO_EVENT {"phase":"export.actual-share-sheet","unix_seconds":1794809933.8676209,"uptime_seconds":1323.4312693750001,"window_height":956,"window_width":440}
+    t =   106.47s Added attachment named 'NativeDemo-export.actual-share-sheet'
+    t =   106.70s Added attachment named 'NativeDemo-export.actual-share-sheet'
+    t =   109.72s Tear Down
+Test Case '-[LaGrillaDemoTests.NativeDemoTests test03PerformAndExport]' passed (110.545 seconds).
+Test Suite 'NativeDemoTests' passed at 2026-11-16 06:18:58.115.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 448.041 (448.045) seconds
+Test Suite 'LaGrillaDemoTests.xctest' passed at 2026-11-16 06:18:58.116.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 448.041 (448.046) seconds
+Test Suite 'All tests' passed at 2026-11-16 06:18:58.117.
+	 Executed 3 tests, with 0 failures (0 unexpected) in 448.041 (448.048) seconds
+2026-11-16 06:19:53.371 xcodebuild[16108:51299] [MT] IDETestOperationsObserverDebug: 537.458 elapsed -- Testing started completed.
+2026-11-16 06:19:53.372 xcodebuild[16108:51299] [MT] IDETestOperationsObserverDebug: 0.000 sec, +0.000 sec -- start
+2026-11-16 06:19:53.372 xcodebuild[16108:51299] [MT] IDETestOperationsObserverDebug: 537.458 sec, +537.458 sec -- end
+
+Test session results, code coverage, and logs:
+	/Users/runner/work/la-grilla/la-grilla/NativeDemoResults.xcresult
+
+** TEST EXECUTE SUCCEEDED **
+
+Testing started

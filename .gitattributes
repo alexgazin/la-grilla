@@ -1,0 +1,2 @@
+# Keep captured evidence byte-identical, including XCTest's trailing spaces.
+Media/WorkingDemo/Source/*.log -text whitespace=-blank-at-eol
