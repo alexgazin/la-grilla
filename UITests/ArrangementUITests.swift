@@ -41,9 +41,11 @@ final class ArrangementUITests: XCTestCase {
     @MainActor func testPinchRetainsScrolledMusicalCenterWithoutEditingOrStopping()throws {
         let app=launch(runtimeTrace:true)
         let timeline=app.scrollViews["grid.timeline"]
+        let zoomDiagnostics=app.staticTexts["grid.zoom-diagnostics"]
         let third=app.staticTexts["grid.bar.2"],fourth=app.staticTexts["grid.bar.3"]
         let clip=app.buttons.matching(NSPredicate(format:"identifier BEGINSWITH 'grid.clip.' AND label == 'Harmony'")).firstMatch
         XCTAssertTrue(timeline.waitForExistence(timeout:5));XCTAssertTrue(clip.waitForExistence(timeout:5))
+        XCTAssertTrue(zoomDiagnostics.waitForExistence(timeout:5))
         XCTAssertTrue(third.waitForExistence(timeout:5));XCTAssertTrue(fourth.waitForExistence(timeout:5))
         let clipID=clip.identifier,length=clip.value as? String
         XCTAssertEqual(length,"4.00 bars");XCTAssertFalse(app.buttons["Undo"].isEnabled)
@@ -87,10 +89,12 @@ final class ArrangementUITests: XCTestCase {
         // XCTest chooses its own actual hit point and touch trigger distance.
         // The framework's raw startAnchor is an input, not a target/result from
         // our zoom helper. Corroborate it against exported two-finger events.
+        // Read its pinned report from the existing header StaticText, whose AX
+        // value is independent of the timeline's hosted native clip controls.
         timeline.pinch(withScale:1.1,velocity:1)
         var firstInput="",firstAnchorX=CGFloat.nan,barsBefore=CGFloat.nan
         let enlargedSettled=XCTWaiter.wait(for:[XCTNSPredicateExpectation(predicate:NSPredicate{_,_ in
-            firstInput=timeline.value as? String ?? ""
+            firstInput=zoomDiagnostics.value as? String ?? ""
             guard number("id",line:"BEGIN",in:firstInput)==1,
                   number("id",line:"REQUEST",in:firstInput)==1,
                   number("id",line:"ACK",in:firstInput)==1,
@@ -116,7 +120,7 @@ final class ArrangementUITests: XCTestCase {
         timeline.pinch(withScale:0.75,velocity:-1)
         var secondInput="",secondAnchorX=CGFloat.nan,secondBarsBefore=CGFloat.nan
         let reducedSettled=XCTWaiter.wait(for:[XCTNSPredicateExpectation(predicate:NSPredicate{_,_ in
-            secondInput=timeline.value as? String ?? ""
+            secondInput=zoomDiagnostics.value as? String ?? ""
             guard number("id",line:"BEGIN",in:secondInput)==2,
                   number("id",line:"REQUEST",in:secondInput)==2,
                   number("id",line:"ACK",in:secondInput)==2,

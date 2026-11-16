@@ -3,6 +3,7 @@ import AudioDSP
 import MusicDomain
 import Observation
 import Darwin
+import Foundation
 
 /// Only routing metadata is retained for a rendered generation, never a second
 /// mutable project. MIDI must follow the layout actually adopted by the callback.
@@ -18,8 +19,40 @@ private struct AudioTrackLayout:Equatable {
 }
 final class KernelHandle: @unchecked Sendable {
     let pointer: OpaquePointer
-    init(rate: Double) { pointer = lg_create(rate)! }
+    init(rate: Double) throws {
+        guard let pointer=lg_create(rate) else {
+            throw NSError(domain:"LaGrilla.Audio",code:2,userInfo:[NSLocalizedDescriptionKey:"Could not allocate the audio renderer."])
+        }
+        self.pointer=pointer
+    }
     deinit { lg_destroy(pointer) }
+}
+
+/// Bounded, read-only startup/recovery evidence. It contains no audio, device
+/// names, port identifiers or user project data, and never creates an input node.
+struct AudioFailureDetails:Codable,Sendable {
+    let stage:String
+    let domain:String
+    let code:Int
+    let fourCC:String?
+    let detail:String
+    let category:String
+    let mode:String
+    let sessionSampleRate:Double?
+    let outputPortTypes:[String]
+    let observedOutputSampleRate:Double?
+    let observedOutputChannels:Int?
+    let inputPriming:String
+    let inputPrimed:Bool
+    let preferenceWarnings:[String]
+    let qaInjected:Bool
+}
+
+private struct AudioStartFailure:LocalizedError {
+    let underlying:Error
+    var errorDescription:String? {
+        NSLocalizedString("Audio could not start. Check the audio route and retry.",comment:"Audio startup")
+    }
 }
 /// The render block must be constructed outside MainActor. AVFAudio's legacy block
 /// type does not express Sendable; creating it in prepare() inherits MainActor
@@ -30,7 +63,10 @@ private enum AudioRender {
         let ticks=1_000_000_000*Double(info.denom)/Double(info.numer)
         return AVAudioSourceNode(format:format) { @Sendable [kernel,hub] _, stamp, count, buffers in
             let output=UnsafeMutableAudioBufferListPointer(buffers)
-            guard output.count==2,let left=output[0].mData,let right=output[1].mData else {return noErr}
+            guard output.count==2,let left=output[0].mData,let right=output[1].mData else {
+                for buffer in output {if let data=buffer.mData{memset(data,0,Int(buffer.mDataByteSize))}}
+                return noErr
+            }
             let host=stamp.pointee.mHostTime==0 ? mach_absolute_time():stamp.pointee.mHostTime
             lg_render_midi(kernel.pointer,hub.pointer,host,ticks,left.assumingMemoryBound(to:Float.self),right.assumingMemoryBound(to:Float.self),Int32(count))
             return noErr
@@ -38,6 +74,13 @@ private enum AudioRender {
     }
 }
 @MainActor @Observable final class AudioController {
+    enum InputPrimingPolicy:String {case platformDefault,outputOnly,sharedInputFirst}
+    private let inputPriming:InputPrimingPolicy
+    private(set) var inputPrimedAtStartup=false
+    private(set) var failureDetails:AudioFailureDetails?
+    @ObservationIgnored private var preferenceWarnings:[String]=[]
+    @ObservationIgnored private var observedOutputSampleRate:Double?
+    @ObservationIgnored private var observedOutputChannels:Int?
     let midiHub=MIDIHubHandle()
     private var engine: AVAudioEngine?
     private var source: AVAudioSourceNode?
@@ -59,6 +102,17 @@ private enum AudioRender {
     private var submittedLayout:[AudioTrackLayout]=[]
     private var routing:[Int:AudioMIDIRouting]=[:]
     private var pendingPreviews:[(UUID,Int)]=[]
+    init(inputPriming:InputPrimingPolicy = .platformDefault){
+        if inputPriming != .platformDefault {self.inputPriming=inputPriming}
+        else if ProcessInfo.processInfo.arguments.contains("--uitesting"),ProcessInfo.processInfo.arguments.contains("--device-output-startup") {self.inputPriming = .outputOnly}
+        else {
+            #if targetEnvironment(simulator)
+            self.inputPriming = .sharedInputFirst
+            #else
+            self.inputPriming = .outputOnly
+            #endif
+        }
+    }
     var isPrepared: Bool { engine?.isRunning == true }
     var captureEngine:AVAudioEngine? {engine}
     var pendingSnapshot:Bool {guard let k=handle?.pointer else{return false};return generation != Int(lg_revision(k))}
@@ -66,9 +120,13 @@ private enum AudioRender {
     /// Bounded metadata retained alongside the kernel's three musical slots.
     var retainedRoutingCount:Int {routing.count}
     var clock: UInt64 = 0
+    var failureReport:String {
+        guard let failureDetails,let data=try? JSONEncoder().encode(failureDetails)else{return ""}
+        return String(decoding:data,as:UTF8.self)
+    }
     /// Read-only native test diagnostics. Never called from the render thread.
     var runtimeTraceState:String {
-        let prefix="engineRunning=\(engine?.isRunning == true) controllerPlaying=\(playing) controllerTick=\(tick) controllerClock=\(clock) appliedRevision=\(appliedRevision) submittedGeneration=\(generation)"
+        let prefix="engineRunning=\(engine?.isRunning == true) controllerPlaying=\(playing) controllerTick=\(tick) controllerClock=\(clock) appliedRevision=\(appliedRevision) submittedGeneration=\(generation) inputPriming=\(inputPriming.rawValue) inputPrimed=\(inputPrimedAtStartup) failureStage=\(failureDetails?.stage ?? "none") qaAudioUnavailable=\(failureDetails?.qaInjected ?? false)"
         guard let k=handle?.pointer else{return prefix+" kernel=none error=\(error ?? "none")"}
         let revision=Int(lg_revision(k))
         return prefix+" kernel=\(UInt(bitPattern:k)) actualClock=\(lg_clock(k)) actualTick=\(lg_tick(k)) actualPlaying=\(lg_playing(k)) actualGeneration=\(revision) actualRevision=\(sentRevisions[revision] ?? -1) pending=\(generation != revision) error=\(error ?? "none")"
@@ -78,42 +136,139 @@ private enum AudioRender {
         // A microphone category/configuration change may stop AVAudioEngine.
         // Restart the same graph: replacing the kernel would lose its clock,
         // pending musical transaction, held MIDI and ongoing performance.
-        if let engine,handle != nil {
-            try AVAudioSession.sharedInstance().setActive(true)
-            engine.prepare();try engine.start();error=nil;return
+        var stage="activate-existing-output"
+        var pendingEngine:AVAudioEngine?
+        do {
+            if let engine,handle != nil {
+                try AVAudioSession.sharedInstance().setActive(true)
+                try startOutputGraph(engine,stage:&stage);error=nil;return
+            }
+            let arguments=ProcessInfo.processInfo.arguments
+            if arguments.contains("--uitesting"),arguments.contains("--audio-unavailable") {
+                stage="qa-output-unavailable"
+                throw unavailableOutput()
+            }
+            let session = AVAudioSession.sharedInstance()
+            stage="set-playback-category"
+            try session.setCategory(.playback, mode: .default, options: [])
+            preferenceWarnings=[]
+            // These are preferences, not requirements. Use the negotiated
+            // hardware format even when a route rejects the requested hints.
+            preference("sample-rate"){try session.setPreferredSampleRate(48000)}
+            preference("io-buffer"){try session.setPreferredIOBufferDuration(0.0053)}
+            stage="activate-playback"
+            try session.setActive(true)
+            let e=AVAudioEngine();pendingEngine=e
+            inputPrimedAtStartup=false
+            if inputPriming == .sharedInputFirst {
+                // Simulator HAL requires this ordering for later shared input.
+                // A physical playback-only graph must not initialize input
+                // before the user explicitly grants capture permission.
+                stage="prime-simulator-input"
+                _ = e.inputNode;inputPrimedAtStartup=true
+            }
+            stage="read-initial-output-format"
+            let output=try outputFormat(e)
+            sampleRate=output.sampleRate
+            let h=try KernelHandle(rate:sampleRate)
+            // Preserve position only when creating a new kernel after an idle
+            // reset. Recovery of an existing graph never resets/seeks it.
+            lg_seek(h.pointer,Int32(max(0,tick).rounded(.down)))
+            guard let format=AVAudioFormat(standardFormatWithSampleRate:sampleRate,channels:2)else{throw unavailableOutput()}
+            let node=AudioRender.makeSource(format:format,kernel:h,hub:midiHub)
+            stage="connect-source"
+            e.attach(node);e.connect(node,to:e.mainMixerNode,format:format)
+            try startOutputGraph(e,stage:&stage)
+            handle=h;source=node;engine=e;submittedNotes=nil;pendingEngine=nil
+            configurationObserver=NotificationCenter.default.addObserver(forName:.AVAudioEngineConfigurationChange,object:e,queue:.main){[weak self] _ in
+                Task{@MainActor in self?.resumeConfiguredGraph()}
+            }
+            timer?.invalidate();timer=Timer.scheduledTimer(withTimeInterval:1/30,repeats:true){[weak self] _ in
+                Task{@MainActor in self?.poll()}
+            }
+            error=nil
+        }catch {
+            pendingEngine?.stop()
+            recordFailure(error,stage:stage,qaInjected:stage=="qa-output-unavailable")
+            throw AudioStartFailure(underlying:error)
         }
-        let session = AVAudioSession.sharedInstance()
-        try session.setCategory(.playback, mode: .default, options: [])
-        try session.setPreferredSampleRate(48000); try session.setPreferredIOBufferDuration(0.0053)
-        try session.setActive(true); sampleRate = session.sampleRate
-        guard sampleRate.isFinite, (8000...192000).contains(sampleRate) else {
-            throw NSError(domain:"LaGrilla.Audio",code:1,userInfo:[NSLocalizedDescriptionKey:"No audio output is available. Connect an audio device and retry."])
+    }
+    /// Called after category/tap changes only if the OS stopped this graph.
+    /// The source, kernel, musical clock and submitted generations are retained.
+    func resumeOutputAfterInputChange()throws {
+        guard let engine,handle != nil else{throw LiveInputError.outputUnavailable}
+        guard !engine.isRunning else{return}
+        var stage="resume-input-output"
+        do{try startOutputGraph(engine,stage:&stage);error=nil}
+        catch{recordFailure(error,stage:stage);throw AudioStartFailure(underlying:error)}
+    }
+    private func outputFormat(_ engine:AVAudioEngine)throws->AVAudioFormat {
+        let format=engine.outputNode.inputFormat(forBus:0)
+        observedOutputSampleRate=format.sampleRate.isFinite ? format.sampleRate:nil
+        observedOutputChannels=Int(format.channelCount)
+        guard format.sampleRate.isFinite,(8000...192000).contains(format.sampleRate),format.channelCount>0,format.channelCount<=32 else{throw unavailableOutput()}
+        return format
+    }
+    private func startOutputGraph(_ engine:AVAudioEngine,stage:inout String)throws {
+        stage="read-output-format"
+        let output=try outputFormat(engine)
+        // A route can change the negotiated output rate or mono/stereo layout. The mixer
+        // converts the existing stereo source; never change the DSP clock rate.
+        let mixer=engine.mainMixerNode
+        let connected=engine.outputConnectionPoints(for:mixer,outputBus:0).contains{$0.node === engine.outputNode && $0.bus==0}
+        let current=mixer.outputFormat(forBus:0)
+        if !connected || current.sampleRate != output.sampleRate || current.channelCount != output.channelCount {
+            stage="connect-engine-output"
+            engine.connect(mixer,to:engine.outputNode,format:output)
         }
-        let h = KernelHandle(rate: sampleRate); let e = AVAudioEngine()
-        // Initialize shared I/O input before preparing output. Native controls
-        // found output-first I/O kept input disabled after category switches.
-        // Startup remains playback; capture UI requests recording permission.
-        _ = e.inputNode
-        // Preserve musical position when rebuilding after an interruption or route change.
-        lg_seek(h.pointer,Int32(max(0,tick).rounded(.down)))
-        let format = AVAudioFormat(standardFormatWithSampleRate: sampleRate, channels: 2)!
-        let node = AudioRender.makeSource(format:format, kernel:h,hub:midiHub)
-        e.attach(node); e.connect(node, to: e.mainMixerNode, format: format); e.prepare(); try e.start()
-        handle = h; source = node; engine = e;submittedNotes=nil
-        configurationObserver=NotificationCenter.default.addObserver(forName:.AVAudioEngineConfigurationChange,object:e,queue:.main){[weak self] _ in
-            Task{@MainActor in self?.resumeConfiguredGraph()}
+        stage="prepare-output"
+        engine.prepare()
+        stage="start-output"
+        try engine.start()
+    }
+    private func preference(_ name:String,_ action:()throws->Void){
+        do{try action()}catch{
+            let failure=error as NSError
+            preferenceWarnings.append(String((name+": "+failure.domain+"/"+String(failure.code)).prefix(160)))
+            if preferenceWarnings.count>4{preferenceWarnings.removeFirst()}
         }
-        timer?.invalidate(); timer = Timer.scheduledTimer(withTimeInterval: 1/30, repeats: true) { [weak self] _ in
-            Task { @MainActor in self?.poll() }
-        }
-        error = nil
+    }
+    private func unavailableOutput()->NSError {
+        NSError(domain:"LaGrilla.Audio",code:1,userInfo:[NSLocalizedDescriptionKey:"No audio output is available. Connect an audio device and retry."])
+    }
+    private func recordFailure(_ cause:Error,stage:String,qaInjected:Bool=false){
+        let failure=cause as NSError,session=AVAudioSession.sharedInstance()
+        let bits=UInt32(truncatingIfNeeded:failure.code)
+        let bytes=[UInt8((bits>>24)&255),UInt8((bits>>16)&255),UInt8((bits>>8)&255),UInt8(bits&255)]
+        let fourCC=bytes.allSatisfy{(32...126).contains($0)} ? String(bytes:bytes,encoding:.ascii):nil
+        let sessionRate:Double?=session.sampleRate.isFinite ? session.sampleRate:nil
+        let ports:[String]=session.currentRoute.outputs.prefix(8).map{String($0.portType.rawValue.prefix(80))}
+        failureDetails=AudioFailureDetails(
+            stage:stage,
+            domain:String(failure.domain.prefix(160)),
+            code:failure.code,
+            fourCC:fourCC,
+            detail:String(failure.localizedDescription.prefix(400)),
+            category:session.category.rawValue,
+            mode:session.mode.rawValue,
+            sessionSampleRate:sessionRate,
+            outputPortTypes:ports,
+            observedOutputSampleRate:observedOutputSampleRate,
+            observedOutputChannels:observedOutputChannels,
+            inputPriming:inputPriming.rawValue,
+            inputPrimed:inputPrimedAtStartup,
+            preferenceWarnings:preferenceWarnings,
+            qaInjected:qaInjected
+        )
+        error=AudioStartFailure(underlying:cause).localizedDescription
+        onRuntimeTrace?("audio.failure."+stage)
     }
     private func resumeConfiguredGraph(){
         onRuntimeTrace?("audio.configuration.before")
         defer{onRuntimeTrace?("audio.configuration.after")}
         guard let engine,handle != nil,!engine.isRunning else{return}
-        do{engine.prepare();try engine.start();error=nil}
-        catch{self.error=error.localizedDescription}
+        do{try resumeOutputAfterInputChange()}
+        catch{/* The resume operation retained its real failure diagnostics. */}
     }
     func poll() {
         guard let k = handle?.pointer else { return }

@@ -1,6 +1,12 @@
 name: Local Xcode build compatibility
 on:
   workflow_dispatch:
+    inputs:
+      legacy_xcode_16_2:
+        description: 'Also install the iOS 18.2 runtime and build the full app with Xcode 16.2'
+        type: boolean
+        required: false
+        default: false
   pull_request:
     branches: [main]
   push:
@@ -10,25 +16,19 @@ concurrency:
   cancel-in-progress: true
 jobs:
   iphone-build:
-    name: ${{ matrix.scope }} / Xcode ${{ matrix.xcode }}
+    name: Full iPhone app / Xcode ${{ matrix.xcode }}
     runs-on: macos-15
     timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - xcode: '16.2'
-            scope: Swift compilation
-            excluded_resources: Assets.xcassets LaunchScreen.storyboard
-          - xcode: '16.4'
-            scope: Full iPhone app
-            excluded_resources: ''
-          - xcode: '26.0.1'
-            scope: Full iPhone app
-            excluded_resources: ''
+        # Older hosted images allowed a compiler-only 16.2 probe without its
+        # runtime; newer images reject even the generic iOS destination. Keep
+        # that historical result separate. A requested 16.2 check now installs
+        # its actual platform runtime and retains every application resource.
+        xcode: ${{ fromJSON(github.event_name == 'workflow_dispatch' && inputs.legacy_xcode_16_2 && '["16.2", "16.4", "26.0.1"]' || '["16.4", "26.0.1"]') }}
     env:
       DEVELOPER_DIR: /Applications/Xcode_${{ matrix.xcode }}.app/Contents/Developer
-      GRILLA_EXCLUDED_RESOURCES: ${{ matrix.excluded_resources }}
     steps:
       - uses: actions/checkout@v4
       - name: Record selected compiler and SDK
@@ -36,22 +36,40 @@ jobs:
           xcodebuild -version
           xcrun swiftc --version
           xcrun --sdk iphoneos --show-sdk-version
+      - name: Install and verify the explicitly requested legacy platform
+        if: matrix.xcode == '16.2'
+        run: |
+          set -o pipefail
+          xcodebuild -downloadPlatform iOS -buildVersion 18.2 | tee legacy-runtime-install.log
+          xcrun simctl list runtimes --json | tee legacy-runtimes.json
+          python3 - <<'PYTHON'
+          import json
+          from pathlib import Path
+          runtimes = json.loads(Path('legacy-runtimes.json').read_text())['runtimes']
+          available = any(
+              runtime.get('isAvailable') is True
+              and runtime.get('version', '').split('.')[:2] == ['18', '2']
+              and 'iOS' in runtime.get('name', '')
+              for runtime in runtimes
+          )
+          if not available:
+              raise SystemExit('Requested iOS 18.2 runtime is not available; full Xcode 16.2 validation cannot proceed.')
+          PYTHON
       - name: Verify project and source configuration
         run: |
           python3 scripts/generate_project.py
           git diff --exit-code -- LaGrilla.xcodeproj
           python3 scripts/audit_presentation.py
           python3 scripts/release/audit_release.py
-      - name: Compile iPhone target with the declared resource scope
+      - name: Compile complete iPhone app without signing
         run: |
           set -o pipefail
-          # The hosted image lacks the iOS 18.2 runtime required by Xcode
-          # 16.2's asset and storyboard compilers. That row checks Swift/C++ source
-          # compilation only; 16.4 and 26.x retain every app resource.
-          echo "Validation scope: ${{ matrix.scope }}"
-          xcodebuild -project LaGrilla.xcodeproj -scheme LaGrilla -sdk iphoneos -destination 'generic/platform=iOS' -configuration Debug -derivedDataPath CompatibilityDerivedData CODE_SIGNING_ALLOWED=NO "EXCLUDED_SOURCE_FILE_NAMES=$GRILLA_EXCLUDED_RESOURCES" build | tee compatibility-build.log
+          xcodebuild -project LaGrilla.xcodeproj -scheme LaGrilla -sdk iphoneos -destination 'generic/platform=iOS' -configuration Debug -derivedDataPath CompatibilityDerivedData CODE_SIGNING_ALLOWED=NO build | tee compatibility-build.log
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: xcode-${{ matrix.xcode }}-iphone-build-log
-          path: compatibility-build.log
+          path: |
+            compatibility-build.log
+            legacy-runtime-install.log
+            legacy-runtimes.json

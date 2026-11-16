@@ -77,7 +77,7 @@ struct SettingsView: View {
         Section("Project key"){Picker("Root",selection:Binding(get:{session.project.keyRoot},set:{v in session.edit{$0.keyRoot=v}})){ForEach(0..<12,id:\.self){i in Text(Chord.roots[i]).tag(i)}};Toggle("Minor",isOn:Binding(get:{session.project.minor},set:{v in session.edit{$0.minor=v}}));Text("Changing the key updates suggestions. Existing notes stay as written.").font(.caption).foregroundStyle(.secondary)}
         Section("Transport"){Toggle("Loop",isOn:Binding(get:{session.loop},set:{session.setLoop(enabled:$0)}));Picker("Loop length",selection:Binding(get:{session.loopBars},set:{session.setLoop(bars:$0)})){ForEach([1,2,4,8],id:\.self){n in Text("\(n) bars").tag(n)}}}
         Section("MIDI"){Button("MIDI devices"){session.sheet = .midiDevices}}
-        Section("Audio"){LabeledContent("Sample rate",value:"\(Int(session.audio.sampleRate)) Hz");Text("Wireless headphones add latency. For live pads, use the speaker or wired audio.").font(.caption).foregroundStyle(.secondary)}
+        audioSettings
         Section("About La Grilla"){
             Button("Getting started"){session.sheet = .gettingStarted}.accessibilityIdentifier("settings.help")
             LabeledContent("Version",value:"\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "") (\(Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? ""))")
@@ -92,6 +92,24 @@ struct SettingsView: View {
         // current sheet, rather than only its presenter or the next opening.
         .preferredColorScheme(appearance==1 ? .light:appearance==2 ? .dark:nil)
         .presentationDetents([.medium,.large])}
+    private var audioSettings:some View {
+        Section("Audio"){
+            LabeledContent("Sample rate",value:"\(Int(session.audio.sampleRate)) Hz")
+            Text("Wireless headphones add latency. For live pads, use the speaker or wired audio.").font(.caption).foregroundStyle(.secondary)
+            if !session.audio.failureReport.isEmpty {
+                ShareLink(item:audioDiagnosticReport){
+                    Label("Share audio diagnostics",systemImage:"square.and.arrow.up").frame(minHeight:44)
+                }.accessibilityIdentifier("settings.audio-diagnostics")
+                Text("Includes audio route types and error codes, never recordings.").font(.caption).foregroundStyle(.secondary)
+            }
+        }
+    }
+    private var audioDiagnosticReport:String {
+        let version=Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? ""
+        let build=Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? ""
+        let heading=NSLocalizedString("Audio diagnostics",comment:"Audio support")
+        return "La Grilla \(version) (\(build)) · iOS \(UIDevice.current.systemVersion)\n\(heading)\n\(session.audio.failureReport)"
+    }
 }
 struct BassView: View {
     @Bindable var session: Session

@@ -429,6 +429,12 @@
 			"path" = "UITests/AudioRuntimeContinuityTests.swift";
 			"sourceTree" = "SOURCE_ROOT";
 		};
+		"FEB3B283D0AA50FB5A20F7C9" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "UITests/DeviceRecoveryTests.swift";
+			"sourceTree" = "SOURCE_ROOT";
+		};
 		"B4D4FF714F7EF3F257AC9BFE" = {
 			"isa" = "PBXFileReference";
 			"lastKnownFileType" = "sourcecode.swift";
@@ -477,6 +483,7 @@
 				"D9E6F04354EE3581E5D95BEA",
 				"837F52AE268BABC09B1F3BB1",
 				"59CA5379F0D235A02508DF6D",
+				"FEB3B283D0AA50FB5A20F7C9",
 				"B4D4FF714F7EF3F257AC9BFE",
 				"A120B0593DDF71F380D1E143",
 				"E8A7C39A0446228E687444E1",
@@ -678,7 +685,7 @@
 				"GENERATE_INFOPLIST_FILE" = "NO";
 				"INFOPLIST_FILE" = "App/Info.plist";
 				"MARKETING_VERSION" = "1.0.0";
-				"CURRENT_PROJECT_VERSION" = "15";
+				"CURRENT_PROJECT_VERSION" = "16";
 				"ASSETCATALOG_COMPILER_APPICON_NAME" = "AppIcon";
 				"INFOPLIST_KEY_CFBundleDisplayName" = "La Grilla";
 				"INFOPLIST_KEY_LSApplicationCategoryType" = "public.app-category.music";
@@ -712,7 +719,7 @@
 				"GENERATE_INFOPLIST_FILE" = "NO";
 				"INFOPLIST_FILE" = "App/Info.plist";
 				"MARKETING_VERSION" = "1.0.0";
-				"CURRENT_PROJECT_VERSION" = "15";
+				"CURRENT_PROJECT_VERSION" = "16";
 				"ASSETCATALOG_COMPILER_APPICON_NAME" = "AppIcon";
 				"INFOPLIST_KEY_CFBundleDisplayName" = "La Grilla";
 				"INFOPLIST_KEY_LSApplicationCategoryType" = "public.app-category.music";
@@ -874,6 +881,10 @@
 			"isa" = "PBXBuildFile";
 			"fileRef" = "59CA5379F0D235A02508DF6D";
 		};
+		"9CF7038F0FD5B0B98458CB1B" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "FEB3B283D0AA50FB5A20F7C9";
+		};
 		"D22AA41F79624E943B38E898" = {
 			"isa" = "PBXBuildFile";
 			"fileRef" = "B4D4FF714F7EF3F257AC9BFE";
@@ -968,6 +979,7 @@
 				"C8F3F0CD2B20EE12911CEC36",
 				"C4A5D64215053FCC3426FEED",
 				"4AEC3071068FA71AC6BDF305",
+				"9CF7038F0FD5B0B98458CB1B",
 				"D22AA41F79624E943B38E898",
 				"A31C499560874568115B86CC",
 				"710335B5AD10B4F0235D813B",

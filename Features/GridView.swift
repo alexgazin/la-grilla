@@ -47,7 +47,12 @@ import Observation
 }
 private struct GridZoomDiagnosticValue:ViewModifier {
     @ViewBuilder func body(content:Content)->some View {
-        if GridZoomDiagnostics.enabled{content.accessibilityValue(Text(verbatim:GridZoomDiagnostics.shared.report))}else{content}
+        if GridZoomDiagnostics.enabled {
+            // A leaf StaticText keeps its own AX value; the timeline container
+            // can lose that value when hosting native clip controls.
+            content.accessibilityIdentifier("grid.zoom-diagnostics")
+                .accessibilityValue(Text(verbatim:GridZoomDiagnostics.shared.report))
+        }else{content}
     }
 }
 
@@ -123,7 +128,6 @@ struct GridView: View {
                                 })
                                 .onChange(of:pinchActive){_,active in if !active{pinchReference=nil}}
                                 .accessibilityIdentifier("grid.timeline")
-                                .modifier(GridZoomDiagnosticValue())
                         }
                     }
                 }
@@ -172,6 +176,7 @@ struct GridView: View {
             Spacer()
             Text("\(session.displayProject.length/barTicks) bars")
                 .font(.system(size:11,design:.monospaced)).foregroundStyle(Color.muted)
+                .modifier(GridZoomDiagnosticValue())
             IconButton(symbol:clipMode ? "pianokeys":"rectangle.3.group",label:clipMode ? "Edit chords":"Arrange clips",color:clipMode ? .mint:.muted){clipMode.toggle()}
                 .accessibilityIdentifier("grid.mode.clips").accessibilityValue(LocalizedStringKey(clipMode ? "Clips":"Chords"))
             IconButton(symbol:"ellipsis",label:"Edit song sections",color:.muted){session.presentEditor(.sections)}

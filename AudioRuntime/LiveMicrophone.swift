@@ -228,11 +228,12 @@ private final class InputResources:@unchecked Sendable {
     let previousMode:AVAudioSession.Mode
     let previousOptions:AVAudioSession.CategoryOptions
     let owner:UUID
+    private let resumeOutput:@MainActor ()throws->Void
     var installed=false
     private var closed=false
     private(set) var restorationComplete=false
     private var drainFailure:Error?
-    init(engine:AVAudioEngine,ring:InputRingHandle,worker:InputDrain,lease:InputSessionLease){self.engine=engine;self.ring=ring;self.worker=worker;previousCategory=lease.category;previousMode=lease.mode;previousOptions=lease.options;owner=lease.id}
+    init(engine:AVAudioEngine,ring:InputRingHandle,worker:InputDrain,lease:InputSessionLease,resumeOutput:@escaping @MainActor ()throws->Void){self.engine=engine;self.ring=ring;self.worker=worker;previousCategory=lease.category;previousMode=lease.mode;previousOptions=lease.options;owner=lease.id;self.resumeOutput=resumeOutput}
     @MainActor func stop()throws {
         if !closed {
             closed=true
@@ -248,7 +249,7 @@ private final class InputResources:@unchecked Sendable {
             // the session or issues Stop/Seek to the backing transport.
             let session=AVAudioSession.sharedInstance()
             try session.setCategory(previousCategory,mode:previousMode,options:previousOptions)
-            if !engine.isRunning{try engine.start()}
+            if !engine.isRunning{try resumeOutput()}
             restorationComplete=true
             InputSessionOwnership.restored(owner)
         }catch{restorationFailure=error}}
@@ -300,6 +301,11 @@ private final class InputResources:@unchecked Sendable {
         do {
             try session.setCategory(.playAndRecord,mode:.measurement,options:[.defaultToSpeaker,.allowBluetoothA2DP])
             try session.setActive(true)
+            // Input access can initialize I/O. Reject a genuinely absent route
+            // before asking AVAudioEngine to create its input node.
+            if !session.isInputAvailable,session.currentRoute.inputs.isEmpty,session.availableInputs?.isEmpty != false {
+                throw LiveInputError.unavailable
+            }
             // Observe I/O before this lease accesses the pre-created input.
             // This read must not change input enablement or hardware formats.
             let beforeInputNode=LiveInputRouteSnapshot.IOUnit(engine.outputNode)
@@ -316,11 +322,16 @@ private final class InputResources:@unchecked Sendable {
             routeDiagnostics=routes
             let ring=try InputRingHandle(rate:format.sampleRate,limit:min(30,max(0.2,duration)))
             let worker=InputDrain(ring:ring,format:mono,receiver:try receiver(mono),onFailure:InputNotifications.forward(onFailure))
-            let resources=InputResources(engine:engine,ring:ring,worker:worker,lease:lease)
+            let resources=InputResources(engine:engine,ring:ring,worker:worker,lease:lease,resumeOutput:{[weak audio] in
+                // A retired resource must not restart a successor graph after
+                // the Session has reset its AudioController.
+                guard let audio,audio.captureEngine === engine else{return}
+                try audio.resumeOutputAfterInputChange()
+            })
             pending=resources
             self.resources=resources;sampleRate=format.sampleRate
             InputTapCallbacks.install(input:input,format:format,ring:ring);resources.installed=true
-            if !engine.isRunning{try engine.start()}
+            if !engine.isRunning{try audio.resumeOutputAfterInputChange()}
             guard engine.isRunning else{throw LiveInputError.outputUnavailable}
             let chosenDelay:Double
             if let schedule{guard let value=schedule(delay)else{throw LiveInputError.invalidSamples};chosenDelay=value}else{chosenDelay=delay}
@@ -343,7 +354,7 @@ private final class InputResources:@unchecked Sendable {
             for _ in 0..<2 {
                 do {
                     if let pending{try pending.stop()}
-                    else if InputSessionOwnership.owns(lease.id){try session.setCategory(category,mode:mode,options:options);if !engine.isRunning{try engine.start()};InputSessionOwnership.restored(lease.id)}
+                    else if InputSessionOwnership.owns(lease.id){try session.setCategory(category,mode:mode,options:options);if !engine.isRunning{try audio.resumeOutputAfterInputChange()};InputSessionOwnership.restored(lease.id)}
                     cleanupFailure=nil;break
                 }catch {
                     cleanupFailure=error

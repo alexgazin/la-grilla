@@ -633,3 +633,15 @@
 "Change this app’s language and permissions in iOS Settings. Available options depend on your device." = "Change this app’s language and permissions in iOS Settings. Available options depend on your device.";
 "Project tempo" = "Project tempo";
 "Project key" = "Project key";
+
+"Commands work without Apple Intelligence." = "Commands work without Apple Intelligence.";
+"Use Commands" = "Use Commands";
+"Reviewed with Commands because on-device AI is unavailable." = "Reviewed with Commands because on-device AI is unavailable.";
+"On-device AI is not included in this build. Commands remain available." = "On-device AI is not included in this build. Commands remain available.";
+"Audio could not start. Check the audio route and retry." = "Audio could not start. Check the audio route and retry.";
+"New projects start empty. Add chords in Grid or record a beat in Jam." = "New projects start empty. Add chords in Grid or record a beat in Jam.";
+"Creating project…" = "Creating project…";
+"Save the current project or save a copy before opening another project." = "Save the current project or save a copy before opening another project.";
+"Share audio diagnostics" = "Share audio diagnostics";
+"Includes audio route types and error codes, never recordings." = "Includes audio route types and error codes, never recordings.";
+"Audio diagnostics" = "Audio diagnostics";

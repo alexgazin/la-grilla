@@ -19,6 +19,7 @@ struct AssistantView:View {
     @State private var ai=AIComposerController()
     @State private var mode:AssistantMode = .automatic
     @State private var generatedWithAI=false
+    @State private var usedUnavailableAIFallback=false
     @State private var generationID=0
     @State private var generationTask:Task<Void,Never>?
     @State private var timeoutTask:Task<Void,Never>?
@@ -30,27 +31,32 @@ struct AssistantView:View {
                 VStack(alignment:.leading,spacing:18){
                     Text("An idea, in your words.").font(.system(.title2,weight:.semibold)).tracking(-0.6)
                     Text("Describe a song form, chords or a harmonic change. Review every change before applying.").font(.caption).foregroundStyle(Color.muted)
-                    HStack{Text(session.section.name).fontWeight(.medium);Spacer();Text("\(session.section.length/barTicks) bars · \(Int(session.project.bpm)) BPM").font(.caption.monospaced()).foregroundStyle(Color.muted);CapsuleLabel(text:generatedWithAI ? "ON-DEVICE AI":"LOCAL",color:.mint)}
+                    HStack{Text(session.section.name).fontWeight(.medium);Spacer();Text("\(session.section.length/barTicks) bars · \(Int(session.project.bpm)) BPM").font(.caption.monospaced()).foregroundStyle(Color.muted);CapsuleLabel(text:proposal != nil && generatedWithAI ? "ON-DEVICE AI":"LOCAL",color:.mint)}
                     StudioSegments(title:"Assistant mode",selection:$mode,options:AssistantMode.allCases.map{($0,LocalizedStringKey($0.title))}).disabled(dictation.recording || dictation.requesting || dictation.finalizing)
-                    Text(ai.availabilityMessage).font(.caption).foregroundStyle(Color.muted).accessibilityIdentifier("assistant.ai-status")
+                    Text(mode == .commands ? NSLocalizedString("Commands work without Apple Intelligence.",comment:"Assistant availability"):ai.availabilityMessage).font(.caption).foregroundStyle(Color.muted).accessibilityIdentifier("assistant.ai-status")
+                    if !ai.available,mode != .commands {
+                        Button("Use Commands"){mode = .commands}
+                            .frame(minHeight:44).accessibilityIdentifier("assistant.use-commands")
+                            .disabled(dictation.recording || dictation.requesting || dictation.finalizing)
+                    }
                     Text(LocalizedStringKey(session.audio.playing ? "PLAYING":"STOPPED")).font(.caption.monospaced()).foregroundStyle(Color.muted)
                         .accessibilityValue(LocalizedStringKey(session.harmonyPreview ? "Preview":"Original")).accessibilityIdentifier("assistant.preview-state")
                     TextEditor(text:$input).focused($focused).disabled(dictation.recording || dictation.requesting || dictation.finalizing).frame(height:110).scrollContentBackground(.hidden).padding(8).modifier(StudioSurface()).overlay(alignment:.topLeading){if input.isEmpty && !focused{Text("Try: Tempo 110").font(.subheadline).foregroundStyle(Color.muted).padding(16).allowsHitTesting(false).accessibilityHidden(true)}}.accessibilityLabel("Command").accessibilityIdentifier("assistant.input")
-                        .onChange(of:input){_,value in if value.count>2000{input=String(value.prefix(2000))};if value != generatedInput{cancelGeneration();proposal=nil;candidate=nil;proposalSource=nil};session.endHarmonyPreview()}
+                        .onChange(of:input){_,value in if value.count>2000{input=String(value.prefix(2000))};if value != generatedInput{cancelGeneration();proposal=nil;candidate=nil;proposalSource=nil;usedUnavailableAIFallback=false};session.endHarmonyPreview()}
                     HStack {
                         Button("Examples"){focused=false;showExamples=true}.frame(minHeight:44).disabled(dictation.recording || dictation.requesting || dictation.finalizing).accessibilityIdentifier("assistant.examples")
                         Spacer()
                         languageControl.disabled(dictation.recording || dictation.requesting || dictation.finalizing)
-                        Button{toggleDictation()}label:{Image(systemName:dictation.recording ? "stop.circle.fill":"mic.fill").frame(width:44,height:44).foregroundStyle(dictation.recording ? Color.record:Color.mint)}.accessibilityLabel(LocalizedStringKey(dictation.recording ? "Stop dictation":"Dictate a command")).disabled(dictation.requesting || dictation.finalizing)
+                        Button{toggleDictation()}label:{Image(systemName:dictation.recording ? "stop.circle.fill":"mic.fill").frame(width:44,height:44).foregroundStyle(dictation.recording ? Color.record:Color.mint)}.accessibilityLabel(LocalizedStringKey(dictation.recording ? "Stop dictation":"Dictate a command")).accessibilityIdentifier("assistant.dictate").disabled(dictation.requesting || dictation.finalizing)
                     }
                     if dictation.requesting{ProgressView("Preparing dictation…")}
                     if dictation.finalizing{ProgressView("Finishing dictation…")}
                     if dictation.recording{Label("LISTENING · COMMAND",systemImage:"waveform").font(.caption.monospaced()).foregroundStyle(Color.record)}
                     DisclosureGroup{Text("Dictation uses on-device recognition. You can always type. Humming has a separate melody recording.").font(.caption).foregroundStyle(Color.muted).padding(.vertical,8)}label:{Text("Dictation details").frame(maxWidth:.infinity,minHeight:44,alignment:.leading)}.font(.caption).foregroundStyle(Color.muted)
-                    if let error=dictation.error{Text(LocalizedStringKey(error)).font(.caption).foregroundStyle(Color.record)}
+                    if let error=dictation.error{Text(LocalizedStringKey(error)).font(.caption).foregroundStyle(Color.record).accessibilityIdentifier("assistant.dictation-error")}
                     Button{generate()}label:{Label("Review command",systemImage:"sparkles")}.buttonStyle(StudioActionStyle()).disabled(input.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty || dictation.requesting || dictation.recording || dictation.finalizing || generationTask != nil).accessibilityIdentifier("assistant.generate")
                     if generationTask != nil{HStack{ProgressView("Preparing proposal…");Spacer();Button("Cancel generation"){cancelGeneration()}.frame(minHeight:44)}}
-                    if let error{Text(LocalizedStringKey(error)).font(.callout).foregroundStyle(Color.record)}
+                    if let error{Text(LocalizedStringKey(error)).font(.callout).foregroundStyle(Color.record).accessibilityIdentifier("assistant.error")}
                     if ambiguous {VStack(spacing:8){Button("Stretch chords evenly"){generate(.stretch)};Button("Repeat, one bar per chord"){generate(.repeatBars)}}.buttonStyle(.bordered).frame(maxWidth:.infinity)}
                     if let proposal,let candidate,let proposalSource{review(proposal,source:proposalSource,candidate:candidate)}
                 }.padding(18)
@@ -59,8 +65,8 @@ struct AssistantView:View {
         }.tint(.mint)
         .sheet(isPresented:$showExamples){AssistantExamplesView(language:language){text,requiresAI in input=text;if requiresAI{mode = .onDeviceAI};showExamples=false}}
         .onChange(of:dictation.text){_,value in if !value.isEmpty{input=value}}
-        .onChange(of:mode){_,_ in session.endHarmonyPreview();cancelGeneration();proposal=nil;candidate=nil;proposalSource=nil;error=nil}
-        .onChange(of:language){_,value in session.endHarmonyPreview();cancelGeneration();proposal=nil;candidate=nil;proposalSource=nil;ai.refresh(localeIdentifier:value)}
+        .onChange(of:mode){_,_ in session.endHarmonyPreview();cancelGeneration();proposal=nil;candidate=nil;proposalSource=nil;usedUnavailableAIFallback=false;error=nil}
+        .onChange(of:language){_,value in session.endHarmonyPreview();cancelGeneration();proposal=nil;candidate=nil;proposalSource=nil;usedUnavailableAIFallback=false;error=nil;ai.refresh(localeIdentifier:value)}
         .onChange(of:dictation.recording){_,recording in if !recording{restoreAudio()}}
         .onChange(of:phase){_,p in if p == .background{cancelGeneration();dictation.cancel();restoreAudio()}else if p == .active{ai.refresh(localeIdentifier:language)}}
         .onReceive(NotificationCenter.default.publisher(for:AVAudioSession.interruptionNotification).receive(on:RunLoop.main)){_ in dictation.cancel();restoreAudio()}
@@ -84,6 +90,11 @@ struct AssistantView:View {
     func review(_ proposal:AssistantProposal,source:Project,candidate:Project)->some View {
         VStack(alignment:.leading,spacing:14){
             SmallHeading(text:"PROPOSAL")
+            if usedUnavailableAIFallback {
+                Text("Reviewed with Commands because on-device AI is unavailable.")
+                    .font(.caption).foregroundStyle(Color.muted)
+                    .accessibilityIdentifier("assistant.local-fallback")
+            }
             if proposal.operations.contains(where:{$0.type == .arrangeSong}){formComparison(source:source,candidate:candidate)}
             ForEach(Array(proposal.operations.enumerated()),id:\.offset){_,op in Text(summary(op,scope:proposal.scopeSectionID,source:source,candidate:candidate)).padding(12).frame(maxWidth:.infinity,alignment:.leading).modifier(StudioSurface())}
             AssistantHarmonyReview(proposal:proposal,source:source,candidate:candidate)
@@ -118,13 +129,16 @@ struct AssistantView:View {
         }
     }
     func generate(_ distribution:ChordDistribution?=nil){
-        cancelGeneration();focused=false;session.endHarmonyPreview();ambiguous=false;generatedInput=input;proposal=nil;candidate=nil;proposalSource=nil;error=nil;generatedWithAI=false
+        cancelGeneration();focused=false;session.endHarmonyPreview();ambiguous=false;generatedInput=input;proposal=nil;candidate=nil;proposalSource=nil;error=nil;generatedWithAI=false;usedUnavailableAIFallback=false
         let snapshot=session.project,scope=session.section.id
-        if mode != .onDeviceAI {
-            do{let p=try AssistantEngine.propose(input,project:snapshot,sectionID:scope,distribution:distribution);candidate=try p.candidate(for:snapshot);proposalSource=snapshot;proposal=p;return}
+        ai.refresh(localeIdentifier:language)
+        // A disabled/unavailable model must not block an understood command.
+        // Keep the proposal explicitly LOCAL and explain the fallback; never
+        // describe the parser's result as a model-generated arrangement.
+        if mode != .onDeviceAI || !ai.available {
+            do{let p=try AssistantEngine.propose(input,project:snapshot,sectionID:scope,distribution:distribution);candidate=try p.candidate(for:snapshot);proposalSource=snapshot;proposal=p;usedUnavailableAIFallback=mode == .onDeviceAI && !ai.available;return}
             catch{if case AssistantError.ambiguous=error{self.error=error.localizedDescription;ambiguous=true;return};if mode == .commands{self.error=error.localizedDescription;return};if !(error is AssistantError){self.error=error.localizedDescription;return};if case AssistantError.unsupported=error{}else{self.error=error.localizedDescription;return}}
         }
-        ai.refresh(localeIdentifier:language)
         guard ai.available else{error=ai.availabilityMessage;return}
         let request=input,locale=language,attempt=generationID
         generationTask=Task { @MainActor in
@@ -157,8 +171,16 @@ struct AssistantView:View {
     func toggleDictation(){
         focused=false
         if dictation.recording{dictation.stop();restoreAudio();return}
-        guard !dictation.finalizing,let lease=session.beginMicrophone(stop:{dictation.cancel()})else{return};microphoneLease=lease
-        Task{guard session.ownsMicrophone(lease)else{return};await dictation.start(locale:language,audio:session.audio);if !dictation.recording{session.endMicrophone(lease);if microphoneLease==lease{microphoneLease=nil}}}
+        guard !dictation.finalizing else{return}
+        guard session.ensureAudio()else{dictation.error=session.audio.error;return}
+        guard let lease=session.beginMicrophone(stop:{dictation.cancel()})else{return};microphoneLease=lease
+        Task{
+            guard session.ownsMicrophone(lease)else{return}
+            let previousEngine=session.audio.captureEngine
+            await dictation.start(locale:language,audio:session.audio)
+            if session.audio.captureEngine !== previousEngine,session.audio.isPrepared{session.sync()}
+            if !dictation.recording{session.endMicrophone(lease);if microphoneLease==lease{microphoneLease=nil}}
+        }
     }
     func restoreAudio(){if let lease=microphoneLease{microphoneLease=nil;session.endMicrophone(lease)}}
 }
@@ -271,7 +293,7 @@ private struct AssistantExamplesView:View {
         Button("Припев 8 тактов: Am F C G по два такта"){choose("Припев 8 тактов: Am F C G по два такта",false)}
         Button("Jazz up this section"){choose("Поджазуй",false)}.accessibilityIdentifier("assistant.example.jazzify")
         Button("Song: Intro 4 bars: Dm Gm A Dm; Chorus 8 bars: Dm Gm C F each 2 bars"){choose("Song: Intro 4 bars: Dm Gm A Dm; Chorus 8 bars: Dm Gm C F each 2 bars",false)}.accessibilityIdentifier("assistant.example.song-form")
-        Button{choose(language.hasPrefix("ru") ? "Создай форму: интро 4 такта, куплет 8 тактов и припев 8 тактов. Тональность Ре минор, темп 108. Используй Dm7 Gm7 A7 Dm7.":"Create a song form: 4-bar intro, 8-bar verse and 8-bar chorus in D minor at 108 BPM, using Dm7 Gm7 A7 Dm7.",true)}label:{Label("Create a complete song form",systemImage:"sparkles")}
+        Button{choose(language.hasPrefix("ru") ? "Создай форму: интро 4 такта, куплет 8 тактов и припев 8 тактов. Тональность Ре минор, темп 108. Используй Dm7 Gm7 A7 Dm7.":"Create a song form: 4-bar intro, 8-bar verse and 8-bar chorus in D minor at 108 BPM, using Dm7 Gm7 A7 Dm7.",true)}label:{Label("Create a complete song form",systemImage:"sparkles")}.accessibilityIdentifier("assistant.example.ai-song")
     }.environment(\.defaultMinListRowHeight,52).navigationTitle("Examples").navigationBarTitleDisplayMode(.inline).toolbar{ToolbarItem(placement:.cancellationAction){Button("Cancel"){dismiss()}}}}
     .presentationDetents([.large]).tint(.mint)}
 }

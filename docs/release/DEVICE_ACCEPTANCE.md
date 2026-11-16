@@ -1,8 +1,21 @@
 # Physical release acceptance record
 
-**Status: not measured.** This environment has no connected physical iPhone, USB/BLE controller, two DAWs or Apple signing account. Simulator and host benchmarks must not be entered as hardware results.
+**Status: owner-reported device failures; formal acceptance Pending.** The owner has installed and tried the app on an iPhone, but its exact model, iOS version and installed source/build have not yet been recorded. This execution environment has no connected physical iPhone, USB/BLE controller, two DAWs or distribution signing credentials. Simulator and host benchmarks must not be entered as hardware results.
 
-Prepared candidate: **1.0.0 (15), schema 8**. This identifies the software to test, not an installed or accepted build. Every evidence field below remains **Pending** until the actual device/model/signing session is recorded.
+Prepared repair candidate: **1.0.0 (16), schema 8**, app/test source **`01fb8b7f9891e04287c91b21d5998f98e66cbad7`**; original P0 verification is separately source `27cbf09a0d6266d728df9fef889d2caa94ee0c8b`. This identifies the software to retest, not an accepted physical build. Every formal evidence field below remains **Pending** until the actual device/model/signing session is recorded.
+
+## Preliminary owner report — 16 November 2026
+
+| Reported observation | Acceptance status |
+| --- | --- |
+| Audio banner/alert shows `com.apple.coreaudio.avfaudio`, code `2003329396` (`what`); playback is unavailable. | Pending: repeat cold launch, Play and route recovery on candidate 16. |
+| Tapping Dictate reportedly terminates the app; no crash stack or exact installed build is recorded. | Pending: repeat authorization allowed/denied and capture on the actual phone. |
+| Assistant displays that Apple Intelligence is disabled. No successful real-model proposal is recorded. | Pending: verify clear availability and working local Commands separately from an eligible, ready model. |
+| New projects/tracks reportedly do not work. | Pending: distinguish empty content from audio failure; repeat create → add content → save → reopen → export. |
+
+These observations are defect reports, not completed hardware measurements or proof of a specific crash cause. Candidate 16 has a successful [Release archive](https://github.com/alexgazin/la-grilla/actions/runs/43845748680), [16.4 / 26.0.1 full-resource compatibility builds](https://github.com/alexgazin/la-grilla/actions/runs/43847686116) and 634 EN/RU keys. Its [native recovery / strict PCM run](https://github.com/alexgazin/la-grilla/actions/runs/43845748716) passed 8 methods with zero failures/skips; [five accepted original screenshots](../../Screenshots/DeviceRepair) retain that source. Integration `01fb8b7` has successful current Debug/archive and full 16.4 / 26.0.1 builds; its expanded ten-method run was cancelled at the 35-minute workflow limit, with unavailable logs/artifacts and unknown individual outcomes. The full native regression is still running; integration acceptance remains open. None verifies the reported phone fix. Exact `main` source `224e248` also retains two Arrangement failures and a separate 16.2 infrastructure failure in the [implementation log](../IMPLEMENTATION_LOG.md).
+
+## Formal acceptance record
 
 Software-only evidence stays separate: [C1–C7](C7_ACCEPTANCE.md) preserves historical version 14 source `77fb72a`; version 15 full regression is source `838b4847`, [run 43812214574](https://github.com/alexgazin/la-grilla/actions/runs/43812214574), with 46 functional native methods and 623 EN/RU keys. The later appearance fix has only the recorded [two-method focused verification](https://github.com/alexgazin/la-grilla/actions/runs/43819149979), source `014a00b9`. Neither substitutes for exact-final-main verification or any field in this physical matrix. The [professional finishing checklist](../PRODUCT_FINISHING.md), [original welcome/settings frames](../../Screenshots/ProfessionalShell/README.md) and [132.2-second real working-app video](../../Media/WorkingDemo/README.md) document separate Simulator/software scopes; none establishes C8 device/model/signing acceptance.
 
