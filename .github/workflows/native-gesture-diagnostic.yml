@@ -64,12 +64,27 @@ jobs:
         run: |
           set -o pipefail
           bash scripts/screenshots.sh 2>&1 | tee gesture-simulator.log
-      - name: Record early drag services and run only the two original cases
+      - name: Discover and verify actual Simulator DragUI readiness
+        id: drag_readiness
+        continue-on-error: true
+        timeout-minutes: 1
+        run: |
+          GRILLA_GESTURE_DEVICE=$(cat /tmp/grilla-simulator-id)
+          python3 scripts/ci/prepare_simulator_drag_service.py --device "$GRILLA_GESTURE_DEVICE" --start-confirmed-system-app
+      - name: Record early drag services and run the available original cases
         timeout-minutes: 13
         env:
           GRILLA_RUNTIME_TRACE: '1'
+          GRILLA_DRAG_READY: ${{ steps.drag_readiness.outcome == 'success' && '1' || '0' }}
         run: |
           GRILLA_GESTURE_DEVICE=$(cat /tmp/grilla-simulator-id)
+          GRILLA_GESTURE_DRAG=()
+          if test "$GRILLA_DRAG_READY" = 1; then
+            GRILLA_GESTURE_DRAG=(-only-testing:LaGrillaUITests/ArrangementUITests/testClipTapResizeNativeDragAndUndo)
+          fi
+          # If service readiness is unavailable, verify notation independently.
+          # Both cases remain required below: an unobserved drag makes this
+          # diagnostic fail even when notation passes. No cold gesture is retried.
           python3 scripts/ci/capture_native_gesture.py --device "$GRILLA_GESTURE_DEVICE" --output-dir GestureDiagnostics -- \
             python3 scripts/ci/run_native.py --timeout-seconds 600 --deadline-env GRILLA_GESTURE_DEADLINE_EPOCH \
             --scope input-diagnostic --label native-gesture-diagnostic --log gesture-native.log --status gesture-process-status.json \
@@ -78,7 +93,7 @@ jobs:
             -- xcodebuild -project LaGrilla.xcodeproj -scheme LaGrilla \
             -destination "platform=iOS Simulator,id=$GRILLA_GESTURE_DEVICE" \
             -derivedDataPath DerivedData -resultBundlePath GestureResults.xcresult \
-            -only-testing:LaGrillaUITests/ArrangementUITests/testClipTapResizeNativeDragAndUndo \
+            "${GRILLA_GESTURE_DRAG[@]}" \
             -only-testing:LaGrillaUITests/TranspositionUITests/testFlatsAndScaleDegreesPersistWithoutNotationChangingMusic \
             -test-timeouts-enabled YES -maximum-test-execution-time-allowance 120 \
             ARCHS=arm64 ONLY_ACTIVE_ARCH=YES CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO test-without-building
