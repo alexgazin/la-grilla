@@ -39,7 +39,7 @@
     }
   ],
   "productionMinimumDelayAdded" : false,
-  "projectStoreID" : "31CBDCBD-0FD0-4A15-9F5C-0C4C6E493A5B",
+  "projectStoreID" : "F6D8141B-CACB-4B45-BB1E-71A3A5946680",
   "realNormalLaunchReachedStudio" : true,
   "realWelcomeSkipAndRelaunchPassed" : true
 }

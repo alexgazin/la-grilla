@@ -13,13 +13,17 @@
 
 <p align="center"><a href="#возможности-текущей-реализации">Возможности</a> · <a href="docs/release/CURRENT.md">Статус кандидата</a> · <a href="#установить-на-свой-iphone">На свой iPhone</a> · <a href="ROADMAP.md">Роадмап</a> · <a href="docs/IMPLEMENTATION_LOG.md">Журнал разработки</a></p>
 
+## IPA для тестировщика
+
+**[Скачать La Grilla 1.0.0 (17) · IPA, 3.2 MiB](https://github.com/alexgazin/la-grilla/raw/refs/heads/main/Builds/Testing/LaGrilla-1.0.0-17-unsigned.ipa)** — iPhone / iOS 18+, подпись своим Apple ID через Sideloadly на Mac или Windows. Платная команда не нужна; бесплатная подпись действует 7 дней. [Установка и проверенный исходник](Builds/Testing/README.md).
+
 ## Независимый разбор и план доведения до релиза
 
 [**Сводный план: 34 замечания, 10 направлений и критерии приёмки**](docs/review/2026-11-16/PLAN.md) · [Аналитик](docs/review/2026-11-16/analyst.md) · [Продакт-менеджер](docs/review/2026-11-16/product-manager.md) · [Тестировщик](docs/review/2026-11-16/qa.md) · [Архитектор](docs/review/2026-11-16/architecture.md).
 
 Честный статус — функциональная альфа. Сильные стороны: редактируемая гармония, общий музыкальный транспорт, A/B, Undo и переносимый проект. Основные незакрытые проверки — первый сеанс со звуком на физическом iPhone, живые Speech/Apple Intelligence, задержки записи поверх лупа и работа с настоящими контроллерами и DAW.
 
-[PR #21](https://github.com/alexgazin/la-grilla/pull/21) реализует замечания по первому звуку в новом проекте, помощнику, транспонированию, безопасности документов, производительности и CI. Код **1.0.0 (18), schema 9** отправлен на проверку; 162 доменных теста, 16 аудиопроверок и 59 проверок CI проходят локально. Нативные сценарии нового кандидата ещё не приняты. **Текущая сборка в `main` — 16**: [полный запуск](https://github.com/alexgazin/la-grilla/actions/runs/43858734785), 51 PASS / 0 FAIL / 1 diagnostic SKIP. Это отдельные источники и статусы.
+[PR #21](https://github.com/alexgazin/la-grilla/pull/21) доводит первый результат в новом проекте, помощника, транспонирование, безопасность документов, производительность и CI. В первом прогоне кандидата 18 прошли 7 из 11 сценариев; найдены два дефекта названий нот и два таймаута тестов транспонирования. Исправления и новые редактируемые скетчи готовятся в кандидате 19; его нативная приёмка ещё впереди. **Последняя полная принятая программная база — 16**: [полный запуск](https://github.com/alexgazin/la-grilla/actions/runs/43858734785), 51 PASS / 0 FAIL / 1 diagnostic SKIP. Это отдельные источники и статусы.
 
 ## La Grilla в работе · настоящее видео со звуком
 
@@ -97,7 +101,7 @@ PNG сохранены без изменений; [манифест](Screenshots
 
 <p align="center"><a href="Screenshots/LaunchPreview/dark-en.png"><img src="Screenshots/LaunchPreview/dark-en.png" width="210" alt="Тёмный сплеш La Grilla с музыкальной сеткой и курсором"></a> <a href="Screenshots/LaunchPreview/light-en.png"><img src="Screenshots/LaunchPreview/light-en.png" width="210" alt="Светлый сплеш La Grilla"></a> <a href="Screenshots/LaunchPreview/dark-ru-large-reduced-motion.png"><img src="Screenshots/LaunchPreview/dark-ru-large-reduced-motion.png" width="210" alt="Русский сплеш с крупным текстом и уменьшенным движением"></a></p>
 
-Настоящее **QA-превью** того же нативного компонента после bootstrap, source `29adf6c`; PNG без изменений. Метод сплеша прошёл; весь исходный запуск имел два таймаута других UI-методов. Это не измерение холодной загрузки и не приёмка текущего кандидата. [Исходники кадров и границы проверки](Screenshots/LaunchPreview/README.md).
+Настоящее **QA-превью** того же нативного компонента после bootstrap, source `5adbadb`; PNG без изменений. Все семь focused методов этого исходника прошли. Превью не измеряет холодную загрузку и не подтверждает физическую приёмку. [Исходники кадров и границы проверки](Screenshots/LaunchPreview/README.md).
 
 ## Первый запуск и настройки · сборка 15
 

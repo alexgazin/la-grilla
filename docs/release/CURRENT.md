@@ -4,7 +4,7 @@
 
 ## Текущий статус
 
-**Функциональная альфа, кандидат 1.0.0 (17), schema 8; software gate и физический P0-retest открыты.** Код приложения и тестов — `5adbadb37c39911c4acc2c2ef511198867098040`, **651 EN/RU ключ**; интеграция подготовлена в [PR #20](https://github.com/alexgazin/la-grilla/pull/20).
+**Функциональная альфа, кандидат 1.0.0 (17), schema 8; focused recovery принят; полный exact-main software gate и физический P0-retest открыты.** Код приложения и тестов — `5adbadb37c39911c4acc2c2ef511198867098040`, **651 EN/RU ключ**; интеграция подготовлена в [PR #20](https://github.com/alexgazin/la-grilla/pull/20).
 
 Метаданные/аудиты на `main` затем обновлены docs-only merge `70cad3e04d2ccf6e1e02912f40cfefc09d8067d7`; код кандидата 17 этим не интегрирован.
 
@@ -14,7 +14,7 @@
 
 | Исходник и проверка | Фактический результат и его предел |
 | --- | --- |
-| **17 / `5adbadb` — текущий код** | [iPhone Debug / archive 43876565718](https://github.com/alexgazin/la-grilla/actions/runs/43876565718): Debug PASS на Xcode 26.3 / iPhoneOS SDK 26.2; archive ожидает исполнения после инфраструктурного повтора. [Compatibility 43876575685](https://github.com/alexgazin/la-grilla/actions/runs/43876575685): полные приложения с ресурсами на Xcode 16.4 / SDK 18.5 и 26.0.1 / SDK 26.0 PASS. [Focused 7 native 43876565702](https://github.com/alexgazin/la-grilla/actions/runs/43876565702) ожидает исполнения. Полная native-регрессия 17 ещё не принята. |
+| **17 / `5adbadb` — текущий код** | [Debug / archive 43876565718](https://github.com/alexgazin/la-grilla/actions/runs/43876565718): оба PASS на Xcode 26.3 / iPhoneOS SDK 26.2; архив — arm64, minimum iOS 18, weak FoundationModels, ресурсы и dSYM проверены. [Compatibility 43876575685](https://github.com/alexgazin/la-grilla/actions/runs/43876575685): полные приложения с ресурсами на Xcode 16.4 / SDK 18.5 и 26.0.1 / SDK 26.0 PASS. [Focused 7 native 43876565702, attempt 2](https://github.com/alexgazin/la-grilla/actions/runs/43876565702/attempts/2): **7 PASS / 0 FAIL / 0 SKIP, 379.622 s**. Обе первоначальные queued cancellation были отказами выдачи hosted runner; методы в них не исполнялись. Семь методов текущего исходника теперь исполнены успешно, включая granted Speech → typed Review/Apply/Undo. Это focused scope, не полная native-регрессия и не физический повтор. |
 | **17 / `29adf6c398173faf830de8f6249702628b8a3f76`** | [Native 43870504379](https://github.com/alexgazin/la-grilla/actions/runs/43870504379): **5 PASS / 2 execution-allowance timeouts по 120 s**. Все строгие PCM/CAF, input retirement и Splash прошли. Два целых метода — granted Speech/Assistant и AI availability — не прошли; xcodebuild завершился 65, отдельный 600 s watchdog не сработал. Реальная Speech-цепь получила **842 752 frames** после настоящих разрешений, затем сообщила NoSpeech 1110; timeout наступил позднее при Review. Это не подтверждение транскрипции человеческого голоса и не PASS всего Speech-метода. |
 | **17 / `9fb52e01340d060f3424ae5ea3d38a90b0893b83`** | [Native 43864455841](https://github.com/alexgazin/la-grilla/actions/runs/43864455841): **6 PASS / 1 granted-Speech timeout по 120 s**, затем сработал общий watchdog. Сценарий и run не объявляются принятыми. Эта версия исправила первоначальную ошибку компиляции splash `bde2caa`; исходная ошибка и неисполненные тесты сохранены в журнале. |
 | **16 / точный main `9dfec7e`** | [Полная проверка 43858734785](https://github.com/alexgazin/la-grilla/actions/runs/43858734785): все три jobs SUCCESS; 51 functional native PASS, 0 FAIL, 1 diagnostic SKIP. Старый результат ветки `01fb8b7` с 49 PASS / 2 FAIL / 1 SKIP остаётся отдельной историей, а не текущим результатом main 16. |
@@ -39,7 +39,7 @@ OS Launch Screen следует системной Light/Dark-теме; сохр
 
 ## Что ещё требуется
 
-1. Получить исполненный PASS всех семи focused methods текущего кода и завершить его archive/full native regression, сохранив реальные логи и исходы каждого метода.
+1. Завершить полную exact-main native-регрессию после интеграции. Все семь focused methods, archive, Debug и compatibility текущего app/test source уже прошли; их исходники и масштабы проверок не смешиваются.
 2. Повторить на установленном кандидате первоначальный дефект: Play, granted/denied dictation, повторный capture/Stop, новые проекты, save/reopen/export; записать точные модель, iOS и build. Проверить реальный mic indicator и маршруты.
 3. Отдельно принять настоящий человеческий напев и FoundationModels на eligible-устройстве с выбранным поддерживаемым языком. PCM loopback и proposal fixtures не заменяют эти проверки.
 4. Закрыть [аппаратную C8-матрицу](DEVICE_ACCEPTANCE.md): 30-минутные сессии, latency/thermal/dropouts, USB/BLE MIDI и импорт в две DAW. Затем — distribution signing, TestFlight и App Review по [процедуре](RELEASE.md).

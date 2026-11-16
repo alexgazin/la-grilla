@@ -1,0 +1,8 @@
+Observed actual model reason: modelNotReady
+AI request language: en-US
+Dictation language: ru-RU
+Request: Поджазуй
+Recheck preserved input/project/revision/Undo: true
+Actual Commands review: C → Cmaj9
+Apply then one Undo restored the original Grid chord: true
+Real model generation verified: false
