@@ -5,8 +5,8 @@
 ## Текущее подтверждение и границы
 
 - Source `27cbf09`: реализованы output-only startup для устройства, безопасная доставка Speech callbacks, независимые от звука проекты и явный LOCAL fallback помощника; **634 EN/RU ключа**.
-- [Recovery run 43845748716](https://github.com/alexgazin/la-grilla/actions/runs/43845748716), job `133236522462`: исходные **8 native methods PASS / 0 failures / 0 skips**, 300.179 s. Это Simulator/host-PCM проверка; разрешённое отсутствие Speech-модели не является успешной транскрипцией голоса.
-- Source `01fb8b7`: расширены focused scope до **10** методов и full inventory до **51 functional + 1 diagnostic**. Эти новые результаты пока ожидаются и не наследуют PASS восьми методов.
+- [Recovery run 43845748716](https://github.com/alexgazin/la-grilla/actions/runs/43845748716), job `133236522462`: исходные **8 native methods PASS / 0 failures / 0 skips**, 300.179 s. Это Simulator/host-PCM проверка с настоящим отказом Speech-разрешению; транскрипция голоса ею не измерена.
+- Source `01fb8b7`: расширены focused scope до **10** методов и full inventory до **51 functional + 1 diagnostic**. [Expanded run 43851740283](https://github.com/alexgazin/la-grilla/actions/runs/43851740283) отменён по 35-минутному лимиту workflow; без доступных логов/артефактов исходы методов неизвестны. Полный native run ещё выполняется; общая приёмка открыта.
 - Первый владелец сообщил об аудиоошибке `2003329396` (`what`), вылете диктовки и проблемах проектов/доступности ИИ. Точные iPhone, iOS, установленный build и crash stack не зафиксированы.
 - Физическое устранение симптомов, качество живого голоса/модели и C8 остаются открытыми. Сохранённые неуспешные проверки `main 224e248` не переписываются как успешные.
 - Сборка/архив, исполненный UI-тест, модельная fixture, реальный пользовательский голос и измерение телефона имеют отдельные поля происхождения.
