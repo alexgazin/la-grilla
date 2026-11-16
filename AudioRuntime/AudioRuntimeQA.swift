@@ -76,6 +76,11 @@ import SwiftUI
             let inputConfigured:Bool
             let inputTransitionCount:Int
             let inputTransitionMilliseconds:Double
+            let inputRetirementCount:Int
+            let inputRetirementMilliseconds:Double
+            let currentGraphHasInputNode:Bool
+            let retiredInputGraphStopped:Bool
+            let activeAudioGraphCount:Int
             let physicalMicrophoneIndicatorVerified=false
             let observation="Phase one: live musical reference and undetermined permission; output remains running for explicit first-use capture. Physical indicator behavior still requires device verification."
         }
@@ -83,9 +88,9 @@ import SwiftUI
         let retained=audio.captureEngine===initialEngine && sameKernel
         let verified=before == .undetermined && after == .undetermined && audio.playing && audio.captureEngine?.isRunning==true && retained
         if audio.inputPrimingName=="outputOnly" {
-            try require(!audio.inputPrimedAtStartup && !audio.inputConfigured && audio.inputTransitionCount==0,"Output-only privacy observation already configured microphone input")
+            try require(!audio.inputPrimedAtStartup && !audio.inputConfigured && audio.inputTransitionCount==0 && audio.inputRetirementCount==0 && !audio.currentGraphHasInputNode && audio.activeAudioGraphCount==1,"Output-only privacy observation already configured microphone input or lacks exactly one output graph")
         }
-        let report=Report(outcome:verified ? "PASS":"FAIL",permissionBefore:permissionName(before),permissionAfter:permissionName(after),outputPlaying:audio.playing,outputEngineRunning:audio.captureEngine?.isRunning==true,outputClockFramesAdvanced:audio.clock-clockBefore,observedOutputPeak:peak,softwareOutputPrivacyVerified:verified,referenceEngineKernelRetained:retained,processIdentifier:Int(ProcessInfo.processInfo.processIdentifier),inputPriming:audio.inputPrimingName,inputPrimedAtStartup:audio.inputPrimedAtStartup,inputConfigured:audio.inputConfigured,inputTransitionCount:audio.inputTransitionCount,inputTransitionMilliseconds:audio.inputTransitionMilliseconds)
+        let report=Report(outcome:verified ? "PASS":"FAIL",permissionBefore:permissionName(before),permissionAfter:permissionName(after),outputPlaying:audio.playing,outputEngineRunning:audio.captureEngine?.isRunning==true,outputClockFramesAdvanced:audio.clock-clockBefore,observedOutputPeak:peak,softwareOutputPrivacyVerified:verified,referenceEngineKernelRetained:retained,processIdentifier:Int(ProcessInfo.processInfo.processIdentifier),inputPriming:audio.inputPrimingName,inputPrimedAtStartup:audio.inputPrimedAtStartup,inputConfigured:audio.inputConfigured,inputTransitionCount:audio.inputTransitionCount,inputTransitionMilliseconds:audio.inputTransitionMilliseconds,inputRetirementCount:audio.inputRetirementCount,inputRetirementMilliseconds:audio.inputRetirementMilliseconds,currentGraphHasInputNode:audio.currentGraphHasInputNode,retiredInputGraphStopped:audio.retiredInputGraphStopped,activeAudioGraphCount:audio.activeAudioGraphCount)
         let encoder=JSONEncoder();encoder.outputFormatting=[.sortedKeys,.prettyPrinted]
         let details=String(decoding:try encoder.encode(report),as:UTF8.self)
         try require(verified,details)
@@ -432,12 +437,16 @@ struct AudioRuntimeQAView:View {
         let difference=abs(actual-expected),phaseError=min(difference,length-difference)
         guard phaseError<128 else{throw NSError(domain:"LaGrilla.ColdFirstUse",code:3,userInfo:[NSLocalizedDescriptionKey:"Cold reference phase changed before first capture"])}
         let captured=try await VoiceCaptureRuntimeQA.run(session,reusePreparedReference:true)
-        guard audio.captureEngine===coldEngine,audio.withKernel({$0==coldKernel})==true,
+        let sameEngine=audio.captureEngine===coldEngine
+        let sameKernel=audio.withKernel({$0==coldKernel})==true
+        let retired=audio.inputPrimingName=="outputOnly" && audio.inputRetirementCount==1 && !coldEngine.isRunning
+            && audio.retiredInputGraphStopped && !audio.currentGraphHasInputNode && audio.activeAudioGraphCount==1
+        guard (sameEngine || retired),sameKernel,
               AVAudioApplication.shared.recordPermission == .granted
-        else{throw NSError(domain:"LaGrilla.ColdFirstUse",code:4,userInfo:[NSLocalizedDescriptionKey:"First-use recording lost the original engine/kernel or recording consent"])}
+        else{throw NSError(domain:"LaGrilla.ColdFirstUse",code:4,userInfo:[NSLocalizedDescriptionKey:"First-use recording lost the original kernel, controlled I/O ownership or recording consent"])}
         guard let data=captured.data(using:.utf8),var report=try JSONSerialization.jsonObject(with:data) as? [String:Any],let privacyData=coldPrivacyDetails.data(using:.utf8)
         else{throw NSError(domain:"LaGrilla.ColdFirstUse",code:5)}
-        report["coldFirstUse"]=["sameProcess":true,"phaseOneEngineKernelRetained":true,"referenceReusedWithoutPreparation":true,"permissionAtExplicitStart":"undetermined","permissionAfterCapture":"granted","phaseErrorBeforeCaptureTicks":phaseError,"processIdentifier":Int(ProcessInfo.processInfo.processIdentifier)]
+        report["coldFirstUse"]=["sameProcess":true,"phaseOneEngineKernelRetained":sameEngine && sameKernel,"phaseOneEngineRetained":sameEngine,"phaseOneKernelRetained":sameKernel,"inputGraphRetired":!sameEngine && retired,"referenceReusedWithoutPreparation":true,"permissionAtExplicitStart":"undetermined","permissionAfterCapture":"granted","phaseErrorBeforeCaptureTicks":phaseError,"processIdentifier":Int(ProcessInfo.processInfo.processIdentifier)]
         report["outputPrivacy"]=try JSONSerialization.jsonObject(with:privacyData)
         details=String(decoding:try JSONSerialization.data(withJSONObject:report,options:[.sortedKeys,.prettyPrinted]),as:UTF8.self)
         result="PASS"

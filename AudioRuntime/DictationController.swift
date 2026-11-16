@@ -123,11 +123,13 @@ private enum SpeechCallbacks {
             })
             recording=true;everStartedCapture=true
             if ProcessInfo.processInfo.arguments.contains("--uitesting") {
-                // The receiver's counter is read off the real-time thread. This
-                // publishes snapshots so XCTest can observe actual first audio.
+                // Publish actual first audio once, then retain the final count
+                // when stopping. Repeated debug-only AX updates would keep UI
+                // automation waiting for quiescence while capture is running.
                 qaFramesTask=Task { @MainActor [weak self,handle] in
                     while let self,!Task.isCancelled,self.generation==attempt,self.recording {
                         self.observedFrames=handle.receivedFrames
+                        if self.observedFrames>0{return}
                         do{try await Task.sleep(for:.milliseconds(100))}catch{return}
                     }
                 }

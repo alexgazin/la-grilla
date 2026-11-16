@@ -323,7 +323,7 @@ private struct AssistantHarmonyColumn:View {
     private func timing(_ event:ChordEvent)->String {
         let position=MusicalPosition(tick:sectionStart+event.tick).description
         let beats=(Double(event.duration)/Double(ppq)).formatted(.number.precision(.fractionLength(0...3)))
-        return String(format:NSLocalizedString("Bar %@ · %@ beats (%d ticks)",comment:"Assistant harmony event timing"),position,beats,event.duration)
+        return String(format:NSLocalizedString("Bar %@ · %@ beats",comment:"Assistant harmony event timing"),position,beats)
     }
 }
 

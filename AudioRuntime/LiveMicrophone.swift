@@ -225,16 +225,13 @@ private final class InputResources:@unchecked Sendable {
     let engine:AVAudioEngine
     let ring:InputRingHandle
     let worker:InputDrain
-    let previousCategory:AVAudioSession.Category
-    let previousMode:AVAudioSession.Mode
-    let previousOptions:AVAudioSession.CategoryOptions
     let owner:UUID
-    private let resumeOutput:@MainActor ()throws->Void
+    private let restoreOutput:@MainActor ()throws->Void
     var installed=false
     private var closed=false
     private(set) var restorationComplete=false
     private var drainFailure:Error?
-    init(engine:AVAudioEngine,ring:InputRingHandle,worker:InputDrain,lease:InputSessionLease,resumeOutput:@escaping @MainActor ()throws->Void){self.engine=engine;self.ring=ring;self.worker=worker;previousCategory=lease.category;previousMode=lease.mode;previousOptions=lease.options;owner=lease.id;self.resumeOutput=resumeOutput}
+    init(engine:AVAudioEngine,ring:InputRingHandle,worker:InputDrain,lease:InputSessionLease,restoreOutput:@escaping @MainActor ()throws->Void){self.engine=engine;self.ring=ring;self.worker=worker;owner=lease.id;self.restoreOutput=restoreOutput}
     @MainActor func stop()throws {
         if !closed {
             closed=true
@@ -245,12 +242,10 @@ private final class InputResources:@unchecked Sendable {
         }
         var restorationFailure:Error?
         if !restorationComplete,InputSessionOwnership.owns(owner) {do {
-            // Keep the existing output graph/kernel and active audio session.
-            // Category restoration releases microphone access, never deactivates
-            // the session or issues Stop/Seek to the backing transport.
-            let session=AVAudioSession.sharedInstance()
-            try session.setCategory(previousCategory,mode:previousMode,options:previousOptions)
-            if !engine.isRunning{try resumeOutput()}
+            // The current lease alone restores the session. For output-only
+            // policy its input-enabled I/O graph is stopped and retired BEFORE
+            // restoring playback; the shared DSP transport itself is retained.
+            try restoreOutput()
             restorationComplete=true
             InputSessionOwnership.restored(owner)
         }catch{restorationFailure=error}}
@@ -319,6 +314,7 @@ private final class InputResources:@unchecked Sendable {
             // Observe I/O before this lease accesses the pre-created input.
             // This read must not change input enablement or hardware formats.
             let beforeInputNode=LiveInputRouteSnapshot.IOUnit(engine.outputNode)
+            audio.noteMicrophoneInputAccess(on:engine)
             let input=engine.inputNode
             let hardware=input.inputFormat(forBus:0),format=input.outputFormat(forBus:0)
             let routes=[LiveInputRouteSnapshot.capture(engine,stage:"activated-playAndRecord",outputUnitBeforeInputNode:beforeInputNode)]
@@ -334,11 +330,15 @@ private final class InputResources:@unchecked Sendable {
             routeDiagnostics=routes
             let ring=try InputRingHandle(rate:format.sampleRate,limit:min(30,max(0.2,duration)))
             let worker=InputDrain(ring:ring,format:mono,receiver:try receiver(mono),onFailure:InputNotifications.forward(onFailure))
-            let resources=InputResources(engine:engine,ring:ring,worker:worker,lease:lease,resumeOutput:{[weak audio] in
-                // A retired resource must not restart a successor graph after
-                // the Session has reset its AudioController.
-                guard let audio,audio.captureEngine === engine else{return}
-                try audio.resumeOutputAfterInputChange()
+            let resources=InputResources(engine:engine,ring:ring,worker:worker,lease:lease,restoreOutput:{[weak audio] in
+                if let audio {
+                    try audio.restoreAfterMicrophone(expectedEngine:engine,category:category,mode:mode,options:options)
+                }else{
+                    // With no owning controller, release the old input graph.
+                    // InputResources still checks its global lease before this.
+                    engine.stop()
+                    try AVAudioSession.sharedInstance().setCategory(category,mode:mode,options:options)
+                }
             })
             pending=resources
             self.resources=resources;sampleRate=format.sampleRate
@@ -375,7 +375,7 @@ private final class InputResources:@unchecked Sendable {
             for _ in 0..<2 {
                 do {
                     if let pending{try pending.stop()}
-                    else if InputSessionOwnership.owns(lease.id){try session.setCategory(category,mode:mode,options:options);if !engine.isRunning{try audio.resumeOutputAfterInputChange()};InputSessionOwnership.restored(lease.id)}
+                    else if InputSessionOwnership.owns(lease.id){try audio.restoreAfterMicrophone(expectedEngine:engine,category:category,mode:mode,options:options);InputSessionOwnership.restored(lease.id)}
                     cleanupFailure=nil;break
                 }catch {
                     cleanupFailure=error

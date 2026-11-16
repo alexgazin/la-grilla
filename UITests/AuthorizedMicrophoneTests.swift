@@ -47,6 +47,9 @@ final class AuthorizedMicrophoneTests: XCTestCase {
         XCTAssertEqual(privacy["inputPrimedAtStartup"] as? Bool, false)
         XCTAssertEqual(privacy["inputConfigured"] as? Bool, false)
         XCTAssertEqual(privacy["inputTransitionCount"] as? Int, 0)
+        XCTAssertEqual(privacy["inputRetirementCount"] as? Int, 0)
+        XCTAssertEqual(privacy["currentGraphHasInputNode"] as? Bool, false)
+        XCTAssertEqual(privacy["activeAudioGraphCount"] as? Int, 1)
         XCTAssertEqual(privacy["softwareOutputPrivacyVerified"] as? Bool, true)
         XCTAssertEqual(privacy["referenceEngineKernelRetained"] as? Bool, true)
         XCTAssertEqual(privacy["outputEngineRunning"] as? Bool, true)
@@ -69,20 +72,36 @@ final class AuthorizedMicrophoneTests: XCTestCase {
         XCTAssertEqual(captured["inputPriming"] as? String, "outputOnly")
         XCTAssertEqual(captured["inputPrimedAtStartup"] as? Bool, false)
         XCTAssertEqual(captured["inputConfigured"] as? Bool, true)
+        XCTAssertEqual(captured["inputConfiguredDuringCapture"] as? Bool, true)
+        XCTAssertEqual(captured["inputNodeAttachedDuringCapture"] as? Bool, true)
         XCTAssertEqual(captured["inputTransitionCount"] as? Int, 1)
         let transition = try XCTUnwrap(captured["inputTransitionMilliseconds"] as? Double)
         XCTAssertTrue(transition.isFinite)
         XCTAssertGreaterThan(transition, 0)
+        XCTAssertEqual(captured["inputRetirementCount"] as? Int, 1)
+        let retirement = try XCTUnwrap(captured["inputRetirementMilliseconds"] as? Double)
+        XCTAssertTrue(retirement.isFinite)
+        XCTAssertGreaterThan(retirement, 0)
+        XCTAssertEqual(captured["currentGraphHasInputNode"] as? Bool, false)
+        XCTAssertEqual(captured["retiredInputGraphStopped"] as? Bool, true)
+        XCTAssertEqual(captured["activeAudioGraphCount"] as? Int, 1)
+        XCTAssertGreaterThan(captured["postRetirementClockFramesAdvanced"] as? Int ?? 0, 0)
+        XCTAssertEqual(captured["sameEngine"] as? Bool, false)
+        XCTAssertEqual(captured["sameEngineAndKernel"] as? Bool, false)
         XCTAssertEqual(captured["permissionBeforeCapture"] as? String, "undetermined")
         XCTAssertEqual(captured["permissionAfterCapture"] as? String, "granted")
         XCTAssertEqual(captured["physicalDropoutAbsenceVerified"] as? Bool, false)
-        for key in ["sameEngineAndKernel", "backingClockAdvanced", "storedSourceMatches", "storedProjectReopened", "oneUndoRestoresBaseline", "redoRestoresExactSourceAndNotes", "sourceUnchangedAfterReview"] {
+        XCTAssertEqual(captured["physicalMicrophoneIndicatorVerified"] as? Bool, false)
+        for key in ["sameKernel", "sameSampleRate", "sameMIDIHub", "projectUnchangedBeforeApply", "backingClockAdvanced", "storedSourceMatches", "storedProjectReopened", "oneUndoRestoresBaseline", "redoRestoresExactSourceAndNotes", "sourceUnchangedAfterReview"] {
             XCTAssertEqual(captured[key] as? Bool, true, key)
         }
         let cold = try XCTUnwrap(captured["coldFirstUse"] as? [String: Any])
         XCTAssertEqual(cold["sameProcess"] as? Bool, true)
         XCTAssertEqual(cold["processIdentifier"] as? Int, process)
-        XCTAssertEqual(cold["phaseOneEngineKernelRetained"] as? Bool, true)
+        XCTAssertEqual(cold["phaseOneEngineKernelRetained"] as? Bool, false)
+        XCTAssertEqual(cold["phaseOneEngineRetained"] as? Bool, false)
+        XCTAssertEqual(cold["phaseOneKernelRetained"] as? Bool, true)
+        XCTAssertEqual(cold["inputGraphRetired"] as? Bool, true)
         XCTAssertEqual(cold["referenceReusedWithoutPreparation"] as? Bool, true)
         let source = try XCTUnwrap(captured["source"] as? [String: Any])
         XCTAssertEqual(source["origin"] as? String, "microphone")
@@ -101,8 +120,10 @@ final class AuthorizedMicrophoneTests: XCTestCase {
         XCTAssertEqual(timing["epoch"] as? Int, baseline["epoch"] as? Int)
         XCTAssertGreaterThan(timing["callbacks"] as? Int ?? 0, baseline["callbacks"] as? Int ?? .max)
         XCTAssertNotNil(timing["maxExcessNanoseconds"])
-        // The first input activation deliberately pauses I/O. Retained musical
-        // state and measured callback gaps do not imply uninterrupted speakers.
+        // Input activation and retirement deliberately hand off I/O. The
+        // configured-input flag records historical capture readiness; attached
+        // nodes prove the current graph has no input. Measured callback gaps
+        // and retained musical state do not imply uninterrupted speakers.
         XCTAssertLessThan(captured["maximumPhaseErrorTicks"] as? Double ?? .infinity, 128)
     }
 
@@ -203,9 +224,9 @@ final class AuthorizedMicrophoneTests: XCTestCase {
             XCTAssertFalse(diagnostic["speechAvailable"] as? Bool == true && diagnostic["supportsOnDeviceSpeech"] as? Bool == true)
         }
         keep(try json(["diagnostic": diagnostic, "observedSystemPrompts": prompts, "successfulTranscriptionClaimed": false]), name: "AuthorizedInput-real-granted-Speech-completion")
-        app.buttons["Cancel"].tap()
-        wait(app.navigationBars["Assistant"], timeout: 5) { !app.navigationBars["Assistant"].exists }
-        XCTAssertTrue(transport.waitForExistence(timeout: 5))
+        // Read the actual underlying transport without closing and reopening
+        // the editor. Typed recovery must use this same Assistant presentation.
+        XCTAssertTrue(transport.exists)
         wait(transport, timeout: 8) { self.trace(transport).contains("engineRunning=true") }
         let after = trace(transport)
         keep(after, name: "AuthorizedInput-output-only-after-Speech")
@@ -217,13 +238,17 @@ final class AuthorizedMicrophoneTests: XCTestCase {
         if diagnostic["everStartedCapture"] as? Bool == true {
             XCTAssertEqual(traceValue("inputTransitionCount", in: after), "1")
             XCTAssertEqual(traceValue("inputConfigured", in: after), "true")
+            XCTAssertEqual(traceValue("inputRetirementCount", in: after), "1")
+            XCTAssertEqual(traceValue("retiredInputGraphStopped", in: after), "true")
         } else {
             XCTAssertEqual(traceValue("inputTransitionCount", in: after), "0")
             XCTAssertEqual(traceValue("inputConfigured", in: after), "false")
+            XCTAssertEqual(traceValue("inputRetirementCount", in: after), "0")
         }
+        XCTAssertEqual(traceValue("currentGraphHasInputNode", in: after), "false")
+        XCTAssertEqual(traceValue("activeAudioGraphCount", in: after), "1")
         XCTAssertGreaterThan(UInt64(traceValue("actualClock", in: after) ?? "") ?? 0, firstClock)
         XCTAssertFalse(app.alerts["La Grilla"].exists)
-        app.buttons["assistant.open"].tap()
         let input = app.textViews["assistant.input"]
         reveal(input, in: app, upward: false)
         replace(input, with: "tempo 108")
