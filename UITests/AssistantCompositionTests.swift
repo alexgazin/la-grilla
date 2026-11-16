@@ -93,8 +93,8 @@ final class AssistantCompositionTests:XCTestCase {
             wait(state,NSPredicate(format:"label == 'STOPPED' AND value == 'Original'"))
             XCTAssertFalse(app.buttons["assistant.b"].exists)
             app.buttons["Cancel"].tap()
-            // Grid's accessibility elements can exist beneath the dismissing
-            // sheet. Wait for the actual editor transition before touching it.
+            // Grid's accessibility elements can exist beneath Assistant.
+            // Require the actual sheet to close before touching the editor.
             wait(app.navigationBars["Assistant"],NSPredicate(format:"exists == false"))
             let tempo=app.staticTexts["studio.tempo"];XCTAssertTrue(tempo.waitForExistence(timeout:5))
             XCTAssertEqual(tempo.label,"120 BPM");XCTAssertTrue(app.buttons["Play"].exists)
