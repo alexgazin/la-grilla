@@ -182,6 +182,10 @@ import Observation
     func redo() {if performance.contextActive{Task{await leavePerformance();redo()};return};guard !recording && !armed else {return}; mixerGesture=false;history.redo(&project); sync();scheduleSave()}
     func scheduleSave() {saveTask?.cancel();saveTask = Task {try? await Task.sleep(for:.milliseconds(700));guard !Task.isCancelled else{return};await save()} }
     func save() async {
+        // Scene/background notifications may arrive while store.list() is
+        // suspended. Never persist the temporary seed before bootstrap loads
+        // the user's document; a later ready save uses the restored project.
+        guard ready else{return}
         saveGeneration += 1; let generation=saveGeneration
         saving=true; let snapshot=project
         do {
