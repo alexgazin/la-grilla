@@ -13,6 +13,14 @@
 
 <p align="center"><a href="#что-уже-работает">Возможности</a> · <a href="#установить-на-свой-iphone">На свой iPhone</a> · <a href="ROADMAP.md">Роадмап</a> · <a href="docs/IMPLEMENTATION_LOG.md">Журнал разработки</a></p>
 
+## Идея → грув → трек · промо со звуком
+
+[![La Grilla — анимированное превью промо: идея, грув, трек](Media/Promo/teaser.gif)](https://github.com/alexgazin/la-grilla/raw/refs/heads/main/Media/Promo/la-grilla-promo.mp4)
+
+**[▶ Смотреть / скачать полное видео — 1:36, Full HD, со звуком](https://github.com/alexgazin/la-grilla/raw/refs/heads/main/Media/Promo/la-grilla-promo.mp4)**
+
+11 глав: Grid → Arrange → Jam → Notes → Harmony → Assistant → Voice → Perform → Mixer → MIDI → Export. Анимация собрана из настоящих экранов приложения; оригинальная музыка создана штатным синтезатором и offline-рендерером La Grilla. GIF без звука; полный саундтрек — в MP4. [Главы, исходники и музыкальный проект](Media/Promo/README.md).
+
 ## Студия в девяти экранах
 
 Настоящие экраны **1.0.0 (14)** из работающего приложения в iOS Simulator. Нажмите на изображение, чтобы открыть оригинал.
