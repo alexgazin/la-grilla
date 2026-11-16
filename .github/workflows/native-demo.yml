@@ -1,7 +1,7 @@
 name: Native app demonstration recording
 on:
   push:
-    branches: [feat/native-working-demo]
+    branches: [feat/native-working-demo, feat/native-demo20]
   workflow_dispatch:
 concurrency:
   group: native-demo-${{ github.ref }}
@@ -10,13 +10,14 @@ env:
   DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
 jobs:
   record-native-demo:
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
       - name: Verify toolchain and generated project
         run: |
           python3 scripts/release/assert_sdk.py
+          python3 -c 'import subprocess; x=subprocess.check_output(["xcodebuild","-version"],text=True); assert x.splitlines()[0] == "Xcode 26.3", x; sdk=subprocess.check_output(["xcrun","--sdk","iphonesimulator","--show-sdk-version"],text=True).strip(); assert sdk == "26.2", sdk; sdk=subprocess.check_output(["xcrun","--sdk","iphoneos","--show-sdk-version"],text=True).strip(); assert sdk == "26.2", sdk'
           python3 scripts/generate_project.py
           git diff --exit-code -- LaGrilla.xcodeproj
           xcrun simctl io help > simctl-io-help.txt 2>&1 || true

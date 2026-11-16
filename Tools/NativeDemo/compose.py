@@ -10,15 +10,25 @@ from pathlib import Path
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 
 import numpy as np
 
-EXPECTED_METHODS = [
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'scripts'))
+from ci.native_scope import observed_outcomes
+
+LEGACY_SOURCE_SHA = 'b4a584fc1cc60d73a97386986c2330ca7e45980c'
+LEGACY_RUN_ID = 43813957218
+LEGACY_METHODS = [
     'test01ComposeJamAndMix',
     'test02HarmonyCommandsAndVoiceSetup',
     'test03PerformAndExport',
 ]
+EXPECTED_METHODS = LEGACY_METHODS + ['test04EmptyLocalSketchAndTranspose']
+PROTOCOL_CASE = re.compile(
+    r"^[ \t]*Test Case '-\[[^\s\]]+ [^\]\s]+\]' "
+    r'(?:passed|failed|skipped|exceeded execution time allowance)\b')
 FONT_DIR = Path('/usr/share/fonts/truetype/noto')
 
 
@@ -32,6 +42,75 @@ def digest(path: Path) -> str:
 
 def read_json(path: Path):
     return json.loads(path.read_text())
+
+
+def demo_outcomes(output: str):
+    """Parse actual protocol fragments; quoted examples cannot create passes."""
+    fragments = [match.group(0) for line in output.splitlines()
+                 if (match := PROTOCOL_CASE.match(line))]
+    # The shared parser keeps allowance failures sticky even after a late PASS.
+    return observed_outcomes('\n'.join(fragments))
+
+
+def capture_contract(timing, edl, timing_path: Path, allow_uncovered_postroll: bool):
+    """Bind a cut list to its actual source, preserving one historical replay."""
+    source_sha = timing.get('source_sha')
+    if not isinstance(source_sha, str) or not re.fullmatch(r'[0-9a-f]{40}', source_sha):
+        raise ValueError('The actual capture source SHA is missing or invalid')
+    if edl.get('source_sha') != source_sha:
+        raise ValueError('EDL source_sha must match the actual capture source SHA')
+    legacy = source_sha == LEGACY_SOURCE_SHA
+    expected = LEGACY_METHODS if legacy else EXPECTED_METHODS
+    if (timing.get('test_exit_code') != 0
+            or timing.get('expected_methods') != expected
+            or timing.get('actual_passed_methods') != expected):
+        raise ValueError(f'All {len(expected)} real UI journeys must have executed and passed')
+    if allow_uncovered_postroll and (not legacy or edl.get('source_run_id') != LEGACY_RUN_ID):
+        raise ValueError('Unused-postroll qualification is restricted to the original build-15 capture run')
+    log_path = timing_path.parent / 'demo-tests.log'
+    if not log_path.is_file():
+        raise ValueError('The original demo-tests.log is required to verify actual XCTest outcomes')
+    outcomes = demo_outcomes(log_path.read_text())
+    required = {f'NativeDemoTests/{method}': outcomes.get(f'NativeDemoTests/{method}', 'unobserved')
+                for method in expected}
+    if any(outcome != 'passed' for outcome in required.values()):
+        raise ValueError('Original demo log must show every real UI journey passing without an allowance failure')
+    log_sha = digest(log_path)
+    common = dict(expected_methods=expected, session_count=len(expected),
+                  demo_tests_log_path=log_path, demo_tests_log_sha256=log_sha,
+                  required_test_outcomes=required)
+    if legacy:
+        return dict(source_receipt=None, source_receipt_path=None,
+                    app=dict(version='1.0.0', build='15', bundle_id='com.alexgazin.LaGrilla'),
+                    **common)
+    if timing.get('demo_tests_log_sha256') != log_sha:
+        raise ValueError('Original demo log bytes differ from the capture timing hash')
+    if timing.get('required_test_outcomes') != required:
+        raise ValueError('Capture timing outcomes differ from the independently parsed original demo log')
+    source_path = timing_path.parent / 'source-receipt.json'
+    if not source_path.is_file():
+        raise ValueError('A schema-2 actual capture requires its original source-receipt.json')
+    source = read_json(source_path)
+    if (timing.get('capture_schema') != 2 or source.get('capture_schema') != 2
+            or source.get('source_sha') != source_sha or source.get('git_head') != source_sha):
+        raise ValueError('Source receipt schema and Git HEAD must match the actual capture')
+    if timing.get('source_receipt_sha256') != digest(source_path):
+        raise ValueError('Source receipt bytes differ from the original capture timing hash')
+    app = source.get('app')
+    if (not isinstance(app, dict)
+            or any(not isinstance(app.get(key), (str, int)) or isinstance(app.get(key), bool)
+                   or not str(app[key]).strip() for key in ['version', 'build', 'bundle_id'])):
+        raise ValueError('The actual built app version, build and bundle ID are required')
+    files = source.get('files')
+    if (not isinstance(files, dict) or not files
+            or any(not isinstance(path, str) or not path
+                   or not isinstance(entry, dict)
+                   or not isinstance(entry.get('sha256'), str)
+                   or not re.fullmatch(r'[0-9a-f]{64}', entry['sha256'])
+                   for path, entry in files.items())):
+        raise ValueError('The original source receipt must retain its source-file SHA-256 inventory')
+    return dict(source_receipt=source, source_receipt_path=source_path,
+                app=app, **common)
 
 
 def probe(path: Path, count_frames: bool = False):
@@ -98,8 +177,7 @@ def validate(args):
     if args.video_host_start is not None:
         args.video_host_start = number(args.video_host_start, 'explicit video host start')
     timing, audio_receipt, edl = map(read_json, [args.timing, args.audio_receipt, args.edl])
-    if timing.get('test_exit_code') != 0 or timing.get('actual_passed_methods') != EXPECTED_METHODS:
-        raise ValueError('All three real UI journeys must have executed and passed')
+    contract = capture_contract(timing, edl, args.timing, args.allow_uncovered_postroll)
     if timing.get('video_error'):
         raise ValueError(f"The native recorder reported {timing['video_error']}")
     if timing.get('video_exit_code') not in (0, 130, -2):
@@ -261,6 +339,7 @@ def validate(args):
     if not -24 <= args.gain_db <= 24 or pcm['peak'] * gain > .98:
         raise ValueError('Presentation gain would exceed the headroom limit')
     return dict(timing=timing, audio_receipt=audio_receipt, edl=edl, chapters=chapters,
+                **contract,
                 pcm=pcm, sample_rate=rate, source_video=v, source_duration=video_duration,
                 audio_duration=audio_duration, audio_offset_seconds=offset,
                 video_host_start_estimate=video_start,
@@ -292,8 +371,8 @@ def render_segment(args, state, chapter, index, folder):
         draw_text(chapter['title'], 'title', segment_dir, args.bold_font, 80, 96, 297, '0xf3f3e9', entry_fade),
         draw_text(chapter.get('subtitle', ''), 'subtitle', segment_dir, args.regular_font, 29, 102, 536, '0xaab2a5', entry_fade),
         draw_text('Звук этой записи', 'audio', segment_dir, args.regular_font, 19, 102, 877, '0xaab2a5'),
-        draw_text('iOS Simulator · 1.0.0 (15)', 'device', segment_dir, args.regular_font, 18, 96, 1036, '0xaab2a5'),
-        draw_text('3 реальные сессии · Паузы сокращены монтажом', 'editing', segment_dir, args.regular_font, 17, 1190, 1036, '0xaab2a5'),
+        draw_text(f'iOS Simulator · {state["app"]["version"]} ({state["app"]["build"]})', 'device', segment_dir, args.regular_font, 18, 96, 1036, '0xaab2a5'),
+        draw_text(f'{state["session_count"]} реальные сессии · Паузы сокращены монтажом', 'editing', segment_dir, args.regular_font, 17, 1190, 1036, '0xaab2a5'),
     ]
     screen_height = 948
     screen_width = round(state['source_video']['width'] / state['source_video']['height'] * screen_height / 2) * 2
@@ -387,7 +466,12 @@ def main():
     args = parser.parse_args()
     args.video, args.audio, args.output = args.video.resolve(), args.audio.resolve(), args.output.resolve()
     destinations = [args.output, args.output.with_suffix('.render-receipt.json')]
-    for path in [args.video, args.audio, args.timing, args.audio_receipt, args.edl, args.regular_font, args.bold_font]:
+    source_path = args.timing.parent / 'source-receipt.json'
+    input_paths = [args.video, args.audio, args.timing, args.audio_receipt, args.edl,
+                   args.regular_font, args.bold_font, args.timing.parent / 'demo-tests.log']
+    if source_path.is_file():
+        input_paths.append(source_path)
+    for path in input_paths:
         if not path.is_file():
             parser.error(f'Missing input: {path}')
         if path.resolve() in destinations:
@@ -399,8 +483,18 @@ def main():
     inputs = {name: {'path': str(path), 'sha256': digest(path)} for name, path in [
         ('video', args.video), ('audio', args.audio), ('timing', args.timing),
         ('audio_receipt', args.audio_receipt), ('edl', args.edl)]}
+    if state['source_receipt_path'] is not None:
+        inputs['source_receipt'] = dict(path=str(state['source_receipt_path']),
+                                       sha256=digest(state['source_receipt_path']))
+    inputs['demo_tests_log'] = dict(path=str(state['demo_tests_log_path']),
+                                    sha256=state['demo_tests_log_sha256'])
     receipt = dict(kind='Edited real iOS Simulator sessions with their actual host-loopback sound',
                    inputs=inputs, source_sha=state['timing'].get('source_sha'),
+                   app=state['app'], session_count=state['session_count'],
+                   expected_methods=state['expected_methods'],
+                   actual_passed_methods=state['timing']['actual_passed_methods'],
+                   required_test_outcomes=state['required_test_outcomes'],
+                   source_receipt=state['source_receipt'],
                    audio_offset_seconds=state['audio_offset_seconds'],
                    video_host_start_estimate=state['video_host_start_estimate'],
                    video_host_start_bracket=state['video_host_start_bracket'],

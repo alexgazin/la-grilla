@@ -2,7 +2,7 @@
 
 `compose.py` creates a 1920×1080 / 30 fps presentation from a **real portrait
 iOS Simulator recording and the actual stereo BlackHole sound recorded during
-the same three UI journeys**. It does not animate screenshots, synthesize notes,
+the same four UI journeys**. It does not animate screenshots, synthesize notes,
 replace missing sound, draw touches or recreate app controls.
 
 The full native screen remains proportional and uncropped. Titles and the
@@ -34,6 +34,7 @@ not an accepted cut list:
 
 ```json
 {
+  "source_sha": "<actual 40-character capture source SHA>",
   "chapters": [
     {
       "start": 12.0,
@@ -47,13 +48,33 @@ not an accepted cut list:
 }
 ```
 
-Use `--validate-only` first. The tool requires all three recorded XCTest
+Use `--validate-only` first. The tool requires all four recorded XCTest
 journeys to have passed; normal recorder completion; no sample-time
 discontinuities; a full CAF decode whose frame count and peak match the capture
 receipt; consistent sample/host spans; finite non-silent stereo PCM; and source
 coverage for every selected interval. It then completely decodes the final MP4.
 Source hashes, cuts, fonts, frame counts and output checks are saved beside the
 movie in `.render-receipt.json`.
+The fourth journey starts from an Empty project and uses the local House
+algorithm with eight bars and seed 42: review, A/B preview, Apply, and actual
+eight-bar playback, followed by Settings transpose +2. Describe this as a local
+algorithm, without claiming model inference or a human voice demonstration.
+
+New captures require the original schema-2 `source-receipt.json` beside
+`capture-timing.json`. The EDL source SHA, timing source SHA, source receipt
+source SHA and captured Git HEAD must agree; the timing receipt must retain
+the exact source receipt SHA-256. The receipt includes version/build/bundle ID
+read from the actual built app and the source-file hash inventory. The composer
+uses that app version/build and four-session count in the visible presentation,
+and preserves the source receipt and its hash in the render receipt. It validates
+the retained inventory format; it does not compare a later checkout to historical
+source files or treat the receipt as app acceptance.
+The original `demo-tests.log` must also remain beside the timing receipt. Its
+SHA-256 and independently parsed required outcomes must match the capture
+receipt. Only actual, anchored XCTest protocol outcomes count; quoted examples
+and prose do not. An execution-allowance violation remains a failure even if
+XCTest later prints PASS for that method. Historical replay also reparses its
+original log, without inventing fields absent from the original timing receipt.
 Both selected boundaries shrink inward to the 30 fps delivery grid, retaining
 the authored and effective times in the receipt. Adjacent clips cannot repeat
 an action through outward rounding. Each intermediate has exactly 1,600 actual
@@ -74,10 +95,13 @@ interpolated UI states or time rescaling are used; the cache is not published.
 
 ## Explicitly qualified unused postroll
 
-A capture workflow can remain **failed** because its wall-clock post-test
+A historical capture workflow remained **failed** because its wall-clock post-test
 bookkeeping outlasted a recorder, even though every authored UI event and all
-actual selected video PTS are covered. The default rejects this mismatch.
-`--allow-uncovered-postroll` is a narrow, explicit qualification, requiring:
+actual selected video PTS were covered. The default rejects this mismatch.
+Three-method replay is restricted to the published build-15 source SHA
+`b4a584fc1cc60d73a97386986c2330ca7e45980c`; its app label remains 1.0.0 (15).
+`--allow-uncovered-postroll` is restricted further to its original run
+`43813957218`, requiring:
 
 - `--postroll-note`, a verified manual `--video-host-start` and `--sync-note`;
 - the original failed `source_run_conclusion` and run ID in the EDL;
@@ -94,6 +118,9 @@ tail and whether the **entire actual MP4 PTS span** is sound-covered. This
 does not turn a failed workflow into a passing one or allow a failed UI tour.
 Keep the failed original job and the independently reviewed media scope
 separate in the published provenance.
+New four-journey captures cannot use this exception. Any interaction, capture
+or coverage failure remains diagnostic until a new successful capture and
+independent audiovisual review; this tool never changes workflow conclusions.
 
 The published [working demonstration](../../Media/WorkingDemo/README.md) uses
 that explicit qualification. After downloading and extracting its verified
@@ -145,7 +172,7 @@ Variable-rate source frames retain their original timing. The seek preserves
 pre-cut decoder frames so an idle screen keeps its actual preceding state;
 30 fps sampling may delay a visual update by at most one delivery frame.
 
-The capture workflow and three authored UI journeys are documented in
+The capture workflow and four authored UI journeys are documented in
 [Demos](../../Demos/README.md). Original capture, source/version, acceptance
 results, individual frame review and any remaining limits belong with the
 published media. Simulator capture does not establish physical audio-route,

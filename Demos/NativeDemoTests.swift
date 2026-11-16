@@ -11,10 +11,13 @@ final class NativeDemoTests: XCTestCase {
         executionTimeAllowance = 300
     }
 
-    @MainActor private func launch() -> XCUIApplication {
+    @MainActor private func launch(runtimeTrace: Bool = false) -> XCUIApplication {
         XCUIDevice.shared.orientation = .portrait
         let app = XCUIApplication()
         app.launchArguments = ["--uitesting", "--screen", "grid", "-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
+        if runtimeTrace {
+            app.launchArguments += ["--runtime-trace", "--device-output-startup", "--project-store-id", UUID().uuidString]
+        }
         app.launch()
         XCTAssertTrue(app.buttons["perform.transport"].waitForExistence(timeout: 20))
         XCTAssertTrue(app.buttons["Play"].waitForExistence(timeout: 10))
@@ -23,14 +26,15 @@ final class NativeDemoTests: XCTestCase {
         return app
     }
 
-    @MainActor private func mark(_ phase: String, app: XCUIApplication) {
-        let event: [String: Any] = [
+    @MainActor private func mark(_ phase: String, app: XCUIApplication, facts: [String: Any] = [:]) {
+        var event: [String: Any] = [
             "phase": phase,
             "uptime_seconds": ProcessInfo.processInfo.systemUptime,
             "unix_seconds": Date().timeIntervalSince1970,
             "window_width": app.windows.firstMatch.frame.width,
             "window_height": app.windows.firstMatch.frame.height
         ]
+        event.merge(facts) { _, observed in observed }
         let data = try! JSONSerialization.data(withJSONObject: event, options: [.sortedKeys])
         print("NATIVE_DEMO_EVENT " + String(decoding: data, as: UTF8.self))
         let receipt = XCTAttachment(data: data, uniformTypeIdentifier: "public.json")
@@ -238,5 +242,167 @@ final class NativeDemoTests: XCTestCase {
         XCTAssertTrue(shared, "Actual WAV export must reach the iOS share sheet")
         mark("export.actual-share-sheet", app: app)
         pause(3)
+    }
+
+    /// The built-in example is a real local command, entered through the
+    /// production examples sheet. No proposal, score or sound is injected.
+    @MainActor func test04EmptyLocalSketchAndTranspose() throws {
+        let app = launch(runtimeTrace: true)
+        let transport = app.buttons["perform.transport"]
+        app.buttons["Projects"].tap()
+        XCTAssertTrue(app.buttons["project.new"].waitForExistence(timeout: 5))
+        app.buttons["project.new"].tap()
+        let empty = app.buttons["project.template.empty"]
+        XCTAssertTrue(empty.waitForExistence(timeout: 5))
+        XCTAssertTrue(empty.isSelected)
+        mark("sketch.empty-starting-point", app: app)
+        pause()
+        app.buttons["project.create"].tap()
+        XCTAssertTrue(app.staticTexts["grid.empty-state"].waitForExistence(timeout: 8))
+        let original = trace(transport)
+        let projectID = try XCTUnwrap(field("project", in: original))
+        let originalRevision = try XCTUnwrap(field("revision", in: original))
+        mark("sketch.empty", app: app, facts: ["runtime": original])
+        pause(2)
+
+        app.buttons["assistant.open"].tap()
+        XCTAssertTrue(app.navigationBars["Assistant"].waitForExistence(timeout: 5))
+        app.buttons["assistant.language.en"].tap()
+        app.buttons["assistant.examples"].tap()
+        let example = app.buttons["assistant.example.sketch"]
+        XCTAssertTrue(example.waitForExistence(timeout: 5))
+        example.tap()
+        let generate = app.buttons["assistant.generate"]
+        reveal(generate, in: app, scroll: app.scrollViews["assistant.review-scroll"])
+        mark("sketch.command", app: app)
+        pause(2)
+        generate.tap()
+        let parts = app.staticTexts["assistant.sketch.parts"]
+        XCTAssertTrue(parts.waitForExistence(timeout: 8))
+        reveal(parts, in: app, scroll: app.scrollViews["assistant.review-scroll"])
+        let data = Data(try XCTUnwrap(parts.value as? String).utf8)
+        let facts = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        XCTAssertEqual(facts["style"] as? String, "house")
+        XCTAssertEqual(facts["bars"] as? Int, 8)
+        XCTAssertEqual(facts["seed"] as? Int, 42)
+        XCTAssertEqual(facts["modelInterpretedParameters"] as? Bool, false)
+        for role in ["chords", "drums", "bass", "melody"] {
+            XCTAssertGreaterThan(facts[role] as? Int ?? 0, 0, role)
+        }
+        XCTAssertTrue(app.staticTexts["LOCAL"].exists)
+        XCTAssertFalse(app.staticTexts["ON-DEVICE AI"].exists)
+        mark("sketch.local-review", app: app, facts: ["sketch": facts])
+        pause(3)
+
+        let a = app.buttons["assistant.a"], b = app.buttons["assistant.b"]
+        reveal(a, in: app, scroll: app.scrollViews["assistant.review-scroll"])
+        a.tap()
+        waitForRuntime(transport) { report in
+            report.contains("preview=true") && report.contains("actualPlaying=1") && self.number("outputPeak", in: report) < 0.0001
+        }
+        XCTAssertEqual(field("revision", in: trace(transport)), originalRevision)
+        mark("sketch.preview-a-empty", app: app, facts: ["runtime": trace(transport)])
+        pause(2)
+        b.tap()
+        waitForRuntime(transport) { report in
+            report.contains("preview=true") && report.contains("actualPlaying=1") && self.number("outputPeak", in: report) > 0.001
+        }
+        XCTAssertEqual(field("revision", in: trace(transport)), originalRevision)
+        mark("sketch.preview-b-local", app: app, facts: ["runtime": trace(transport)])
+        pause(4)
+        let apply = app.buttons["assistant.apply"]
+        reveal(apply, in: app, scroll: app.scrollViews["assistant.review-scroll"])
+        apply.tap()
+        XCTAssertTrue(app.buttons["assistant.open"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.navigationBars["Assistant"].exists)
+        XCTAssertFalse(app.staticTexts["grid.empty-state"].exists)
+        let chords = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'grid.chord.'"))
+        XCTAssertEqual(chords.count, 8)
+        XCTAssertEqual(field("project", in: trace(transport)), projectID)
+        XCTAssertNotEqual(field("revision", in: trace(transport)), originalRevision)
+        XCTAssertEqual(number("loopRangeCount", in: trace(transport)), 8 * 3840)
+        XCTAssertTrue(app.buttons["Undo"].isEnabled)
+        mark("sketch.applied", app: app, facts: ["runtime": trace(transport)])
+        pause(2)
+
+        app.buttons["Play"].tap()
+        waitForRuntime(transport) { report in
+            report.contains("preview=false") && report.contains("actualPlaying=1") && self.number("outputPeak", in: report) > 0.001
+                && self.field("actualRevision", in: report) == self.field("revision", in: report)
+        }
+        let bpm = try XCTUnwrap(facts["bpm"] as? Double)
+        XCTAssertGreaterThan(bpm, 0)
+        let fullLoopSeconds = 8 * 4 * 60 / bpm
+        let startClock = number("actualClock", in: trace(transport))
+        mark("sketch.live-eight-bars-start", app: app, facts: ["runtime": trace(transport), "bars": 8, "bpm": bpm, "minimum_hold_seconds": fullLoopSeconds])
+        // One uninterrupted real eight-bar loop. It remains at captured speed
+        // in the final film; these seconds are not an idle-wait cut candidate.
+        pause(fullLoopSeconds + 0.5)
+        XCTAssertGreaterThan(number("actualClock", in: trace(transport)), startClock)
+        XCTAssertTrue(app.buttons["Stop"].exists)
+        mark("sketch.live-eight-bars-end", app: app, facts: ["runtime": trace(transport)])
+
+        app.buttons["studio.tempo"].tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
+        let transpose = app.buttons["settings.transpose"]
+        revealFormControl(transpose, in: app)
+        transpose.tap()
+        XCTAssertTrue(app.navigationBars["Transpose arrangement"].waitForExistence(timeout: 5))
+        XCTAssertEqual(app.steppers["transpose.semitones"].value as? String, "2")
+        mark("sketch.transpose-plus-two-review", app: app)
+        pause(2)
+        let transposeApply = app.buttons["transpose.apply"]
+        revealFormControl(transposeApply, in: app)
+        XCTAssertTrue(transposeApply.isEnabled)
+        let beforeTranspose = field("revision", in: trace(transport))
+        transposeApply.tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
+        app.buttons["Done"].tap()
+        waitForRuntime(transport) { report in
+            report.contains("actualPlaying=1") && self.field("revision", in: report) != beforeTranspose
+                && self.field("actualRevision", in: report) == self.field("revision", in: report)
+                && self.number("outputPeak", in: report) > 0.001
+        }
+        mark("sketch.transpose-plus-two-applied", app: app, facts: ["runtime": trace(transport)])
+        pause(4)
+        app.buttons["Stop"].tap()
+        mark("sketch.end", app: app)
+        pause(3)
+    }
+
+    @MainActor private func trace(_ transport: XCUIElement) -> String {
+        (transport.value as? String ?? "").components(separatedBy: "\n").first ?? ""
+    }
+
+    private func field(_ key: String, in report: String) -> String? {
+        report.split(separator: " ").first(where: { $0.hasPrefix(key + "=") }).map { String($0.dropFirst(key.count + 1)) }
+    }
+
+    private func number(_ key: String, in report: String) -> Double {
+        Double(field(key, in: report) ?? "") ?? -1
+    }
+
+    @MainActor private func waitForRuntime(_ transport: XCUIElement, condition: (String) -> Bool) {
+        let deadline = Date().addingTimeInterval(8)
+        repeat {
+            if condition(trace(transport)) { return }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+        } while Date() < deadline
+        XCTFail("The actual audio runtime did not reach the authored state: \(trace(transport))")
+    }
+
+    @MainActor private func revealFormControl(_ control: XCUIElement, in app: XCUIApplication) {
+        for _ in 0..<8 {
+            let scroll = app.collectionViews.firstMatch.exists ? app.collectionViews.firstMatch : app.tables.firstMatch.exists ? app.tables.firstMatch : app.scrollViews.firstMatch
+            let visible = scroll.frame.intersection(app.frame.insetBy(dx: 0, dy: 44))
+            if control.exists {
+                let frame = control.frame
+                if control.isHittable && !frame.isEmpty && visible.contains(frame) { return }
+                if !frame.isEmpty && frame.maxY > visible.maxY { scroll.swipeUp(); continue }
+                if !frame.isEmpty && frame.minY < visible.minY { scroll.swipeDown(); continue }
+            }
+            scroll.swipeUp()
+        }
+        XCTFail("The actual Form control must be wholly visible: \(control.identifier)")
     }
 }
