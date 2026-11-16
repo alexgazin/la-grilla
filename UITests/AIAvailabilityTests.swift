@@ -122,8 +122,10 @@ final class AIAvailabilityTests:XCTestCase {
         XCTAssertEqual(reviewedUI.element("assistant.harmony.before.0.0",type:.staticText)?.label,"C")
         XCTAssertEqual(reviewedUI.element("assistant.harmony.after.0.0",type:.staticText)?.label,"Cmaj9")
         XCTAssertEqual(documentState(transport),originalDocument,"Review must not edit the actual project")
-        XCTAssertEqual(reviewedUI.firstChord?.label,originalChord)
-        XCTAssertEqual(reviewedUI.undo?.isEnabled,false)
+        // A modal hierarchy omits the underlying Grid; query its actual live
+        // elements directly while keeping visible review fields coherent.
+        XCTAssertEqual(chord.label,originalChord)
+        XCTAssertFalse(app.buttons["Undo"].isEnabled)
         let apply=app.buttons["assistant.apply"]
         revealJazzControl(apply,identifier:"assistant.apply",in:app)
         apply.tap()

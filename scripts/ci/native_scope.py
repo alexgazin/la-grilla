@@ -29,6 +29,11 @@ def observed_outcomes(output):
     outcomes = {}
     for match in re.finditer(r"Test Case '-\[([^\s\]]+) ([^\]\s]+)\]' (passed|failed|skipped)", output):
         outcomes[match[1].rsplit(".", 1)[-1] + "/" + match[2]] = match[3]
+    # XCTest can emit an explicit allowance violation and then a late PASS
+    # for that same case. Its terminal label cannot erase the budget failure.
+    # Match actual raw-log protocol lines, not quoted examples or prose.
+    for match in re.finditer(r"^[ \t]*Test Case '-\[([^\s\]]+) ([^\]\s]+)\]' exceeded execution time allowance\b", output, re.M):
+        outcomes[match[1].rsplit(".", 1)[-1] + "/" + match[2]] = "time-allowance-exceeded"
     return outcomes
 
 

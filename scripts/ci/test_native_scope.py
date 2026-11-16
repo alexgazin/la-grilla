@@ -26,6 +26,23 @@ class NativeScopeTests(unittest.TestCase):
         text="Test Case '-[Fixture.StudioTests testCreate]' passed (2.0 seconds).\nTest Case '-[Fixture.VoiceTests testCapture]' skipped (0.0 seconds).\nExecuted 2 tests, with 0 failures"
         self.assertEqual(observed_outcomes(text),{"StudioTests/testCreate":"passed","VoiceTests/testCapture":"skipped"})
         self.assertEqual(observed_outcomes("Executed 0 tests, with 0 failures"),{})
+    def test_actual_allowance_marker_stays_failure_despite_late_pass(self):
+        # Original a61 run43912715044 stdout, not invented native/device proof.
+        text=(Path(__file__).parent/"fixtures/a61-case-timeout-late-pass.txt").read_text()
+        identity="AIAvailabilityTests/testActualUnavailableModelLocallyReviewsJazzAppliesAndUndoesOnce"
+        self.assertEqual(observed_outcomes(text),{identity:"time-allowance-exceeded"})
+        self.assertEqual(observed_outcomes("\n".join(reversed(text.splitlines()))),{identity:"time-allowance-exceeded"})
+    def test_allowance_markers_are_case_specific_and_ignore_quoted_prose(self):
+        timeout="Test Case '-[Fixture.OtherTests testCreate]' exceeded execution time allowance of 2 minutes."
+        passed="Test Case '-[Fixture.StudioTests testCreate]' passed (1.000 seconds)."
+        self.assertEqual(observed_outcomes(timeout+"\n"+passed),{"OtherTests/testCreate":"time-allowance-exceeded","StudioTests/testCreate":"passed"})
+        for prose in [repr(timeout),'print('+repr(timeout)+')','Example: '+timeout,'{"output": '+repr(timeout)+'}']:
+            with self.subTest(prose=prose):
+                self.assertEqual(observed_outcomes(prose+"\n"+passed),{"StudioTests/testCreate":"passed"})
+    def test_allowance_violation_cannot_validate_a_claimed_full_pass(self):
+        text="Test Case '-[Fixture.StudioTests testCreate]' exceeded execution time allowance of 2 minutes.\nTest Case '-[Fixture.StudioTests testCreate]' passed (121.0 seconds).\nTest Case '-[Fixture.VoiceTests testCapture]' passed (1.0 seconds)."
+        self.receipt["requiredTestOutcomes"]=observed_outcomes(text)
+        with self.assertRaises(ValueError):self.verify()
     def test_complete_matching_inventory_accepts_and_reports_scope(self):
         self.assertEqual(self.verify(),dict(scope="full",scopeStatus="full-functional-pass",functionalTestCount=2))
     def test_partial_zero_skipped_or_missing_inventory_rejected(self):

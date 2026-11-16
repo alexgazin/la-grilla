@@ -168,6 +168,20 @@ class NativeSupervisorTests(unittest.TestCase):
                 self.assertEqual(result.returncode, 0 if outcome == "passed" else 1)
                 self.assertEqual(state["requiredTestOutcomes"]["ActualCase/testRequested"], outcome)
 
+    def test_actual_case_timeout_then_late_pass_rejects_zero_exit_acceptance(self):
+        # Real a61 XCTest protocol excerpt replayed by a host-only subprocess.
+        # A successful fixture process must not turn its explicit case timeout
+        # into an accepted native PASS. Original emitted bytes remain intact.
+        excerpt=(SUPERVISOR.parent/"fixtures/a61-case-timeout-late-pass.txt").read_text()
+        identity="AIAvailabilityTests/testActualUnavailableModelLocallyReviewsJazzAppliesAndUndoesOnce"
+        result,state=self.invoke(f"import sys;sys.stdout.write({excerpt!r})",extra=("--require-test",identity))
+        self.assertEqual(result.returncode,1)
+        self.assertEqual(state["subprocessExitCode"],0)
+        self.assertFalse(state["timedOut"])
+        self.assertEqual(state["requiredTestOutcomes"],{identity:"time-allowance-exceeded"})
+        self.assertEqual(state["scopeStatus"],"not-accepted")
+        self.assertTrue(self.log.read_bytes().startswith(excerpt.encode()))
+
     def test_full_scope_is_only_verified_after_declared_source_inventory_passes(self):
         (self.root/"ActualCase.swift").write_text("final class ActualCase:XCTestCase {func testRequested(){}}")
         line="Test Case '-[Fixture.ActualCase testRequested]' passed (1.000 seconds)."

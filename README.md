@@ -13,7 +13,7 @@
 
 <p align="center"><a href="#кандидат-20-в-работе">Экраны</a> · <a href="#возможности-кандидата-20">Возможности</a> · <a href="#попробовать-на-iphone">На iPhone</a> · <a href="docs/release/CURRENT.md">Текущий статус</a> · <a href="ROADMAP.md">Роадмап</a></p>
 
-**Статус — функциональная альфа.** Кандидат **1.0.0 (20), schema 10** добавляет редактируемые локальные скетчи, нотацию, транспонирование и доработку первого музыкального результата. **[Скачать тестовую IPA 19](https://github.com/alexgazin/la-grilla/raw/refs/heads/main/Builds/Testing/LaGrilla-1.0.0-19-unsigned.ipa)** — свежая native-приёмка остаётся открытой. Исходники 20 находятся в [PR #21](https://github.com/alexgazin/la-grilla/pull/21); основной код `main` пока остаётся 17. Точные версии, CI и ограничения собраны в [CURRENT](docs/release/CURRENT.md).
+**Статус — функциональная альфа.** Кандидат **1.0.0 (20), schema 10** добавляет редактируемые локальные скетчи, нотацию, транспонирование и доработку первого музыкального результата. **[Скачать тестовую IPA 19](https://github.com/alexgazin/la-grilla/raw/refs/heads/main/Builds/Testing/LaGrilla-1.0.0-19-unsigned.ipa)** — свежая native-приёмка остаётся открытой. Исходники и этапы приёмки20 связаны с [PR #21](https://github.com/alexgazin/la-grilla/pull/21). Точные версии, CI и ограничения собраны в [CURRENT](docs/release/CURRENT.md).
 
 ## Кандидат 20 в работе
 
@@ -78,6 +78,7 @@
 <details>
 <summary>Исторические экраны, дизайн и промо</summary>
 
+- [Предпросмотр и живое транспонирование сборки19](Screenshots/Transposition19) с собственным PASS-методом и раскрытым итогом всего запуска.
 - [73 оригинальных экрана сборки 14](Screenshots/OriginalVision), [EN/RU Store-копии](Screenshots/AppStore).
 - [Welcome и Settings сборки 15](Screenshots/ProfessionalShell), [дизайн и OpenArt-происхождение](Design/2026).
 - [QA-превью splash сборки 17](Screenshots/LaunchPreview), [разрешённый input и Assistant 17](Screenshots/AuthorizedInput), [восстановление после ошибок сборки 16](Screenshots/DeviceRepair).

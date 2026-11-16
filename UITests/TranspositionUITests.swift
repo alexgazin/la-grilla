@@ -108,7 +108,7 @@ final class TranspositionUITests:XCTestCase {
         reveal(degrees,in:app)
         let originalDegrees=try XCTUnwrap(degrees.value as? String)
         XCTAssertTrue(["0","1"].contains(originalDegrees))
-        if originalDegrees != "1"{degrees.tap()}
+        setDegrees("1",control:degrees,in:app)
         XCTAssertEqual(degrees.value as? String,"1")
         XCTAssertEqual(field("revision",in:current(transport)),revisionAfterKey,"Display preferences must not edit music")
         app.buttons["Done"].tap()
@@ -149,7 +149,7 @@ final class TranspositionUITests:XCTestCase {
         }
         XCTAssertTrue(selected(originalSpelling,in:spelling))
         reveal(degrees,in:app)
-        if (degrees.value as? String) != originalDegrees{degrees.tap()}
+        setDegrees(originalDegrees,control:degrees,in:app)
         XCTAssertEqual(degrees.value as? String,originalDegrees)
         XCTAssertEqual(field("revision",in:current(transport)),revisionBeforeRestore)
         keepReport("Original native note names=\(originalSpelling), scale degrees=\(originalDegrees); both restored through visible Settings after relaunch/persistence assertions. Music revision unchanged.",name:"Audit-notation-original-preferences-restored")
@@ -194,6 +194,24 @@ final class TranspositionUITests:XCTestCase {
     @MainActor private func current(_ transport:XCUIElement)->String{(transport.value as? String ?? "").components(separatedBy:"\n").first ?? ""}
     @MainActor private func selected(_ value:String,in picker:XCUIElement)->Bool{
         (picker.value as? String)==value || picker.label==value || picker.label.hasSuffix(", "+value)
+    }
+    @MainActor private func setDegrees(_ desired:String,control:XCUIElement,in app:XCUIApplication){
+        reveal(control,in:app)
+        guard ["0","1"].contains(desired),let actual=control.value as? String,["0","1"].contains(actual)else{
+            XCTFail("The actual scale-degrees switch must expose its binary state");return
+        }
+        if actual != desired {
+            let frame=control.frame,visible=app.frame.insetBy(dx:0,dy:44)
+            guard !frame.isEmpty,[frame.minX,frame.minY,frame.maxX,frame.maxY].allSatisfy({$0.isFinite}),visible.contains(frame),control.isEnabled else{
+                XCTFail("The real scale-degrees switch must be enabled and fully visible");return
+            }
+            // The aggregate AX switch is the whole Form row. The b3 event
+            // hit its label at row center; the genuine video shows the native
+            // UISwitch in the trailing part of that same measured row.
+            control.coordinate(withNormalizedOffset:CGVector(dx:0.9,dy:0.5)).tap()
+        }
+        wait(control,timeout:5){(control.value as? String)==desired}
+        XCTAssertEqual(control.value as? String,desired)
     }
     @MainActor private func selectVisibleListItem(_ title:String,identifier:String,pickerTitle:String,in app:XCUIApplication){
         // This is the real public navigation-link Picker list. It has no
