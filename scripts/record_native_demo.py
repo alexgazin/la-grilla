@@ -9,6 +9,7 @@ import subprocess
 import sys
 import threading
 import time
+from host_audio_consent import wait_for_audio_ready
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / 'NativeDemoRaw'
@@ -16,44 +17,6 @@ OUT = ROOT / 'NativeDemoRaw'
 
 def receipt(name, data):
     (OUT / name).write_text(json.dumps(data, indent=2, sort_keys=True) + '\n')
-
-
-def allow_expected_virtual_audio_dialog():
-    # Click only the ordinary system prompt naming this exact purpose-built
-    # recorder. No privacy database writes, resets or identity substitutions.
-    script = '''tell application "System Events"
-repeat with appProcess in application processes
- try
-  repeat with dialogWindow in windows of appProcess
-   set allControls to entire contents of dialogWindow
-   set joinedText to name of dialogWindow as text
-   repeat with aControl in allControls
-    try
-     if role of aControl is "AXStaticText" then
-      set joinedText to joinedText & " " & (value of aControl as text)
-     end if
-    end try
-   end repeat
-   if joinedText contains "La Grilla Demo Audio Recorder" then
-    repeat with aControl in allControls
-     try
-      if role of aControl is "AXButton" and (name of aControl is "Allow" or name of aControl is "OK") then
-       perform action "AXPress" of aControl
-       return "Allowed the expected virtual-audio recorder system prompt"
-      end if
-     end try
-    end repeat
-   end if
-  end repeat
- end try
-end repeat
-end tell'''
-    try:
-        result = subprocess.run(['osascript', '-e', script], capture_output=True, text=True, timeout=3)
-        if result.stdout.strip():
-            print(result.stdout.strip(), flush=True)
-    except subprocess.TimeoutExpired:
-        pass
 
 
 def main():
@@ -64,7 +27,7 @@ def main():
     app = OUT / 'LaGrillaDemoAudioRecorder.app'
     executable = app / 'Contents/MacOS/LaGrillaDemoAudioRecorder'
     executable.parent.mkdir(parents=True, exist_ok=True)
-    subprocess.run(['xcrun', 'swiftc', '-swift-version', '5', 'Demos/record_host_audio.swift', '-o', str(executable), '-framework', 'AVFoundation', '-framework', 'CoreAudio', '-framework', 'AudioToolbox'], cwd=ROOT, check=True)
+    subprocess.run(['xcrun', 'swiftc', '-O', '-swift-version', '5', 'Demos/record_host_audio.swift', '-o', str(executable), '-framework', 'AVFoundation', '-framework', 'AppKit', '-framework', 'CoreAudio', '-framework', 'AudioToolbox'], cwd=ROOT, check=True)
     (app / 'Contents/Info.plist').write_bytes((ROOT / 'Demos/AudioRecorderInfo.plist').read_bytes())
     subprocess.run(['codesign', '--force', '--sign', '-', str(app)], check=True)
     audio = subprocess.Popen(['open', '-W', '-n', str(app), '--args', str(OUT), '--max-seconds', '600'])
@@ -74,12 +37,7 @@ def main():
                 'kind': 'Real simctl video plus actual host BlackHole loopback',
                 'offline_soundtrack_substitution': False, 'physical_device': False}
     try:
-        deadline = time.monotonic() + 45
-        while not (OUT / 'ready.json').exists():
-            if time.monotonic() >= deadline or audio.poll() is not None:
-                raise RuntimeError('Host audio recorder did not produce timestamped PCM; retain normal permission diagnostics.')
-            allow_expected_virtual_audio_dialog()
-            time.sleep(0.2)
+        wait_for_audio_ready(OUT, audio)
         timeline['audio_ready_uptime'] = time.monotonic()
         timeline['video_spawn_before_uptime'] = time.monotonic()
         video = subprocess.Popen(['xcrun', 'simctl', 'io', device, 'recordVideo', '--codec=h264', '--force', str(OUT / 'screen.mp4')], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)

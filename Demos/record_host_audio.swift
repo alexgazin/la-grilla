@@ -2,6 +2,7 @@
 // Record real host-loopback PCM; do not replace unavailable audio with a render.
 #if os(macOS)
 import AVFoundation
+import AppKit
 import AudioToolbox
 import CoreAudio
 import Darwin
@@ -52,10 +53,10 @@ func authorize() throws {
             allowed = granted
             semaphore.signal()
         }
-        let deadline = Date().addingTimeInterval(30)
+        let deadline = Date().addingTimeInterval(60)
         while semaphore.wait(timeout: .now()) != .success {
             guard Date() < deadline else {
-                throw CaptureFailure.reason("Normal macOS audio-input authorization did not finish within 30 seconds")
+                throw CaptureFailure.reason("Normal macOS audio-input authorization did not finish within 60 seconds")
             }
             RunLoop.current.run(until: Date().addingTimeInterval(0.05))
         }
@@ -221,7 +222,8 @@ func main() throws {
     print("HOST_AUDIO_CAPTURED \(receiptURL.path)")
 }
 
-do { try main() } catch {
+func runCapture() {
+do { try main(); exit(0) } catch {
     if let directory = diagnosticDirectory {
         try? writeJSON([
             "status": "failed", "error": String(describing: error),
@@ -233,6 +235,36 @@ do { try main() } catch {
     fputs("Host audio capture failed: \(error)\n", stderr)
     exit(1)
 }
+}
+
+/// LaunchServices starts a real foreground Cocoa application. Keep AppKit's
+/// main event loop running while the capture worker requests normal consent.
+/// A bare Foundation executable nested in an app bundle had no active Cocoa
+/// application in the first runner attempt; its consent request never replied.
+final class CaptureApplicationDelegate: NSObject, NSApplicationDelegate {
+    private var window: NSWindow?
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        NSApp.setActivationPolicy(.regular)
+        let frame = NSRect(x: 0, y: 0, width: 480, height: 170)
+        let panel = NSWindow(contentRect: frame, styleMask: [.titled, .closable],
+                             backing: .buffered, defer: false)
+        panel.title = "La Grilla Demo Audio Recorder"
+        let label = NSTextField(wrappingLabelWithString:
+            "Recording only the virtual BlackHole audio output for the app demonstration.\n\nNo physical microphone is selected. Use the normal macOS permission dialog to allow this capture.")
+        label.frame = NSRect(x: 24, y: 24, width: 432, height: 120)
+        panel.contentView?.addSubview(label)
+        panel.center()
+        panel.makeKeyAndOrderFront(nil)
+        window = panel
+        NSApp.activate(ignoringOtherApps: true)
+        DispatchQueue.global(qos: .userInitiated).async { runCapture() }
+    }
+}
+
+let captureApplication = NSApplication.shared
+let captureDelegate = CaptureApplicationDelegate()
+captureApplication.delegate = captureDelegate
+captureApplication.run()
 #else
 import Foundation
 fputs("Host audio capture requires macOS and an actual BlackHole audio route.\n", stderr)
