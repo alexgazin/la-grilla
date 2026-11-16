@@ -1,0 +1,41 @@
+name: Local Xcode build compatibility
+on:
+  workflow_dispatch:
+  push:
+    branches: [fix/chord-tile-build]
+concurrency:
+  group: xcode-compatibility-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  iphone-build:
+    name: iPhone SDK / Xcode ${{ matrix.xcode }}
+    runs-on: macos-15
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        xcode: ['16.2', '26.0.1']
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_${{ matrix.xcode }}.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@v4
+      - name: Record selected compiler and SDK
+        run: |
+          xcodebuild -version
+          xcrun swiftc --version
+          xcrun --sdk iphoneos --show-sdk-version
+      - name: Verify project and source configuration
+        run: |
+          python3 scripts/generate_project.py
+          git diff --exit-code -- LaGrilla.xcodeproj
+          python3 scripts/audit_presentation.py
+          python3 scripts/release/audit_release.py
+      - name: Compile actual iPhone app without signing
+        run: |
+          set -o pipefail
+          xcodebuild -project LaGrilla.xcodeproj -scheme LaGrilla -sdk iphoneos -destination 'generic/platform=iOS' -configuration Debug -derivedDataPath CompatibilityDerivedData CODE_SIGNING_ALLOWED=NO build | tee compatibility-build.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: xcode-${{ matrix.xcode }}-iphone-build-log
+          path: compatibility-build.log
