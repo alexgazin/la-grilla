@@ -58,6 +58,7 @@ struct TransposeEditor: View {
             }
         }
         .navigationTitle("Transpose arrangement").navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(true)
         .toolbar{ToolbarItem(placement:.cancellationAction){Button("Cancel"){dismiss()}.accessibilityIdentifier("transpose.cancel")}}
         .onAppear{review()}
     }

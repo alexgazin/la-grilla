@@ -205,10 +205,20 @@ final class TranspositionUITests:XCTestCase {
             guard !frame.isEmpty,[frame.minX,frame.minY,frame.maxX,frame.maxY].allSatisfy({$0.isFinite}),visible.contains(frame),control.isEnabled else{
                 XCTFail("The real scale-degrees switch must be enabled and fully visible");return
             }
-            // The aggregate AX switch is the whole Form row. The b3 event
-            // hit its label at row center; the genuine video shows the native
-            // UISwitch in the trailing part of that same measured row.
-            control.coordinate(withNormalizedOffset:CGVector(dx:0.9,dy:0.5)).tap()
+            // The aggregate AX switch is the whole Form row. Resolve its
+            // actual native child instead of guessing a point in that row.
+            let native=control.switches.firstMatch
+            guard native.exists,let observed=try? native.snapshot(),
+                  (observed.value as? String)==actual,observed.isEnabled,native.isHittable else{
+                XCTFail("The actual native switch must exist, be enabled and agree with its row state");return
+            }
+            let nativeFrame=observed.frame
+            guard !nativeFrame.isEmpty,
+                  [nativeFrame.minX,nativeFrame.minY,nativeFrame.maxX,nativeFrame.maxY].allSatisfy({$0.isFinite}),
+                  visible.contains(nativeFrame),frame.contains(nativeFrame),nativeFrame != frame else{
+                XCTFail("The actual native switch must be wholly visible inside its measured Form row");return
+            }
+            native.tap()
         }
         wait(control,timeout:5){(control.value as? String)==desired}
         XCTAssertEqual(control.value as? String,desired)
@@ -260,18 +270,32 @@ final class TranspositionUITests:XCTestCase {
     }
     private func field(_ key:String,in report:String)->String?{report.split(separator:" ").first(where:{$0.hasPrefix(key+"=")}).map{String($0.dropFirst(key.count+1))}}
     @MainActor private func reveal(_ element:XCUIElement,in app:XCUIApplication,up:Bool=true){
+        func finiteFrame(_ frame:CGRect)->Bool{!frame.isEmpty && [frame.minX,frame.minY,frame.maxX,frame.maxY].allSatisfy{$0.isFinite}}
+        guard element.exists,!element.identifier.isEmpty else{XCTFail("A native control must expose its stable identifier before revealing it");return}
+        let identifier=element.identifier
         for _ in 0..<7{
-            let scroll=app.collectionViews.firstMatch.exists ? app.collectionViews.firstMatch:app.tables.firstMatch.exists ? app.tables.firstMatch:app.scrollViews.firstMatch
+            guard element.exists,element.identifier==identifier else{XCTFail("The same native control must remain present while revealing it: "+identifier);return}
+            // The notation failure swiped the background Grid while Apply
+            // already fit in its own editor. Only a target-owning viewport
+            // can establish visibility or receive a reveal gesture.
+            let owners=[app.collectionViews.containing(.any,identifier:identifier),app.tables.containing(.any,identifier:identifier),app.scrollViews.containing(.any,identifier:identifier)]
+                .flatMap{$0.allElementsBoundByIndex}.compactMap{candidate->(XCUIElement,CGRect)? in
+                    guard candidate.exists,candidate.isHittable else{return nil}
+                    let frame=candidate.frame
+                    return finiteFrame(frame) ? (candidate,frame):nil
+                }.sorted{$0.1.width*$0.1.height < $1.1.width*$1.1.height}
+            guard let (scroll,scrollFrame)=owners.first,finiteFrame(app.frame) else{XCTFail("A real hittable scroll container must own the native control: "+identifier);return}
             // The source19 recording and synthesized event show that XCTest
             // called the offscreen key picker hittable, then tapped y=947.98
             // on a 956pt screen. Expose the whole actual Form control before
             // tapping, keeping it clear of the sheet/home-indicator boundary.
-            let visible=scroll.frame.intersection(app.frame.insetBy(dx:0,dy:44))
+            let visible=scrollFrame.intersection(app.frame.insetBy(dx:0,dy:44))
+            guard finiteFrame(visible) else{XCTFail("The native control's owning scroll container must have a finite visible viewport: "+identifier);return}
             if element.exists{
                 let frame=element.frame
-                if element.isHittable && !frame.isEmpty && visible.contains(frame){return}
-                if !frame.isEmpty && frame.maxY>visible.maxY{scroll.swipeUp();continue}
-                if !frame.isEmpty && frame.minY<visible.minY{scroll.swipeDown();continue}
+                if element.isHittable && finiteFrame(frame) && visible.contains(frame){return}
+                if finiteFrame(frame) && frame.maxY>visible.maxY{scroll.swipeUp();continue}
+                if finiteFrame(frame) && frame.minY<visible.minY{scroll.swipeDown();continue}
             }
             if up{scroll.swipeUp()}else{scroll.swipeDown()}
         }
