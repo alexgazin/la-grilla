@@ -15,7 +15,7 @@
 
 ## IPA для тестировщика
 
-**[Скачать La Grilla 1.0.0 (17) · IPA, 3.2 MiB](https://github.com/alexgazin/la-grilla/raw/refs/heads/main/Builds/Testing/LaGrilla-1.0.0-17-unsigned.ipa)** — iPhone / iOS 18+, подпись своим Apple ID через Sideloadly на Mac или Windows. Платная команда не нужна; бесплатная подпись действует 7 дней. [Установка и проверенный исходник](Builds/Testing/README.md).
+**[Скачать последнюю La Grilla 1.0.0 (19) · IPA, 3.4 MiB](https://github.com/alexgazin/la-grilla/raw/refs/heads/main/Builds/Testing/LaGrilla-1.0.0-19-unsigned.ipa)** — тестовый кандидат из [PR #21](https://github.com/alexgazin/la-grilla/pull/21), source `4e85930`. iPhone / iOS 18+, подпись своим Apple ID через Sideloadly на Mac или Windows. Платная команда не нужна; бесплатная подпись действует 7 дней. Debug и Release archive проверены; полная нативная приёмка ещё открыта. [Установка, ограничения и прежняя IPA 17](Builds/Testing/README.md).
 
 ## Независимый разбор и план доведения до релиза
 

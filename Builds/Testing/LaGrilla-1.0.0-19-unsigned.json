@@ -1,0 +1,117 @@
+{
+  "file": "LaGrilla-1.0.0-19-unsigned.ipa",
+  "bytes": 3549483,
+  "sha256": "a98ba44b037c2bddefc9217f07d7441e6cc57f9d7c1a09b7f1f4f4864e48771e",
+  "sourceSHA": "4e85930acf006376f3861d4209bf07ea8bcdcaf0",
+  "version": "1.0.0",
+  "build": "19",
+  "bundleID": "com.alexgazin.LaGrilla",
+  "signed": false,
+  "requiresTesterSigning": true,
+  "appReviewReady": false,
+  "originalAppBytesPreserved": true,
+  "binary": {
+    "architecture": "arm64",
+    "platform": "iOS",
+    "minimumOS": "18.0.0",
+    "sdk": "26.2.0",
+    "uuid": "782260EB-FDCF-34CF-A699-B3A62B25D539",
+    "dsymUUIDMatches": null,
+    "foundationModelsLoadCommand": "LC_LOAD_WEAK_DYLIB",
+    "foundationModelsOrdinal": 14,
+    "foundationModelsWeakSymbols": 78,
+    "foundationModelsWeakChainedImports": 78,
+    "initializerSections": [],
+    "hasCodeSignatureCommand": false,
+    "runtimeValidation": "Static binary checks only; signed-device startup on iOS 18 still requires device QA."
+  },
+  "entries": [
+    {
+      "path": "Payload/LaGrilla.app/AppIcon60x60@2x.png",
+      "bytes": 8973,
+      "sha256": "8eccdbdae3a3c2728bf47bfedbabd1b9fca0c61e7dde50348fd8a9725bc2f988"
+    },
+    {
+      "path": "Payload/LaGrilla.app/AppIcon76x76@2x~ipad.png",
+      "bytes": 14352,
+      "sha256": "ff33a41130e380888fd7d799596ec876148242f45f7d662f6ae4cbf9b689cb02"
+    },
+    {
+      "path": "Payload/LaGrilla.app/Assets.car",
+      "bytes": 1365160,
+      "sha256": "367198a2edf944c766df982800a3055358a12bff063de8039e165c44dd259e27"
+    },
+    {
+      "path": "Payload/LaGrilla.app/Info.plist",
+      "bytes": 2414,
+      "sha256": "966376b0d38c70f692b063c51d8ecd3141978e76f8141510ff236bab08a8a43a"
+    },
+    {
+      "path": "Payload/LaGrilla.app/LaGrilla",
+      "bytes": 5221200,
+      "sha256": "d78258d5247bf3009a468619ac43d60b58329aca4d6f849bb3aac6fc26661e5d"
+    },
+    {
+      "path": "Payload/LaGrilla.app/LaunchScreen.storyboardc/Info.plist",
+      "bytes": 279,
+      "sha256": "448ed5ac69ed842e3df9619b25982422ecdc5bddaafeb681825f20bf9b2acd9c"
+    },
+    {
+      "path": "Payload/LaGrilla.app/LaunchScreen.storyboardc/UIViewController-launch-controller.nib",
+      "bytes": 932,
+      "sha256": "13c81ad144d31e08508cfbe0b57080fabba95ac14b1d586dea5fc9bcdb8e05b9"
+    },
+    {
+      "path": "Payload/LaGrilla.app/LaunchScreen.storyboardc/launch-controller-view-launch-root.nib",
+      "bytes": 11801,
+      "sha256": "52346626edfa8d4a58a554b1b67b9b370ebeac08292e04a2559324ad1ab8a8dd"
+    },
+    {
+      "path": "Payload/LaGrilla.app/PkgInfo",
+      "bytes": 8,
+      "sha256": "82502191c9484b04d685374f9879a0066069c49b8acae7a04b01d38d07e8eca0"
+    },
+    {
+      "path": "Payload/LaGrilla.app/PrivacyInfo.xcprivacy",
+      "bytes": 816,
+      "sha256": "f9e21baa2ade53f025f455dd07237c2ae59bcd0af2e1aeb6d7944cd431c0c342"
+    },
+    {
+      "path": "Payload/LaGrilla.app/en.lproj/InfoPlist.strings",
+      "bytes": 42,
+      "sha256": "9261ecceda608ef174256e5fdc774c1e6e3dcf533409c1bc393d490d01c713f1"
+    },
+    {
+      "path": "Payload/LaGrilla.app/en.lproj/Localizable.strings",
+      "bytes": 27899,
+      "sha256": "ba08dcd483ca08cff71cbf7ab8dbc3683e4dcaec6cd40598202d61a4acb2db6c"
+    },
+    {
+      "path": "Payload/LaGrilla.app/en.lproj/Localizable.stringsdict",
+      "bytes": 474,
+      "sha256": "4896dce06202c956649bf2d02c219f110f12fd6430ce881b3d45e857d5259ce4"
+    },
+    {
+      "path": "Payload/LaGrilla.app/ru.lproj/InfoPlist.strings",
+      "bytes": 825,
+      "sha256": "9691f8d17cb295ab14f0ed2c9298b2d82ae782f11fff5d0d16bd0f8498e07c59"
+    },
+    {
+      "path": "Payload/LaGrilla.app/ru.lproj/Localizable.strings",
+      "bytes": 76961,
+      "sha256": "a9ff3e4fe2dc59c2bc4a94f7f1bcea688e8a22d26b9b53ab3dd4a07babf178ac"
+    },
+    {
+      "path": "Payload/LaGrilla.app/ru.lproj/Localizable.stringsdict",
+      "bytes": 844,
+      "sha256": "2ed45b790c61f5f140d11a6030e475514e611c7379b20fd68255603032402fd3"
+    }
+  ],
+  "originalArtifactFileName": "LaGrilla-unsigned.ipa",
+  "artifactID": 14246785600,
+  "archiveRunID": 43906210319,
+  "archiveJobID": 133435629865,
+  "nativeAcceptance": "pending; focused16 executing, full64 hosted runner not acquired before code",
+  "physicalAcceptance": "pending",
+  "classification": "unsigned-test-candidate"
+}
