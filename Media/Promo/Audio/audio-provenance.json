@@ -1,0 +1,162 @@
+{
+  "title": "La Grilla — Lines into music",
+  "kind": "Original instrumental promo soundtrack",
+  "authenticity": "Authored offline rendering through the unmodified La Grilla MusicDomain OfflineRenderer.renderPerformance and C++ AudioDSP. Not a live iPhone recording.",
+  "source": {
+    "repository": "https://github.com/alexgazin/la-grilla",
+    "commit": "8e5b1f768fafe28d8de4b8154c786039e2a1fa71",
+    "app_version": "1.0.0 (14)",
+    "project_schema": 8,
+    "swift": "6.1.2",
+    "render_platform": "x86_64-unknown-linux-gnu",
+    "ffmpeg": "7.1.5"
+  },
+  "music": {
+    "tempo_bpm": 120,
+    "meter": "4/4",
+    "bars": 48,
+    "ppq": 960,
+    "key": "C major",
+    "progression": "C–Am–F–G; F–G–Am–G variations; final C6/9",
+    "composition": "Original melodic motif, drum arrangement and chapter dynamics authored for this promo.",
+    "compiled_notes": 1625,
+    "performance_events": 181,
+    "instruments": "Native procedural preset version 2: harmony, bass, melody and 16-pad drum kit.",
+    "tracks": [
+      "Warm chord pulse",
+      "Tactile drum kit",
+      "Round sub bass",
+      "Four-note motif",
+      "Air arpeggio"
+    ],
+    "master_gain_db": 6,
+    "external_mastering": false,
+    "borrowed_music": false,
+    "external_samples": false,
+    "human_voice": false,
+    "openart_credits_used": 0
+  },
+  "format": {
+    "sample_rate": 48000,
+    "bit_depth": 24,
+    "channels": 2,
+    "frames": 4608000,
+    "duration_seconds": 96.0
+  },
+  "verification": {
+    "pcm_analysis": "pcm-analysis.json",
+    "wav_sha256": "65e213074e3b6dd0510b9561aa100ee31339b0c0e2f755ae8cf87b28798bcaa6",
+    "second_render_byte_identical": true,
+    "dsp_receipt_peak": 0.66183513,
+    "dsp_receipt_clipped": false,
+    "sample_peak_dbfs": -3.5850044163706136,
+    "rms_dbfs": -20.513180326978116,
+    "integrated_loudness_lufs": -18.5,
+    "true_peak_dbtp": -3.2,
+    "loudness_range_lu": 3.6,
+    "clipping_samples": 0,
+    "tail_last_100ms_peak_dbfs": -97.56733842969821,
+    "human_listening_approval": false,
+    "qualification": "Automated PCM, level, loudness, duration and reproducibility checks; no listening approval or physical-device playback claim."
+  },
+  "files": {
+    "la-grilla-promo.grillapack": {
+      "bytes": 212872,
+      "sha256": "d9531d891fb95f9f93d1d022f1a5695048c24b2d170648a800dd3ec18e303460"
+    },
+    "la-grilla-promo-score.mid": {
+      "bytes": 14492,
+      "sha256": "eb7d83a6ae7211a2ab45851584859b5e043b4d8fd3ac4fc9eb796007f67df6c1"
+    },
+    "pcm-analysis.json": {
+      "bytes": 7776,
+      "sha256": "5c392ec74850652a0a713ae5dfc7b9579081029f60e2993f890c52fb7ddcb2b6"
+    }
+  },
+  "chapters": [
+    {
+      "start_seconds": 0,
+      "end_seconds": 4,
+      "name": "Intro"
+    },
+    {
+      "start_seconds": 4,
+      "end_seconds": 12,
+      "name": "Grid"
+    },
+    {
+      "start_seconds": 12,
+      "end_seconds": 20,
+      "name": "Arrange"
+    },
+    {
+      "start_seconds": 20,
+      "end_seconds": 28,
+      "name": "Jam"
+    },
+    {
+      "start_seconds": 28,
+      "end_seconds": 36,
+      "name": "Piano / Bass"
+    },
+    {
+      "start_seconds": 36,
+      "end_seconds": 44,
+      "name": "Harmony"
+    },
+    {
+      "start_seconds": 44,
+      "end_seconds": 52,
+      "name": "Assistant"
+    },
+    {
+      "start_seconds": 52,
+      "end_seconds": 60,
+      "name": "Voice"
+    },
+    {
+      "start_seconds": 60,
+      "end_seconds": 68,
+      "name": "Perform"
+    },
+    {
+      "start_seconds": 68,
+      "end_seconds": 76,
+      "name": "Mixer"
+    },
+    {
+      "start_seconds": 76,
+      "end_seconds": 84,
+      "name": "MIDI"
+    },
+    {
+      "start_seconds": 84,
+      "end_seconds": 92,
+      "name": "Export"
+    },
+    {
+      "start_seconds": 92,
+      "end_seconds": 96,
+      "name": "Outro"
+    }
+  ],
+  "notes": [
+    "The score.mid is note score only; it does not reproduce gain/filter/delay automation or native timbres.",
+    "The native .grillapack retains the exact performance automation and editable score.",
+    "Final WAV is exactly 96 seconds; native delay release and master fade end within that duration.",
+    "The uncompressed WAV, redundant project JSON and verbose analysis log are not stored in Git. Reproduce the WAV with the included Swift CLI; the promo video contains the encoded soundtrack."
+  ],
+  "reproducible_sources": {
+    "../../../Tools/PromoSoundtrack/Package.swift": "e63c57326255a540fba725e931d5ea91d978eed839d14c20f0259743489dd40c",
+    "../../../Tools/PromoSoundtrack/README.md": "09b681c80643ffe94a369c11a14bcc680df7a999f74fecbc43f91a8a3d0f49d5",
+    "../../../Tools/PromoSoundtrack/Sources/PromoSoundtrack/main.swift": "dea6e42697c043e934ba5742b0d7e6e8b437071810d4cdcf5e8acdad2f7a5c22",
+    "../../../Tools/PromoSoundtrack/validate_audio.py": "c55db762eb79561b9ec22f1a36769c0c305c9bc579c068317811b59da93bf20d"
+  },
+  "master_reference": {
+    "file": "la-grilla-promo-96s-48k24.wav",
+    "bytes": 27648044,
+    "sha256": "65e213074e3b6dd0510b9561aa100ee31339b0c0e2f755ae8cf87b28798bcaa6",
+    "stored_in_repository": false,
+    "reproduce_with": "../../../Tools/PromoSoundtrack/README.md"
+  }
+}

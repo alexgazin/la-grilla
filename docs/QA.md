@@ -38,7 +38,7 @@ The simulator binary is a **Debug ARM64 iOS Simulator app**, not an installable 
 
 ## Remaining release gates
 
-This is an internal development build. No physical iPhone, Apple Developer signing identity, TestFlight/App Store account or DAW was attached to this environment. Consequently the following are **not verified** and the release gates in README §21 are not closed:
+This is an internal development build. No physical iPhone, Apple Developer signing identity, TestFlight/App Store account or DAW was attached to this environment. Consequently the following are **not verified** and the release gates in [the original specification §21](PRODUCT_SPECIFICATION.md#21-готовность-к-релизу) are not closed:
 
 - Physical touch-to-sound latency, route compensation, 30-minute device load/CPU/memory, multitouch behavior and voice-stealing/choke sound quality.
 - Phone-call interruptions, headphone/USB/Bluetooth route changes, background behavior and media-services reset on hardware.

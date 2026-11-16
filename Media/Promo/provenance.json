@@ -1,0 +1,419 @@
+{
+  "title": "La Grilla · Идея → грув → трек",
+  "kind": "Animated feature showcase composed from authentic native app screenshots",
+  "qualifications": [
+    "Authored motion design; not a continuous screen recording or a physical iPhone demonstration.",
+    "Original app screenshot PNG files are unchanged. Full screens retain aspect; labelled detail crops retain aspect and clip within composition.",
+    "Assistant chapter shows local Commands; not an actual FoundationModels generation.",
+    "Voice chapter shows recording preparation, BETA MONO with headphones and manual review; no live human voice recognition demonstration.",
+    "MIDI chapter retains visible virtual QA ports, CC mapping and late-event diagnostics; not a physical USB/BLE hardware demonstration.",
+    "Audio is an original offline render of the app engine, not the performance take pictured on screen.",
+    "No new OpenArt generation or credits were used. Existing brand icon source is Design/2026/openart-icon-generation.json.",
+    "App Store release and physical device acceptance remain pending."
+  ],
+  "app": {
+    "version": "1.0.0 (14)",
+    "schema": 8,
+    "screenshots_source_sha": "77fb72ab82cd800eb8131136628c416ad83c9046",
+    "screenshots_run_id": 43771988471,
+    "engine_source_sha": "8e5b1f768fafe28d8de4b8154c786039e2a1fa71"
+  },
+  "video": {
+    "duration_seconds": 96,
+    "width": 1920,
+    "height": 1080,
+    "frames_per_second": 30,
+    "decoded_video_frames": 2880,
+    "codec": "H.264 High",
+    "pixel_format": "yuv420p",
+    "color_range": "limited / TV",
+    "matrix": "BT.709",
+    "fast_start": true,
+    "audio_codec": "AAC LC",
+    "audio_sample_rate": 48000,
+    "audio_channels": 2,
+    "audio_duration_seconds": 96,
+    "encoded_loudness_lufs": -18.6,
+    "encoded_true_peak_dbtp": -3.3
+  },
+  "verification": {
+    "all_frames_decoded_by_ffprobe": true,
+    "chapter_and_transition_frames_extracted": 19,
+    "human_listening_approval": false,
+    "physical_device_playback_verified": false,
+    "existing_png_files_preserved": 397,
+    "app_test_ci_source_changed": false,
+    "individual_visual_review": {
+      "reviewed_decoded_frames": 19,
+      "accepted": 19,
+      "blocking_visual_findings": 0,
+      "times_seconds": [
+        2,
+        3.9,
+        4.1,
+        8,
+        16,
+        24,
+        32,
+        40,
+        48,
+        51.9,
+        52.1,
+        56,
+        64,
+        72,
+        80,
+        88,
+        91.9,
+        92.1,
+        94
+      ],
+      "basis": "Individual inspection of decoded final video frames, not inferred from a contact sheet; independent review plus root scene/contact review."
+    }
+  },
+  "files": {
+    "la-grilla-promo.mp4": {
+      "bytes": 14236290,
+      "sha256": "27437e5f937c2cc2f5bcaafaee7ce9d6d89c84ad552a9d2381aaa90ec0c682ee"
+    },
+    "teaser.gif": {
+      "bytes": 2603057,
+      "sha256": "9ec37adc8adcd37c913ba00d2c276d80b7d52a7e0d7ec5b5886649f46321a2c6"
+    },
+    "poster.jpg": {
+      "bytes": 150721,
+      "sha256": "3ba8a01a044d8ba8c1fead326092f76b3d7ff96a073130903aae890f25917359"
+    }
+  },
+  "screenshots": [
+    {
+      "path": "Screenshots/OriginalVision/assistant-song-proposal.png",
+      "sha256": "0d1966a37d51716b28f0e0b83a170de232020506d88b8a5f5e200750f28c7852",
+      "width": 1320,
+      "height": 2868,
+      "source_sha": "77fb72ab82cd800eb8131136628c416ad83c9046",
+      "run_id": 43771988471
+    },
+    {
+      "path": "Screenshots/OriginalVision/export-stems.png",
+      "sha256": "2958b0ede86a689f1231c7fe23455ff1dd6b1f07eacea57c4fc124a06d3b09c3",
+      "width": 1320,
+      "height": 2868,
+      "source_sha": "77fb72ab82cd800eb8131136628c416ad83c9046",
+      "run_id": 43771988471
+    },
+    {
+      "path": "Screenshots/OriginalVision/grid.png",
+      "sha256": "3f28d139fc0cadca1b9bf8afa3866463aedff92f58b91cbf7458bd4497b700f4",
+      "width": 1320,
+      "height": 2868,
+      "source_sha": "77fb72ab82cd800eb8131136628c416ad83c9046",
+      "run_id": 43771988471
+    },
+    {
+      "path": "Screenshots/OriginalVision/harmony-proposal.png",
+      "sha256": "0f210f40e7e0d6f97174f619ed6a7ad89f11240a50714538794995c8a9425572",
+      "width": 1320,
+      "height": 2868,
+      "source_sha": "77fb72ab82cd800eb8131136628c416ad83c9046",
+      "run_id": 43771988471
+    },
+    {
+      "path": "Screenshots/OriginalVision/jam.png",
+      "sha256": "2f6cbab4aa1634cc72c0929526c9fd9b1de2a6a21fd148203cc11781f9d0215d",
+      "width": 1320,
+      "height": 2868,
+      "source_sha": "77fb72ab82cd800eb8131136628c416ad83c9046",
+      "run_id": 43771988471
+    },
+    {
+      "path": "Screenshots/OriginalVision/midi-mapped.png",
+      "sha256": "b8d1184d5e8f47ab5d5f54753e9f83af13ff7cd9ca31e0a265f0560f82f80386",
+      "width": 1320,
+      "height": 2868,
+      "source_sha": "77fb72ab82cd800eb8131136628c416ad83c9046",
+      "run_id": 43771988471
+    },
+    {
+      "path": "Screenshots/OriginalVision/mixer.png",
+      "sha256": "4f116abd685bd9792fec5d4cd072ee6193ed6a582f1f2783ab39cc93effa9d31",
+      "width": 1320,
+      "height": 2868,
+      "source_sha": "77fb72ab82cd800eb8131136628c416ad83c9046",
+      "run_id": 43771988471
+    },
+    {
+      "path": "Screenshots/OriginalVision/notes.png",
+      "sha256": "e2dbd44e292408179cf7bd591c7c975f4a52ee23f6a65526c74c27a7e9631294",
+      "width": 1320,
+      "height": 2868,
+      "source_sha": "77fb72ab82cd800eb8131136628c416ad83c9046",
+      "run_id": 43771988471
+    },
+    {
+      "path": "Screenshots/OriginalVision/original-vision-arrangement-clips.png",
+      "sha256": "656ad4b054f51e3dfaf652e838527f2ba60e2e22cc2cae5845fd2b3944bfccda",
+      "width": 1320,
+      "height": 2868,
+      "source_sha": "77fb72ab82cd800eb8131136628c416ad83c9046",
+      "run_id": 43771988471
+    },
+    {
+      "path": "Screenshots/OriginalVision/perform-take.png",
+      "sha256": "f2eb49d8b7c98132187c050b905d1561220a7305b96a63e8bcec4aec32179256",
+      "width": 1320,
+      "height": 2868,
+      "source_sha": "77fb72ab82cd800eb8131136628c416ad83c9046",
+      "run_id": 43771988471
+    },
+    {
+      "path": "Screenshots/OriginalVision/voice.png",
+      "sha256": "dcc7aea08683412d6dfec81ab48e25e13b65ded4831d227cb8fbd9f93c246335",
+      "width": 1320,
+      "height": 2868,
+      "source_sha": "77fb72ab82cd800eb8131136628c416ad83c9046",
+      "run_id": 43771988471
+    }
+  ],
+  "brand_icon": {
+    "path": "Design/2026/openart-icon.png",
+    "sha256": "766cb7a89b31a2fc7aad07b4006f885e67df67c4f13d48a33e01c8cd9bd95f9b"
+  },
+  "chapters": [
+    {
+      "start": 0,
+      "end": 4,
+      "label": "INTRO"
+    },
+    {
+      "start": 4,
+      "end": 12,
+      "label": "GRID",
+      "title": [
+        "Поймай",
+        "идею."
+      ],
+      "subtitle": "Аккорды. Такты. Секции.",
+      "detail": "От первой последовательности — к форме трека.",
+      "screen": "grid.png",
+      "color": "#efbd75",
+      "crop": [
+        168,
+        790,
+        1150,
+        267
+      ]
+    },
+    {
+      "start": 12,
+      "end": 20,
+      "label": "ARRANGE",
+      "title": [
+        "Собери",
+        "свою форму."
+      ],
+      "subtitle": "Переноси. Копируй. Растягивай.",
+      "detail": "Pinch-to-zoom · Секции · Undo / Redo",
+      "screen": "original-vision-arrangement-clips.png",
+      "color": "#efbd75",
+      "crop": [
+        160,
+        950,
+        1150,
+        267
+      ]
+    },
+    {
+      "start": 20,
+      "end": 28,
+      "label": "JAM",
+      "title": [
+        "Почувствуй",
+        "грув."
+      ],
+      "subtitle": "16 пэдов. Один твой ритм.",
+      "detail": "Квантование · Count-in · Overdub",
+      "screen": "jam.png",
+      "color": "#aca3ff",
+      "crop": [
+        45,
+        805,
+        1230,
+        286
+      ]
+    },
+    {
+      "start": 28,
+      "end": 36,
+      "label": "NOTES",
+      "title": [
+        "Пусть ноты",
+        "говорят."
+      ],
+      "subtitle": "Мелодия и бас — в твоих руках.",
+      "detail": "Piano roll · Длина нот · Velocity",
+      "screen": "notes.png",
+      "color": "#81d9bf",
+      "crop": [
+        140,
+        1450,
+        1180,
+        274
+      ]
+    },
+    {
+      "start": 36,
+      "end": 44,
+      "label": "HARMONY",
+      "title": [
+        "Найди",
+        "новый цвет."
+      ],
+      "subtitle": "65 типов аккордов. Свои формулы.",
+      "detail": "Voice leading · Стилизация · Сравнение A/B",
+      "screen": "harmony-proposal.png",
+      "color": "#efbd75",
+      "crop": [
+        45,
+        1090,
+        1230,
+        286
+      ]
+    },
+    {
+      "start": 44,
+      "end": 52,
+      "label": "ASSISTANT",
+      "title": [
+        "Сначала",
+        "скажи идею."
+      ],
+      "subtitle": "Темп, тональность и целая форма — словами.",
+      "detail": "Commands RU / EN · Review · Apply / Undo",
+      "note": "На экране — локальные Commands.",
+      "screen": "assistant-song-proposal.png",
+      "color": "#d9fa7b",
+      "crop": [
+        50,
+        1320,
+        1220,
+        284
+      ]
+    },
+    {
+      "start": 52,
+      "end": 60,
+      "label": "VOICE → MIDI",
+      "title": [
+        "Напой.",
+        "Придай форму."
+      ],
+      "subtitle": "Одна мелодия поверх твоего бита.",
+      "detail": "Запись · Определение нот · Ручная коррекция",
+      "note": "BETA · MONO. Наушники и проверка результата.",
+      "screen": "voice.png",
+      "color": "#ff797d",
+      "crop": [
+        45,
+        900,
+        1230,
+        286
+      ]
+    },
+    {
+      "start": 60,
+      "end": 68,
+      "label": "PERFORM",
+      "title": [
+        "Теперь",
+        "сыграй трек."
+      ],
+      "subtitle": "Секции, фильтр и FX в одном движении.",
+      "detail": "Beat jumps · Repeat · Запись и replay live take",
+      "screen": "perform-take.png",
+      "color": "#d9fa7b",
+      "crop": [
+        50,
+        1190,
+        1220,
+        284
+      ]
+    },
+    {
+      "start": 68,
+      "end": 76,
+      "label": "MIXER",
+      "title": [
+        "Найди",
+        "свой баланс."
+      ],
+      "subtitle": "Выше фейдер — громче звук.",
+      "detail": "Громкость · Pan · Mute / Solo · Master",
+      "screen": "mixer.png",
+      "color": "#81d9bf",
+      "crop": [
+        45,
+        970,
+        1230,
+        286
+      ]
+    },
+    {
+      "start": 76,
+      "end": 84,
+      "label": "MIDI",
+      "title": [
+        "Добавь",
+        "свои клавиши."
+      ],
+      "subtitle": "MIDI input / output и CC Learn.",
+      "detail": "Каналы · Сохранение назначений · Panic",
+      "note": "На экране — виртуальный MIDI-порт QA.",
+      "screen": "midi-mapped.png",
+      "color": "#aca3ff"
+    },
+    {
+      "start": 84,
+      "end": 92,
+      "label": "EXPORT",
+      "title": [
+        "Забери",
+        "музыку дальше."
+      ],
+      "subtitle": "MIDI. WAV. Stems. Переносимый проект.",
+      "detail": "До 48 kHz / 24 bit · Продолжай в своей DAW",
+      "screen": "export-stems.png",
+      "color": "#d9fa7b",
+      "crop": [
+        50,
+        610,
+        1220,
+        284
+      ]
+    },
+    {
+      "start": 92,
+      "end": 96,
+      "label": "OUTRO"
+    }
+  ],
+  "audio_provenance": "Audio/audio-provenance.json",
+  "source_files": {
+    "Tools/Promo/chapters.json": "7a6ea7a6ff8f10097b88938d5c6146f1d1f1ea15fe85fc275e3509caa123c45f",
+    "Tools/Promo/scene.html": "8df9991790c2849dffce3a4856287808c7e2cf8295f2dc3993616c4eaa54f433",
+    "Tools/Promo/render.py": "ad9ab978f8fd10f19dd590bd6080406f9a4ee2168b6e8f64a77646d61eb2322f",
+    "Tools/Promo/README.md": "66dc75686c45fed10d11e4a0a7f3f835b671102f0dbd77e9b89ea1fc8edb5b73"
+  },
+  "reference_tools": {
+    "chromium": "Chromium 156.0.8078.79 built on Debian GNU/Linux 13 (trixie)",
+    "ffmpeg": "ffmpeg version 7.1.5-0+deb13u1 Copyright (c) 2000-2026 the FFmpeg developers",
+    "python": "3.12",
+    "playwright": "1.62.0",
+    "numpy": "2.3.5"
+  },
+  "fonts": {
+    "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf": "89c3c497f618fdaa0b2d1e98fef93582f28c71debd2c4a8cdf41f190ced2909d",
+    "/usr/share/fonts/truetype/noto/NotoSans-Bold.ttf": "e83493c945848ecd4a9ad0f6d19164541a0d3e23a9c952304a00a46e00272ac5"
+  },
+  "reproduction": "../../Tools/Promo/README.md"
+}

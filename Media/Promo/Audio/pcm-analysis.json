@@ -1,0 +1,282 @@
+{
+  "file": "la-grilla-promo-96s-48k24.wav",
+  "sha256": "65e213074e3b6dd0510b9561aa100ee31339b0c0e2f755ae8cf87b28798bcaa6",
+  "format": {
+    "sample_rate": 48000,
+    "bit_depth": 24,
+    "channels": 2,
+    "frames": 4608000,
+    "duration_seconds": 96.0
+  },
+  "whole_file": {
+    "finite_pcm": true,
+    "sample_peak_linear": 0.6618350744247437,
+    "sample_peak_dbfs": -3.5850044163706136,
+    "rms_linear": 0.0942629405757957,
+    "rms_dbfs": -20.513180326978116,
+    "dc_offset": [
+      0.0003124769773437745,
+      0.00031307141074082915
+    ],
+    "samples_at_or_above_engine_ceiling_0_98": 0,
+    "zero_samples": 366
+  },
+  "channels": [
+    {
+      "finite_pcm": true,
+      "sample_peak_linear": 0.6618350744247437,
+      "sample_peak_dbfs": -3.5850044163706136,
+      "rms_linear": 0.09866197664610153,
+      "rms_dbfs": -20.117003758038017,
+      "dc_offset": [
+        0.0003124769773437745
+      ],
+      "samples_at_or_above_engine_ceiling_0_98": 0,
+      "zero_samples": 187
+    },
+    {
+      "finite_pcm": true,
+      "sample_peak_linear": 0.6287573575973511,
+      "sample_peak_dbfs": -4.030338397520044,
+      "rms_linear": 0.08964830336529582,
+      "rms_dbfs": -20.949158504871953,
+      "dc_offset": [
+        0.00031307141074082915
+      ],
+      "samples_at_or_above_engine_ceiling_0_98": 0,
+      "zero_samples": 179
+    }
+  ],
+  "last_100ms": {
+    "finite_pcm": true,
+    "sample_peak_linear": 1.3232231140136719e-05,
+    "sample_peak_dbfs": -97.56733842969821,
+    "rms_linear": 2.9903179117879014e-06,
+    "rms_dbfs": -110.48565275527908,
+    "dc_offset": [
+      -2.6772419611612955e-08,
+      -2.5505820910135905e-08
+    ],
+    "samples_at_or_above_engine_ceiling_0_98": 0,
+    "zero_samples": 232
+  },
+  "first_stereo_frame": [
+    0.0,
+    0.0
+  ],
+  "last_stereo_frame": [
+    2.384185791015625e-07,
+    2.384185791015625e-07
+  ],
+  "chapters": [
+    {
+      "start": 0,
+      "end": 4,
+      "name": "Intro",
+      "finite_pcm": true,
+      "sample_peak_linear": 0.2580457925796509,
+      "sample_peak_dbfs": -11.766064353607948,
+      "rms_linear": 0.053588821696786464,
+      "rms_dbfs": -25.41851584110557,
+      "dc_offset": [
+        3.837511005500952e-05,
+        3.8489785666267074e-05
+      ],
+      "samples_at_or_above_engine_ceiling_0_98": 0,
+      "zero_samples": 4
+    },
+    {
+      "start": 4,
+      "end": 12,
+      "name": "Grid",
+      "finite_pcm": true,
+      "sample_peak_linear": 0.5188757181167603,
+      "sample_peak_dbfs": -5.698733051109994,
+      "rms_linear": 0.08944501313198135,
+      "rms_dbfs": -20.96887735674176,
+      "dc_offset": [
+        4.249868914484978e-05,
+        4.31906341885527e-05
+      ],
+      "samples_at_or_above_engine_ceiling_0_98": 0,
+      "zero_samples": 1
+    },
+    {
+      "start": 12,
+      "end": 20,
+      "name": "Arrange",
+      "finite_pcm": true,
+      "sample_peak_linear": 0.57989501953125,
+      "sample_peak_dbfs": -4.733012424083246,
+      "rms_linear": 0.08441575224711319,
+      "rms_dbfs": -21.47153010168776,
+      "dc_offset": [
+        5.438614450395107e-05,
+        5.5238312110304834e-05
+      ],
+      "samples_at_or_above_engine_ceiling_0_98": 0,
+      "zero_samples": 2
+    },
+    {
+      "start": 20,
+      "end": 28,
+      "name": "Jam",
+      "finite_pcm": true,
+      "sample_peak_linear": 0.6487442255020142,
+      "sample_peak_dbfs": -3.758529895972517,
+      "rms_linear": 0.09187352696323822,
+      "rms_dbfs": -20.736192220601943,
+      "dc_offset": [
+        8.648404230674108e-06,
+        9.465585462749004e-06
+      ],
+      "samples_at_or_above_engine_ceiling_0_98": 0,
+      "zero_samples": 0
+    },
+    {
+      "start": 28,
+      "end": 36,
+      "name": "Piano / Bass",
+      "finite_pcm": true,
+      "sample_peak_linear": 0.590660810470581,
+      "sample_peak_dbfs": -4.573236860514356,
+      "rms_linear": 0.09885120388707752,
+      "rms_dbfs": -20.1003607428219,
+      "dc_offset": [
+        0.0004247800391167402,
+        0.0004256164903442065
+      ],
+      "samples_at_or_above_engine_ceiling_0_98": 0,
+      "zero_samples": 1
+    },
+    {
+      "start": 36,
+      "end": 44,
+      "name": "Harmony",
+      "finite_pcm": true,
+      "sample_peak_linear": 0.6397644281387329,
+      "sample_peak_dbfs": -3.879598220097184,
+      "rms_linear": 0.1184197180779483,
+      "rms_dbfs": -18.531519543570006,
+      "dc_offset": [
+        0.0005195101667195558,
+        0.0005188767860333125
+      ],
+      "samples_at_or_above_engine_ceiling_0_98": 0,
+      "zero_samples": 1
+    },
+    {
+      "start": 44,
+      "end": 52,
+      "name": "Assistant",
+      "finite_pcm": true,
+      "sample_peak_linear": 0.6278276443481445,
+      "sample_peak_dbfs": -4.043191309402127,
+      "rms_linear": 0.10201694961773526,
+      "rms_dbfs": -19.826553326739806,
+      "dc_offset": [
+        0.00048461265675723555,
+        0.00048526923482616744
+      ],
+      "samples_at_or_above_engine_ceiling_0_98": 0,
+      "zero_samples": 1
+    },
+    {
+      "start": 52,
+      "end": 60,
+      "name": "Voice",
+      "finite_pcm": true,
+      "sample_peak_linear": 0.47824251651763916,
+      "sample_peak_dbfs": -6.40703634072416,
+      "rms_linear": 0.08245487753380241,
+      "rms_dbfs": -21.675672980289328,
+      "dc_offset": [
+        0.00034854039394607145,
+        0.00034938575855145853
+      ],
+      "samples_at_or_above_engine_ceiling_0_98": 0,
+      "zero_samples": 1
+    },
+    {
+      "start": 60,
+      "end": 68,
+      "name": "Perform",
+      "finite_pcm": true,
+      "sample_peak_linear": 0.6050399541854858,
+      "sample_peak_dbfs": -4.36431890994726,
+      "rms_linear": 0.0838366864029937,
+      "rms_dbfs": -21.531317905235134,
+      "dc_offset": [
+        0.0003613849403336644,
+        0.0003618210026373466
+      ],
+      "samples_at_or_above_engine_ceiling_0_98": 0,
+      "zero_samples": 2
+    },
+    {
+      "start": 68,
+      "end": 76,
+      "name": "Mixer",
+      "finite_pcm": true,
+      "sample_peak_linear": 0.6017254590988159,
+      "sample_peak_dbfs": -4.412032261035411,
+      "rms_linear": 0.09581611954265841,
+      "rms_dbfs": -20.371228432307614,
+      "dc_offset": [
+        0.0004839376515398423,
+        0.00048413483519107103
+      ],
+      "samples_at_or_above_engine_ceiling_0_98": 0,
+      "zero_samples": 0
+    },
+    {
+      "start": 76,
+      "end": 84,
+      "name": "MIDI",
+      "finite_pcm": true,
+      "sample_peak_linear": 0.6386599540710449,
+      "sample_peak_dbfs": -3.894606291564384,
+      "rms_linear": 0.10159919055092707,
+      "rms_dbfs": -19.86219504196052,
+      "dc_offset": [
+        0.0004812271256620685,
+        0.0004818798114235202
+      ],
+      "samples_at_or_above_engine_ceiling_0_98": 0,
+      "zero_samples": 1
+    },
+    {
+      "start": 84,
+      "end": 92,
+      "name": "Export",
+      "finite_pcm": true,
+      "sample_peak_linear": 0.6618350744247437,
+      "sample_peak_dbfs": -3.5850044163706136,
+      "rms_linear": 0.10961256757773052,
+      "rms_dbfs": -19.202792983318872,
+      "dc_offset": [
+        0.0004952312869330247,
+        0.0004959933481489618
+      ],
+      "samples_at_or_above_engine_ceiling_0_98": 0,
+      "zero_samples": 0
+    },
+    {
+      "start": 92,
+      "end": 96,
+      "name": "Outro",
+      "finite_pcm": true,
+      "sample_peak_linear": 0.45351743698120117,
+      "sample_peak_dbfs": -6.868120207838052,
+      "rms_linear": 0.06442490058037383,
+      "rms_dbfs": -23.818924859477004,
+      "dc_offset": [
+        5.15573484202226e-05,
+        5.3480474278330804e-05
+      ],
+      "samples_at_or_above_engine_ceiling_0_98": 0,
+      "zero_samples": 352
+    }
+  ],
+  "qualification": "Programmatic PCM and level checks only; no human listening approval. PCM finite checks do not inspect intermediate floating-point engine buffers."
+}

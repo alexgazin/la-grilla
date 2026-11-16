@@ -1,0 +1,208 @@
+[
+  {
+    "start": 4,
+    "end": 12,
+    "label": "GRID",
+    "title": [
+      "Поймай",
+      "идею."
+    ],
+    "subtitle": "Аккорды. Такты. Секции.",
+    "detail": "От первой последовательности — к форме трека.",
+    "screen": "grid.png",
+    "color": "#efbd75",
+    "crop": [
+      168,
+      790,
+      1150,
+      267
+    ]
+  },
+  {
+    "start": 12,
+    "end": 20,
+    "label": "ARRANGE",
+    "title": [
+      "Собери",
+      "свою форму."
+    ],
+    "subtitle": "Переноси. Копируй. Растягивай.",
+    "detail": "Pinch-to-zoom · Секции · Undo / Redo",
+    "screen": "original-vision-arrangement-clips.png",
+    "color": "#efbd75",
+    "crop": [
+      160,
+      950,
+      1150,
+      267
+    ]
+  },
+  {
+    "start": 20,
+    "end": 28,
+    "label": "JAM",
+    "title": [
+      "Почувствуй",
+      "грув."
+    ],
+    "subtitle": "16 пэдов. Один твой ритм.",
+    "detail": "Квантование · Count-in · Overdub",
+    "screen": "jam.png",
+    "color": "#aca3ff",
+    "crop": [
+      45,
+      805,
+      1230,
+      286
+    ]
+  },
+  {
+    "start": 28,
+    "end": 36,
+    "label": "NOTES",
+    "title": [
+      "Пусть ноты",
+      "говорят."
+    ],
+    "subtitle": "Мелодия и бас — в твоих руках.",
+    "detail": "Piano roll · Длина нот · Velocity",
+    "screen": "notes.png",
+    "color": "#81d9bf",
+    "crop": [
+      140,
+      1450,
+      1180,
+      274
+    ]
+  },
+  {
+    "start": 36,
+    "end": 44,
+    "label": "HARMONY",
+    "title": [
+      "Найди",
+      "новый цвет."
+    ],
+    "subtitle": "65 типов аккордов. Свои формулы.",
+    "detail": "Voice leading · Стилизация · Сравнение A/B",
+    "screen": "harmony-proposal.png",
+    "color": "#efbd75",
+    "crop": [
+      45,
+      1090,
+      1230,
+      286
+    ]
+  },
+  {
+    "start": 44,
+    "end": 52,
+    "label": "ASSISTANT",
+    "title": [
+      "Сначала",
+      "скажи идею."
+    ],
+    "subtitle": "Темп, тональность и целая форма — словами.",
+    "detail": "Commands RU / EN · Review · Apply / Undo",
+    "note": "На экране — локальные Commands.",
+    "screen": "assistant-song-proposal.png",
+    "color": "#d9fa7b",
+    "crop": [
+      50,
+      1320,
+      1220,
+      284
+    ]
+  },
+  {
+    "start": 52,
+    "end": 60,
+    "label": "VOICE → MIDI",
+    "title": [
+      "Напой.",
+      "Придай форму."
+    ],
+    "subtitle": "Одна мелодия поверх твоего бита.",
+    "detail": "Запись · Определение нот · Ручная коррекция",
+    "note": "BETA · MONO. Наушники и проверка результата.",
+    "screen": "voice.png",
+    "color": "#ff797d",
+    "crop": [
+      45,
+      900,
+      1230,
+      286
+    ]
+  },
+  {
+    "start": 60,
+    "end": 68,
+    "label": "PERFORM",
+    "title": [
+      "Теперь",
+      "сыграй трек."
+    ],
+    "subtitle": "Секции, фильтр и FX в одном движении.",
+    "detail": "Beat jumps · Repeat · Запись и replay live take",
+    "screen": "perform-take.png",
+    "color": "#d9fa7b",
+    "crop": [
+      50,
+      1190,
+      1220,
+      284
+    ]
+  },
+  {
+    "start": 68,
+    "end": 76,
+    "label": "MIXER",
+    "title": [
+      "Найди",
+      "свой баланс."
+    ],
+    "subtitle": "Выше фейдер — громче звук.",
+    "detail": "Громкость · Pan · Mute / Solo · Master",
+    "screen": "mixer.png",
+    "color": "#81d9bf",
+    "crop": [
+      45,
+      970,
+      1230,
+      286
+    ]
+  },
+  {
+    "start": 76,
+    "end": 84,
+    "label": "MIDI",
+    "title": [
+      "Добавь",
+      "свои клавиши."
+    ],
+    "subtitle": "MIDI input / output и CC Learn.",
+    "detail": "Каналы · Сохранение назначений · Panic",
+    "note": "На экране — виртуальный MIDI-порт QA.",
+    "screen": "midi-mapped.png",
+    "color": "#aca3ff"
+  },
+  {
+    "start": 84,
+    "end": 92,
+    "label": "EXPORT",
+    "title": [
+      "Забери",
+      "музыку дальше."
+    ],
+    "subtitle": "MIDI. WAV. Stems. Переносимый проект.",
+    "detail": "До 48 kHz / 24 bit · Продолжай в своей DAW",
+    "screen": "export-stems.png",
+    "color": "#d9fa7b",
+    "crop": [
+      50,
+      610,
+      1220,
+      284
+    ]
+  }
+]
