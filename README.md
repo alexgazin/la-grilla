@@ -119,7 +119,7 @@ PNG сохранены без изменений; [манифест](Screenshots
 
 ## Установить на свой iPhone
 
-Нужны Mac с Xcode **26.3 или новее** и iPhone с **iOS 18+**.
+Нужны Mac и iPhone с **iOS 18+**. Для полного набора функций и выпуска используйте Xcode **26.3+**. Полная локальная сборка дополнительно проверена на **16.4 / 26.0.1**; [границы совместимости старых SDK](docs/DEVELOPMENT.md#xcode-compatibility).
 
 1. Склонируйте репозиторий или подтяните свежий `main`; откройте [`LaGrilla.xcodeproj`](LaGrilla.xcodeproj).
 2. В Xcode добавьте свой Apple ID: **Settings → Accounts**. В app target → **Signing & Capabilities** включите **Automatically manage signing** и выберите свою **Team**.
