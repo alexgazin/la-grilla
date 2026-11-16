@@ -4,6 +4,7 @@ import AVFoundation
 
 struct AssistantView:View {
     @Bindable var session:Session
+    @AppStorage("studio.pitchSpelling") private var pitchSpelling=PitchSpelling.automatic.rawValue
     @Environment(\.scenePhase) private var phase
     @FocusState private var focused:Bool
     @State private var input=""
@@ -27,15 +28,14 @@ struct AssistantView:View {
     @State private var timeoutTask:Task<Void,Never>?
     @State private var microphoneLease:UUID?
     @State private var showExamples=false
+    @State private var showAIOptions=false
     var body:some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment:.leading,spacing:18){
-                    Text("An idea, in your words.").font(.system(.title2,weight:.semibold)).tracking(-0.6)
+                    Text("An idea, in your words.").font(.headline)
                     Text("Describe a song form, chords or a harmonic change. Review every change before applying.").font(.caption).foregroundStyle(Color.muted)
                     HStack{Text(session.section.name).fontWeight(.medium);Spacer();Text("\(session.section.length/barTicks) bars · \(Int(session.project.bpm)) BPM").font(.caption.monospaced()).foregroundStyle(Color.muted);CapsuleLabel(text:proposal != nil && generatedWithAI ? "ON-DEVICE AI":"LOCAL",color:.mint)}
-                    StudioSegments(title:"Assistant mode",selection:$mode,options:AssistantMode.allCases.map{($0,LocalizedStringKey($0.title))}).disabled(dictation.recording || dictation.requesting || dictation.finalizing)
-                    aiAvailability
                     Text(LocalizedStringKey(session.audio.playing ? "PLAYING":"STOPPED")).font(.caption.monospaced()).foregroundStyle(Color.muted)
                         .accessibilityValue(LocalizedStringKey(session.harmonyPreview ? "Preview":"Original")).accessibilityIdentifier("assistant.preview-state")
                     TextEditor(text:$input).focused($focused).disabled(dictation.recording || dictation.requesting || dictation.finalizing).frame(height:110).scrollContentBackground(.hidden).padding(8).modifier(StudioSurface()).overlay(alignment:.topLeading){if input.isEmpty && !focused{Text("Try: Tempo 110").font(.subheadline).foregroundStyle(Color.muted).padding(16).allowsHitTesting(false).accessibilityHidden(true)}}.accessibilityLabel("Command").accessibilityIdentifier("assistant.input")
@@ -43,17 +43,25 @@ struct AssistantView:View {
                     HStack {
                         Button("Examples"){focused=false;showExamples=true}.frame(minHeight:44).disabled(dictation.recording || dictation.requesting || dictation.finalizing).accessibilityIdentifier("assistant.examples")
                         Spacer()
-                        languageControl.disabled(dictation.recording || dictation.requesting || dictation.finalizing)
+                        VStack(spacing:2){Text("Dictation language").font(.caption2).foregroundStyle(Color.muted);languageControl}.disabled(dictation.recording || dictation.requesting || dictation.finalizing)
                         Button{toggleDictation()}label:{Image(systemName:dictation.recording ? "stop.circle.fill":"mic.fill").frame(width:44,height:44).foregroundStyle(dictation.recording ? Color.record:Color.mint)}.accessibilityLabel(LocalizedStringKey(dictation.recording ? "Stop dictation":"Dictate a command")).accessibilityIdentifier("assistant.dictate").accessibilityValue(Text(verbatim:dictation.diagnosticState)).disabled(dictation.requesting || dictation.finalizing)
                     }
                     if dictation.requesting{ProgressView("Preparing dictation…")}
                     if dictation.finalizing{ProgressView("Finishing dictation…")}
                     if dictation.recording{Label("LISTENING · COMMAND",systemImage:"waveform").font(.caption.monospaced()).foregroundStyle(Color.record)}
-                    DisclosureGroup{Text("Dictation uses on-device recognition. You can always type. Humming has a separate melody recording.").font(.caption).foregroundStyle(Color.muted).padding(.vertical,8)}label:{Text("Dictation details").frame(maxWidth:.infinity,minHeight:44,alignment:.leading)}.font(.caption).foregroundStyle(Color.muted)
+                    StudioSegments(title:"Assistant mode",selection:$mode,options:AssistantMode.allCases.map{($0,LocalizedStringKey($0.title))}).disabled(dictation.recording || dictation.requesting || dictation.finalizing)
+                    aiAvailability
                     if let error=dictation.error{Text(LocalizedStringKey(error)).font(.caption).foregroundStyle(Color.record).accessibilityIdentifier("assistant.dictation-error")}
                     Button{generate()}label:{Label("Review command",systemImage:"sparkles")}.buttonStyle(StudioActionStyle()).disabled(input.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty || dictation.requesting || dictation.recording || dictation.finalizing || generationTask != nil).accessibilityIdentifier("assistant.generate")
+                    if mode != .commands{aiOptions}
+                    DisclosureGroup{Text("Dictation uses on-device recognition. You can always type. Humming has a separate melody recording.").font(.caption).foregroundStyle(Color.muted).padding(.vertical,8)}label:{Text("Dictation details").frame(maxWidth:.infinity,minHeight:44,alignment:.leading)}.font(.caption).foregroundStyle(Color.muted)
                     if generationTask != nil{HStack{ProgressView("Preparing proposal…");Spacer();Button("Cancel generation"){cancelGeneration()}.frame(minHeight:44)}}
-                    if let error{Text(LocalizedStringKey(error)).font(.callout).foregroundStyle(Color.record).accessibilityIdentifier("assistant.error")}
+                    if let error{
+                        Text(LocalizedStringKey(error)).font(.callout).foregroundStyle(Color.record).accessibilityIdentifier("assistant.error")
+                        if Arrangement.harmony(session.project,section:session.section).isEmpty{
+                            Button("Try a chord progression"){useProgressionExample()}.frame(minHeight:44).accessibilityIdentifier("assistant.empty-harmony-example")
+                        }
+                    }
                     if ambiguous {VStack(spacing:8){Button("Stretch chords evenly"){generate(.stretch)};Button("Repeat, one bar per chord"){generate(.repeatBars)}}.buttonStyle(.bordered).frame(maxWidth:.infinity)}
                     if let proposal,let candidate,let proposalSource{review(proposal,source:proposalSource,candidate:candidate)}
                 }.padding(18)
@@ -71,32 +79,41 @@ struct AssistantView:View {
         .onDisappear{cancelGeneration();dictation.cancel();restoreAudio();session.endHarmonyPreview()}
         .onAppear{refreshAIStatus();if let i=ProcessInfo.processInfo.arguments.firstIndex(of:"--screen"),ProcessInfo.processInfo.arguments.count>i+1{let target=ProcessInfo.processInfo.arguments[i+1];if target=="assistant-proposal"{input="Tempo 110; Chorus 8 bars: Am F C G each 2 bars";generate()}else if target=="assistant-song-proposal"{input="Song: Tempo 108; Key D minor; Intro 4 bars: Dm Gm A Dm; Chorus 8 bars: Dm Gm C F each 2 bars";generate()}}}
     }
+    private func useProgressionExample(){
+        let bars=session.section.length/barTicks
+        guard let starter=try? ProjectTemplates.make(name:"Example",bpm:session.project.bpm,root:session.project.keyRoot,minor:session.project.minor,bars:bars,template:.starter)else{return}
+        let symbols=starter.patterns[0].chords.map{ $0.chord.symbol }.joined(separator:" ")
+        mode = .commands
+        input="\(bars) "+(language.hasPrefix("ru") ? "такта: ":"bars: ")+symbols
+        focused=false
+    }
     private var aiAvailability:some View {
         VStack(alignment:.leading,spacing:8){
-            if mode != .commands {
-                HStack{Text("AI request language").font(.caption);Spacer();languageSelector($aiLanguage,title:"AI request language",identifier:"assistant.ai-language.").disabled(dictation.recording || dictation.requesting || dictation.finalizing)}
-                Text("Write the AI request in this language. Dictation below has its own language.")
-                    .font(.caption).foregroundStyle(Color.muted)
-                    .accessibilityIdentifier("assistant.ai-language-guidance")
-            }
             Text(mode == .commands ? NSLocalizedString("Commands work without Apple Intelligence.",comment:"Assistant availability"):ai.availabilityMessage)
                 .font(.caption).foregroundStyle(Color.muted).accessibilityIdentifier("assistant.ai-status")
                 .accessibilityValue(Text(verbatim:aiAvailabilityDiagnostic))
             if mode != .commands {
-                if let guidance=ai.availabilityGuidance {
-                    Text(guidance).font(.caption).foregroundStyle(Color.muted)
-                        .accessibilityIdentifier("assistant.ai-setup")
+                if !ai.available {
+                    Button("Use Commands"){mode = .commands}.frame(minHeight:44)
+                        .accessibilityIdentifier("assistant.use-commands")
+                        .disabled(dictation.recording || dictation.requesting || dictation.finalizing)
                 }
-                HStack(spacing:12){
-                    Button("Recheck AI"){refreshAIStatus()}.frame(minHeight:44)
-                        .accessibilityIdentifier("assistant.ai-recheck")
-                    if !ai.available {
-                        Button("Use Commands"){mode = .commands}.frame(minHeight:44)
-                            .accessibilityIdentifier("assistant.use-commands")
-                    }
-                }.disabled(dictation.recording || dictation.requesting || dictation.finalizing)
             }
         }
+    }
+    private var aiOptions:some View {
+        VStack(alignment:.leading,spacing:0){
+            Button{showAIOptions.toggle()}label:{HStack{Text("AI language and setup");Spacer();Image(systemName:showAIOptions ? "chevron.up":"chevron.down").accessibilityHidden(true)}.frame(maxWidth:.infinity,minHeight:44).contentShape(Rectangle())}
+                .buttonStyle(StudioQuietButtonStyle()).accessibilityIdentifier("assistant.ai-options")
+                .accessibilityValue(LocalizedStringKey(showAIOptions ? "Expanded":"Collapsed"))
+            if showAIOptions{VStack(alignment:.leading,spacing:10){
+                HStack{Text("AI request language").font(.caption);Spacer();languageSelector($aiLanguage,title:"AI request language",identifier:"assistant.ai-language.")}
+                Text("AI requests and dictation have separate languages. Neither changes automatically.")
+                    .font(.caption).foregroundStyle(Color.muted).accessibilityIdentifier("assistant.ai-language-guidance")
+                if let guidance=ai.availabilityGuidance{Text(guidance).font(.caption).foregroundStyle(Color.muted).accessibilityIdentifier("assistant.ai-setup")}
+                Button("Recheck AI"){refreshAIStatus()}.frame(minHeight:44).accessibilityIdentifier("assistant.ai-recheck")
+            }.padding(.vertical,8)}
+        }.font(.caption).foregroundStyle(Color.muted).disabled(dictation.recording || dictation.requesting || dictation.finalizing)
     }
     private var aiAvailabilityDiagnostic:String {
         guard ProcessInfo.processInfo.arguments.contains("--uitesting")else{return ""}
@@ -127,7 +144,12 @@ struct AssistantView:View {
                     .font(.caption).foregroundStyle(Color.muted)
                     .accessibilityIdentifier("assistant.local-fallback")
             }
-            if proposal.operations.contains(where:{$0.type == .arrangeSong}){formComparison(source:source,candidate:candidate)}
+            if proposal.operations.contains(where:{$0.type == .arrangeSong}){
+                Text("Creates form and chords. Existing drum and melody parts are reused; new parts are not generated.").font(.caption).foregroundStyle(Color.muted).accessibilityIdentifier("assistant.composition-scope")
+                if reusedPartsContainEmptySections(proposal,source:source,role:.drums){Label("Source sections without drum notes stay empty. Add a beat in Jam.",systemImage:"exclamationmark.triangle").font(.caption).foregroundStyle(Color.harmony).accessibilityIdentifier("assistant.empty-drums")}
+                if reusedPartsContainEmptySections(proposal,source:source,role:.melody){Label("Source sections without melody notes stay empty. Add notes or record a melody.",systemImage:"exclamationmark.triangle").font(.caption).foregroundStyle(Color.harmony).accessibilityIdentifier("assistant.empty-melody")}
+                formComparison(source:source,candidate:candidate)
+            }
             ForEach(Array(proposal.operations.enumerated()),id:\.offset){_,op in Text(summary(op,scope:proposal.scopeSectionID,source:source,candidate:candidate)).padding(12).frame(maxWidth:.infinity,alignment:.leading).modifier(StudioSurface())}
             AssistantHarmonyReview(proposal:proposal,source:source,candidate:candidate)
             if !proposal.assumptions.isEmpty{SmallHeading(text:"ASSUMPTIONS");ForEach(proposal.assumptions,id:\.self){Text($0).font(.caption).foregroundStyle(Color.muted)}}
@@ -136,6 +158,17 @@ struct AssistantView:View {
             if session.harmonyPreview{Button("Stop preview"){session.endHarmonyPreview()}.frame(minHeight:44).accessibilityIdentifier("assistant.stop-preview")}
             Button{apply(proposal)}label:{Text("Apply proposal")}.buttonStyle(StudioActionStyle()).accessibilityIdentifier("assistant.apply")
             Text("One Undo restores the whole change.").font(.caption).foregroundStyle(Color.muted)
+        }
+    }
+    private func reusedPartsContainEmptySections(_ proposal:AssistantProposal,source:Project,role:TrackRole)->Bool {
+        let parts=proposal.operations.filter{$0.type == .arrangeSong}.flatMap{$0.sections ?? []}
+        guard !parts.isEmpty else{return false}
+        return parts.contains{part in
+            guard let section=source.sections.first(where:{$0.id==part.sourceSectionID})else{return false}
+            return source.tracks.filter{$0.role==role}.allSatisfy{track in
+                let material=Arrangement.materialize(source,track:track,section:section)
+                return role == .drums ? material.drums.isEmpty:(material.notes ?? []).isEmpty
+            }
         }
     }
     func formComparison(source:Project,candidate:Project)->some View {VStack(alignment:.leading,spacing:10){
@@ -149,16 +182,21 @@ struct AssistantView:View {
         let section=candidate.sections.first{$0.id==op.sectionID}?.name ?? scopeName
         switch op.type {
         case .setTempo:return "\(Int(op.bpm ?? 120)) BPM"
-        case .setKey:return NSLocalizedString("Key",comment:"")+": "+Chord.roots[op.root ?? 0]+" "+NSLocalizedString((op.minor ?? false) ? "minor":"major",comment:"Key mode")
+        case .setKey:
+            let root=op.root ?? candidate.keyRoot,minor=op.minor ?? candidate.minor
+            return NSLocalizedString("Key",comment:"")+": "+MusicalNotation.pitchClassName(root,keyRoot:root,minor:minor,spelling:PitchSpelling(rawValue:pitchSpelling) ?? .automatic)+" "+NSLocalizedString(minor ? "minor":"major",comment:"Key mode")
         case .renameSection:return (source.sections.first{$0.id==op.sectionID}?.name ?? scopeName)+" → "+(op.name ?? "")
         case .resizeSection:return section+": \(op.bars ?? 4) "+NSLocalizedString("bars",comment:"")
-        case .setProgression:return section+" · "+zip(op.chords ?? [],op.durations ?? []).map{"\($0.symbol) (\($1))"}.joined(separator:" · ")+" "+NSLocalizedString("bars per chord",comment:"")
+        case .setProgression:return section+" · "+zip(op.chords ?? [],op.durations ?? []).map{"\(chordLabel($0,project:candidate)) (\($1))"}.joined(separator:" · ")+" "+NSLocalizedString("bars per chord",comment:"")
         case .arrangeSong:return (op.sections ?? []).map{part in
             let sourceName=source.sections.first{$0.id==part.sourceSectionID}?.name ?? ""
-            return part.name+" · \(part.bars) "+NSLocalizedString("bars",comment:"")+" · "+zip(part.chords,part.durations).map{"\($0.symbol) (\($1))"}.joined(separator:" · ")+"\n"+NSLocalizedString("Rhythm and melody source",comment:"Assistant")+": "+sourceName
+            return part.name+" · \(part.bars) "+NSLocalizedString("bars",comment:"")+" · "+zip(part.chords,part.durations).map{"\(chordLabel($0,project:candidate)) (\($1))"}.joined(separator:" · ")+"\n"+NSLocalizedString("Rhythm and melody source",comment:"Assistant")+": "+sourceName
         }.joined(separator:"\n\n")
         case .styleHarmony,.styleSong:return (op.type == .styleSong ? NSLocalizedString("Whole song",comment:"Assistant"):section)+" · "+NSLocalizedString(HarmonyStyle(rawValue:op.style ?? "")?.title ?? "Harmony",comment:"Assistant")
         }
+    }
+    private func chordLabel(_ chord:Chord,project:Project)->String {
+        MusicalNotation.chordSymbol(chord,keyRoot:project.keyRoot,minor:project.minor,spelling:PitchSpelling(rawValue:pitchSpelling) ?? .automatic)
     }
     func generate(_ distribution:ChordDistribution?=nil){
         cancelGeneration();focused=false;session.endHarmonyPreview();ambiguous=false;generatedInput=input;proposal=nil;candidate=nil;proposalSource=nil;error=nil;generatedWithAI=false;usedUnavailableAIFallback=false;availabilityError=false
@@ -252,7 +290,9 @@ private struct AssistantHarmonyReview:View {
                         AssistantHarmonySectionReview(section:section,proposed:proposed,
                             before:Arrangement.harmony(source,section:section),
                             after:Arrangement.harmony(candidate,section:proposed),
-                            originalScale:scale(source),proposedScale:scale(candidate),index:index)
+                            originalScale:scale(source),proposedScale:scale(candidate),
+                            originalKeyRoot:source.keyRoot,originalMinor:source.minor,
+                            proposedKeyRoot:candidate.keyRoot,proposedMinor:candidate.minor,index:index)
                     }
                 }
             }
@@ -270,6 +310,10 @@ private struct AssistantHarmonySectionReview:View {
     let after:[ChordEvent]
     let originalScale:Set<Int>
     let proposedScale:Set<Int>
+    let originalKeyRoot:Int
+    let originalMinor:Bool
+    let proposedKeyRoot:Int
+    let proposedMinor:Bool
     let index:Int
     @Environment(\.dynamicTypeSize) private var dynamicType
     var body:some View {
@@ -286,10 +330,10 @@ private struct AssistantHarmonySectionReview:View {
         }.padding(12).modifier(StudioSurface())
     }
     private var original:some View {
-        AssistantHarmonyColumn(title:"A · Original",events:before,scale:originalScale,sectionStart:section.start,identifier:"assistant.harmony.before.\(index)",color:.studioText)
+        AssistantHarmonyColumn(title:"A · Original",events:before,scale:originalScale,keyRoot:originalKeyRoot,minor:originalMinor,sectionStart:section.start,identifier:"assistant.harmony.before.\(index)",color:.studioText)
     }
     private var proposal:some View {
-        AssistantHarmonyColumn(title:"B · Proposal",events:after,scale:proposedScale,sectionStart:proposed.start,identifier:"assistant.harmony.after.\(index)",color:.harmony)
+        AssistantHarmonyColumn(title:"B · Proposal",events:after,scale:proposedScale,keyRoot:proposedKeyRoot,minor:proposedMinor,sectionStart:proposed.start,identifier:"assistant.harmony.after.\(index)",color:.harmony)
     }
 }
 
@@ -297,20 +341,26 @@ private struct AssistantHarmonyColumn:View {
     let title:String
     let events:[ChordEvent]
     let scale:Set<Int>
+    let keyRoot:Int
+    let minor:Bool
     let sectionStart:Int
     let identifier:String
     let color:Color
+    @AppStorage("studio.pitchSpelling") private var pitchSpelling=PitchSpelling.automatic.rawValue
+    @AppStorage("studio.showDegrees") private var showDegrees=false
+    private var spelling:PitchSpelling {PitchSpelling(rawValue:pitchSpelling) ?? .automatic}
     var body:some View {
         VStack(alignment:.leading,spacing:14){
             Text(LocalizedStringKey(title)).font(.caption.weight(.semibold)).foregroundStyle(Color.muted)
             if events.isEmpty{Text("No chords in this section.").font(.caption).foregroundStyle(Color.muted)}
             ForEach(Array(events.enumerated()),id:\.offset){index,event in
                 VStack(alignment:.leading,spacing:5){
-                    Text(verbatim:event.chord.symbol).font(.system(.title3,weight:.semibold)).foregroundStyle(color)
+                    Text(verbatim:MusicalNotation.chordSymbol(event.chord,keyRoot:keyRoot,minor:minor,spelling:spelling)).font(.system(.title3,weight:.semibold)).foregroundStyle(color)
                         .fixedSize(horizontal:false,vertical:true).accessibilityIdentifier(identifier+".\(index)")
+                    if showDegrees {Text(verbatim:MusicalNotation.degreeSymbol(event.chord,keyRoot:keyRoot,minor:minor)).font(.caption).foregroundStyle(Color.muted)}
                     Text(verbatim:timing(event)).font(.caption.monospaced()).foregroundStyle(Color.muted)
                         .fixedSize(horizontal:false,vertical:true).accessibilityIdentifier(identifier+".\(index).timing")
-                    Text(verbatim:event.chord.notes.map{NoteEvent(tick:0,pitch:$0).name}.joined(separator:" · "))
+                    Text(verbatim:event.chord.notes.map{MusicalNotation.noteName($0,keyRoot:keyRoot,minor:minor,spelling:spelling)}.joined(separator:" · "))
                         .font(.caption2).foregroundStyle(Color.muted).fixedSize(horizontal:false,vertical:true)
                     if event.chord.notes.contains(where:{!scale.contains($0%12)}){
                         Label("Contains chromatic notes",systemImage:"circle.lefthalf.filled")

@@ -285,7 +285,13 @@ static int publishMix(LGKernel*k,const LGTrackMix*tracks,int count,float masterD
     }return 0;
 }
 extern "C" {
-LGKernel*lg_create(double sr){return std::isfinite(sr)&&sr>=8000&&sr<=192000 ? new LGKernel(sr) : nullptr;}
+LGKernel*lg_create(double sr){
+    if(!std::isfinite(sr)||sr<8000||sr>192000)return nullptr;
+    // Swift callers treat a null result as a recoverable preparation failure.
+    // Catch the whole constructor: nothrow new alone does not cover allocations
+    // made by the DSP's vector members during construction.
+    try{return new LGKernel(sr);}catch(...){return nullptr;}
+}
 void lg_destroy(LGKernel*k){delete k;}
 int lg_submit(LGKernel*k,const LGNote*notes,int count,double bpm,int start,int end,int loop,int rev){
     return submitSnapshot(k,notes,count,bpm,start,end,loop,rev,0,nullptr,0,0,0,0,false);

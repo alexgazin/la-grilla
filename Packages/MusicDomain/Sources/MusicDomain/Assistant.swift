@@ -33,8 +33,12 @@ public struct AssistantOperation:Codable,Equatable,Sendable {
         case .setProgression:
             guard let section=project.sections.first(where:{$0.id==sectionID}),let chords,let durations,!chords.isEmpty,chords.count<=256,chords.count==durations.count,durations.allSatisfy({(1...64).contains($0)})else{throw AssistantError.unsafe}
             guard durations.reduce(0,+)*barTicks==section.length else{throw AssistantError.mismatch}
+            let sourceHarmony=Arrangement.harmony(project,section:section)
             var tick=0;var events:[ChordEvent]=[]
-            for (c,duration) in zip(chords,durations){events.append(ChordEvent(tick:tick,duration:duration*barTicks,chord:c));tick+=duration*barTicks}
+            for (c,duration) in zip(chords,durations){
+                let retained=Arrangement.chordPreservingSource(c,at:tick,from:sourceHarmony)
+                events.append(ChordEvent(tick:tick,duration:duration*barTicks,chord:retained));tick+=duration*barTicks
+            }
             try Arrangement.replaceHarmony(events,in:section,project:&project)
         case .arrangeSong:project=try Arrangement.composing(project,parts:sections!,scope:scope)
         case .styleHarmony,.styleSong:
@@ -64,7 +68,7 @@ public struct AssistantProposal:Codable,Identifiable,Sendable {
         guard data.count<=64_000,let json=try JSONSerialization.jsonObject(with:data) as? [String:Any],Set(json.keys)==Set(["id","schemaVersion","projectID","baseRevision","scopeSectionID","operations","assumptions","warnings"]),let ops=json["operations"] as? [[String:Any]],ops.count<=16 else{throw AssistantError.unsafe}
         let keys:Set<String>=["type","sectionID","bpm","root","minor","name","bars","chords","durations","sections","style"]
         guard ops.allSatisfy({Set($0.keys).isSubset(of:keys)})else{throw AssistantError.unsafe}
-        func safeChords(_ chords:[[String:Any]])->Bool{chords.count<=256 && chords.allSatisfy({Set($0.keys).isSubset(of:["root","quality","inversion","slashBass","voicedNotes","customIntervals"]) && Set(["root","quality","inversion"]).isSubset(of:Set($0.keys))})}
+        func safeChords(_ chords:[[String:Any]])->Bool{chords.count<=256 && chords.allSatisfy({Set($0.keys).isSubset(of:["root","quality","inversion","slashBass","voicedNotes","customIntervals","rootBassPitch"]) && Set(["root","quality","inversion"]).isSubset(of:Set($0.keys))})}
         for op in ops{
             if let chords=op["chords"] as? [[String:Any]]{guard safeChords(chords)else{throw AssistantError.unsafe}}
             if let sections=op["sections"] as? [[String:Any]]{guard (1...8).contains(sections.count),sections.allSatisfy({Set($0.keys)==Set(["name","bars","chords","durations","sourceSectionID"]) && (($0["chords"] as? [[String:Any]]).map(safeChords) ?? false)})else{throw AssistantError.unsafe}}

@@ -168,6 +168,7 @@ private enum AudioRender {
     private var timer: Timer?
     @ObservationIgnored private var configurationObserver:NSObjectProtocol?
     private var generation = 0
+    @ObservationIgnored private var musicCompilationCache=MusicCompilationCache()
     private var submittedNotes:[CompiledNote]?;private var submittedBPM=0.0;private var submittedRange:Range<Int>?;private var submittedLoop=false;private var submittedProject:UUID?
     private var performanceEpoch=0
     private var performanceBuffer=[LGPerformanceEvent](repeating:LGPerformanceEvent(),count:512)
@@ -192,6 +193,8 @@ private enum AudioRender {
     var activeMIDIRouting:AudioMIDIRouting? {guard let k=handle?.pointer else{return nil};return routing[Int(lg_revision(k))]}
     /// Bounded metadata retained alongside the kernel's three musical slots.
     var retainedRoutingCount:Int {routing.count}
+    /// Control-path diagnostic; no render callback consults the compiler cache.
+    var musicCompilationCount:Int{musicCompilationCache.compileCount}
     var clock: UInt64 = 0
     var failureReport:String {
         let encoder=JSONEncoder();encoder.outputFormatting=[.sortedKeys]
@@ -496,7 +499,7 @@ private enum AudioRender {
     func refreshClock(){guard let k=handle?.pointer else{return};clock=lg_clock(k);tick=lg_tick(k);playing=lg_playing(k) != 0;countRemaining=Int(lg_countremaining(k))}
     func submit(_ p: Project, loop: Bool, range: Range<Int>) {
         guard let k = handle?.pointer else { return }
-        let compiled=Compiler.notes(p),layout=trackLayout(p)
+        let compiled=musicCompilationCache.notes(p),layout=trackLayout(p)
         if compiled==submittedNotes,p.bpm==submittedBPM,range==submittedRange,loop==submittedLoop,p.id==submittedProject,layout==submittedLayout {
             sentRevisions[generation]=p.revision;routing[generation]=midiRouting(p)
             if Int(lg_revision(k))==generation{appliedRevision=p.revision};_ = mix(p);return
@@ -597,6 +600,7 @@ private enum AudioRender {
     func metronome(_ on: Bool) {if let k = handle?.pointer {lg_metronome(k,on ? 1 : 0)}}
     func invalidateMusicSnapshot(){submittedNotes=nil}
     func reset() {
+        musicCompilationCache.reset()
         submittedNotes=nil;submittedLayout=[];routing=[:];sentRevisions=[:];pendingPreviews=[];generation=0
         stop();timer?.invalidate()
         if let configurationObserver{NotificationCenter.default.removeObserver(configurationObserver)};configurationObserver=nil

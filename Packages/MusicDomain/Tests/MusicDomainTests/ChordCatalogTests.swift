@@ -129,7 +129,7 @@ struct ChordCatalogTests {
         let encoder=JSONEncoder();encoder.outputFormatting=[.sortedKeys]
         let original=try encoder.encode(legacy),notes=Compiler.notes(legacy)
         let migrated=try ProjectDocument.decode(original)
-        #expect(migrated.schemaVersion==8);#expect(migrated.performanceTake?.source.schemaVersion==8)
+        #expect(migrated.schemaVersion==Project.currentSchemaVersion);#expect(migrated.performanceTake?.source.schemaVersion==Project.currentSchemaVersion)
         #expect(Compiler.notes(migrated)==notes)
         #expect(migrated.performanceTake?.source.patterns==legacy.performanceTake?.source.patterns)
         #expect(migrated.performanceTake?.source.tracks==legacy.performanceTake?.source.tracks)

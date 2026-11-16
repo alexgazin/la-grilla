@@ -1,0 +1,118 @@
+name: Product audit native verification
+on:
+  workflow_dispatch:
+  push:
+    branches: [feat/audit-improvements]
+concurrency:
+  group: product-audit-${{ github.ref }}
+  cancel-in-progress: true
+env:
+  DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
+jobs:
+  product-audit-native:
+    runs-on: macos-15
+    timeout-minutes: 50
+    steps:
+      - name: Reserve native evidence preservation time
+        run: |
+          python3 - <<'PY'
+          import os,time
+          with open(os.environ['GITHUB_ENV'],'a') as output:
+              output.write(f'GRILLA_AUDIT_DEADLINE_EPOCH={time.time()+40*60}\n')
+          PY
+      - uses: actions/checkout@v4
+      - name: Audit source and compile actual native tests
+        timeout-minutes: 12
+        run: |
+          set -o pipefail
+          python3 scripts/release/assert_sdk.py
+          python3 scripts/ci/test_run_native.py
+          python3 scripts/ci/test_native_scope.py
+          python3 scripts/release/test_native_acceptance.py
+          python3 scripts/release/test_device_acceptance.py
+          python3 scripts/generate_project.py
+          git diff --exit-code -- LaGrilla.xcodeproj
+          python3 scripts/audit_presentation.py
+          python3 scripts/release/audit_release.py
+          xcodebuild -project LaGrilla.xcodeproj -scheme LaGrilla -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' ARCHS=arm64 ONLY_ACTIVE_ARCH=YES -configuration Debug -derivedDataPath DerivedData CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO build-for-testing 2>&1 | tee audit-build.log
+      - name: Configure actual host HAL loopback
+        timeout-minutes: 5
+        run: bash scripts/setup_ci_audio.sh
+      - name: Boot native iPhone Simulator
+        timeout-minutes: 7
+        env:
+          GRILLA_CAPTURE_SCREENS: '0'
+        run: bash scripts/screenshots.sh
+      - name: Verify first result, transposition, AI fallback, harmony and strict production PCM
+        env:
+          GRILLA_REQUIRE_MIC_INPUT: '1'
+          TEST_RUNNER_GRILLA_REQUIRE_MIC_INPUT: '1'
+          GRILLA_RUNTIME_TRACE: '1'
+        run: |
+          GRILLA_AUDIT_DEVICE=$(cat /tmp/grilla-simulator-id)
+          # Eleven real methods include transposition and accepted-MIDI recovery.
+          # This independent 20-minute batch does not change microphone tests.
+          python3 scripts/ci/run_native.py --timeout-seconds 1200 --deadline-env GRILLA_AUDIT_DEADLINE_EPOCH --label product-audit-native --log audit-native.log --status audit-process-status.json \
+            --require-test FirstResultTests/testEmptyProjectGuidesFirstChordToRealOutputAndPersists \
+            --require-test FirstResultTests/testStarterAndExampleAreAudibleIndependentAndKeepSavedProject \
+            --require-test FirstResultTests/testAcceptedMIDIInterleavingsKeepLatestWorkAndActiveRetryPreservesDisk \
+            --require-test AIAvailabilityTests/testActualUnavailableModelRecheckPreservesLanguagesInputAndProjectThenLocalJazzAppliesUndo \
+            --require-test HarmonyCatalogTests/testCustomFormulaPersistsEveryToneAndIsUndoable \
+            --require-test HarmonyCatalogTests/testAlteredNotationAndInvalidFormulaNeverSilentlySave \
+            --require-test TranspositionUITests/testTransposePreviewCancelApplyLiveUndoRedoAndReopen \
+            --require-test TranspositionUITests/testFlatsAndScaleDegreesPersistWithoutNotationChangingMusic \
+            --require-test AudioRuntimeContinuityTests/testAAOutputOnlyLaunchDoesNotRequestMicrophone \
+            --require-test AudioRuntimeContinuityTests/testProductionVoiceCaptureCAFAnalysisApplyStoreAndUndo \
+            --require-test AudioRuntimeContinuityTests/testSessionMicrophoneLeaseRetainsLiveEngineAndPCM \
+            -- xcodebuild \
+            -project LaGrilla.xcodeproj -scheme LaGrilla \
+            -destination "platform=iOS Simulator,id=$GRILLA_AUDIT_DEVICE" \
+            -derivedDataPath DerivedData -resultBundlePath AuditResults.xcresult \
+            -only-testing:LaGrillaUITests/FirstResultTests \
+            -only-testing:LaGrillaUITests/AIAvailabilityTests \
+            -only-testing:LaGrillaUITests/HarmonyCatalogTests \
+            -only-testing:LaGrillaUITests/TranspositionUITests \
+            -only-testing:LaGrillaUITests/AudioRuntimeContinuityTests/testAAOutputOnlyLaunchDoesNotRequestMicrophone \
+            -only-testing:LaGrillaUITests/AudioRuntimeContinuityTests/testProductionVoiceCaptureCAFAnalysisApplyStoreAndUndo \
+            -only-testing:LaGrillaUITests/AudioRuntimeContinuityTests/testSessionMicrophoneLeaseRetainsLiveEngineAndPCM \
+            -test-timeouts-enabled YES -maximum-test-execution-time-allowance 120 \
+            ARCHS=arm64 ONLY_ACTIVE_ARCH=YES CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO test-without-building
+      - name: Export original native attachments
+        if: always()
+        timeout-minutes: 2
+        run: |
+          if test -d AuditResults.xcresult; then
+            xcrun xcresulttool export attachments --path AuditResults.xcresult --output-path AuditAttachments
+          fi
+      - name: Preserve crash reports and partial device diagnostics
+        if: always()
+        timeout-minutes: 2
+        run: |
+          mkdir -p AuditCrashReports
+          find "$HOME/Library/Logs/DiagnosticReports" -iname '*LaGrilla*' -exec cp {} AuditCrashReports/ \; || true
+          python3 - <<'PY'
+          from pathlib import Path
+          import subprocess
+          device_file=Path('/tmp/grilla-simulator-id')
+          if device_file.exists():
+              with Path('audit-device.log').open('wb') as output:
+                  try:
+                      result=subprocess.run(['xcrun','simctl','spawn',device_file.read_text().strip(),'log','show','--last','20m','--style','compact','--predicate','process == "LaGrilla"'],stdout=output,stderr=subprocess.STDOUT,timeout=45)
+                      output.write(f'\nDiagnostic command exit: {result.returncode}\n'.encode())
+                  except subprocess.TimeoutExpired:
+                      output.write(b'\nDevice diagnostic timed out; original partial output retained.\n')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        timeout-minutes: 5
+        with:
+          name: product-audit-native-verification
+          path: |
+            audit-build.log
+            audit-native.log
+            audit-process-status.json
+            audit-device.log
+            ci-audio.log
+            AuditResults.xcresult
+            AuditAttachments
+            AuditCrashReports

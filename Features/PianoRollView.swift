@@ -4,6 +4,9 @@ import MusicDomain
 
 struct PianoRollView: View {
     @Bindable var session:Session
+    @AppStorage("studio.pitchSpelling") private var spellingValue=PitchSpelling.automatic.rawValue
+    private var spelling:PitchSpelling{PitchSpelling(rawValue:spellingValue) ?? .automatic}
+    private func noteName(_ pitch:Int)->String{MusicalNotation.noteName(pitch,keyRoot:session.project.keyRoot,minor:session.project.minor,spelling:spelling)}
     @Environment(\.dynamicTypeSize) private var dynamicType
     @Environment(\.dismiss) private var dismiss
     @State private var selected:UUID?
@@ -32,7 +35,7 @@ struct PianoRollView: View {
                 if let clip,let pattern,clip.offset != 0 || clip.length != pattern.length{Text("Editing the source pattern updates every loop of this clip.").font(.caption).foregroundStyle(Color.muted).padding(.horizontal,16)}
                 if let pattern {
                     if listMode {eventList(pattern).frame(height:dynamicType.isAccessibilitySize ? 280:nil)} else {roll(pattern)}
-                    if let note {NoteInspector(session:session,patternID:pattern.id,note:note,snap:snap)}
+                    if let note {NoteInspector(session:session,patternID:pattern.id,note:note,snap:snap,spelling:spelling)}
                     editBar(pattern).padding(.horizontal,16)
                 } else {ContentUnavailableView("Add a melody track",systemImage:"pianokeys",description:Text("Write a melody above your harmony."))}
                 HStack{IconButton(symbol:"arrow.uturn.backward",label:"Undo"){session.undo()}.disabled(!session.history.canUndo).accessibilityIdentifier("notes.undo");IconButton(symbol:"arrow.uturn.forward",label:"Redo"){session.redo()}.disabled(!session.history.canRedo).accessibilityIdentifier("notes.redo");Spacer();Text(LocalizedStringKey(session.audio.playing ? "PLAYING":"STOPPED")).font(.caption.monospaced()).foregroundStyle(Color.muted).accessibilityIdentifier("notes.status");IconButton(symbol:session.audio.playing ? "stop.fill":"play.fill",label:session.audio.playing ? "Stop":"Play",color:.mint){session.togglePlay()}.accessibilityIdentifier("notes.play")}.padding(.horizontal,12)
@@ -90,10 +93,10 @@ struct PianoRollView: View {
     }
     func roll(_ p:Pattern)->some View {
         VStack(spacing:0){
-            HStack{Button{lowPitch=max(0,lowPitch-12)}label:{Label("Octave",systemImage:"minus").frame(minHeight:44)}.disabled(lowPitch==0);Spacer();Text("\(NoteEvent(tick:0,pitch:lowPitch).name) – \(NoteEvent(tick:0,pitch:lowPitch+23).name)").font(.caption.monospaced()).foregroundStyle(Color.muted);Spacer();Button{lowPitch=min(104,lowPitch+12)}label:{Image(systemName:"plus").frame(width:44,height:44)}.disabled(lowPitch==104)}.padding(.horizontal,16)
+            HStack{Button{lowPitch=max(0,lowPitch-12)}label:{Label("Octave",systemImage:"minus").frame(minHeight:44)}.disabled(lowPitch==0);Spacer();Text("\(noteName(lowPitch)) – \(noteName(lowPitch+23))").font(.caption.monospaced()).foregroundStyle(Color.muted);Spacer();Button{lowPitch=min(104,lowPitch+12)}label:{Image(systemName:"plus").frame(width:44,height:44)}.disabled(lowPitch==104)}.padding(.horizontal,16)
             ScrollView([.horizontal,.vertical]) {
                 HStack(spacing:0){
-                    VStack(spacing:0){Color.clear.frame(height:24);ForEach((lowPitch...lowPitch+23).reversed(),id:\.self){pitch in Button{preview(pitch)}label:{Text(NoteEvent(tick:0,pitch:pitch).name).font(.system(size:11,design:.monospaced)).foregroundStyle(isBlack(pitch) ? Color.white:Color.black).frame(width:48,height:24).background(isBlack(pitch) ? Color(white:0.14):Color.white)}.buttonStyle(StudioQuietButtonStyle()).accessibilityLabel("Preview \(NoteEvent(tick:0,pitch:pitch).name)")}}
+                    VStack(spacing:0){Color.clear.frame(height:24);ForEach((lowPitch...lowPitch+23).reversed(),id:\.self){pitch in Button{preview(pitch)}label:{Text(noteName(pitch)).font(.system(size:11,design:.monospaced)).foregroundStyle(isBlack(pitch) ? Color.white:Color.black).frame(width:48,height:24).background(isBlack(pitch) ? Color(white:0.14):Color.white)}.buttonStyle(StudioQuietButtonStyle()).accessibilityLabel("Preview \(noteName(pitch))")}}
                     VStack(spacing:0){
                         HStack(spacing:0){ForEach(0..<p.length/barTicks,id:\.self){bar in Text("\(bar+1)").font(.caption2.monospaced()).frame(width:barWidth,alignment:.leading)}}.foregroundStyle(Color.muted).frame(height:24)
                         RollCanvas(pattern:p,selected:selected,lowPitch:lowPitch,barWidth:barWidth,snap:snap,tick:sourcePlayhead,select:{id in selected=id},insert:{tick,pitch in add(p,tick:tick,pitch:pitch)},move:{id,tick,pitch in change(p.id){NoteEditing.move(id,in:&$0,tick:tick,pitch:pitch,step:snap)}},resize:{id,duration in change(p.id){NoteEditing.resize(id,in:&$0,duration:duration,step:snap)}})
@@ -110,11 +113,11 @@ struct PianoRollView: View {
                 Button{selected=n.id;preview(n.pitch)}label:{
                     if dynamicType.isAccessibilitySize {
                         VStack(alignment:.leading,spacing:8){
-                            HStack(alignment:.firstTextBaseline){Text(n.name).foregroundStyle(Color.mint);Spacer(minLength:8);if selected==n.id{Image(systemName:"checkmark")}}
+                            HStack(alignment:.firstTextBaseline){Text(noteName(n.pitch)).foregroundStyle(Color.mint);Spacer(minLength:8);if selected==n.id{Image(systemName:"checkmark")}}
                             noteDetails(n).fixedSize(horizontal:false,vertical:true)
                         }.frame(maxWidth:.infinity,alignment:.leading)
                     }else{
-                        HStack{Text(n.name).foregroundStyle(Color.mint);Spacer();noteDetails(n);if selected==n.id{Image(systemName:"checkmark")}}
+                        HStack{Text(noteName(n.pitch)).foregroundStyle(Color.mint);Spacer();noteDetails(n);if selected==n.id{Image(systemName:"checkmark")}}
                     }
                 }.accessibilityIdentifier("notes.row.\(n.id)").listRowBackground(Color.panel)
             }
@@ -165,13 +168,14 @@ private struct RollCanvas:View {
 private struct NoteInspector:View {
     @Environment(\.dynamicTypeSize) private var dynamicType
     private var layout:AnyLayout{dynamicType.isAccessibilitySize ? AnyLayout(VStackLayout(spacing:8)):AnyLayout(HStackLayout(spacing:16))}
-    @Bindable var session:Session;let patternID:UUID;let note:NoteEvent;let snap:Int
+    @Bindable var session:Session;let patternID:UUID;let note:NoteEvent;let snap:Int;let spelling:PitchSpelling
+    private var noteName:String{MusicalNotation.noteName(note.pitch,keyRoot:session.project.keyRoot,minor:session.project.minor,spelling:spelling)}
     func edit(_ action:(inout NoteEvent)->Void){session.edit{p in if let i=p.patterns.firstIndex(where:{$0.id==patternID}),let j=p.patterns[i].notes?.firstIndex(where:{$0.id==note.id}){action(&p.patterns[i].notes![j])}}}
     var body:some View {
         VStack(spacing:6){
-            layout{Stepper(note.name,value:Binding(get:{note.pitch},set:{v in edit{$0.pitch=v}}),in:0...127).accessibilityLabel("Note pitch");Text("\(note.duration) ticks").monospacedDigit()}
+            layout{Stepper(noteName,value:Binding(get:{note.pitch},set:{v in edit{$0.pitch=v}}),in:0...127).accessibilityLabel("Note pitch").accessibilityValue(Text(verbatim:noteName));Text("\(note.duration) ticks").monospacedDigit()}
             layout{Stepper("Start",onIncrement:{move(note.tick+snap)},onDecrement:{move(note.tick-snap)}).accessibilityLabel("Note start");Stepper("Length",onIncrement:{resize(note.duration+snap)},onDecrement:{resize(note.duration-snap)}).accessibilityLabel("Note duration")}
-            HStack{Text("Velocity").font(.caption);Slider(value:Binding(get:{Double(note.velocity)},set:{v in session.mixerEdit{p in if let i=p.patterns.firstIndex(where:{$0.id==patternID}),let j=p.patterns[i].notes?.firstIndex(where:{$0.id==note.id}){p.patterns[i].notes?[j].velocity=Int(v)}}}),in:1...127,step:1,onEditingChanged:{_ in session.mixerGesture=false}).accessibilityLabel("Note velocity");Text("\(note.velocity)").font(.caption.monospaced()).frame(width:28)}
+            HStack{Text("Velocity").font(.caption);Slider(value:Binding(get:{Double(note.velocity)},set:{v in session.coalescedMusicEdit{p in if let i=p.patterns.firstIndex(where:{$0.id==patternID}),let j=p.patterns[i].notes?.firstIndex(where:{$0.id==note.id}){p.patterns[i].notes?[j].velocity=Int(v)}}}),in:1...127,step:1,onEditingChanged:{_ in session.mixerGesture=false}).accessibilityLabel("Note velocity");Text("\(note.velocity)").font(.caption.monospaced()).frame(width:28)}
         }.padding(.horizontal,16).font(.caption)
     }
     func move(_ tick:Int){session.edit{p in if let i=p.patterns.firstIndex(where:{$0.id==patternID}){NoteEditing.move(note.id,in:&p.patterns[i],tick:tick,pitch:note.pitch,step:snap)}}}

@@ -17,6 +17,8 @@ private struct VoiceReviewContext {
 
 struct VoiceToMIDIView:View {
     @Bindable var session:Session
+    @AppStorage("studio.pitchSpelling") private var spellingValue=PitchSpelling.automatic.rawValue
+    private var spelling:PitchSpelling{PitchSpelling(rawValue:spellingValue) ?? .automatic}
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var phase
     @State private var capture=VoiceCaptureController()
@@ -37,6 +39,7 @@ struct VoiceToMIDIView:View {
     var note:NoteEvent?{notes.first{$0.id==selected}}
     var synthetic:Bool{let args=ProcessInfo.processInfo.arguments;return args.contains("--uitesting") && args.contains("voice-draft")}
     private var displayContext:VoiceReviewContext?{capture.isCapturing ? pendingContext:context}
+    private func noteName(_ pitch:Int)->String{MusicalNotation.noteName(pitch,keyRoot:displayContext?.scaleRoot ?? session.project.keyRoot,minor:displayContext?.minor ?? session.project.minor,spelling:spelling)}
     var sourceSectionName:String{displayContext?.sectionName ?? session.section.name}
     var sectionLength:Int{context?.sectionLength ?? session.section.length}
     var limit:Double{capture.isCapturing && capture.plannedDuration>0 ? capture.plannedDuration:(displayContext?.plan.duration ?? min(30,Double(session.section.length)/Double(ppq)*60/session.project.bpm))}
@@ -127,14 +130,14 @@ struct VoiceToMIDIView:View {
                 for row in minimum...maximum{let y=CGFloat(maximum-row)/CGFloat(maximum-minimum+1)*size.height;var line=Path();line.move(to:CGPoint(x:0,y:y));line.addLine(to:CGPoint(x:size.width,y:y));context.stroke(line,with:.color(.raised),lineWidth:1)}
                 for beat in 0...sectionLength/ppq{let x=CGFloat(beat*ppq)/CGFloat(sectionLength)*size.width;var line=Path();line.move(to:CGPoint(x:x,y:0));line.addLine(to:CGPoint(x:x,y:size.height));context.stroke(line,with:.color(.raised),lineWidth:1)}
             }
-            ForEach(notes){n in Button{selected=n.id}label:{RoundedRectangle(cornerRadius:3).fill((n.confidence ?? 1)<0.9 ? Color.harmony:Color.mint).opacity(selected==n.id ? 1:0.7).frame(width:max(8,CGFloat(n.duration)/CGFloat(sectionLength)*geo.size.width),height:max(8,geo.size.height/CGFloat(maximum-minimum+1)-3))}.buttonStyle(StudioQuietButtonStyle()).offset(x:CGFloat(n.tick)/CGFloat(sectionLength)*geo.size.width,y:CGFloat(maximum-n.pitch)/CGFloat(maximum-minimum+1)*geo.size.height).accessibilityLabel(n.name)}
+            ForEach(notes){n in Button{selected=n.id}label:{RoundedRectangle(cornerRadius:3).fill((n.confidence ?? 1)<0.9 ? Color.harmony:Color.mint).opacity(selected==n.id ? 1:0.7).frame(width:max(8,CGFloat(n.duration)/CGFloat(sectionLength)*geo.size.width),height:max(8,geo.size.height/CGFloat(maximum-minimum+1)-3))}.buttonStyle(StudioQuietButtonStyle()).offset(x:CGFloat(n.tick)/CGFloat(sectionLength)*geo.size.width,y:CGFloat(maximum-n.pitch)/CGFloat(maximum-minimum+1)*geo.size.height).accessibilityLabel(noteName(n.pitch))}
         }}.frame(height:150).background(Color.panel,in:RoundedRectangle(cornerRadius:10))
     }
     var eventEditor:some View {
         VStack(spacing:10){
-            ScrollView(.horizontal){HStack{ForEach(notes){n in Button{selected=n.id}label:{Text(n.name).font(.caption.monospaced()).padding(12).frame(minHeight:44).background(selected==n.id ? Color.record.opacity(0.2):Color.panel,in:RoundedRectangle(cornerRadius:8))}.buttonStyle(StudioQuietButtonStyle())}}}
+            ScrollView(.horizontal){HStack{ForEach(notes){n in Button{selected=n.id}label:{Text(noteName(n.pitch)).font(.caption.monospaced()).padding(12).frame(minHeight:44).background(selected==n.id ? Color.record.opacity(0.2):Color.panel,in:RoundedRectangle(cornerRadius:8))}.buttonStyle(StudioQuietButtonStyle())}}}
             if let note {
-                Stepper("Pitch: \(note.name)",value:Binding(get:{note.pitch},set:{v in edit{$0.pitch=v}}),in:0...127).accessibilityIdentifier("voice.pitch")
+                Stepper("Pitch: \(noteName(note.pitch))",value:Binding(get:{note.pitch},set:{v in edit{$0.pitch=v}}),in:0...127).accessibilityLabel("Note pitch").accessibilityValue(Text(verbatim:noteName(note.pitch))).accessibilityIdentifier("voice.pitch")
                 HStack{Button("Octave down"){edit{$0.pitch=max(0,$0.pitch-12)}};Spacer();Button("Octave up"){edit{$0.pitch=min(127,$0.pitch+12)}}}.frame(minHeight:44)
                 Stepper("Start: \(note.tick) ticks",onIncrement:{move(note.tick+120)},onDecrement:{move(note.tick-120)})
                 Stepper("Length: \(note.duration) ticks",onIncrement:{edit{$0.duration=min(sectionLength-$0.tick,$0.duration+120)}},onDecrement:{edit{$0.duration=max(1,$0.duration-120)}})

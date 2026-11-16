@@ -78,11 +78,16 @@ public enum Quality: String, Codable, CaseIterable, Sendable {
     public var label: String { NSLocalizedString(self == .major ? "Major" : self == .minor ? "Minor" : rawValue,comment:"Chord quality") }
 }
 public struct Chord: Codable, Equatable, Sendable {
-    public var root: Int; public var quality: Quality; public var inversion: Int
-    public var slashBass:Int?;public var voicedNotes:[Int]?
+    public var root: Int {didSet{if root != oldValue{rootBassPitch=nil}}}
+    public var quality: Quality; public var inversion: Int
+    public var slashBass:Int? {didSet{if slashBass != oldValue{rootBassPitch=nil}}}
+    public var voicedNotes:[Int]?
+    /// Schema 9: exact generated-bass MIDI pitch after arrangement transposition.
+    /// Nil uses the legacy root/register rule; changing root/slash clears the override.
+    public var rootBassPitch:Int?
     public var customIntervals:[Int]?
     public static let maximumVoices=9 // Eight formula tones plus an explicit slash bass.
-    public init(root: Int = 0, quality: Quality = .major, inversion: Int = 0,slashBass:Int?=nil,voicedNotes:[Int]?=nil,customIntervals:[Int]?=nil) { self.root = root; self.quality = customIntervals==nil ? quality:.major; self.inversion = inversion;self.slashBass=slashBass;self.voicedNotes=voicedNotes;self.customIntervals=customIntervals }
+    public init(root: Int = 0, quality: Quality = .major, inversion: Int = 0,slashBass:Int?=nil,voicedNotes:[Int]?=nil,customIntervals:[Int]?=nil,rootBassPitch:Int?=nil) { self.root = root; self.quality = customIntervals==nil ? quality:.major; self.inversion = inversion;self.slashBass=slashBass;self.voicedNotes=voicedNotes;self.customIntervals=customIntervals;self.rootBassPitch=rootBassPitch }
     public static let roots = ["C", "C♯", "D", "E♭", "E", "F", "F♯", "G", "A♭", "A", "B♭", "B"]
     public var effectiveIntervals:[Int]{customIntervals ?? quality.intervals}
     public var requiredVoicingIntervals:[Int]{customIntervals ?? quality.requiredVoicingIntervals}
@@ -133,7 +138,8 @@ public struct Chord: Codable, Equatable, Sendable {
     }
     public func validate()throws {
         guard (0..<12).contains(root),Self.validIntervals(effectiveIntervals),(0..<effectiveIntervals.count).contains(inversion),customIntervals==nil || quality == .major,
-              slashBass==nil || (0..<12).contains(slashBass!),isValidVoicing(notes) else{throw MusicError.invalidChord}
+              slashBass==nil || (0..<12).contains(slashBass!),
+              rootBassPitch==nil || ((0...127).contains(rootBassPitch!) && rootBassPitch!%12 == (slashBass ?? root)),isValidVoicing(notes) else{throw MusicError.invalidChord}
     }
     public static func parse(_ text: String) throws -> Chord {
         guard text.utf8.count<=256 else{throw MusicError.invalidChord}
@@ -214,7 +220,7 @@ public struct Section: Codable, Equatable, Identifiable, Sendable {
     public init(name: String, start: Int = 0, length: Int) { self.name = name; self.start = start; self.length = length }
 }
 public struct Project: Codable, Equatable, Identifiable, Sendable {
-    public var id: UUID = UUID(); public static let currentSchemaVersion=8
+    public var id: UUID = UUID(); public static let currentSchemaVersion=9
     /// Portable, nonnegative revision IDs. Exhaustion requires a new project
     /// copy rather than wrapping an ID used by history, saving and playback.
     public static let maximumRevision=Int(Int32.max)
@@ -226,6 +232,9 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
     public var performanceTake:PerformanceTake?{get{performanceTakes?.first}set{performanceTakes=newValue.map{[$0]}}}
     public var audioAssets:[AudioAssetRecord]?
     public var midi:MIDISettings?
+    /// Legacy register for implicit root bass. To change it in an existing project,
+    /// use MusicalEditing.setBassRegister: explicit rootBassPitch values are absolute
+    /// and must be shifted atomically as well; raw field assignment does not do that.
     public var bassOctave = 0; public var bassGate = 0.9; public var master: Double = -3
     public var length: Int { sections.reduce(0) { total, section in let (sum, overflow) = total.addingReportingOverflow(section.length); return overflow ? Int.max : sum } }
     public var keyName: String { Chord.roots[keyRoot] + " " + NSLocalizedString(minor ? "minor":"major",comment:"Key mode") }
@@ -353,15 +362,37 @@ public enum Quantize: Int, CaseIterable, Sendable { case off = 0, eighth = 480, 
 }
 public struct History: Sendable {
     private var past: [Project] = []; private var future: [Project] = []
+    /// One bounded value/COW certificate, obtained only by full validation.
+    /// Never reduce this to a revision/ID pair: callers can mutate values directly.
+    private var fullyValidatedProject:Project?
     public init() {}
     public var canUndo: Bool { !past.isEmpty }; public var canRedo: Bool { !future.isEmpty }
     public mutating func apply(_ project: inout Project, coalescing: Bool = false, _ change: (inout Project) throws -> Void) throws {
         guard let revision=project.nextRevision else{throw MusicError.revisionLimit}
         var candidate = project; try change(&candidate); candidate.revision = revision; candidate.modified = Date(); try candidate.validate()
-        if !coalescing || past.isEmpty { past.append(project) }; if past.count > 80 { past.removeFirst() }; future.removeAll(); project = candidate
+        commit(candidate,replacing:&project,coalescing:coalescing)
     }
-    public mutating func undo(_ project: inout Project) { guard let revision=project.nextRevision,var p = past.last else { return };past.removeLast(); future.append(project); p.revision = revision; p.modified = Date(); project = p }
-    public mutating func redo(_ project: inout Project) { guard let revision=project.nextRevision,var p = future.last else { return };future.removeLast(); past.append(project); p.revision = revision; p.modified = Date(); project = p }
+    /// Fast only for certified music plus finite, bounded mix changes. The first
+    /// edit of an unchecked/changed baseline performs the ordinary full validation.
+    public mutating func applyMix(_ project:inout Project,coalescing:Bool=false,_ change:(inout Project)throws->Void)throws {
+        guard let revision=project.nextRevision else{throw MusicError.revisionLimit}
+        if fullyValidatedProject != project {
+            try project.validate()
+            fullyValidatedProject=project
+        }
+        var candidate=project
+        try change(&candidate)
+        candidate.revision=revision;candidate.modified=Date()
+        try MixEditValidation.validateChange(from:project,to:candidate)
+        commit(candidate,replacing:&project,coalescing:coalescing)
+    }
+    private mutating func commit(_ candidate:Project,replacing project:inout Project,coalescing:Bool) {
+        if !coalescing || past.isEmpty { past.append(project) }
+        if past.count>80{past.removeFirst()}
+        future.removeAll();project=candidate;fullyValidatedProject=candidate
+    }
+    public mutating func undo(_ project: inout Project) { guard let revision=project.nextRevision,var p = past.last else { return };past.removeLast(); future.append(project); p.revision = revision; p.modified = Date(); project = p;fullyValidatedProject=nil }
+    public mutating func redo(_ project: inout Project) { guard let revision=project.nextRevision,var p = future.last else { return };future.removeLast(); past.append(project); p.revision = revision; p.modified = Date(); project = p;fullyValidatedProject=nil }
 }
 
 public enum ProjectDocument {
@@ -390,6 +421,7 @@ public enum ProjectDocument {
         if p.schemaVersion==5{p.schemaVersion=6}
         if p.schemaVersion==6{p.schemaVersion=7}
         if p.schemaVersion==7{p.schemaVersion=8}
+        if p.schemaVersion==8{p.schemaVersion=9}
         if var take=p.performanceTake{take.source=try migrated(take.source);p.performanceTake=take}
         try p.validate();return p
     }

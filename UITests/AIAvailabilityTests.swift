@@ -23,12 +23,19 @@ final class AIAvailabilityTests:XCTestCase {
         XCTAssertTrue(status.waitForExistence(timeout:5))
         assertEnvironmentModelUnavailable(status)
         XCTAssertTrue(app.buttons["assistant.use-commands"].exists)
+        let options=app.buttons["assistant.ai-options"]
+        XCTAssertTrue(options.waitForExistence(timeout:5))
+        XCTAssertEqual(options.value as? String,"Collapsed")
+        keepScreenshot("AuthorizedInput-assistant-default-composer")
         app.buttons["On-device AI"].tap()
+        revealFully(options,in:app)
+        options.tap()
 
         let aiEnglish=app.buttons["assistant.ai-language.en"]
         let aiRussian=app.buttons["assistant.ai-language.ru"]
         let dictationRussian=app.buttons["assistant.language.ru"]
         let dictationEnglish=app.buttons["assistant.language.en"]
+        XCTAssertTrue(aiRussian.waitForExistence(timeout:5))
         XCTAssertTrue(aiRussian.isSelected)
         XCTAssertTrue(dictationRussian.isSelected)
         revealFully(aiEnglish,in:app,upward:false)
@@ -66,6 +73,11 @@ final class AIAvailabilityTests:XCTestCase {
         XCTAssertFalse(app.buttons["assistant.apply"].exists)
         revealFully(aiEnglish,in:app,upward:false)
         keepScreenshot("AuthorizedInput-ai-setup-independent-language-recheck")
+        // Finish the actual setup interaction before reviewing music. The
+        // compact primary composer stays usable with advanced options closed.
+        revealFully(options,in:app,upward:false)
+        options.tap()
+        XCTAssertEqual(options.value as? String,"Collapsed")
 
         let generate=app.buttons["assistant.generate"]
         revealFully(generate,in:app)
@@ -78,6 +90,7 @@ final class AIAvailabilityTests:XCTestCase {
         XCTAssertFalse(app.staticTexts["ON-DEVICE AI"].exists)
         let after=app.staticTexts["assistant.harmony.after.0.0"]
         revealFully(after,in:app)
+        XCTAssertEqual(app.staticTexts["assistant.harmony.before.0.0"].label,"C")
         XCTAssertEqual(after.label,"Cmaj9")
         let apply=app.buttons["assistant.apply"]
         revealFully(apply,in:app)
@@ -108,10 +121,15 @@ final class AIAvailabilityTests:XCTestCase {
 
     @MainActor private func revealFully(_ element:XCUIElement,in app:XCUIApplication,upward:Bool=true){
         let scroll=app.scrollViews["assistant.review-scroll"]
+        let appFrame=app.frame
         for _ in 0..<8 {
-            let viewport=scroll.frame.intersection(app.frame),frame=element.frame
-            if element.isHittable,frame.minY>=viewport.minY+8,frame.maxY<=viewport.maxY-8{return}
-            if upward{scroll.swipeUp()}else{scroll.swipeDown()}
+            let viewport=scroll.frame.intersection(appFrame),frame=element.frame
+            if frame.minY>=viewport.minY+8,frame.maxY<=viewport.maxY-8,element.isHittable{return}
+            let targetAbove=frame.height>0 && frame.minY<viewport.minY+8
+            let targetBelow=frame.height>0 && frame.maxY>viewport.maxY-8
+            if targetAbove{scroll.swipeDown()}
+            else if targetBelow || upward{scroll.swipeUp()}
+            else{scroll.swipeDown()}
         }
         XCTFail("The actual Assistant control was not fully visible: \(element.identifier)")
     }

@@ -219,6 +219,15 @@ private final class InputDrain:@unchecked Sendable {
     }
 }
 
+/// Wall-clock observations of the synchronous cleanup path. These are measured
+/// on demand for QA, not latency guarantees or realtime callback work.
+struct LiveInputStopMetrics:Codable,Sendable {
+    var tapRemovalMilliseconds:Double?
+    var workerDrainMilliseconds:Double?
+    var outputRestorationMilliseconds:Double?
+    var elapsedMilliseconds=0.0
+}
+
 /// Resource lifetime outlives any in-flight tap callback. Explicit stop removes
 /// the tap before joining the consumer; deinit schedules the same cleanup on main.
 private final class InputResources:@unchecked Sendable {
@@ -230,18 +239,27 @@ private final class InputResources:@unchecked Sendable {
     var installed=false
     private var closed=false
     private(set) var restorationComplete=false
+    private(set) var stopMetrics:LiveInputStopMetrics?
     private var drainFailure:Error?
     init(engine:AVAudioEngine,ring:InputRingHandle,worker:InputDrain,lease:InputSessionLease,restoreOutput:@escaping @MainActor ()throws->Void){self.engine=engine;self.ring=ring;self.worker=worker;owner=lease.id;self.restoreOutput=restoreOutput}
     @MainActor func stop()throws {
+        let started=DispatchTime.now().uptimeNanoseconds
+        var metrics=LiveInputStopMetrics()
+        func elapsed(_ start:UInt64)->Double{Double(DispatchTime.now().uptimeNanoseconds-start)/1_000_000}
+        defer{metrics.elapsedMilliseconds=elapsed(started);stopMetrics=metrics}
         if !closed {
             closed=true
             InputSessionOwnership.close(owner)
-            if installed{engine.inputNode.removeTap(onBus:0);installed=false}
+            if installed{let start=DispatchTime.now().uptimeNanoseconds;engine.inputNode.removeTap(onBus:0);installed=false;metrics.tapRemovalMilliseconds=elapsed(start)}
             lg_input_close(ring.pointer)
+            let drainStarted=DispatchTime.now().uptimeNanoseconds
             do{try worker.finish()}catch{drainFailure=error}
+            metrics.workerDrainMilliseconds=elapsed(drainStarted)
         }
         var restorationFailure:Error?
         if !restorationComplete,InputSessionOwnership.owns(owner) {do {
+            let restoreStarted=DispatchTime.now().uptimeNanoseconds
+            defer{metrics.outputRestorationMilliseconds=elapsed(restoreStarted)}
             // The current lease alone restores the session. For output-only
             // policy its input-enabled I/O graph is stopped and retired BEFORE
             // restoring playback; the shared DSP transport itself is retained.
@@ -392,4 +410,5 @@ private final class InputResources:@unchecked Sendable {
     }
     deinit{let resources=resources;Task{@MainActor in try? resources.stop()}}
     func stop()throws{try resources.stop()}
+    var stopMetrics:LiveInputStopMetrics?{resources.stopMetrics}
 }

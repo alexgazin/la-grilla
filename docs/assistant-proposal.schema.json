@@ -220,6 +220,15 @@
             "maximum": 48
           },
           "description": "Semitone formula; Swift additionally requires strictly increasing values and a valid realized MIDI voicing. Array form requires the canonical major quality marker."
+        },
+        "rootBassPitch": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 127,
+          "description": "Optional absolute generated root-bass MIDI pitch from project schema 9. Swift additionally requires its pitch class to match the chord root or slash bass. Omitted values preserve the legacy bass-register formula."
         }
       },
       "allOf": [

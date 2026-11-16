@@ -5,6 +5,11 @@ public struct CompiledNote: Equatable, Sendable {
 public enum Compiler {
     public static let drumMap = [36,38,42,46,39,37,45,47,50,49,51,54,56,75,70,82]
     public static let padNames = ["Kick","Snare","Closed hat","Open hat","Clap","Rim","Low tom","Mid tom","High tom","Crash","Ride","Tambourine","Cowbell","Clave","Shaker","Perc"]
+    public static func bassPitch(for chord:Chord,register:Int)->Int {
+        if let exact=chord.rootBassPitch{return exact}
+        let root=chord.slashBass ?? chord.root
+        return (root==0 ? 36:24+root)+register*12
+    }
     public static func notes(_ project: Project, range: Range<Int>? = nil) -> [CompiledNote] {
         let range = range ?? 0..<project.length
         var result: [CompiledNote] = []
@@ -18,7 +23,7 @@ public enum Compiler {
                             guard end > start else { continue }
                             for pitch in chord.chord.notes { result.append(CompiledNote(tick: clip.start + start, duration: end - start, pitch: pitch, velocity: 88, track: index)) }
                             if let bass = project.tracks.firstIndex(where: {$0.role == .bass}) {
-                                result.append(CompiledNote(tick: clip.start + start, duration: max(1, Int(Double(end-start) * project.bassGate)), pitch: ((chord.chord.slashBass ?? chord.chord.root) == 0 ? 36 : 24 + (chord.chord.slashBass ?? chord.chord.root)) + project.bassOctave * 12, velocity: 94, track: bass,instrument:2))
+                                result.append(CompiledNote(tick: clip.start + start, duration: max(1, Int(Double(end-start) * project.bassGate)), pitch: bassPitch(for:chord.chord,register:project.bassOctave), velocity: 94, track: bass,instrument:2))
                             }
                         }
                     } else if track.role == .melody {

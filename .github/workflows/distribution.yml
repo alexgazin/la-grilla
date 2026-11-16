@@ -6,6 +6,15 @@ on:
         description: Upload the verified IPA to App Store Connect for TestFlight
         type: boolean
         default: false
+      acceptance_classification:
+        description: Internal beta permits pending C8; release-ready requires the completed physical receipt
+        type: choice
+        options: [internal-beta, release-ready]
+        default: internal-beta
+      device_receipt:
+        description: Repository-relative physical receipt JSON, required only for release-ready classification
+        type: string
+        default: docs/release/device-acceptance.json
 permissions:
   contents: read
   checks: read
@@ -26,9 +35,18 @@ jobs:
       - name: Verify current App Store toolchain
         run: python3 scripts/release/assert_sdk.py
       - name: Require native acceptance for this commit
+        id: acceptance
         env:
           GH_TOKEN: ${{ github.token }}
+          GRILLA_ACCEPTANCE_CLASSIFICATION: ${{ inputs.acceptance_classification }}
+          GRILLA_DEVICE_RECEIPT: ${{ inputs.device_receipt }}
         run: python3 scripts/release/require_native_acceptance.py
+      - name: Preserve acceptance classification before signing
+        if: always() && steps.acceptance.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: source-acceptance-classification
+          path: ReleaseArtifacts/native-acceptance.json
       - name: Create signed archive and IPA
         env:
           GRILLA_CERTIFICATE_BASE64: ${{ secrets.APPLE_DISTRIBUTION_P12_BASE64 }}
@@ -43,6 +61,7 @@ jobs:
             ReleaseArtifacts/Export/*.ipa
             ReleaseArtifacts/Export/*.plist
             ReleaseArtifacts/*.log
+            ReleaseArtifacts/native-acceptance.json
       - name: Upload to App Store Connect
         if: inputs.upload_testflight
         env:

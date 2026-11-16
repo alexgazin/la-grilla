@@ -25,7 +25,26 @@ import Observation
     private var drumDraft:DrumRecordingDraft?;private var drumPlayback:Project?
     private var saveGeneration = 0
     var savedRevision = -1; var saving = false; var saveError: String?; var message: String?
-    var entries: [ProjectStore.Entry] = []; var sheet: Sheet?; var shareURL: URL?; var exportedURL: URL?
+    var entries: [ProjectStore.SummaryEntry] = []; var sheet: Sheet?; var shareURL: URL?; var exportedURL: URL?
+    private struct LibraryLoadFailure {let revision:Int;let modified:Date;let error:String}
+    @ObservationIgnored private var libraryLoadFailures:[UUID:LibraryLoadFailure]=[:]
+    private struct ProjectIdentity:Equatable {let id:UUID;let revision:Int}
+    private enum ProjectChangeError:Error,LocalizedError {
+        case busy,changed,needsWorkingCopy
+        var errorDescription:String? {
+            let key=switch self {
+            case .busy:"Another project change is in progress. Try again when it finishes."
+            case .changed:"Your project changed during this operation. Your latest edits are kept. Try again."
+            case .needsWorkingCopy:"The stored project needs recovery. Save a copy of your working project before opening another project."
+            }
+            return NSLocalizedString(key,comment:"Safe project change")
+        }
+    }
+    @ObservationIgnored private var projectChangeToken:UUID?
+    @ObservationIgnored private var projectChangeQAInterleave:(@MainActor (String)async->Void)?
+    @ObservationIgnored private var projectChangeQAGateObservation:[String:Any]=[:]
+    var projectChangeQAReport=""
+    var projectChangeQAEnabled:Bool{let a=ProcessInfo.processInfo.arguments;return a.contains("--uitesting") && a.contains("--project-change-probe")}
     var exportPreset:String?;var exportTake:PerformanceTake?
     var exportTask: Task<Void,Never>?
     var exportInProgress=false; var exportProgress=0.0; var exportWarning:String?; var exportError:String?
@@ -78,11 +97,11 @@ import Observation
         if runtimeTraceEvents.count>96{runtimeTraceEvents.removeFirst(runtimeTraceEvents.count-96)}
     }
     private var runtimeTraceCurrentState:String{
-        "ready=\(ready) backgrounded=\(backgrounded) project=\(project.id) revision=\(project.revision) preview=\(harmonyPreview) saveError=\(saveError ?? "none") | \(audio.runtimeTraceState)"
+        "ready=\(ready) backgrounded=\(backgrounded) project=\(project.id) revision=\(project.revision) preview=\(harmonyPreview) outputPeak=\(audio.meters[masterBus]) saveError=\(saveError ?? "none") | \(audio.runtimeTraceState)"
     }
     var runtimeTraceReport:String{
         guard runtimeTraceEnabled else{return ""}
-        return "CURRENT | \(runtimeTraceCurrentState)\n"+runtimeTraceEvents.joined(separator:"\n")
+        return "CURRENT | \(runtimeTraceCurrentState)\n"+runtimeTraceEvents.joined(separator:"\n")+(projectChangeQAReport.isEmpty ? "":"\nPROJECT_CHANGE_QA "+projectChangeQAReport)
     }
     var section: MusicDomain.Section { displayProject.sections.first(where: {$0.id == selectedSection}) ?? displayProject.sections[0] }
     var loopRange: Range<Int> {if performance.contextActive{return section.start..<section.start+section.length};if loop,let clip=focusedDrumClip{return clip.start..<clip.start+clip.length};let start = section.start; return loop ? start..<min(project.length,start + loopBars*barTicks) : 0..<project.length }
@@ -100,12 +119,19 @@ import Observation
         if let bootstrapTask {await bootstrapTask.value;return}
         let task=Task { @MainActor in
             do {
-                entries=try await store.list()
+                entries=try await store.listSummaries()
                 let remembered=UserDefaults.standard.string(forKey:lastProjectKey).flatMap(UUID.init(uuidString:))
-                if let previous=entries.first(where:{$0.id==remembered})?.project ?? entries.first(where:{$0.project != nil})?.project {
-                    project=previous;savedRevision=previous.revision
-                }else if entries.isEmpty {
-                    savedRevision=try await store.save(project);entries=try await store.list()
+                let readable=entries.filter{$0.summary != nil}
+                let candidates=readable.filter{$0.id==remembered}+readable.filter{$0.id != remembered}
+                for entry in candidates {
+                    do{
+                        let previous=try await store.load(entry.id)
+                        guard previous.id==entry.id else{throw MusicError.invalidProject}
+                        project=previous;savedRevision=previous.revision;break
+                    }catch{markLibraryFailure(entry.id,error:error.localizedDescription)}
+                }
+                if entries.isEmpty {
+                    savedRevision=try await store.save(project);await refreshLibraryEntry(project.id,validated:true)
                 }
             } catch {message=error.localizedDescription;runtimeTrace("bootstrap.failure \(error.localizedDescription)")}
             // Loading and saving a document do not depend on an audio route.
@@ -195,8 +221,13 @@ import Observation
     var mixerGesture = false
     func mixerEdit(_ change: (inout Project) throws -> Void) {
         if performance.contextActive{do{try performance.editMix(change)}catch{message=error.localizedDescription};return}
-        do { try history.apply(&project, coalescing: mixerGesture, change); mixerGesture = true; sync(); scheduleSave() }
+        do { try history.applyMix(&project, coalescing: mixerGesture, change); mixerGesture = true; sync(); scheduleSave() }
         catch { message = error.localizedDescription }
+    }
+    func coalescedMusicEdit(_ change:(inout Project)throws->Void){
+        guard !performance.contextActive else{message="Return to editing before changing the source project.";return}
+        guard !recording && !armed else{message="Finish the drum take before editing the project.";return}
+        do{try history.apply(&project,coalescing:mixerGesture,change);mixerGesture=true;sync();scheduleSave()}catch{message=error.localizedDescription}
     }
     func mixerImmediate(_ change: (inout Project) throws -> Void) {
         mixerGesture=false; mixerEdit(change); mixerGesture=false
@@ -205,18 +236,49 @@ import Observation
     func redo() {if performance.contextActive{Task{await leavePerformance();redo()};return};guard !recording && !armed else {return}; mixerGesture=false;history.redo(&project); sync();scheduleSave()}
     func scheduleSave() {saveTask?.cancel();saveTask = Task {try? await Task.sleep(for:.milliseconds(700));guard !Task.isCancelled else{return};await save()} }
     func save() async {
-        // Scene/background notifications may arrive while store.list() is
+        // Scene/background notifications may arrive while the catalogue is
         // suspended. Never persist the temporary seed before bootstrap loads
         // the user's document; a later ready save uses the restored project.
         guard ready else{return}
+        guard !hasKnownLibraryFailure(project.id)else{saveError=ProjectChangeError.needsWorkingCopy.localizedDescription;return}
         saveGeneration += 1; let generation=saveGeneration
         saving=true; let snapshot=project
         do {
             let writtenRevision=try await store.save(snapshot)
             if project.id==snapshot.id {savedRevision=max(savedRevision,writtenRevision);saveError=nil}
-            entries=try await store.list()
+            await refreshLibraryEntry(snapshot.id,validated:true)
         } catch {if project.id==snapshot.id {saveError=error.localizedDescription}}
         if generation==saveGeneration {saving=false}
+    }
+    func refreshLibrary()async {
+        do{
+            let summaries=try await store.listSummaries()
+            entries=summaries.map{keepingKnownLibraryFailure($0)}
+            sortLibrary()
+        }catch{message=error.localizedDescription}
+    }
+    func refreshLibraryEntry(_ id:UUID,validated:Bool=false)async {
+        if validated{libraryLoadFailures.removeValue(forKey:id)}
+        let observed=await store.summary(id)
+        let entry=keepingKnownLibraryFailure(observed)
+        if let index=entries.firstIndex(where:{$0.id==id}){entries[index]=entry}else{entries.append(entry)}
+        sortLibrary()
+    }
+    private func sortLibrary(){
+        entries.sort{let a=$0.summary?.modified ?? .distantPast,b=$1.summary?.modified ?? .distantPast;return a==b ? $0.id.uuidString<$1.id.uuidString:a>b}
+    }
+    private func keepingKnownLibraryFailure(_ entry:ProjectStore.SummaryEntry)->ProjectStore.SummaryEntry {
+        guard let failure=libraryLoadFailures[entry.id],let summary=entry.summary else{return entry}
+        guard summary.revision==failure.revision,summary.modified==failure.modified else{libraryLoadFailures.removeValue(forKey:entry.id);return entry}
+        return ProjectStore.SummaryEntry(id:entry.id,summary:nil,error:failure.error,hasBackup:entry.hasBackup)
+    }
+    private func markLibraryFailure(_ id:UUID,error:String){
+        guard let index=entries.firstIndex(where:{$0.id==id})else{return}
+        if let summary=entries[index].summary{libraryLoadFailures[id]=LibraryLoadFailure(revision:summary.revision,modified:summary.modified,error:error)}
+        entries[index]=ProjectStore.SummaryEntry(id:id,summary:nil,error:error,hasBackup:entries[index].hasBackup)
+    }
+    private func hasKnownLibraryFailure(_ id:UUID)->Bool {
+        libraryLoadFailures[id] != nil || entries.first(where:{$0.id==id})?.error != nil
     }
     func togglePlay() {
         runtimeTrace("togglePlay.before");defer{runtimeTrace("togglePlay.after")}
@@ -317,43 +379,176 @@ import Observation
     func setLoop(bars: Int? = nil, enabled: Bool? = nil) {guard !recording && !armed else{message="Finish the take before changing the loop.";return};if let bars{loopBars=bars};if let enabled{loop=enabled};sync()}
     func select(_ section: MusicDomain.Section) {if performance.contextActive{performance.queueSection(section.id);return};guard !recording && !armed else{return};selectedSection=section.id;sync();if !audio.playing{audio.seek(section.start)}}
     func open(_ p: Project, force: Bool = false) async {
-        await bootstrap()
-        do{try p.validate()}catch{message=error.localizedDescription;return}
-        if !force && p.id==project.id {if performance.contextActive{await leavePerformance()};sheet=nil;return}
-        guard await checkpointBeforeProjectChange()else{return}
-        activateProject(p,savedRevision:p.revision)
+        if p.id==project.id{await openStored(p.id);return}
+        guard let token=beginProjectChange()else{return}
+        defer{endProjectChange(token)}
+        do{
+            try p.validate()
+            let expected=try await prepareProjectChange(token,checkpoint:true)
+            try verifyProjectChange(token,expected:expected)
+            activateProject(p,savedRevision:p.revision)
+        }catch{message=error.localizedDescription}
     }
-    private func checkpointBeforeProjectChange()async->Bool {
-        if performance.contextActive{await leavePerformance()}
+    func openStored(_ id:UUID)async {
+        guard let token=beginProjectChange()else{return}
+        defer{endProjectChange(token)}
+        let active=id==project.id
+        do{
+            // An active document is validated BEFORE any checkpoint write. A
+            // recovery Retry must never replace corrupt/future disk bytes.
+            let expected=try await prepareProjectChange(token,checkpoint:!active)
+            let stored=try await store.load(id)
+            guard stored.id==id else{throw MusicError.invalidProject}
+            try await projectChangeBoundary(token,expected:expected,stage:"stored.loaded")
+            if active {
+                let hasUnsavedWork=project.revision>savedRevision || saveError != nil
+                if stored != project && hasUnsavedWork {
+                    await refreshLibraryEntry(id,validated:true)
+                    try verifyProjectChange(token,expected:expected)
+                    message=NSLocalizedString("The stored project is valid. Your unsaved edits are kept. Save or save a copy before replacing them.",comment:"Safe active project retry")
+                    return
+                }
+                if stored==project {
+                    await refreshLibraryEntry(id,validated:true)
+                    try verifyProjectChange(token,expected:expected)
+                    saveError=nil;sheet=nil;return
+                }
+            }
+            try verifyProjectChange(token,expected:expected)
+            activateProject(stored,savedRevision:stored.revision)
+            await refreshLibraryEntry(id,validated:true)
+        }catch{
+            message=error.localizedDescription
+            if !(error is ProjectChangeError),!(error is CancellationError){markLibraryFailure(id,error:error.localizedDescription)}
+        }
+    }
+    private var projectIdentity:ProjectIdentity{ProjectIdentity(id:project.id,revision:project.revision)}
+    private func beginProjectChange()->UUID? {
+        guard projectChangeToken==nil else{message=ProjectChangeError.busy.localizedDescription;return nil}
+        let token=UUID();projectChangeToken=token;return token
+    }
+    private func endProjectChange(_ token:UUID){if projectChangeToken==token{projectChangeToken=nil}}
+    private func verifyProjectChange(_ token:UUID,expected:ProjectIdentity?=nil)throws {
+        try Task.checkCancellation()
+        guard projectChangeToken==token else{throw ProjectChangeError.busy}
+        if let expected,projectIdentity != expected{throw ProjectChangeError.changed}
+    }
+    private func projectChangeBoundary(_ token:UUID,expected:ProjectIdentity,stage:String)async throws {
+        try verifyProjectChange(token,expected:expected)
+        if ProcessInfo.processInfo.arguments.contains("--uitesting"),let interleave=projectChangeQAInterleave {
+            await interleave(stage)
+            try verifyProjectChange(token,expected:expected)
+        }
+    }
+    private func prepareProjectChange(_ token:UUID,checkpoint:Bool)async throws->ProjectIdentity {
+        let beforeBootstrap=ready ? projectIdentity:nil
+        await bootstrap()
+        try verifyProjectChange(token,expected:beforeBootstrap)
+        // Finalize our own recording changes synchronously before taking the
+        // source revision. Every later accepted music/mix edit invalidates it.
+        if performance.contextActive{performance.finalizeBeforeReset();pollPerformance()}
+        finishTake();endHarmonyPreview()
+        let expected=projectIdentity
+        if performance.contextActive{
+            await leavePerformance()
+            try verifyProjectChange(token,expected:expected)
+        }
         if exportInProgress{cancelExport()}
-        finishTake();endHarmonyPreview();audio.stop();await save()
-        if let saveError{message=NSLocalizedString("Save the current project or save a copy before opening another project.",comment:"Project switch")+"\n"+saveError;return false}
-        return true
+        audio.stop()
+        if checkpoint{try await checkpointProjectChange(token,expected:expected);try verifyProjectChange(token,expected:expected)}
+        return expected
+    }
+    private func checkpointProjectChange(_ token:UUID,expected:ProjectIdentity)async throws {
+        try verifyProjectChange(token,expected:expected)
+        guard !hasKnownLibraryFailure(project.id)else{saveError=ProjectChangeError.needsWorkingCopy.localizedDescription;throw ProjectChangeError.needsWorkingCopy}
+        let snapshot=project
+        let revision:Int
+        do{revision=try await store.save(snapshot)}catch{saveError=error.localizedDescription;throw error}
+        try await projectChangeBoundary(token,expected:expected,stage:"checkpoint.saved")
+        guard revision==snapshot.revision else{throw ProjectChangeError.changed}
+        savedRevision=max(savedRevision,revision);saveError=nil
+        await refreshLibraryEntry(snapshot.id,validated:true)
+        try verifyProjectChange(token,expected:expected)
+    }
+    private func retainUnopenedProject(_ candidate:Project)async {
+        await refreshLibraryEntry(candidate.id,validated:true)
+        // The copy really exists. Expose it instead of leaving Create active
+        // with a hidden successful write that a blind retry would duplicate.
+        sheet = .projects
+        message=NSLocalizedString("A separate project was saved but not opened. Your current project and latest edits are kept. Open the saved project from Projects.",comment:"Safe project change")
     }
     private func activateProject(_ p:Project,savedRevision:Int){
         project=p;history=History();noteTrackID=nil;noteClipID=nil;drumClipID=nil;selectedSection=p.sections[0].id;self.savedRevision=savedRevision;audio.seek(0);sync();sheet=nil
         UserDefaults.standard.set(p.id.uuidString,forKey:lastProjectKey)
     }
-    @discardableResult func create(name: String,bpm: Double,root: Int,minor: Bool,bars: Int) async -> Bool {
-        await bootstrap()
-        guard (1...64).contains(bars),bpm.isFinite,(40...240).contains(bpm),(0..<12).contains(root)else{message=MusicError.invalidProject.localizedDescription;return false}
-        let title=name.trimmingCharacters(in:.whitespacesAndNewlines)
-        var p=Project(name:title.isEmpty ? "Untitled" : title,bars:bars);p.bpm=bpm;p.keyRoot=root;p.minor=minor
-        do{try p.validate()}catch{message=error.localizedDescription;return false}
-        guard await checkpointBeforeProjectChange()else{return false}
+    @discardableResult func create(name: String,bpm: Double,root: Int,minor: Bool,bars: Int,template:ProjectTemplate = .empty) async -> Bool {
+        guard let token=beginProjectChange()else{return false}
+        defer{endProjectChange(token)}
+        let p:Project
+        do{p=try ProjectTemplates.make(name:name,bpm:bpm,root:root,minor:minor,bars:bars,template:template)}catch{message=error.localizedDescription;return false}
+        var written=false
         do {
-            // Persist the new document before replacing the current project.
-            // Save failures keep the existing work and loop settings intact.
+            let expected=try await prepareProjectChange(token,checkpoint:true)
             let revision=try await store.save(p)
+            written=true
+            try await projectChangeBoundary(token,expected:expected,stage:"candidate.saved")
+            try verifyProjectChange(token,expected:expected)
             loopBars=bars
             activateProject(p,savedRevision:revision)
-        }catch{message=error.localizedDescription;return false}
-        do{entries=try await store.list()}catch{message=error.localizedDescription}
+        }catch{if written{await retainUnopenedProject(p)}else{message=error.localizedDescription};return false}
+        await refreshLibraryEntry(p.id,validated:true)
         return true
     }
-    func duplicateProject(_ p:Project) async {do{_ = try await store.duplicate(p.id==project.id ? project:p);entries=try await store.list()}catch{message=error.localizedDescription}}
-    func delete(_ id: UUID) async {do{try await store.delete(id);entries=try await store.list()}catch{message=error.localizedDescription}}
-    func recover(_ id:UUID)async{do{let original=try await store.load(id,backup:true);let p=try await store.duplicate(original,suffix:" recovered");await open(p,force:true);if project.id==p.id{await save();message="Recovered the last working copy."}}catch{message=error.localizedDescription}}
+    @discardableResult func openExample()async->Bool {
+        guard let token=beginProjectChange()else{return false}
+        defer{endProjectChange(token)}
+        let example=Project.demo()
+        var written=false
+        do {
+            let expected=try await prepareProjectChange(token,checkpoint:true)
+            let revision=try await store.save(example)
+            written=true
+            try await projectChangeBoundary(token,expected:expected,stage:"candidate.saved")
+            try verifyProjectChange(token,expected:expected)
+            loopBars=4
+            activateProject(example,savedRevision:revision)
+        }catch{if written{await retainUnopenedProject(example)}else{message=error.localizedDescription};return false}
+        await refreshLibraryEntry(example.id,validated:true)
+        return true
+    }
+    func duplicateStored(_ id:UUID)async {
+        do{
+            let source:Project
+            if id==project.id{source=project}else{source=try await store.load(id)}
+            guard source.id==id else{throw MusicError.invalidProject}
+            let copy=try await store.duplicate(source)
+            await refreshLibraryEntry(copy.id,validated:true)
+        }catch{message=error.localizedDescription}
+    }
+    func renameStored(_ id:UUID,expectedRevision:Int,to title:String)async {
+        var validated=false
+        do{_ = try await store.rename(id,expectedRevision:expectedRevision,to:title);validated=true}catch{message=error.localizedDescription}
+        await refreshLibraryEntry(id,validated:validated)
+    }
+    func delete(_ id: UUID) async {do{try await store.delete(id);entries.removeAll{$0.id==id};libraryLoadFailures.removeValue(forKey:id)}catch{message=error.localizedDescription}}
+    func recover(_ id:UUID)async {
+        guard let token=beginProjectChange()else{return}
+        defer{endProjectChange(token)}
+        var written:Project?
+        do{
+            let expected=try await prepareProjectChange(token,checkpoint:false)
+            let original=try await store.load(id,backup:true)
+            try await projectChangeBoundary(token,expected:expected,stage:"backup.loaded")
+            try await checkpointProjectChange(token,expected:expected)
+            try verifyProjectChange(token,expected:expected)
+            let candidate=try await store.duplicate(original,suffix:" recovered")
+            written=candidate
+            try await projectChangeBoundary(token,expected:expected,stage:"candidate.saved")
+            activateProject(candidate,savedRevision:candidate.revision)
+            await refreshLibraryEntry(candidate.id,validated:true)
+            message="Recovered the last working copy."
+        }catch{if let written{await retainUnopenedProject(written)}else{message=error.localizedDescription}}
+    }
     enum ExportFormat:String,CaseIterable,Identifiable {
         case midi,wav,stems,project
         var id:String{rawValue}
@@ -395,16 +590,24 @@ import Observation
         if let warning=exportWarning{message=warning;exportWarning=nil}
     }
     func importProject(_ url:URL) async {
-        await bootstrap();importing=true;defer{importing=false}
+        guard let token=beginProjectChange()else{return}
+        importing=true;defer{importing=false;endProjectChange(token)}
         let access=url.startAccessingSecurityScopedResource();defer{if access{url.stopAccessingSecurityScopedResource()}}
+        var written:Project?
         do {
+            let expected=try await prepareProjectChange(token,checkpoint:true)
             let imported=try await Task.detached(priority:.userInitiated){
                 let handle=try FileHandle(forReadingFrom:url);defer{try? handle.close()}
                 let data=try handle.read(upToCount:128_000_001) ?? Data();guard data.count<=128_000_000 else{throw ExportError.archiveTooLarge}
                 return try PortableProject.decodeBundle(data)
             }.value
-            let installed=try await store.install(imported);await open(installed);if project.id==installed.id{await save()}
-        }catch{message=error.localizedDescription}
+            try await projectChangeBoundary(token,expected:expected,stage:"import.decoded")
+            let installed=try await store.install(imported)
+            written=installed
+            try await projectChangeBoundary(token,expected:expected,stage:"candidate.saved")
+            activateProject(installed,savedRevision:installed.revision)
+            await refreshLibraryEntry(installed.id,validated:true)
+        }catch{if let written{await retainUnopenedProject(written)}else{message=error.localizedDescription}}
     }
     func applyVoice(_ placement:VoicePlacement,data:Data,record:AudioAssetRecord,projectID:UUID,revision:Int)async throws->Bool {
         guard project.id==projectID,project.revision==revision,!recording,!armed,!performance.contextActive else{throw AssistantError.stale}
@@ -444,7 +647,136 @@ import Observation
         case .delay:var fx=p.masterFX ?? MasterFX();fx.delayWet=value;p.masterFX=fx
         }}
     }
-    func saveCopy()async{do{_ = try await store.duplicate(project);message="A copy has been saved.";entries=try await store.list()}catch{message=error.localizedDescription}}
+    func saveCopy()async {
+        guard let token=beginProjectChange()else{return}
+        defer{endProjectChange(token)}
+        var written:Project?
+        do{
+            let expected=try await prepareProjectChange(token,checkpoint:false)
+            let working=project
+            let escapingFailure=hasKnownLibraryFailure(working.id) || saveError != nil
+            let copy=try await store.duplicate(working)
+            written=copy
+            try await projectChangeBoundary(token,expected:expected,stage:"candidate.saved")
+            let verified=try await store.load(copy.id)
+            try await projectChangeBoundary(token,expected:expected,stage:"copy.verified")
+            if escapingFailure{saveError=nil;activateProject(verified,savedRevision:verified.revision)}
+            await refreshLibraryEntry(copy.id,validated:true)
+            message="A copy has been saved."
+        }catch{if let written{await retainUnopenedProject(written)}else{message=error.localizedDescription}}
+    }
+    /// An opt-in native probe uses genuine store operations and accepted MIDI
+    /// callback edits. A continuation holds the production transition at an
+    /// await boundary; no sleep, fabricated document, audio or PASS is supplied.
+    func runProjectChangeQA()async {
+        guard projectChangeQAEnabled,projectChangeQAReport.isEmpty,projectChangeToken==nil else{return}
+        var report:[String:Any]=["complete":false,"hardwareMIDIClaimed":false]
+        var fixtureRestore:(URL,Data)?
+        defer{if let (url,data)=fixtureRestore{try? data.write(to:url,options:.atomic)}}
+        do{
+            guard await create(name:"QA switch source",bpm:120,root:0,minor:false,bars:4,template:.starter)else{throw MusicError.invalidProject}
+            var sourceID=project.id
+            let target=try ProjectTemplates.make(name:"QA switch target",bpm:98,root:2,minor:true,bars:4,template:.starter)
+            _ = try await store.save(target)
+            await refreshLibraryEntry(target.id,validated:true)
+            // Exercise the dedicated full music-edit path used by velocity.
+            let velocity=project.patterns[1].drums[0].velocity
+            coalescedMusicEdit{$0.patterns[1].drums[0].velocity=velocity+1};mixerGesture=false
+            let working=project
+            coalescedMusicEdit{$0.patterns[1].drums[0].velocity=128};mixerGesture=false
+            let invalidVelocityRejected=project==working
+            saveTask?.cancel()
+            let root=await store.root
+            let manifest=root.appendingPathComponent(sourceID.uuidString).appendingPathExtension("grilla").appendingPathComponent("manifest.json")
+            let originalBytes=try Data(contentsOf:manifest)
+            guard var future=try JSONSerialization.jsonObject(with:originalBytes) as? [String:Any]else{throw MusicError.invalidProject}
+            future["schemaVersion"]=Project.currentSchemaVersion+1
+            let futureBytes=try JSONSerialization.data(withJSONObject:future,options:.sortedKeys)
+            fixtureRestore=(manifest,originalBytes)
+            try futureBytes.write(to:manifest,options:.atomic)
+            await refreshLibraryEntry(sourceID)
+            await openStored(sourceID)
+            var retry:[String:Any]=["workingProjectRetained":project==working,"futureBytesRetained":try Data(contentsOf:manifest)==futureBytes,"canonicalLoadError":message ?? "","invalidVelocityRejected":invalidVelocityRejected,"acceptedVelocity":working.patterns[1].drums[0].velocity,"originalVelocity":velocity]
+            await save()
+            retry["blockedSaveRetainedFutureBytes"]=try Data(contentsOf:manifest)==futureBytes
+            try originalBytes.write(to:manifest,options:.atomic)
+            await openStored(sourceID)
+            retry["validRetryKeptUnsavedWork"]=project==working
+            retry["validRetryClearedLoadFailure"] = !hasKnownLibraryFailure(sourceID)
+            await save()
+            let persisted=try await store.load(sourceID)
+            retry["savedVelocity"]=persisted.patterns[1].drums[0].velocity
+            retry["savedWorkingProject"]=persisted==working
+            // A healthy verified copy must actually let the user leave a bad
+            // active package, without ever overwriting the original package.
+            let workingBytes=try Data(contentsOf:manifest)
+            guard var broken=try JSONSerialization.jsonObject(with:workingBytes) as? [String:Any]else{throw MusicError.invalidProject}
+            broken["schemaVersion"]=Project.currentSchemaVersion+1
+            let brokenBytes=try JSONSerialization.data(withJSONObject:broken,options:.sortedKeys)
+            fixtureRestore=(manifest,workingBytes)
+            try brokenBytes.write(to:manifest,options:.atomic)
+            await refreshLibraryEntry(sourceID)
+            await saveCopy()
+            let escaped=project
+            let escapedID=escaped.id
+            retry["saveCopyEscapedToHealthyDocument"]=escapedID != sourceID && !hasKnownLibraryFailure(escapedID) && saveError==nil
+            retry["saveCopyKeptWorkingMusic"]=escaped.patterns==working.patterns && escaped.tracks==working.tracks && escaped.bpm==working.bpm && escaped.master==working.master
+            retry["saveCopyDidNotOverwriteBadSource"]=try Data(contentsOf:manifest)==brokenBytes
+            await openStored(target.id)
+            retry["escapedCopyCanOpenAnotherProject"]=project.id==target.id
+            await openStored(escapedID)
+            sourceID=project.id
+            report["activeRetry"]=retry
+
+            var cases:[[String:Any]]=[]
+            for (stage,value) in [("checkpoint.saved",-9.0),("stored.loaded",-12.0),("candidate.saved",-15.0)] {
+                let idsBefore=Set(try await store.listSummaries().map(\.id))
+                projectChangeQAGateObservation=[:]
+                projectChangeQAInterleave={ [weak self] reached in
+                    guard let self,reached==stage,self.projectChangeQAGateObservation.isEmpty else{return}
+                    await withCheckedContinuation{continuation in
+                        Task { @MainActor in
+                            let before=self.projectIdentity
+                            let mapping=MIDIMapping(sourceID:1,channel:0,controller:7,target:.masterGain)
+                            self.mixerGesture=false
+                            self.applyMIDI(mapping,value:value)
+                            self.mixerGesture=false
+                            let accepted=self.projectIdentity
+                            let busyResult=await self.openExample()
+                            self.projectChangeQAGateObservation=["stage":stage,"beforeRevision":before.revision,"acceptedRevision":accepted.revision,"acceptedSourceID":accepted.id.uuidString,"acceptedMaster":self.project.master,"concurrentChangeRejected":!busyResult]
+                            continuation.resume()
+                        }
+                    }
+                }
+                var createResult:Bool?
+                if stage=="candidate.saved"{createResult=await create(name:"QA unopened candidate",bpm:112,root:5,minor:false,bars:4,template:.starter)}
+                else{await openStored(target.id)}
+                projectChangeQAInterleave=nil
+                var observed=projectChangeQAGateObservation
+                observed["activeID"]=project.id.uuidString;observed["activeRevision"]=project.revision;observed["masterAfterAbort"]=project.master
+                observed["sourceRetained"]=project.id==sourceID
+                observed["retryReason"]=message ?? ""
+                let idsAfter=Set(try await store.listSummaries().map(\.id))
+                let added=idsAfter.subtracting(idsBefore)
+                observed["newDocumentCount"]=added.count
+                if let createResult{
+                    observed["createResult"]=createResult
+                    observed["retainedCopyVisible"]=added.count==1 && entries.contains{added.contains($0.id) && $0.summary?.name=="QA unopened candidate"}
+                    observed["returnedToProjects"]=sheet == .projects
+                }
+                await save()
+                let canonical=try await store.load(sourceID)
+                observed["savedMaster"]=canonical.master;observed["savedRevision"]=canonical.revision
+                cases.append(observed)
+                message=nil;sheet=nil
+            }
+            report["interleavings"]=cases
+
+        }catch{report["error"]=error.localizedDescription}
+        projectChangeQAInterleave=nil;message=nil;sheet=nil
+        report["complete"]=true
+        if let data=try? JSONSerialization.data(withJSONObject:report,options:.sortedKeys){projectChangeQAReport=String(decoding:data,as:UTF8.self)}
+    }
     /// Emergency MIDI stop must complete even if the current audio route is no
     /// longer delivering render callbacks to acknowledge a queued stop command.
     func panicMIDI(){interrupt();_ = ensureAudio()}

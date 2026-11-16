@@ -77,6 +77,23 @@ public struct AssistantInterpretation:Codable,Equatable,Sendable {
 }
 
 extension Arrangement {
+    /// A model/parser chord literal has no register information. When it repeats
+    /// exactly the source harmony at that musical origin, retain the source's
+    /// actual bass/voicing instead of silently rebuilding a different octave.
+    /// Explicit replacement voicing/bass and genuinely changed harmony win.
+    static func chordPreservingSource(_ requested:Chord,at sourceTick:Int,from harmony:[ChordEvent])->Chord {
+        guard let source=harmony.first(where:{$0.tick<=sourceTick && sourceTick<$0.tick+$0.duration})?.chord,
+              requested.root==source.root,requested.slashBass==source.slashBass,
+              requested.quality==source.quality,requested.customIntervals==source.customIntervals else{return requested}
+        var retained=requested
+        if retained.rootBassPitch==nil{retained.rootBassPitch=source.rootBassPitch}
+        if retained.voicedNotes==nil,retained.inversion==0 {
+            retained.inversion=source.inversion
+            retained.voicedNotes=source.voicedNotes
+        }
+        return retained
+    }
+
     /// Rebuild form from immutable original material; never sequentially copy a
     /// section that was already edited by a previous generated part.
     public static func composing(_ project:Project,parts:[AssistantSongSection],scope:UUID)throws->Project {
@@ -96,8 +113,12 @@ extension Arrangement {
                 let track=project.tracks[trackIndex]
                 var pattern=Pattern(length:length)
                 if track.role == .harmony {
+                    let sourceHarmony=harmony(project,section:original)
                     var tick=0
-                    for (chord,bars) in zip(part.chords,part.durations){pattern.chords.append(ChordEvent(tick:tick,duration:bars*barTicks,chord:chord));tick+=bars*barTicks}
+                    for (chord,bars) in zip(part.chords,part.durations){
+                        let retained=chordPreservingSource(chord,at:tick%original.length,from:sourceHarmony)
+                        pattern.chords.append(ChordEvent(tick:tick,duration:bars*barTicks,chord:retained));tick+=bars*barTicks
+                    }
                 }else{
                     let material=materialize(project,track:track,section:original)
                     let repeats=(length+original.length-1)/original.length

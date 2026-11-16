@@ -3,6 +3,8 @@ import MusicDomain
 
 struct HarmonyLabView:View {
     @Bindable var session:Session
+    @AppStorage("studio.pitchSpelling") private var spellingValue=PitchSpelling.automatic.rawValue
+    private var spelling:PitchSpelling{PitchSpelling(rawValue:spellingValue) ?? .automatic}
     @Environment(\.dismiss) private var dismiss
     @Environment(\.horizontalSizeClass) private var sizeClass
     @Environment(\.dynamicTypeSize) private var dynamicType
@@ -66,12 +68,12 @@ struct HarmonyLabView:View {
             }
             Text("Compact voicings may omit the perfect fifth and intermediate extensions. Custom formulas keep every tone.").font(.caption).foregroundStyle(Color.muted)
             optionRow("Lowest note"){
-                Picker("Lowest note",selection:$low){ForEach([36,48,60],id:\.self){pitch in Text(NoteEvent(tick:0,pitch:pitch).name).tag(pitch)}}
+                Picker("Lowest note",selection:$low){ForEach([36,48,60],id:\.self){pitch in Text(noteName(pitch,in:session.project)).tag(pitch)}}
                     .labelsHidden().pickerStyle(.menu).frame(minHeight:44).contentShape(Rectangle()).accessibilityIdentifier("harmony.lowest-note")
                     .onChange(of:low){_,_ in if high-low>60{high=low+60};invalidate()}
             }
             optionRow("Highest note"){
-                Picker("Highest note",selection:$high){ForEach([72,84,96,108],id:\.self){pitch in Text(NoteEvent(tick:0,pitch:pitch).name).tag(pitch)}}
+                Picker("Highest note",selection:$high){ForEach([72,84,96,108],id:\.self){pitch in Text(noteName(pitch,in:session.project)).tag(pitch)}}
                     .labelsHidden().pickerStyle(.menu).frame(minHeight:44).contentShape(Rectangle()).accessibilityIdentifier("harmony.highest-note")
                     .onChange(of:high){_,_ in if high-low>60{low=high-60};invalidate()}
             }
@@ -102,15 +104,17 @@ struct HarmonyLabView:View {
     func description(_ style:HarmonyStyle)->LocalizedStringKey {
         switch style{case .voiceLeading:"Keep the harmony; reduce movement between voices.";case .gentle:"Add warm sevenths with a comfortable register.";case .expressive:"Explore ninths and thirteenths with closer voices.";case .reharmonize:"Try borrowed minor IV and tritone dominant substitutions."}
     }
+    private func noteName(_ pitch:Int,in project:Project)->String{MusicalNotation.noteName(pitch,keyRoot:project.keyRoot,minor:project.minor,spelling:spelling)}
+    private func chordName(_ chord:Chord,in project:Project)->String{MusicalNotation.chordSymbol(chord,keyRoot:project.keyRoot,minor:project.minor,spelling:spelling)}
     func comparison(_ proposal:HarmonyProposal)->some View {
         VStack(alignment:.leading,spacing:8){
             HStack{SmallHeading(text:"ORIGINAL → PROPOSAL");Spacer();Button{generate()}label:{Image(systemName:"arrow.clockwise").frame(width:44,height:44)}.accessibilityLabel("Generate proposal").accessibilityIdentifier("harmony.generate")}
             ForEach(proposal.changes){change in
                 HStack(spacing:12){
                     Text("\(change.tick/barTicks+1):\(change.tick%barTicks/ppq+1)").font(.system(.caption2,design:.monospaced)).foregroundStyle(Color.muted).frame(minWidth:24)
-                    Text(change.before.symbol).font(.system(.title3,weight:.semibold)).lineLimit(1).minimumScaleFactor(0.6).frame(maxWidth:.infinity,alignment:.leading)
+                    Text(chordName(change.before,in:proposal.candidate)).font(.system(.title3,weight:.semibold)).lineLimit(1).minimumScaleFactor(0.6).frame(maxWidth:.infinity,alignment:.leading)
                     Image(systemName:"arrow.right").font(.caption).foregroundStyle(Color.muted)
-                    VStack(alignment:.leading,spacing:4){Text(change.after.symbol).font(.system(.title3,weight:.semibold)).foregroundStyle(Color.harmony).lineLimit(1).minimumScaleFactor(0.6);Text(change.after.notes.map{NoteEvent(tick:0,pitch:$0).name}.joined(separator:" · ")).font(.system(size:11,design:.monospaced)).foregroundStyle(Color.muted).lineLimit(2)}.frame(maxWidth:.infinity,alignment:.leading)
+                    VStack(alignment:.leading,spacing:4){Text(chordName(change.after,in:proposal.candidate)).font(.system(.title3,weight:.semibold)).foregroundStyle(Color.harmony).lineLimit(1).minimumScaleFactor(0.6);Text(change.after.notes.map{noteName($0,in:proposal.candidate)}.joined(separator:" · ")).font(.system(size:11,design:.monospaced)).foregroundStyle(Color.muted).lineLimit(2)}.frame(maxWidth:.infinity,alignment:.leading)
                     if change.chromatic{Image(systemName:"circle.lefthalf.filled").accessibilityLabel("Contains chromatic notes").foregroundStyle(Color.harmony)}
                 }.padding(12).modifier(StudioSurface())
             }
