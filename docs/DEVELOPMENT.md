@@ -17,7 +17,16 @@ on the connected phone; source compatibility does not establish device pairing.
 | Xcode 26.3 | Complete iPhone Debug build and optimized Release archive, including resources and binary audits. This remains the release CI baseline. |
 | Xcode 26.0.1 / SDK 26.0 | Complete unsigned iPhone Debug app, including all resources. |
 | Xcode 16.4 / SDK 18.5 | Complete unsigned iPhone Debug app, including all resources. Uses the existing StudioSurface fallback and does not compile FoundationModels. |
-| Xcode 16.2 / Swift 6.0.3 / SDK 18.2 | Actual Swift/C++ target compilation and linking only. CI omits the asset catalog and launch storyboard because the hosted image lacks their required iOS 18.2 Simulator runtime. This row does **not** validate packaging, icons, launch resources or installation. |
+| Xcode 16.2 / Swift 6.0.3 / SDK 18.2 — historical probe | Earlier scoped checks compiled/linked the actual Swift/C++ target with the asset catalog and launch storyboard omitted. That historical PASS does **not** validate packaging, icons, launch resources or installation, and is no longer a default matrix row. |
+
+The current default [compatibility workflow](../.github/workflows/xcode-compatibility.yml)
+builds complete apps with all resources on **16.4 / 26.0.1**. After the earlier
+16.2 scoped PASS, [main run 43836782541](https://github.com/alexgazin/la-grilla/actions/runs/43836782541)
+failed because the hosted image could not supply a generic iOS destination:
+`iOS 18.2 is not installed`. Source `01fb8b7` adds an optional manual
+`legacy_xcode_16_2` input: it installs and verifies the iOS 18.2 runtime, then
+attempts a **full-resource** 16.2 build. This new optional path has not yet been
+executed; it does not inherit acceptance from the historical source-only check.
 
 The older SDK build retains local Commands, audio and editing; it does not
 contain the optional FoundationModels adapter, even if later installed on an

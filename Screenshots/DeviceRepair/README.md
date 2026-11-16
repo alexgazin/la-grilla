@@ -4,6 +4,14 @@ Five original XCTest screenshots from [run 43845748716, attempt 2](https://githu
 
 Each image was reviewed individually and copied without pixel changes. [manifest.json](manifest.json) records the original attachment, owning passing test, source, run, artifact, timestamp, dimensions, byte count and SHA-256. All five native attachments have `isAssociatedWithFailure: false`. The downloaded [artifact](https://github.com/alexgazin/la-grilla/actions/runs/43845748716/artifacts/14217069719) was verified against its published byte count and SHA-256.
 
+<table>
+  <tr>
+    <td align="center" valign="top"><strong>Output-only playback</strong><br><sub>Actual Simulator graph</sub><br><br><a href="02-output-only-grid-playing.png"><img src="02-output-only-grid-playing.png" width="200" alt="Grid playing with output-only startup"></a></td>
+    <td align="center" valign="top"><strong>Local harmony review</strong><br><sub>Model unavailable; Commands works</sub><br><br><a href="04-unavailable-ai-local-harmony-review.png"><img src="04-unavailable-ai-local-harmony-review.png" width="200" alt="Real local proposal from C to Cmaj9 with a visible fallback notice"></a></td>
+    <td align="center" valign="top"><strong>Project remains editable</strong><br><sub>Explicit QA audio-failure injection</sub><br><br><a href="05-injected-audio-failure-project-edit.png"><img src="05-injected-audio-failure-project-edit.png" width="200" alt="New project with saved Cmaj7 and nonmodal audio error banner"></a></td>
+  </tr>
+</table>
+
 | Screenshot | What the native test established |
 | --- | --- |
 | [Dictation denial and typed tempo review](01-dictation-denied-typed-tempo-review.png) | The actual Apple Speech Recognition permission prompt was denied. The process stayed alive, explained the denial, and successfully reviewed, applied and undid a typed `tempo 108` command. This does not establish transcription quality. |
