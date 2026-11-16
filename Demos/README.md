@@ -37,3 +37,9 @@ actual sound with an offline soundtrack while calling it live app audio.
 Failure of an interaction or sound capture makes the recording diagnostic.
 It must not be published as a successful demonstration. Simulator recording
 does not establish physical iPhone, USB/BLE hardware or App Store acceptance.
+
+Capture ends when all three actual method PASS lines arrive. The orchestrator
+then continues reading Xcode's result-writing output and still requires its
+final exit status to be zero. This avoids recording an unrelated long static
+bookkeeping tail after the authored interaction has finished; it does not
+shorten a test, increase its allowance, or relax sound coverage/continuity.
