@@ -1,0 +1,320 @@
+{
+  "architecture" : "x86_64",
+  "checksum" : 279072,
+  "devicePerformanceVerified" : false,
+  "drumNoteEditDescription" : "fresh History and fixture Project per sample; change first existing drum event velocity by one within 1...127 inside History.apply, including complete Project.validate",
+  "exclusions" : [
+    "No SwiftUI or MainActor timing",
+    "No Session.sync or AVAudioEngine",
+    "No iPhone memory, thermal, touch latency or dropouts",
+    "No cold filesystem cache reset",
+    "No physical file-system crash-consistency test"
+  ],
+  "fixtures" : [
+    {
+      "archiveBytes" : 51321,
+      "compile" : {
+        "maxMilliseconds" : 0.047922,
+        "medianMilliseconds" : 0.023836,
+        "minMilliseconds" : 0.023656,
+        "p95Milliseconds" : 0.047922,
+        "rawMilliseconds" : [
+          0.047922,
+          0.024817,
+          0.024256,
+          0.038428,
+          0.024457,
+          0.024176,
+          0.023716,
+          0.023796,
+          0.024357,
+          0.023806,
+          0.023765,
+          0.023755,
+          0.023656,
+          0.023816,
+          0.023836
+        ],
+        "sampleCount" : 15
+      },
+      "compiledNotes" : 768,
+      "drumNoteEditWithValidation" : {
+        "maxMilliseconds" : 1.862463,
+        "medianMilliseconds" : 1.637495,
+        "minMilliseconds" : 1.597785,
+        "p95Milliseconds" : 1.862463,
+        "rawMilliseconds" : [
+          1.862463,
+          1.692297,
+          1.628091,
+          1.640129,
+          1.755242,
+          1.663824,
+          1.632898,
+          1.603153,
+          1.635552,
+          1.71363,
+          1.617054,
+          1.696013,
+          1.637495,
+          1.597785,
+          1.624715
+        ],
+        "sampleCount" : 15
+      },
+      "fixture" : "P1",
+      "libraries" : [
+        {
+          "list" : {
+            "maxMilliseconds" : 155.504599,
+            "medianMilliseconds" : 81.403085,
+            "minMilliseconds" : 78.955,
+            "p95Milliseconds" : 155.504599,
+            "rawMilliseconds" : [
+              87.318458,
+              78.955,
+              155.504599,
+              80.56286,
+              81.403085
+            ],
+            "sampleCount" : 5
+          },
+          "manifestBytes" : 509080,
+          "projectCount" : 10,
+          "setupMilliseconds" : 78.74216,
+          "successfulEntries" : 10,
+          "warmupMilliseconds" : 109.488368
+        },
+        {
+          "list" : {
+            "maxMilliseconds" : 458.858025,
+            "medianMilliseconds" : 441.584295,
+            "minMilliseconds" : 399.529216,
+            "p95Milliseconds" : 458.858025,
+            "rawMilliseconds" : [
+              451.9057,
+              441.584295,
+              458.858025,
+              420.927071,
+              399.529216
+            ],
+            "sampleCount" : 5
+          },
+          "manifestBytes" : 2545440,
+          "projectCount" : 50,
+          "setupMilliseconds" : 454.257199,
+          "successfulEntries" : 50,
+          "warmupMilliseconds" : 409.01914
+        }
+      ],
+      "manifestBytes" : 50911,
+      "mixEditWithValidation" : {
+        "maxMilliseconds" : 2.028293,
+        "medianMilliseconds" : 1.744115,
+        "minMilliseconds" : 1.62746,
+        "p95Milliseconds" : 2.028293,
+        "rawMilliseconds" : [
+          1.633518,
+          1.637054,
+          1.803104,
+          1.748131,
+          1.62746,
+          1.77413,
+          1.694611,
+          1.802393,
+          2.028293,
+          1.650845,
+          1.715372,
+          1.686679,
+          1.930846,
+          1.915583,
+          1.744115
+        ],
+        "sampleCount" : 15
+      },
+      "validate" : {
+        "maxMilliseconds" : 2.148344,
+        "medianMilliseconds" : 1.630904,
+        "minMilliseconds" : 1.590454,
+        "p95Milliseconds" : 2.148344,
+        "rawMilliseconds" : [
+          2.148344,
+          1.645777,
+          1.722883,
+          1.611796,
+          1.720299,
+          1.649944,
+          1.610614,
+          1.644345,
+          1.610494,
+          1.616423,
+          1.641902,
+          1.630904,
+          1.618506,
+          1.611415,
+          1.590454
+        ],
+        "sampleCount" : 15
+      }
+    },
+    {
+      "archiveBytes" : 1353845,
+      "compile" : {
+        "maxMilliseconds" : 0.818031,
+        "medianMilliseconds" : 0.53756,
+        "minMilliseconds" : 0.469156,
+        "p95Milliseconds" : 0.818031,
+        "rawMilliseconds" : [
+          0.475336,
+          0.651601,
+          0.473793,
+          0.539843,
+          0.716949,
+          0.47171,
+          0.773915,
+          0.472161,
+          0.484569,
+          0.561515,
+          0.649698,
+          0.53756,
+          0.469156,
+          0.818031,
+          0.474164
+        ],
+        "sampleCount" : 15
+      },
+      "compiledNotes" : 16384,
+      "drumNoteEditWithValidation" : {
+        "maxMilliseconds" : 39.057507,
+        "medianMilliseconds" : 36.935804,
+        "minMilliseconds" : 36.149941,
+        "p95Milliseconds" : 39.057507,
+        "rawMilliseconds" : [
+          36.650174,
+          36.741993,
+          37.452742,
+          36.668181,
+          37.545622,
+          37.276557,
+          37.223938,
+          36.935804,
+          36.203542,
+          36.28768,
+          37.15866,
+          39.057507,
+          36.971568,
+          36.74052,
+          36.149941
+        ],
+        "sampleCount" : 15
+      },
+      "fixture" : "P3",
+      "libraries" : [
+        {
+          "list" : {
+            "maxMilliseconds" : 2329.615427,
+            "medianMilliseconds" : 2269.578602,
+            "minMilliseconds" : 2247.401428,
+            "p95Milliseconds" : 2329.615427,
+            "rawMilliseconds" : [
+              2269.578602,
+              2254.14821,
+              2329.615427,
+              2247.401428,
+              2270.512859
+            ],
+            "sampleCount" : 5
+          },
+          "manifestBytes" : 13534320,
+          "projectCount" : 10,
+          "setupMilliseconds" : 1617.228318,
+          "successfulEntries" : 10,
+          "warmupMilliseconds" : 2079.492818
+        },
+        {
+          "list" : {
+            "maxMilliseconds" : 14578.326634,
+            "medianMilliseconds" : 10177.55747,
+            "minMilliseconds" : 9824.245955,
+            "p95Milliseconds" : 14578.326634,
+            "rawMilliseconds" : [
+              10912.026918,
+              10177.55747,
+              10148.661508,
+              9824.245955,
+              14578.326634
+            ],
+            "sampleCount" : 5
+          },
+          "manifestBytes" : 67671640,
+          "projectCount" : 50,
+          "setupMilliseconds" : 8570.129421,
+          "successfulEntries" : 50,
+          "warmupMilliseconds" : 12870.229076
+        }
+      ],
+      "manifestBytes" : 1353435,
+      "mixEditWithValidation" : {
+        "maxMilliseconds" : 62.1936,
+        "medianMilliseconds" : 37.186341,
+        "minMilliseconds" : 36.319106,
+        "p95Milliseconds" : 62.1936,
+        "rawMilliseconds" : [
+          42.531557,
+          62.1936,
+          36.365766,
+          37.186341,
+          37.413182,
+          36.566539,
+          36.319106,
+          37.308375,
+          36.354389,
+          37.208194,
+          37.110628,
+          36.732269,
+          37.015383,
+          40.153928,
+          37.700636
+        ],
+        "sampleCount" : 15
+      },
+      "validate" : {
+        "maxMilliseconds" : 45.787357,
+        "medianMilliseconds" : 38.893701,
+        "minMilliseconds" : 37.610921,
+        "p95Milliseconds" : 45.787357,
+        "rawMilliseconds" : [
+          39.837782,
+          39.270769,
+          38.065143,
+          38.419277,
+          38.174749,
+          37.610921,
+          38.699859,
+          37.858703,
+          38.893701,
+          38.989957,
+          37.744041,
+          39.992946,
+          45.787357,
+          39.593525,
+          40.315581
+        ],
+        "sampleCount" : 15
+      }
+    }
+  ],
+  "formatVersion" : 1,
+  "generatedAt" : "2026-11-16T13:03:26Z",
+  "hostOnly" : true,
+  "measurementMethod" : "DispatchTime uptime; sequential isolated operations; one unrecorded warmup per operation; library setup and first warmup recorded separately; no concurrent profiling tasks in this executable",
+  "mixEditDescription" : "fresh History and fixture Project per sample; decrement track 0 gain by 0.01 dB inside History.apply, including its complete Project.validate",
+  "optimizedBuild" : true,
+  "os" : "Debian GNU\/Linux 13 (trixie)",
+  "percentileMethod" : "nearest-rank p95; median selects upper middle when n is even",
+  "processorCount" : 5,
+  "realTimeAudioDeadlineVerified" : false,
+  "runtime" : "Swift 6.1.2 x86_64-unknown-linux-gnu; swift run -c release",
+  "sourceSHA" : "29adf6c398173faf830de8f6249702628b8a3f76",
+  "sourceState" : "Immutable git archive baseline; no uncommitted application changes included"
+}

@@ -1,0 +1,491 @@
+{
+  "architecture" : "x86_64",
+  "checksum" : 280002,
+  "devicePerformanceVerified" : false,
+  "drumNoteEditDescription" : "fresh History and fixture Project per sample; change first existing drum event velocity by one within 1...127 inside History.apply, including complete Project.validate",
+  "exclusions" : [
+    "No SwiftUI or MainActor timing",
+    "No Session.sync or AVAudioEngine",
+    "No iPhone memory, thermal, touch latency or dropouts",
+    "No cold filesystem cache reset",
+    "No physical file-system crash-consistency test",
+    "Retained summary count describes returned API values, not process RSS"
+  ],
+  "fixtures" : [
+    {
+      "archiveBytes" : 51321,
+      "compile" : {
+        "maxMilliseconds" : 0.047602,
+        "medianMilliseconds" : 0.023015,
+        "minMilliseconds" : 0.022544,
+        "p95Milliseconds" : 0.047602,
+        "rawMilliseconds" : [
+          0.047602,
+          0.02624,
+          0.023205,
+          0.023415,
+          0.023285,
+          0.023015,
+          0.022714,
+          0.022894,
+          0.023155,
+          0.022805,
+          0.022794,
+          0.023065,
+          0.023014,
+          0.022544,
+          0.022935
+        ],
+        "sampleCount" : 15
+      },
+      "compiledNotes" : 768,
+      "drumNoteEditWithValidation" : {
+        "maxMilliseconds" : 2.060237,
+        "medianMilliseconds" : 1.768178,
+        "minMilliseconds" : 1.619083,
+        "p95Milliseconds" : 2.060237,
+        "rawMilliseconds" : [
+          1.790722,
+          2.02222,
+          1.760766,
+          1.664371,
+          1.619083,
+          1.660696,
+          1.899565,
+          2.060237,
+          1.902671,
+          1.768178,
+          1.860196,
+          1.726846,
+          1.673225,
+          1.738614,
+          1.822119
+        ],
+        "sampleCount" : 15
+      },
+      "fixture" : "P1",
+      "libraries" : [
+        {
+          "fullProjectsRetainedBySummaryResults" : 0,
+          "list" : {
+            "maxMilliseconds" : 62.466367,
+            "medianMilliseconds" : 61.090689,
+            "minMilliseconds" : 57.359169,
+            "p95Milliseconds" : 62.466367,
+            "rawMilliseconds" : [
+              62.466367,
+              57.359169,
+              62.344914,
+              60.229404,
+              61.090689
+            ],
+            "sampleCount" : 5
+          },
+          "listSummaries" : {
+            "maxMilliseconds" : 4.040073,
+            "medianMilliseconds" : 3.349174,
+            "minMilliseconds" : 2.76141,
+            "p95Milliseconds" : 4.040073,
+            "rawMilliseconds" : [
+              4.040073,
+              3.390356,
+              3.349174,
+              2.844496,
+              2.76141
+            ],
+            "sampleCount" : 5
+          },
+          "manifestBytes" : 509080,
+          "projectCount" : 10,
+          "retainedSummaryCount" : 10,
+          "setupMilliseconds" : 72.77348,
+          "singleSummary" : {
+            "maxMilliseconds" : 0.485881,
+            "medianMilliseconds" : 0.343226,
+            "minMilliseconds" : 0.311829,
+            "p95Milliseconds" : 0.485881,
+            "rawMilliseconds" : [
+              0.338619,
+              0.356816,
+              0.314072,
+              0.363757,
+              0.485881,
+              0.347723,
+              0.36605,
+              0.340783,
+              0.333912,
+              0.367212,
+              0.329455,
+              0.311829,
+              0.38578,
+              0.343226,
+              0.336766
+            ],
+            "sampleCount" : 15
+          },
+          "singleSummaryQueries" : 16,
+          "successfulEntries" : 10,
+          "summaryWarmupMilliseconds" : 3.438348,
+          "warmupMilliseconds" : 64.313608
+        },
+        {
+          "fullProjectsRetainedBySummaryResults" : 0,
+          "list" : {
+            "maxMilliseconds" : 329.266077,
+            "medianMilliseconds" : 298.243966,
+            "minMilliseconds" : 291.091866,
+            "p95Milliseconds" : 329.266077,
+            "rawMilliseconds" : [
+              329.266077,
+              298.243966,
+              294.823215,
+              291.091866,
+              301.306569
+            ],
+            "sampleCount" : 5
+          },
+          "listSummaries" : {
+            "maxMilliseconds" : 14.88257,
+            "medianMilliseconds" : 14.043349,
+            "minMilliseconds" : 13.166572,
+            "p95Milliseconds" : 14.88257,
+            "rawMilliseconds" : [
+              13.166572,
+              14.043349,
+              13.94363,
+              14.88257,
+              14.25615
+            ],
+            "sampleCount" : 5
+          },
+          "manifestBytes" : 2545440,
+          "projectCount" : 50,
+          "retainedSummaryCount" : 50,
+          "setupMilliseconds" : 363.267487,
+          "singleSummary" : {
+            "maxMilliseconds" : 0.765731,
+            "medianMilliseconds" : 0.348824,
+            "minMilliseconds" : 0.312199,
+            "p95Milliseconds" : 0.765731,
+            "rawMilliseconds" : [
+              0.430977,
+              0.376205,
+              0.346811,
+              0.312199,
+              0.400983,
+              0.332891,
+              0.330677,
+              0.42584,
+              0.332249,
+              0.765731,
+              0.31901,
+              0.368715,
+              0.442815,
+              0.348824,
+              0.336065
+            ],
+            "sampleCount" : 15
+          },
+          "singleSummaryQueries" : 16,
+          "successfulEntries" : 50,
+          "summaryWarmupMilliseconds" : 14.787638,
+          "warmupMilliseconds" : 298.05357
+        }
+      ],
+      "manifestBytes" : 50911,
+      "mixEditWithValidation" : {
+        "maxMilliseconds" : 2.015359,
+        "medianMilliseconds" : 1.814557,
+        "minMilliseconds" : 1.640846,
+        "p95Milliseconds" : 2.015359,
+        "rawMilliseconds" : [
+          1.726125,
+          1.708498,
+          1.640846,
+          2.015359,
+          1.814557,
+          1.995099,
+          1.871734,
+          1.814898,
+          1.813426,
+          1.769159,
+          1.654678,
+          1.884622,
+          1.815889,
+          1.819204,
+          1.671973
+        ],
+        "sampleCount" : 15
+      },
+      "validate" : {
+        "maxMilliseconds" : 2.028148,
+        "medianMilliseconds" : 1.791853,
+        "minMilliseconds" : 1.648007,
+        "p95Milliseconds" : 2.028148,
+        "rawMilliseconds" : [
+          1.804422,
+          1.705173,
+          2.028148,
+          1.888608,
+          1.881869,
+          1.791853,
+          1.677391,
+          1.652484,
+          1.794147,
+          1.746846,
+          1.648007,
+          1.961108,
+          1.92267,
+          1.706565,
+          1.694508
+        ],
+        "sampleCount" : 15
+      }
+    },
+    {
+      "archiveBytes" : 1353845,
+      "compile" : {
+        "maxMilliseconds" : 0.530037,
+        "medianMilliseconds" : 0.478389,
+        "minMilliseconds" : 0.463546,
+        "p95Milliseconds" : 0.530037,
+        "rawMilliseconds" : [
+          0.470667,
+          0.521153,
+          0.476386,
+          0.530037,
+          0.519591,
+          0.493211,
+          0.463546,
+          0.478389,
+          0.469626,
+          0.528685,
+          0.475685,
+          0.507573,
+          0.47257,
+          0.502184,
+          0.472971
+        ],
+        "sampleCount" : 15
+      },
+      "compiledNotes" : 16384,
+      "drumNoteEditWithValidation" : {
+        "maxMilliseconds" : 39.776871,
+        "medianMilliseconds" : 37.713529,
+        "minMilliseconds" : 36.704642,
+        "p95Milliseconds" : 39.776871,
+        "rawMilliseconds" : [
+          37.590014,
+          37.929524,
+          36.96235,
+          37.713529,
+          37.252316,
+          36.704642,
+          38.049745,
+          37.017523,
+          38.549095,
+          39.384581,
+          39.050059,
+          37.051323,
+          37.070252,
+          38.197146,
+          39.776871
+        ],
+        "sampleCount" : 15
+      },
+      "fixture" : "P3",
+      "libraries" : [
+        {
+          "fullProjectsRetainedBySummaryResults" : 0,
+          "list" : {
+            "maxMilliseconds" : 1736.592124,
+            "medianMilliseconds" : 1668.631689,
+            "minMilliseconds" : 1519.363974,
+            "p95Milliseconds" : 1736.592124,
+            "rawMilliseconds" : [
+              1693.384312,
+              1519.363974,
+              1668.631689,
+              1642.012941,
+              1736.592124
+            ],
+            "sampleCount" : 5
+          },
+          "listSummaries" : {
+            "maxMilliseconds" : 42.070959,
+            "medianMilliseconds" : 28.840621,
+            "minMilliseconds" : 27.53082,
+            "p95Milliseconds" : 42.070959,
+            "rawMilliseconds" : [
+              42.070959,
+              27.53082,
+              28.840621,
+              28.480485,
+              29.271429
+            ],
+            "sampleCount" : 5
+          },
+          "manifestBytes" : 13534320,
+          "projectCount" : 10,
+          "retainedSummaryCount" : 10,
+          "setupMilliseconds" : 1599.123788,
+          "singleSummary" : {
+            "maxMilliseconds" : 3.255818,
+            "medianMilliseconds" : 2.773634,
+            "minMilliseconds" : 2.641737,
+            "p95Milliseconds" : 3.255818,
+            "rawMilliseconds" : [
+              3.255818,
+              2.724482,
+              2.855713,
+              2.645503,
+              2.773634,
+              2.79028,
+              2.773224,
+              2.641737,
+              3.077692,
+              2.656981,
+              2.952166,
+              2.705417,
+              2.730366,
+              2.82138,
+              2.955857
+            ],
+            "sampleCount" : 15
+          },
+          "singleSummaryQueries" : 16,
+          "successfulEntries" : 10,
+          "summaryWarmupMilliseconds" : 29.8245,
+          "warmupMilliseconds" : 1660.054496
+        },
+        {
+          "fullProjectsRetainedBySummaryResults" : 0,
+          "list" : {
+            "maxMilliseconds" : 8256.964689,
+            "medianMilliseconds" : 8159.46374,
+            "minMilliseconds" : 7907.595549,
+            "p95Milliseconds" : 8256.964689,
+            "rawMilliseconds" : [
+              8162.75456,
+              8115.662161,
+              7907.595549,
+              8159.46374,
+              8256.964689
+            ],
+            "sampleCount" : 5
+          },
+          "listSummaries" : {
+            "maxMilliseconds" : 157.73855,
+            "medianMilliseconds" : 142.217638,
+            "minMilliseconds" : 140.880528,
+            "p95Milliseconds" : 157.73855,
+            "rawMilliseconds" : [
+              141.005696,
+              140.880528,
+              157.73855,
+              142.217638,
+              151.328355
+            ],
+            "sampleCount" : 5
+          },
+          "manifestBytes" : 67671640,
+          "projectCount" : 50,
+          "retainedSummaryCount" : 50,
+          "setupMilliseconds" : 8128.923441,
+          "singleSummary" : {
+            "maxMilliseconds" : 3.693667,
+            "medianMilliseconds" : 2.903473,
+            "minMilliseconds" : 2.602291,
+            "p95Milliseconds" : 3.693667,
+            "rawMilliseconds" : [
+              3.064964,
+              2.903473,
+              3.451393,
+              2.914989,
+              2.659226,
+              2.602291,
+              3.180188,
+              3.103953,
+              2.706432,
+              2.758235,
+              2.780418,
+              3.119467,
+              3.693667,
+              2.786667,
+              2.882982
+            ],
+            "sampleCount" : 15
+          },
+          "singleSummaryQueries" : 16,
+          "successfulEntries" : 50,
+          "summaryWarmupMilliseconds" : 142.430432,
+          "warmupMilliseconds" : 8349.097045
+        }
+      ],
+      "manifestBytes" : 1353435,
+      "mixEditWithValidation" : {
+        "maxMilliseconds" : 37.695933,
+        "medianMilliseconds" : 37.008971,
+        "minMilliseconds" : 36.26379,
+        "p95Milliseconds" : 37.695933,
+        "rawMilliseconds" : [
+          36.410881,
+          36.80912,
+          37.677495,
+          37.657896,
+          37.231114,
+          37.008971,
+          37.695933,
+          36.6431,
+          36.399344,
+          37.103773,
+          37.271845,
+          36.678423,
+          37.009391,
+          36.337601,
+          36.26379
+        ],
+        "sampleCount" : 15
+      },
+      "validate" : {
+        "maxMilliseconds" : 99.918302,
+        "medianMilliseconds" : 37.489893,
+        "minMilliseconds" : 36.316349,
+        "p95Milliseconds" : 99.918302,
+        "rawMilliseconds" : [
+          36.787787,
+          37.949283,
+          37.18154,
+          37.206166,
+          36.582759,
+          36.316349,
+          99.918302,
+          38.161903,
+          36.354706,
+          37.678276,
+          37.699598,
+          37.184774,
+          39.607626,
+          42.999845,
+          37.489893
+        ],
+        "sampleCount" : 15
+      }
+    }
+  ],
+  "formatVersion" : 2,
+  "generatedAt" : "2026-11-16T13:18:41Z",
+  "hostOnly" : true,
+  "measurementMethod" : "DispatchTime uptime; sequential isolated operations; one unrecorded warmup per operation; library setup and first warmup recorded separately; no concurrent profiling tasks in this executable",
+  "mixEditDescription" : "fresh History and fixture Project per sample; decrement track 0 gain by 0.01 dB inside History.apply, including its complete Project.validate",
+  "optimizedBuild" : true,
+  "os" : "Debian GNU\/Linux 13 (trixie)",
+  "percentileMethod" : "nearest-rank p95; median selects upper middle when n is even",
+  "processorCount" : 5,
+  "realTimeAudioDeadlineVerified" : false,
+  "runtime" : "Swift 6.1.2 x86_64-unknown-linux-gnu; swift run -c release",
+  "sourceBaselineSHA" : "29adf6c398173faf830de8f6249702628b8a3f76",
+  "sourceSnapshotDigest" : "79fe7fbe619adc6f21bbc7ff2b669d27bf1760e9471de83cf1549b9328ac40dd",
+  "sourceState" : "Immutable copy of the uncommitted MusicDomain worktree; identified by sourceSnapshotDigest, not a final commit SHA",
+  "sourceWorkingTreeChangesIncluded" : true
+}

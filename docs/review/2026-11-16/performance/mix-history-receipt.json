@@ -1,0 +1,189 @@
+{
+  "checksum" : 560,
+  "devicePerformanceVerified" : false,
+  "fixtures" : [
+    {
+      "archiveBytes" : 51321,
+      "certifiedContinuousMix" : {
+        "medianMilliseconds" : 0.000802,
+        "p95Milliseconds" : 0.000951,
+        "rawMilliseconds" : [
+          0.000951,
+          0.000892,
+          0.000821,
+          0.000841,
+          0.000802,
+          0.000781,
+          0.000891,
+          0.000842,
+          0.000781,
+          0.000771,
+          0.000831,
+          0.000792,
+          0.000791,
+          0.000771,
+          0.000801
+        ]
+      },
+      "compiledNotes" : 768,
+      "firstUncertifiedMix" : {
+        "medianMilliseconds" : 1.73066,
+        "p95Milliseconds" : 4.791919,
+        "rawMilliseconds" : [
+          1.933505,
+          1.909809,
+          2.963592,
+          2.637382,
+          1.779193,
+          1.646233,
+          1.738802,
+          4.791919,
+          1.696859,
+          1.73066,
+          1.676369,
+          1.656608,
+          1.662768,
+          1.64416,
+          1.616458
+        ]
+      },
+      "fullValidationMix" : {
+        "medianMilliseconds" : 1.704531,
+        "p95Milliseconds" : 1.901447,
+        "rawMilliseconds" : [
+          1.681265,
+          1.752813,
+          1.622268,
+          1.814616,
+          1.901447,
+          1.838342,
+          1.693183,
+          1.731381,
+          1.703199,
+          1.766303,
+          1.824942,
+          1.70434,
+          1.704531,
+          1.655287,
+          1.69081
+        ]
+      },
+      "name" : "P1",
+      "postUndoFirstMix" : {
+        "medianMilliseconds" : 1.640875,
+        "p95Milliseconds" : 1.867625,
+        "rawMilliseconds" : [
+          1.837951,
+          1.857761,
+          1.646473,
+          1.640875,
+          1.638422,
+          1.616648,
+          1.811191,
+          1.638311,
+          1.62418,
+          1.645252,
+          1.609207,
+          1.613784,
+          1.867625,
+          1.629748,
+          1.642998
+        ]
+      }
+    },
+    {
+      "archiveBytes" : 1353845,
+      "certifiedContinuousMix" : {
+        "medianMilliseconds" : 0.001211,
+        "p95Milliseconds" : 0.001623,
+        "rawMilliseconds" : [
+          0.001623,
+          0.001392,
+          0.001262,
+          0.001232,
+          0.001222,
+          0.001212,
+          0.001172,
+          0.001131,
+          0.001232,
+          0.001192,
+          0.001211,
+          0.001192,
+          0.001192,
+          0.001182,
+          0.001152
+        ]
+      },
+      "compiledNotes" : 16384,
+      "firstUncertifiedMix" : {
+        "medianMilliseconds" : 38.126797,
+        "p95Milliseconds" : 96.316401,
+        "rawMilliseconds" : [
+          37.282189,
+          37.264733,
+          37.211072,
+          38.126797,
+          37.623692,
+          37.59559,
+          39.280842,
+          38.536964,
+          39.457277,
+          42.378986,
+          38.426509,
+          96.316401,
+          40.621847,
+          38.058489,
+          37.896296
+        ]
+      },
+      "fullValidationMix" : {
+        "medianMilliseconds" : 39.133441,
+        "p95Milliseconds" : 55.85437,
+        "rawMilliseconds" : [
+          42.133538,
+          38.878548,
+          44.115856,
+          38.052417,
+          37.651844,
+          37.277953,
+          39.147531,
+          45.468127,
+          39.133441,
+          39.445218,
+          38.443604,
+          37.806117,
+          36.887817,
+          40.373223,
+          55.85437
+        ]
+      },
+      "name" : "P3",
+      "postUndoFirstMix" : {
+        "medianMilliseconds" : 36.511907,
+        "p95Milliseconds" : 38.063387,
+        "rawMilliseconds" : [
+          36.094229,
+          36.817956,
+          36.105677,
+          36.511907,
+          37.202073,
+          36.122342,
+          36.350114,
+          35.877995,
+          37.988634,
+          38.063387,
+          37.809296,
+          37.177757,
+          36.327631,
+          37.678649,
+          36.323704
+        ]
+      }
+    }
+  ],
+  "hostOnly" : true,
+  "measurementMethod" : "DispatchTime uptime; 15 samples after one unrecorded warmup per operation. Full\/uncertified start a fresh History per sample. Continuous reuses a genuinely validated History certificate and coalesces 0.01 dB fader changes. Post-Undo invalidates certificate before the measured call. Shared fixture PCM\/compiler unchanged. No SwiftUI\/Session\/AVAudioEngine timing.",
+  "optimizedBuild" : true,
+  "realTimeAudioDeadlineVerified" : false,
+  "runtime" : "Swift 6.1.2, Linux x86_64"
+}

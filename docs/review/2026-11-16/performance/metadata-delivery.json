@@ -1,0 +1,187 @@
+{
+  "baselineSourceSHA": "29adf6c398173faf830de8f6249702628b8a3f76",
+  "formatVersion": 1,
+  "historicalCopies": [
+    {
+      "bytes": 8879,
+      "deliveredFile": "baseline-receipt.json",
+      "group": "baseline",
+      "originalPath": "/tmp/grilla-architecture-profile-before/receipt.json",
+      "sha256": "7fc42d3d5585179c0c28e69d4e21d9d48ef70310158542e6ab6d229d10ef039f"
+    },
+    {
+      "bytes": 12649,
+      "deliveredFile": "baseline-provenance.json",
+      "group": "baseline",
+      "originalPath": "/tmp/grilla-architecture-profile-before/provenance.json",
+      "sha256": "1349d14b66301d2fac0052ad6d4ea77ee4d901d0203277b5cc71a07958fd7ed0"
+    },
+    {
+      "bytes": 341,
+      "deliveredFile": "baseline-Package.swift",
+      "group": "baseline",
+      "originalPath": "/tmp/grilla-architecture-profile-before/Package.swift",
+      "sha256": "896d5f454b7c77492d344348a2c6c79edff53589e97c0446e592ed109b6a0490"
+    },
+    {
+      "bytes": 9112,
+      "deliveredFile": "baseline-Profile.swift",
+      "group": "baseline",
+      "originalPath": "/tmp/grilla-architecture-profile-before/Sources/GrillaArchitectureProfile/main.swift",
+      "sha256": "c0878cb188d26a63eb527668e239ab145caafd25087f645aa4f173aa97e7b2e0"
+    },
+    {
+      "bytes": 1163,
+      "deliveredFile": "baseline-run.sh",
+      "group": "baseline",
+      "originalPath": "/tmp/grilla-architecture-profile-before/run.sh",
+      "sha256": "88832b70adffff7c97003a3f118510230cb2bc4448071f29412e9cd2d7dd9dd6"
+    },
+    {
+      "bytes": 2042,
+      "deliveredFile": "baseline-provenance.py",
+      "group": "baseline",
+      "originalPath": "/tmp/grilla-architecture-profile-before/provenance.py",
+      "sha256": "bb4cf84bd638bc8ef2d474ecfc512b3084e072b6dd502fed690ea0f2dedc40fb"
+    },
+    {
+      "bytes": 2064,
+      "deliveredFile": "baseline-original-readme.md",
+      "group": "baseline",
+      "originalPath": "/tmp/grilla-architecture-profile-before/README.md",
+      "sha256": "ab254df6eb642fe44408460a057d76c5382b891fa1ca91af6f56505b737cc660"
+    },
+    {
+      "bytes": 14153,
+      "deliveredFile": "metadata-receipt.json",
+      "group": "metadata",
+      "originalPath": "/tmp/grilla-architecture-profile-after/receipt.json",
+      "sha256": "7ca335e64ee11f7f5bc994773972448e7e6d16774f7e7526d1bce4853e54dda1"
+    },
+    {
+      "bytes": 14415,
+      "deliveredFile": "metadata-provenance.json",
+      "group": "metadata",
+      "originalPath": "/tmp/grilla-architecture-profile-after/provenance.json",
+      "sha256": "c83709403ea9435f64dbf6a53a8084ba83f5f39f4f2e2e6e59b47106b1554783"
+    },
+    {
+      "bytes": 339,
+      "deliveredFile": "metadata-Package.swift",
+      "group": "metadata",
+      "originalPath": "/tmp/grilla-architecture-profile-after/Package.swift",
+      "sha256": "fe51635a7c121d640944156962c28c7691007593cd2cf545f2980682fa5da091"
+    },
+    {
+      "bytes": 12690,
+      "deliveredFile": "metadata-Profile.swift",
+      "group": "metadata",
+      "originalPath": "/tmp/grilla-architecture-profile-after/Sources/GrillaArchitectureProfile/main.swift",
+      "sha256": "4d726714e709d2b59f8d2a4c7f1f171b085eccff7324d2a3ab0a4e3b0d1fa0a1"
+    },
+    {
+      "bytes": 864,
+      "deliveredFile": "metadata-run.sh",
+      "group": "metadata",
+      "originalPath": "/tmp/grilla-architecture-profile-after/run.sh",
+      "sha256": "d992d352989fbe8f71dbfb7cff2775fa5956a40d8d92117613bd2c4335ba59ee"
+    },
+    {
+      "bytes": 2769,
+      "deliveredFile": "metadata-provenance.py",
+      "group": "metadata",
+      "originalPath": "/tmp/grilla-architecture-profile-after/provenance.py",
+      "sha256": "af031e86e260750059f6a39c806dba54531dca595f2ab58ec06114d8c4164dc8"
+    },
+    {
+      "bytes": 2807,
+      "deliveredFile": "metadata-original-readme.md",
+      "group": "metadata",
+      "originalPath": "/tmp/grilla-architecture-profile-after/README.md",
+      "sha256": "29ae83472edc72e704e41744e6c2aa174b10ca386c97258ac6db48363f84ed10"
+    },
+    {
+      "bytes": 12289,
+      "deliveredFile": "metadata-source-snapshot.json",
+      "group": "metadata",
+      "originalPath": "/tmp/grilla-architecture-profile-after/source-snapshot.json",
+      "sha256": "fe82c3821214c8ed939012235c8f96488392139e9a812ecb1db0630a4c47fab7"
+    },
+    {
+      "bytes": 20344,
+      "deliveredFile": "metadata-source-tracked-diff.patch",
+      "group": "metadata",
+      "originalPath": "/tmp/grilla-architecture-profile-after/source-tracked-diff.patch",
+      "sha256": "849abec9769dad9b49d7640c224b18f8ad8fc21e7108e087bf583d9ef142eaeb"
+    }
+  ],
+  "historicalMetadataSourceIsUncommitted": true,
+  "historicalMetadataSourceSnapshotDigest": "79fe7fbe619adc6f21bbc7ff2b669d27bf1760e9471de83cf1549b9328ac40dd",
+  "hostOnly": true,
+  "metadataNewSources": [
+    {
+      "bytes": 5443,
+      "deliveredBytes": 1734,
+      "deliveredFile": "metadata-new-MusicalEditing.swift.gz",
+      "deliveredSHA256": "3908a3b130aef0c147f94589d1d8324b6a8674d0a6a8462760564b7590cee7db",
+      "encoding": "gzip",
+      "sha256": "7eed12cd3d6fc5bf9a55c2a554be2923c5f234e1b1bdd0830af8ab36276b8224",
+      "sourcePath": "Packages/MusicDomain/Sources/MusicDomain/MusicalEditing.swift"
+    },
+    {
+      "bytes": 5117,
+      "deliveredBytes": 1668,
+      "deliveredFile": "metadata-new-Notation.swift.gz",
+      "deliveredSHA256": "d3d36a4241b0d9079b48c342096d2e79e872b840324a41f606a871b07ca8e515",
+      "encoding": "gzip",
+      "sha256": "158bfd96b9ec7394959c4be78746827a934417beacdf49a923e78ea6c7e1f369",
+      "sourcePath": "Packages/MusicDomain/Sources/MusicDomain/Notation.swift"
+    },
+    {
+      "bytes": 1862,
+      "deliveredBytes": 833,
+      "deliveredFile": "metadata-new-ProjectTemplates.swift.gz",
+      "deliveredSHA256": "e72bb829d631aeaf58a8c6d097da7d934a2fd616c68d8c303ce8f6c6fd64d0d4",
+      "encoding": "gzip",
+      "sha256": "aa4a12defe7d7e2ea0bdafadf22c7c7e82de2cb7f1dab18c9572a8a994b0c54e",
+      "sourcePath": "Packages/MusicDomain/Sources/MusicDomain/ProjectTemplates.swift"
+    },
+    {
+      "bytes": 12372,
+      "deliveredBytes": 3620,
+      "deliveredFile": "metadata-new-MusicEditingTests.swift.gz",
+      "deliveredSHA256": "21338a5449083a9b796a600fc8c9b0a3ef4120c637f28762991d04b320c8e6cd",
+      "encoding": "gzip",
+      "sha256": "2e4f7457eaf730c448641e69b59d704caf615cd31b7e6cdc395ad07fd62bcd2e",
+      "sourcePath": "Packages/MusicDomain/Tests/MusicDomainTests/MusicEditingTests.swift"
+    },
+    {
+      "bytes": 9767,
+      "deliveredBytes": 2497,
+      "deliveredFile": "metadata-new-ProjectSummaryTests.swift.gz",
+      "deliveredSHA256": "bf5a9f1c7af509c89d508dc8c9d3aa087fab5a503b7d97477544c20af3dcfa46",
+      "encoding": "gzip",
+      "sha256": "5488fd8f883900e3fad5a1d3f33fdf9558dce117717c6f751a137b43f7f01c5e",
+      "sourcePath": "Packages/MusicDomain/Tests/MusicDomainTests/ProjectSummaryTests.swift"
+    },
+    {
+      "bytes": 4969,
+      "deliveredBytes": 1596,
+      "deliveredFile": "metadata-new-ProjectTemplatesTests.swift.gz",
+      "deliveredSHA256": "f223a224d19c822af2511e0a38fd949ce3b057746e1400a398c91616c3e7a5f6",
+      "encoding": "gzip",
+      "sha256": "190f3ddbabcf71cec710be85deb2c640d47a909f3e39c28a7056a2d4b62e32a2",
+      "sourcePath": "Packages/MusicDomain/Tests/MusicDomainTests/ProjectTemplatesTests.swift"
+    },
+    {
+      "bytes": 7725,
+      "deliveredBytes": 1874,
+      "deliveredFile": "metadata-new-StoreRenameTests.swift.gz",
+      "deliveredSHA256": "12c34da5edb6bf9d598b034e8f51c0524ba8b7d7d39eef7ec1b0831588bac08d",
+      "encoding": "gzip",
+      "sha256": "049592d42e1da1346ed736a8f06874995f9ac53a80e1c66f719fa4bab0699030",
+      "sourcePath": "Packages/MusicDomain/Tests/MusicDomainTests/StoreRenameTests.swift"
+    }
+  ],
+  "reconstruction": "Read committed package at baselineSourceSHA, apply metadata-source-tracked-diff.patch, decode gzip metadataNewSources, verify every metadata-source-snapshot.json file SHA-256 and aggregate digest. No full package, fixture or build cache is stored here."
+}
