@@ -535,10 +535,19 @@ struct ChordTile: View {
         VStack(alignment:.leading,spacing:13) {
             HStack { Text(chord?.symbol ?? "+").font(.system(size:26,weight:.semibold)).lineLimit(1).minimumScaleFactor(0.5); Spacer() }
             if let chord {
-                HStack(spacing:width<64 ? 1:3) {
-                    ForEach(Array(chord.notes.enumerated()),id:\.offset) { _,note in
+                let notes: [Int] = chord.notes
+                let spacing: CGFloat = width < 64 ? 1 : 3
+                let gapCount: Int = max(0, notes.count - 1)
+                let gapsWidth: CGFloat = CGFloat(gapCount) * spacing
+                let availableWidth: CGFloat = width - 24 - gapsWidth
+                let noteCount: CGFloat = CGFloat(max(1, notes.count))
+                let noteWidth: CGFloat = max(2, availableWidth / noteCount)
+                HStack(spacing: spacing) {
+                    ForEach(Array(notes.enumerated()),id:\.offset) { _,note in
+                        let noteOffset: CGFloat = CGFloat(72 - note) / 4
                         RoundedRectangle(cornerRadius:1).fill(Color.harmony.opacity(0.5))
-                            .frame(width:max(2,(width-24-CGFloat(max(0,chord.notes.count-1))*(width<64 ? 1:3))/CGFloat(max(1,chord.notes.count))),height:3).offset(y:CGFloat(72-note)/4)
+                            .frame(width: noteWidth, height: 3)
+                            .offset(y: noteOffset)
                     }
                 }
                 Text(chord.customIntervals == nil ? chord.quality.label:NSLocalizedString("Custom chord",comment:"Chord formula label"))

@@ -91,7 +91,13 @@ struct StudioNavigationSurface:ViewModifier {
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     init(){}
     @ViewBuilder func body(content:Content)->some View {
+        #if compiler(>=6.2)
         if #available(iOS 26.0,*),!reduceTransparency{content.glassEffect(.regular,in:RoundedRectangle(cornerRadius:20,style:.continuous))}
         else{content.modifier(StudioSurface())}
+        #else
+        // Older local Xcode toolchains do not include the iOS 26 glass API.
+        // Keep the same surface already used when running on iOS 18.
+        content.modifier(StudioSurface())
+        #endif
     }
 }

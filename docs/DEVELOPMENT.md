@@ -5,10 +5,29 @@ Native iPhone studio: iOS 18+, Swift 6, SwiftUI, AVAudioEngine and a C++17 rende
 
 ## Run on your own iPhone
 
-Use **Xcode 26.3 or newer** on the Mac; the iPhone can run **iOS 18 or newer**.
-The deployment target is the oldest supported phone OS, not the SDK needed to
-compile the source. The project uses iOS 26 SDK APIs with runtime availability
-checks, so Xcode 16's iOS 18 SDK is insufficient even for an iOS 18 phone.
+Use **Xcode 26.3 or newer** for the complete feature set and release workflow;
+the iPhone can run **iOS 18 or newer**. Local development builds are also checked
+with Xcode **16.4** and **26.0.1**. The Xcode version must support the OS installed
+on the connected phone; source compatibility does not establish device pairing.
+
+### Xcode compatibility
+
+| Toolchain | Recorded build scope |
+| --- | --- |
+| Xcode 26.3 | Complete iPhone Debug build and optimized Release archive, including resources and binary audits. This remains the release CI baseline. |
+| Xcode 26.0.1 / SDK 26.0 | Complete unsigned iPhone Debug app, including all resources. |
+| Xcode 16.4 / SDK 18.5 | Complete unsigned iPhone Debug app, including all resources. Uses the existing StudioSurface fallback and does not compile FoundationModels. |
+| Xcode 16.2 / Swift 6.0.3 / SDK 18.2 | Actual Swift/C++ target compilation and linking only. CI omits the asset catalog and launch storyboard because the hosted image lacks their required iOS 18.2 Simulator runtime. This row does **not** validate packaging, icons, launch resources or installation. |
+
+The older SDK build retains local Commands, audio and editing; it does not
+contain the optional FoundationModels adapter, even if later installed on an
+eligible iOS 26 phone. Current SDK builds retain their existing Glass and
+Reduce Transparency behavior. Compatibility builds publish logs, not installable
+IPAs, and do not replace current-SDK distribution checks. The original failed
+16.2 resource attempts and successful scoped checks are recorded in the
+[implementation log](IMPLEMENTATION_LOG.md).
+
+### Install and run
 
 1. Pull the latest `main` and open the committed `LaGrilla.xcodeproj` in Xcode. Select the **LaGrilla** scheme and app target.
 2. In **Xcode → Settings → Accounts**, add your Apple ID. In the app target's **Signing & Capabilities**, enable **Automatically manage signing** and select your own **Team**.
@@ -28,10 +47,15 @@ A free **Personal Team** can support local development installation; its provisi
   for example `(@MainActor (Double) -> Double?)?`. Check **Xcode → About Xcode**
   against the toolchain requirement above. If old diagnostics remain after the
   update, use **Product → Clean Build Folder** (Shift–Command–K), then Run.
+- **“Unable to type-check this expression in reasonable time” in ChordTile:**
+  pull current `main`; its note-preview layout computes explicitly typed values
+  before building views. Clean Build Folder if the old diagnostic remains.
 - **Keep local signing choices:** the checked-in project intentionally has no
   development team. Regenerating it with `scripts/generate_project.py` resets
   that field; select your Personal Team again afterward. A normal source update
-  does not require project regeneration.
+  does not require project regeneration. Select Team on the **LaGrilla app target**
+  for **All** configurations, not only on the project or test target. The ChordTile
+  compatibility patch does not modify the checked-in signing configuration.
 
 On a Mac with Xcode 26.3 (or an App Store-supported newer toolchain) selected:
 
