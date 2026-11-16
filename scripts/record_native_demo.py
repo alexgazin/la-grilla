@@ -24,17 +24,24 @@ def allow_expected_virtual_audio_dialog():
 repeat with appProcess in application processes
  try
   repeat with dialogWindow in windows of appProcess
-   set visibleText to value of every static text of dialogWindow
-   set joinedText to visibleText as text
+   set allControls to entire contents of dialogWindow
+   set joinedText to name of dialogWindow as text
+   repeat with aControl in allControls
+    try
+     if role of aControl is "AXStaticText" then
+      set joinedText to joinedText & " " & (value of aControl as text)
+     end if
+    end try
+   end repeat
    if joinedText contains "La Grilla Demo Audio Recorder" then
-    if exists button "Allow" of dialogWindow then
-     click button "Allow" of dialogWindow
-     return "Allowed the expected virtual-audio recorder system prompt"
-    end if
-    if exists button "OK" of dialogWindow then
-     click button "OK" of dialogWindow
-     return "Allowed the expected virtual-audio recorder system prompt"
-    end if
+    repeat with aControl in allControls
+     try
+      if role of aControl is "AXButton" and (name of aControl is "Allow" or name of aControl is "OK") then
+       perform action "AXPress" of aControl
+       return "Allowed the expected virtual-audio recorder system prompt"
+      end if
+     end try
+    end repeat
    end if
   end repeat
  end try
@@ -107,6 +114,13 @@ def main():
         timeline['test_exit_code'] = code
         if code != 0:
             raise RuntimeError(f'The real demo interaction failed with xcodebuild status {code}; video is diagnostic, not an accepted promo.')
+        test_log = (OUT / 'demo-tests.log').read_text()
+        expected = ['test01ComposeJamAndMix', 'test02HarmonyCommandsAndVoiceSetup', 'test03PerformAndExport']
+        actual_passed = [name for name in expected if any(name in line and ' passed' in line.lower() for line in test_log.splitlines())]
+        timeline['expected_methods'] = expected
+        timeline['actual_passed_methods'] = actual_passed
+        if actual_passed != expected:
+            raise RuntimeError('All three authored demo methods must actually execute and pass; an empty successful suite is not a capture.')
     finally:
         if video is not None and video.poll() is None:
             timeline['video_stop_signal_uptime'] = time.monotonic()
@@ -127,6 +141,8 @@ def main():
     audio_receipt = json.loads((OUT / 'audio-receipt.json').read_text())
     if audio_receipt.get('error') or audio_receipt.get('peak', 0) <= 0.001 or audio_receipt.get('frames', 0) == 0:
         raise RuntimeError('Captured native sound is invalid or silent; no music replacement is allowed.')
+    if audio_receipt.get('first_host_seconds', float('inf')) > timeline['video_spawn_before_uptime'] + 0.5 or audio_receipt.get('last_host_seconds', 0) < timeline['video_stop_signal_uptime'] - 0.5:
+        raise RuntimeError('Actual sound capture must cover the video interval; a short unrelated sound cannot authorize the whole tour.')
     subprocess.run(['ffprobe', '-v', 'error', '-show_streams', '-show_format', '-of', 'json', str(OUT / 'screen.mp4')], stdout=(OUT / 'video-probe.json').open('w'), check=True)
     print('NATIVE_DEMO_CAPTURE_COMPLETE: real video, real loopback audio, three accepted UI journeys.', flush=True)
 

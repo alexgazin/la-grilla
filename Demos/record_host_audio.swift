@@ -87,7 +87,7 @@ final class Recorder {
         }
         format = engine.inputNode.outputFormat(forBus: 0)
         guard format.sampleRate > 0, format.channelCount == 2,
-              format.commonFormat == .pcmFormatFloat32 else {
+              format.commonFormat == .pcmFormatFloat32, !format.isInterleaved else {
             throw CaptureFailure.reason("BlackHole must expose finite-rate stereo Float32 input: \(format!)")
         }
         file = try AVAudioFile(forWriting: url, settings: format.settings,
