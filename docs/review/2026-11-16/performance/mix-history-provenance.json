@@ -1,0 +1,72 @@
+{
+  "formatVersion": 1,
+  "archivedAtUTC": "2026-11-16T13:44:12.886780+00:00",
+  "hostOnly": true,
+  "devicePerformanceVerified": false,
+  "wholeSessionLatencyVerified": false,
+  "scope": "History method microbenchmark on Linux, not touch-to-audio, MainActor, Session.sync or physical device timing.",
+  "source": {
+    "baselineCommitSHA": "29adf6c398173faf830de8f6249702628b8a3f76",
+    "snapshotSHA256": "4f98094c00a7186913ad280caeee327e0f39206eb97ece835eb8e959a074bbf7",
+    "workingTreeChangesIncluded": true,
+    "immutableSnapshotRetainedAt": "/tmp/grilla-mix-profile-after/source/MusicDomain",
+    "warning": "This is the measured intermediate source snapshot, not a claimed final build/commit; later chord-rebuild and notation changes are separate."
+  },
+  "toolchain": {
+    "swift": "Swift 6.1.2",
+    "os": "Linux",
+    "architecture": "x86_64",
+    "optimization": "SwiftPM release"
+  },
+  "files": {
+    "mix-history-receipt.json": {
+      "byteCount": 4508,
+      "sha256": "611f5649b45ccc13dc343129979299a06221eb291c4905c61b2da4f9c059090f",
+      "sourceRelativePath": "receipt.json"
+    },
+    "mix-history-source-snapshot.json": {
+      "byteCount": 4525,
+      "sha256": "4badd253b34750650d16a4865c74c20596a780311653b59b6fde15bda5f07a16",
+      "sourceRelativePath": "source-snapshot.json"
+    },
+    "MixHistoryProfile.swift": {
+      "byteCount": 4384,
+      "sha256": "64af68d1035fb06449dbd49624e716dbb1c1a1ae69cb28c56e1875fd500ba6e1",
+      "sourceRelativePath": "Sources/GrillaMixProfile/main.swift"
+    },
+    "MixHistoryPackage.swift": {
+      "byteCount": 271,
+      "sha256": "d1a90394a5d2d829d9478cb3d362dd91bdfb798e29507bc675f52153ad903660",
+      "sourceRelativePath": "Package.swift"
+    }
+  },
+  "fixtures": {
+    "load-P1.grillapack": {
+      "byteCount": 51321,
+      "sha256": "94303b07b16af882edf3d064e4f9de7dac7ce72b28c53b135173804488169ac0",
+      "compiledNotes": 768
+    },
+    "load-P3.grillapack": {
+      "byteCount": 1353845,
+      "sha256": "43582e688266c8b2c5ab2189b819255f17020daef77c27a4033b1448a1d8bffa",
+      "compiledNotes": 16384
+    }
+  },
+  "method": {
+    "samplesPerOperation": 15,
+    "warmupPerOperation": 1,
+    "clock": "DispatchTime uptimeNanoseconds",
+    "fullValidationMix": "Fresh Project value and History for each sample; History.apply, track 0 gain -= 0.01. Matches the earlier architecture mix workload.",
+    "firstUncertifiedMix": "Fresh Project value and History for each sample; History.applyMix must fully validate the initial baseline.",
+    "certifiedContinuousMix": "One real validated History reused; 0.01 dB gain changes coalesce; full-value certificate and mix-only equality/range validation run.",
+    "postUndoFirstMix": "Setup and Undo excluded by inner timing; Undo clears certificate, so the measured applyMix validates fully again.",
+    "percentiles": "Upper-middle median, nearest-rank p95; all raw durations retained."
+  },
+  "checksum": 560,
+  "limits": [
+    "No physical iPhone, audio route, 30-minute load, thermal or memory measurement.",
+    "No SwiftUI, Session.sync, snapshot publication, compiler or audio callback latency in the measured History interval.",
+    "First unchecked edit and first edit after Undo remain expensive; the continuous result does not remove those costs.",
+    "Host scheduler/load and different source snapshots limit comparison to earlier absolute timings."
+  ]
+}

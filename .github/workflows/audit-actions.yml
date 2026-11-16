@@ -50,9 +50,10 @@ jobs:
           GRILLA_RUNTIME_TRACE: '1'
         run: |
           GRILLA_AUDIT_DEVICE=$(cat /tmp/grilla-simulator-id)
-          # Eleven real methods include transposition and accepted-MIDI recovery.
-          # This independent 20-minute batch does not change microphone tests.
-          python3 scripts/ci/run_native.py --timeout-seconds 1200 --deadline-env GRILLA_AUDIT_DEADLINE_EPOCH --label product-audit-native --log audit-native.log --status audit-process-status.json \
+          # Fourteen real methods add written chords and two independent sketch
+          # journeys. This 30-minute batch retains every method's 120s cap and
+          # the shared 40-minute cutoff/50-minute job evidence reserve.
+          python3 scripts/ci/run_native.py --timeout-seconds 1800 --deadline-env GRILLA_AUDIT_DEADLINE_EPOCH --label product-audit-native --log audit-native.log --status audit-process-status.json \
             --require-test FirstResultTests/testEmptyProjectGuidesFirstChordToRealOutputAndPersists \
             --require-test FirstResultTests/testStarterAndExampleAreAudibleIndependentAndKeepSavedProject \
             --require-test FirstResultTests/testAcceptedMIDIInterleavingsKeepLatestWorkAndActiveRetryPreservesDisk \
@@ -61,6 +62,9 @@ jobs:
             --require-test HarmonyCatalogTests/testAlteredNotationAndInvalidFormulaNeverSilentlySave \
             --require-test TranspositionUITests/testTransposePreviewCancelApplyLiveUndoRedoAndReopen \
             --require-test TranspositionUITests/testFlatsAndScaleDegreesPersistWithoutNotationChangingMusic \
+            --require-test ChordWritingUITests/testTypedRootAndSlashWritingSurviveUndoRedoAndStoreReopen \
+            --require-test SketchGenerationTests/testEmptyProjectLocalSketchABApplyUndo \
+            --require-test SketchGenerationTests/testGeneratedSketchReopensWithRealAudioAndMIDIShare \
             --require-test AudioRuntimeContinuityTests/testAAOutputOnlyLaunchDoesNotRequestMicrophone \
             --require-test AudioRuntimeContinuityTests/testProductionVoiceCaptureCAFAnalysisApplyStoreAndUndo \
             --require-test AudioRuntimeContinuityTests/testSessionMicrophoneLeaseRetainsLiveEngineAndPCM \
@@ -72,6 +76,8 @@ jobs:
             -only-testing:LaGrillaUITests/AIAvailabilityTests \
             -only-testing:LaGrillaUITests/HarmonyCatalogTests \
             -only-testing:LaGrillaUITests/TranspositionUITests \
+            -only-testing:LaGrillaUITests/ChordWritingUITests \
+            -only-testing:LaGrillaUITests/SketchGenerationTests \
             -only-testing:LaGrillaUITests/AudioRuntimeContinuityTests/testAAOutputOnlyLaunchDoesNotRequestMicrophone \
             -only-testing:LaGrillaUITests/AudioRuntimeContinuityTests/testProductionVoiceCaptureCAFAnalysisApplyStoreAndUndo \
             -only-testing:LaGrillaUITests/AudioRuntimeContinuityTests/testSessionMicrophoneLeaseRetainsLiveEngineAndPCM \

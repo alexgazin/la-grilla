@@ -15,5 +15,6 @@ a,b=[re.findall(r'UUID: ([0-9A-F-]+)',pathlib.Path('ReleaseArtifacts/'+x+'-uuid.
 assert a and a==b,'Binary and dSYM UUID mismatch'
 PY
 python3 scripts/release/audit_binary.py ReleaseArtifacts/LaGrilla-unsigned.xcarchive/Products/Applications/LaGrilla.app/LaGrilla --report ReleaseArtifacts/binary-audit.log
+python3 scripts/release/package_sideload_ipa.py --app ReleaseArtifacts/LaGrilla-unsigned.xcarchive/Products/Applications/LaGrilla.app --output ReleaseArtifacts/LaGrilla-unsigned.ipa --source-sha "$(git rev-parse HEAD)"
 ditto -c -k --sequesterRsrc --keepParent ReleaseArtifacts/LaGrilla-unsigned.xcarchive ReleaseArtifacts/LaGrilla-unsigned-archive.zip
-echo 'Unsigned archive verified. Signing and installation require the distribution workflow.'
+echo 'Unsigned archive and sideload IPA verified. Testers sign the IPA on their own laptop; distribution uses its separate workflow.'

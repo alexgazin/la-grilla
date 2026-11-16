@@ -1,0 +1,21 @@
+{
+  "diagnostic" : {
+    "error" : "No speech detected",
+    "everStartedCapture" : true,
+    "finalizing" : false,
+    "microphonePermission" : "granted",
+    "receivedFrames" : 521237,
+    "recording" : false,
+    "requesting" : false,
+    "speechAuthorization" : "authorized",
+    "speechAvailable" : true,
+    "speechErrorCode" : 1110,
+    "speechErrorDomain" : "kAFAssistantErrorDomain",
+    "supportsOnDeviceSpeech" : true
+  },
+  "observedSystemPrompts" : [
+    "“La Grilla” would like to access the Microphone. “La Grilla” would like to access the Microphone. Record a spoken command or a short melody you choose to capture. Microphone access starts only when you tap Record or Dictate.",
+    "“La Grilla” would like to access Speech Recognition. “La Grilla” would like to access Speech Recognition. Speech data from this app will be sent to Apple to process your requests. This will also help Apple improve its speech recognition technology.\n\nTurn your spoken commands into editable text using on-device speech recognition when supported."
+  ],
+  "successfulTranscriptionClaimed" : false
+}

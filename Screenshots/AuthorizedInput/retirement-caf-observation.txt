@@ -1,0 +1,209 @@
+{
+  "activeAudioGraphCount" : 1,
+  "appliedRevision" : 2,
+  "appliedTrackID" : "C01C3EFE-F71A-4074-BC68-A1CAEF43E529",
+  "backingClockAdvanced" : true,
+  "captureStates" : [
+    "waiting",
+    "countIn",
+    "recording",
+    "analyzing",
+    "ready"
+  ],
+  "coldFirstUse" : {
+    "inputGraphRetired" : true,
+    "permissionAfterCapture" : "granted",
+    "permissionAtExplicitStart" : "undetermined",
+    "phaseErrorBeforeCaptureTicks" : 3.7999999999997272,
+    "phaseOneEngineKernelRetained" : false,
+    "phaseOneEngineRetained" : false,
+    "phaseOneKernelRetained" : true,
+    "processIdentifier" : 17837,
+    "referenceReusedWithoutPreparation" : true,
+    "sameProcess" : true
+  },
+  "continuitySamples" : 423,
+  "currentGraphHasInputNode" : false,
+  "detectedPitches" : [
+    60,
+    64,
+    67
+  ],
+  "elapsedSeconds" : 12.972766041755676,
+  "inputConfigured" : true,
+  "inputConfiguredDuringCapture" : true,
+  "inputNodeAttachedDuringCapture" : true,
+  "inputPrimedAtStartup" : false,
+  "inputPriming" : "outputOnly",
+  "inputRetirementCount" : 1,
+  "inputRetirementMilliseconds" : 160.37725,
+  "inputTransitionCount" : 1,
+  "inputTransitionMilliseconds" : 465.35958333333332,
+  "maximumPhaseErrorTicks" : 20.480000000000928,
+  "oneUndoRestoresBaseline" : true,
+  "outcome" : "PASS",
+  "outputHostTiming" : {
+    "baselineBufferNanoseconds" : 10666667,
+    "baselineFrames" : 512,
+    "callbacks" : 1153,
+    "clockRateChanges" : 0,
+    "comparedCallbacks" : 1153,
+    "epoch" : 1,
+    "inheritedAnchor" : true,
+    "maxExcessNanoseconds" : 479327375,
+    "maxIntervalNanoseconds" : 489994042,
+    "nonIncreasingTimestamps" : 0
+  },
+  "outputHostTimingBaseline" : {
+    "baselineBufferNanoseconds" : 10666667,
+    "baselineFrames" : 512,
+    "callbacks" : 10,
+    "clockRateChanges" : 0,
+    "comparedCallbacks" : 10,
+    "epoch" : 1,
+    "inheritedAnchor" : true,
+    "maxExcessNanoseconds" : 0,
+    "maxIntervalNanoseconds" : 10666667,
+    "nonIncreasingTimestamps" : 0
+  },
+  "outputPrivacy" : {
+    "activeAudioGraphCount" : 1,
+    "currentGraphHasInputNode" : false,
+    "diagnosticOnly" : true,
+    "inputConfigured" : false,
+    "inputPrimedAtStartup" : false,
+    "inputPriming" : "outputOnly",
+    "inputRetirementCount" : 0,
+    "inputRetirementMilliseconds" : 0,
+    "inputTransitionCount" : 0,
+    "inputTransitionMilliseconds" : 0,
+    "observation" : "Phase one: live musical reference and undetermined permission; output remains running for explicit first-use capture. Physical indicator behavior still requires device verification.",
+    "observedOutputPeak" : 0.10710082999999999,
+    "outcome" : "PASS",
+    "outputClockFramesAdvanced" : 48128,
+    "outputEngineRunning" : true,
+    "outputPlaying" : true,
+    "permissionAfter" : "undetermined",
+    "permissionBefore" : "undetermined",
+    "physicalMicrophoneIndicatorVerified" : false,
+    "preparedMonophonicReference" : true,
+    "processIdentifier" : 17837,
+    "productionAcceptance" : false,
+    "referenceEngineKernelRetained" : true,
+    "retiredInputGraphStopped" : false,
+    "softwareOutputPrivacyVerified" : true
+  },
+  "permissionAfterCapture" : "granted",
+  "permissionBeforeCapture" : "undetermined",
+  "physicalDropoutAbsenceVerified" : false,
+  "physicalMicrophoneIndicatorVerified" : false,
+  "postRetirementClockFramesAdvanced" : 140800,
+  "projectUnchangedBeforeApply" : true,
+  "redoRestoresExactSourceAndNotes" : true,
+  "referenceReusedWithoutPreparation" : true,
+  "retiredInputGraphStopped" : true,
+  "reviewedPitches" : [
+    61,
+    64,
+    67
+  ],
+  "route" : {
+    "availableInputs" : [
+      {
+        "channels" : 0,
+        "name" : "MicrophoneBuiltIn",
+        "type" : "MicrophoneBuiltIn"
+      }
+    ],
+    "category" : "AVAudioSessionCategoryPlayAndRecord",
+    "engineRunning" : true,
+    "inputFormat" : {
+      "channels" : 2,
+      "commonFormat" : 1,
+      "interleaved" : false,
+      "sampleRate" : 48000
+    },
+    "inputs" : [
+      {
+        "channels" : 0,
+        "name" : "MicrophoneBuiltIn",
+        "type" : "MicrophoneBuiltIn"
+      }
+    ],
+    "inputUnit" : {
+      "hostTime" : 20870513590,
+      "inputEnabled" : {
+        "bus" : 1,
+        "byteCount" : 4,
+        "scope" : 1,
+        "status" : 0,
+        "value" : 1
+      },
+      "outputEnabled" : {
+        "bus" : 0,
+        "byteCount" : 4,
+        "scope" : 2,
+        "status" : 0,
+        "value" : 1
+      },
+      "unitAvailable" : true
+    },
+    "isInputAvailable" : true,
+    "mode" : "AVAudioSessionModeMeasurement",
+    "outputFormat" : {
+      "channels" : 2,
+      "commonFormat" : 1,
+      "interleaved" : false,
+      "sampleRate" : 48000
+    },
+    "outputs" : [
+      {
+        "channels" : 0,
+        "name" : "Speaker",
+        "type" : "Speaker"
+      }
+    ],
+    "outputUnit" : {
+      "hostTime" : 20870513767,
+      "inputEnabled" : {
+        "bus" : 1,
+        "byteCount" : 4,
+        "scope" : 1,
+        "status" : 0,
+        "value" : 1
+      },
+      "outputEnabled" : {
+        "bus" : 0,
+        "byteCount" : 4,
+        "scope" : 2,
+        "status" : 0,
+        "value" : 1
+      },
+      "unitAvailable" : true
+    },
+    "sessionSampleRate" : 48000,
+    "stage" : "production-voice-input-armed"
+  },
+  "sameEngine" : false,
+  "sameEngineAndKernel" : false,
+  "sameKernel" : true,
+  "sameMIDIHub" : true,
+  "sameSampleRate" : true,
+  "signal" : "Scheduled monophonic instrument through actual host HAL\/input tap with backing drums. Output-only policy measures deliberate I\/O activation and retirement gaps while retaining DSP state. No injected PCM, synthetic analysis or human-voice accuracy claim.",
+  "source" : {
+    "byteCount" : 560896,
+    "duration" : 2.8999999999999999,
+    "id" : "608DCA60-4E3C-4595-B473-44ACFDF580C1",
+    "inputLatencySeconds" : 9.9999997473787516e-05,
+    "origin" : "microphone",
+    "recordedAt" : 816531484.29537833,
+    "sampleRate" : 48000,
+    "sha256" : "61154cf0743b0e3a68184efe703710c19e3f26545abe83b35207e794f04ccb13",
+    "tempoBPM" : 120
+  },
+  "sourceFrames" : 139200,
+  "sourcePeak" : 0.022546627,
+  "sourceUnchangedAfterReview" : true,
+  "storedProjectReopened" : true,
+  "storedSourceMatches" : true
+}

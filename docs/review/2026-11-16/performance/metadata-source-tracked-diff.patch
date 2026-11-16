@@ -1,0 +1,300 @@
+diff --git a/Packages/MusicDomain/Sources/AudioDSP/GrillaKernel.cpp b/Packages/MusicDomain/Sources/AudioDSP/GrillaKernel.cpp
+index 5e0bf24..c96b82b 100644
+--- a/Packages/MusicDomain/Sources/AudioDSP/GrillaKernel.cpp
++++ b/Packages/MusicDomain/Sources/AudioDSP/GrillaKernel.cpp
+@@ -285,7 +285,13 @@ static int publishMix(LGKernel*k,const LGTrackMix*tracks,int count,float masterD
+     }return 0;
+ }
+ extern "C" {
+-LGKernel*lg_create(double sr){return std::isfinite(sr)&&sr>=8000&&sr<=192000 ? new LGKernel(sr) : nullptr;}
++LGKernel*lg_create(double sr){
++    if(!std::isfinite(sr)||sr<8000||sr>192000)return nullptr;
++    // Swift callers treat a null result as a recoverable preparation failure.
++    // Catch the whole constructor: nothrow new alone does not cover allocations
++    // made by the DSP's vector members during construction.
++    try{return new LGKernel(sr);}catch(...){return nullptr;}
++}
+ void lg_destroy(LGKernel*k){delete k;}
+ int lg_submit(LGKernel*k,const LGNote*notes,int count,double bpm,int start,int end,int loop,int rev){
+     return submitSnapshot(k,notes,count,bpm,start,end,loop,rev,0,nullptr,0,0,0,0,false);
+diff --git a/Packages/MusicDomain/Sources/MusicDomain/Compiler.swift b/Packages/MusicDomain/Sources/MusicDomain/Compiler.swift
+index 3fd84d6..d3fd78a 100644
+--- a/Packages/MusicDomain/Sources/MusicDomain/Compiler.swift
++++ b/Packages/MusicDomain/Sources/MusicDomain/Compiler.swift
+@@ -5,6 +5,11 @@ public struct CompiledNote: Equatable, Sendable {
+ public enum Compiler {
+     public static let drumMap = [36,38,42,46,39,37,45,47,50,49,51,54,56,75,70,82]
+     public static let padNames = ["Kick","Snare","Closed hat","Open hat","Clap","Rim","Low tom","Mid tom","High tom","Crash","Ride","Tambourine","Cowbell","Clave","Shaker","Perc"]
++    public static func bassPitch(for chord:Chord,register:Int)->Int {
++        if let exact=chord.rootBassPitch{return exact}
++        let root=chord.slashBass ?? chord.root
++        return (root==0 ? 36:24+root)+register*12
++    }
+     public static func notes(_ project: Project, range: Range<Int>? = nil) -> [CompiledNote] {
+         let range = range ?? 0..<project.length
+         var result: [CompiledNote] = []
+@@ -18,7 +23,7 @@ public enum Compiler {
+                             guard end > start else { continue }
+                             for pitch in chord.chord.notes { result.append(CompiledNote(tick: clip.start + start, duration: end - start, pitch: pitch, velocity: 88, track: index)) }
+                             if let bass = project.tracks.firstIndex(where: {$0.role == .bass}) {
+-                                result.append(CompiledNote(tick: clip.start + start, duration: max(1, Int(Double(end-start) * project.bassGate)), pitch: ((chord.chord.slashBass ?? chord.chord.root) == 0 ? 36 : 24 + (chord.chord.slashBass ?? chord.chord.root)) + project.bassOctave * 12, velocity: 94, track: bass,instrument:2))
++                                result.append(CompiledNote(tick: clip.start + start, duration: max(1, Int(Double(end-start) * project.bassGate)), pitch: bassPitch(for:chord.chord,register:project.bassOctave), velocity: 94, track: bass,instrument:2))
+                             }
+                         }
+                     } else if track.role == .melody {
+diff --git a/Packages/MusicDomain/Sources/MusicDomain/Model.swift b/Packages/MusicDomain/Sources/MusicDomain/Model.swift
+index 99c87b9..15562cb 100644
+--- a/Packages/MusicDomain/Sources/MusicDomain/Model.swift
++++ b/Packages/MusicDomain/Sources/MusicDomain/Model.swift
+@@ -78,11 +78,16 @@ public enum Quality: String, Codable, CaseIterable, Sendable {
+     public var label: String { NSLocalizedString(self == .major ? "Major" : self == .minor ? "Minor" : rawValue,comment:"Chord quality") }
+ }
+ public struct Chord: Codable, Equatable, Sendable {
+-    public var root: Int; public var quality: Quality; public var inversion: Int
+-    public var slashBass:Int?;public var voicedNotes:[Int]?
++    public var root: Int {didSet{if root != oldValue{rootBassPitch=nil}}}
++    public var quality: Quality; public var inversion: Int
++    public var slashBass:Int? {didSet{if slashBass != oldValue{rootBassPitch=nil}}}
++    public var voicedNotes:[Int]?
++    /// Schema 9: exact generated-bass MIDI pitch after arrangement transposition.
++    /// Nil uses the legacy root/register rule; changing root/slash clears the override.
++    public var rootBassPitch:Int?
+     public var customIntervals:[Int]?
+     public static let maximumVoices=9 // Eight formula tones plus an explicit slash bass.
+-    public init(root: Int = 0, quality: Quality = .major, inversion: Int = 0,slashBass:Int?=nil,voicedNotes:[Int]?=nil,customIntervals:[Int]?=nil) { self.root = root; self.quality = customIntervals==nil ? quality:.major; self.inversion = inversion;self.slashBass=slashBass;self.voicedNotes=voicedNotes;self.customIntervals=customIntervals }
++    public init(root: Int = 0, quality: Quality = .major, inversion: Int = 0,slashBass:Int?=nil,voicedNotes:[Int]?=nil,customIntervals:[Int]?=nil,rootBassPitch:Int?=nil) { self.root = root; self.quality = customIntervals==nil ? quality:.major; self.inversion = inversion;self.slashBass=slashBass;self.voicedNotes=voicedNotes;self.customIntervals=customIntervals;self.rootBassPitch=rootBassPitch }
+     public static let roots = ["C", "C♯", "D", "E♭", "E", "F", "F♯", "G", "A♭", "A", "B♭", "B"]
+     public var effectiveIntervals:[Int]{customIntervals ?? quality.intervals}
+     public var requiredVoicingIntervals:[Int]{customIntervals ?? quality.requiredVoicingIntervals}
+@@ -133,7 +138,8 @@ public struct Chord: Codable, Equatable, Sendable {
+     }
+     public func validate()throws {
+         guard (0..<12).contains(root),Self.validIntervals(effectiveIntervals),(0..<effectiveIntervals.count).contains(inversion),customIntervals==nil || quality == .major,
+-              slashBass==nil || (0..<12).contains(slashBass!),isValidVoicing(notes) else{throw MusicError.invalidChord}
++              slashBass==nil || (0..<12).contains(slashBass!),
++              rootBassPitch==nil || ((0...127).contains(rootBassPitch!) && rootBassPitch!%12 == (slashBass ?? root)),isValidVoicing(notes) else{throw MusicError.invalidChord}
+     }
+     public static func parse(_ text: String) throws -> Chord {
+         guard text.utf8.count<=256 else{throw MusicError.invalidChord}
+@@ -214,7 +220,7 @@ public struct Section: Codable, Equatable, Identifiable, Sendable {
+     public init(name: String, start: Int = 0, length: Int) { self.name = name; self.start = start; self.length = length }
+ }
+ public struct Project: Codable, Equatable, Identifiable, Sendable {
+-    public var id: UUID = UUID(); public static let currentSchemaVersion=8
++    public var id: UUID = UUID(); public static let currentSchemaVersion=9
+     /// Portable, nonnegative revision IDs. Exhaustion requires a new project
+     /// copy rather than wrapping an ID used by history, saving and playback.
+     public static let maximumRevision=Int(Int32.max)
+@@ -390,6 +396,7 @@ public enum ProjectDocument {
+         if p.schemaVersion==5{p.schemaVersion=6}
+         if p.schemaVersion==6{p.schemaVersion=7}
+         if p.schemaVersion==7{p.schemaVersion=8}
++        if p.schemaVersion==8{p.schemaVersion=9}
+         if var take=p.performanceTake{take.source=try migrated(take.source);p.performanceTake=take}
+         try p.validate();return p
+     }
+diff --git a/Packages/MusicDomain/Sources/MusicDomain/ProjectStore.swift b/Packages/MusicDomain/Sources/MusicDomain/ProjectStore.swift
+index 58f292b..651141a 100644
+--- a/Packages/MusicDomain/Sources/MusicDomain/ProjectStore.swift
++++ b/Packages/MusicDomain/Sources/MusicDomain/ProjectStore.swift
+@@ -1,6 +1,92 @@
+ import Foundation
++
++/// Catalogue metadata only. It retains no Project, patterns, events or frozen
++/// performance source. A document must still pass ProjectStore.load before use.
++public struct ProjectSummary: Equatable, Sendable, Identifiable {
++    public let id: UUID
++    public let name: String
++    public let bpm: Double
++    public let keyRoot: Int
++    public let minor: Bool
++    public let bars: Int
++    public let revision: Int
++    public let modified: Date
++    public let schemaVersion: Int
++    public let trackCount: Int
++    public var length: Int { bars * barTicks }
++    public var keyName: String { Chord.roots[keyRoot] + " " + NSLocalizedString(minor ? "minor" : "major", comment: "Key mode") }
++}
++
++private struct ProjectSummaryDocument: Decodable {
++    let summary: ProjectSummary
++    private enum Keys: String, CodingKey {
++        case id, name, bpm, keyRoot, minor, revision, modified, schemaVersion, sections, tracks, performanceTakes
++    }
++    private enum SectionKeys: String, CodingKey { case start, length }
++    private enum TakeKeys: String, CodingKey { case source }
++
++    init(from decoder: Decoder) throws {
++        let value = try decoder.container(keyedBy: Keys.self)
++        let version = try value.decode(Int.self, forKey: .schemaVersion)
++        guard (1...Project.currentSchemaVersion).contains(version) else { throw MusicError.unsupportedSchema }
++        let id = try value.decode(UUID.self, forKey: .id)
++        let name = try value.decode(String.self, forKey: .name)
++        let bpm = try value.decode(Double.self, forKey: .bpm)
++        let keyRoot = try value.decode(Int.self, forKey: .keyRoot)
++        let minor = try value.decode(Bool.self, forKey: .minor)
++        let revision = try value.decode(Int.self, forKey: .revision)
++        let modified = try value.decode(Date.self, forKey: .modified)
++        guard !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, name.count <= 120,
++              bpm.isFinite, (40...240).contains(bpm), (0..<12).contains(keyRoot),
++              (0...Project.maximumRevision).contains(revision), modified.timeIntervalSinceReferenceDate.isFinite else { throw MusicError.invalidProject }
++
++        let tracks = try value.nestedUnkeyedContainer(forKey: .tracks)
++        guard let trackCount = tracks.count, (2...8).contains(trackCount) else { throw MusicError.invalidProject }
++        var sections = try value.nestedUnkeyedContainer(forKey: .sections)
++        guard let sectionCount = sections.count, (1...8).contains(sectionCount) else { throw MusicError.invalidProject }
++        var end = 0
++        while !sections.isAtEnd {
++            let section = try sections.nestedContainer(keyedBy: SectionKeys.self)
++            let start = try section.decode(Int.self, forKey: .start)
++            let length = try section.decode(Int.self, forKey: .length)
++            guard start == end, length > 0, length <= 64 * barTicks,
++                  length % barTicks == 0, length <= 64 * barTicks - end else { throw MusicError.invalidProject }
++            end += length
++        }
++        // A future frozen source must not appear compatible merely because the
++        // outer document's version is supported. Do not decode its musical data.
++        if value.contains(.performanceTakes), try !value.decodeNil(forKey: .performanceTakes) {
++            var takes = try value.nestedUnkeyedContainer(forKey: .performanceTakes)
++            guard let count = takes.count, count <= 1 else { throw MusicError.invalidProject }
++            while !takes.isAtEnd {
++                let take = try takes.nestedContainer(keyedBy: TakeKeys.self)
++                let source = try take.nestedContainer(keyedBy: Keys.self, forKey: .source)
++                let sourceVersion = try source.decode(Int.self, forKey: .schemaVersion)
++                guard (1...Project.currentSchemaVersion).contains(sourceVersion) else { throw MusicError.unsupportedSchema }
++                if source.contains(.performanceTakes), try !source.decodeNil(forKey: .performanceTakes) {
++                    let nested = try source.nestedUnkeyedContainer(forKey: .performanceTakes)
++                    guard nested.isAtEnd else { throw MusicError.invalidProject }
++                }
++            }
++        }
++        summary = ProjectSummary(id: id, name: name, bpm: bpm, keyRoot: keyRoot, minor: minor,
++                                 bars: end / barTicks, revision: revision, modified: modified,
++                                 schemaVersion: version, trackCount: trackCount)
++    }
++}
++
+ /// Serial actor: disk writes never run on the audio or main thread.
+ public actor ProjectStore {
++    public enum RenameError: Error, LocalizedError {
++        case staleRevision, invalidName
++        public var errorDescription: String? {
++            let key = switch self {
++            case .staleRevision: "This project changed. Refresh the project list and try renaming it again."
++            case .invalidName: "Use a project name with 1–120 characters and no control characters."
++            }
++            return NSLocalizedString(key, comment: "Project rename")
++        }
++    }
+     public let root: URL
+     public init(root: URL) { self.root = root }
+     private func package(_ id: UUID) -> URL { root.appendingPathComponent(id.uuidString).appendingPathExtension("grilla") }
+@@ -12,10 +98,13 @@ public actor ProjectStore {
+         let manifest = folder.appendingPathComponent("manifest.json")
+         if let old = try? Data(contentsOf: manifest) {
+             if old==data{return project.revision}
+-            if let header = try? JSONSerialization.jsonObject(with:old) as? [String:Any], let version=header["schemaVersion"] as? Int, version>Project.currentSchemaVersion {
+-                throw MusicError.unsupportedSchema
+-            }
+-            if let valid = try? ProjectDocument.decode(old), (try? valid.validate()) != nil {
++            // This decoder checks outer/frozen-source schema headers before
++            // decoding, then migrates and fully validates exactly once.
++            let valid: Project?
++            do { valid = try ProjectDocument.decode(old) }
++            catch MusicError.unsupportedSchema { throw MusicError.unsupportedSchema }
++            catch { valid = nil }
++            if let valid, valid.id == project.id {
+                 if valid.revision > project.revision {return valid.revision}
+                 try old.write(to:folder.appendingPathComponent("backup.json"),options:.atomic)
+             }
+@@ -24,11 +113,75 @@ public actor ProjectStore {
+         return project.revision
+     }
+     public func load(_ id: UUID, backup: Bool = false) throws -> Project {
++        let project = try ProjectDocument.decode(readManifest(id, backup: backup))
++        guard project.id == id else { throw MusicError.invalidProject }
++        return project
++    }
++    private func readManifest(_ id: UUID, backup: Bool = false) throws -> Data {
+         let file = package(id).appendingPathComponent(backup ? "backup.json" : "manifest.json")
+         let values = try file.resourceValues(forKeys: [.fileSizeKey]); guard (values.fileSize ?? 0) <= 8_000_000 else { throw MusicError.tooDense }
+-        let p = try ProjectDocument.decode(Data(contentsOf:file)); try p.validate(); return p
++        let handle = try FileHandle(forReadingFrom: file)
++        defer { try? handle.close() }
++        let data = try handle.read(upToCount: 8_000_001) ?? Data()
++        guard data.count <= 8_000_000 else { throw MusicError.tooDense }
++        return data
++    }
++    /// Read/compare/write in one actor turn. A catalogue row is a revision token,
++    /// not the document to save: the canonical project may have changed meanwhile.
++    @discardableResult public func rename(_ id: UUID, expectedRevision: Int, to name: String) throws -> Project {
++        var project = try load(id)
++        guard project.id == id else { throw MusicError.invalidProject }
++        guard project.revision == expectedRevision else { throw RenameError.staleRevision }
++        let title = name.trimmingCharacters(in: .whitespacesAndNewlines)
++        guard !title.isEmpty, title.count <= 120,
++              !title.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) || CharacterSet.newlines.contains($0) }) else { throw RenameError.invalidName }
++        guard project.revision < Project.maximumRevision else { throw MusicError.revisionLimit }
++        let modified = max(Date().timeIntervalSinceReferenceDate, project.modified.timeIntervalSinceReferenceDate.nextUp)
++        guard modified.isFinite else { throw MusicError.invalidProject }
++        project.name = title
++        project.revision += 1
++        project.modified = Date(timeIntervalSinceReferenceDate: modified)
++        try save(project)
++        return project
+     }
+     public struct Entry: Sendable, Identifiable { public let id: UUID; public let project: Project?; public let error: String? }
++    public struct SummaryEntry: Sendable, Identifiable {
++        public let id: UUID
++        public let summary: ProjectSummary?
++        public let error: String?
++        /// Presence of a regular backup file, not proof that it is valid.
++        public let hasBackup: Bool
++        public init(id: UUID, summary: ProjectSummary?, error: String?, hasBackup: Bool) {
++            self.id = id; self.summary = summary; self.error = error; self.hasBackup = hasBackup
++        }
++    }
++    /// Reads just one real manifest. Even valid metadata is not musical validation;
++    /// callers retain a full-load error row until retry/recovery succeeds.
++    public func summary(_ id: UUID) -> SummaryEntry {
++        let backup = package(id).appendingPathComponent("backup.json")
++        let hasBackup = (try? backup.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true
++        do {
++            let value = try JSONDecoder().decode(ProjectSummaryDocument.self, from: readManifest(id)).summary
++            guard value.id == id else { throw MusicError.invalidProject }
++            return SummaryEntry(id: id, summary: value, error: nil, hasBackup: hasBackup)
++        } catch {
++            let message = error is DecodingError ? MusicError.invalidProject.localizedDescription : error.localizedDescription
++            return SummaryEntry(id: id, summary: nil, error: String(message.prefix(1024)), hasBackup: hasBackup)
++        }
++    }
++    public func listSummaries() throws -> [SummaryEntry] {
++        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
++        return try FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: nil)
++            .filter { $0.pathExtension == "grilla" }
++            .compactMap { url -> SummaryEntry? in
++                guard let id = UUID(uuidString: url.deletingPathExtension().lastPathComponent) else { return nil }
++                return summary(id)
++            }
++            .sorted {
++                let left = $0.summary?.modified ?? .distantPast, right = $1.summary?.modified ?? .distantPast
++                return left == right ? $0.id.uuidString < $1.id.uuidString : left > right
++            }
++    }
+     public func list() throws -> [Entry] {
+         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+         return try FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: nil).filter {$0.pathExtension == "grilla"}.compactMap { url in
+diff --git a/Packages/MusicDomain/Tests/MusicDomainTests/ChordCatalogTests.swift b/Packages/MusicDomain/Tests/MusicDomainTests/ChordCatalogTests.swift
+index afde34e..44976e2 100644
+--- a/Packages/MusicDomain/Tests/MusicDomainTests/ChordCatalogTests.swift
++++ b/Packages/MusicDomain/Tests/MusicDomainTests/ChordCatalogTests.swift
+@@ -129,7 +129,7 @@ struct ChordCatalogTests {
+         let encoder=JSONEncoder();encoder.outputFormatting=[.sortedKeys]
+         let original=try encoder.encode(legacy),notes=Compiler.notes(legacy)
+         let migrated=try ProjectDocument.decode(original)
+-        #expect(migrated.schemaVersion==8);#expect(migrated.performanceTake?.source.schemaVersion==8)
++        #expect(migrated.schemaVersion==Project.currentSchemaVersion);#expect(migrated.performanceTake?.source.schemaVersion==Project.currentSchemaVersion)
+         #expect(Compiler.notes(migrated)==notes)
+         #expect(migrated.performanceTake?.source.patterns==legacy.performanceTake?.source.patterns)
+         #expect(migrated.performanceTake?.source.tracks==legacy.performanceTake?.source.tracks)
