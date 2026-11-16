@@ -46,6 +46,48 @@ struct AudioFailureDetails:Codable,Sendable {
     let inputPrimed:Bool
     let preferenceWarnings:[String]
     let qaInjected:Bool
+    let inputRetirementCount:Int
+    let inputRetirementMilliseconds:Double
+    let inputRetirementPending:Bool
+    let currentGraphHasInputNode:Bool
+    let activeAudioGraphCount:Int
+}
+
+/// Input failure metadata is deliberately copied into a separate, sanitized
+/// shape. The historical QA route snapshots contain port names; those snapshots
+/// must never be serialized into a user's shareable support report.
+struct AudioInputFailureDetails:Codable,Sendable {
+    struct Port:Codable,Sendable {
+        let type:String
+        let channels:Int
+        init(_ port:AVAudioSessionPortDescription){type=String(port.portType.rawValue.prefix(80));channels=port.channels?.count ?? 0}
+    }
+    struct Route:Codable,Sendable {
+        let stage:String
+        let hardwareInput:LiveInputRouteSnapshot.Format
+        let engineInput:LiveInputRouteSnapshot.Format
+        let inputUnit:LiveInputRouteSnapshot.IOUnit
+        let outputUnit:LiveInputRouteSnapshot.IOUnit
+        init(_ value:LiveInputRouteSnapshot){stage=value.stage;hardwareInput=value.inputFormat;engineInput=value.outputFormat;inputUnit=value.inputUnit;outputUnit=value.outputUnit}
+    }
+    let stage:String
+    let domain:String
+    let code:Int
+    let permission:String
+    let category:String
+    let mode:String
+    let sessionSampleRate:Double?
+    let inputAvailable:Bool
+    let inputs:[Port]
+    let availableInputs:[Port]
+    let outputs:[Port]
+    let observations:[Route]
+    let inputPriming:String
+    let inputPrimedAtStartup:Bool
+    let inputTransitionCount:Int
+    let inputTransitionMilliseconds:Double
+    var cleanupDomain:String?
+    var cleanupCode:Int?
 }
 
 private struct AudioStartFailure:LocalizedError {
@@ -78,6 +120,37 @@ private enum AudioRender {
     private let inputPriming:InputPrimingPolicy
     private(set) var inputPrimedAtStartup=false
     private(set) var failureDetails:AudioFailureDetails?
+    private(set) var inputFailureDetails:AudioInputFailureDetails?
+    // Historical result of the latest capture setup, not current mic usage.
+    // After retirement currentGraphHasInputNode describes the new output graph.
+    private(set) var inputConfigured=false
+    private(set) var inputTransitionCount=0
+    private(set) var inputTransitionMilliseconds=0.0
+    private(set) var inputRetirementCount=0
+    private(set) var inputRetirementMilliseconds=0.0
+    @ObservationIgnored private weak var lastRetiredInputEngine:AVAudioEngine?
+    @ObservationIgnored private var pendingInputRetirement:PendingInputRetirement?
+    @ObservationIgnored private var inputNodeTouchedInCurrentGraph=false
+    private struct PendingInputRetirement {
+        let engine:AVAudioEngine
+        let category:AVAudioSession.Category
+        let mode:AVAudioSession.Mode
+        let options:AVAudioSession.CategoryOptions
+        let began:UInt64
+    }
+    var inputRetirementPending:Bool{pendingInputRetirement != nil}
+    // Inspect attachment state without invoking the lazy inputNode getter.
+    var currentGraphHasInputNode:Bool{engine?.attachedNodes.contains{$0 is AVAudioInputNode} ?? false}
+    var retiredInputGraphStopped:Bool{
+        if let lastRetiredInputEngine{return !lastRetiredInputEngine.isRunning}
+        return inputRetirementCount>0
+    }
+    var activeAudioGraphCount:Int{
+        var count=engine?.isRunning == true ? 1:0
+        if let retired=lastRetiredInputEngine,retired !== engine,retired.isRunning{count+=1}
+        return count
+    }
+    var inputPrimingName:String{inputPriming.rawValue}
     @ObservationIgnored private var preferenceWarnings:[String]=[]
     @ObservationIgnored private var observedOutputSampleRate:Double?
     @ObservationIgnored private var observedOutputChannels:Int?
@@ -121,17 +194,26 @@ private enum AudioRender {
     var retainedRoutingCount:Int {routing.count}
     var clock: UInt64 = 0
     var failureReport:String {
-        guard let failureDetails,let data=try? JSONEncoder().encode(failureDetails)else{return ""}
+        let encoder=JSONEncoder();encoder.outputFormatting=[.sortedKeys]
+        if let inputFailureDetails {
+            struct Report:Encodable {let output:AudioFailureDetails?;let input:AudioInputFailureDetails}
+            guard let data=try? encoder.encode(Report(output:failureDetails,input:inputFailureDetails))else{return ""}
+            return String(decoding:data,as:UTF8.self)
+        }
+        guard let failureDetails,let data=try? encoder.encode(failureDetails)else{return ""}
         return String(decoding:data,as:UTF8.self)
     }
     /// Read-only native test diagnostics. Never called from the render thread.
     var runtimeTraceState:String {
-        let prefix="engineRunning=\(engine?.isRunning == true) controllerPlaying=\(playing) controllerTick=\(tick) controllerClock=\(clock) appliedRevision=\(appliedRevision) submittedGeneration=\(generation) inputPriming=\(inputPriming.rawValue) inputPrimed=\(inputPrimedAtStartup) failureStage=\(failureDetails?.stage ?? "none") qaAudioUnavailable=\(failureDetails?.qaInjected ?? false)"
+        let prefix="engineRunning=\(engine?.isRunning == true) controllerPlaying=\(playing) controllerTick=\(tick) controllerClock=\(clock) appliedRevision=\(appliedRevision) submittedGeneration=\(generation) inputPriming=\(inputPriming.rawValue) inputPrimed=\(inputPrimedAtStartup) inputConfigured=\(inputConfigured) inputTransitionCount=\(inputTransitionCount) inputTransitionMilliseconds=\(inputTransitionMilliseconds) inputRetirementCount=\(inputRetirementCount) inputRetirementMilliseconds=\(inputRetirementMilliseconds) inputRetirementPending=\(inputRetirementPending) currentGraphHasInputNode=\(currentGraphHasInputNode) retiredInputGraphStopped=\(retiredInputGraphStopped) activeAudioGraphCount=\(activeAudioGraphCount) failureStage=\(failureDetails?.stage ?? "none") qaAudioUnavailable=\(failureDetails?.qaInjected ?? false)"
         guard let k=handle?.pointer else{return prefix+" kernel=none error=\(error ?? "none")"}
         let revision=Int(lg_revision(k))
         return prefix+" kernel=\(UInt(bitPattern:k)) actualClock=\(lg_clock(k)) actualTick=\(lg_tick(k)) actualPlaying=\(lg_playing(k)) actualGeneration=\(revision) actualRevision=\(sentRevisions[revision] ?? -1) pending=\(generation != revision) error=\(error ?? "none")"
     }
     func prepare() throws {
+        // A failed privacy handoff must retry a fresh output-only graph, never
+        // revive the input-enabled graph that was deliberately retired.
+        if pendingInputRetirement != nil{try finishInputRetirement();return}
         if engine?.isRunning == true { return }
         // A microphone category/configuration change may stop AVAudioEngine.
         // Restart the same graph: replacing the kernel would lose its clock,
@@ -159,13 +241,13 @@ private enum AudioRender {
             stage="activate-playback"
             try session.setActive(true)
             let e=AVAudioEngine();pendingEngine=e
-            inputPrimedAtStartup=false
+            inputPrimedAtStartup=false;inputNodeTouchedInCurrentGraph=false
             if inputPriming == .sharedInputFirst {
                 // Simulator HAL requires this ordering for later shared input.
                 // A physical playback-only graph must not initialize input
                 // before the user explicitly grants capture permission.
                 stage="prime-simulator-input"
-                _ = e.inputNode;inputPrimedAtStartup=true
+                _ = e.inputNode;inputPrimedAtStartup=true;inputNodeTouchedInCurrentGraph=true
             }
             stage="read-initial-output-format"
             let output=try outputFormat(e)
@@ -180,9 +262,7 @@ private enum AudioRender {
             e.attach(node);e.connect(node,to:e.mainMixerNode,format:format)
             try startOutputGraph(e,stage:&stage)
             handle=h;source=node;engine=e;submittedNotes=nil;pendingEngine=nil
-            configurationObserver=NotificationCenter.default.addObserver(forName:.AVAudioEngineConfigurationChange,object:e,queue:.main){[weak self] _ in
-                Task{@MainActor in self?.resumeConfiguredGraph()}
-            }
+            observeConfiguration(of:e)
             timer?.invalidate();timer=Timer.scheduledTimer(withTimeInterval:1/30,repeats:true){[weak self] _ in
                 Task{@MainActor in self?.poll()}
             }
@@ -193,9 +273,139 @@ private enum AudioRender {
             throw AudioStartFailure(underlying:error)
         }
     }
+    /// An output-only I/O unit may already be initialized without input. Stop
+    /// it BEFORE changing category or lazily creating the input node, rather
+    /// than asking an initialized output unit for a zero-format input and then
+    /// trying to repair it. The source/kernel and every musical queue survive.
+    /// Simulator's input-first graph already owns input and needs no such stop.
+    /// Reapply this for each output-only lease: restoring playback or changing
+    /// hardware can invalidate the previous input configuration.
+    func beginMicrophoneConfiguration()throws->UInt64? {
+        guard let engine,handle != nil else{throw LiveInputError.outputUnavailable}
+        inputConfigured=false
+        guard !inputPrimedAtStartup else{return nil}
+        let began=mach_absolute_time()
+        engine.stop()
+        inputTransitionCount+=1
+        onRuntimeTrace?("audio.input.transition.begin")
+        return began
+    }
+    func finishMicrophoneConfiguration(_ began:UInt64?,ready:Bool){
+        inputConfigured=ready
+        if let began {
+            var info=mach_timebase_info_data_t();mach_timebase_info(&info)
+            inputTransitionMilliseconds=Double(mach_absolute_time()-began)*Double(info.numer)/Double(info.denom)/1_000_000
+        }
+        onRuntimeTrace?(ready ? "audio.input.transition.ready":"audio.input.transition.failed")
+    }
+    func recordInputFailure(_ cause:Error,stage:String,routes:[LiveInputRouteSnapshot]){
+        let failure=cause as NSError,session=AVAudioSession.sharedInstance()
+        let permission=AVAudioApplication.shared.recordPermission
+        inputFailureDetails=AudioInputFailureDetails(
+            stage:String(stage.prefix(100)),domain:String(failure.domain.prefix(160)),code:failure.code,
+            permission:permission == .granted ? "granted":permission == .denied ? "denied":"undetermined",
+            category:session.category.rawValue,mode:session.mode.rawValue,
+            sessionSampleRate:session.sampleRate.isFinite ? session.sampleRate:nil,
+            inputAvailable:session.isInputAvailable,
+            inputs:session.currentRoute.inputs.prefix(8).map{.init($0)},
+            availableInputs:(session.availableInputs ?? []).prefix(8).map{.init($0)},
+            outputs:session.currentRoute.outputs.prefix(8).map{.init($0)},
+            observations:routes.prefix(4).map{.init($0)},inputPriming:inputPriming.rawValue,
+            inputPrimedAtStartup:inputPrimedAtStartup,inputTransitionCount:inputTransitionCount,
+            inputTransitionMilliseconds:inputTransitionMilliseconds
+        )
+        onRuntimeTrace?("audio.input.failure."+stage)
+    }
+    func recordInputCleanupFailure(_ cause:Error){
+        let failure=cause as NSError
+        inputFailureDetails?.cleanupDomain=String(failure.domain.prefix(160));inputFailureDetails?.cleanupCode=failure.code
+    }
+    func noteMicrophoneInputAccess(on expectedEngine:AVAudioEngine){
+        if engine === expectedEngine{inputNodeTouchedInCurrentGraph=true}
+    }
+    /// AVAudioEngine's SDK contract warns that once input has been enabled,
+    /// running that engine can keep the microphone-use indicator active. After
+    /// an explicit capture stop, retire its I/O graph for the output-only policy.
+    /// DSP state is owned by KernelHandle, not by either AVAudioEngine instance.
+    func restoreAfterMicrophone(expectedEngine:AVAudioEngine,category:AVAudioSession.Category,mode:AVAudioSession.Mode,options:AVAudioSession.CategoryOptions)throws {
+        // Explicit cleanup and a queued deinit may both arrive. An old lease
+        // cannot change the category or restart a successor's current graph.
+        guard engine === expectedEngine else{return}
+        let hasInput=expectedEngine.attachedNodes.contains{$0 is AVAudioInputNode}
+        if inputPriming == .outputOnly,(inputNodeTouchedInCurrentGraph || hasInput) {
+            if pendingInputRetirement == nil {
+                pendingInputRetirement=PendingInputRetirement(engine:expectedEngine,category:category,mode:mode,options:options,began:mach_absolute_time())
+                lastRetiredInputEngine=expectedEngine
+                if let configurationObserver{NotificationCenter.default.removeObserver(configurationObserver)}
+                configurationObserver=nil
+                // Stop before restoring the playback category. The old graph
+                // stays stopped even if constructing its replacement fails.
+                expectedEngine.stop()
+                onRuntimeTrace?("audio.input.retirement.begin")
+            }
+            try finishInputRetirement()
+        }else{
+            let session=AVAudioSession.sharedInstance()
+            try session.setCategory(category,mode:mode,options:options)
+            if !expectedEngine.isRunning{try resumeOutputAfterInputChange()}
+        }
+    }
+    private func finishInputRetirement()throws {
+        guard let pending=pendingInputRetirement else{return}
+        guard engine === pending.engine,let handle else{throw LiveInputError.outputUnavailable}
+        var stage="retire-input-stop"
+        var replacement:AVAudioEngine?
+        do {
+            pending.engine.stop()
+            guard !pending.engine.isRunning else{throw LiveInputError.outputUnavailable}
+            let session=AVAudioSession.sharedInstance()
+            stage="retire-input-category"
+            try session.setCategory(pending.category,mode:pending.mode,options:pending.options)
+            stage="retire-input-activate-output"
+            try session.setActive(true)
+            let next=AVAudioEngine();replacement=next
+            // Do not touch next.inputNode, including from diagnostics. The new
+            // source shares the existing kernel, MIDI hub and original DSP rate.
+            guard let format=AVAudioFormat(standardFormatWithSampleRate:sampleRate,channels:2)else{throw unavailableOutput()}
+            let node=AudioRender.makeSource(format:format,kernel:handle,hub:midiHub)
+            stage="retire-input-connect-source"
+            next.attach(node);next.connect(node,to:next.mainMixerNode,format:format)
+            try startOutputGraph(next,stage:&stage)
+            guard next.isRunning,!pending.engine.isRunning else{throw LiveInputError.outputUnavailable}
+            // Publish only a running replacement. No kernel creation, stop,
+            // seek, music resubmission, generation or routing changes occur.
+            source=node;engine=next;replacement=nil;inputNodeTouchedInCurrentGraph=false
+            observeConfiguration(of:next)
+            inputRetirementCount+=1
+            inputRetirementMilliseconds=milliseconds(since:pending.began)
+            pendingInputRetirement=nil
+            error=nil
+            onRuntimeTrace?("audio.input.retirement.ready")
+        }catch {
+            replacement?.stop();pending.engine.stop()
+            inputRetirementMilliseconds=milliseconds(since:pending.began)
+            recordFailure(error,stage:stage)
+            throw AudioStartFailure(underlying:error)
+        }
+    }
+    private func milliseconds(since host:UInt64)->Double {
+        var info=mach_timebase_info_data_t();mach_timebase_info(&info)
+        return Double(mach_absolute_time()-host)*Double(info.numer)/Double(info.denom)/1_000_000
+    }
+    private func observeConfiguration(of observedEngine:AVAudioEngine){
+        if let configurationObserver{NotificationCenter.default.removeObserver(configurationObserver)}
+        let identity=ObjectIdentifier(observedEngine)
+        configurationObserver=NotificationCenter.default.addObserver(forName:.AVAudioEngineConfigurationChange,object:observedEngine,queue:.main){ @Sendable [weak self] _ in
+            Task{@MainActor in
+                guard let self,let current=self.engine,ObjectIdentifier(current)==identity else{return}
+                self.resumeConfiguredGraph()
+            }
+        }
+    }
     /// Called after category/tap changes only if the OS stopped this graph.
     /// The source, kernel, musical clock and submitted generations are retained.
     func resumeOutputAfterInputChange()throws {
+        if pendingInputRetirement != nil{try finishInputRetirement();return}
         guard let engine,handle != nil else{throw LiveInputError.outputUnavailable}
         guard !engine.isRunning else{return}
         var stage="resume-input-output"
@@ -258,7 +468,9 @@ private enum AudioRender {
             inputPriming:inputPriming.rawValue,
             inputPrimed:inputPrimedAtStartup,
             preferenceWarnings:preferenceWarnings,
-            qaInjected:qaInjected
+            qaInjected:qaInjected,inputRetirementCount:inputRetirementCount,
+            inputRetirementMilliseconds:inputRetirementMilliseconds,inputRetirementPending:inputRetirementPending,
+            currentGraphHasInputNode:currentGraphHasInputNode,activeAudioGraphCount:activeAudioGraphCount
         )
         error=AudioStartFailure(underlying:cause).localizedDescription
         onRuntimeTrace?("audio.failure."+stage)
@@ -389,5 +601,7 @@ private enum AudioRender {
         stop();timer?.invalidate()
         if let configurationObserver{NotificationCenter.default.removeObserver(configurationObserver)};configurationObserver=nil
         engine?.stop();engine=nil;source=nil;handle=nil
+        inputConfigured=false;inputTransitionCount=0;inputTransitionMilliseconds=0
+        pendingInputRetirement=nil;lastRetiredInputEngine=nil;inputRetirementCount=0;inputRetirementMilliseconds=0;inputNodeTouchedInCurrentGraph=false
     }
 }

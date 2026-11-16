@@ -173,5 +173,8 @@ jobs:
           name: unsigned-release-archive
           path: |
             ReleaseArtifacts/LaGrilla-unsigned-archive.zip
+            ReleaseArtifacts/LaGrilla-unsigned.ipa
+            ReleaseArtifacts/LaGrilla-unsigned.json
+            ReleaseArtifacts/LaGrilla-unsigned.sha256
             ReleaseArtifacts/*.log
             ReleaseArtifacts/*-uuid.txt

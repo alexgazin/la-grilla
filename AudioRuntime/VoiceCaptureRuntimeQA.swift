@@ -18,6 +18,8 @@ import MusicDomain
         let audio:AudioController
         let engine:AVAudioEngine
         let kernel:OpaquePointer
+        let midiHub:MIDIHubHandle
+        let firstRetirementCount:Int
         let firstClock:UInt64
         let firstTick:Double
         let bpm:Double
@@ -29,11 +31,13 @@ import MusicDomain
         private(set) var failure:Error?
         private(set) var samples=0
         private(set) var maximumPhaseError=0.0
+        private(set) var retirementClock:UInt64?
         init(session:Session,deadline:Date)throws {
             let runtime=session.audio
             guard let engine=runtime.captureEngine,let kernel=runtime.withKernel({$0})else{throw Failure(message:"No shared voice-capture engine/kernel")}
             runtime.refreshClock()
             audio=runtime;self.deadline=deadline;self.engine=engine;self.kernel=kernel
+            midiHub=runtime.midiHub;firstRetirementCount=runtime.inputRetirementCount
             firstClock=runtime.clock;firstTick=runtime.tick;lastClock=runtime.clock
             bpm=session.project.bpm;rate=runtime.sampleRate;length=Double(session.loopRange.count)
             try check()
@@ -43,7 +47,17 @@ import MusicDomain
             try VoiceCaptureRuntimeQA.require(Date()<deadline,"Production voice-capture lifecycle exceeded 33 seconds")
             audio.refreshClock()
             let sameKernel=audio.withKernel{$0==kernel} ?? false
-            try VoiceCaptureRuntimeQA.require(sameKernel && audio.captureEngine===engine,"Voice lifecycle replaced the output engine or kernel")
+            try VoiceCaptureRuntimeQA.require(sameKernel && audio.sampleRate==rate && audio.midiHub===midiHub,"Voice lifecycle replaced the DSP kernel, sample rate or MIDI hub")
+            if audio.captureEngine !== engine {
+                // Physical/output-only policy retires the input-enabled I/O
+                // graph after capture. Only this observed one-graph handoff
+                // may replace I/O; the DSP clock and musical state stay live.
+                let retired=audio.inputPrimingName=="outputOnly" && audio.inputRetirementCount==firstRetirementCount+1
+                    && !engine.isRunning && audio.retiredInputGraphStopped
+                    && !audio.currentGraphHasInputNode && audio.activeAudioGraphCount==1
+                try VoiceCaptureRuntimeQA.require(retired,"Voice lifecycle replaced I/O without a completed controlled input retirement")
+                if retirementClock==nil{retirementClock=audio.clock}
+            }
             try VoiceCaptureRuntimeQA.require(audio.playing && audio.clock>=lastClock,"Voice lifecycle stopped or rewound the backing transport")
             lastClock=audio.clock
             let elapsed=Double(audio.clock-firstClock)*bpm*Double(ppq)/(60*rate)
@@ -71,6 +85,8 @@ import MusicDomain
         let plan:VoiceCapturePlan
         let route:LiveInputRouteSnapshot
         let states:[String]
+        let inputConfiguredDuringCapture:Bool
+        let inputNodeAttachedDuringCapture:Bool
     }
     private struct SourceProof {
         let frames:Int64
@@ -78,7 +94,7 @@ import MusicDomain
     }
     private struct Report:Encodable {
         let outcome="PASS"
-        let signal="Scheduled monophonic instrument through actual host HAL/input tap; quiet backing drums continue. No injected PCM, synthetic analysis or human-voice accuracy claim."
+        let signal="Scheduled monophonic instrument through actual host HAL/input tap with backing drums. Output-only policy measures deliberate I/O activation and retirement gaps while retaining DSP state. No injected PCM, synthetic analysis or human-voice accuracy claim."
         let source:AudioAssetRecord
         let sourceFrames:Int64
         let sourcePeak:Float
@@ -94,6 +110,11 @@ import MusicDomain
         let redoRestoresExactSourceAndNotes:Bool
         let sourceUnchangedAfterReview:Bool
         let sameEngineAndKernel:Bool
+        let sameEngine:Bool
+        let sameKernel:Bool
+        let sameSampleRate:Bool
+        let sameMIDIHub:Bool
+        let projectUnchangedBeforeApply:Bool
         let backingClockAdvanced:Bool
         let continuitySamples:Int
         let maximumPhaseErrorTicks:Double
@@ -104,6 +125,20 @@ import MusicDomain
         let referenceReusedWithoutPreparation:Bool
         let permissionBeforeCapture:String
         let permissionAfterCapture:String
+        let inputPriming:String
+        let inputPrimedAtStartup:Bool
+        let inputConfigured:Bool
+        let inputTransitionCount:Int
+        let inputTransitionMilliseconds:Double
+        let inputConfiguredDuringCapture:Bool
+        let inputNodeAttachedDuringCapture:Bool
+        let inputRetirementCount:Int
+        let inputRetirementMilliseconds:Double
+        let currentGraphHasInputNode:Bool
+        let retiredInputGraphStopped:Bool
+        let activeAudioGraphCount:Int
+        let postRetirementClockFramesAdvanced:UInt64?
+        let physicalMicrophoneIndicatorVerified=false
     }
     static func run(_ session:Session,reusePreparedReference:Bool=false)async throws->String {
         let started=Date(),deadline=started.addingTimeInterval(33)
@@ -136,8 +171,23 @@ import MusicDomain
         try immutableSource(captured.result)
         try monitor.check()
         try require(session.audio.clock>monitor.firstClock && monitor.samples>10,"No continuing backing callbacks were observed")
+        if let retirementClock=monitor.retirementClock {
+            // A pre-capture callback count cannot prove that the fresh graph
+            // renders. With the old graph stopped, require later DSP callbacks.
+            while session.audio.clock<=retirementClock {
+                try monitor.check()
+                try await Task.sleep(for:.milliseconds(20))
+            }
+        }
         let timing=try await readTiming(monitor,epoch:baselineTiming.epoch,minimumCallbacks:baselineTiming.callbacks+1)
-        let report=Report(source:captured.result.record,sourceFrames:proof.frames,sourcePeak:proof.peak,route:captured.route,captureStates:captured.states,detectedPitches:detected.map(\.pitch),reviewedPitches:reviewed.map(\.pitch),appliedTrackID:placement.trackID,appliedRevision:applied.revision,storedSourceMatches:true,storedProjectReopened:true,oneUndoRestoresBaseline:true,redoRestoresExactSourceAndNotes:true,sourceUnchangedAfterReview:true,sameEngineAndKernel:true,backingClockAdvanced:true,continuitySamples:monitor.samples,maximumPhaseErrorTicks:monitor.maximumPhaseError,elapsedSeconds:Date().timeIntervalSince(started),outputHostTimingBaseline:.init(baselineTiming),outputHostTiming:.init(timing),referenceReusedWithoutPreparation:reusePreparedReference,permissionBeforeCapture:permissionBefore,permissionAfterCapture:permissionName(AVAudioApplication.shared.recordPermission))
+        if session.audio.inputPrimingName=="outputOnly" {
+            let audio=session.audio
+            try require(!audio.inputPrimedAtStartup && captured.inputConfiguredDuringCapture && captured.inputNodeAttachedDuringCapture && audio.inputTransitionCount>0 && audio.inputTransitionMilliseconds.isFinite && audio.inputTransitionMilliseconds>0,"Output-only capture did not report its actual first-input transition")
+            try require(audio.captureEngine !== monitor.engine && !monitor.engine.isRunning && audio.inputConfigured && audio.inputRetirementCount==monitor.firstRetirementCount+1 && audio.inputRetirementMilliseconds.isFinite && audio.inputRetirementMilliseconds>0 && !audio.currentGraphHasInputNode && audio.retiredInputGraphStopped && audio.activeAudioGraphCount==1,"Output-only capture did not retire its input-enabled graph into exactly one playback-only graph")
+        }
+        let sameEngine=session.audio.captureEngine===monitor.engine
+        let sameKernel=session.audio.withKernel{$0==monitor.kernel} ?? false
+        let report=Report(source:captured.result.record,sourceFrames:proof.frames,sourcePeak:proof.peak,route:captured.route,captureStates:captured.states,detectedPitches:detected.map(\.pitch),reviewedPitches:reviewed.map(\.pitch),appliedTrackID:placement.trackID,appliedRevision:applied.revision,storedSourceMatches:true,storedProjectReopened:true,oneUndoRestoresBaseline:true,redoRestoresExactSourceAndNotes:true,sourceUnchangedAfterReview:true,sameEngineAndKernel:sameEngine && sameKernel,sameEngine:sameEngine,sameKernel:sameKernel,sameSampleRate:session.audio.sampleRate==monitor.rate,sameMIDIHub:session.audio.midiHub===monitor.midiHub,projectUnchangedBeforeApply:true,backingClockAdvanced:true,continuitySamples:monitor.samples,maximumPhaseErrorTicks:monitor.maximumPhaseError,elapsedSeconds:Date().timeIntervalSince(started),outputHostTimingBaseline:.init(baselineTiming),outputHostTiming:.init(timing),referenceReusedWithoutPreparation:reusePreparedReference,permissionBeforeCapture:permissionBefore,permissionAfterCapture:permissionName(AVAudioApplication.shared.recordPermission),inputPriming:session.audio.inputPrimingName,inputPrimedAtStartup:session.audio.inputPrimedAtStartup,inputConfigured:session.audio.inputConfigured,inputTransitionCount:session.audio.inputTransitionCount,inputTransitionMilliseconds:session.audio.inputTransitionMilliseconds,inputConfiguredDuringCapture:captured.inputConfiguredDuringCapture,inputNodeAttachedDuringCapture:captured.inputNodeAttachedDuringCapture,inputRetirementCount:session.audio.inputRetirementCount,inputRetirementMilliseconds:session.audio.inputRetirementMilliseconds,currentGraphHasInputNode:session.audio.currentGraphHasInputNode,retiredInputGraphStopped:session.audio.retiredInputGraphStopped,activeAudioGraphCount:session.audio.activeAudioGraphCount,postRetirementClockFramesAdvanced:monitor.retirementClock.map{session.audio.clock-$0})
         let encoder=JSONEncoder();encoder.outputFormatting=[.prettyPrinted,.sortedKeys]
         return String(decoding:try encoder.encode(report),as:UTF8.self)
     }
@@ -213,6 +263,9 @@ import MusicDomain
         try monitor.check()
         guard let plan,capture.isCapturing else{throw Failure(message:scheduleFailure ?? capture.error ?? "Production VoiceCapture did not arm a real input")}
         let route=LiveInputRouteSnapshot.capture(monitor.engine,stage:"production-voice-input-armed")
+        let inputConfiguredDuringCapture=session.audio.inputConfigured
+        let inputNodeAttachedDuringCapture=monitor.engine.attachedNodes.contains{$0 is AVAudioInputNode}
+        try require(inputConfiguredDuringCapture && inputNodeAttachedDuringCapture,"Production capture did not own a configured attached input node while armed")
         try require(route.isInputAvailable && (route.outputFormat.sampleRate ?? 0)>0,"Production capture has no actual input format")
         var states=[String(describing:capture.state)]
         while capture.state != .ready {
@@ -227,7 +280,7 @@ import MusicDomain
         guard let result=capture.result else{throw Failure(message:"Production capture reached ready without an analyzed CAF")}
         try require(capture.error==nil && states.contains("recording"),"Production recording phase was not observed")
         try require(AVAudioSession.sharedInstance().category==category,"Voice analysis did not restore the output category")
-        return Captured(result:result,plan:plan,route:route,states:states)
+        return Captured(result:result,plan:plan,route:route,states:states,inputConfiguredDuringCapture:inputConfiguredDuringCapture,inputNodeAttachedDuringCapture:inputNodeAttachedDuringCapture)
     }
     private static func validateSource(_ result:VoiceCaptureResult,planned:Double,bpm:Double)throws->SourceProof {
         try immutableSource(result)

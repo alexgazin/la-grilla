@@ -1,0 +1,45 @@
+{
+  "launchPerformanceAccepted" : false,
+  "previews" : [
+    {
+      "appearance" : "dark",
+      "bootstrapLatencyMeasured" : false,
+      "largeType" : false,
+      "name" : "dark-en",
+      "qaPreview" : true,
+      "qaReduceMotionOverride" : false,
+      "realBootstrapReady" : true,
+      "reduceMotion" : false,
+      "systemReduceMotion" : false,
+      "uiLanguage" : "en"
+    },
+    {
+      "appearance" : "light",
+      "bootstrapLatencyMeasured" : false,
+      "largeType" : false,
+      "name" : "light-en",
+      "qaPreview" : true,
+      "qaReduceMotionOverride" : false,
+      "realBootstrapReady" : true,
+      "reduceMotion" : false,
+      "systemReduceMotion" : false,
+      "uiLanguage" : "en"
+    },
+    {
+      "appearance" : "dark",
+      "bootstrapLatencyMeasured" : false,
+      "largeType" : true,
+      "name" : "dark-ru-large-reduced-motion",
+      "qaPreview" : true,
+      "qaReduceMotionOverride" : true,
+      "realBootstrapReady" : true,
+      "reduceMotion" : true,
+      "systemReduceMotion" : false,
+      "uiLanguage" : "ru"
+    }
+  ],
+  "productionMinimumDelayAdded" : false,
+  "projectStoreID" : "F6D8141B-CACB-4B45-BB1E-71A3A5946680",
+  "realNormalLaunchReachedStudio" : true,
+  "realWelcomeSkipAndRelaunchPassed" : true
+}

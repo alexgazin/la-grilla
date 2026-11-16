@@ -596,7 +596,7 @@
 "Add clip to %@" = "Add clip to %@";
 "There is no room for another clip. Shorten or move an existing clip first." = "There is no room for another clip. Shorten or move an existing clip first.";
 "This project has reached its revision limit. Save a copy to continue editing." = "This project has reached its revision limit. Save a copy to continue editing.";
-"Bar %@ · %@ beats (%d ticks)" = "Bar %@ · %@ beats (%d ticks)";
+"Bar %@ · %@ beats" = "Bar %@ · %@ beats";
 "No chords in this section." = "No chords in this section.";
 "Bar:beat:tick · 960 ticks per beat; zero ticks are omitted." = "Bar:beat:tick · 960 ticks per beat; zero ticks are omitted.";
 "Bar %lld, beat %lld" = "Bar %lld, beat %lld";
@@ -645,3 +645,22 @@
 "Share audio diagnostics" = "Share audio diagnostics";
 "Includes audio route types and error codes, never recordings." = "Includes audio route types and error codes, never recordings.";
 "Audio diagnostics" = "Audio diagnostics";
+
+"Write the request in the selected AI request language, or choose another supported AI language. Dictation language is separate." = "Write the request in the selected AI request language, or choose another supported AI language. Dictation language is separate.";
+"Check Apple Intelligence in the main iOS Settings, including its system and Siri language requirements. Siri permissions for La Grilla are separate." = "Check Apple Intelligence in the main iOS Settings, including its system and Siri language requirements. Siri permissions for La Grilla are separate.";
+"Check Apple Intelligence in the main iOS Settings and let the model finish downloading. Return here and recheck." = "Check Apple Intelligence in the main iOS Settings and let the model finish downloading. Return here and recheck.";
+"Choose an AI request language supported by this device's model, then write the request in that language. Dictation has its own language." = "Choose an AI request language supported by this device's model, then write the request in that language. Dictation has its own language.";
+"Apple Intelligence needs a supported iPhone. Enabling Siri for La Grilla does not change device eligibility." = "Apple Intelligence needs a supported iPhone. Enabling Siri for La Grilla does not change device eligibility.";
+"Use iOS 26 or later on a supported iPhone for on-device AI. Commands and dictation have separate requirements." = "Use iOS 26 or later on a supported iPhone for on-device AI. Commands and dictation have separate requirements.";
+"This build uses an older iOS SDK. Rebuild with Xcode 26 or later to include on-device AI." = "This build uses an older iOS SDK. Rebuild with Xcode 26 or later to include on-device AI.";
+"Check the device, language and model status under Apple Intelligence in the main iOS Settings, then recheck here." = "Check the device, language and model status under Apple Intelligence in the main iOS Settings, then recheck here.";
+"AI request language" = "AI request language";
+"Write the AI request in this language. Dictation below has its own language." = "Write the AI request in this language. Dictation below has its own language.";
+"Recheck AI" = "Recheck AI";
+"The microphone could not start. Retry recording or check the audio route." = "The microphone could not start. Retry recording or check the audio route.";
+
+"AI language and setup" = "AI language and setup";
+"AI requests and dictation have separate languages. Neither changes automatically." = "AI requests and dictation have separate languages. Neither changes automatically.";
+"Creates form and chords. Existing drum and melody parts are reused; new parts are not generated." = "Creates form and chords. Existing drum and melody parts are reused; new parts are not generated.";
+"Source sections without drum notes stay empty. Add a beat in Jam." = "Source sections without drum notes stay empty. Add a beat in Jam.";
+"Source sections without melody notes stay empty. Add notes or record a melody." = "Source sections without melody notes stay empty. Add notes or record a melody.";
