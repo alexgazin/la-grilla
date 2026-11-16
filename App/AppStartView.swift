@@ -34,7 +34,8 @@ struct AppStartView: View {
             let arguments = ProcessInfo.processInfo.arguments
             let testing = arguments.contains("--uitesting")
             if testing && arguments.contains("--show-welcome") { welcomeCompleted = false }
-            showWelcome = !welcomeCompleted && (!testing || arguments.contains("--show-welcome"))
+            let respectsWelcome = !testing || arguments.contains("--respect-welcome") || arguments.contains("--show-welcome")
+            showWelcome = !welcomeCompleted && respectsWelcome
         }
         .sheet(isPresented: $showWelcome, onDismiss: { welcomeCompleted = true }) {
             GettingStartedView {

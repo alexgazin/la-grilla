@@ -26,7 +26,7 @@ final class StudioTests: XCTestCase {
     @MainActor func testWelcomeCanBeSkippedAndReopenedWithoutRepeatingOnLaunch() {
         XCUIDevice.shared.orientation = .portrait
         let app=XCUIApplication()
-        app.launchArguments=["--uitesting","--show-welcome","-AppleLanguages","(en)","-AppleLocale","en_US"]
+        app.launchArguments=["--uitesting","--respect-welcome","--show-welcome","-AppleLanguages","(en)","-AppleLocale","en_US"]
         app.launch()
         XCTAssertTrue(app.staticTexts["welcome.title"].waitForExistence(timeout:15))
         XCTAssertTrue(app.buttons["welcome.skip"].isHittable)
@@ -34,7 +34,7 @@ final class StudioTests: XCTestCase {
         XCTAssertTrue(app.buttons["perform.transport"].waitForExistence(timeout:5))
         app.terminate();app.launchArguments.removeAll{$0=="--show-welcome"};app.launch()
         XCTAssertTrue(app.buttons["perform.transport"].waitForExistence(timeout:15))
-        XCTAssertFalse(app.staticTexts["welcome.title"].exists,"A completed first session guide must not block the returning studio")
+        XCTAssertFalse(app.staticTexts["welcome.title"].waitForExistence(timeout:2),"A completed first session guide must not block the returning studio")
         app.buttons["tools.more"].tap();app.buttons["Settings"].tap()
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout:5))
         let help=app.buttons["settings.help"]
