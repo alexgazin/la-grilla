@@ -5,21 +5,23 @@ import XCTest
 final class FirstResultTests:XCTestCase {
     override func setUp(){super.setUp();continueAfterFailure=false;executionTimeAllowance=120}
 
-    @MainActor private func launch()->XCUIApplication {
+    @MainActor private func launch(fastReady:Bool=false)->XCUIApplication {
         XCUIDevice.shared.orientation = .portrait
         let app=XCUIApplication()
         app.launchArguments=["--uitesting","--runtime-trace","--device-output-startup","--project-store-id",UUID().uuidString,"-AppleLanguages","(en)","-AppleLocale","en_US"]
         app.launch()
-        XCTAssertTrue(app.buttons["perform.transport"].waitForExistence(timeout:15))
+        let transport=app.buttons["perform.transport"]
+        XCTAssertTrue(fastReady ? (transport.exists || transport.waitForExistence(timeout:15)):transport.waitForExistence(timeout:15))
         return app
     }
 
-    @MainActor private func create(_ name:String,starter:Bool,in app:XCUIApplication){
+    @MainActor private func create(_ name:String,starter:Bool,in app:XCUIApplication,fastReady:Bool=false){
         app.buttons["Projects"].tap()
-        XCTAssertTrue(app.buttons["project.new"].waitForExistence(timeout:5))
-        app.buttons["project.new"].tap()
+        let new=app.buttons["project.new"]
+        XCTAssertTrue(fastReady ? (new.exists || new.waitForExistence(timeout:5)):new.waitForExistence(timeout:5))
+        new.tap()
         let empty=app.buttons["project.template.empty"]
-        XCTAssertTrue(empty.waitForExistence(timeout:5))
+        XCTAssertTrue(fastReady ? (empty.exists || empty.waitForExistence(timeout:5)):empty.waitForExistence(timeout:5))
         XCTAssertTrue(empty.isSelected,"Empty remains an explicit, silent default")
         if starter{app.buttons["project.template.starter"].tap()}
         let field=app.textFields["project.name"]
@@ -27,46 +29,79 @@ final class FirstResultTests:XCTestCase {
         field.tap();field.typeText(name)
         app.buttons["project.create"].tap()
         wait(app.navigationBars["New project"]){!app.navigationBars["New project"].exists}
-        XCTAssertTrue(app.staticTexts[name].waitForExistence(timeout:5))
+        let title=app.staticTexts[name]
+        XCTAssertTrue(fastReady ? (title.exists || title.waitForExistence(timeout:5)):title.waitForExistence(timeout:5))
         XCTAssertFalse(app.buttons["Stop"].exists,"Choosing a starting point must not auto-play")
     }
 
     @MainActor func testEmptyProjectGuidesFirstChordToRealOutputAndPersists()throws {
-        let app=launch()
-        create("My first idea",starter:false,in:app)
+        let app=launch(fastReady:true)
+        create("My first idea",starter:false,in:app,fastReady:true)
         let transport=app.buttons["perform.transport"]
         let projectID=try XCTUnwrap(field("project",in:current(transport)))
         let guide=app.staticTexts["grid.empty-state"]
-        XCTAssertTrue(guide.waitForExistence(timeout:5))
+        XCTAssertTrue(guide.exists || guide.waitForExistence(timeout:5))
         XCTAssertTrue(app.buttons["grid.empty-chord"].isHittable)
         XCTAssertTrue(app.buttons["grid.empty-jam"].isHittable)
         keepScreenshot("Audit-empty-project-first-actions")
         app.buttons["grid.empty-jam"].tap()
-        XCTAssertTrue(app.buttons["Pads"].waitForExistence(timeout:5))
+        let pads=app.buttons["Pads"]
+        XCTAssertTrue(pads.exists || pads.waitForExistence(timeout:5))
         app.buttons["Grid"].tap()
         app.buttons["grid.empty-chord"].tap()
-        XCTAssertTrue(app.textFields["chord.symbol"].waitForExistence(timeout:5))
-        XCTAssertEqual(app.textFields["chord.symbol"].value as? String,"C")
+        let symbol=app.textFields["chord.symbol"]
+        XCTAssertTrue(symbol.exists || symbol.waitForExistence(timeout:5))
+        XCTAssertEqual(symbol.value as? String,"C")
         let apply=app.buttons["chord.apply"];reveal(apply,in:app);apply.tap()
         wait(app.navigationBars["Edit chord"]){!app.navigationBars["Edit chord"].exists}
-        XCTAssertFalse(guide.exists)
-        XCTAssertTrue(app.buttons["Undo"].isEnabled)
+        let editedUI=try firstSoundPhase(app)
+        XCTAssertNil(editedUI.element("grid.empty-state",type:.staticText))
+        XCTAssertEqual(editedUI.undo?.isEnabled,true)
         assertRealOutput(in:app)
         app.buttons["Stop"].tap()
-        awaitSaved(in:app)
+        let saved=app.descendants(matching:.any).matching(NSPredicate(format:"label == 'Saved on this iPhone'")).firstMatch
+        XCTAssertTrue(saved.exists || saved.waitForExistence(timeout:8))
         let revision=try XCTUnwrap(field("revision",in:current(transport)))
         keepScreenshot("Audit-first-chord-saved")
         app.terminate();app.launch()
-        XCTAssertTrue(transport.waitForExistence(timeout:15))
-        XCTAssertEqual(field("project",in:current(transport)),projectID)
-        XCTAssertEqual(field("revision",in:current(transport)),revision)
-        XCTAssertTrue(app.staticTexts["My first idea"].exists)
-        XCTAssertFalse(guide.exists)
+        XCTAssertTrue(transport.exists || transport.waitForExistence(timeout:15))
+        // Read the complete live value once for this reopened-project phase;
+        // hierarchy snapshot values can truncate the kernel/clock fields.
+        let reopenedTrace=current(transport)
+        XCTAssertEqual(field("project",in:reopenedTrace),projectID)
+        XCTAssertEqual(field("revision",in:reopenedTrace),revision)
         let chord=app.buttons.matching(NSPredicate(format:"identifier BEGINSWITH 'grid.chord.'")).firstMatch
-        XCTAssertTrue(chord.waitForExistence(timeout:5));XCTAssertTrue(chord.label.contains("C"))
+        var reopenedUI:FirstSoundPhase?
+        wait(chord){
+            guard let observed=try? self.firstSoundPhase(app)else{return false}
+            reopenedUI=observed;return observed.firstChord != nil
+        }
+        let actualReopenedUI=try XCTUnwrap(reopenedUI)
+        XCTAssertTrue(actualReopenedUI.hasText("My first idea"))
+        XCTAssertNil(actualReopenedUI.element("grid.empty-state",type:.staticText))
+        XCTAssertTrue(try XCTUnwrap(actualReopenedUI.firstChord?.label).contains("C"))
         assertRealOutput(in:app)
         keepReport(current(transport),name:"Audit-empty-first-real-output-after-reopen")
         app.buttons["Stop"].tap()
+    }
+
+    /// Coherent short accessibility fields for the empty-project journey.
+    /// Audio adoption and clocks remain full direct transport.value reads.
+    @MainActor private struct FirstSoundPhase {
+        let elements:[any XCUIElementSnapshot]
+        func element(_ identifier:String,type:XCUIElement.ElementType)->(any XCUIElementSnapshot)?{
+            elements.first{$0.elementType==type && $0.identifier==identifier}
+        }
+        var firstChord:(any XCUIElementSnapshot)?{elements.first{$0.elementType == .button && $0.identifier.hasPrefix("grid.chord.")}}
+        var undo:(any XCUIElementSnapshot)?{elements.first{$0.elementType == .button && $0.label=="Undo"}}
+        func hasText(_ label:String)->Bool{elements.contains{$0.elementType == .staticText && $0.label==label}}
+    }
+
+    @MainActor private func firstSoundPhase(_ app:XCUIApplication)throws->FirstSoundPhase {
+        let root=try app.snapshot()
+        var pending:[any XCUIElementSnapshot]=[root],elements:[any XCUIElementSnapshot]=[]
+        while let element=pending.popLast(){elements.append(element);pending.append(contentsOf:element.children.reversed())}
+        return FirstSoundPhase(elements:elements)
     }
 
     @MainActor func testStarterAndExampleAreAudibleIndependentAndKeepSavedProject()throws {

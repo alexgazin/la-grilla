@@ -78,14 +78,15 @@ final class AIAvailabilityTests:XCTestCase {
                    name:"AuthorizedInput-ai-recheck-independent-language-scope")
     }
 
-    @MainActor func testActualUnavailableModelLocallyReviewsJazzAppliesAndUndoesOnce(){
+    @MainActor func testActualUnavailableModelLocallyReviewsJazzAppliesAndUndoesOnce()throws {
         let app=launch()
         let transport=app.buttons["perform.transport"]
         let chord=app.buttons.matching(NSPredicate(format:"identifier BEGINSWITH 'grid.chord.'")).firstMatch
-        XCTAssertTrue(chord.waitForExistence(timeout:5))
-        let originalChord=chord.label
+        XCTAssertTrue(chord.exists || chord.waitForExistence(timeout:5))
+        let originalUI=try jazzPhase(app)
+        let originalChord=try XCTUnwrap(originalUI.firstChord?.label)
         let originalDocument=documentState(transport)
-        XCTAssertFalse(app.buttons["Undo"].isEnabled)
+        XCTAssertEqual(originalUI.undo?.isEnabled,false)
         app.buttons["assistant.open"].tap()
         XCTAssertTrue(app.navigationBars["Assistant"].waitForExistence(timeout:5))
         let status=app.staticTexts["assistant.ai-status"]
@@ -95,7 +96,7 @@ final class AIAvailabilityTests:XCTestCase {
         XCTAssertTrue(app.buttons["assistant.use-commands"].exists)
         app.buttons["On-device AI"].tap()
         let examples=app.buttons["assistant.examples"]
-        revealFully(examples,in:app)
+        revealJazzControl(examples,identifier:"assistant.examples",in:app)
         examples.tap()
         let jazz=app.buttons["assistant.example.jazzify"]
         XCTAssertTrue(jazz.waitForExistence(timeout:5))
@@ -106,32 +107,76 @@ final class AIAvailabilityTests:XCTestCase {
                        "Use the real Russian example, without injecting a proposal")
 
         let generate=app.buttons["assistant.generate"]
-        revealFully(generate,in:app)
+        revealJazzControl(generate,identifier:"assistant.generate",in:app)
         generate.tap()
         let fallback=app.staticTexts["assistant.local-fallback"]
         XCTAssertTrue(fallback.waitForExistence(timeout:5))
-        revealFully(fallback,in:app)
-        XCTAssertEqual(fallback.label,"Reviewed with Commands because on-device AI is unavailable.")
-        XCTAssertTrue(app.staticTexts["LOCAL"].exists)
-        XCTAssertFalse(app.staticTexts["ON-DEVICE AI"].exists)
+        revealJazzControl(fallback,identifier:"assistant.local-fallback",type:.staticText,in:app)
+        let fallbackUI=try jazzPhase(app)
+        XCTAssertEqual(fallbackUI.element("assistant.local-fallback",type:.staticText)?.label,"Reviewed with Commands because on-device AI is unavailable.")
+        XCTAssertTrue(fallbackUI.hasText("LOCAL"))
+        XCTAssertFalse(fallbackUI.hasText("ON-DEVICE AI"))
         let after=app.staticTexts["assistant.harmony.after.0.0"]
-        revealFully(after,in:app)
-        XCTAssertEqual(app.staticTexts["assistant.harmony.before.0.0"].label,"C")
-        XCTAssertEqual(after.label,"Cmaj9")
+        revealJazzControl(after,identifier:"assistant.harmony.after.0.0",type:.staticText,in:app)
+        let reviewedUI=try jazzPhase(app)
+        XCTAssertEqual(reviewedUI.element("assistant.harmony.before.0.0",type:.staticText)?.label,"C")
+        XCTAssertEqual(reviewedUI.element("assistant.harmony.after.0.0",type:.staticText)?.label,"Cmaj9")
         XCTAssertEqual(documentState(transport),originalDocument,"Review must not edit the actual project")
-        XCTAssertEqual(chord.label,originalChord)
-        XCTAssertFalse(app.buttons["Undo"].isEnabled)
+        XCTAssertEqual(reviewedUI.firstChord?.label,originalChord)
+        XCTAssertEqual(reviewedUI.undo?.isEnabled,false)
         let apply=app.buttons["assistant.apply"]
-        revealFully(apply,in:app)
+        revealJazzControl(apply,identifier:"assistant.apply",in:app)
         apply.tap()
         wait(app.navigationBars["Assistant"]){!app.navigationBars["Assistant"].exists}
-        wait(chord){chord.exists && chord.isHittable}
-        XCTAssertTrue(chord.label.contains("Cmaj9"))
-        XCTAssertTrue(app.buttons["Undo"].isEnabled)
+        var appliedUI:JazzPhase?
+        wait(chord){
+            guard let observed=try? self.jazzPhase(app)else{return false}
+            appliedUI=observed
+            return observed.firstChord?.label.contains("Cmaj9")==true
+                && observed.undo?.isEnabled==true && chord.isHittable
+        }
+        XCTAssertTrue(try XCTUnwrap(appliedUI?.firstChord?.label).contains("Cmaj9"))
+        XCTAssertEqual(appliedUI?.undo?.isEnabled,true)
         app.buttons["Undo"].tap()
-        wait(chord){chord.label==originalChord && !app.buttons["Undo"].isEnabled}
+        wait(chord){
+            guard let observed=try? self.jazzPhase(app)else{return false}
+            return observed.firstChord?.label==originalChord && observed.undo?.isEnabled==false
+        }
         keepReport("Observed actual model reason: \(observedReason)\nRequest: Поджазуй\nActual Commands review: C → Cmaj9\nReview preserved project/revision/chord/Undo before Apply: true\nApply then one Undo restored the original Grid chord and empty Undo stack: true\nReal model generation verified: false",
                    name:"AuthorizedInput-ai-local-jazz-apply-undo-scope")
+    }
+
+    /// One public hierarchy observation per UI phase. Only short labels and
+    /// geometry are read here; full runtime values still use transport.value.
+    @MainActor private struct JazzPhase {
+        let frame:CGRect
+        let elements:[any XCUIElementSnapshot]
+        func element(_ identifier:String,type:XCUIElement.ElementType)->(any XCUIElementSnapshot)?{
+            elements.first{$0.elementType==type && $0.identifier==identifier}
+        }
+        var firstChord:(any XCUIElementSnapshot)?{elements.first{$0.elementType == .button && $0.identifier.hasPrefix("grid.chord.")}}
+        var undo:(any XCUIElementSnapshot)?{elements.first{$0.elementType == .button && $0.label=="Undo"}}
+        func hasText(_ label:String)->Bool{elements.contains{$0.elementType == .staticText && $0.label==label}}
+    }
+
+    @MainActor private func jazzPhase(_ app:XCUIApplication)throws->JazzPhase {
+        let root=try app.snapshot()
+        var pending:[any XCUIElementSnapshot]=[root],elements:[any XCUIElementSnapshot]=[]
+        while let element=pending.popLast(){elements.append(element);pending.append(contentsOf:element.children.reversed())}
+        return JazzPhase(frame:root.frame,elements:elements)
+    }
+
+    @MainActor private func revealJazzControl(_ element:XCUIElement,identifier:String,type:XCUIElement.ElementType = .button,in app:XCUIApplication){
+        let scroll=app.scrollViews["assistant.review-scroll"]
+        for _ in 0..<8 {
+            guard let observed=try? jazzPhase(app)else{XCTFail("Actual Assistant hierarchy is unavailable");return}
+            let viewport=observed.element("assistant.review-scroll",type:.scrollView)?.frame.intersection(observed.frame) ?? .null
+            let frame=observed.element(identifier,type:type)?.frame ?? .null
+            if !frame.isNull,!frame.isEmpty,frame.minY>=viewport.minY+8,frame.maxY<=viewport.maxY-8,element.isHittable{return}
+            if !frame.isNull,frame.height>0,frame.minY<viewport.minY+8{scroll.swipeDown()}
+            else{scroll.swipeUp()}
+        }
+        XCTFail("The actual Assistant control was not fully visible: \(identifier)")
     }
 
     @MainActor private func launch()->XCUIApplication {

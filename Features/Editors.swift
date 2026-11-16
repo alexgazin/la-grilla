@@ -83,14 +83,14 @@ struct SettingsView: View {
         }
         Section("Project tempo"){Stepper(value:Binding(get:{session.project.bpm},set:{v in session.edit{$0.bpm=v}}),in:40...240,step:1){Text("\(Int(session.project.bpm)) BPM").monospacedDigit()}.disabled(session.recording || session.armed)}
         Section("Project key"){
-            Picker("Root",selection:Binding(get:{session.project.keyRoot},set:{v in session.edit{$0.keyRoot=v}})){ForEach(0..<12,id:\.self){i in Text(MusicalNotation.pitchClassName(i,keyRoot:session.project.keyRoot,minor:session.project.minor,spelling:PitchSpelling(rawValue:spellingValue) ?? .automatic)).tag(i)}}.accessibilityIdentifier("settings.key-root")
+            Picker("Root",selection:Binding(get:{session.project.keyRoot},set:{v in session.edit{$0.keyRoot=v}})){ForEach(0..<12,id:\.self){i in Text(MusicalNotation.pitchClassName(i,keyRoot:session.project.keyRoot,minor:session.project.minor,spelling:PitchSpelling(rawValue:spellingValue) ?? .automatic)).tag(i).accessibilityIdentifier("settings.key-option.\(i)")}}.pickerStyle(.navigationLink).accessibilityIdentifier("settings.key-root")
             Toggle("Minor",isOn:Binding(get:{session.project.minor},set:{v in session.edit{$0.minor=v}})).accessibilityIdentifier("settings.key-minor")
             Text("Changing the key updates suggestions. Existing notes stay as written.").font(.caption).foregroundStyle(.secondary)
             NavigationLink{TransposeEditor(session:session)}label:{Label("Transpose arrangement",systemImage:"arrow.up.arrow.down")}.accessibilityIdentifier("settings.transpose")
                 .disabled(session.recording || session.armed || session.performance.contextActive)
         }
         Section("Musical notation"){
-            Picker("Note names",selection:$spellingValue){Text("Auto (key)").tag(PitchSpelling.automatic.rawValue);Text("Sharps").tag(PitchSpelling.sharps.rawValue);Text("Flats").tag(PitchSpelling.flats.rawValue)}.accessibilityIdentifier("settings.pitch-spelling")
+            Picker("Note names",selection:$spellingValue){Text("Auto (key)").tag(PitchSpelling.automatic.rawValue).accessibilityIdentifier("settings.spelling-option.automatic");Text("Sharps").tag(PitchSpelling.sharps.rawValue).accessibilityIdentifier("settings.spelling-option.sharps");Text("Flats").tag(PitchSpelling.flats.rawValue).accessibilityIdentifier("settings.spelling-option.flats")}.pickerStyle(.navigationLink).accessibilityIdentifier("settings.pitch-spelling")
             Toggle("Show scale degrees",isOn:$showDegrees).accessibilityIdentifier("settings.show-degrees")
             Text("Names and degrees change the display, not the sound. Auto keeps the chord spelling you entered and otherwise follows the key. Minor degrees use the natural minor scale.").font(.caption).foregroundStyle(.secondary)
         }
