@@ -59,7 +59,7 @@ jobs:
           git diff --exit-code -- LaGrilla.xcodeproj
           xcodebuild -project LaGrilla.xcodeproj -scheme LaGrilla -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' ARCHS="$GRILLA_GESTURE_ARCH" ONLY_ACTIVE_ARCH=YES -configuration Debug -derivedDataPath DerivedData CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO build-for-testing 2>&1 | tee gesture-build.log
           for GRILLA_GESTURE_BINARY in DerivedData/Build/Products/Debug-iphonesimulator/LaGrilla.app/LaGrilla DerivedData/Build/Products/Debug-iphonesimulator/LaGrilla.app/LaGrilla.debug.dylib; do
-            xcrun lipo -verify_arch "$GRILLA_GESTURE_ARCH" "$GRILLA_GESTURE_BINARY"
+            xcrun lipo "$GRILLA_GESTURE_BINARY" -verify_arch "$GRILLA_GESTURE_ARCH"
           done
       - name: Configure actual host HAL loopback
         timeout-minutes: 5
