@@ -20,13 +20,16 @@ preparation does not demonstrate live human singing recognition. Commands and
 the local sketch do not establish FoundationModels generation.
 
 Run the **Native app demonstration recording** workflow. It builds the
-`LaGrillaDemo` scheme on the official `macos-15` runner with exact Xcode 26.3 /
+`LaGrillaDemo` scheme on the official `macos-15-intel` runner with exact Xcode 26.3 /
 SDK 26.2 / iOS 26.2 Simulator, and uses the existing BlackHole fixture.
 The first build 20 attempt on `macos-26` failed before recording because the
 normal host microphone prompt remained unanswered alongside an Accessibility
-Access alert. Its original failed evidence is retained. The same consent helper
-previously reached actual BlackHole PCM on `macos-15`; this host choice still
-requires a fresh successful capture and does not transfer old media acceptance.
+Access alert. The subsequent ARM host was not acquired. Both failed attempts
+remain historical evidence. The separate Intel [host preflight43951090113](https://github.com/alexgazin/la-grilla/actions/runs/43951090113)
+actually passed normal recorder consent, independently identified stereo
+loopback PCM and iOS26.2 boot in147.79s. Its probe tone never enters a movie.
+That host result does not establish app UI or audiovisual acceptance: every
+new recording still requires its own complete successful capture and review.
 `simctl io recordVideo` captures the real display; a standalone macOS helper
 captures timestamped stereo host-loopback PCM. The helper checks the actual
 BlackHole UID, uses normal system microphone authorization, and refuses
@@ -41,7 +44,15 @@ The raw artifact keeps `screen.mp4`, `audio.caf`, audio/frame/timing receipts,
 the complete XCTest log/result bundle and event screenshots. `source-receipt.json`
 binds the clean actual Git HEAD to the built app's version/build, executable,
 project schema, source hashes and actual toolchain/runtime. The current capture
-requires version 1.0.0 / build 20 / schema 10. `raw-manifest.json` hashes original
+requires version 1.0.0 / build 20 / schema 10. Build and test architecture follow
+the actual native host (`x86_64` on this Intel runner). A pre-recording lipo
+inventory verifies every actual Mach-O in all built products, including the
+app loader/debug dylib, Demo XCTest executable, prebuilt runner and embedded
+frameworks. Project code must be thin-native; universal Apple binaries must
+include that architecture. `DemoBuiltProducts.zip` retains original file bytes
+and symbolic links for independent header/hash verification. The source receipt
+also hashes and verifies the actual native host audio helper after compilation
+and signing, before it starts. `raw-manifest.json` hashes original
 capture files, including diagnostic failures. Action markers
 contain host uptime and Unix timestamps. `capture-timing.json` records a
 bounded video startup interval; `ready.json`/`audio-receipt.json` retain actual

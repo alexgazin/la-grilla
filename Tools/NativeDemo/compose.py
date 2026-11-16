@@ -9,9 +9,11 @@ import math
 from pathlib import Path
 import re
 import shutil
+import struct
 import subprocess
 import sys
 import tempfile
+import zipfile
 
 import numpy as np
 
@@ -30,6 +32,10 @@ PROTOCOL_CASE = re.compile(
     r"^[ \t]*Test Case '-\[[^\s\]]+ [^\]\s]+\]' "
     r'(?:passed|failed|skipped|exceeded execution time allowance)\b')
 FONT_DIR = Path('/usr/share/fonts/truetype/noto')
+MACHO_MAGIC = {bytes.fromhex(value) for value in (
+    'feedface', 'cefaedfe', 'feedfacf', 'cffaedfe',
+    'cafebabe', 'bebafeca', 'cafebabf', 'bfbafeca',
+)}
 
 
 def digest(path: Path) -> str:
@@ -50,6 +56,171 @@ def demo_outcomes(output: str):
                  if (match := PROTOCOL_CASE.match(line))]
     # The shared parser keeps allowance failures sticky even after a late PASS.
     return observed_outcomes('\n'.join(fragments))
+
+
+def macho_architectures(data: bytes):
+    """Independently read native architecture headers from preserved binaries."""
+    def name(cpu, subtype):
+        subtype &= 0x00ffffff
+        if cpu == 0x01000007:
+            return 'x86_64h' if subtype == 8 else 'x86_64'
+        if cpu == 0x0100000c:
+            return 'arm64e' if subtype == 2 else 'arm64'
+        raise ValueError(f'Unexpected Simulator Mach-O CPU type {cpu:#x}')
+    magic = data[:4]
+    if magic not in MACHO_MAGIC:
+        return None
+    if magic in (bytes.fromhex('feedface'), bytes.fromhex('feedfacf'),
+                 bytes.fromhex('cefaedfe'), bytes.fromhex('cffaedfe')):
+        if len(data) < 12:
+            raise ValueError('Truncated preserved Mach-O header')
+        endian = '>' if magic in (bytes.fromhex('feedface'), bytes.fromhex('feedfacf')) else '<'
+        return [name(*struct.unpack_from(endian + 'II', data, 4))]
+    endian = '>' if magic in (bytes.fromhex('cafebabe'), bytes.fromhex('cafebabf')) else '<'
+    wide = magic in (bytes.fromhex('cafebabf'), bytes.fromhex('bfbafeca'))
+    if len(data) < 8:
+        raise ValueError('Truncated preserved universal Mach-O header')
+    count = struct.unpack_from(endian + 'I', data, 4)[0]
+    stride = 32 if wide else 20
+    if not 1 <= count <= 16 or 8 + count * stride > len(data):
+        raise ValueError('Invalid preserved universal Mach-O inventory')
+    result = []
+    for index in range(count):
+        position = 8 + index * stride
+        cpu, subtype = struct.unpack_from(endian + 'II', data, position)
+        offset, size = struct.unpack_from(endian + ('QQ' if wide else 'II'), data, position + 8)
+        if size < 12 or offset < 8 + count * stride or offset + size > len(data):
+            raise ValueError('Invalid preserved universal Mach-O slice')
+        architecture = name(cpu, subtype)
+        if data[offset:offset + 4] not in {bytes.fromhex(value) for value in ('feedface', 'cefaedfe', 'feedfacf', 'cffaedfe')}:
+            raise ValueError('A universal Mach-O must contain actual thin slices')
+        if macho_architectures(data[offset:offset + size]) != [architecture]:
+            raise ValueError('Universal slice differs from its actual Mach-O header')
+        result.append(architecture)
+    return result
+
+
+def native_build_contract(source, timing_path: Path):
+    """Check actual preserved binaries, not just a later checkout or filename."""
+    host = source.get('host_architecture')
+    if (type(source.get('native_binary_contract_version')) is not int or source['native_binary_contract_version'] != 1
+            or host not in ('arm64', 'x86_64') or source.get('simulator_architecture') != host
+            or source.get('runner_architecture') != {'arm64': 'ARM64', 'x86_64': 'X64'}[host]):
+        raise ValueError('The actual native host, runner and Simulator architectures must agree')
+    if (source.get('app') != dict(version='1.0.0', build='20', bundle_id='com.alexgazin.LaGrilla')
+            or source.get('project_schema_version') != 10
+            or not isinstance(source.get('xcode'), str) or source['xcode'].splitlines()[:1] != ['Xcode 26.3']
+            or source.get('simulator_sdk') != '26.2'
+            or source.get('iphone_os_sdk') != '26.2'
+            or source.get('simulator_runtime') != 'com.apple.CoreSimulator.SimRuntime.iOS-26-2'
+            or source.get('physical_device') is not False or source.get('expected_methods') != EXPECTED_METHODS):
+        raise ValueError('The capture must identify actual build20/schema10/Xcode26.3/SDK and runtime26.2')
+    device, runtime = source.get('simulator_device'), source.get('simulator_runtime_info')
+    if (not isinstance(device, dict) or device.get('udid') != source.get('device') or device.get('state') != 'Booted'
+            or not isinstance(runtime, dict) or runtime.get('identifier') != source['simulator_runtime']
+            or runtime.get('version') != '26.2' or runtime.get('isAvailable') is not True
+            or not isinstance(runtime.get('buildversion'), str) or not runtime['buildversion']):
+        raise ValueError('The actual booted selected device and available runtime build must be retained')
+    files, products, macho = source.get('files'), source.get('built_product_files'), source.get('macho_files')
+    prefix = 'DerivedData/Build/Products/Debug-iphonesimulator'
+    if (source.get('build_products_root') != prefix or not isinstance(products, list) or not products or not all(isinstance(path, str) for path in products)
+            or len(products) != len(set(products)) or not isinstance(macho, dict) or not macho):
+        raise ValueError('The complete original native build product inventory is required')
+    def valid_entry(value):
+        return (isinstance(value, dict) and type(value.get('bytes')) is int and value['bytes'] >= 0
+                and isinstance(value.get('sha256'), str) and re.fullmatch(r'[0-9a-f]{64}', value['sha256']))
+    if not isinstance(files, dict) or any(not valid_entry(entry) for entry in files.values()):
+        raise ValueError('Original source and build-file hashes and byte counts must be valid')
+    if any(not isinstance(path, str) or not path.startswith(prefix + '/') or '..' in Path(path).parts
+           or path not in files for path in products):
+        raise ValueError('A native build product escapes or is absent from its original file inventory')
+    required = source.get('required_native_macho')
+    main = [prefix + '/LaGrilla.app/LaGrilla', prefix + '/LaGrilla.app/LaGrilla.debug.dylib']
+    tests = [path for path in products if path.endswith('/LaGrillaDemoTests.xctest/LaGrillaDemoTests')]
+    if (not tests or not isinstance(required, list) or not all(isinstance(path, str) for path in required) or len(required) != len(set(required))
+            or set(required) != set(main + tests) or not set(required).issubset(macho)):
+        raise ValueError('Actual app loader, debug dylib and project XCTest executables must all be retained')
+    for path, entry in macho.items():
+        project_built = path in required or path.endswith('/LaGrillaDemoTests.xctest/LaGrillaDemoTests.debug.dylib')
+        if (path not in products or not valid_entry(entry)
+                or {key: entry[key] for key in ('bytes', 'sha256')} != files[path]
+                or entry.get('project_built') is not project_built
+                or not isinstance(entry.get('architectures'), list) or not all(isinstance(arch, str) for arch in entry['architectures']) or host not in entry['architectures']
+                or len(entry['architectures']) != len(set(entry['architectures']))
+                or (project_built and entry['architectures'] != [host])):
+            raise ValueError('A built Mach-O has inconsistent native architecture or original bytes')
+    build_path = timing_path.parent / 'build-products-receipt.json'
+    if not build_path.is_file() or digest(build_path) != source.get('build_products_receipt_sha256'):
+        raise ValueError('The original source-bound preflight build receipt is missing or changed')
+    build = read_json(build_path)
+    expected = {key: source[key] for key in ('native_binary_contract_version', 'host_architecture',
+                'simulator_architecture', 'runner_architecture', 'build_products_root', 'built_product_files',
+                'macho_files', 'required_native_macho')}
+    expected['files'] = {path: files[path] for path in products}
+    if build != dict(source_sha=source['source_sha'], native_products=expected):
+        raise ValueError('Capture source differs from the independently preserved build preflight inventory')
+    archive_metadata = source.get('build_products_archive')
+    archive_path = timing_path.parent.parent / 'DemoBuiltProducts.zip'
+    if (not valid_entry(archive_metadata) or archive_metadata.get('file') != archive_path.name
+            or not archive_path.is_file() or archive_path.stat().st_size != archive_metadata['bytes']
+            or digest(archive_path) != archive_metadata['sha256']):
+        raise ValueError('The original native build archive is missing or its bytes differ')
+    observed_products, observed_macho = set(), set()
+    with zipfile.ZipFile(archive_path) as archive:
+        for entry in archive.infolist():
+            if entry.is_dir():
+                continue
+            raw = archive.read(entry)  # CRC is checked for every original entry.
+            if entry.filename.startswith('__MACOSX/'):
+                continue
+            parts = Path(entry.filename).parts
+            if len(parts) < 2 or parts[0] != 'Debug-iphonesimulator' or '..' in parts:
+                raise ValueError('The original build archive has an unexpected path')
+            path = 'DerivedData/Build/Products/' + entry.filename
+            if path not in files or path not in products or path in observed_products:
+                raise ValueError('The original build archive contains an unrecorded or duplicate product')
+            if dict(bytes=len(raw), sha256=hashlib.sha256(raw).hexdigest()) != {key: files[path][key] for key in ('bytes', 'sha256')}:
+                raise ValueError('An original build product differs from its source-bound bytes')
+            symbolic = (entry.external_attr >> 16) & 0o170000 == 0o120000
+            if symbolic != ('symlink_target' in files[path]) or (symbolic and raw.decode() != files[path]['symlink_target']):
+                raise ValueError('A preserved build-product symlink differs from its original target')
+            observed_products.add(path)
+            architectures = macho_architectures(raw)
+            if architectures is not None:
+                if path not in macho or set(architectures) != set(macho[path]['architectures']):
+                    raise ValueError('Preserved Mach-O headers differ from the original lipo architecture proof')
+                observed_macho.add(path)
+    if observed_products != set(products) or observed_macho != set(macho):
+        raise ValueError('The original archive does not cover every native product and Mach-O')
+    app_files = [path for path in products if path.startswith(prefix + '/LaGrilla.app/')]
+    if source.get('built_app_file_count') != len(app_files):
+        raise ValueError('The complete built application file count differs from the preserved inventory')
+    helper = source.get('host_audio_helper')
+    if (not valid_entry(helper) or helper.get('architectures') != [host]
+            or not isinstance(helper.get('path'), str) or helper['path'] not in files
+            or {key: helper[key] for key in ('bytes', 'sha256')} != files[helper['path']]):
+        raise ValueError('The actual compiled audio-helper architecture and bytes must be bound to the capture')
+    helper_path = timing_path.parent.parent / helper['path']
+    if (not helper_path.is_file() or helper_path.stat().st_size != helper['bytes']
+            or digest(helper_path) != helper['sha256'] or macho_architectures(helper_path.read_bytes()) != [host]):
+        raise ValueError('The preserved actual host audio-helper executable differs from its original proof')
+
+
+def verify_original_manifest(args, contract):
+    if contract['source_receipt'] is None:
+        return  # The historical build15 files retain their original contract.
+    manifest_path = args.timing.parent / 'raw-manifest.json'
+    if not manifest_path.is_file():
+        raise ValueError('The finalized original raw-manifest.json is required')
+    files = read_json(manifest_path).get('files', {})
+    inputs = {'screen.mp4': args.video, 'audio.caf': args.audio,
+              'capture-timing.json': args.timing, 'audio-receipt.json': args.audio_receipt,
+              'source-receipt.json': contract['source_receipt_path'],
+              'demo-tests.log': contract['demo_tests_log_path'],
+              'build-products-receipt.json': args.timing.parent / 'build-products-receipt.json'}
+    for name, path in inputs.items():
+        if files.get(name) != dict(bytes=path.stat().st_size, sha256=digest(path)):
+            raise ValueError('An actual selected input differs from the finalized original manifest: ' + name)
 
 
 def capture_contract(timing, edl, timing_path: Path, allow_uncovered_postroll: bool):
@@ -109,6 +280,7 @@ def capture_contract(timing, edl, timing_path: Path, allow_uncovered_postroll: b
                    or not re.fullmatch(r'[0-9a-f]{64}', entry['sha256'])
                    for path, entry in files.items())):
         raise ValueError('The original source receipt must retain its source-file SHA-256 inventory')
+    native_build_contract(source, timing_path)
     return dict(source_receipt=source, source_receipt_path=source_path,
                 app=app, **common)
 
@@ -178,6 +350,7 @@ def validate(args):
         args.video_host_start = number(args.video_host_start, 'explicit video host start')
     timing, audio_receipt, edl = map(read_json, [args.timing, args.audio_receipt, args.edl])
     contract = capture_contract(timing, edl, args.timing, args.allow_uncovered_postroll)
+    verify_original_manifest(args, contract)
     if timing.get('video_error'):
         raise ValueError(f"The native recorder reported {timing['video_error']}")
     if timing.get('video_exit_code') not in (0, 130, -2):

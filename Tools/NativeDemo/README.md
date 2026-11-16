@@ -64,11 +64,26 @@ New captures require the original schema-2 `source-receipt.json` beside
 `capture-timing.json`. The EDL source SHA, timing source SHA, source receipt
 source SHA and captured Git HEAD must agree; the timing receipt must retain
 the exact source receipt SHA-256. The receipt includes version/build/bundle ID
-read from the actual built app and the source-file hash inventory. The composer
+read from the actual built app and the source-file hash inventory. New build20
+captures also require native-binary contract1: exact build20/schema10,
+Xcode26.3/SDK26.2/runtime26.2, and matching actual host/runner/Simulator
+architectures. Preserve the complete extracted artifact, including
+`DemoBuiltProducts.zip` beside `NativeDemoRaw` and the actual host audio helper
+bundle inside it. The composer independently reads every preserved Mach-O
+architecture header and checks all original file/link bytes against the
+source-bound lipo/hash inventory. App loader/debug dylib and project XCTest
+code must be thin-native; a prebuilt runner or Apple framework may be universal
+provided it includes the native architecture. The actual compiled host recorder
+must also match its hash and native header. Missing binaries or inconsistent
+coverage remain failures, rather than an inferred architecture check.
+The composer
 uses that app version/build and four-session count in the visible presentation,
 and preserves the source receipt and its hash in the render receipt. It validates
-the retained inventory format; it does not compare a later checkout to historical
-source files or treat the receipt as app acceptance.
+the preserved original built products; it does not compare a later checkout to
+historical source files or treat the receipt as app acceptance. The original
+finalized `raw-manifest.json` must match the supplied MP4, CAF, timing, audio
+receipt, source receipt, build receipt and complete XCTest log. Separate capture
+attempts cannot be mixed under a shared commit SHA.
 The original `demo-tests.log` must also remain beside the timing receipt. Its
 SHA-256 and independently parsed required outcomes must match the capture
 receipt. Only actual, anchored XCTest protocol outcomes count; quoted examples

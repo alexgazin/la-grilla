@@ -300,7 +300,8 @@ jobs:
             LaGrilla-Simulator.zip
 
   iphone:
-    runs-on: macos-26
+    # Generic iPhone builds cross-compile arm64; reserve ARM hosts for native UI.
+    runs-on: macos-15-intel
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
@@ -317,7 +318,7 @@ jobs:
           path: iphone-build.log
 
   release-archive:
-    runs-on: macos-26
+    runs-on: macos-15-intel
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4

@@ -10,21 +10,33 @@ env:
   DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
 jobs:
   record-native-demo:
-    runs-on: macos-15
+    runs-on: macos-15-intel
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
       - name: Verify toolchain and generated project
         run: |
           python3 scripts/release/assert_sdk.py
-          python3 -c 'import subprocess; x=subprocess.check_output(["xcodebuild","-version"],text=True); assert x.splitlines()[0] == "Xcode 26.3", x; sdk=subprocess.check_output(["xcrun","--sdk","iphonesimulator","--show-sdk-version"],text=True).strip(); assert sdk == "26.2", sdk; sdk=subprocess.check_output(["xcrun","--sdk","iphoneos","--show-sdk-version"],text=True).strip(); assert sdk == "26.2", sdk'
+          python3 - <<'PY'
+          import os,subprocess
+          def output(command):return subprocess.check_output(command,text=True,timeout=30).strip()
+          architecture=output(['uname','-m'])
+          assert architecture=='x86_64' and os.environ['RUNNER_ARCH']=='X64',architecture
+          xcode=output(['xcodebuild','-version']);assert xcode.splitlines()[0]=='Xcode 26.3',xcode
+          for sdk in ['iphonesimulator','iphoneos']:
+              version=output(['xcrun','--sdk',sdk,'--show-sdk-version']);assert version=='26.2',version
+          with open(os.environ['GITHUB_ENV'],'a') as environment:environment.write('GRILLA_DEMO_ARCH='+architecture+'\n')
+          PY
           python3 scripts/generate_project.py
           git diff --exit-code -- LaGrilla.xcodeproj
           xcrun simctl io help > simctl-io-help.txt 2>&1 || true
       - name: Build the separate authored demonstration target
         run: |
           set -o pipefail
-          xcodebuild -test-timeouts-enabled YES -maximum-test-execution-time-allowance 300 -project LaGrilla.xcodeproj -scheme LaGrillaDemo -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' ARCHS=arm64 ONLY_ACTIVE_ARCH=YES -configuration Debug -derivedDataPath DerivedData CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO build-for-testing | tee demo-build.log
+          xcodebuild -test-timeouts-enabled YES -maximum-test-execution-time-allowance 300 -project LaGrilla.xcodeproj -scheme LaGrillaDemo -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' ARCHS="$GRILLA_DEMO_ARCH" ONLY_ACTIVE_ARCH=YES -configuration Debug -derivedDataPath DerivedData CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO build-for-testing | tee demo-build.log
+      - name: Verify and preserve every actual native build product
+        run: |
+          python3 scripts/record_native_demo.py --verify-built-products
       - name: Configure actual BlackHole host loopback
         run: bash scripts/setup_ci_audio.sh
       - name: Boot native iPhone simulator
@@ -48,5 +60,7 @@ jobs:
             NativeDemoAttachments
             NativeDemoResults.xcresult
             demo-build.log
+            demo-build-products.json
+            DemoBuiltProducts.zip
             ci-audio.log
             simctl-io-help.txt
