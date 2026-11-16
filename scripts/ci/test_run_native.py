@@ -45,6 +45,54 @@ class NativeSupervisorTests(unittest.TestCase):
         self.assertEqual(state["subprocessExitCode"], 23)
         self.assertIn("assertion failed", self.log.read_text())
 
+    def invoke_without_draining_console(self, script, **kwargs):
+        # Deliberately leave the outer pipe unread until the supervisor exits.
+        # A synchronous console tee would deadlock before checking its timeout.
+        supervisor = subprocess.Popen(self.command(script, **kwargs), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        try:
+            supervisor.wait(timeout=5)
+        finally:
+            # Keep even a regressing supervisor test bounded and orphan-free.
+            if supervisor.poll() is None:
+                state = json.loads(self.status.read_text()) if self.status.exists() else {}
+                if state.get("processGroupID"):
+                    try:
+                        os.killpg(state["processGroupID"], signal.SIGKILL)
+                    except ProcessLookupError:
+                        pass
+                supervisor.kill()
+            output, error = supervisor.communicate(timeout=3)
+        return supervisor.returncode, output, error, json.loads(self.status.read_text())
+
+    def test_unread_console_pipe_does_not_block_timeout_or_original_output(self):
+        size = 1024 * 1024
+        script = ("import os,signal,time;signal.signal(signal.SIGINT,signal.SIG_IGN);"
+                  "signal.signal(signal.SIGTERM,signal.SIG_IGN);"
+                  f"os.write(1,b'N'*{size});time.sleep(50)")
+        code, output, _, state = self.invoke_without_draining_console(script, timeout=0.5)
+        self.assertEqual(code, 124)
+        self.assertTrue(state["timedOut"])
+        self.assertEqual(state["subprocessExitCode"], -signal.SIGKILL)
+        self.assertLess(state["elapsedSeconds"], 4)
+        self.assertTrue(self.log.read_bytes().startswith(b'N' * size))
+        self.assertGreater(state["consoleBytesDropped"], 0)
+        self.assertEqual(state["consoleBytesWritten"], len(output))
+        self.assertEqual(state["consoleBytesWritten"] + state["consoleBytesDropped"], self.log.stat().st_size)
+        self.assert_process_not_running(state["subprocessPID"])
+
+    def test_unread_console_keeps_zero_exit_and_required_outcome_from_complete_log(self):
+        line = "Test Case '-[FixtureModule.ActualCase testRequested]' passed (1.000 seconds)."
+        script = f"import os;os.write(1,b'N'*1048576+b'\\n'+{line.encode()!r}+b'\\n')"
+        code, output, _, state = self.invoke_without_draining_console(script, extra=("--require-test", "ActualCase/testRequested"))
+        self.assertEqual(code, 0)
+        self.assertEqual(state["subprocessExitCode"], 0)
+        self.assertFalse(state["timedOut"])
+        self.assertEqual(self.log.read_bytes(), b'N' * 1048576 + b'\n' + line.encode() + b'\n')
+        self.assertEqual(state["requiredTestOutcomes"], {"ActualCase/testRequested": "passed"})
+        self.assertGreater(state["consoleBytesDropped"], 0)
+        self.assertEqual(state["consoleBytesWritten"], len(output))
+        self.assertEqual(state["consoleBytesWritten"] + state["consoleBytesDropped"], self.log.stat().st_size)
+
     def test_signal_exit_uses_shell_convention(self):
         result, state = self.invoke("import os,signal;print('before signal');os.kill(os.getpid(),signal.SIGTERM)")
         self.assertEqual(result.returncode, 143)

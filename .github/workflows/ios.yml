@@ -71,6 +71,9 @@ jobs:
         run: bash scripts/screenshots.sh
       - name: Native user flows
         id: native_flows
+        # Independent runner-side bound also covers a blocked Python I/O call.
+        # Native process budget remains 60 minutes plus bounded signal cleanup.
+        timeout-minutes: 65
         env:
           GRILLA_REQUIRE_MIC_INPUT: '1'
           TEST_RUNNER_GRILLA_REQUIRE_MIC_INPUT: '1'

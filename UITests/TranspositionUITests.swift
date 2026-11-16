@@ -51,7 +51,7 @@ final class TranspositionUITests:XCTestCase {
         XCTAssertEqual(field("kernel",in:current(transport)),kernel)
         XCTAssertEqual(field("project",in:current(transport)),originalID)
         XCTAssertNotEqual(field("revision",in:current(transport)),originalRevision)
-        for (index,symbol) in ["D","Em","G","A"].enumerated(){
+        for (index,symbol) in ["D","Bm","G","A"].enumerated(){
             XCTAssertTrue(chords.element(boundBy:index).label.hasPrefix(symbol),"Transposed grid chord \(index)")
         }
         XCTAssertTrue(app.staticTexts["D major"].exists)
@@ -91,12 +91,22 @@ final class TranspositionUITests:XCTestCase {
         let root=app.buttons["settings.key-root"]
         reveal(root,in:app);root.tap()
         let f=app.buttons["F"];XCTAssertTrue(f.waitForExistence(timeout:5));f.tap()
+        XCTAssertTrue(app.navigationBars["Settings"].exists,"Selecting a project key must keep Settings open")
+        XCTAssertTrue(selected("F",in:root),"The actual project-key picker must select F")
         let revisionAfterKey=field("revision",in:current(transport))
         let spelling=app.buttons["settings.pitch-spelling"]
-        reveal(spelling,in:app);spelling.tap();app.buttons["Flats"].tap()
+        reveal(spelling,in:app)
+        let originalSpellingValue=spelling.value as? String,originalSpellingLabel=spelling.label
+        let originalSpelling=try XCTUnwrap(["Auto (key)","Sharps","Flats"].first{value in
+            originalSpellingValue==value || originalSpellingLabel==value || originalSpellingLabel.hasSuffix(", "+value)
+        },"Read the original preference from the real native picker")
+        spelling.tap();app.buttons["Flats"].tap()
+        XCTAssertTrue(selected("Flats",in:spelling))
         let degrees=app.switches["settings.show-degrees"]
         reveal(degrees,in:app)
-        if degrees.value as? String != "1"{degrees.tap()}
+        let originalDegrees=try XCTUnwrap(degrees.value as? String)
+        XCTAssertTrue(["0","1"].contains(originalDegrees))
+        if originalDegrees != "1"{degrees.tap()}
         XCTAssertEqual(degrees.value as? String,"1")
         XCTAssertEqual(field("revision",in:current(transport)),revisionAfterKey,"Display preferences must not edit music")
         app.buttons["Done"].tap()
@@ -125,12 +135,21 @@ final class TranspositionUITests:XCTestCase {
         XCTAssertTrue(spelling.label.contains("Flats") || (spelling.value as? String)=="Flats")
         reveal(degrees,in:app);XCTAssertEqual(degrees.value as? String,"1")
         let revisionBeforeRestore=field("revision",in:current(transport))
-        // Restore the suite's ordinary display preferences through real UI.
+        // Restore the actual original global preferences through real UI,
+        // after proving their persistence. Do not assume the suite's defaults.
         // The persisted Bb project stays isolated in this test's UUID store.
-        reveal(spelling,in:app,up:false);spelling.tap();app.buttons["Auto (key)"].tap()
-        reveal(degrees,in:app);degrees.tap()
-        XCTAssertEqual(degrees.value as? String,"0")
+        reveal(spelling,in:app,up:false)
+        if !selected(originalSpelling,in:spelling){
+            spelling.tap()
+            let option=app.buttons[originalSpelling]
+            XCTAssertTrue(option.waitForExistence(timeout:5));option.tap()
+        }
+        XCTAssertTrue(selected(originalSpelling,in:spelling))
+        reveal(degrees,in:app)
+        if (degrees.value as? String) != originalDegrees{degrees.tap()}
+        XCTAssertEqual(degrees.value as? String,originalDegrees)
         XCTAssertEqual(field("revision",in:current(transport)),revisionBeforeRestore)
+        keepReport("Original native note names=\(originalSpelling), scale degrees=\(originalDegrees); both restored through visible Settings after relaunch/persistence assertions. Music revision unchanged.",name:"Audit-notation-original-preferences-restored")
         app.buttons["Done"].tap()
     }
 
@@ -170,14 +189,27 @@ final class TranspositionUITests:XCTestCase {
         XCTAssertTrue(saved.waitForExistence(timeout:8))
     }
     @MainActor private func current(_ transport:XCUIElement)->String{(transport.value as? String ?? "").components(separatedBy:"\n").first ?? ""}
+    @MainActor private func selected(_ value:String,in picker:XCUIElement)->Bool{
+        (picker.value as? String)==value || picker.label==value || picker.label.hasSuffix(", "+value)
+    }
     private func field(_ key:String,in report:String)->String?{report.split(separator:" ").first(where:{$0.hasPrefix(key+"=")}).map{String($0.dropFirst(key.count+1))}}
     @MainActor private func reveal(_ element:XCUIElement,in app:XCUIApplication,up:Bool=true){
         for _ in 0..<7{
-            if element.isHittable{return}
             let scroll=app.collectionViews.firstMatch.exists ? app.collectionViews.firstMatch:app.tables.firstMatch.exists ? app.tables.firstMatch:app.scrollViews.firstMatch
+            // The source19 recording and synthesized event show that XCTest
+            // called the offscreen key picker hittable, then tapped y=947.98
+            // on a 956pt screen. Expose the whole actual Form control before
+            // tapping, keeping it clear of the sheet/home-indicator boundary.
+            let visible=scroll.frame.intersection(app.frame.insetBy(dx:0,dy:44))
+            if element.exists{
+                let frame=element.frame
+                if element.isHittable && !frame.isEmpty && visible.contains(frame){return}
+                if !frame.isEmpty && frame.maxY>visible.maxY{scroll.swipeUp();continue}
+                if !frame.isEmpty && frame.minY<visible.minY{scroll.swipeDown();continue}
+            }
             if up{scroll.swipeUp()}else{scroll.swipeDown()}
         }
-        XCTAssertTrue(element.isHittable,"A real native control must be reachable")
+        XCTFail("A real native control must be wholly visible inside the native Form: \(element.debugDescription)")
     }
     @MainActor private func wait(_ element:XCUIElement,timeout:TimeInterval=5,condition:()->Bool){
         let deadline=Date().addingTimeInterval(timeout)

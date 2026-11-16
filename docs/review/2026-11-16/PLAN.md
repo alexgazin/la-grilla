@@ -4,7 +4,7 @@
 Эти четыре отчёта сохраняются как независимые исходные срезы. Здесь объединены повторяющиеся находки и записано, что сделано после аудита, что требует проверки и что ещё предстоит реализовать.
 
 **Направление продукта:** карманная студия для собственного редактируемого музыкального скетча: гармония → бит/бас/мелодия → живое исполнение → сохранение и перенос в DAW. Помощник ускоряет музыкальные действия, а автор сохраняет контроль через review, A/B и Undo.
-**Текущее положение:** в main интегрирован кандидат 17 с семью пройденными recovery-сценариями и [IPA для подписи тестировщиком](../../../Builds/Testing/README.md). Следующий пакет — **1.0.0 (19), schema 10**, app/test source `0ed624a`, [PR #21](https://github.com/alexgazin/la-grilla/pull/21). Он реализует также новые скетчи и сохранение написания аккордов. Полная нативная приёмка 19 и App Store release-ready пока не объявлены. [Детальный результат исполнения](IMPLEMENTATION.md).
+**Текущее положение:** в main интегрирован кандидат 17 с семью пройденными recovery-сценариями и [IPA для подписи тестировщиком](../../../Builds/Testing/README.md). Следующий пакет — **1.0.0 (19), schema 10**, app source `0ed624a`; предыдущий test/CI source `f005854`, [PR #21](https://github.com/alexgazin/la-grilla/pull/21). Он реализует также новые скетчи и сохранение написания аккордов. Полная нативная приёмка 19 и App Store release-ready пока не объявлены. [Детальный результат исполнения](IMPLEMENTATION.md).
 
 ## Как читать статусы
 
@@ -16,7 +16,8 @@
 
 Исторические результаты сохраняют собственные источники. `5adbadb` / build 17: [focused 7](https://github.com/alexgazin/la-grilla/actions/runs/43876565702/attempts/2) — **7 PASS**, 379.622 s; Debug/archive/compatibility PASS. Это не физический повтор.
 `fefa036` / build 18: [focused 11](https://github.com/alexgazin/la-grilla/actions/runs/43879719411) — **7 PASS / 2 spelling FAIL / 2 Settings-навигационных timeout**. Три FirstResult, AI fallback и три strict PCM метода прошли. Написание нот и маршрут двух новых тестов исправлены в 19; пределы и музыкальные проверки сохранены. Старый полный [run](https://github.com/alexgazin/la-grilla/actions/runs/43879719282) не наследуется новым кодом.
-Для кода 19 локально прошли **186 Swift tests**, **61 CI/release host test**, presentation/release audits; DSP не менялся после 16 пройденных harnesses build 18. Новый обязательный scope — **15 focused / 64 functional native**, ещё Pending; эти числа не означают завершённые PASS.
+Для кода 19 локально прошли **186 Swift tests**, **63 CI/release host test**, presentation/release audits; DSP не менялся после 16 пройденных harnesses build 18. Новый обязательный scope — **16 focused / 64 functional native**, ещё Pending; эти числа не означают завершённые PASS.
+Первый focused 19 `f005854` / [43890521487](https://github.com/alexgazin/la-grilla/actions/runs/43890521487) завершён **13 PASS / 2 assertion FAIL / 0 timeout**; SDK/archive/compatibility прошли. Два test defects исправлены; новый scope 16 включает anchored pinch. Старый full 19 при последнем наблюдении 16:13 UTC ещё исполнялся, неизвестные исходы не принимаются. Supervisor исправляет отдельно воспроизведённый unread-console deadlock, не объявляя его доказанной причиной Mac-run.
 
 ## Реестр всех 34 находок
 

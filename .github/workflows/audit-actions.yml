@@ -43,15 +43,18 @@ jobs:
         env:
           GRILLA_CAPTURE_SCREENS: '0'
         run: bash scripts/screenshots.sh
-      - name: Verify first result, transposition, AI fallback, harmony and strict production PCM
+      - name: Verify first result, anchored pinch, transposition, AI fallback, harmony and strict production PCM
+        # Secondary runner bound; native 30-minute/shared 40-minute limits stay.
+        timeout-minutes: 31
         env:
           GRILLA_REQUIRE_MIC_INPUT: '1'
           TEST_RUNNER_GRILLA_REQUIRE_MIC_INPUT: '1'
           GRILLA_RUNTIME_TRACE: '1'
         run: |
           GRILLA_AUDIT_DEVICE=$(cat /tmp/grilla-simulator-id)
-          # Fifteen real methods include independent AI setup/local-review,
-          # written chords and sketch journeys. This 30-minute batch retains
+          # Sixteen real methods include the anchored pinch regression,
+          # independent AI setup/local-review, written chords and sketch journeys.
+          # This 30-minute batch retains
           # every method's 120s cap and
           # the shared 40-minute cutoff/50-minute job evidence reserve.
           python3 scripts/ci/run_native.py --timeout-seconds 1800 --deadline-env GRILLA_AUDIT_DEADLINE_EPOCH --label product-audit-native --log audit-native.log --status audit-process-status.json \
@@ -60,6 +63,7 @@ jobs:
             --require-test FirstResultTests/testAcceptedMIDIInterleavingsKeepLatestWorkAndActiveRetryPreservesDisk \
             --require-test AIAvailabilityTests/testActualUnavailableModelRecheckPreservesIndependentLanguagesInputAndProject \
             --require-test AIAvailabilityTests/testActualUnavailableModelLocallyReviewsJazzAppliesAndUndoesOnce \
+            --require-test ArrangementUITests/testPinchRetainsScrolledMusicalCenterWithoutEditingOrStopping \
             --require-test HarmonyCatalogTests/testCustomFormulaPersistsEveryToneAndIsUndoable \
             --require-test HarmonyCatalogTests/testAlteredNotationAndInvalidFormulaNeverSilentlySave \
             --require-test TranspositionUITests/testTransposePreviewCancelApplyLiveUndoRedoAndReopen \
@@ -76,6 +80,7 @@ jobs:
             -derivedDataPath DerivedData -resultBundlePath AuditResults.xcresult \
             -only-testing:LaGrillaUITests/FirstResultTests \
             -only-testing:LaGrillaUITests/AIAvailabilityTests \
+            -only-testing:LaGrillaUITests/ArrangementUITests/testPinchRetainsScrolledMusicalCenterWithoutEditingOrStopping \
             -only-testing:LaGrillaUITests/HarmonyCatalogTests \
             -only-testing:LaGrillaUITests/TranspositionUITests \
             -only-testing:LaGrillaUITests/ChordWritingUITests \

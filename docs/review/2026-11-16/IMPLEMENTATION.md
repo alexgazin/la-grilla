@@ -9,10 +9,10 @@
 | --- | --- | --- |
 | Текущий музыкальный domain | **186 tests PASS** на host | Включает writing/sketch/projection regression checks; native-путь кандидата 19 ещё Pending. |
 | C++ DSP | **16 harnesses PASS** для DSP source кандидата 18; в пакете 19 этот source не изменён | Сохраняются allocation/snapshot/MIDI/render проверки; аппаратный timing не установлен. |
-| CI/release gate scripts | **61 checks PASS**, включая два новых случая SDK retry/native retry | Receipt остаётся привязан к фактическому native job attempt; старый receipt нельзя принять после нового native retry. |
+| CI/release gate scripts | **63 checks PASS**, включая SDK/native retry и два воспроизводимых unread-console случая | Receipt остаётся привязан к фактическому native job attempt; старый receipt нельзя принять после нового native retry. |
 | Кандидат 17, source `5adbadb37c39911c4acc2c2ef511198867098040` | [43876565702, attempt 2](https://github.com/alexgazin/la-grilla/actions/runs/43876565702/attempts/2): **7 native PASS**, 379.622 с; Debug/archive/compatibility также прошли | Software repair подтверждён своим source. Физический телефон остаётся Pending. |
 | Кандидат 18, source `fefa036` | [43879719411, attempt 1](https://github.com/alexgazin/la-grilla/actions/runs/43879719411/attempts/1): **7 PASS / 2 assertion FAIL / 2 execution allowance timeout**, exit 65, финализированный xcresult | Три FirstResult действительно прошли. Общей приёмки 11 методов нет. |
-| Кандидат 19 | **Native Pending** | Новые writing/sketch пути и исправления двух spelling failures/двух Settings timeouts требуют нового exact-source запуска. |
+| Кандидат 19, source `f005854` | [Focused 43890521487](https://github.com/alexgazin/la-grilla/actions/runs/43890521487): **13 PASS / 2 assertion FAIL / 0 timeout**, 700.813 s, exit 65; Debug/archive/обе compatibility PASS | Sketch/writing/harmony/AI/PCM методы прошли. Исправлены два Transposition test defects; новый focused 16/full 64 Pending. Полный 43890521274 ещё не завершился при последнем наблюдении 16:13 UTC. |
 
 Локальные проверки и старые Simulator PASS не заменяют установленный бинарник, реальную доступную модель и внешние DAW. Источник и результат каждого запуска сохраняются отдельно.
 
@@ -79,3 +79,11 @@ Production control на фиксированных development clips **1–8** �
 3. На готовой eligible модели принять настоящие prompts → proposal/sketch parameters → A/B/Apply/Undo; отдельно RU/EN Speech и живой mono напев с reference notes/bleed.
 4. Проверить тот же результат в **двух реальных DAW**, USB/BLE и 30 минут performance/memory/thermal/accessibility на hardware.
 5. После device/model/DAW receipts — signed distribution, Store metadata и App Review. Внешние gates остаются Pending; наличие всех новых функций и локальных PASS не означает, что все 34 критерия приёмки закрыты.
+
+## Следующая корректирующая проверка
+
+Сохранены исходные 120 s на метод и все музыкальные утверждения. Для Am+2 ожидается Bm; Settings control должен целиком лежать внутри видимого Form, после проверки persistence восстанавливаются фактические исходные preferences. Anchored pinch использует один immutable public AX snapshot для согласованных ruler/viewport/diagnostic/transport данных; оба настоящих pinch и прежние допуски сохранены.
+
+Локально воспроизведено блокирование supervisor при непрочитанном stdout pipe. Неблокирующий console mirror не теряет исходный logfile; две subprocess проверки подтверждают timeout/cleanup и разбор обязательного PASS из полного лога. Теперь 63 host checks PASS. Secondary step limits 65/31 min сохраняют process limits 60/30 min. Причина незавершённого Mac-run без его receipt не установлена.
+
+Шесть оригинальных кадров кандидата 19 с владельцами PASS и полным раскрытием результата 13/2 находятся в [Screenshots/AuditImprovements](../../../Screenshots/AuditImprovements/README.md). Скриншоты не заменяют приёмку всего запуска.

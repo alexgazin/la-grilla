@@ -31,6 +31,45 @@ def positive_number(value):
     return number
 
 
+class ConsoleMirror:
+    """Console backpressure must never stop supervision or the original log.
+
+    The complete bytes always go to the artifact log. Console output is a
+    best-effort mirror: an unread CI pipe can accept only part of a write.
+    Account for every omitted console byte explicitly in the process receipt.
+    """
+    def __init__(self, state):
+        self.state, self.fd, self.original_blocking = state, None, None
+        state.update(consoleMirroringMode="disabled", consoleBytesWritten=0, consoleBytesDropped=0)
+        try:
+            self.fd = sys.stdout.fileno()
+            self.original_blocking = os.get_blocking(self.fd)
+            os.set_blocking(self.fd, False)
+            state["consoleMirroringMode"] = "nonblocking-best-effort"
+        except (OSError, ValueError):
+            self.fd = None
+
+    def __enter__(self):
+        return self
+
+    def write(self, payload):
+        written = 0
+        if self.fd is not None:
+            try:
+                written = os.write(self.fd, payload)
+            except OSError:
+                pass  # The authoritative original file is still retained.
+        self.state["consoleBytesWritten"] += written
+        self.state["consoleBytesDropped"] += len(payload) - written
+
+    def __exit__(self, *_):
+        if self.fd is not None and self.original_blocking is not None:
+            try:
+                os.set_blocking(self.fd, self.original_blocking)
+            except OSError:
+                pass
+
+
 def run(arguments):
     log_path, status_path = Path(arguments.log), Path(arguments.status)
     log_path.parent.mkdir(parents=True, exist_ok=True)
@@ -84,13 +123,12 @@ def run(arguments):
             except ProcessLookupError:
                 pass
 
-    with log_path.open("wb") as log:
+    with ConsoleMirror(state) as console, log_path.open("wb") as log:
         def diagnostic(message):
             payload = (message + "\n").encode("utf-8")
             log.write(payload)
             log.flush()
-            sys.stdout.buffer.write(payload)
-            sys.stdout.buffer.flush()
+            console.write(payload)
 
         if effective_limit <= 0:
             state.update(timedOut=True, status="completed", terminationPhase="deadline-before-start", exitCode=124, endedAtUTC=utc_now())
@@ -154,8 +192,7 @@ def run(arguments):
                     if chunk:
                         log.write(chunk)
                         log.flush()
-                        sys.stdout.buffer.write(chunk)
-                        sys.stdout.buffer.flush()
+                        console.write(chunk)
                     else:
                         selector.unregister(key.fileobj)
                         pipe_open = False
