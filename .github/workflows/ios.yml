@@ -8,7 +8,10 @@ concurrency:
 jobs:
   ios:
     if: "!contains(github.event.head_commit.message, '[device-only]')"
-    runs-on: macos-15
+    # Use the independent Intel pool after hosted ARM acquisition failures.
+    # Simulator execution must still pass the same actual functional inventory.
+    # Intel execution remains unverified until this source's actual job passes.
+    runs-on: macos-15-intel
     # Full main previously executed 52 methods in 30.4 minutes. Allow 60
     # minutes for native execution, retaining each method's original limit.
     # A shared 75-minute job-clock deadline reserves 15 minutes for diagnostics,
@@ -51,9 +54,41 @@ jobs:
         env:
           GRILLA_CXX_BIN: clang++
         run: bash scripts/test_audio.sh
+      - name: Record host-native Simulator toolchain
+        timeout-minutes: 2
+        run: |
+          python3 - <<'PY'
+          import json,os,pathlib,subprocess
+          def output(command,timeout=30):
+              return subprocess.check_output(command,text=True,timeout=timeout).strip()
+          architecture=output(['uname','-m'],10)
+          if architecture not in ('arm64','x86_64'):
+              raise SystemExit('Unsupported native Simulator host architecture: '+architecture)
+          receipt=dict(schemaVersion=1,repository=os.environ['GITHUB_REPOSITORY'],sourceSHA=os.environ['GITHUB_SHA'],
+                       runID=os.environ['GITHUB_RUN_ID'],runAttempt=os.environ['GITHUB_RUN_ATTEMPT'],
+                       runnerArchitecture=os.environ.get('RUNNER_ARCH'),simulatorArchitecture=architecture,
+                       xcode=output(['xcodebuild','-version']),simulatorSDK=output(['xcrun','--sdk','iphonesimulator','--show-sdk-version']))
+          pathlib.Path('simulator-environment.json').write_text(json.dumps(receipt,indent=2)+'\n')
+          with open(os.environ['GITHUB_ENV'],'a') as environment:
+              environment.write('GRILLA_SIMULATOR_ARCH='+architecture+'\n')
+          print(json.dumps(receipt,indent=2))
+          PY
       - name: Build iOS app
         id: simulator_build
-        run: set -o pipefail; xcodebuild -test-timeouts-enabled YES -maximum-test-execution-time-allowance 600 -project LaGrilla.xcodeproj -scheme LaGrilla -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' ARCHS=arm64 ONLY_ACTIVE_ARCH=YES -configuration Debug -derivedDataPath DerivedData CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO build-for-testing | tee build.log
+        run: set -o pipefail; xcodebuild -test-timeouts-enabled YES -maximum-test-execution-time-allowance 600 -project LaGrilla.xcodeproj -scheme LaGrilla -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' ARCHS="$GRILLA_SIMULATOR_ARCH" ONLY_ACTIVE_ARCH=YES -configuration Debug -derivedDataPath DerivedData CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO build-for-testing | tee build.log
+      - name: Verify actual Simulator binary architecture
+        timeout-minutes: 1
+        run: |
+          python3 - <<'PY'
+          import json,os,pathlib,subprocess
+          path=pathlib.Path('simulator-environment.json');receipt=json.loads(path.read_text())
+          binary='DerivedData/Build/Products/Debug-iphonesimulator/LaGrilla.app/LaGrilla'
+          architectures=subprocess.check_output(['xcrun','lipo','-archs',binary],text=True,timeout=30).split()
+          if architectures!=[os.environ['GRILLA_SIMULATOR_ARCH']]:
+              raise SystemExit('Simulator binary does not match the validated native host architecture: '+repr(architectures))
+          receipt['builtAppArchitectures']=architectures
+          path.write_text(json.dumps(receipt,indent=2)+'\n');print(json.dumps(receipt,indent=2))
+          PY
       - name: Package simulator app
         run: ditto -c -k --sequesterRsrc --keepParent DerivedData/Build/Products/Debug-iphonesimulator/LaGrilla.app LaGrilla-Simulator.zip
       - name: Save simulator build
@@ -63,12 +98,29 @@ jobs:
           path: |
             LaGrilla.xcodeproj
             LaGrilla-Simulator.zip
+            simulator-environment.json
       - name: Configure virtual host microphone for native PCM
         run: bash scripts/setup_ci_audio.sh
       - name: Prepare iOS Simulator
+        timeout-minutes: 7
         env:
           GRILLA_CAPTURE_SCREENS: '0'
-        run: bash scripts/screenshots.sh
+        run: |
+          bash scripts/screenshots.sh
+          python3 - <<'PY'
+          import json,pathlib,subprocess
+          path=pathlib.Path('simulator-environment.json');receipt=json.loads(path.read_text())
+          runtimes=json.loads(subprocess.check_output(['xcrun','simctl','list','runtimes','-j'],text=True,timeout=30))
+          devices=json.loads(subprocess.check_output(['xcrun','simctl','list','devices','available','-j'],text=True,timeout=30))
+          target=pathlib.Path('/tmp/grilla-simulator-id').read_text().strip()
+          selected=[(runtime,device) for runtime,items in devices['devices'].items() for device in items if device['udid']==target]
+          if len(selected)!=1:
+              raise SystemExit('The booted Simulator could not be identified in the actual device inventory.')
+          runtime_id,device=selected[0]
+          runtime=next(item for item in runtimes['runtimes'] if item['identifier']==runtime_id)
+          receipt.update(selectedSimulator=device,selectedRuntime=runtime)
+          path.write_text(json.dumps(receipt,indent=2)+'\n');print(json.dumps(receipt,indent=2))
+          PY
       - name: Native user flows
         id: native_flows
         # Independent runner-side bound also covers a blocked Python I/O call.
@@ -101,7 +153,7 @@ jobs:
             SCOPE=input-diagnostic
             INVENTORY=()
           fi
-          python3 scripts/ci/run_native.py --timeout-seconds 3600 --deadline-env GRILLA_NATIVE_DEADLINE_EPOCH --label full-native-ui --scope "$SCOPE" "${INVENTORY[@]}" --log uitests.log --status native-process-status.json -- xcodebuild "${FILTER[@]}" -test-timeouts-enabled YES -maximum-test-execution-time-allowance 600 -project LaGrilla.xcodeproj -scheme LaGrilla -destination "platform=iOS Simulator,id=$DEVICE" -derivedDataPath DerivedData -resultBundlePath TestResults.xcresult ARCHS=arm64 ONLY_ACTIVE_ARCH=YES CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO test-without-building
+          python3 scripts/ci/run_native.py --timeout-seconds 3600 --deadline-env GRILLA_NATIVE_DEADLINE_EPOCH --label full-native-ui --scope "$SCOPE" "${INVENTORY[@]}" --log uitests.log --status native-process-status.json -- xcodebuild "${FILTER[@]}" -test-timeouts-enabled YES -maximum-test-execution-time-allowance 600 -project LaGrilla.xcodeproj -scheme LaGrilla -destination "platform=iOS Simulator,id=$DEVICE" -derivedDataPath DerivedData -resultBundlePath TestResults.xcresult ARCHS="$GRILLA_SIMULATOR_ARCH" ONLY_ACTIVE_ARCH=YES CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO test-without-building
       - name: Preserve exact-source functional scope receipt
         if: always()
         timeout-minutes: 2
@@ -137,6 +189,7 @@ jobs:
             uitests.log
             native-process-status.json
             native-device.log
+            simulator-environment.json
             ci-audio.log
             TestResults.xcresult
             CrashReports
@@ -198,6 +251,7 @@ jobs:
             uitests.log
             native-process-status.json
             native-device.log
+            simulator-environment.json
             compact-supervisor.log
             compact-process-status.json
             compact-tests.log

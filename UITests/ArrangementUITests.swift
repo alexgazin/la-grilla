@@ -197,14 +197,17 @@ final class ArrangementUITests: XCTestCase {
             return width<enlargedWidth*0.9 && abs(center-secondBarsBefore)<=0.04 && a.minX>=view.minX && b.maxX<=view.maxX+1
         },object:third)],timeout:6)
         let observedSecondBars=secondObservation.map{2+(secondAnchorX-$0.third.minX)/$0.barWidth}
-        let repeatedReceipt=XCTAttachment(string:"Settle result=\(reducedSettled)\nBefore viewport=\(secondViewport), ruler03=\(enlargedThird), ruler04=\(enlargedFourth)\nLast coherent observation: \(secondObservation?.geometryDescription ?? "Missing snapshot")\nRaw-input global anchorX=\(secondAnchorX), prior bar width=\(enlargedWidth), anchor bars=\(secondBarsBefore) → \(observedSecondBars.map{String(describing:$0)} ?? "Missing snapshot")\n\(secondInput)\nBEFORE\n\(beforeTrace)\nAFTER\n\(secondObservation?.transport ?? "Missing runtime trace")")
+        // The public hierarchy snapshot truncates long accessibility values
+        // to 512 characters on the verified runtime. Keep its coherent geometry,
+        // then read the complete live value for the post-gesture DSP invariants.
+        let afterTrace=try XCTUnwrap(transport.value as? String)
+        let repeatedReceipt=XCTAttachment(string:"Settle result=\(reducedSettled)\nBefore viewport=\(secondViewport), ruler03=\(enlargedThird), ruler04=\(enlargedFourth)\nLast coherent observation: \(secondObservation?.geometryDescription ?? "Missing snapshot")\nRaw-input global anchorX=\(secondAnchorX), prior bar width=\(enlargedWidth), anchor bars=\(secondBarsBefore) → \(observedSecondBars.map{String(describing:$0)} ?? "Missing snapshot")\n\(secondInput)\nBEFORE\n\(beforeTrace)\nSNAPSHOT TRANSPORT PREVIEW\n\(secondObservation?.transport ?? "Missing runtime trace")\nAFTER FULL LIVE VALUE\n\(afterTrace)")
         repeatedReceipt.name="Anchored-pinch repeated actual geometry";repeatedReceipt.lifetime = .keepAlways;add(repeatedReceipt)
         XCTAssertEqual(reducedSettled,.completed)
         let reduced=try XCTUnwrap(secondObservation)
         let reducedThird=reduced.third,reducedFourth=reduced.fourth
         let reducedWidth=reducedFourth.minX-reducedThird.minX
         let barsReduced=2+(secondAnchorX-reducedThird.minX)/reducedWidth
-        let afterTrace=reduced.transport
         XCTAssertEqual(barsReduced,secondBarsBefore,accuracy:0.04)
         XCTAssertGreaterThanOrEqual(reducedWidth,68-0.000001);XCTAssertLessThanOrEqual(reducedWidth,640+0.000001)
         XCTAssertEqual(clip.identifier,clipID);XCTAssertEqual(clip.value as? String,length)

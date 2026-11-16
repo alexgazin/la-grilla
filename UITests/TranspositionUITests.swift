@@ -90,7 +90,7 @@ final class TranspositionUITests:XCTestCase {
         openSettings(app)
         let root=app.buttons["settings.key-root"]
         reveal(root,in:app);root.tap()
-        let f=app.buttons["F"];XCTAssertTrue(f.waitForExistence(timeout:5));f.tap()
+        selectVisibleMenuItem("F",in:app)
         XCTAssertTrue(app.navigationBars["Settings"].exists,"Selecting a project key must keep Settings open")
         XCTAssertTrue(selected("F",in:root),"The actual project-key picker must select F")
         let revisionAfterKey=field("revision",in:current(transport))
@@ -100,7 +100,7 @@ final class TranspositionUITests:XCTestCase {
         let originalSpelling=try XCTUnwrap(["Auto (key)","Sharps","Flats"].first{value in
             originalSpellingValue==value || originalSpellingLabel==value || originalSpellingLabel.hasSuffix(", "+value)
         },"Read the original preference from the real native picker")
-        spelling.tap();app.buttons["Flats"].tap()
+        spelling.tap();selectVisibleMenuItem("Flats",in:app)
         XCTAssertTrue(selected("Flats",in:spelling))
         let degrees=app.switches["settings.show-degrees"]
         reveal(degrees,in:app)
@@ -141,8 +141,7 @@ final class TranspositionUITests:XCTestCase {
         reveal(spelling,in:app,up:false)
         if !selected(originalSpelling,in:spelling){
             spelling.tap()
-            let option=app.buttons[originalSpelling]
-            XCTAssertTrue(option.waitForExistence(timeout:5));option.tap()
+            selectVisibleMenuItem(originalSpelling,in:app)
         }
         XCTAssertTrue(selected(originalSpelling,in:spelling))
         reveal(degrees,in:app)
@@ -191,6 +190,29 @@ final class TranspositionUITests:XCTestCase {
     @MainActor private func current(_ transport:XCUIElement)->String{(transport.value as? String ?? "").components(separatedBy:"\n").first ?? ""}
     @MainActor private func selected(_ value:String,in picker:XCUIElement)->Bool{
         (picker.value as? String)==value || picker.label==value || picker.label.hasSuffix(", "+value)
+    }
+    @MainActor private func selectVisibleMenuItem(_ title:String,in app:XCUIApplication){
+        // The source 4e hierarchy shows F at (150,303.3,250,42) in the
+        // native menu, while Button.tap later reported an infinite AX hit
+        // point. Resolve the real menu and a stable visible frame before
+        // tapping its measured center; never match the underlying Grid F.
+        let menu=app.collectionViews.containing(.button,identifier:title).firstMatch
+        XCTAssertTrue(menu.waitForExistence(timeout:5))
+        let option=menu.buttons[title]
+        let window=app.frame
+        var previous:CGRect?,measured=CGRect.null
+        wait(option){
+            guard option.exists else{return false}
+            let frame=option.frame
+            let visible=menu.frame.intersection(window.insetBy(dx:0,dy:44))
+            let finite=[frame.minX,frame.minY,frame.maxX,frame.maxY].allSatisfy{$0.isFinite}
+            defer{previous=frame}
+            guard finite,!frame.isEmpty,visible.contains(frame),previous==frame else{return false}
+            measured=frame;return true
+        }
+        guard !measured.isNull else{return}
+        XCTAssertTrue(option.isEnabled)
+        app.coordinate(withNormalizedOffset:.zero).withOffset(CGVector(dx:measured.midX-window.minX,dy:measured.midY-window.minY)).tap()
     }
     private func field(_ key:String,in report:String)->String?{report.split(separator:" ").first(where:{$0.hasPrefix(key+"=")}).map{String($0.dropFirst(key.count+1))}}
     @MainActor private func reveal(_ element:XCUIElement,in app:XCUIApplication,up:Bool=true){

@@ -1,0 +1,8 @@
+Settle result=XCTWaiterResult(rawValue: 1)
+Before viewport=(56.0, 287.0, 384.0, 465.33333333333326), ruler03=(162.0, 294.29999999999995, 13.666666666666657, 13.333333333333371), ruler04=(258.0, 294.29999999999995, 13.666666666666686, 13.333333333333371)
+Last coherent observation: Viewport=(56.0, 287.0, 384.0, 465.33333333333326), ruler03=(78.61809006779288, 294.29999999999995, 13.666666666666686, 13.333333333333371), ruler04=(305.89237836722987, 294.29999999999995, 13.666666666666629, 13.333333333333371), actualBarWidth=227.274288299437, snapshotMilliseconds=250.12058333334153, finiteGeometry=true
+Raw-input global anchorX=223.0, prior bar width=96.0, anchor bars=2.6354166666666665 → 2.6352760402970965
+BEGIN id=1 unitAnchorX=0.4348958333333333 viewportWidth=384.0 offset=86.0 contentWidth=768.0 barWidth=96.0
+REQUEST id=1 magnification=2.3674405031191346 width=227.27428829943693 offset=431.9624472891411 frozenAnchorX=167.0 frozenAnchorBars=2.6354166666666665
+ACK id=1 viewportWidth=384.0 offset=432.0 contentWidth=1818.3333333333333
+CURRENT | ready=true backgrounded=false project=418693B1-ACE3-4B64-A8C8-89C590460337 revision=0 preview=false loopBars=4 loopEnabled=true loopRangeStart=0 loopRangeEnd=15360 loopRangeCount=15360 outputPeak=0.03194898 saveError=none | engineRunning=true controllerPlaying=true controllerTick=14766.04 controllerClock=1278976 appliedRevision=0 submittedGeneration=1 inputPriming=sharedInputFirst inputPrimed=true inputConfigured=false inputTransitionCount=0 inputTransitionMilliseconds=0.0 inputRetirementCount=0 i

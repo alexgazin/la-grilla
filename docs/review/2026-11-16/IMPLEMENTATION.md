@@ -12,7 +12,7 @@
 | CI/release gate scripts | **63 checks PASS**, включая SDK/native retry и два воспроизводимых unread-console случая | Receipt остаётся привязан к фактическому native job attempt; старый receipt нельзя принять после нового native retry. |
 | Кандидат 17, source `5adbadb37c39911c4acc2c2ef511198867098040` | [43876565702, attempt 2](https://github.com/alexgazin/la-grilla/actions/runs/43876565702/attempts/2): **7 native PASS**, 379.622 с; Debug/archive/compatibility также прошли | Software repair подтверждён своим source. Физический телефон остаётся Pending. |
 | Кандидат 18, source `fefa036` | [43879719411, attempt 1](https://github.com/alexgazin/la-grilla/actions/runs/43879719411/attempts/1): **7 PASS / 2 assertion FAIL / 2 execution allowance timeout**, exit 65, финализированный xcresult | Три FirstResult действительно прошли. Общей приёмки 11 методов нет. |
-| Кандидат 19, source `f005854` | [Focused 43890521487](https://github.com/alexgazin/la-grilla/actions/runs/43890521487): **13 PASS / 2 assertion FAIL / 0 timeout**, 700.813 s, exit 65; Debug/archive/обе compatibility PASS | Sketch/writing/harmony/AI/PCM методы прошли. Исправлены два Transposition test defects; новый focused 16/full 64 Pending. Полный 43890521274 ещё не завершился при последнем наблюдении 16:13 UTC. |
+| Кандидат 19, source `f005854` | [Focused 43890521487](https://github.com/alexgazin/la-grilla/actions/runs/43890521487): **13 PASS / 2 assertion FAIL / 0 timeout**, 700.813 s, exit 65; Debug/archive/обе compatibility PASS | Sketch/writing/harmony/AI/PCM методы прошли. Исправлены два Transposition test defects; новый focused 16/full 64 Pending. Полный 43890521274 завершился FAILURE: потеря связи с hosted runner, нативные исходы неизвестны. |
 
 Локальные проверки и старые Simulator PASS не заменяют установленный бинарник, реальную доступную модель и внешние DAW. Источник и результат каждого запуска сохраняются отдельно.
 
@@ -84,6 +84,16 @@ Production control на фиксированных development clips **1–8** �
 
 Сохранены исходные 120 s на метод и все музыкальные утверждения. Для Am+2 ожидается Bm; Settings control должен целиком лежать внутри видимого Form, после проверки persistence восстанавливаются фактические исходные preferences. Anchored pinch использует один immutable public AX snapshot для согласованных ruler/viewport/diagnostic/transport данных; оба настоящих pinch и прежние допуски сохранены.
 
-Локально воспроизведено блокирование supervisor при непрочитанном stdout pipe. Неблокирующий console mirror не теряет исходный logfile; две subprocess проверки подтверждают timeout/cleanup и разбор обязательного PASS из полного лога. Теперь 63 host checks PASS. Secondary step limits 65/31 min сохраняют process limits 60/30 min. Причина незавершённого Mac-run без его receipt не установлена.
+Локально воспроизведено блокирование supervisor при непрочитанном stdout pipe. Неблокирующий console mirror не теряет исходный logfile; две subprocess проверки подтверждают timeout/cleanup и разбор обязательного PASS из полного лога. Теперь 63 host checks PASS. Secondary step limits 65/31 min сохраняют process limits 60/30 min. Полный Mac-run завершился потерей связи с hosted runner; underlying cause неизвестна. [Source-specific итог](performance/native19-hosted-runner-failure.json) сохраняет аннотации и отсутствие native receipt.
 
 Шесть оригинальных кадров кандидата 19 с владельцами PASS и полным раскрытием результата 13/2 находятся в [Screenshots/AuditImprovements](../../../Screenshots/AuditImprovements/README.md). Скриншоты не заменяют приёмку всего запуска.
+
+## Уточнение native source 4e85930
+
+[Focused16](https://github.com/alexgazin/la-grilla/actions/runs/43906210190) завершён **14 PASS / 1 assertion FAIL / 1 execution allowance timeout**, exit65, 1063.083 s. Обе AI, FirstResult3, Harmony2, Sketch2, ChordWriting, PCM3 и полный transpose/live/Undo/Redo/reopen прошли. Process timeout/signal отсутствовали, console drops0.
+
+Оригинальные pan и оба pinch waiters completed; ошибки anchor 0.000141/0.000636 bars остаются меньше неизменного допуска 0.04. Snapshot transport value обрезан ровно до512 символов, поэтому финальные kernel/playing/pending/clock invariants не были приняты. Исправление сохраняет coherent geometry и отдельно читает полное фактическое post-gesture XCUIElement.value. [Source-specific замеры и hashes](performance/native19-pinch-observation-failure.json).
+
+Preferences-case достиг настоящего root picker, но попытка нативного F menu activation закончилась invalid activation point и120s timeout. Поздняя hierarchy содержит видимый finite F frame; исходный video является60-byte error payload и не используется как визуальное доказательство. Коррекция должна использовать измеренный центр настоящего видимого native menu item с проверкой F/IV/persistence и восстановлением реальных исходных preferences.
+
+Два полных ARM задания source4e не получили runner до исполнения, включая один адресный retry. Новый full job переводится в macos-15-intel; реальный Simulator arch выводится из uname и проверяется по lipo, SDK/runtime/source записываются в receipt. iPhone/archive остаются arm64. Inventory64, real HAL/CAF и process/method/time/evidence budgets не ослабляются; первое Intel-исполнение ещё Pending.
