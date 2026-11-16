@@ -39,6 +39,8 @@ jobs:
           python3 scripts/record_native_demo.py --verify-built-products
       - name: Configure actual BlackHole host loopback
         run: bash scripts/setup_ci_audio.sh
+      - name: Complete the separate normal-consent host probe before Simulator boot
+        run: python3 scripts/host_audio_probe.py --output HostAudioProbe
       - name: Boot native iPhone simulator
         env:
           GRILLA_CAPTURE_SCREENS: '0'
@@ -57,6 +59,7 @@ jobs:
           name: native-demo-raw
           path: |
             NativeDemoRaw
+            HostAudioProbe
             NativeDemoAttachments
             NativeDemoResults.xcresult
             demo-build.log

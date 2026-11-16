@@ -3,6 +3,7 @@
 import argparse
 import json
 import hashlib
+import math
 import os
 from pathlib import Path
 import plistlib
@@ -130,6 +131,23 @@ def preserve_build_products(build):
                 archive.write(path, archived_name)
 
 
+def preboot_host_probe(head):
+    path = ROOT / 'HostAudioProbe/probe-receipt.json'
+    probe = json.loads(path.read_text())
+    finish, stopped = probe.get('tone_finish_uptime'), probe.get('finished_uptime')
+    if (probe.get('status') != 'passed' or probe.get('source_sha') != head
+            or type(finish) not in (int, float) or type(stopped) not in (int, float)
+            or not math.isfinite(finish) or not math.isfinite(stopped) or not 0 < finish <= stopped):
+        raise RuntimeError('The separate exact-source normal host probe must have completed and stopped before recording')
+    return dict(file=str(path.relative_to(ROOT)), tone_finish_uptime=finish,
+                finished_uptime=stopped, **file_receipt(path))
+
+
+def verify_probe_before_video(probe, video_start):
+    if not math.isfinite(video_start) or not video_start > probe['tone_finish_uptime'] + 0.5 or video_start < probe['finished_uptime']:
+        raise RuntimeError('The independent probe tone and recorder must finish before any actual movie recording')
+
+
 def capture_source(device, audio_helper):
     """Bind the actual built app, source, toolchain and device to this session."""
     def command(*args):
@@ -139,6 +157,7 @@ def capture_source(device, audio_helper):
     requested = os.environ.get('GITHUB_SHA', head)
     if requested != head or command('git', 'status', '--porcelain', '--untracked-files=no'):
         raise RuntimeError('Record only the exact clean checkout named by GITHUB_SHA; do not mislabel the source.')
+    probe = preboot_host_probe(head)
     build = built_products_contract(command)
     prior_build = json.loads(BUILD_RECEIPT.read_text())
     if prior_build.get('source_sha') != head or prior_build.get('native_products') != build:
@@ -174,7 +193,7 @@ def capture_source(device, audio_helper):
     tracked = command('git', 'ls-files', '-z', '--', 'App', 'Features', 'AudioRuntime',
                       'Packages', 'Resources', 'project.yml', 'LaGrilla.xcodeproj', 'Demos',
                       'scripts/record_native_demo.py', 'scripts/select_simulator.py',
-                      'scripts/ci/native_scope.py', 'scripts/host_audio_consent.py',
+                      'scripts/ci/native_scope.py', 'scripts/host_audio_consent.py', 'scripts/host_audio_probe.py',
                       'Tools/NativeDemo', '.github/workflows/native-demo.yml').split('\0')
     paths = [ROOT / name for name in tracked if name]
     # Xcode's Debug executable can be a small loader. Bind every built bundle
@@ -196,6 +215,7 @@ def capture_source(device, audio_helper):
                   build_products_archive=dict(file=BUILD_ARCHIVE.name, **file_receipt(BUILD_ARCHIVE)),
                   host_audio_helper=dict(path=str(audio_helper.relative_to(ROOT)),
                                          architectures=helper_architectures, **file_receipt(audio_helper)),
+                  preboot_host_probe=probe,
                   github_run_id=os.environ.get('GITHUB_RUN_ID'),
                   expected_methods=EXPECTED_METHODS, physical_device=False,
                   status='Capture source identity only; no audiovisual acceptance claimed',
@@ -270,6 +290,9 @@ def main():
     video_thread = None
     timeline = {'capture_schema': 2, 'source_sha': source['source_sha'], 'device': device,
                 'source_receipt_sha256': file_receipt(OUT / 'source-receipt.json')['sha256'],
+                'preboot_host_probe_receipt_sha256': source['preboot_host_probe']['sha256'],
+                'preboot_host_probe_tone_finish_uptime': source['preboot_host_probe']['tone_finish_uptime'],
+                'preboot_host_probe_finished_uptime': source['preboot_host_probe']['finished_uptime'],
                 'kind': 'Real simctl video plus actual host BlackHole loopback',
                 'offline_soundtrack_substitution': False, 'physical_device': False}
     capture_stopped = False
@@ -299,6 +322,7 @@ def main():
         wait_for_audio_ready(OUT, audio)
         timeline['audio_ready_uptime'] = time.monotonic()
         timeline['video_spawn_before_uptime'] = time.monotonic()
+        verify_probe_before_video(source['preboot_host_probe'], timeline['video_spawn_before_uptime'])
         video = subprocess.Popen(['xcrun', 'simctl', 'io', device, 'recordVideo', '--codec=h264', '--force', str(OUT / 'screen.mp4')], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
         timeline['video_spawn_after_uptime'] = time.monotonic()
         started = threading.Event()

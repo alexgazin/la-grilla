@@ -223,6 +223,25 @@ def verify_original_manifest(args, contract):
             raise ValueError('An actual selected input differs from the finalized original manifest: ' + name)
 
 
+def verify_preboot_probe(source, timing, timing_path: Path):
+    metadata = source.get('preboot_host_probe')
+    path = timing_path.parent.parent / 'HostAudioProbe/probe-receipt.json'
+    if (not isinstance(metadata, dict) or metadata.get('file') != 'HostAudioProbe/probe-receipt.json'
+            or not path.is_file() or metadata.get('bytes') != path.stat().st_size
+            or metadata.get('sha256') != digest(path)):
+        raise ValueError('The separate original preboot host-probe receipt is missing or changed')
+    probe = read_json(path)
+    finish, stopped, video = probe.get('tone_finish_uptime'), probe.get('finished_uptime'), timing.get('video_spawn_before_uptime')
+    if (probe.get('status') != 'passed' or probe.get('source_sha') != source['source_sha']
+            or any(type(value) not in (int, float) or not math.isfinite(value) for value in (finish, stopped, video))
+            or not 0 < finish <= stopped or not video > finish + 0.5 or video < stopped
+            or metadata.get('tone_finish_uptime') != finish or metadata.get('finished_uptime') != stopped
+            or timing.get('preboot_host_probe_receipt_sha256') != metadata['sha256']
+            or timing.get('preboot_host_probe_tone_finish_uptime') != finish
+            or timing.get('preboot_host_probe_finished_uptime') != stopped):
+        raise ValueError('The independent exact-source probe and recorder must finish before actual movie capture')
+
+
 def capture_contract(timing, edl, timing_path: Path, allow_uncovered_postroll: bool):
     """Bind a cut list to its actual source, preserving one historical replay."""
     source_sha = timing.get('source_sha')
@@ -281,6 +300,7 @@ def capture_contract(timing, edl, timing_path: Path, allow_uncovered_postroll: b
                    for path, entry in files.items())):
         raise ValueError('The original source receipt must retain its source-file SHA-256 inventory')
     native_build_contract(source, timing_path)
+    verify_preboot_probe(source, timing, timing_path)
     return dict(source_receipt=source, source_receipt_path=source_path,
                 app=app, **common)
 

@@ -30,6 +30,12 @@ actually passed normal recorder consent, independently identified stereo
 loopback PCM and iOS26.2 boot in147.79s. Its probe tone never enters a movie.
 That host result does not establish app UI or audiovisual acceptance: every
 new recording still requires its own complete successful capture and review.
+The next environment-readiness experiment runs the unchanged host-only probe
+after HAL setup and before Simulator boot. Its tone and recorder finish before
+the movie starts; source SHA, receipt hash and monotonic ordering are checked
+again before video capture. `HostAudioProbe` stays separate from movie media.
+The prior `ad88672` attempt remains failed: XCTest timed out initializing AX
+before any of the four cases executed; its silent screen/audio are diagnostic.
 `simctl io recordVideo` captures the real display; a standalone macOS helper
 captures timestamped stereo host-loopback PCM. The helper checks the actual
 BlackHole UID, uses normal system microphone authorization, and refuses

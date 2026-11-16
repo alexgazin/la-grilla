@@ -76,6 +76,9 @@ code must be thin-native; a prebuilt runner or Apple framework may be universal
 provided it includes the native architecture. The actual compiled host recorder
 must also match its hash and native header. Missing binaries or inconsistent
 coverage remain failures, rather than an inferred architecture check.
+Keep the separate `HostAudioProbe` directory too. Its passed exact-source receipt
+and actual tone/recorder finish times must precede video spawn by the recorded
+clock guard; its probe PCM never supplies the movie soundtrack.
 The composer
 uses that app version/build and four-session count in the visible presentation,
 and preserves the source receipt and its hash in the render receipt. It validates
