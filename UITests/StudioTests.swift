@@ -23,6 +23,45 @@ final class StudioTests: XCTestCase {
         XCTAssertTrue(app.buttons["Play"].waitForExistence(timeout:10));XCTAssertTrue(app.staticTexts["STOPPED"].exists)
         app.buttons["Play"].tap();XCTAssertTrue(app.buttons["Stop"].waitForExistence(timeout:5));app.buttons["Stop"].tap()
     }
+    @MainActor func testWelcomeCanBeSkippedAndReopenedWithoutRepeatingOnLaunch() {
+        XCUIDevice.shared.orientation = .portrait
+        let app=XCUIApplication()
+        app.launchArguments=["--uitesting","--show-welcome","-AppleLanguages","(en)","-AppleLocale","en_US"]
+        app.launch()
+        XCTAssertTrue(app.staticTexts["welcome.title"].waitForExistence(timeout:15))
+        XCTAssertTrue(app.buttons["welcome.skip"].isHittable)
+        app.buttons["welcome.skip"].tap()
+        XCTAssertTrue(app.buttons["perform.transport"].waitForExistence(timeout:5))
+        app.terminate();app.launchArguments.removeAll{$0=="--show-welcome"};app.launch()
+        XCTAssertTrue(app.buttons["perform.transport"].waitForExistence(timeout:15))
+        XCTAssertFalse(app.staticTexts["welcome.title"].exists,"A completed first session guide must not block the returning studio")
+        app.buttons["tools.more"].tap();app.buttons["Settings"].tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout:5))
+        let help=app.buttons["settings.help"]
+        let scroll=app.collectionViews.firstMatch.exists ? app.collectionViews.firstMatch:app.tables.firstMatch.exists ? app.tables.firstMatch:app.scrollViews.firstMatch
+        reveal(help,in:scroll);XCTAssertTrue(help.isHittable);help.tap()
+        XCTAssertTrue(app.staticTexts["welcome.title"].waitForExistence(timeout:5))
+        app.buttons["welcome.skip"].tap()
+        XCTAssertTrue(app.buttons["perform.transport"].waitForExistence(timeout:5))
+    }
+    @MainActor func testAppThemePersistsAndSystemSettingsEntryIsReachable() {
+        XCUIDevice.shared.orientation = .portrait
+        let app=XCUIApplication()
+        app.launchArguments=["--uitesting","--respect-appearance","-AppleLanguages","(en)","-AppleLocale","en_US"]
+        app.launch();XCTAssertTrue(app.buttons["perform.transport"].waitForExistence(timeout:15))
+        app.buttons["tools.more"].tap();app.buttons["Settings"].tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout:5))
+        let theme=app.buttons["settings.theme"]
+        XCTAssertTrue(theme.waitForExistence(timeout:5));theme.tap();app.buttons["Light"].tap()
+        XCTAssertTrue(app.buttons["settings.system"].isHittable)
+        let shot=XCTAttachment(data:XCUIScreen.main.screenshot().pngRepresentation,uniformTypeIdentifier:"public.png");shot.name="ProfessionalShell-settings-light";shot.lifetime = .keepAlways;add(shot)
+        app.terminate();app.launch()
+        XCTAssertTrue(app.buttons["perform.transport"].waitForExistence(timeout:15))
+        app.buttons["tools.more"].tap();app.buttons["Settings"].tap()
+        XCTAssertTrue(theme.waitForExistence(timeout:5))
+        XCTAssertTrue(theme.label.contains("Light") || (theme.value as? String)=="Light","Theme selection must survive relaunch")
+        theme.tap();app.buttons["Dark"].tap();app.buttons["Done"].tap()
+    }
     @MainActor func testRussianInterfaceAndLightAppearance() {
         XCUIDevice.shared.orientation = .portrait
         let app=XCUIApplication();app.launchArguments=["--uitesting","--screen","grid","--appearance","light","-AppleLanguages","(ru)","-AppleLocale","ru_RU"];app.launch()

@@ -1,0 +1,7 @@
+{
+  "colors": [
+    {"idiom": "universal", "color": {"color-space": "srgb", "components": {"red": "0.9607843137", "green": "0.9607843137", "blue": "0.937254902", "alpha": "1"}}},
+    {"idiom": "universal", "appearances": [{"appearance": "luminosity", "value": "dark"}], "color": {"color-space": "srgb", "components": {"red": "0.0666666667", "green": "0.0823529412", "blue": "0.062745098", "alpha": "1"}}}
+  ],
+  "info": {"author": "xcode", "version": 1}
+}

@@ -20,6 +20,7 @@ struct StudioView: View {
         case .newProject: NewProjectView(session:session)
         case .export: ExportView(session:session)
         case .settings: SettingsView(session:session)
+        case .gettingStarted: GettingStartedView{session.sheet=nil}
         case .bass: BassView(session:session)
         case .sections: SectionsView(session:session)
         case .notes: PianoRollView(session:session)

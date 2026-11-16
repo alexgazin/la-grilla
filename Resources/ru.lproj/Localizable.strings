@@ -613,3 +613,25 @@
 "%lld:%lld · %lld ticks · v%lld" = "%lld:%lld · %lld тиков · v%lld";
 "Step %lld" = "Шаг %lld";
 "Source pattern: %@" = "Исходный паттерн: %@";
+
+/* Launch, first session and application settings. */
+"Opening your studio…" = "Открываем студию…";
+"Your idea. Your groove. Your track." = "Твоя идея. Твой грув. Твой трек.";
+"A little studio, ready when inspiration arrives." = "Карманная студия на тот момент, когда приходит вдохновение.";
+"Shape it in Grid" = "Собери форму в сетке";
+"Choose chords and sections. Move clips to build your song." = "Выбирай аккорды и секции. Перемещай клипы и собирай свой трек.";
+"Play it in Jam" = "Сыграй ритм в джеме";
+"Tap the pads, record a loop, then add a melody while the groove keeps going." = "Играй на пэдах, запиши петлю и добавляй мелодию поверх звучащего бита.";
+"Take it further" = "Продолжай в своей DAW";
+"Find your balance in Mixer, then export MIDI, WAV or stems to your DAW." = "Найди баланс в микшере, затем экспортируй MIDI, WAV или дорожки для своей DAW.";
+"Your projects save automatically on this iPhone. Microphone access is requested only when you record or dictate." = "Проекты сохраняются на этом iPhone автоматически. Доступ к микрофону запрашивается только при записи или диктовке.";
+"Start creating" = "Начать создавать";
+"Find this guide again in Settings → Getting started." = "Эта памятка всегда доступна: Настройки → С чего начать.";
+"Getting started" = "С чего начать";
+"Skip" = "Пропустить";
+"Settings" = "Настройки";
+"App preferences" = "Настройки приложения";
+"Language and permissions" = "Язык и разрешения";
+"Change this app’s language and permissions in iOS Settings. Available options depend on your device." = "Язык приложения и разрешения меняются в настройках iOS. Доступные пункты зависят от устройства.";
+"Project tempo" = "Темп проекта";
+"Project key" = "Тональность проекта";

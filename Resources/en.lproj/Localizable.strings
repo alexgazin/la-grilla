@@ -611,3 +611,25 @@
 "%lld:%lld · %lld ticks · v%lld" = "%lld:%lld · %lld ticks · v%lld";
 "Step %lld" = "Step %lld";
 "Source pattern: %@" = "Source pattern: %@";
+
+/* Launch, first session and application settings. */
+"Opening your studio…" = "Opening your studio…";
+"Your idea. Your groove. Your track." = "Your idea. Your groove. Your track.";
+"A little studio, ready when inspiration arrives." = "A little studio, ready when inspiration arrives.";
+"Shape it in Grid" = "Shape it in Grid";
+"Choose chords and sections. Move clips to build your song." = "Choose chords and sections. Move clips to build your song.";
+"Play it in Jam" = "Play it in Jam";
+"Tap the pads, record a loop, then add a melody while the groove keeps going." = "Tap the pads, record a loop, then add a melody while the groove keeps going.";
+"Take it further" = "Take it further";
+"Find your balance in Mixer, then export MIDI, WAV or stems to your DAW." = "Find your balance in Mixer, then export MIDI, WAV or stems to your DAW.";
+"Your projects save automatically on this iPhone. Microphone access is requested only when you record or dictate." = "Your projects save automatically on this iPhone. Microphone access is requested only when you record or dictate.";
+"Start creating" = "Start creating";
+"Find this guide again in Settings → Getting started." = "Find this guide again in Settings → Getting started.";
+"Getting started" = "Getting started";
+"Skip" = "Skip";
+"Settings" = "Settings";
+"App preferences" = "App preferences";
+"Language and permissions" = "Language and permissions";
+"Change this app’s language and permissions in iOS Settings. Available options depend on your device." = "Change this app’s language and permissions in iOS Settings. Available options depend on your device.";
+"Project tempo" = "Project tempo";
+"Project key" = "Project key";
