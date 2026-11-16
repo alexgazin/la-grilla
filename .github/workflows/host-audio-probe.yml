@@ -2,7 +2,7 @@ name: Host audio capture probe
 on:
   workflow_dispatch:
   push:
-    branches: [feat/host-audio-probe]
+    branches: [feat/host-audio-probe, feat/native-demo-intel-preflight]
     paths:
       - Demos/record_host_audio.swift
       - Demos/AudioRecorderInfo.plist
@@ -14,18 +14,113 @@ concurrency:
   cancel-in-progress: true
 jobs:
   probe:
-    runs-on: macos-15
+    runs-on: macos-15-intel
     timeout-minutes: 12
     env:
       DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
     steps:
       - uses: actions/checkout@v4
+      - name: Verify exact Intel preflight source and toolchain
+        run: |
+          python3 - <<'PY'
+          import hashlib,json,os,pathlib,subprocess
+          output=pathlib.Path('HostAudioPreflight');output.mkdir(exist_ok=True)
+          receipt=dict(kind='Host-only Intel preflight; no La Grilla app or promo capture',
+                       repository=os.environ['GITHUB_REPOSITORY'],sourceSHA=os.environ['GITHUB_SHA'],
+                       runID=os.environ['GITHUB_RUN_ID'],runAttempt=os.environ['GITHUB_RUN_ATTEMPT'],
+                       runnerArchitecture=os.environ.get('RUNNER_ARCH'),status='failed',commands={})
+          def read(label,command):
+              result=subprocess.run(command,capture_output=True,text=True,timeout=30)
+              receipt['commands'][label]=dict(command=command,exitCode=result.returncode,stdout=result.stdout,stderr=result.stderr)
+              if result.returncode:raise RuntimeError(label+' failed')
+              return result.stdout.strip()
+          try:
+              receipt['actualHEAD']=read('head',['git','rev-parse','HEAD'])
+              receipt['hostArchitecture']=read('architecture',['uname','-m'])
+              receipt['hostOS']=read('hostOS',['sw_vers'])
+              receipt['xcode']=read('xcode',['xcodebuild','-version'])
+              receipt['simulatorSDK']=read('simulatorSDK',['xcrun','--sdk','iphonesimulator','--show-sdk-version'])
+              receipt['iphoneOSSDK']=read('iphoneOSSDK',['xcrun','--sdk','iphoneos','--show-sdk-version'])
+              if receipt['actualHEAD']!=receipt['sourceSHA'] or read('trackedStatus',['git','status','--porcelain','--untracked-files=no']):raise RuntimeError('Exact clean source checkout required')
+              if receipt['hostArchitecture']!='x86_64' or receipt['runnerArchitecture']!='X64':raise RuntimeError('Actual native Intel host required')
+              if receipt['xcode'].splitlines()[0]!='Xcode 26.3' or receipt['simulatorSDK']!='26.2' or receipt['iphoneOSSDK']!='26.2':raise RuntimeError('Exact Xcode 26.3 and SDK 26.2 required')
+              paths=['Demos/record_host_audio.swift','Demos/AudioRecorderInfo.plist','scripts/host_audio_probe.py','scripts/host_audio_consent.py','scripts/select_simulator.py','scripts/setup_ci_audio.sh','.github/workflows/host-audio-probe.yml']
+              receipt['sourceFiles']={name:dict(bytes=pathlib.Path(name).stat().st_size,sha256=hashlib.sha256(pathlib.Path(name).read_bytes()).hexdigest()) for name in paths}
+              receipt['status']='passed'
+          except Exception as error:
+              receipt['error']=type(error).__name__+': '+str(error)
+          finally:
+              (output/'toolchain.json').write_text(json.dumps(receipt,indent=2)+'\n')
+          if receipt['status']!='passed':raise SystemExit(receipt['error'])
+          PY
       - name: Prepare real virtual audio route without launching Simulator
         env:
           GRILLA_CI_AUDIO_LOG: host-audio-route.log
         run: bash scripts/setup_ci_audio.sh
       - name: Exercise normal host consent and actual loopback capture
         run: python3 scripts/host_audio_probe.py --output HostAudioProbe
+      - name: Verify probe and perform one bounded Simulator boot
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import hashlib,json,os,pathlib,subprocess,time
+          output=pathlib.Path('HostAudioPreflight');output.mkdir(exist_ok=True)
+          identity=json.loads((output/'toolchain.json').read_text()) if (output/'toolchain.json').exists() else {}
+          receipt=dict(sourceSHA=os.environ['GITHUB_SHA'],actualHEAD=identity.get('actualHEAD'),runID=os.environ['GITHUB_RUN_ID'],runAttempt=os.environ['GITHUB_RUN_ATTEMPT'],
+                       bootAttempted=False,bootPassed=False,status='failed',commands={},
+                       historicalRisk='Intel run 43912714984/job 133458619667 stopped at Waiting on System App after its 300-second boot bound (exit124); no prior successful Intel boot or capture is inferred.')
+          device=None
+          def run(label,command,limit):
+              began=time.monotonic()
+              try:
+                  result=subprocess.run(command,capture_output=True,text=True,timeout=limit)
+                  code,stdout,stderr,timedOut=result.returncode,result.stdout,result.stderr,False
+              except subprocess.TimeoutExpired as error:
+                  def text(value):return value.decode(errors='replace') if isinstance(value,bytes) else (value or '')
+                  code,stdout,stderr,timedOut=124,text(error.stdout),text(error.stderr),True
+              except OSError as error:
+                  code,stdout,stderr,timedOut=127,'',str(error),False
+              (output/(label+'.stdout')).write_text(stdout)
+              (output/(label+'.stderr')).write_text(stderr)
+              receipt['commands'][label]=dict(command=command,timeoutSeconds=limit,exitCode=code,timedOut=timedOut,
+                                             elapsedSeconds=time.monotonic()-began,stdout=label+'.stdout',stderr=label+'.stderr')
+              return code,stdout
+          def read(label,command,limit=30):
+              code,value=run(label,command,limit)
+              if code:raise RuntimeError(label+' failed with status '+str(code))
+              return value.strip()
+          try:
+              if identity.get('status')!='passed':raise RuntimeError('Exact-source Intel toolchain preflight did not pass; Simulator boot is blocked')
+              probe=json.loads(pathlib.Path('HostAudioProbe/probe-receipt.json').read_text())
+              if probe.get('status')!='passed' or probe.get('source_sha')!=identity['actualHEAD']:raise RuntimeError('The actual exact-source normal-consent loopback probe must pass first')
+              helper=pathlib.Path('HostAudioProbe/LaGrillaDemoAudioRecorder.app/Contents/MacOS/LaGrillaDemoAudioRecorder')
+              architectures=read('helper-lipo',['xcrun','lipo','-archs',str(helper)]).split()
+              if architectures!=['x86_64']:raise RuntimeError('The actual host recorder must be native x86_64')
+              receipt['hostHelper']=dict(path=str(helper),architectures=architectures,bytes=helper.stat().st_size,sha256=hashlib.sha256(helper.read_bytes()).hexdigest())
+              runtimes=json.loads(read('available-runtimes',['xcrun','simctl','list','runtimes','-j']))
+              read('available-devices-before-selection',['xcrun','simctl','list','devices','available','-j'])
+              device=read('select-device',['python3','scripts/select_simulator.py','--name','iPhone 16 Pro Max','--type','com.apple.CoreSimulator.SimDeviceType.iPhone-16-Pro-Max'])
+              devices=json.loads(read('available-devices-after-selection',['xcrun','simctl','list','devices','available','-j']))['devices']
+              runtime=next(key for key,items in devices.items() if any(item['udid']==device for item in items))
+              runtimeInfo=next(item for item in runtimes['runtimes'] if item['identifier']==runtime)
+              deviceInfo=next(item for item in devices[runtime] if item['udid']==device)
+              selected=dict(sourceSHA=identity['actualHEAD'],device=deviceInfo,runtime=runtimeInfo,observedBeforeBoot=True,bootPassed=False)
+              (output/'selected-simulator-before-boot.json').write_text(json.dumps(selected,indent=2)+'\n')
+              if runtime!='com.apple.CoreSimulator.SimRuntime.iOS-26-2' or not runtimeInfo.get('isAvailable'):raise RuntimeError('The selected available runtime must be exactly iOS 26.2')
+              receipt['bootAttempted']=True
+              bootCode,_=run('boot',['xcrun','simctl','boot',device],60)
+              statusCode,_=run('bootstatus',['xcrun','simctl','bootstatus',device,'-b'],300)
+              receipt['bootPassed']=bootCode==0 and statusCode==0
+              if not receipt['bootPassed']:raise RuntimeError('Simulator boot did not complete with actual zero exit statuses')
+              receipt['status']='passed'
+          except Exception as error:
+              receipt['error']=type(error).__name__+': '+str(error)
+          finally:
+              if device is not None:run('available-devices-final',['xcrun','simctl','list','devices','available','-j'],15)
+              (output/'simulator-boot.json').write_text(json.dumps(receipt,indent=2)+'\n')
+          if receipt['status']!='passed':raise SystemExit(receipt['error'])
+          print('INTEL_PREFLIGHT_PASS: actual normal host consent, independent loopback PCM and one bounded iOS26.2 boot; no app UI or promo captured.')
+          PY
       - name: Preserve actual probe and normal-consent diagnostics
         if: always()
         uses: actions/upload-artifact@v4
@@ -34,4 +129,5 @@ jobs:
           retention-days: 3
           path: |
             HostAudioProbe
+            HostAudioPreflight
             host-audio-route.log
