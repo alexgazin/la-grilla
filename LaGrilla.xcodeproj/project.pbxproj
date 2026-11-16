@@ -5,6 +5,16 @@
 	};
 	"objectVersion" = 56;
 	"objects" = {
+		"2A75615F95238FEBBA7EA4F2" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "App/AppStartView.swift";
+			"sourceTree" = "SOURCE_ROOT";
+		};
+		"469B936F4918A75C4DBC701F" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "2A75615F95238FEBBA7EA4F2";
+		};
 		"93DF114FFA953E365D2E236E" = {
 			"isa" = "PBXFileReference";
 			"lastKnownFileType" = "sourcecode.swift";
@@ -48,6 +58,7 @@
 		"13C4608B5138EBE9B3A45A55" = {
 			"isa" = "PBXGroup";
 			"children" = (
+				"2A75615F95238FEBBA7EA4F2",
 				"93DF114FFA953E365D2E236E",
 				"21BEF306719971278B8C3FBB",
 				"5346F1F4FC53325393F40122",
@@ -115,6 +126,16 @@
 		"9D791EA1E872C02532204B2E" = {
 			"isa" = "PBXBuildFile";
 			"fileRef" = "0A7AD0BFE21A4457C7BBA9F5";
+		};
+		"B4A569A772CDF772FCEBE5EE" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "Features/GettingStartedView.swift";
+			"sourceTree" = "SOURCE_ROOT";
+		};
+		"89C4020DE747ED79E2320FB5" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "B4A569A772CDF772FCEBE5EE";
 		};
 		"6DB07D8C3FB8DBA25E51BB33" = {
 			"isa" = "PBXFileReference";
@@ -225,6 +246,7 @@
 				"B5FCEE76D5E5C943FE601284",
 				"61680B367E11FEC8CC95AAD6",
 				"0A7AD0BFE21A4457C7BBA9F5",
+				"B4A569A772CDF772FCEBE5EE",
 				"6DB07D8C3FB8DBA25E51BB33",
 				"AD913CD535A5E90A9F712FBE",
 				"060265E3518DFE54215D381C",
@@ -555,6 +577,12 @@
 			"name" = "Localizable.stringsdict";
 			"sourceTree" = "<group>";
 		};
+		"D00486511F3AA5C7B179590F" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "file.storyboard";
+			"path" = "Resources/LaunchScreen.storyboard";
+			"sourceTree" = "SOURCE_ROOT";
+		};
 		"392BDC3F55CEC1885F16285B" = {
 			"isa" = "PBXFileReference";
 			"lastKnownFileType" = "text.xml";
@@ -568,6 +596,7 @@
 				"E967D16DAE74A49B5E0E0512",
 				"6F6C01DCC67E25B65DE9B2A3",
 				"8D936EED4E2FD5186B0FD2BE",
+				"D00486511F3AA5C7B179590F",
 				"392BDC3F55CEC1885F16285B",
 			);
 			"name" = "Resources";
@@ -655,6 +684,7 @@
 				"INFOPLIST_KEY_LSApplicationCategoryType" = "public.app-category.music";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation" = "YES";
 				"INFOPLIST_KEY_UISupportedInterfaceOrientations" = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				"INFOPLIST_KEY_UILaunchStoryboardName" = "LaunchScreen";
 				"SWIFT_OPTIMIZATION_LEVEL" = "-Onone";
 				"GCC_OPTIMIZATION_LEVEL" = "0";
 				"SWIFT_ACTIVE_COMPILATION_CONDITIONS" = "DEBUG";
@@ -688,6 +718,7 @@
 				"INFOPLIST_KEY_LSApplicationCategoryType" = "public.app-category.music";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation" = "YES";
 				"INFOPLIST_KEY_UISupportedInterfaceOrientations" = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				"INFOPLIST_KEY_UILaunchStoryboardName" = "LaunchScreen";
 				"SWIFT_OPTIMIZATION_LEVEL" = "-O";
 				"GCC_OPTIMIZATION_LEVEL" = "s";
 			};
@@ -706,6 +737,7 @@
 			"isa" = "PBXSourcesBuildPhase";
 			"buildActionMask" = 2147483647;
 			"files" = (
+				"469B936F4918A75C4DBC701F",
 				"D9F5D983A6FBAFEDF6B3AB97",
 				"0587407DA031D1B414F3155D",
 				"F8C137E32B1198A64C56AA5B",
@@ -716,6 +748,7 @@
 				"586A1646E08C306C3B726A7B",
 				"847C58B7B4D8B1036E3E7C12",
 				"9D791EA1E872C02532204B2E",
+				"89C4020DE747ED79E2320FB5",
 				"51D56D53A08999B70DE92723",
 				"E2B4C1F4E80F805885F9E911",
 				"BD9CCAF7C2E61E71DC9DEB7F",
@@ -775,6 +808,10 @@
 			"isa" = "PBXBuildFile";
 			"fileRef" = "8D936EED4E2FD5186B0FD2BE";
 		};
+		"E0BCB76FA72A98908855E966" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "D00486511F3AA5C7B179590F";
+		};
 		"EAC16AEDDD3E496199402A8D" = {
 			"isa" = "PBXBuildFile";
 			"fileRef" = "392BDC3F55CEC1885F16285B";
@@ -787,6 +824,7 @@
 				"2A1AA518DE147C0C49F1D6D2",
 				"80C276DD338F236B50A8A129",
 				"D42AC26CCAD22272CFCA7965",
+				"E0BCB76FA72A98908855E966",
 				"EAC16AEDDD3E496199402A8D",
 			);
 			"runOnlyForDeploymentPostprocessing" = 0;

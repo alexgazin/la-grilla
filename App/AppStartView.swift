@@ -31,6 +31,9 @@ struct AppStartView: View {
         }
         .onChange(of: session.ready, initial: true) { _, ready in
             guard ready else { return }
+            // Keep first-launch guidance from covering bootstrap errors and
+            // recovery controls. The next successful launch can show it.
+            guard session.message == nil, session.audio.error == nil else { return }
             let arguments = ProcessInfo.processInfo.arguments
             let testing = arguments.contains("--uitesting")
             if testing && arguments.contains("--show-welcome") { welcomeCompleted = false }
