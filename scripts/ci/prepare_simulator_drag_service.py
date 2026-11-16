@@ -10,7 +10,6 @@ No application touch, test retry, host service mutation or TCC change occurs.
 """
 import argparse
 import base64
-from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 import hashlib
 import json
@@ -185,10 +184,10 @@ def prepare(arguments):
         if not re.fullmatch(r"[0-9a-f]{40}", head) or (state["sourceSHA"] and state["sourceSHA"] != head):
             raise NotReady("Readiness source SHA differs from the actual checkout.")
         state["sourceSHA"] = head
-        with ThreadPoolExecutor(max_workers=2) as pool:
-            devices_future = pool.submit(command, "devices.json", ["xcrun", "simctl", "list", "devices", "available", "--json"])
-            runtimes_future = pool.submit(command, "runtimes.json", ["xcrun", "simctl", "list", "runtimes", "--json"])
-            devices, runtimes = json.loads(devices_future.result()), json.loads(runtimes_future.result())
+        # CoreSimulator/xcrun startup is shared. Concurrent inventory requests
+        # stalled on c29, while this same VM's sequential requests succeeded.
+        devices = json.loads(command("devices.json", ["xcrun", "simctl", "list", "devices", "available", "--json"], 12))
+        runtimes = json.loads(command("runtimes.json", ["xcrun", "simctl", "list", "runtimes", "--json"], 6))
         selected = [(runtime, device) for runtime, items in devices["devices"].items() for device in items if device["udid"] == arguments.device]
         if len(selected) != 1 or selected[0][1].get("state") != "Booted":
             raise NotReady("The exact selected Simulator is not uniquely observed Booted.")

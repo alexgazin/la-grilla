@@ -221,7 +221,10 @@ final class TranspositionUITests:XCTestCase {
             // Move the real UISwitch thumb in the requested direction. The
             // caller has already revealed this control; do not repeat that
             // ownership lookup or fall back to another gesture after failure.
-            if desired=="1"{native.swipeRight(velocity:.slow)}else{native.swipeLeft(velocity:.slow)}
+            // The observed 53pt .slow swipe lasted only 70.7ms. Use explicit
+            // points per second; the next native event must verify its duration.
+            let velocity=XCUIGestureVelocity(rawValue:100)
+            if desired=="1"{native.swipeRight(velocity:velocity)}else{native.swipeLeft(velocity:velocity)}
         }
         wait(control,timeout:5){(control.value as? String)==desired}
         XCTAssertEqual(control.value as? String,desired)
@@ -281,12 +284,20 @@ final class TranspositionUITests:XCTestCase {
             // The notation failure swiped the background Grid while Apply
             // already fit in its own editor. Only a target-owning viewport
             // can establish visibility or receive a reveal gesture.
-            let owners=[app.collectionViews.containing(.any,identifier:identifier),app.tables.containing(.any,identifier:identifier),app.scrollViews.containing(.any,identifier:identifier)]
-                .flatMap{$0.allElementsBoundByIndex}.compactMap{candidate->(XCUIElement,CGRect)? in
+            var owners:[(XCUIElement,CGRect)]=[]
+            // Resolve the lazy, target-scoped queries in native type order.
+            // A Form-owned control needs no table or scroll-view query.
+            for query in [app.collectionViews.containing(.any,identifier:identifier),app.tables.containing(.any,identifier:identifier),app.scrollViews.containing(.any,identifier:identifier)] {
+                let candidates=query.allElementsBoundByIndex.compactMap{candidate->(XCUIElement,CGRect)? in
                     guard candidate.exists else{return nil}
                     let frame=candidate.frame
                     return finiteFrame(frame) ? (candidate,frame):nil
-                }.sorted{$0.1.width*$0.1.height < $1.1.width*$1.1.height}
+                }
+                if !candidates.isEmpty {
+                    owners=candidates.sorted{$0.1.width*$0.1.height < $1.1.width*$1.1.height}
+                    break
+                }
+            }
             guard let (scroll,scrollFrame)=owners.first,finiteFrame(app.frame) else{
                 keepReport("target.exists=\(element.exists), target.hittable=\(element.isHittable), finiteOwningCandidates=\(owners.count)\n"+app.debugDescription,name:"Audit-native-reveal-owner-failure-"+identifier)
                 XCTFail("A real scroll container must own the native control: "+identifier);return
