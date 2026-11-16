@@ -1,24 +1,34 @@
 # La Grilla для ручного тестирования
 
-**[Скачать IPA · 1.0.0 (17), 3.2 MiB](https://github.com/alexgazin/la-grilla/raw/refs/heads/main/Builds/Testing/LaGrilla-1.0.0-17-unsigned.ipa)**
+**[Скачать последнюю IPA · 1.0.0 (19), 3.4 MiB](https://github.com/alexgazin/la-grilla/raw/refs/heads/main/Builds/Testing/LaGrilla-1.0.0-19-unsigned.ipa)**
 
-Настоящее приложение для **физического iPhone с iOS 18+**, arm64. Это **неподписанная IPA для самостоятельной подписи** на ноутбуке, а не App Store/TestFlight-сборка. Простая пересылка файла на телефон её не установит.
+Для **физического iPhone с iOS 18+**, arm64. Неподписанная IPA: тестировщик подписывает её своим Apple ID на ноутбуке. Простая пересылка файла на телефон её не установит.
 
 ## Установка с Mac или Windows
 
-1. Установить [Sideloadly](https://sideloadly.io/) на ноутбук и подключить iPhone по USB.
-2. Выбрать iPhone в Sideloadly, перетащить IPA, указать **свой Apple ID** и нажать Start. Программа подпишет приложение для этого телефона; платная команда Apple Developer не нужна.
+1. Установить [Sideloadly](https://sideloadly.io/) и подключить iPhone по USB.
+2. Выбрать iPhone, перетащить IPA, указать **свой Apple ID**, нажать Start. Платная команда Apple Developer не нужна.
 3. На iPhone включить Developer Mode, если iOS попросит. При необходимости доверить разработчику: Настройки → Основные → VPN и управление устройством.
 4. Открыть La Grilla. Бесплатная Personal Team обычно даёт подпись на **7 дней**; затем приложение нужно переподписать.
 
-Apple ID, пароль, 2FA и профиль остаются у тестировщика. В приложенной IPA нет персонального provisioning profile или чужой подписи.
+Apple ID, пароль, 2FA и профиль остаются у тестировщика. В IPA нет персонального provisioning profile или чужой подписи.
 
-## Что именно проверено
+## Что внутри сборки 19
 
-Бинарник из source `5adbadb37c39911c4acc2c2ef511198867098040`: Debug, unsigned Release archive и Xcode 16.4 / 26.0.1 compatibility PASS; [семь focused native methods](https://github.com/alexgazin/la-grilla/actions/runs/43876565702/attempts/2) — **7 PASS / 0 FAIL / 0 SKIP**. Упаковка повторно проверяет настоящий iPhone Mach-O, weak FoundationModels, CRC, SHA-256 и неизменность каждого файла приложения. Это не принятие физического телефона или App Store.
+Новые редактируемые House/Hip-hop/Jazz скетчи — аккорды, ударные, бас и мелодия — с A/B, Apply/Undo и MIDI; первый звук в пустом проекте и Starter; транспонирование, сохранённое написание аккордов; исправления документов, голосовых таймингов и производительности. Скетчи создаёт локальный музыкальный композитор; доступная системная модель может интерпретировать параметры. Доступность настоящей FoundationModels и человеческая диктовка требуют отдельной проверки телефона.
 
-- [SHA-256](LaGrilla-1.0.0-17-unsigned.sha256).
-- [Версия, исходник, архитектура и хеши всех файлов](LaGrilla-1.0.0-17-unsigned.json).
-- [Текущий статус и открытая аппаратная приёмка](../../docs/release/CURRENT.md).
+**Статус: тестовый кандидат, не завершённая релизная приёмка.** Бинарник из [`4e85930acf006376f3861d4209bf07ea8bcdcaf0`](https://github.com/alexgazin/la-grilla/commit/4e85930acf006376f3861d4209bf07ea8bcdcaf0), [PR #21](https://github.com/alexgazin/la-grilla/pull/21). Исходный код этой версии пока находится в PR; основной код `main` остаётся 17 до его интеграции.
 
-Начать проверку со звука демо, затем Assistant → диктовка → Stop → команда «Темп 110» → Review/Apply/Undo; проверить повторную запись, создание пустого проекта, добавление аккорда, сохранение и повторный запуск. Для локальных Commands Apple Intelligence не требуется. Доступность реальной модели, человеческая транскрипция, маршруты и индикатор микрофона проверяются отдельно на установленном приложении.
+- [iPhone Debug и Release archive](https://github.com/alexgazin/la-grilla/actions/runs/43906210319) прошли. Оба full native jobs не получили hosted runner до исполнения, включая один адресный повтор. Полный прогон 64 методов ещё не принят; новая проверка использует другой пул Mac с теми же сценариями и лимитами.
+- [Focused 16](https://github.com/alexgazin/la-grilla/actions/runs/43906210190) завершён **14 PASS / 1 assertion FAIL / 1 execution allowance timeout**. Диагностика snapshot обрезалась до512 символов; отдельный native menu activation завершился таймаутом. Исправляются тестовые чтение и жест, все прежние музыкальные утверждения сохраняются. Этот run не принят.
+- Архив 14246785600: **12,833,883 bytes**, SHA-256 `1fb996f68536f4cdf4d84776a8312aaaf575eaca92dec03bde5288b9955dde09`.
+- IPA: **3,549,483 bytes**, SHA-256 `a98ba44b037c2bddefc9217f07d7441e6cc57f9d7c1a09b7f1f4f4864e48771e`. ZIP CRC и SHA всех 16 оригинальных файлов приложения проверены; Mach-O — arm64/iPhoneOS, minimum iOS 18, weak FoundationModels, без подписи.
+- [Receipt и все файлы](LaGrilla-1.0.0-19-unsigned.json), [контрольная сумма](LaGrilla-1.0.0-19-unsigned.sha256), [независимая проверка](candidate19-independent-verification.json), [исходные метаданные артефакта](candidate19-artifact-metadata.json).
+
+**Перед обновлением экспортировать важные проекты в portable bundle.** Сборка 19 использует schema 10 и читает проекты 1…9; старые версии приложения не откроют сохранённую schema 10. Физический запуск, аудиомаршруты, живой напев и App Store не приняты этим архивом.
+
+## Предыдущая IPA 17
+
+[Скачать 1.0.0 (17), 3.2 MiB](https://github.com/alexgazin/la-grilla/raw/refs/heads/main/Builds/Testing/LaGrilla-1.0.0-17-unsigned.ipa). Source `5adbadb37c39911c4acc2c2ef511198867098040`; [focused 7](https://github.com/alexgazin/la-grilla/actions/runs/43876565702/attempts/2) — **7 PASS / 0 FAIL / 0 SKIP**; Debug/archive и обе compatibility сборки PASS. Это отдельный проверенный recovery scope, не полный regression и не физическая приёмка. [Receipt](LaGrilla-1.0.0-17-unsigned.json), [SHA-256](LaGrilla-1.0.0-17-unsigned.sha256).
+
+Начать ручную проверку со звука, затем Assistant → диктовка → Stop → команда «Темп 110» → Review/Apply/Undo; повторная запись, Empty/Starter, генерация скетча, сохранение/reopen/MIDI. Для Commands и локального композитора Apple Intelligence не требуется.

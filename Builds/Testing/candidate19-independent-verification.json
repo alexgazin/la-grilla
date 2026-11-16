@@ -1,0 +1,28 @@
+{
+  "sourceSHA": "4e85930acf006376f3861d4209bf07ea8bcdcaf0",
+  "artifactID": 14246785600,
+  "artifactBytes": 12833883,
+  "artifactSHA256": "1fb996f68536f4cdf4d84776a8312aaaf575eaca92dec03bde5288b9955dde09",
+  "ipa": "LaGrilla-1.0.0-19-unsigned.ipa",
+  "ipaBytes": 3549483,
+  "ipaSHA256": "a98ba44b037c2bddefc9217f07d7441e6cc57f9d7c1a09b7f1f4f4864e48771e",
+  "allOriginalAppFileHashesMatch": true,
+  "zipCRCValid": true,
+  "binary": {
+    "architecture": "arm64",
+    "platform": "iOS",
+    "minimumOS": "18.0.0",
+    "sdk": "26.2.0",
+    "uuid": "782260EB-FDCF-34CF-A699-B3A62B25D539",
+    "dsymUUIDMatches": null,
+    "foundationModelsLoadCommand": "LC_LOAD_WEAK_DYLIB",
+    "foundationModelsOrdinal": 14,
+    "foundationModelsWeakSymbols": 78,
+    "foundationModelsWeakChainedImports": 78,
+    "initializerSections": [],
+    "hasCodeSignatureCommand": false,
+    "runtimeValidation": "Static binary checks only; signed-device startup on iOS 18 still requires device QA."
+  },
+  "nativeAcceptance": "pending",
+  "physicalAcceptance": "pending"
+}
