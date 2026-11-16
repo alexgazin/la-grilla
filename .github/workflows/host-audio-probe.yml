@@ -97,7 +97,7 @@ jobs:
               architectures=read('helper-lipo',['xcrun','lipo','-archs',str(helper)]).split()
               if architectures!=['x86_64']:raise RuntimeError('The actual host recorder must be native x86_64')
               receipt['hostHelper']=dict(path=str(helper),architectures=architectures,bytes=helper.stat().st_size,sha256=hashlib.sha256(helper.read_bytes()).hexdigest())
-              runtimes=json.loads(read('available-runtimes',['xcrun','simctl','list','runtimes','-j']))
+              runtimes=json.loads(read('available-runtimes',['xcrun','simctl','list','runtimes','-j'],90))
               read('available-devices-before-selection',['xcrun','simctl','list','devices','available','-j'])
               device=read('select-device',['python3','scripts/select_simulator.py','--name','iPhone 16 Pro Max','--type','com.apple.CoreSimulator.SimDeviceType.iPhone-16-Pro-Max'])
               devices=json.loads(read('available-devices-after-selection',['xcrun','simctl','list','devices','available','-j']))['devices']
@@ -115,6 +115,8 @@ jobs:
               receipt['status']='passed'
           except Exception as error:
               receipt['error']=type(error).__name__+': '+str(error)
+              run('coresimulator-host-log',['/usr/bin/log','show','--last','2m','--style','compact','--predicate','process CONTAINS "CoreSimulatorService" OR process == "launchd_sim"'],15)
+              run('xcode-first-launch-status',['xcodebuild','-checkFirstLaunchStatus'],10)
           finally:
               if device is not None:run('available-devices-final',['xcrun','simctl','list','devices','available','-j'],15)
               (output/'simulator-boot.json').write_text(json.dumps(receipt,indent=2)+'\n')
