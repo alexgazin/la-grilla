@@ -1,0 +1,377 @@
+{
+  "beforeReceiptSHA256": "7fc42d3d5585179c0c28e69d4e21d9d48ef70310158542e6ab6d229d10ef039f",
+  "fixtures": [
+    {
+      "bytes": 51321,
+      "path": "docs/release/fixtures/load-P1.grillapack",
+      "sha256": "94303b07b16af882edf3d064e4f9de7dac7ce72b28c53b135173804488169ac0"
+    },
+    {
+      "bytes": 1353845,
+      "path": "docs/release/fixtures/load-P3.grillapack",
+      "sha256": "43582e688266c8b2c5ab2189b819255f17020daef77c27a4033b1448a1d8bffa"
+    }
+  ],
+  "formatVersion": 2,
+  "harness": [
+    {
+      "bytes": 339,
+      "path": "Package.swift",
+      "sha256": "fe51635a7c121d640944156962c28c7691007593cd2cf545f2980682fa5da091"
+    },
+    {
+      "bytes": 12690,
+      "path": "Sources/GrillaArchitectureProfile/main.swift",
+      "sha256": "4d726714e709d2b59f8d2a4c7f1f171b085eccff7324d2a3ab0a4e3b0d1fa0a1"
+    },
+    {
+      "bytes": 864,
+      "path": "run.sh",
+      "sha256": "d992d352989fbe8f71dbfb7cff2775fa5956a40d8d92117613bd2c4335ba59ee"
+    },
+    {
+      "bytes": 2769,
+      "path": "provenance.py",
+      "sha256": "af031e86e260750059f6a39c806dba54531dca595f2ab58ec06114d8c4164dc8"
+    },
+    {
+      "bytes": 2807,
+      "path": "README.md",
+      "sha256": "29ae83472edc72e704e41744e6c2aa174b10ca386c97258ac6db48363f84ed10"
+    }
+  ],
+  "host": {
+    "machine": "x86_64",
+    "node": "853421f71965",
+    "processor": "",
+    "release": "6.18.57",
+    "system": "Linux",
+    "version": "#1 SMP Tue Oct 20 21:56:04 UTC 2026"
+  },
+  "hostOnly": true,
+  "optimizedCommand": "bash /tmp/grilla-architecture-profile-after/run.sh",
+  "receipt": {
+    "bytes": 14153,
+    "path": "receipt.json",
+    "sha256": "7ca335e64ee11f7f5bc994773972448e7e6d16774f7e7526d1bce4853e54dda1"
+  },
+  "snapshotCapturedAt": "2026-11-16T13:16:07.203321+00:00",
+  "sourceBaselineSHA": "29adf6c398173faf830de8f6249702628b8a3f76",
+  "sourceFiles": [
+    {
+      "bytes": 545,
+      "path": "Packages/MusicDomain/Package.swift",
+      "sha256": "e56191d19573c64dd7b7a8e1ff667d414e63e17cdf0e802b5c743a3ba0f9f7cd"
+    },
+    {
+      "bytes": 2485,
+      "path": "Packages/MusicDomain/Sources/AudioDSP/AssetHash.cpp",
+      "sha256": "52e2fe8596aaf7014d027e2c9234dfc459f25e7da5b9918496dcef4f7f978caa"
+    },
+    {
+      "bytes": 45388,
+      "path": "Packages/MusicDomain/Sources/AudioDSP/GrillaKernel.cpp",
+      "sha256": "a44c68bc6410605e1edbd79c3bdae25ee194183b3833545c0bae78a3ea72d4a2"
+    },
+    {
+      "bytes": 5734,
+      "path": "Packages/MusicDomain/Sources/AudioDSP/LiveInputBuffer.cpp",
+      "sha256": "e8d4f94231866db01d87ae0f40ebe709cd54067c271755dfe765937ab588854c"
+    },
+    {
+      "bytes": 5611,
+      "path": "Packages/MusicDomain/Sources/AudioDSP/MIDIHub.cpp",
+      "sha256": "e42e014dc2a71119644157ee63fd41f65cd1a2f2329617fff4667ac9dcc17b3e"
+    },
+    {
+      "bytes": 12545,
+      "path": "Packages/MusicDomain/Sources/AudioDSP/MIDIHub.hpp",
+      "sha256": "c89146f2c31ba6359d43dfe807c06b8db60a8c39ecf964efab9c8a7d005463fe"
+    },
+    {
+      "bytes": 5337,
+      "path": "Packages/MusicDomain/Sources/AudioDSP/PerformanceFX.hpp",
+      "sha256": "1b58a139b07fd926d1d051c3161900308e16fa841b23a604cf3698267df13196"
+    },
+    {
+      "bytes": 7108,
+      "path": "Packages/MusicDomain/Sources/AudioDSP/PerformanceRuntime.hpp",
+      "sha256": "a45b9ee3802da61b2959be38081d740f980c19a476acf40570e9ebfe03db9a65"
+    },
+    {
+      "bytes": 1336,
+      "path": "Packages/MusicDomain/Sources/AudioDSP/include/GrillaInput.h",
+      "sha256": "5f4af7d6050c8922240c1a3865cc2965e643c3096d6bc3dad59265a2f3b4d19d"
+    },
+    {
+      "bytes": 5958,
+      "path": "Packages/MusicDomain/Sources/AudioDSP/include/GrillaKernel.h",
+      "sha256": "4cba735d28200d99dd97cc5a4437ff07150478315b6c2c4b95aa20b997ea814f"
+    },
+    {
+      "bytes": 2446,
+      "path": "Packages/MusicDomain/Sources/AudioDSP/include/GrillaMIDI.h",
+      "sha256": "390cb1059ff871bfad401b28f3a14018e473f1288812cf705e0790d6eeb904fb"
+    },
+    {
+      "bytes": 4023,
+      "path": "Packages/MusicDomain/Sources/MusicDomain/ArrangementEditing.swift",
+      "sha256": "af37737b6e44878c91866e4fbc833a7bb3f75e1e5759164ecb07f76b5e7b7683"
+    },
+    {
+      "bytes": 19846,
+      "path": "Packages/MusicDomain/Sources/MusicDomain/Assistant.swift",
+      "sha256": "391d0fc099740c61a59505c64535d7770149367905274a0489f6717cefa6de19"
+    },
+    {
+      "bytes": 9555,
+      "path": "Packages/MusicDomain/Sources/MusicDomain/AssistantComposition.swift",
+      "sha256": "93c5f2ca5ab468a964b0efed8423728a8ce9d831a88962a098c94f99b49e4e61"
+    },
+    {
+      "bytes": 3838,
+      "path": "Packages/MusicDomain/Sources/MusicDomain/AudioAssets.swift",
+      "sha256": "54b67035ef08aa9dc301d8070c767f10be58d888988fa14f60abba9f92097421"
+    },
+    {
+      "bytes": 20222,
+      "path": "Packages/MusicDomain/Sources/MusicDomain/ClipEditing.swift",
+      "sha256": "9308126789017fa1dd67695150872f6ab66a540a13a895bc05c2d8c42e94a105"
+    },
+    {
+      "bytes": 8183,
+      "path": "Packages/MusicDomain/Sources/MusicDomain/Compiler.swift",
+      "sha256": "fd32d0985a5d21f7e85b275e8d0678a9a461cd5f98516a15ff5bfa9a43f05be2"
+    },
+    {
+      "bytes": 3685,
+      "path": "Packages/MusicDomain/Sources/MusicDomain/DrumRecording.swift",
+      "sha256": "72f2d4ff67a43727715f513f2e165a507b3bd18d4621d4761c13fee6efc592b5"
+    },
+    {
+      "bytes": 8345,
+      "path": "Packages/MusicDomain/Sources/MusicDomain/HarmonyLab.swift",
+      "sha256": "eb90a1dd4b8b609530658df1443441800af26e8d1ca68fc7d78ea0f2d63dc423"
+    },
+    {
+      "bytes": 2247,
+      "path": "Packages/MusicDomain/Sources/MusicDomain/MIDISettings.swift",
+      "sha256": "39bc3d8b251497ef1c606b6e88aef89a0ae55bb60e0d2469d23d215cc4520199"
+    },
+    {
+      "bytes": 30778,
+      "path": "Packages/MusicDomain/Sources/MusicDomain/Model.swift",
+      "sha256": "be795381c3c7d2c5611b3dbde6c387567075b6d095fc2f297033a7e6a3eb59d3"
+    },
+    {
+      "bytes": 5443,
+      "path": "Packages/MusicDomain/Sources/MusicDomain/MusicalEditing.swift",
+      "sha256": "7eed12cd3d6fc5bf9a55c2a554be2923c5f234e1b1bdd0830af8ab36276b8224"
+    },
+    {
+      "bytes": 966,
+      "path": "Packages/MusicDomain/Sources/MusicDomain/MusicalPosition.swift",
+      "sha256": "e746f36456d73f7eb208953be39a0f7dfcd64c8f3a41a0c7f5df00be7346bc9e"
+    },
+    {
+      "bytes": 5117,
+      "path": "Packages/MusicDomain/Sources/MusicDomain/Notation.swift",
+      "sha256": "158bfd96b9ec7394959c4be78746827a934417beacdf49a923e78ea6c7e1f369"
+    },
+    {
+      "bytes": 2035,
+      "path": "Packages/MusicDomain/Sources/MusicDomain/NoteEditing.swift",
+      "sha256": "26de4cfb8f96d9e2066f7e6839817341f6bcfdb9dc8ae4568f657515fcccd4e7"
+    },
+    {
+      "bytes": 9774,
+      "path": "Packages/MusicDomain/Sources/MusicDomain/OfflineRenderer.swift",
+      "sha256": "5f015479f270cb83bd63e2b25e68c42b02045944fd3ee743c57f62e5525da643"
+    },
+    {
+      "bytes": 5572,
+      "path": "Packages/MusicDomain/Sources/MusicDomain/Performance.swift",
+      "sha256": "938e9c35a3da9cd608c8e0cb7cea7603568b22b065f297d818edbc4ab126331c"
+    },
+    {
+      "bytes": 2802,
+      "path": "Packages/MusicDomain/Sources/MusicDomain/PerformanceCodec.swift",
+      "sha256": "cc2bb216199645835cd48e132fc2be4ff1d9eff657014dec385faa9f8f0c766c"
+    },
+    {
+      "bytes": 6984,
+      "path": "Packages/MusicDomain/Sources/MusicDomain/PerformanceTimeline.swift",
+      "sha256": "65a32b27b734b0afa9c1c96965cf31950ce6239e11c68e8847e04526f001f014"
+    },
+    {
+      "bytes": 10914,
+      "path": "Packages/MusicDomain/Sources/MusicDomain/ProjectArchive.swift",
+      "sha256": "b60d145c54dec9151ccda3d294a86b5a3b7c5006bfff0af6d13d25133ac3587b"
+    },
+    {
+      "bytes": 14292,
+      "path": "Packages/MusicDomain/Sources/MusicDomain/ProjectStore.swift",
+      "sha256": "fe4750dd48a77ddd9f21ac9545fa17de9c9d22e6511e0c94e5c48465f856e85b"
+    },
+    {
+      "bytes": 1862,
+      "path": "Packages/MusicDomain/Sources/MusicDomain/ProjectTemplates.swift",
+      "sha256": "aa4a12defe7d7e2ea0bdafadf22c7c7e82de2cb7f1dab18c9572a8a994b0c54e"
+    },
+    {
+      "bytes": 2383,
+      "path": "Packages/MusicDomain/Sources/MusicDomain/StemExporter.swift",
+      "sha256": "1d71ce95d954f9e5418fa93e59e0c0849352baafc93ab49714407ccc5f111254"
+    },
+    {
+      "bytes": 1871,
+      "path": "Packages/MusicDomain/Sources/MusicDomain/TimelineZoom.swift",
+      "sha256": "f7768dbe2974d875a45bce49d4b4e71af37ff1c8f5f64a32a2d024a2e4a74c8c"
+    },
+    {
+      "bytes": 8683,
+      "path": "Packages/MusicDomain/Sources/MusicDomain/VoiceAnalyzer.swift",
+      "sha256": "40d3716929973607990355be89d7f7fa8dcb04cf46354846de380b01ab10b47a"
+    },
+    {
+      "bytes": 3217,
+      "path": "Packages/MusicDomain/Sources/MusicDomain/VoiceCapturePlan.swift",
+      "sha256": "ac5cc45dddfc4fd8cc7d8ba58b991016211387196ecc195a4beaab3329d11085"
+    },
+    {
+      "bytes": 2269,
+      "path": "Packages/MusicDomain/Sources/MusicDomain/VoicePlacement.swift",
+      "sha256": "cb9475103e2a81012c71c7e043623fc95e72c47ae62b60a265ebad0f78f73efd"
+    },
+    {
+      "bytes": 12705,
+      "path": "Packages/MusicDomain/Tests/MusicDomainTests/AICompositionTests.swift",
+      "sha256": "f51139d9eed295b464752e9820a31a08d12e183ff41ac8b5f6d9eb9868b0de66"
+    },
+    {
+      "bytes": 12044,
+      "path": "Packages/MusicDomain/Tests/MusicDomainTests/ArrangementGestureTests.swift",
+      "sha256": "0825ca590b85a94144315d21ef43ce834bdd8a4886881d659abfda1f0defd72e"
+    },
+    {
+      "bytes": 6017,
+      "path": "Packages/MusicDomain/Tests/MusicDomainTests/AssistantTests.swift",
+      "sha256": "9ee12c1f86f5c4bef08974aec5a9ee26dda2009fa3e6cbe6f2aafd9626cc3e3e"
+    },
+    {
+      "bytes": 6180,
+      "path": "Packages/MusicDomain/Tests/MusicDomainTests/AudioAssetTests.swift",
+      "sha256": "0f81c735154b2935bb465c4c2ea0e4eeb28aaa13091fc568a6d192852fb14555"
+    },
+    {
+      "bytes": 10504,
+      "path": "Packages/MusicDomain/Tests/MusicDomainTests/ChordCatalogTests.swift",
+      "sha256": "a27a3488bf08066695acb043ea75cc91030f34e921cb15a725f995d1ff0d0a34"
+    },
+    {
+      "bytes": 12507,
+      "path": "Packages/MusicDomain/Tests/MusicDomainTests/CompletionIntegrationTests.swift",
+      "sha256": "ac8ef32709b1666841731d6c724852d6f99ecb058c1412429926f50dfcf60759"
+    },
+    {
+      "bytes": 4346,
+      "path": "Packages/MusicDomain/Tests/MusicDomainTests/DrumRecordingTests.swift",
+      "sha256": "58a25fee1f3a7e96f980e84e588a0c4c261f4a14ee22dc146bd15b1707ba5621"
+    },
+    {
+      "bytes": 5650,
+      "path": "Packages/MusicDomain/Tests/MusicDomainTests/ExportTests.swift",
+      "sha256": "97ad89e086e14df168eb1cbe0b14c304a66bfd32902cef7ab20b9e8032402865"
+    },
+    {
+      "bytes": 5282,
+      "path": "Packages/MusicDomain/Tests/MusicDomainTests/HarmonyTests.swift",
+      "sha256": "f04b597bec04a122f7ef1bf6e45d38c1504fdb89cced7b14e5c344012e59f7e0"
+    },
+    {
+      "bytes": 2766,
+      "path": "Packages/MusicDomain/Tests/MusicDomainTests/LoadFixtureTests.swift",
+      "sha256": "6b725bca286e44eda31ffd451aacae441f8ae595c64cad99282f86a12bbeec00"
+    },
+    {
+      "bytes": 2757,
+      "path": "Packages/MusicDomain/Tests/MusicDomainTests/MIDITests.swift",
+      "sha256": "4b2317de543da518352f7ee18bd994aca63240178db17bbbcaa0a209330e1dd5"
+    },
+    {
+      "bytes": 7944,
+      "path": "Packages/MusicDomain/Tests/MusicDomainTests/MusicDomainTests.swift",
+      "sha256": "3eac5e743f9f63db5764390de37e4a7c3c5b5f5f9bb04cf4dfe8c3bbb46c5dcb"
+    },
+    {
+      "bytes": 12372,
+      "path": "Packages/MusicDomain/Tests/MusicDomainTests/MusicEditingTests.swift",
+      "sha256": "2e4f7457eaf730c448641e69b59d704caf615cd31b7e6cdc395ad07fd62bcd2e"
+    },
+    {
+      "bytes": 2294,
+      "path": "Packages/MusicDomain/Tests/MusicDomainTests/MusicalPositionTests.swift",
+      "sha256": "fca748422b5464fb46093b0b72928e415cceb12e1545e631141cfdca0690bb52"
+    },
+    {
+      "bytes": 6872,
+      "path": "Packages/MusicDomain/Tests/MusicDomainTests/NotesTests.swift",
+      "sha256": "7774122d9ccac4112939e01f3eb6ef9f29ddb2fff21bedec6f48621749cc24a6"
+    },
+    {
+      "bytes": 8279,
+      "path": "Packages/MusicDomain/Tests/MusicDomainTests/PerformanceTests.swift",
+      "sha256": "68a7fff1fef8b655e4d26a833a4eecdf11693c1902b0105ce8b21f13e2ce0604"
+    },
+    {
+      "bytes": 9767,
+      "path": "Packages/MusicDomain/Tests/MusicDomainTests/ProjectSummaryTests.swift",
+      "sha256": "5488fd8f883900e3fad5a1d3f33fdf9558dce117717c6f751a137b43f7f01c5e"
+    },
+    {
+      "bytes": 4969,
+      "path": "Packages/MusicDomain/Tests/MusicDomainTests/ProjectTemplatesTests.swift",
+      "sha256": "190f3ddbabcf71cec710be85deb2c640d47a909f3e39c28a7056a2d4b62e32a2"
+    },
+    {
+      "bytes": 6962,
+      "path": "Packages/MusicDomain/Tests/MusicDomainTests/RevisionSafetyTests.swift",
+      "sha256": "cc51f76fb2ebe78d3c1e64922de9faae902f51cb656077d951f06e3bf8c757c9"
+    },
+    {
+      "bytes": 7725,
+      "path": "Packages/MusicDomain/Tests/MusicDomainTests/StoreRenameTests.swift",
+      "sha256": "049592d42e1da1346ed736a8f06874995f9ac53a80e1c66f719fa4bab0699030"
+    },
+    {
+      "bytes": 3038,
+      "path": "Packages/MusicDomain/Tests/MusicDomainTests/TimelineZoomTests.swift",
+      "sha256": "c3ca23539bad68238090d576e5f9ef4f5b1601cfc1470f81d5f6ccbfeb001a69"
+    },
+    {
+      "bytes": 4109,
+      "path": "Packages/MusicDomain/Tests/MusicDomainTests/VoiceCapturePlanTests.swift",
+      "sha256": "3ffd50a72311bdc00aeeaaa5c66266d71a37ba93df88b7cdd9e9c27fd34cc8d8"
+    },
+    {
+      "bytes": 4716,
+      "path": "Packages/MusicDomain/Tests/MusicDomainTests/VoiceTests.swift",
+      "sha256": "b55f0f1f414cbbb96269a8b17f8474a98383a6dcce9f77799cd571417668142c"
+    }
+  ],
+  "sourceManifest": {
+    "bytes": 12289,
+    "path": "source-snapshot.json",
+    "sha256": "fe82c3821214c8ed939012235c8f96488392139e9a812ecb1db0630a4c47fab7"
+  },
+  "sourceSnapshotDigest": "79fe7fbe619adc6f21bbc7ff2b669d27bf1760e9471de83cf1549b9328ac40dd",
+  "sourceState": "Immutable file snapshot; base commit plus pinned uncommitted source, not final committed source SHA",
+  "sourceTrackedDiff": {
+    "bytes": 20344,
+    "path": "source-tracked-diff.patch",
+    "sha256": "849abec9769dad9b49d7640c224b18f8ad8fc21e7108e087bf583d9ef142eaeb"
+  },
+  "sourceWorkingTreeChangesIncluded": true,
+  "toolchain": "Swift version 6.1.2 (swift-6.1.2-RELEASE)\nTarget: x86_64-unknown-linux-gnu",
+  "toolchainPath": "/workspace/tools/swift-6.1.2-RELEASE-ubuntu24.04/usr/bin/swift"
+}
