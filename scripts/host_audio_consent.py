@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 """Observe and accept only the normal virtual-recorder consent prompt."""
-import concurrent.futures
 import json
 from pathlib import Path
 import subprocess
@@ -77,6 +76,7 @@ def wait_for_audio_ready(output: Path, process: subprocess.Popen, timeout: float
     output.mkdir(parents=True, exist_ok=True)
     start = time.monotonic()
     captures = set()
+    accepted_prompt = False
     transcript = output / 'host-consent-observations.jsonl'
     def log(value):
         value.update(elapsed=time.monotonic()-start, uptime=time.monotonic())
@@ -94,10 +94,16 @@ def wait_for_audio_ready(output: Path, process: subprocess.Popen, timeout: float
         if process.poll() is not None or elapsed >= timeout:
             log(_screenshot(output, 'failure'))
             raise RuntimeError('Normal host capture did not become ready; inspect helper.log, failure.json, AX observations and desktop screenshots.')
-        # Query only known consent hosts and this recorder. Each independent
-        # Apple event is bounded and stderr is preserved rather than swallowed.
-        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
-            for observation in pool.map(_probe_process, TARGET_PROCESSES):
+        # These Apple events share one System Events/AX server. Query known
+        # hosts in priority order; after Allow, wait only for actual PCM ready.
+        if not accepted_prompt:
+            for name in TARGET_PROCESSES:
+                if (output / 'ready.json').exists() or process.poll() is not None or time.monotonic()-start >= timeout:
+                    break
+                observation = _probe_process(name)
                 log(observation)
+                if 'ACCEPTED_EXPECTED_NORMAL_MICROPHONE_PROMPT' in observation.get('stdout', ''):
+                    accepted_prompt = True
+                    break
         time.sleep(0.25)
     log(dict(action='actual-timestamped-pcm-ready', ready=json.loads((output/'ready.json').read_text())))
