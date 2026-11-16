@@ -70,7 +70,7 @@ jobs:
         timeout-minutes: 1
         run: |
           GRILLA_GESTURE_DEVICE=$(cat /tmp/grilla-simulator-id)
-          python3 scripts/ci/prepare_simulator_drag_service.py --device "$GRILLA_GESTURE_DEVICE" --start-confirmed-system-app
+          python3 scripts/ci/prepare_simulator_drag_service.py --device "$GRILLA_GESTURE_DEVICE" --start-confirmed-system-app --start-confirmed-daemon
       - name: Record early drag services and run the available original cases
         timeout-minutes: 13
         env:

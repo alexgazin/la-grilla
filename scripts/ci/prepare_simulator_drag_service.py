@@ -2,8 +2,10 @@
 """Bounded Simulator-only DragUI readiness experiment; never app acceptance.
 
 Discover the actual selected runtime's definitions first. Only the explicit
-flag permits a normal public simctl launch of a uniquely verified Druid system
-app. Daemon-only/ambiguous definitions fail closed; launchctl is read-only.
+flags permit a normal public simctl launch of a uniquely verified Druid system
+app or a selected-Simulator start of its verified runtime LaunchDaemon. The
+daemon path requires that runtime's Simulator-platform launchctl executable;
+no host/bare launchctl command or guessed service label is used.
 No application touch, test retry, host service mutation or TCC change occurs.
 """
 import argparse
@@ -91,6 +93,47 @@ def discover(root, deadline):
     return apps, definitions, len(visited)
 
 
+def daemon_candidates(definitions, root):
+    """Resolve the actual job declaring this endpoint, never a guessed label."""
+    candidates = []
+    for record in definitions:
+        definition = record["definition"]
+        services = definition.get("MachServices")
+        if not isinstance(services, dict) or services.get(MACH_SERVICE) is not True:
+            continue
+        path = contained(Path(record["path"]), root)
+        if path.parent != root / "System/Library/LaunchDaemons":
+            raise NotReady("The Druid endpoint is not defined by a runtime LaunchDaemon.")
+        label, arguments = definition.get("Label"), definition.get("ProgramArguments")
+        if (not isinstance(label, str) or not BUNDLE_ID.fullmatch(label)
+                or not isinstance(arguments, list) or not arguments
+                or any(not isinstance(value, str) for value in arguments)):
+            raise NotReady("The actual Druid job label/program definition is unsupported.")
+        program = Path(arguments[0])
+        if not program.is_absolute() or ".." in program.parts or program.name != "druid":
+            raise NotReady("The Druid job does not name an absolute runtime druid executable.")
+        executable = contained(root / str(program).lstrip("/"), root)
+        if not executable.is_file() or executable.name != "druid":
+            raise NotReady("The declared Druid executable is not inside the selected runtime.")
+        candidates.append(dict(label=label, executable=str(executable), job=record))
+    return candidates
+
+
+def runtime_launchctl(root):
+    """Only a real tool in the selected runtime may enter its spawn context."""
+    tools = set()
+    for relative in ("bin/launchctl", "usr/bin/launchctl"):
+        candidate = root / relative
+        if candidate.exists():
+            resolved = contained(candidate, root)
+            if not resolved.is_file() or resolved.name != "launchctl":
+                raise NotReady("The runtime launchctl candidate is not a contained executable.")
+            tools.add(resolved)
+    if len(tools) != 1:
+        raise NotReady("No unique runtime-contained launchctl; host-tool fallback is prohibited.")
+    return tools.pop()
+
+
 def prepare(arguments):
     folder = Path(arguments.output_dir)
     folder.mkdir(parents=True, exist_ok=True)
@@ -103,6 +146,7 @@ def prepare(arguments):
                  repository=os.environ.get("GITHUB_REPOSITORY"), sourceSHA=os.environ.get("GITHUB_SHA"),
                  runID=os.environ.get("GITHUB_RUN_ID"), runAttempt=os.environ.get("GITHUB_RUN_ATTEMPT"),
                  deviceID=arguments.device, deadlineSeconds=30, normalSystemAppLaunchAuthorized=arguments.start_confirmed_system_app,
+                 normalDaemonStartAuthorized=bool(getattr(arguments, "start_confirmed_daemon", False)),
                  commands={}, mutations=[], acceptance="No native, physical-device or release acceptance claimed")
     stream = stream_output = None
     exit_code = 1
@@ -159,30 +203,48 @@ def prepare(arguments):
         state.update(selectedDevice=device, selectedRuntime=runtime, runtimeRoot=str(root))
         apps, definitions, count = discover(root, deadline)
         state.update(systemAppCandidates=apps, matchingRuntimeDefinitions=definitions, scannedPlists=count)
-        if len(apps) != 1:
-            # No launchctl mutation is allowed. Retain only proven Simulator
-            # context and exact matching job metadata if the time budget permits.
-            try:
-                manager = int(command("launchctl-managerpid.txt", scoped("launchctl", "managerpid"), 3))
-                state["readOnlyManagerPID"] = manager
-                if manager <= 1:
-                    raise NotReady("launchctl manager is not a Simulator process.")
-                process = command("launchctl-manager-command.txt", ["ps", "-p", str(manager), "-o", "comm="], 2)
-                if Path(process).name != "launchd_sim" or contained(Path(process), root).name != "launchd_sim":
-                    raise NotReady("launchctl manager does not match this actual runtime's launchd_sim.")
-                identity = command("launchctl-device-identity.txt", ["xcrun", "simctl", "getenv", arguments.device, "SIMULATOR_UDID"], 2)
-                if identity != arguments.device:
-                    raise NotReady("The actual Simulator launchd device identity was not verified.")
-                for index, item in enumerate(definitions[:2]):
-                    label = item["definition"].get("Label")
-                    if isinstance(label, str) and BUNDLE_ID.fullmatch(label):
-                        command(f"read-only-job-{index}.txt", scoped("launchctl", "print", f"pid/{manager}/{label}"), 2)
-            except (NotReady, ValueError, OSError) as error:
-                state["readOnlyManagerDiagnostic"] = str(error)
-            raise NotReady("No unique confirmed runtime Druid system app; discovery retained without starting any service.")
-        app = apps[0]
-        if not arguments.start_confirmed_system_app:
-            raise NotReady("A system app was discovered, but no normal app launch was authorized; readiness remains unverified.")
+        daemons = daemon_candidates(definitions, root)
+        state["daemonCandidates"] = daemons
+        if len(apps) > 1 or len(daemons) > 1:
+            raise NotReady("Druid definitions are ambiguous; no process may be started.")
+        expected_pid = None
+        if len(apps) == 1:
+            app = apps[0]
+            if not arguments.start_confirmed_system_app:
+                raise NotReady("A Druid system app was found, but its normal launch was not authorized.")
+            launch = ["xcrun", "simctl", "launch", arguments.device, app["bundleID"]]
+            expected_executable = Path(app["executable"])
+            mutation_kind = "normal-public-simulator-system-app-launch"
+        elif len(daemons) == 1:
+            daemon = daemons[0]
+            if not state["normalDaemonStartAuthorized"]:
+                raise NotReady("A Druid LaunchDaemon was found, but its selected-Simulator start was not authorized.")
+            tool = runtime_launchctl(root)
+            architecture = command("host-architecture.txt", ["uname", "-m"], 2)
+            if architecture not in ("arm64", "x86_64"):
+                raise NotReady("The native Simulator host architecture is unsupported.")
+            command("runtime-launchctl-architecture.txt", ["xcrun", "lipo", "-verify_arch", architecture, str(tool)], 2)
+            build = command("runtime-launchctl-build.txt", ["xcrun", "vtool", "-show-build", str(tool)], 2)
+            platforms = re.findall(r"^\s*platform\s+(\S+)\s*$", build, re.M)
+            if not platforms or any(value not in ("IOSSIMULATOR", "7") for value in platforms):
+                raise NotReady("The runtime launchctl must be built for iOS Simulator, never macOS.")
+            raw = tool.read_bytes()
+            state["verifiedRuntimeLaunchctl"] = dict(path=str(tool), byteCount=len(raw),
+                                                      sha256=hashlib.sha256(raw).hexdigest(),
+                                                      architecture=architecture, platforms=platforms)
+            service = "system/" + daemon["label"]
+            job = command("runtime-druid-job.txt", scoped(str(tool), "print", service), 6)
+            declared_program = daemon["job"]["definition"]["ProgramArguments"][0]
+            if (daemon["label"] not in job or MACH_SERVICE not in job
+                    or not any(path in job for path in (declared_program, daemon["executable"]))):
+                raise NotReady("The selected Simulator's loaded job does not match its actual runtime Druid definition.")
+            # simctl spawn enters the exact selected device's execution context.
+            # No -k: this requests startup without killing/restarting a daemon.
+            launch = scoped(str(tool), "kickstart", service)
+            expected_executable = Path(daemon["executable"])
+            mutation_kind = "normal-selected-simulator-runtime-daemon-start"
+        else:
+            raise NotReady("No unique confirmed Druid system app or runtime LaunchDaemon.")
         predicate = 'process == "druid" AND subsystem == "com.apple.DragUI"'
         stream_path = folder / "drag-service-listener.log"
         stream_output = stream_path.open("wb", buffering=0)
@@ -197,24 +259,27 @@ def prepare(arguments):
             time.sleep(0.05)
         else:
             raise NotReady("The actual Simulator service log stream never became ready.")
-        launch = ["xcrun", "simctl", "launch", arguments.device, app["bundleID"]]
-        state["mutations"].append(dict(kind="normal-public-simulator-system-app-launch", command=launch, startedAtUTC=now()))
+        state["mutations"].append(dict(kind=mutation_kind, command=launch, startedAtUTC=now()))
         response = command("normal-system-app-launch.txt", launch, 12)
-        matches = re.findall(r"^" + re.escape(app["bundleID"]) + r": (\d+)$", response, re.M)
-        if len(matches) != 1 or int(matches[0]) <= 1:
-            raise NotReady("Normal Simulator app launch did not identify one actual Druid PID.")
-        pid = int(matches[0])
-        state["launchedSystemAppPID"] = pid
+        if mutation_kind == "normal-public-simulator-system-app-launch":
+            matches = re.findall(r"^" + re.escape(app["bundleID"]) + r": (\d+)$", response, re.M)
+            if len(matches) != 1 or int(matches[0]) <= 1:
+                raise NotReady("Normal Simulator app launch did not identify one actual Druid PID.")
+            expected_pid = int(matches[0])
+            state["launchedSystemAppPID"] = expected_pid
         while time.monotonic() < deadline:
             if stream.poll() is not None:
                 raise NotReady("The actual Simulator service log stream ended before readiness.")
             lines = stream_path.read_text(errors="replace").splitlines()
-            listener = next((line for line in lines if (match := LISTENER.search(line)) and int(match[1]) == pid), None)
+            listener = next((line for line in lines if (match := LISTENER.search(line))
+                             and int(match[1]) > 1 and (expected_pid is None or int(match[1]) == expected_pid)), None)
             if listener:
+                pid = int(LISTENER.search(listener)[1])
                 process = command("ready-process-command.txt", ["ps", "-p", str(pid), "-o", "comm="], 2)
-                if contained(Path(process), root) != Path(app["executable"]):
+                if contained(Path(process), root) != expected_executable:
                     raise NotReady("The observed listening PID is not the confirmed runtime Druid executable.")
-                state.update(ready=True, status="observed-listening", listenerEvidence=listener, listenerObservedAtUTC=now())
+                state.update(ready=True, status="observed-listening", listeningProcessPID=pid,
+                             listeningExecutable=str(expected_executable), listenerEvidence=listener, listenerObservedAtUTC=now())
                 exit_code = 0
                 break
             time.sleep(0.05)
@@ -253,6 +318,7 @@ def main():
     parser.add_argument("--device", required=True)
     parser.add_argument("--output-dir", default="GestureDiagnostics/drag-readiness")
     parser.add_argument("--start-confirmed-system-app", action="store_true")
+    parser.add_argument("--start-confirmed-daemon", action="store_true")
     arguments = parser.parse_args()
     if not re.fullmatch(r"[0-9A-Fa-f]{8}(?:-[0-9A-Fa-f]{4}){3}-[0-9A-Fa-f]{12}", arguments.device):
         parser.error("the actual selected Simulator UUID is required")

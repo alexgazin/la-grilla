@@ -3,7 +3,8 @@ import XCTest
 /// Native UI/persistence and actual DSP revision adoption. Pitch names are
 /// checked as notation; this does not infer acoustic frequency from a label.
 final class TranspositionUITests:XCTestCase {
-    override func setUp(){super.setUp();continueAfterFailure=false;executionTimeAllowance=120}
+    private var recordedRevealOwner=false
+    override func setUp(){super.setUp();recordedRevealOwner=false;continueAfterFailure=false;executionTimeAllowance=120}
 
     @MainActor private func launch()->XCUIApplication {
         XCUIDevice.shared.orientation = .portrait
@@ -196,7 +197,6 @@ final class TranspositionUITests:XCTestCase {
         (picker.value as? String)==value || picker.label==value || picker.label.hasSuffix(", "+value)
     }
     @MainActor private func setDegrees(_ desired:String,control:XCUIElement,in app:XCUIApplication){
-        reveal(control,in:app)
         guard ["0","1"].contains(desired),let actual=control.value as? String,["0","1"].contains(actual)else{
             XCTFail("The actual scale-degrees switch must expose its binary state");return
         }
@@ -218,7 +218,10 @@ final class TranspositionUITests:XCTestCase {
                   visible.contains(nativeFrame),frame.contains(nativeFrame),nativeFrame != frame else{
                 XCTFail("The actual native switch must be wholly visible inside its measured Form row");return
             }
-            native.tap()
+            // Move the real UISwitch thumb in the requested direction. The
+            // caller has already revealed this control; do not repeat that
+            // ownership lookup or fall back to another gesture after failure.
+            if desired=="1"{native.swipeRight(velocity:.slow)}else{native.swipeLeft(velocity:.slow)}
         }
         wait(control,timeout:5){(control.value as? String)==desired}
         XCTAssertEqual(control.value as? String,desired)
@@ -273,7 +276,6 @@ final class TranspositionUITests:XCTestCase {
         func finiteFrame(_ frame:CGRect)->Bool{!frame.isEmpty && [frame.minX,frame.minY,frame.maxX,frame.maxY].allSatisfy{$0.isFinite}}
         guard element.exists,!element.identifier.isEmpty else{XCTFail("A native control must expose its stable identifier before revealing it");return}
         let identifier=element.identifier
-        var recordedOwner=false
         for _ in 0..<7{
             guard element.exists,element.identifier==identifier else{XCTFail("The same native control must remain present while revealing it: "+identifier);return}
             // The notation failure swiped the background Grid while Apply
@@ -295,7 +297,9 @@ final class TranspositionUITests:XCTestCase {
             // tapping, keeping it clear of the sheet/home-indicator boundary.
             let visible=scrollFrame.intersection(app.frame.insetBy(dx:0,dy:44))
             guard finiteFrame(visible) else{XCTFail("The native control's owning scroll container must have a finite visible viewport: "+identifier);return}
-            if !recordedOwner {
+            if !recordedRevealOwner {
+                // One bounded normal owner receipt per test retains the proof
+                // without repeating diagnostic AX work for every reveal.
                 // One immutable owner hierarchy supplies both snapshot frames.
                 // Hittability is sampled separately through the public live API;
                 // a scroll container needs no activation point to reveal a child.
@@ -310,7 +314,7 @@ final class TranspositionUITests:XCTestCase {
                     pending.append(contentsOf:node.children)
                 }
                 keepReport("sampleUptime=\(began)...\(ProcessInfo.processInfo.systemUptime), owner.exists=\(ownerExists), owner.hittable=\(ownerHittable), owner.snapshotFrame=\(String(describing:observed?.frame)), owner.selectionFrame=\(scrollFrame), visible=\(visible), target.exists=\(targetExists), target.hittable=\(targetHittable), target.snapshotFrame=\(String(describing:targetFrame))",name:"Audit-native-reveal-owner-selection-"+identifier)
-                recordedOwner=true
+                recordedRevealOwner=true
             }
             if element.exists{
                 let frame=element.frame

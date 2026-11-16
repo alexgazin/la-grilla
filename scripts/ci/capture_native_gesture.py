@@ -99,7 +99,6 @@ def capture(arguments):
         for name, command in (
             ("devices-before-test.json", ["xcrun", "simctl", "list", "devices", "--json"]),
             ("runtimes-before-test.json", ["xcrun", "simctl", "list", "runtimes", "--json"]),
-            ("simulator-clock-before-test.txt", ["xcrun", "simctl", "spawn", arguments.device, "/bin/date", "-u", "+%Y-%m-%dT%H:%M:%SZ"]),
         ):
             if received_signal is not None:
                 break
