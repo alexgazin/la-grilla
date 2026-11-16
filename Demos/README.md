@@ -20,8 +20,13 @@ preparation does not demonstrate live human singing recognition. Commands and
 the local sketch do not establish FoundationModels generation.
 
 Run the **Native app demonstration recording** workflow. It builds the
-`LaGrillaDemo` scheme on the official `macos-26` runner with exact Xcode 26.3 /
+`LaGrillaDemo` scheme on the official `macos-15` runner with exact Xcode 26.3 /
 SDK 26.2 / iOS 26.2 Simulator, and uses the existing BlackHole fixture.
+The first build 20 attempt on `macos-26` failed before recording because the
+normal host microphone prompt remained unanswered alongside an Accessibility
+Access alert. Its original failed evidence is retained. The same consent helper
+previously reached actual BlackHole PCM on `macos-15`; this host choice still
+requires a fresh successful capture and does not transfer old media acceptance.
 `simctl io recordVideo` captures the real display; a standalone macOS helper
 captures timestamped stereo host-loopback PCM. The helper checks the actual
 BlackHole UID, uses normal system microphone authorization, and refuses
