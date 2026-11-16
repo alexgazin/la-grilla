@@ -8,15 +8,25 @@ concurrency:
   cancel-in-progress: true
 jobs:
   iphone-build:
-    name: iPhone SDK / Xcode ${{ matrix.xcode }}
+    name: ${{ matrix.scope }} / Xcode ${{ matrix.xcode }}
     runs-on: macos-15
     timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
-        xcode: ['16.2', '26.0.1']
+        include:
+          - xcode: '16.2'
+            scope: Swift compilation
+            excluded_catalog: Assets.xcassets
+          - xcode: '16.4'
+            scope: Full iPhone app
+            excluded_catalog: ''
+          - xcode: '26.0.1'
+            scope: Full iPhone app
+            excluded_catalog: ''
     env:
       DEVELOPER_DIR: /Applications/Xcode_${{ matrix.xcode }}.app/Contents/Developer
+      GRILLA_EXCLUDED_CATALOG: ${{ matrix.excluded_catalog }}
     steps:
       - uses: actions/checkout@v4
       - name: Record selected compiler and SDK
@@ -30,10 +40,14 @@ jobs:
           git diff --exit-code -- LaGrilla.xcodeproj
           python3 scripts/audit_presentation.py
           python3 scripts/release/audit_release.py
-      - name: Compile actual iPhone app without signing
+      - name: Compile iPhone target with the declared resource scope
         run: |
           set -o pipefail
-          xcodebuild -project LaGrilla.xcodeproj -scheme LaGrilla -sdk iphoneos -destination 'generic/platform=iOS' -configuration Debug -derivedDataPath CompatibilityDerivedData CODE_SIGNING_ALLOWED=NO build | tee compatibility-build.log
+          # The hosted image lacks the iOS 18.2 runtime required by Xcode
+          # 16.2's asset compiler. That row checks actual Swift/C++ source
+          # compilation only; 16.4 and 26.x retain every app resource.
+          echo "Validation scope: ${{ matrix.scope }}"
+          xcodebuild -project LaGrilla.xcodeproj -scheme LaGrilla -sdk iphoneos -destination 'generic/platform=iOS' -configuration Debug -derivedDataPath CompatibilityDerivedData CODE_SIGNING_ALLOWED=NO "EXCLUDED_SOURCE_FILE_NAMES=$GRILLA_EXCLUDED_CATALOG" build | tee compatibility-build.log
       - uses: actions/upload-artifact@v4
         if: always()
         with:
