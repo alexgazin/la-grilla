@@ -86,7 +86,12 @@ struct SettingsView: View {
             Text("Projects and recordings stay on your iPhone. Portable project exports include their original voice recordings.").font(.caption).foregroundStyle(.secondary)
         }
 
-    }.navigationTitle("Settings").toolbar{ToolbarItem(placement:.confirmationAction){Button("Done"){session.sheet=nil}}}}.presentationDetents([.medium,.large])}
+    }.navigationTitle("Settings").toolbar{ToolbarItem(placement:.confirmationAction){Button("Done"){session.sheet=nil}}}}
+        // A presented Form owns its appearance boundary. Apply the observed
+        // preference here as well as to the window so live changes update the
+        // current sheet, rather than only its presenter or the next opening.
+        .preferredColorScheme(appearance==1 ? .light:appearance==2 ? .dark:nil)
+        .presentationDetents([.medium,.large])}
 }
 struct BassView: View {
     @Bindable var session: Session
