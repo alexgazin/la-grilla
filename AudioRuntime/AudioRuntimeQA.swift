@@ -71,13 +71,21 @@ import SwiftUI
             let preparedMonophonicReference=true
             let referenceEngineKernelRetained:Bool
             let processIdentifier:Int
+            let inputPriming:String
+            let inputPrimedAtStartup:Bool
+            let inputConfigured:Bool
+            let inputTransitionCount:Int
+            let inputTransitionMilliseconds:Double
             let physicalMicrophoneIndicatorVerified=false
             let observation="Phase one: live musical reference and undetermined permission; output remains running for explicit first-use capture. Physical indicator behavior still requires device verification."
         }
         let sameKernel=try pointer(audio)==initialKernel
         let retained=audio.captureEngine===initialEngine && sameKernel
         let verified=before == .undetermined && after == .undetermined && audio.playing && audio.captureEngine?.isRunning==true && retained
-        let report=Report(outcome:verified ? "PASS":"FAIL",permissionBefore:permissionName(before),permissionAfter:permissionName(after),outputPlaying:audio.playing,outputEngineRunning:audio.captureEngine?.isRunning==true,outputClockFramesAdvanced:audio.clock-clockBefore,observedOutputPeak:peak,softwareOutputPrivacyVerified:verified,referenceEngineKernelRetained:retained,processIdentifier:Int(ProcessInfo.processInfo.processIdentifier))
+        if audio.inputPrimingName=="outputOnly" {
+            try require(!audio.inputPrimedAtStartup && !audio.inputConfigured && audio.inputTransitionCount==0,"Output-only privacy observation already configured microphone input")
+        }
+        let report=Report(outcome:verified ? "PASS":"FAIL",permissionBefore:permissionName(before),permissionAfter:permissionName(after),outputPlaying:audio.playing,outputEngineRunning:audio.captureEngine?.isRunning==true,outputClockFramesAdvanced:audio.clock-clockBefore,observedOutputPeak:peak,softwareOutputPrivacyVerified:verified,referenceEngineKernelRetained:retained,processIdentifier:Int(ProcessInfo.processInfo.processIdentifier),inputPriming:audio.inputPrimingName,inputPrimedAtStartup:audio.inputPrimedAtStartup,inputConfigured:audio.inputConfigured,inputTransitionCount:audio.inputTransitionCount,inputTransitionMilliseconds:audio.inputTransitionMilliseconds)
         let encoder=JSONEncoder();encoder.outputFormatting=[.sortedKeys,.prettyPrinted]
         let details=String(decoding:try encoder.encode(report),as:UTF8.self)
         try require(verified,details)
@@ -454,6 +462,12 @@ struct AudioRuntimeQAView:View {
             else{details=try await AudioRuntimeQA.snapshots(session)}
             result="PASS"
         }catch let unavailable as AudioRuntimeQA.InputUnavailable{details=unavailable.details;result="UNAVAILABLE"}
-        catch{details=error.localizedDescription;result="FAIL"}
+        catch{
+            // Preserve the original failure and actual route/transition facts
+            // when setup fails before the normal PCM receipt can be produced.
+            // AudioController's support report already sanitizes route names.
+            details=[error.localizedDescription,session.audio.failureReport,session.audio.runtimeTraceState].filter{!$0.isEmpty}.joined(separator:"\n")
+            result="FAIL"
+        }
     }
 }

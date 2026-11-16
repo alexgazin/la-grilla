@@ -10,38 +10,58 @@ enum AssistantMode:String,CaseIterable {case automatic,commands,onDeviceAI
 }
 
 enum AIComposerFailure:Error,LocalizedError {
-    case unavailable,busy,requestFailed
+    case unavailable,busy,requestFailed,unsupportedLanguage
     var errorDescription:String?{let key=switch self {
         case .unavailable:"On-device AI is unavailable. Supported commands still work."
         case .busy:"Wait for the current proposal or cancel it."
         case .requestFailed:"On-device AI could not complete the proposal. Try a shorter description or use Commands."
+        case .unsupportedLanguage:"Write the request in the selected AI request language, or choose another supported AI language. Dictation language is separate."
     };return NSLocalizedString(key,comment:"Assistant AI")}
 }
 
 @MainActor @Observable final class AIComposerController {
+    enum AvailabilityReason:String {
+        case available,requiresSystem,notIncluded,unsupportedDevice,notEnabled,modelNotReady,unsupportedLanguage,unavailable
+    }
     private(set) var isGenerating=false
-    private(set) var available=false
+    private(set) var availabilityReason:AvailabilityReason = .requiresSystem
+    var available:Bool{availabilityReason == .available}
     private(set) var availabilityMessage=NSLocalizedString("On-device AI requires iOS 26 and Apple Intelligence. Supported commands still work.",comment:"Assistant AI")
+    var availabilityGuidance:String? {
+        switch availabilityReason {
+        case .available:return nil
+        case .notEnabled:return NSLocalizedString("Check Apple Intelligence in the main iOS Settings, including its system and Siri language requirements. Siri permissions for La Grilla are separate.",comment:"Assistant AI setup")
+        case .modelNotReady:return NSLocalizedString("Check Apple Intelligence in the main iOS Settings and let the model finish downloading. Return here and recheck.",comment:"Assistant AI setup")
+        case .unsupportedLanguage:return NSLocalizedString("Choose an AI request language supported by this device's model, then write the request in that language. Dictation has its own language.",comment:"Assistant AI setup")
+        case .unsupportedDevice:return NSLocalizedString("Apple Intelligence needs a supported iPhone. Enabling Siri for La Grilla does not change device eligibility.",comment:"Assistant AI setup")
+        case .requiresSystem:return NSLocalizedString("Use iOS 26 or later on a supported iPhone for on-device AI. Commands and dictation have separate requirements.",comment:"Assistant AI setup")
+        case .notIncluded:return NSLocalizedString("This build uses an older iOS SDK. Rebuild with Xcode 26 or later to include on-device AI.",comment:"Assistant AI setup")
+        case .unavailable:return NSLocalizedString("Check the device, language and model status under Apple Intelligence in the main iOS Settings, then recheck here.",comment:"Assistant AI setup")
+        }
+    }
+    private func setAvailability(_ reason:AvailabilityReason,message:String){
+        availabilityReason=reason
+        availabilityMessage=NSLocalizedString(message,comment:"Assistant AI")
+    }
     func refresh(localeIdentifier:String){
-        available=false
         #if canImport(FoundationModels)
         if #available(iOS 26.0,*) {
             let model=SystemLanguageModel.default
             switch model.availability {
             case .available:
-                guard model.supportsLocale(Locale(identifier:localeIdentifier))else{availabilityMessage=NSLocalizedString("On-device AI does not support the selected language. Choose another language or use Commands.",comment:"Assistant AI");return}
-                available=true;availabilityMessage=NSLocalizedString("Describe a song form or harmonic change. AI runs on this device; review before applying.",comment:"Assistant AI")
-            case .unavailable(.deviceNotEligible):availabilityMessage=NSLocalizedString("This device does not support Apple Intelligence. Supported commands still work.",comment:"Assistant AI")
-            case .unavailable(.appleIntelligenceNotEnabled):availabilityMessage=NSLocalizedString("Enable Apple Intelligence in Settings to use on-device AI. Supported commands still work.",comment:"Assistant AI")
-            case .unavailable(.modelNotReady):availabilityMessage=NSLocalizedString("The on-device model is not ready. Let its download finish in Settings; Commands remain available.",comment:"Assistant AI")
-            case .unavailable:availabilityMessage=NSLocalizedString("On-device AI is unavailable. Supported commands still work.",comment:"Assistant AI")
-            @unknown default:availabilityMessage=NSLocalizedString("On-device AI is unavailable. Supported commands still work.",comment:"Assistant AI")
+                guard model.supportsLocale(Locale(identifier:localeIdentifier))else{setAvailability(.unsupportedLanguage,message:"On-device AI does not support the selected language. Choose another language or use Commands.");return}
+                setAvailability(.available,message:"Describe a song form or harmonic change. AI runs on this device; review before applying.")
+            case .unavailable(.deviceNotEligible):setAvailability(.unsupportedDevice,message:"This device does not support Apple Intelligence. Supported commands still work.")
+            case .unavailable(.appleIntelligenceNotEnabled):setAvailability(.notEnabled,message:"Enable Apple Intelligence in Settings to use on-device AI. Supported commands still work.")
+            case .unavailable(.modelNotReady):setAvailability(.modelNotReady,message:"The on-device model is not ready. Let its download finish in Settings; Commands remain available.")
+            case .unavailable:setAvailability(.unavailable,message:"On-device AI is unavailable. Supported commands still work.")
+            @unknown default:setAvailability(.unavailable,message:"On-device AI is unavailable. Supported commands still work.")
             }
             return
         }
-        availabilityMessage=NSLocalizedString("On-device AI requires iOS 26 and Apple Intelligence. Supported commands still work.",comment:"Assistant AI")
+        setAvailability(.requiresSystem,message:"On-device AI requires iOS 26 and Apple Intelligence. Supported commands still work.")
         #else
-        availabilityMessage=NSLocalizedString("On-device AI is not included in this build. Commands remain available.",comment:"Assistant AI")
+        setAvailability(.notIncluded,message:"On-device AI is not included in this build. Commands remain available.")
         #endif
     }
     func propose(_ text:String,project:Project,sectionID:UUID,localeIdentifier:String)async throws->AssistantProposal {
@@ -57,10 +77,11 @@ enum AIComposerFailure:Error,LocalizedError {
                 try Task.checkCancellation()
                 return try output.proposal(for:project,selectedSectionID:sectionID)
             }catch is CancellationError{throw CancellationError()}
+            catch LanguageModelSession.GenerationError.unsupportedLanguageOrLocale(_){throw AIComposerFailure.unsupportedLanguage}
             catch let error as AssistantError{throw error}
             catch let error as MusicError{throw error}
             catch let error as HarmonyError{throw error}
-            catch{throw AIComposerFailure.requestFailed}
+            catch{refresh(localeIdentifier:localeIdentifier);if !available{throw AIComposerFailure.unavailable};throw AIComposerFailure.requestFailed}
         }
         #endif
         throw AIComposerFailure.unavailable

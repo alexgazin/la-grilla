@@ -1,0 +1,184 @@
+name: Authorized microphone regression verification
+on:
+  workflow_dispatch:
+  push:
+    branches: [fix/authorized-microphone]
+concurrency:
+  group: authorized-microphone-${{ github.ref }}
+  cancel-in-progress: true
+env:
+  DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
+jobs:
+  verify-authorized-microphone:
+    runs-on: macos-15
+    # The native subprocess has its own shorter deadline. Leave time for
+    # always() preservation instead of losing evidence at the job timeout.
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Audit sources and compile native tests
+        timeout-minutes: 12
+        run: |
+          set -o pipefail
+          python3 scripts/release/assert_sdk.py
+          python3 scripts/generate_project.py
+          git diff --exit-code -- LaGrilla.xcodeproj
+          python3 scripts/audit_presentation.py
+          python3 scripts/release/audit_release.py
+          GRILLA_MIC_SDK=$(xcrun --sdk iphonesimulator --show-sdk-path)
+          python3 - "$GRILLA_MIC_SDK/System/Library/Frameworks/AVFAudio.framework/Headers/AVAudioEngine.h" <<'PY' | tee microphone-sdk-input-node.log
+          from pathlib import Path
+          import sys
+          path = Path(sys.argv[1])
+          lines = path.read_text().splitlines()
+          declaration = next(i for i, line in enumerate(lines) if 'AVAudioInputNode' in line and 'inputNode' in line)
+          comment = max((i for i in range(max(0, declaration - 40), declaration) if '/*!' in lines[i]), default=max(0, declaration - 24))
+          print('Installed SDK inputNode declaration and its actual documentation:', path)
+          for i in range(comment, min(len(lines), declaration + 2)):
+              print(f'{i + 1}: {lines[i]}')
+          PY
+          xcodebuild -project LaGrilla.xcodeproj -scheme LaGrilla -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' ARCHS=arm64 ONLY_ACTIVE_ARCH=YES -configuration Debug -derivedDataPath DerivedData CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO build-for-testing 2>&1 | tee microphone-build.log
+      - name: Configure actual host HAL loopback
+        timeout-minutes: 5
+        run: bash scripts/setup_ci_audio.sh
+      - name: Boot a fresh native iPhone Simulator
+        timeout-minutes: 7
+        env:
+          GRILLA_CAPTURE_SCREENS: '0'
+        run: |
+          set -o pipefail
+          GRILLA_MIC_DEVICE=$(python3 scripts/select_simulator.py --name "iPhone 16 Pro Max" --type com.apple.CoreSimulator.SimDeviceType.iPhone-16-Pro-Max)
+          xcrun simctl shutdown "$GRILLA_MIC_DEVICE" || true
+          # Fresh actual TCC prompts, without injecting authorization state.
+          xcrun simctl erase "$GRILLA_MIC_DEVICE"
+          bash scripts/screenshots.sh 2>&1 | tee microphone-simulator.log
+      - name: Verify authorized input and strict production PCM
+        timeout-minutes: 12
+        env:
+          GRILLA_REQUIRE_MIC_INPUT: '1'
+          TEST_RUNNER_GRILLA_REQUIRE_MIC_INPUT: '1'
+          GRILLA_RUNTIME_TRACE: '1'
+        run: |
+          python3 -u - <<'PY'
+          from datetime import datetime, timezone
+          from pathlib import Path
+          import json, os, signal, subprocess, sys, time
+
+          device = Path('/tmp/grilla-simulator-id').read_text().strip()
+          command = [
+              'xcodebuild', '-project', 'LaGrilla.xcodeproj', '-scheme', 'LaGrilla',
+              '-destination', f'platform=iOS Simulator,id={device}',
+              '-derivedDataPath', 'DerivedData', '-resultBundlePath', 'MicrophoneResults.xcresult',
+              '-only-testing:LaGrillaUITests/AIAvailabilityTests/testActualUnavailableModelRecheckPreservesLanguagesInputAndProjectThenLocalJazzAppliesUndo',
+              '-only-testing:LaGrillaUITests/AuthorizedMicrophoneTests',
+              '-only-testing:LaGrillaUITests/SplashScreenTests/testBrandedLoadingPreviewAndRealStartupPreserveOnboarding',
+              '-only-testing:LaGrillaUITests/AudioRuntimeContinuityTests/testAAOutputOnlyLaunchDoesNotRequestMicrophone',
+              '-only-testing:LaGrillaUITests/AudioRuntimeContinuityTests/testProductionVoiceCaptureCAFAnalysisApplyStoreAndUndo',
+              '-only-testing:LaGrillaUITests/AudioRuntimeContinuityTests/testSessionMicrophoneLeaseRetainsLiveEngineAndPCM',
+              '-test-timeouts-enabled', 'YES', '-maximum-test-execution-time-allowance', '180',
+              'ARCHS=arm64', 'ONLY_ACTIVE_ARCH=YES', 'CODE_SIGN_IDENTITY=-',
+              'CODE_SIGNING_REQUIRED=NO', 'test-without-building'
+          ]
+          started = datetime.now(timezone.utc).isoformat()
+          began = time.monotonic()
+          timed_out = False
+          phase = None
+          next_signal = None
+          log_path = Path('microphone-native.log')
+          status_path = Path('microphone-process-status.json')
+          status = {'command': command, 'startedAtUTC': started, 'status': 'starting',
+                    'deadlineSeconds': 600, 'timedOut': False, 'nativeLog': str(log_path)}
+          def persist_status():
+              status_path.write_text(json.dumps(status, indent=2) + '\n')
+          persist_status()
+          print('Native command:', json.dumps(command), flush=True)
+          with log_path.open('wb', buffering=0) as output:
+              process = subprocess.Popen(command, stdout=output, stderr=subprocess.STDOUT, start_new_session=True)
+              status.update(status='running', subprocessPID=process.pid)
+              persist_status()
+              with log_path.open('rb', buffering=0) as reader:
+                  while True:
+                      chunk = reader.read(65536)
+                      if chunk:
+                          sys.stdout.buffer.write(chunk)
+                          sys.stdout.buffer.flush()
+                      code = process.poll()
+                      if code is not None:
+                          remainder = reader.read()
+                          if remainder:
+                              sys.stdout.buffer.write(remainder)
+                              sys.stdout.buffer.flush()
+                          break
+                      now = time.monotonic()
+                      if not timed_out and now - began >= 600:
+                          timed_out, phase, next_signal = True, 'interrupt', now + 20
+                          status.update(timedOut=True, lastTerminationPhase=phase, elapsedSeconds=now - began)
+                          persist_status()
+                          print('\nNative process exceeded 600 seconds; interrupting its process group and preserving partial evidence.', flush=True)
+                          try:
+                              os.killpg(process.pid, signal.SIGINT)
+                          except ProcessLookupError:
+                              pass
+                      elif timed_out and next_signal is not None and now >= next_signal:
+                          sig = signal.SIGTERM if phase == 'interrupt' else signal.SIGKILL
+                          phase, next_signal = ('terminate', now + 10) if phase == 'interrupt' else ('kill', None)
+                          status.update(lastTerminationPhase=phase, elapsedSeconds=now - began)
+                          persist_status()
+                          try:
+                              os.killpg(process.pid, sig)
+                          except ProcessLookupError:
+                              pass
+                      if not chunk:
+                          time.sleep(0.2)
+          status.update({
+              'status': 'completed',
+              'endedAtUTC': datetime.now(timezone.utc).isoformat(),
+              'elapsedSeconds': time.monotonic() - began,
+              'subprocessExitCode': code, 'timedOut': timed_out,
+              'lastTerminationPhase': phase
+          })
+          persist_status()
+          sys.exit(124 if timed_out else code)
+          PY
+      - name: Preserve original native attachments and partial result
+        if: always()
+        timeout-minutes: 2
+        run: |
+          if test -d MicrophoneResults.xcresult; then
+            xcrun xcresulttool export attachments --path MicrophoneResults.xcresult --output-path MicrophoneAttachments
+          fi
+      - name: Preserve crash reports and device diagnostics
+        if: always()
+        timeout-minutes: 2
+        run: |
+          mkdir -p MicrophoneCrashReports
+          find "$HOME/Library/Logs/DiagnosticReports" -iname '*LaGrilla*' -exec cp {} MicrophoneCrashReports/ \; || true
+          python3 - <<'PY'
+          from pathlib import Path
+          import subprocess
+          device_file = Path('/tmp/grilla-simulator-id')
+          if device_file.exists():
+              device = device_file.read_text().strip()
+              with Path('microphone-device.log').open('wb') as output:
+                  try:
+                      result = subprocess.run(['xcrun', 'simctl', 'spawn', device, 'log', 'show', '--last', '20m', '--style', 'compact', '--predicate', 'process == "LaGrilla"'], stdout=output, stderr=subprocess.STDOUT, timeout=45)
+                      output.write(f'\nDiagnostic command exit: {result.returncode}\n'.encode())
+                  except subprocess.TimeoutExpired:
+                      output.write(b'\nDevice log query timed out after 45 seconds; partial output retained.\n')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        timeout-minutes: 3
+        with:
+          name: authorized-microphone-verification
+          path: |
+            MicrophoneAttachments
+            MicrophoneResults.xcresult
+            MicrophoneCrashReports
+            microphone-sdk-input-node.log
+            microphone-build.log
+            microphone-simulator.log
+            microphone-native.log
+            microphone-process-status.json
+            microphone-device.log
+            ci-audio.log

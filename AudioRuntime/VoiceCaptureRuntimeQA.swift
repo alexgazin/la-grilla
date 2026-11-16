@@ -104,6 +104,11 @@ import MusicDomain
         let referenceReusedWithoutPreparation:Bool
         let permissionBeforeCapture:String
         let permissionAfterCapture:String
+        let inputPriming:String
+        let inputPrimedAtStartup:Bool
+        let inputConfigured:Bool
+        let inputTransitionCount:Int
+        let inputTransitionMilliseconds:Double
     }
     static func run(_ session:Session,reusePreparedReference:Bool=false)async throws->String {
         let started=Date(),deadline=started.addingTimeInterval(33)
@@ -137,7 +142,10 @@ import MusicDomain
         try monitor.check()
         try require(session.audio.clock>monitor.firstClock && monitor.samples>10,"No continuing backing callbacks were observed")
         let timing=try await readTiming(monitor,epoch:baselineTiming.epoch,minimumCallbacks:baselineTiming.callbacks+1)
-        let report=Report(source:captured.result.record,sourceFrames:proof.frames,sourcePeak:proof.peak,route:captured.route,captureStates:captured.states,detectedPitches:detected.map(\.pitch),reviewedPitches:reviewed.map(\.pitch),appliedTrackID:placement.trackID,appliedRevision:applied.revision,storedSourceMatches:true,storedProjectReopened:true,oneUndoRestoresBaseline:true,redoRestoresExactSourceAndNotes:true,sourceUnchangedAfterReview:true,sameEngineAndKernel:true,backingClockAdvanced:true,continuitySamples:monitor.samples,maximumPhaseErrorTicks:monitor.maximumPhaseError,elapsedSeconds:Date().timeIntervalSince(started),outputHostTimingBaseline:.init(baselineTiming),outputHostTiming:.init(timing),referenceReusedWithoutPreparation:reusePreparedReference,permissionBeforeCapture:permissionBefore,permissionAfterCapture:permissionName(AVAudioApplication.shared.recordPermission))
+        if session.audio.inputPrimingName=="outputOnly" {
+            try require(!session.audio.inputPrimedAtStartup && session.audio.inputConfigured && session.audio.inputTransitionCount>0 && session.audio.inputTransitionMilliseconds.isFinite && session.audio.inputTransitionMilliseconds>0,"Output-only capture did not report its actual first-input transition")
+        }
+        let report=Report(source:captured.result.record,sourceFrames:proof.frames,sourcePeak:proof.peak,route:captured.route,captureStates:captured.states,detectedPitches:detected.map(\.pitch),reviewedPitches:reviewed.map(\.pitch),appliedTrackID:placement.trackID,appliedRevision:applied.revision,storedSourceMatches:true,storedProjectReopened:true,oneUndoRestoresBaseline:true,redoRestoresExactSourceAndNotes:true,sourceUnchangedAfterReview:true,sameEngineAndKernel:true,backingClockAdvanced:true,continuitySamples:monitor.samples,maximumPhaseErrorTicks:monitor.maximumPhaseError,elapsedSeconds:Date().timeIntervalSince(started),outputHostTimingBaseline:.init(baselineTiming),outputHostTiming:.init(timing),referenceReusedWithoutPreparation:reusePreparedReference,permissionBeforeCapture:permissionBefore,permissionAfterCapture:permissionName(AVAudioApplication.shared.recordPermission),inputPriming:session.audio.inputPrimingName,inputPrimedAtStartup:session.audio.inputPrimedAtStartup,inputConfigured:session.audio.inputConfigured,inputTransitionCount:session.audio.inputTransitionCount,inputTransitionMilliseconds:session.audio.inputTransitionMilliseconds)
         let encoder=JSONEncoder();encoder.outputFormatting=[.prettyPrinted,.sortedKeys]
         return String(decoding:try encoder.encode(report),as:UTF8.self)
     }

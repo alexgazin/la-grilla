@@ -647,3 +647,16 @@
 "Share audio diagnostics" = "Поделиться диагностикой звука";
 "Includes audio route types and error codes, never recordings." = "Содержит типы аудиоподключений и коды ошибок. Записи не включаются.";
 "Audio diagnostics" = "Диагностика звука";
+
+"Write the request in the selected AI request language, or choose another supported AI language. Dictation language is separate." = "Напиши запрос на выбранном языке ИИ или выбери другой поддерживаемый язык. Язык диктовки задаётся отдельно.";
+"Check Apple Intelligence in the main iOS Settings, including its system and Siri language requirements. Siri permissions for La Grilla are separate." = "Проверь Apple Intelligence в общих настройках iPhone, включая требования к языку системы и Siri. Разрешения Siri для La Grilla настраиваются отдельно.";
+"Check Apple Intelligence in the main iOS Settings and let the model finish downloading. Return here and recheck." = "Проверь Apple Intelligence в общих настройках iPhone и дождись загрузки модели. Затем вернись и проверь доступность ещё раз.";
+"Choose an AI request language supported by this device's model, then write the request in that language. Dictation has its own language." = "Выбери поддерживаемый моделью язык ИИ и напиши запрос на нём. Язык диктовки задаётся отдельно.";
+"Apple Intelligence needs a supported iPhone. Enabling Siri for La Grilla does not change device eligibility." = "Для Apple Intelligence нужен совместимый iPhone. Разрешения Siri для La Grilla не влияют на совместимость устройства.";
+"Use iOS 26 or later on a supported iPhone for on-device AI. Commands and dictation have separate requirements." = "Для локального ИИ нужен совместимый iPhone с iOS 26 или новее. Команды и диктовка имеют отдельные требования.";
+"This build uses an older iOS SDK. Rebuild with Xcode 26 or later to include on-device AI." = "Сборка создана со старым iOS SDK. Чтобы включить локальный ИИ, пересобери приложение в Xcode 26 или новее.";
+"Check the device, language and model status under Apple Intelligence in the main iOS Settings, then recheck here." = "Проверь устройство, язык и состояние модели в разделе Apple Intelligence общих настроек iPhone, затем проверь доступность ещё раз.";
+"AI request language" = "Язык запроса ИИ";
+"Write the AI request in this language. Dictation below has its own language." = "Пиши запрос ИИ на этом языке. Язык диктовки ниже настраивается отдельно.";
+"Recheck AI" = "Проверить ИИ";
+"The microphone could not start. Retry recording or check the audio route." = "Не удалось запустить микрофон. Повтори запись или проверь аудиомаршрут.";

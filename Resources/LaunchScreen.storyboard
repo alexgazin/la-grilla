@@ -1,43 +1,323 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version='1.0' encoding='UTF-8'?>
 <document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="23501" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" launchScreen="YES" useTraitCollections="YES" useSafeAreas="YES" colorMatched="YES" initialViewController="launch-controller">
-    <device id="retina6_12" orientation="portrait" appearance="light"/>
+    <device id="retina6_12" orientation="portrait" appearance="light" />
     <dependencies>
-        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="23501"/>
-        <capability name="Named colors" minToolsVersion="9.0"/>
-        <capability name="Safe area layout guides" minToolsVersion="9.0"/>
-        <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="23501" />
+        <capability name="Named colors" minToolsVersion="9.0" />
+        <capability name="Safe area layout guides" minToolsVersion="9.0" />
+        <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0" />
     </dependencies>
     <scenes>
         <scene sceneID="launch-scene">
             <objects>
                 <viewController id="launch-controller" sceneMemberID="viewController">
                     <view key="view" contentMode="scaleToFill" id="launch-root">
-                        <rect key="frame" x="0.0" y="0.0" width="393" height="852"/>
-                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                        <rect key="frame" x="0.0" y="0.0" width="393" height="852" />
+                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES" />
                         <subviews>
-                            <imageView clipsSubviews="YES" userInteractionEnabled="NO" contentMode="scaleAspectFit" image="LaunchMark" translatesAutoresizingMaskIntoConstraints="NO" id="launch-mark">
-                                <rect key="frame" x="156.5" y="386" width="80" height="80"/>
+                            <view contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="launch-grid">
+                                <rect key="frame" x="56.5" y="262" width="280" height="280" />
+                                <subviews>
+                                    <view contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="grid-v-0">
+                                        <rect key="frame" x="19.75" y="0" width="0.5" height="280" />
+                                        <color key="backgroundColor" name="LaunchGrid" />
+                                        <constraints>
+                                            <constraint firstAttribute="width" constant="0.5" id="grid-v-0-width" />
+                                            <constraint firstAttribute="height" constant="280" id="grid-v-0-height" />
+                                        </constraints>
+                                    </view>
+                                    <view contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="grid-h-0">
+                                        <rect key="frame" x="0" y="19.75" width="280" height="0.5" />
+                                        <color key="backgroundColor" name="LaunchGrid" />
+                                        <constraints>
+                                            <constraint firstAttribute="width" constant="280" id="grid-h-0-width" />
+                                            <constraint firstAttribute="height" constant="0.5" id="grid-h-0-height" />
+                                        </constraints>
+                                    </view>
+                                    <view contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="grid-v-1">
+                                        <rect key="frame" x="59.75" y="0" width="0.5" height="280" />
+                                        <color key="backgroundColor" name="LaunchGrid" />
+                                        <constraints>
+                                            <constraint firstAttribute="width" constant="0.5" id="grid-v-1-width" />
+                                            <constraint firstAttribute="height" constant="280" id="grid-v-1-height" />
+                                        </constraints>
+                                    </view>
+                                    <view contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="grid-h-1">
+                                        <rect key="frame" x="0" y="59.75" width="280" height="0.5" />
+                                        <color key="backgroundColor" name="LaunchGrid" />
+                                        <constraints>
+                                            <constraint firstAttribute="width" constant="280" id="grid-h-1-width" />
+                                            <constraint firstAttribute="height" constant="0.5" id="grid-h-1-height" />
+                                        </constraints>
+                                    </view>
+                                    <view contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="grid-v-2">
+                                        <rect key="frame" x="99.75" y="0" width="0.5" height="280" />
+                                        <color key="backgroundColor" name="LaunchGrid" />
+                                        <constraints>
+                                            <constraint firstAttribute="width" constant="0.5" id="grid-v-2-width" />
+                                            <constraint firstAttribute="height" constant="280" id="grid-v-2-height" />
+                                        </constraints>
+                                    </view>
+                                    <view contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="grid-h-2">
+                                        <rect key="frame" x="0" y="99.75" width="280" height="0.5" />
+                                        <color key="backgroundColor" name="LaunchGrid" />
+                                        <constraints>
+                                            <constraint firstAttribute="width" constant="280" id="grid-h-2-width" />
+                                            <constraint firstAttribute="height" constant="0.5" id="grid-h-2-height" />
+                                        </constraints>
+                                    </view>
+                                    <view contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="grid-v-3">
+                                        <rect key="frame" x="139.75" y="0" width="0.5" height="280" />
+                                        <color key="backgroundColor" name="LaunchGrid" />
+                                        <constraints>
+                                            <constraint firstAttribute="width" constant="0.5" id="grid-v-3-width" />
+                                            <constraint firstAttribute="height" constant="280" id="grid-v-3-height" />
+                                        </constraints>
+                                    </view>
+                                    <view contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="grid-h-3">
+                                        <rect key="frame" x="0" y="139.75" width="280" height="0.5" />
+                                        <color key="backgroundColor" name="LaunchGrid" />
+                                        <constraints>
+                                            <constraint firstAttribute="width" constant="280" id="grid-h-3-width" />
+                                            <constraint firstAttribute="height" constant="0.5" id="grid-h-3-height" />
+                                        </constraints>
+                                    </view>
+                                    <view contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="grid-v-4">
+                                        <rect key="frame" x="179.75" y="0" width="0.5" height="280" />
+                                        <color key="backgroundColor" name="LaunchGrid" />
+                                        <constraints>
+                                            <constraint firstAttribute="width" constant="0.5" id="grid-v-4-width" />
+                                            <constraint firstAttribute="height" constant="280" id="grid-v-4-height" />
+                                        </constraints>
+                                    </view>
+                                    <view contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="grid-h-4">
+                                        <rect key="frame" x="0" y="179.75" width="280" height="0.5" />
+                                        <color key="backgroundColor" name="LaunchGrid" />
+                                        <constraints>
+                                            <constraint firstAttribute="width" constant="280" id="grid-h-4-width" />
+                                            <constraint firstAttribute="height" constant="0.5" id="grid-h-4-height" />
+                                        </constraints>
+                                    </view>
+                                    <view contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="grid-v-5">
+                                        <rect key="frame" x="219.75" y="0" width="0.5" height="280" />
+                                        <color key="backgroundColor" name="LaunchGrid" />
+                                        <constraints>
+                                            <constraint firstAttribute="width" constant="0.5" id="grid-v-5-width" />
+                                            <constraint firstAttribute="height" constant="280" id="grid-v-5-height" />
+                                        </constraints>
+                                    </view>
+                                    <view contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="grid-h-5">
+                                        <rect key="frame" x="0" y="219.75" width="280" height="0.5" />
+                                        <color key="backgroundColor" name="LaunchGrid" />
+                                        <constraints>
+                                            <constraint firstAttribute="width" constant="280" id="grid-h-5-width" />
+                                            <constraint firstAttribute="height" constant="0.5" id="grid-h-5-height" />
+                                        </constraints>
+                                    </view>
+                                    <view contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="grid-v-6">
+                                        <rect key="frame" x="259.75" y="0" width="0.5" height="280" />
+                                        <color key="backgroundColor" name="LaunchGrid" />
+                                        <constraints>
+                                            <constraint firstAttribute="width" constant="0.5" id="grid-v-6-width" />
+                                            <constraint firstAttribute="height" constant="280" id="grid-v-6-height" />
+                                        </constraints>
+                                    </view>
+                                    <view contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="grid-h-6">
+                                        <rect key="frame" x="0" y="259.75" width="280" height="0.5" />
+                                        <color key="backgroundColor" name="LaunchGrid" />
+                                        <constraints>
+                                            <constraint firstAttribute="width" constant="280" id="grid-h-6-width" />
+                                            <constraint firstAttribute="height" constant="0.5" id="grid-h-6-height" />
+                                        </constraints>
+                                    </view>
+                                </subviews>
                                 <constraints>
-                                    <constraint firstAttribute="width" constant="80" id="mark-width"/>
-                                    <constraint firstAttribute="height" constant="80" id="mark-height"/>
+                                    <constraint firstAttribute="width" constant="280" id="grid-width" />
+                                    <constraint firstAttribute="height" constant="280" id="grid-height" />
+                                    <constraint firstItem="grid-v-0" firstAttribute="leading" secondItem="launch-grid" secondAttribute="leading" constant="19.75" id="grid-v-0-x" />
+                                    <constraint firstItem="grid-v-0" firstAttribute="top" secondItem="launch-grid" secondAttribute="top" constant="0" id="grid-v-0-y" />
+                                    <constraint firstItem="grid-h-0" firstAttribute="leading" secondItem="launch-grid" secondAttribute="leading" constant="0" id="grid-h-0-x" />
+                                    <constraint firstItem="grid-h-0" firstAttribute="top" secondItem="launch-grid" secondAttribute="top" constant="19.75" id="grid-h-0-y" />
+                                    <constraint firstItem="grid-v-1" firstAttribute="leading" secondItem="launch-grid" secondAttribute="leading" constant="59.75" id="grid-v-1-x" />
+                                    <constraint firstItem="grid-v-1" firstAttribute="top" secondItem="launch-grid" secondAttribute="top" constant="0" id="grid-v-1-y" />
+                                    <constraint firstItem="grid-h-1" firstAttribute="leading" secondItem="launch-grid" secondAttribute="leading" constant="0" id="grid-h-1-x" />
+                                    <constraint firstItem="grid-h-1" firstAttribute="top" secondItem="launch-grid" secondAttribute="top" constant="59.75" id="grid-h-1-y" />
+                                    <constraint firstItem="grid-v-2" firstAttribute="leading" secondItem="launch-grid" secondAttribute="leading" constant="99.75" id="grid-v-2-x" />
+                                    <constraint firstItem="grid-v-2" firstAttribute="top" secondItem="launch-grid" secondAttribute="top" constant="0" id="grid-v-2-y" />
+                                    <constraint firstItem="grid-h-2" firstAttribute="leading" secondItem="launch-grid" secondAttribute="leading" constant="0" id="grid-h-2-x" />
+                                    <constraint firstItem="grid-h-2" firstAttribute="top" secondItem="launch-grid" secondAttribute="top" constant="99.75" id="grid-h-2-y" />
+                                    <constraint firstItem="grid-v-3" firstAttribute="leading" secondItem="launch-grid" secondAttribute="leading" constant="139.75" id="grid-v-3-x" />
+                                    <constraint firstItem="grid-v-3" firstAttribute="top" secondItem="launch-grid" secondAttribute="top" constant="0" id="grid-v-3-y" />
+                                    <constraint firstItem="grid-h-3" firstAttribute="leading" secondItem="launch-grid" secondAttribute="leading" constant="0" id="grid-h-3-x" />
+                                    <constraint firstItem="grid-h-3" firstAttribute="top" secondItem="launch-grid" secondAttribute="top" constant="139.75" id="grid-h-3-y" />
+                                    <constraint firstItem="grid-v-4" firstAttribute="leading" secondItem="launch-grid" secondAttribute="leading" constant="179.75" id="grid-v-4-x" />
+                                    <constraint firstItem="grid-v-4" firstAttribute="top" secondItem="launch-grid" secondAttribute="top" constant="0" id="grid-v-4-y" />
+                                    <constraint firstItem="grid-h-4" firstAttribute="leading" secondItem="launch-grid" secondAttribute="leading" constant="0" id="grid-h-4-x" />
+                                    <constraint firstItem="grid-h-4" firstAttribute="top" secondItem="launch-grid" secondAttribute="top" constant="179.75" id="grid-h-4-y" />
+                                    <constraint firstItem="grid-v-5" firstAttribute="leading" secondItem="launch-grid" secondAttribute="leading" constant="219.75" id="grid-v-5-x" />
+                                    <constraint firstItem="grid-v-5" firstAttribute="top" secondItem="launch-grid" secondAttribute="top" constant="0" id="grid-v-5-y" />
+                                    <constraint firstItem="grid-h-5" firstAttribute="leading" secondItem="launch-grid" secondAttribute="leading" constant="0" id="grid-h-5-x" />
+                                    <constraint firstItem="grid-h-5" firstAttribute="top" secondItem="launch-grid" secondAttribute="top" constant="219.75" id="grid-h-5-y" />
+                                    <constraint firstItem="grid-v-6" firstAttribute="leading" secondItem="launch-grid" secondAttribute="leading" constant="259.75" id="grid-v-6-x" />
+                                    <constraint firstItem="grid-v-6" firstAttribute="top" secondItem="launch-grid" secondAttribute="top" constant="0" id="grid-v-6-y" />
+                                    <constraint firstItem="grid-h-6" firstAttribute="leading" secondItem="launch-grid" secondAttribute="leading" constant="0" id="grid-h-6-x" />
+                                    <constraint firstItem="grid-h-6" firstAttribute="top" secondItem="launch-grid" secondAttribute="top" constant="259.75" id="grid-h-6-y" />
                                 </constraints>
-                            </imageView>
+                            </view>
+                            <stackView opaque="NO" contentMode="scaleToFill" axis="vertical" alignment="center" spacing="22" translatesAutoresizingMaskIntoConstraints="NO" id="launch-brand">
+                                <rect key="frame" x="56.5" y="322.5" width="280" height="159" />
+                                <subviews>
+                                    <view contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="launch-mark">
+                                        <rect key="frame" x="92" y="0" width="96" height="96" />
+                                        <subviews>
+                                            <view contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="launch-note-0-0">
+                                                <rect key="frame" x="8" y="22" width="28" height="8" />
+                                                <color key="backgroundColor" name="LaunchForeground" />
+                                                <constraints>
+                                                    <constraint firstAttribute="width" constant="28" id="launch-note-0-0-width" />
+                                                    <constraint firstAttribute="height" constant="8" id="launch-note-0-0-height" />
+                                                </constraints>
+                                            </view>
+                                            <view contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="launch-note-0-1">
+                                                <rect key="frame" x="47" y="22" width="27" height="8" />
+                                                <color key="backgroundColor" name="LaunchForeground" />
+                                                <constraints>
+                                                    <constraint firstAttribute="width" constant="27" id="launch-note-0-1-width" />
+                                                    <constraint firstAttribute="height" constant="8" id="launch-note-0-1-height" />
+                                                </constraints>
+                                            </view>
+                                            <view contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="launch-note-0-2">
+                                                <rect key="frame" x="79" y="22" width="11" height="8" />
+                                                <color key="backgroundColor" name="LaunchHarmony" />
+                                                <constraints>
+                                                    <constraint firstAttribute="width" constant="11" id="launch-note-0-2-width" />
+                                                    <constraint firstAttribute="height" constant="8" id="launch-note-0-2-height" />
+                                                </constraints>
+                                            </view>
+                                            <view contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="launch-note-1-0">
+                                                <rect key="frame" x="12" y="45" width="19" height="8" />
+                                                <color key="backgroundColor" name="LaunchForeground" />
+                                                <constraints>
+                                                    <constraint firstAttribute="width" constant="19" id="launch-note-1-0-width" />
+                                                    <constraint firstAttribute="height" constant="8" id="launch-note-1-0-height" />
+                                                </constraints>
+                                            </view>
+                                            <view contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="launch-note-1-1">
+                                                <rect key="frame" x="47" y="45" width="13" height="8" />
+                                                <color key="backgroundColor" name="LaunchHarmony" />
+                                                <constraints>
+                                                    <constraint firstAttribute="width" constant="13" id="launch-note-1-1-width" />
+                                                    <constraint firstAttribute="height" constant="8" id="launch-note-1-1-height" />
+                                                </constraints>
+                                            </view>
+                                            <view contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="launch-note-1-2">
+                                                <rect key="frame" x="64" y="45" width="26" height="8" />
+                                                <color key="backgroundColor" name="LaunchForeground" />
+                                                <constraints>
+                                                    <constraint firstAttribute="width" constant="26" id="launch-note-1-2-width" />
+                                                    <constraint firstAttribute="height" constant="8" id="launch-note-1-2-height" />
+                                                </constraints>
+                                            </view>
+                                            <view contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="launch-note-2-0">
+                                                <rect key="frame" x="8" y="68" width="28" height="8" />
+                                                <color key="backgroundColor" name="LaunchForeground" />
+                                                <constraints>
+                                                    <constraint firstAttribute="width" constant="28" id="launch-note-2-0-width" />
+                                                    <constraint firstAttribute="height" constant="8" id="launch-note-2-0-height" />
+                                                </constraints>
+                                            </view>
+                                            <view contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="launch-note-2-1">
+                                                <rect key="frame" x="47" y="68" width="27" height="8" />
+                                                <color key="backgroundColor" name="LaunchForeground" />
+                                                <constraints>
+                                                    <constraint firstAttribute="width" constant="27" id="launch-note-2-1-width" />
+                                                    <constraint firstAttribute="height" constant="8" id="launch-note-2-1-height" />
+                                                </constraints>
+                                            </view>
+                                            <view contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="launch-note-2-2">
+                                                <rect key="frame" x="79" y="68" width="11" height="8" />
+                                                <color key="backgroundColor" name="LaunchHarmony" />
+                                                <constraints>
+                                                    <constraint firstAttribute="width" constant="11" id="launch-note-2-2-width" />
+                                                    <constraint firstAttribute="height" constant="8" id="launch-note-2-2-height" />
+                                                </constraints>
+                                            </view>
+                                            <view contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="launch-cursor">
+                                                <rect key="frame" x="38" y="8" width="6" height="80" />
+                                                <color key="backgroundColor" name="LaunchAccent" />
+                                                <constraints>
+                                                    <constraint firstAttribute="width" constant="6" id="launch-cursor-width" />
+                                                    <constraint firstAttribute="height" constant="80" id="launch-cursor-height" />
+                                                </constraints>
+                                            </view>
+                                        </subviews>
+                                        <constraints>
+                                            <constraint firstAttribute="width" constant="96" id="mark-width" />
+                                            <constraint firstAttribute="height" constant="96" id="mark-height" />
+                                            <constraint firstItem="launch-note-0-0" firstAttribute="leading" secondItem="launch-mark" secondAttribute="leading" constant="8" id="launch-note-0-0-x" />
+                                            <constraint firstItem="launch-note-0-0" firstAttribute="top" secondItem="launch-mark" secondAttribute="top" constant="22" id="launch-note-0-0-y" />
+                                            <constraint firstItem="launch-note-0-1" firstAttribute="leading" secondItem="launch-mark" secondAttribute="leading" constant="47" id="launch-note-0-1-x" />
+                                            <constraint firstItem="launch-note-0-1" firstAttribute="top" secondItem="launch-mark" secondAttribute="top" constant="22" id="launch-note-0-1-y" />
+                                            <constraint firstItem="launch-note-0-2" firstAttribute="leading" secondItem="launch-mark" secondAttribute="leading" constant="79" id="launch-note-0-2-x" />
+                                            <constraint firstItem="launch-note-0-2" firstAttribute="top" secondItem="launch-mark" secondAttribute="top" constant="22" id="launch-note-0-2-y" />
+                                            <constraint firstItem="launch-note-1-0" firstAttribute="leading" secondItem="launch-mark" secondAttribute="leading" constant="12" id="launch-note-1-0-x" />
+                                            <constraint firstItem="launch-note-1-0" firstAttribute="top" secondItem="launch-mark" secondAttribute="top" constant="45" id="launch-note-1-0-y" />
+                                            <constraint firstItem="launch-note-1-1" firstAttribute="leading" secondItem="launch-mark" secondAttribute="leading" constant="47" id="launch-note-1-1-x" />
+                                            <constraint firstItem="launch-note-1-1" firstAttribute="top" secondItem="launch-mark" secondAttribute="top" constant="45" id="launch-note-1-1-y" />
+                                            <constraint firstItem="launch-note-1-2" firstAttribute="leading" secondItem="launch-mark" secondAttribute="leading" constant="64" id="launch-note-1-2-x" />
+                                            <constraint firstItem="launch-note-1-2" firstAttribute="top" secondItem="launch-mark" secondAttribute="top" constant="45" id="launch-note-1-2-y" />
+                                            <constraint firstItem="launch-note-2-0" firstAttribute="leading" secondItem="launch-mark" secondAttribute="leading" constant="8" id="launch-note-2-0-x" />
+                                            <constraint firstItem="launch-note-2-0" firstAttribute="top" secondItem="launch-mark" secondAttribute="top" constant="68" id="launch-note-2-0-y" />
+                                            <constraint firstItem="launch-note-2-1" firstAttribute="leading" secondItem="launch-mark" secondAttribute="leading" constant="47" id="launch-note-2-1-x" />
+                                            <constraint firstItem="launch-note-2-1" firstAttribute="top" secondItem="launch-mark" secondAttribute="top" constant="68" id="launch-note-2-1-y" />
+                                            <constraint firstItem="launch-note-2-2" firstAttribute="leading" secondItem="launch-mark" secondAttribute="leading" constant="79" id="launch-note-2-2-x" />
+                                            <constraint firstItem="launch-note-2-2" firstAttribute="top" secondItem="launch-mark" secondAttribute="top" constant="68" id="launch-note-2-2-y" />
+                                            <constraint firstItem="launch-cursor" firstAttribute="leading" secondItem="launch-mark" secondAttribute="leading" constant="38" id="cursor-x" />
+                                            <constraint firstItem="launch-cursor" firstAttribute="top" secondItem="launch-mark" secondAttribute="top" constant="8" id="cursor-y" />
+                                        </constraints>
+                                    </view>
+                                    <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="La Grilla" textAlignment="center" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="launch-wordmark">
+                                        <rect key="frame" x="0" y="118" width="280" height="41" />
+                                        <color key="backgroundColor" name="LaunchBackground" />
+                                        <fontDescription key="fontDescription" type="system" weight="semibold" pointSize="34" />
+                                        <color key="textColor" name="LaunchForeground" />
+                                        <constraints>
+                                            <constraint firstAttribute="width" constant="280" id="wordmark-width" />
+                                        </constraints>
+                                    </label>
+                                </subviews>
+                            </stackView>
                         </subviews>
-                        <viewLayoutGuide key="safeArea" id="launch-safe-area"/>
-                        <color key="backgroundColor" name="LaunchBackground"/>
+                        <viewLayoutGuide key="safeArea" id="launch-safe-area" />
+                        <color key="backgroundColor" name="LaunchBackground" />
                         <constraints>
-                            <constraint firstItem="launch-mark" firstAttribute="centerX" secondItem="launch-root" secondAttribute="centerX" id="mark-center-x"/>
-                            <constraint firstItem="launch-mark" firstAttribute="centerY" secondItem="launch-root" secondAttribute="centerY" id="mark-center-y"/>
+                            <constraint firstItem="launch-grid" firstAttribute="centerX" secondItem="launch-root" secondAttribute="centerX" id="grid-center-x" />
+                            <constraint firstItem="launch-grid" firstAttribute="centerY" secondItem="launch-root" secondAttribute="centerY" constant="-24" id="grid-center-y" />
+                            <constraint firstItem="launch-brand" firstAttribute="centerX" secondItem="launch-root" secondAttribute="centerX" id="brand-center-x" />
+                            <constraint firstItem="launch-brand" firstAttribute="centerY" secondItem="launch-root" secondAttribute="centerY" constant="-24" id="brand-center-y" />
                         </constraints>
                     </view>
                 </viewController>
-                <placeholder placeholderIdentifier="IBFirstResponder" id="launch-first-responder" userLabel="First Responder" sceneMemberID="firstResponder"/>
+                <placeholder placeholderIdentifier="IBFirstResponder" id="launch-first-responder" userLabel="First Responder" sceneMemberID="firstResponder" />
             </objects>
-            <point key="canvasLocation" x="0.0" y="0.0"/>
+            <point key="canvasLocation" x="0.0" y="0.0" />
         </scene>
     </scenes>
     <resources>
-        <image name="LaunchMark" width="1024" height="1024"/>
-        <namedColor name="LaunchBackground"><color red="0.9607843137" green="0.9607843137" blue="0.937254902" alpha="1" colorSpace="custom" customColorSpace="sRGB"/></namedColor>
+        <namedColor name="LaunchBackground">
+            <color red="0.9607843137" green="0.9607843137" blue="0.9372549020" alpha="1" colorSpace="custom" customColorSpace="sRGB" />
+        </namedColor>
+        <namedColor name="LaunchForeground">
+            <color red="0.0980392157" green="0.1254901961" blue="0.0862745098" alpha="1" colorSpace="custom" customColorSpace="sRGB" />
+        </namedColor>
+        <namedColor name="LaunchAccent">
+            <color red="0.2627450980" green="0.3647058824" blue="0.0000000000" alpha="1" colorSpace="custom" customColorSpace="sRGB" />
+        </namedColor>
+        <namedColor name="LaunchHarmony">
+            <color red="0.4745098039" green="0.3137254902" blue="0.0000000000" alpha="1" colorSpace="custom" customColorSpace="sRGB" />
+        </namedColor>
+        <namedColor name="LaunchGrid">
+            <color red="0.8156862745" green="0.8470588235" blue="0.7725490196" alpha="0.28" colorSpace="custom" customColorSpace="sRGB" />
+        </namedColor>
     </resources>
 </document>

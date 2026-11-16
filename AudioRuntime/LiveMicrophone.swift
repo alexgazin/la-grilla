@@ -5,10 +5,11 @@ import Darwin
 import Foundation
 
 enum LiveInputError:Error,LocalizedError {
-    case unavailable,unsupportedFormat,overflow,invalidSamples,outputUnavailable
+    case unavailable,notReady,unsupportedFormat,overflow,invalidSamples,outputUnavailable
     var errorDescription:String? {
         let key=switch self {
         case .unavailable:"No microphone is available. Check the audio route and retry."
+        case .notReady:"The microphone could not start. Retry recording or check the audio route."
         case .unsupportedFormat:"This microphone format is unavailable. Try another input."
         case .overflow:"Recording stopped because the input could not be saved fast enough. Your previous draft is preserved."
         case .invalidSamples:"The microphone returned invalid audio. Check the input and retry."
@@ -296,11 +297,20 @@ private final class InputResources:@unchecked Sendable {
         let lease=try InputSessionOwnership.acquire(session)
         let category=lease.category,mode=lease.mode,options=lease.options
         var pending:InputResources?
+        var transitionStart:UInt64?
+        var stage="begin-input-transition"
+        var observedRoutes:[LiveInputRouteSnapshot]=[]
         var info=mach_timebase_info_data_t();mach_timebase_info(&info)
         ticksPerSecond=1_000_000_000*Double(info.denom)/Double(info.numer)
         do {
-            try session.setCategory(.playAndRecord,mode:.measurement,options:[.defaultToSpeaker,.allowBluetoothA2DP])
+            transitionStart=try audio.beginMicrophoneConfiguration()
+            stage="set-recording-category"
+            // A2DP permits Bluetooth output only. HFP permits a headset input;
+            // the session still chooses the real hardware route and its rate.
+            try session.setCategory(.playAndRecord,mode:.measurement,options:[.defaultToSpeaker,.allowBluetooth,.allowBluetoothA2DP])
+            stage="activate-recording-session"
             try session.setActive(true)
+            stage="inspect-recording-route"
             // Input access can initialize I/O. Reject a genuinely absent route
             // before asking AVAudioEngine to create its input node.
             if !session.isInputAvailable,session.currentRoute.inputs.isEmpty,session.availableInputs?.isEmpty != false {
@@ -310,14 +320,16 @@ private final class InputResources:@unchecked Sendable {
             // This read must not change input enablement or hardware formats.
             let beforeInputNode=LiveInputRouteSnapshot.IOUnit(engine.outputNode)
             let input=engine.inputNode
-            let format=input.outputFormat(forBus:0)
+            let hardware=input.inputFormat(forBus:0),format=input.outputFormat(forBus:0)
             let routes=[LiveInputRouteSnapshot.capture(engine,stage:"activated-playAndRecord",outputUnitBeforeInputNode:beforeInputNode)]
+            observedRoutes=routes
+            stage="validate-recording-formats"
             func usable(_ format:AVAudioFormat)->Bool{format.sampleRate.isFinite && (8000...192000).contains(format.sampleRate) && format.channelCount>0 && format.channelCount<=32}
             if routes.last?.hardwareAbsent==true{throw LiveInputSetupFailure(LiveInputError.unavailable,routes:routes)}
-            // Invalid hardware input is an explicit setup failure. Stopping and
-            // repreparing the continuing output did not enable input and caused
-            // measurable render gaps; never stop, rebuild, seek or invent PCM.
-            guard usable(format)else{throw LiveInputSetupFailure(LiveInputError.unavailable,routes:routes)}
+            // Apple defines enabled input by its hardware INPUT format. The
+            // output format alone can be cached while the hardware is disabled.
+            // Never install a tap using a manufactured fallback format.
+            guard usable(hardware),usable(format)else{throw LiveInputSetupFailure(LiveInputError.notReady,routes:routes)}
             guard format.commonFormat == .pcmFormatFloat32,let mono=AVAudioFormat(commonFormat:.pcmFormatFloat32,sampleRate:format.sampleRate,channels:1,interleaved:false)else{throw LiveInputSetupFailure(LiveInputError.unsupportedFormat,routes:routes)}
             routeDiagnostics=routes
             let ring=try InputRingHandle(rate:format.sampleRate,limit:min(30,max(0.2,duration)))
@@ -330,9 +342,14 @@ private final class InputResources:@unchecked Sendable {
             })
             pending=resources
             self.resources=resources;sampleRate=format.sampleRate
+            stage="install-recording-tap"
             InputTapCallbacks.install(input:input,format:format,ring:ring);resources.installed=true
+            stage="resume-shared-recording-graph"
             if !engine.isRunning{try audio.resumeOutputAfterInputChange()}
             guard engine.isRunning else{throw LiveInputError.outputUnavailable}
+            audio.finishMicrophoneConfiguration(transitionStart,ready:true)
+            transitionStart=nil
+            stage="schedule-recording"
             let chosenDelay:Double
             if let schedule{guard let value=schedule(delay)else{throw LiveInputError.invalidSamples};chosenDelay=value}else{chosenDelay=delay}
             guard chosenDelay.isFinite,chosenDelay>=delay,chosenDelay<=600 else{throw LiveInputError.invalidSamples}
@@ -344,6 +361,10 @@ private final class InputResources:@unchecked Sendable {
             guard lg_input_arm_limit(ring.pointer,startHostTime,UInt64(ceil(sampleRate*chosenDuration))) != 0 else{throw LiveInputError.invalidSamples}
             worker.start()
         }catch{
+            audio.finishMicrophoneConfiguration(transitionStart,ready:false)
+            // Capture real duplex route/format metadata BEFORE restoring the
+            // playback category, without exporting port names or recording PCM.
+            audio.recordInputFailure(error,stage:stage,routes:observedRoutes)
             // The root lease handles presentation/retry; never silently replace
             // the continuing beat with a separate recording-only audio engine.
             // A failed initializer has no LiveMicrophone deinit to retry a
@@ -362,6 +383,7 @@ private final class InputResources:@unchecked Sendable {
                 }
             }
             if let cleanupFailure {
+                audio.recordInputCleanupFailure(cleanupFailure)
                 if let failure=error as? LiveInputSetupFailure{throw LiveInputSetupFailure(failure,routes:failure.routes,cleanupFailure:cleanupFailure)}
                 throw LiveInputCleanupFailure(primary:error,cleanup:cleanupFailure)
             }

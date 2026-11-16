@@ -48,6 +48,43 @@ struct AudioFailureDetails:Codable,Sendable {
     let qaInjected:Bool
 }
 
+/// Input failure metadata is deliberately copied into a separate, sanitized
+/// shape. The historical QA route snapshots contain port names; those snapshots
+/// must never be serialized into a user's shareable support report.
+struct AudioInputFailureDetails:Codable,Sendable {
+    struct Port:Codable,Sendable {
+        let type:String
+        let channels:Int
+        init(_ port:AVAudioSessionPortDescription){type=String(port.portType.rawValue.prefix(80));channels=port.channels?.count ?? 0}
+    }
+    struct Route:Codable,Sendable {
+        let stage:String
+        let hardwareInput:LiveInputRouteSnapshot.Format
+        let engineInput:LiveInputRouteSnapshot.Format
+        let inputUnit:LiveInputRouteSnapshot.IOUnit
+        let outputUnit:LiveInputRouteSnapshot.IOUnit
+        init(_ value:LiveInputRouteSnapshot){stage=value.stage;hardwareInput=value.inputFormat;engineInput=value.outputFormat;inputUnit=value.inputUnit;outputUnit=value.outputUnit}
+    }
+    let stage:String
+    let domain:String
+    let code:Int
+    let permission:String
+    let category:String
+    let mode:String
+    let sessionSampleRate:Double?
+    let inputAvailable:Bool
+    let inputs:[Port]
+    let availableInputs:[Port]
+    let outputs:[Port]
+    let observations:[Route]
+    let inputPriming:String
+    let inputPrimedAtStartup:Bool
+    let inputTransitionCount:Int
+    let inputTransitionMilliseconds:Double
+    var cleanupDomain:String?
+    var cleanupCode:Int?
+}
+
 private struct AudioStartFailure:LocalizedError {
     let underlying:Error
     var errorDescription:String? {
@@ -78,6 +115,11 @@ private enum AudioRender {
     private let inputPriming:InputPrimingPolicy
     private(set) var inputPrimedAtStartup=false
     private(set) var failureDetails:AudioFailureDetails?
+    private(set) var inputFailureDetails:AudioInputFailureDetails?
+    private(set) var inputConfigured=false
+    private(set) var inputTransitionCount=0
+    private(set) var inputTransitionMilliseconds=0.0
+    var inputPrimingName:String{inputPriming.rawValue}
     @ObservationIgnored private var preferenceWarnings:[String]=[]
     @ObservationIgnored private var observedOutputSampleRate:Double?
     @ObservationIgnored private var observedOutputChannels:Int?
@@ -121,12 +163,18 @@ private enum AudioRender {
     var retainedRoutingCount:Int {routing.count}
     var clock: UInt64 = 0
     var failureReport:String {
-        guard let failureDetails,let data=try? JSONEncoder().encode(failureDetails)else{return ""}
+        let encoder=JSONEncoder();encoder.outputFormatting=[.sortedKeys]
+        if let inputFailureDetails {
+            struct Report:Encodable {let output:AudioFailureDetails?;let input:AudioInputFailureDetails}
+            guard let data=try? encoder.encode(Report(output:failureDetails,input:inputFailureDetails))else{return ""}
+            return String(decoding:data,as:UTF8.self)
+        }
+        guard let failureDetails,let data=try? encoder.encode(failureDetails)else{return ""}
         return String(decoding:data,as:UTF8.self)
     }
     /// Read-only native test diagnostics. Never called from the render thread.
     var runtimeTraceState:String {
-        let prefix="engineRunning=\(engine?.isRunning == true) controllerPlaying=\(playing) controllerTick=\(tick) controllerClock=\(clock) appliedRevision=\(appliedRevision) submittedGeneration=\(generation) inputPriming=\(inputPriming.rawValue) inputPrimed=\(inputPrimedAtStartup) failureStage=\(failureDetails?.stage ?? "none") qaAudioUnavailable=\(failureDetails?.qaInjected ?? false)"
+        let prefix="engineRunning=\(engine?.isRunning == true) controllerPlaying=\(playing) controllerTick=\(tick) controllerClock=\(clock) appliedRevision=\(appliedRevision) submittedGeneration=\(generation) inputPriming=\(inputPriming.rawValue) inputPrimed=\(inputPrimedAtStartup) inputConfigured=\(inputConfigured) inputTransitionCount=\(inputTransitionCount) inputTransitionMilliseconds=\(inputTransitionMilliseconds) failureStage=\(failureDetails?.stage ?? "none") qaAudioUnavailable=\(failureDetails?.qaInjected ?? false)"
         guard let k=handle?.pointer else{return prefix+" kernel=none error=\(error ?? "none")"}
         let revision=Int(lg_revision(k))
         return prefix+" kernel=\(UInt(bitPattern:k)) actualClock=\(lg_clock(k)) actualTick=\(lg_tick(k)) actualPlaying=\(lg_playing(k)) actualGeneration=\(revision) actualRevision=\(sentRevisions[revision] ?? -1) pending=\(generation != revision) error=\(error ?? "none")"
@@ -192,6 +240,53 @@ private enum AudioRender {
             recordFailure(error,stage:stage,qaInjected:stage=="qa-output-unavailable")
             throw AudioStartFailure(underlying:error)
         }
+    }
+    /// An output-only I/O unit may already be initialized without input. Stop
+    /// it BEFORE changing category or lazily creating the input node, rather
+    /// than asking an initialized output unit for a zero-format input and then
+    /// trying to repair it. The source/kernel and every musical queue survive.
+    /// Simulator's input-first graph already owns input and needs no such stop.
+    /// Reapply this for each output-only lease: restoring playback or changing
+    /// hardware can invalidate the previous input configuration.
+    func beginMicrophoneConfiguration()throws->UInt64? {
+        guard let engine,handle != nil else{throw LiveInputError.outputUnavailable}
+        inputConfigured=false
+        guard !inputPrimedAtStartup else{return nil}
+        let began=mach_absolute_time()
+        engine.stop()
+        inputTransitionCount+=1
+        onRuntimeTrace?("audio.input.transition.begin")
+        return began
+    }
+    func finishMicrophoneConfiguration(_ began:UInt64?,ready:Bool){
+        inputConfigured=ready
+        if let began {
+            var info=mach_timebase_info_data_t();mach_timebase_info(&info)
+            inputTransitionMilliseconds=Double(mach_absolute_time()-began)*Double(info.numer)/Double(info.denom)/1_000_000
+        }
+        onRuntimeTrace?(ready ? "audio.input.transition.ready":"audio.input.transition.failed")
+    }
+    func recordInputFailure(_ cause:Error,stage:String,routes:[LiveInputRouteSnapshot]){
+        let failure=cause as NSError,session=AVAudioSession.sharedInstance()
+        let permission=AVAudioApplication.shared.recordPermission
+        inputFailureDetails=AudioInputFailureDetails(
+            stage:String(stage.prefix(100)),domain:String(failure.domain.prefix(160)),code:failure.code,
+            permission:permission == .granted ? "granted":permission == .denied ? "denied":"undetermined",
+            category:session.category.rawValue,mode:session.mode.rawValue,
+            sessionSampleRate:session.sampleRate.isFinite ? session.sampleRate:nil,
+            inputAvailable:session.isInputAvailable,
+            inputs:session.currentRoute.inputs.prefix(8).map{.init($0)},
+            availableInputs:(session.availableInputs ?? []).prefix(8).map{.init($0)},
+            outputs:session.currentRoute.outputs.prefix(8).map{.init($0)},
+            observations:routes.prefix(4).map{.init($0)},inputPriming:inputPriming.rawValue,
+            inputPrimedAtStartup:inputPrimedAtStartup,inputTransitionCount:inputTransitionCount,
+            inputTransitionMilliseconds:inputTransitionMilliseconds
+        )
+        onRuntimeTrace?("audio.input.failure."+stage)
+    }
+    func recordInputCleanupFailure(_ cause:Error){
+        let failure=cause as NSError
+        inputFailureDetails?.cleanupDomain=String(failure.domain.prefix(160));inputFailureDetails?.cleanupCode=failure.code
     }
     /// Called after category/tap changes only if the OS stopped this graph.
     /// The source, kernel, musical clock and submitted generations are retained.
@@ -389,5 +484,6 @@ private enum AudioRender {
         stop();timer?.invalidate()
         if let configurationObserver{NotificationCenter.default.removeObserver(configurationObserver)};configurationObserver=nil
         engine?.stop();engine=nil;source=nil;handle=nil
+        inputConfigured=false;inputTransitionCount=0;inputTransitionMilliseconds=0
     }
 }

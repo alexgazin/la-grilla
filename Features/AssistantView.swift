@@ -15,11 +15,13 @@ struct AssistantView:View {
     @State private var ambiguous=false
     @State private var previewB=false
     @State private var language="ru-RU"
+    @State private var aiLanguage="ru-RU"
     @State private var dictation=DictationController()
     @State private var ai=AIComposerController()
     @State private var mode:AssistantMode = .automatic
     @State private var generatedWithAI=false
     @State private var usedUnavailableAIFallback=false
+    @State private var availabilityError=false
     @State private var generationID=0
     @State private var generationTask:Task<Void,Never>?
     @State private var timeoutTask:Task<Void,Never>?
@@ -33,12 +35,7 @@ struct AssistantView:View {
                     Text("Describe a song form, chords or a harmonic change. Review every change before applying.").font(.caption).foregroundStyle(Color.muted)
                     HStack{Text(session.section.name).fontWeight(.medium);Spacer();Text("\(session.section.length/barTicks) bars · \(Int(session.project.bpm)) BPM").font(.caption.monospaced()).foregroundStyle(Color.muted);CapsuleLabel(text:proposal != nil && generatedWithAI ? "ON-DEVICE AI":"LOCAL",color:.mint)}
                     StudioSegments(title:"Assistant mode",selection:$mode,options:AssistantMode.allCases.map{($0,LocalizedStringKey($0.title))}).disabled(dictation.recording || dictation.requesting || dictation.finalizing)
-                    Text(mode == .commands ? NSLocalizedString("Commands work without Apple Intelligence.",comment:"Assistant availability"):ai.availabilityMessage).font(.caption).foregroundStyle(Color.muted).accessibilityIdentifier("assistant.ai-status")
-                    if !ai.available,mode != .commands {
-                        Button("Use Commands"){mode = .commands}
-                            .frame(minHeight:44).accessibilityIdentifier("assistant.use-commands")
-                            .disabled(dictation.recording || dictation.requesting || dictation.finalizing)
-                    }
+                    aiAvailability
                     Text(LocalizedStringKey(session.audio.playing ? "PLAYING":"STOPPED")).font(.caption.monospaced()).foregroundStyle(Color.muted)
                         .accessibilityValue(LocalizedStringKey(session.harmonyPreview ? "Preview":"Original")).accessibilityIdentifier("assistant.preview-state")
                     TextEditor(text:$input).focused($focused).disabled(dictation.recording || dictation.requesting || dictation.finalizing).frame(height:110).scrollContentBackground(.hidden).padding(8).modifier(StudioSurface()).overlay(alignment:.topLeading){if input.isEmpty && !focused{Text("Try: Tempo 110").font(.subheadline).foregroundStyle(Color.muted).padding(16).allowsHitTesting(false).accessibilityHidden(true)}}.accessibilityLabel("Command").accessibilityIdentifier("assistant.input")
@@ -47,7 +44,7 @@ struct AssistantView:View {
                         Button("Examples"){focused=false;showExamples=true}.frame(minHeight:44).disabled(dictation.recording || dictation.requesting || dictation.finalizing).accessibilityIdentifier("assistant.examples")
                         Spacer()
                         languageControl.disabled(dictation.recording || dictation.requesting || dictation.finalizing)
-                        Button{toggleDictation()}label:{Image(systemName:dictation.recording ? "stop.circle.fill":"mic.fill").frame(width:44,height:44).foregroundStyle(dictation.recording ? Color.record:Color.mint)}.accessibilityLabel(LocalizedStringKey(dictation.recording ? "Stop dictation":"Dictate a command")).accessibilityIdentifier("assistant.dictate").disabled(dictation.requesting || dictation.finalizing)
+                        Button{toggleDictation()}label:{Image(systemName:dictation.recording ? "stop.circle.fill":"mic.fill").frame(width:44,height:44).foregroundStyle(dictation.recording ? Color.record:Color.mint)}.accessibilityLabel(LocalizedStringKey(dictation.recording ? "Stop dictation":"Dictate a command")).accessibilityIdentifier("assistant.dictate").accessibilityValue(Text(verbatim:dictation.diagnosticState)).disabled(dictation.requesting || dictation.finalizing)
                     }
                     if dictation.requesting{ProgressView("Preparing dictation…")}
                     if dictation.finalizing{ProgressView("Finishing dictation…")}
@@ -65,32 +62,67 @@ struct AssistantView:View {
         }.tint(.mint)
         .sheet(isPresented:$showExamples){AssistantExamplesView(language:language){text,requiresAI in input=text;if requiresAI{mode = .onDeviceAI};showExamples=false}}
         .onChange(of:dictation.text){_,value in if !value.isEmpty{input=value}}
-        .onChange(of:mode){_,_ in session.endHarmonyPreview();cancelGeneration();proposal=nil;candidate=nil;proposalSource=nil;usedUnavailableAIFallback=false;error=nil}
-        .onChange(of:language){_,value in session.endHarmonyPreview();cancelGeneration();proposal=nil;candidate=nil;proposalSource=nil;usedUnavailableAIFallback=false;error=nil;ai.refresh(localeIdentifier:value)}
+        .onChange(of:mode){_,_ in resetReview();refreshAIStatus()}
+        .onChange(of:language){_,_ in resetReview();refreshAIStatus()}
+        .onChange(of:aiLanguage){_,_ in resetReview();refreshAIStatus()}
         .onChange(of:dictation.recording){_,recording in if !recording{restoreAudio()}}
-        .onChange(of:phase){_,p in if p == .background{cancelGeneration();dictation.cancel();restoreAudio()}else if p == .active{ai.refresh(localeIdentifier:language)}}
+        .onChange(of:phase){_,p in if p == .background{cancelGeneration();dictation.cancel();restoreAudio()}else if p == .active{refreshAIStatus()}}
         .onReceive(NotificationCenter.default.publisher(for:AVAudioSession.interruptionNotification).receive(on:RunLoop.main)){_ in dictation.cancel();restoreAudio()}
         .onDisappear{cancelGeneration();dictation.cancel();restoreAudio();session.endHarmonyPreview()}
-        .onAppear{ai.refresh(localeIdentifier:language);if let i=ProcessInfo.processInfo.arguments.firstIndex(of:"--screen"),ProcessInfo.processInfo.arguments.count>i+1{let target=ProcessInfo.processInfo.arguments[i+1];if target=="assistant-proposal"{input="Tempo 110; Chorus 8 bars: Am F C G each 2 bars";generate()}else if target=="assistant-song-proposal"{input="Song: Tempo 108; Key D minor; Intro 4 bars: Dm Gm A Dm; Chorus 8 bars: Dm Gm C F each 2 bars";generate()}}}
+        .onAppear{refreshAIStatus();if let i=ProcessInfo.processInfo.arguments.firstIndex(of:"--screen"),ProcessInfo.processInfo.arguments.count>i+1{let target=ProcessInfo.processInfo.arguments[i+1];if target=="assistant-proposal"{input="Tempo 110; Chorus 8 bars: Am F C G each 2 bars";generate()}else if target=="assistant-song-proposal"{input="Song: Tempo 108; Key D minor; Intro 4 bars: Dm Gm A Dm; Chorus 8 bars: Dm Gm C F each 2 bars";generate()}}}
+    }
+    private var aiAvailability:some View {
+        VStack(alignment:.leading,spacing:8){
+            if mode != .commands {
+                HStack{Text("AI request language").font(.caption);Spacer();languageSelector($aiLanguage,title:"AI request language",identifier:"assistant.ai-language.").disabled(dictation.recording || dictation.requesting || dictation.finalizing)}
+                Text("Write the AI request in this language. Dictation below has its own language.")
+                    .font(.caption).foregroundStyle(Color.muted)
+                    .accessibilityIdentifier("assistant.ai-language-guidance")
+            }
+            Text(mode == .commands ? NSLocalizedString("Commands work without Apple Intelligence.",comment:"Assistant availability"):ai.availabilityMessage)
+                .font(.caption).foregroundStyle(Color.muted).accessibilityIdentifier("assistant.ai-status")
+                .accessibilityValue(Text(verbatim:aiAvailabilityDiagnostic))
+            if mode != .commands {
+                if let guidance=ai.availabilityGuidance {
+                    Text(guidance).font(.caption).foregroundStyle(Color.muted)
+                        .accessibilityIdentifier("assistant.ai-setup")
+                }
+                HStack(spacing:12){
+                    Button("Recheck AI"){refreshAIStatus()}.frame(minHeight:44)
+                        .accessibilityIdentifier("assistant.ai-recheck")
+                    if !ai.available {
+                        Button("Use Commands"){mode = .commands}.frame(minHeight:44)
+                            .accessibilityIdentifier("assistant.use-commands")
+                    }
+                }.disabled(dictation.recording || dictation.requesting || dictation.finalizing)
+            }
+        }
+    }
+    private var aiAvailabilityDiagnostic:String {
+        guard ProcessInfo.processInfo.arguments.contains("--uitesting")else{return ""}
+        return mode == .commands ? "commands":ai.availabilityReason.rawValue
     }
     private var languageControl:some View {
+        languageSelector($language,title:"Dictation language",identifier:"assistant.language.")
+    }
+    private func languageSelector(_ selection:Binding<String>,title:LocalizedStringKey,identifier:String)->some View {
         HStack(spacing:3){
             ForEach(["ru-RU","en-US"],id:\.self){code in
-                Button{language=code}label:{
+                Button{selection.wrappedValue=code}label:{
                     Text(verbatim:String(code.prefix(2)).uppercased()).font(.caption.weight(.semibold))
                         .frame(minWidth:44,minHeight:44)
-                        .foregroundStyle(language==code ? Color.ink:Color.muted)
-                        .background(language==code ? Color.mint:Color.clear,in:RoundedRectangle(cornerRadius:11,style:.continuous))
+                        .foregroundStyle(selection.wrappedValue==code ? Color.ink:Color.muted)
+                        .background(selection.wrappedValue==code ? Color.mint:Color.clear,in:RoundedRectangle(cornerRadius:11,style:.continuous))
                 }.buttonStyle(StudioQuietButtonStyle())
-                    .accessibilityIdentifier("assistant.language."+String(code.prefix(2)))
-                    .accessibilityAddTraits(language==code ? .isSelected:[])
+                    .accessibilityIdentifier(identifier+String(code.prefix(2)))
+                    .accessibilityAddTraits(selection.wrappedValue==code ? .isSelected:[])
             }
-        }.padding(3).modifier(StudioSurface()).accessibilityElement(children:.contain).accessibilityLabel("Dictation language")
+        }.padding(3).modifier(StudioSurface()).accessibilityElement(children:.contain).accessibilityLabel(title)
     }
     func review(_ proposal:AssistantProposal,source:Project,candidate:Project)->some View {
         VStack(alignment:.leading,spacing:14){
             SmallHeading(text:"PROPOSAL")
-            if usedUnavailableAIFallback {
+            if usedUnavailableAIFallback && !ai.available {
                 Text("Reviewed with Commands because on-device AI is unavailable.")
                     .font(.caption).foregroundStyle(Color.muted)
                     .accessibilityIdentifier("assistant.local-fallback")
@@ -129,9 +161,9 @@ struct AssistantView:View {
         }
     }
     func generate(_ distribution:ChordDistribution?=nil){
-        cancelGeneration();focused=false;session.endHarmonyPreview();ambiguous=false;generatedInput=input;proposal=nil;candidate=nil;proposalSource=nil;error=nil;generatedWithAI=false;usedUnavailableAIFallback=false
+        cancelGeneration();focused=false;session.endHarmonyPreview();ambiguous=false;generatedInput=input;proposal=nil;candidate=nil;proposalSource=nil;error=nil;generatedWithAI=false;usedUnavailableAIFallback=false;availabilityError=false
         let snapshot=session.project,scope=session.section.id
-        ai.refresh(localeIdentifier:language)
+        ai.refresh(localeIdentifier:aiLanguage)
         // A disabled/unavailable model must not block an understood command.
         // Keep the proposal explicitly LOCAL and explain the fallback; never
         // describe the parser's result as a model-generated arrangement.
@@ -139,14 +171,19 @@ struct AssistantView:View {
             do{let p=try AssistantEngine.propose(input,project:snapshot,sectionID:scope,distribution:distribution);candidate=try p.candidate(for:snapshot);proposalSource=snapshot;proposal=p;usedUnavailableAIFallback=mode == .onDeviceAI && !ai.available;return}
             catch{if case AssistantError.ambiguous=error{self.error=error.localizedDescription;ambiguous=true;return};if mode == .commands{self.error=error.localizedDescription;return};if !(error is AssistantError){self.error=error.localizedDescription;return};if case AssistantError.unsupported=error{}else{self.error=error.localizedDescription;return}}
         }
-        guard ai.available else{error=ai.availabilityMessage;return}
-        let request=input,locale=language,attempt=generationID
+        guard ai.available else{error=ai.availabilityMessage;availabilityError=true;return}
+        let request=input,locale=aiLanguage,attempt=generationID
         generationTask=Task { @MainActor in
             do {
                 let p=try await ai.propose(request,project:snapshot,sectionID:scope,localeIdentifier:locale)
                 guard !Task.isCancelled,generationID==attempt,input==request else{return}
                 candidate=try p.candidate(for:session.project);proposalSource=snapshot;proposal=p;generatedWithAI=true;error=nil
-            }catch{guard generationID==attempt,!Task.isCancelled else{return};self.error=error.localizedDescription;proposal=nil;candidate=nil;proposalSource=nil}
+            }catch{
+                guard generationID==attempt,!Task.isCancelled else{return}
+                if let failure=error as? AIComposerFailure,case .unavailable=failure{self.error=ai.availabilityMessage;availabilityError=true}
+                else{self.error=error.localizedDescription;availabilityError=false}
+                proposal=nil;candidate=nil;proposalSource=nil
+            }
             guard generationID==attempt else{return};generationTask=nil;timeoutTask?.cancel();timeoutTask=nil
         }
         timeoutTask=Task { @MainActor in
@@ -156,6 +193,16 @@ struct AssistantView:View {
         }
     }
     func cancelGeneration(){generationID+=1;generationTask?.cancel();generationTask=nil;timeoutTask?.cancel();timeoutTask=nil}
+    private func resetReview(){
+        session.endHarmonyPreview();cancelGeneration();proposal=nil;candidate=nil;proposalSource=nil;usedUnavailableAIFallback=false;error=nil;availabilityError=false
+    }
+    private func refreshAIStatus(){
+        ai.refresh(localeIdentifier:aiLanguage)
+        if availabilityError {
+            error=ai.available ? nil:ai.availabilityMessage
+            availabilityError = !ai.available
+        }
+    }
     private func closeEditor(){
         // Studio owns this editor's presentation. After changing mode or
         // removing a proposal, the environment dismiss action can leave the
