@@ -52,8 +52,8 @@ jobs:
           GRILLA_RUNTIME_TRACE: '1'
         run: |
           GRILLA_AUDIT_DEVICE=$(cat /tmp/grilla-simulator-id)
-          # Sixteen real methods include the anchored pinch regression,
-          # independent AI setup/local-review, written chords and sketch journeys.
+          # Seventeen real methods include portable full-range import/reopen,
+          # anchored pinch, independent AI setup/local-review and sketch journeys.
           # This 30-minute batch retains
           # every method's 120s cap and
           # the shared 40-minute cutoff/50-minute job evidence reserve.
@@ -61,6 +61,7 @@ jobs:
             --require-test FirstResultTests/testEmptyProjectGuidesFirstChordToRealOutputAndPersists \
             --require-test FirstResultTests/testStarterAndExampleAreAudibleIndependentAndKeepSavedProject \
             --require-test FirstResultTests/testAcceptedMIDIInterleavingsKeepLatestWorkAndActiveRetryPreservesDisk \
+            --require-test FirstResultTests/testPortableMultisectionImportPlaysWholeArrangementAfterFreshRelaunch \
             --require-test AIAvailabilityTests/testActualUnavailableModelRecheckPreservesIndependentLanguagesInputAndProject \
             --require-test AIAvailabilityTests/testActualUnavailableModelLocallyReviewsJazzAppliesAndUndoesOnce \
             --require-test ArrangementUITests/testPinchRetainsScrolledMusicalCenterWithoutEditingOrStopping \

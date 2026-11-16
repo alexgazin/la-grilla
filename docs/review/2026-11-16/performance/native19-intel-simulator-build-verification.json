@@ -1,0 +1,58 @@
+{
+  "id": 14247529321,
+  "name": "simulator-build",
+  "bytes": 6775374,
+  "digest": "sha256:c76949665c6e634bf6612c8c706d175bb5837a6c0945faf1fdfa7ffdc8060b85",
+  "source": "a61b8a5563e1ff93d0f3cd16057ade41db76b700",
+  "run": 43912714984,
+  "actualJob": 133458619667,
+  "verifiedCRC": true,
+  "simulatorEnvironment": {
+    "schemaVersion": 1,
+    "repository": "alexgazin/la-grilla",
+    "sourceSHA": "a61b8a5563e1ff93d0f3cd16057ade41db76b700",
+    "runID": "43912714984",
+    "runAttempt": "1",
+    "runnerArchitecture": "X64",
+    "simulatorArchitecture": "x86_64",
+    "xcode": "Xcode 26.3\nBuild version 17C529",
+    "simulatorSDK": "26.2",
+    "builtAppArchitectures": [
+      "x86_64"
+    ]
+  },
+  "independentActualMachO": {
+    "magic": "0xfeedfacf",
+    "cpuType": "0x1000007",
+    "architecture": "x86_64",
+    "binaryBytes": 48128,
+    "binarySHA256": "0e07be403d4f8c560d8c23b6d2ccee84a023ae2de421b3c76b95fe0a6723d29e",
+    "version": "1.0.0",
+    "build": "19",
+    "DTSDKName": "iphonesimulator26.2",
+    "DTPlatformName": "iphonesimulator"
+  },
+  "allEmbeddedMachOArchitectures": [
+    {
+      "path": "LaGrilla.app/LaGrilla.debug.dylib",
+      "cpuType": "0x1000007",
+      "architecture": "x86_64",
+      "bytes": 22846288,
+      "sha256": "25a67773c76bdae067de39f257b38748752da8cf6fd953ef1a1f2798ae5b292b"
+    },
+    {
+      "path": "LaGrilla.app/__preview.dylib",
+      "cpuType": "0x1000007",
+      "architecture": "x86_64",
+      "bytes": 22512,
+      "sha256": "5b4b903de154417bd229441ebb920c298cdac2a4f80e6d98e9ecb6aa89338180"
+    },
+    {
+      "path": "LaGrilla.app/LaGrilla",
+      "cpuType": "0x1000007",
+      "architecture": "x86_64",
+      "bytes": 48128,
+      "sha256": "0e07be403d4f8c560d8c23b6d2ccee84a023ae2de421b3c76b95fe0a6723d29e"
+    }
+  ]
+}

@@ -53,7 +53,7 @@ struct VoiceToMIDIView:View {
                     DisclosureGroup{Text("Record one melody in a quiet room. Use headphones. Microphone monitoring is off. Review uncertain notes before applying.").font(.caption).foregroundStyle(Color.muted).padding(.vertical,8)}label:{Text("Recording guide").frame(maxWidth:.infinity,minHeight:44,alignment:.leading)}.font(.caption).foregroundStyle(Color.muted)
                     HStack{Text(sourceSectionName).fontWeight(.medium);Spacer();Text("\(Int(limit)) s · \(Int(displayContext?.captureBPM ?? session.project.bpm)) BPM").font(.caption.monospaced()).foregroundStyle(Color.muted);CapsuleLabel(text:"BETA · MONO",color:.record)}
                     if let displayContext{HStack{Text("Recording starts at bar");Text(String(displayContext.plan.startTick/barTicks+1)).monospacedDigit()}.font(.caption).foregroundStyle(Color.muted)}
-                    Text("Capture ends at the section or loop edge. The backing beat keeps playing.").font(.caption).foregroundStyle(Color.muted)
+                    Text("Capture ends at the section or loop edge. The beat plays during capture; microphone setup and finishing may briefly interrupt playback.").font(.caption).foregroundStyle(Color.muted)
                     if synthetic{Text("QA FIXTURE · SYNTHETIC SOURCE").font(.caption.monospaced()).foregroundStyle(Color.harmony)}
                     recordingControls
                     if let result=capture.result{draft(result).disabled(capture.isCapturing || capture.state == .analyzing)}

@@ -8,10 +8,9 @@ concurrency:
 jobs:
   ios:
     if: "!contains(github.event.head_commit.message, '[device-only]')"
-    # Use the independent Intel pool after hosted ARM acquisition failures.
-    # Simulator execution must still pass the same actual functional inventory.
-    # Intel execution remains unverified until this source's actual job passes.
-    runs-on: macos-15-intel
+    # Use the current macOS ARM image after macOS 15 runner acquisition and
+    # Intel Simulator preparation failures. Execution still needs actual PASS.
+    runs-on: macos-26
     # Full main previously executed 52 methods in 30.4 minutes. Allow 60
     # minutes for native execution, retaining each method's original limit.
     # A shared 75-minute job-clock deadline reserves 15 minutes for diagnostics,
@@ -102,24 +101,61 @@ jobs:
       - name: Configure virtual host microphone for native PCM
         run: bash scripts/setup_ci_audio.sh
       - name: Prepare iOS Simulator
+        id: prepare_simulator
         timeout-minutes: 7
         env:
           GRILLA_CAPTURE_SCREENS: '0'
+        run: bash scripts/screenshots.sh
+      - name: Preserve actual Simulator preparation diagnostics
+        if: always()
+        timeout-minutes: 2
+        env:
+          GRILLA_SIMULATOR_PREPARE_OUTCOME: ${{ steps.prepare_simulator.outcome }}
         run: |
-          bash scripts/screenshots.sh
           python3 - <<'PY'
-          import json,pathlib,subprocess
-          path=pathlib.Path('simulator-environment.json');receipt=json.loads(path.read_text())
-          runtimes=json.loads(subprocess.check_output(['xcrun','simctl','list','runtimes','-j'],text=True,timeout=30))
-          devices=json.loads(subprocess.check_output(['xcrun','simctl','list','devices','available','-j'],text=True,timeout=30))
-          target=pathlib.Path('/tmp/grilla-simulator-id').read_text().strip()
-          selected=[(runtime,device) for runtime,items in devices['devices'].items() for device in items if device['udid']==target]
-          if len(selected)!=1:
-              raise SystemExit('The booted Simulator could not be identified in the actual device inventory.')
-          runtime_id,device=selected[0]
-          runtime=next(item for item in runtimes['runtimes'] if item['identifier']==runtime_id)
-          receipt.update(selectedSimulator=device,selectedRuntime=runtime)
+          import datetime,json,os,pathlib,subprocess
+          path=pathlib.Path('simulator-environment.json');errors=[]
+          try:receipt=json.loads(path.read_text()) if path.exists() else {}
+          except (OSError,ValueError) as error:
+              receipt={};errors.append('Existing environment receipt: '+str(error))
+          receipt.update(schemaVersion=1,repository=os.environ['GITHUB_REPOSITORY'],sourceSHA=os.environ['GITHUB_SHA'],
+                         runID=os.environ['GITHUB_RUN_ID'],runAttempt=os.environ['GITHUB_RUN_ATTEMPT'])
+          diagnostics=dict(diagnosticOnly=True,observedAtUTC=datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                           preparationOutcome=os.environ.get('GRILLA_SIMULATOR_PREPARE_OUTCOME'),commands=[],errors=errors)
+          def query(command):
+              result=dict(command=command)
+              try:
+                  completed=subprocess.run(command,text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,timeout=30)
+                  result.update(exitCode=completed.returncode,output=completed.stdout)
+                  if completed.returncode!=0:
+                      errors.append('Simulator inventory command exited '+str(completed.returncode));return None
+                  payload=json.loads(completed.stdout)
+                  if not isinstance(payload,dict):raise ValueError('Simulator inventory is not a JSON object.')
+                  return payload
+              except subprocess.TimeoutExpired as error:
+                  output=error.stdout or b''
+                  result.update(timedOut=True,output=output.decode(errors='replace') if isinstance(output,bytes) else output)
+                  errors.append('Simulator inventory command exceeded 30 seconds');return None
+              except (OSError,ValueError) as error:
+                  result['error']=str(error);errors.append(str(error));return None
+              finally:diagnostics['commands'].append(result)
+          runtimes=query(['xcrun','simctl','list','runtimes','-j'])
+          devices=query(['xcrun','simctl','list','devices','available','-j'])
+          diagnostics.update(runtimeInventory=runtimes,deviceInventory=devices)
+          try:target=pathlib.Path('/tmp/grilla-simulator-id').read_text().strip()
+          except OSError as error:target=None;errors.append('Selected target file: '+str(error))
+          diagnostics['selectedTargetID']=target
+          selected=[(runtime,device) for runtime,items in (devices or {}).get('devices',{}).items() for device in items if device.get('udid')==target]
+          if len(selected)==1:
+              runtime_id,device=selected[0]
+              receipt['selectedSimulator']=device
+              receipt['selectedRuntime']=next((item for item in (runtimes or {}).get('runtimes',[]) if item.get('identifier')==runtime_id),None)
+              if receipt['selectedRuntime'] is None:errors.append('Selected runtime was not observed in the actual runtime inventory.')
+          else:errors.append('Selected target was not uniquely observed in the actual available-device inventory.')
+          receipt['simulatorPreparationDiagnostics']=diagnostics
           path.write_text(json.dumps(receipt,indent=2)+'\n');print(json.dumps(receipt,indent=2))
+          if diagnostics['preparationOutcome']=='success' and errors:
+              raise SystemExit('Preparation succeeded but its actual runtime/device evidence could not be verified.')
           PY
       - name: Native user flows
         id: native_flows

@@ -79,7 +79,7 @@ import Observation
     private func generatedLoopKey(_ id:UUID)->String{lastProjectKey+".generatedLoop."+id.uuidString}
     private func restoreGeneratedLoop(){
         guard let value=UserDefaults.standard.dictionary(forKey:generatedLoopKey(project.id)),let bars=value["bars"] as? Int,(1...64).contains(bars),let enabled=value["enabled"] as? Bool else{return}
-        loopBars=min(bars,max(1,section.length/barTicks));loop=enabled
+        loopBars=min(bars,max(1,(project.length-section.start)/barTicks));loop=enabled
     }
     private func saveGeneratedLoopPreference(){
         let key=generatedLoopKey(project.id)
@@ -93,6 +93,14 @@ import Observation
     }
     private func copyGeneratedLoopPreference(from source:UUID,to copy:UUID){
         if let value=UserDefaults.standard.dictionary(forKey:generatedLoopKey(source)){UserDefaults.standard.set(value,forKey:generatedLoopKey(copy))}
+    }
+    private func initializeImportedListeningPreference(_ imported:Project){
+        let key=generatedLoopKey(imported.id)
+        // Portable decode/installation assigns a new ID. Transport is local UI
+        // state; first playback loops the whole validated imported arrangement.
+        // A source document's existing listening preference is never replaced.
+        guard UserDefaults.standard.dictionary(forKey:key)==nil else{return}
+        UserDefaults.standard.set(["bars":imported.length/barTicks,"enabled":true],forKey:key)
     }
     init() {
         let root:URL
@@ -625,6 +633,7 @@ import Observation
             try await projectChangeBoundary(token,expected:expected,stage:"import.decoded")
             let installed=try await store.install(imported)
             written=installed
+            initializeImportedListeningPreference(installed)
             try await projectChangeBoundary(token,expected:expected,stage:"candidate.saved")
             activateProject(installed,savedRevision:installed.revision)
             await refreshLibraryEntry(installed.id,validated:true)
@@ -691,6 +700,8 @@ import Observation
     /// callback edits. A continuation holds the production transition at an
     /// await boundary; no sleep, fabricated document, audio or PASS is supplied.
     func runProjectChangeQA()async {
+        let arguments=ProcessInfo.processInfo.arguments
+        if projectChangeQAEnabled,let index=arguments.firstIndex(of:"--portable-import-bars"),arguments.indices.contains(index+1),let bars=Int(arguments[index+1]),[8,16].contains(bars){await runPortableImportQA(bars:bars);return}
         guard projectChangeQAEnabled,projectChangeQAReport.isEmpty,projectChangeToken==nil else{return}
         var report:[String:Any]=["complete":false,"hardwareMIDIClaimed":false]
         var fixtureRestore:(URL,Data)?
@@ -797,6 +808,46 @@ import Observation
         }catch{report["error"]=error.localizedDescription}
         projectChangeQAInterleave=nil;message=nil;sheet=nil
         report["complete"]=true
+        if let data=try? JSONSerialization.data(withJSONObject:report,options:.sortedKeys){projectChangeQAReport=String(decoding:data,as:UTF8.self)}
+    }
+    /// An opt-in fixture goes through the real portable encoder and production
+    /// import transaction. XCTest separately relaunches this actual store and
+    /// observes rendered ticks/output; this method supplies no success result.
+    private func runPortableImportQA(bars:Int)async {
+        guard projectChangeQAEnabled,projectChangeQAReport.isEmpty,projectChangeToken==nil else{return}
+        var report:[String:Any]=["kind":"portableImport","requestedBars":bars,"invocation":"Session.importProject","physicalAudioClaimed":false]
+        let file=FileManager.default.temporaryDirectory.appendingPathComponent("Portable-listening-"+UUID().uuidString).appendingPathExtension("grillapack")
+        defer{try? FileManager.default.removeItem(at:file)}
+        do{
+            // Reproduce the former listening context: the current document is
+            // explicitly set to four bars, regardless of the imported length.
+            setLoop(bars:4,enabled:true)
+            let original=project
+            let originalPreference=UserDefaults.standard.dictionary(forKey:generatedLoopKey(original.id)) ?? [:]
+            let blank=Project(name:"Portable listening "+String(bars))
+            var fixture=try SketchComposer.compose(blank,plan:SketchPlan(style:.house,bpm:240,root:2,minor:false,bars:bars,seed:42),scope:blank.sections[0].id)
+            fixture.sections=[MusicDomain.Section(name:"Verse",length:4*barTicks),MusicDomain.Section(name:"Chorus",start:4*barTicks,length:(bars-4)*barTicks)]
+            try fixture.validate()
+            let bytes=try PortableProject.data(fixture)
+            try bytes.write(to:file,options:.atomic)
+            report["beforeLoopBars"]=loopBars
+            await importProject(file)
+            guard project.id != original.id,project.id != fixture.id,project.length==fixture.length else{throw MusicError.invalidProject}
+            let canonical=try await store.load(project.id)
+            let prior=try await store.load(original.id)
+            report["importedID"]=project.id.uuidString;report["archiveID"]=fixture.id.uuidString
+            report["revision"]=project.revision;report["sectionCount"]=project.sections.count
+            report["firstSectionBars"]=project.sections[0].length/barTicks
+            report["totalBars"]=project.length/barTicks;report["loopBars"]=loopBars;report["loopEnabled"]=loop
+            report["rangeStart"]=loopRange.lowerBound;report["rangeEnd"]=loopRange.upperBound;report["rangeCount"]=loopRange.count
+            report["importedMusicMatchesArchive"]=canonical.patterns==fixture.patterns && canonical.tracks==fixture.tracks && canonical.sections==fixture.sections
+            report["sourceMusicUnchanged"]=prior.patterns==original.patterns && prior.tracks==original.tracks && prior.sections==original.sections
+            let after=UserDefaults.standard.dictionary(forKey:generatedLoopKey(original.id)) ?? [:]
+            report["sourcePreferenceUnchanged"]=NSDictionary(dictionary:originalPreference).isEqual(to:after)
+            report["archiveBytesUnchanged"]=try Data(contentsOf:file)==bytes
+            report["compileNoteCount"]=Compiler.notes(canonical).count
+        }catch{report["error"]=error.localizedDescription}
+        message=nil;sheet=nil;report["complete"]=true
         if let data=try? JSONSerialization.data(withJSONObject:report,options:.sortedKeys){projectChangeQAReport=String(decoding:data,as:UTF8.self)}
     }
     /// Emergency MIDI stop must complete even if the current audio route is no

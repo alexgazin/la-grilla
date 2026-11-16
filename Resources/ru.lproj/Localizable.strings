@@ -589,7 +589,7 @@
 "Virtual MIDI destination failed (%d)." = "Ошибка виртуального MIDI-приёмника (%d).";
 "Virtual MIDI source failed (%d)." = "Ошибка виртуального MIDI-источника (%d).";
 "Waiting for the recording start…" = "Ожидание начала записи…";
-"Capture ends at the section or loop edge. The backing beat keeps playing." = "Запись завершится на границе секции или петли. Фоновый бит продолжит играть.";
+"Capture ends at the section or loop edge. The beat plays during capture; microphone setup and finishing may briefly interrupt playback." = "Запись завершится на границе секции или лупа. Во время записи бит играет; подготовка и завершение захвата микрофона могут ненадолго прервать звук.";
 "Recording starts at bar" = "Запись начнётся с такта";
 "Finishing dictation…" = "Завершение диктовки…";
 "Section length" = "Длина секции";

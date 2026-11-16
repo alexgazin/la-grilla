@@ -170,6 +170,55 @@ final class FirstResultTests:XCTestCase {
         let saved=app.descendants(matching:.any).matching(NSPredicate(format:"label == 'Saved on this iPhone'")).firstMatch
         XCTAssertTrue(saved.waitForExistence(timeout:8))
     }
+    @MainActor func testPortableMultisectionImportPlaysWholeArrangementAfterFreshRelaunch()throws {
+        let storeID=UUID().uuidString
+        let app=XCUIApplication()
+        XCUIDevice.shared.orientation = .portrait
+        for bars in [8,16] {
+            app.launchArguments=["--uitesting","--runtime-trace","--device-output-startup","--project-change-probe","--portable-import-bars",String(bars),"--project-store-id",storeID,"-AppleLanguages","(en)","-AppleLocale","en_US"]
+            app.launch()
+            let transport=app.buttons["perform.transport"]
+            XCTAssertTrue(transport.waitForExistence(timeout:15))
+            app.buttons["Projects"].tap()
+            let probe=app.buttons["project.change-probe"]
+            XCTAssertTrue(probe.waitForExistence(timeout:5));reveal(probe,in:app);probe.tap()
+            wait(transport,timeout:20){(transport.value as? String ?? "").contains("PROJECT_CHANGE_QA ")}
+            let trace=try XCTUnwrap(transport.value as? String)
+            let encoded=try XCTUnwrap(trace.components(separatedBy:"\nPROJECT_CHANGE_QA ").last)
+            let report=try XCTUnwrap(JSONSerialization.jsonObject(with:Data(encoded.utf8)) as? [String:Any])
+            XCTAssertNil(report["error"],encoded);XCTAssertEqual(report["kind"] as? String,"portableImport")
+            XCTAssertEqual(report["requestedBars"] as? Int,bars)
+            XCTAssertEqual(report["beforeLoopBars"] as? Int,4)
+            XCTAssertEqual(report["sectionCount"] as? Int,2);XCTAssertEqual(report["firstSectionBars"] as? Int,4)
+            XCTAssertEqual(report["totalBars"] as? Int,bars);XCTAssertEqual(report["loopBars"] as? Int,bars)
+            XCTAssertEqual(report["loopEnabled"] as? Bool,true)
+            XCTAssertEqual(report["rangeStart"] as? Int,0);XCTAssertEqual(report["rangeEnd"] as? Int,bars*3840)
+            XCTAssertEqual(report["rangeCount"] as? Int,bars*3840)
+            XCTAssertGreaterThan(report["compileNoteCount"] as? Int ?? 0,0)
+            for key in ["importedMusicMatchesArchive","sourceMusicUnchanged","sourcePreferenceUnchanged","archiveBytesUnchanged"]{XCTAssertEqual(report[key] as? Bool,true,key+": "+encoded)}
+            let imported=try XCTUnwrap(report["importedID"] as? String)
+            XCTAssertNotEqual(imported,report["archiveID"] as? String)
+            XCTAssertEqual(field("project",in:current(transport)),imported)
+            XCTAssertEqual(field("loopRangeCount",in:current(transport)),String(bars*3840))
+            app.terminate();app.launch()
+            XCTAssertTrue(transport.waitForExistence(timeout:15))
+            XCTAssertEqual(field("project",in:current(transport)),imported)
+            XCTAssertEqual(field("loopBars",in:current(transport)),String(bars))
+            XCTAssertEqual(field("loopRangeStart",in:current(transport)),"0")
+            XCTAssertEqual(field("loopRangeCount",in:current(transport)),String(bars*3840))
+            app.buttons["Play"].tap()
+            wait(transport,timeout:12){
+                let observed=self.current(transport)
+                let tick=Double(self.field("actualTick",in:observed) ?? "") ?? 0
+                let peak=Double(self.field("outputPeak",in:observed) ?? "") ?? 0
+                return observed.contains("engineRunning=true") && observed.contains("actualPlaying=1") && tick>4*3840 && tick<Double(bars*3840) && peak>0.001
+                    && self.field("actualGeneration",in:observed)==self.field("submittedGeneration",in:observed)
+            }
+            keepReport(encoded+"\n"+current(transport),name:"Portable-import-"+String(bars)+"-multisection-reopen-real-output")
+            keepScreenshot("Portable-import-"+String(bars)+"-full-arrangement-playing")
+            app.buttons["Stop"].tap();app.terminate()
+        }
+    }
     @MainActor private func current(_ transport:XCUIElement)->String {
         (transport.value as? String ?? "").components(separatedBy:"\n").first ?? ""
     }

@@ -11,13 +11,13 @@
   iOS 18+ · SwiftUI · нативный звук · RU / EN · без аккаунта
 </p>
 
-<p align="center"><a href="#кандидат-19-в-работе">Экраны</a> · <a href="#возможности-кандидата-19">Возможности</a> · <a href="#попробовать-на-iphone">На iPhone</a> · <a href="docs/release/CURRENT.md">Текущий статус</a> · <a href="ROADMAP.md">Роадмап</a></p>
+<p align="center"><a href="#кандидат-20-в-работе">Экраны</a> · <a href="#возможности-кандидата-20">Возможности</a> · <a href="#попробовать-на-iphone">На iPhone</a> · <a href="docs/release/CURRENT.md">Текущий статус</a> · <a href="ROADMAP.md">Роадмап</a></p>
 
-**Статус — функциональная альфа.** Кандидат **1.0.0 (19), schema 10** добавляет редактируемые локальные скетчи, нотацию, транспонирование и доработку первого музыкального результата. **[Скачать тестовую IPA 19](https://github.com/alexgazin/la-grilla/raw/refs/heads/main/Builds/Testing/LaGrilla-1.0.0-19-unsigned.ipa)** — свежая native-приёмка остаётся открытой. Исходники 19 находятся в [PR #21](https://github.com/alexgazin/la-grilla/pull/21); основной код `main` пока остаётся 17. Точные версии, CI и ограничения собраны в [CURRENT](docs/release/CURRENT.md).
+**Статус — функциональная альфа.** Кандидат **1.0.0 (20), schema 10** добавляет редактируемые локальные скетчи, нотацию, транспонирование и доработку первого музыкального результата. **[Скачать тестовую IPA 19](https://github.com/alexgazin/la-grilla/raw/refs/heads/main/Builds/Testing/LaGrilla-1.0.0-19-unsigned.ipa)** — свежая native-приёмка остаётся открытой. Исходники 20 находятся в [PR #21](https://github.com/alexgazin/la-grilla/pull/21); основной код `main` пока остаётся 17. Точные версии, CI и ограничения собраны в [CURRENT](docs/release/CURRENT.md).
 
-## Кандидат 19 в работе
+## Кандидат 20 в работе
 
-Шесть оригинальных кадров работающего **iPhone 16 Pro Max Simulator**. Нажмите на экран, чтобы открыть полный PNG.
+Шесть оригинальных кадров сборки19 на работающем **iPhone 16 Pro Max Simulator**; сборка20 сохраняет этот интерфейс и исправляет импортированный диапазон воспроизведения. Нажмите на экран, чтобы открыть полный PNG.
 
 <table>
   <tr>
@@ -34,7 +34,7 @@
 
 Кадры — **source `f005854`, сборка 19, schema 10**, [run 43890521487](https://github.com/alexgazin/la-grilla/actions/runs/43890521487): **13 PASS / 2 assertion FAIL / 0 timeout**. Все шесть выбранных PNG относятся к прошедшим методам; весь прогон не принят, два падения транспонирования сохранены в отчёте. Оригинальные пиксели не изменены. [Происхождение и пределы каждого кадра](Screenshots/AuditImprovements/README.md) · [Манифест и SHA-256](Screenshots/AuditImprovements/manifest.json).
 
-## Возможности кандидата 19
+## Возможности кандидата 20
 
 | Часть студии | Текущая реализация |
 | --- | --- |
@@ -53,13 +53,13 @@
 
 **[Скачать последнюю IPA · La Grilla 1.0.0 (19), 3.4 MiB](https://github.com/alexgazin/la-grilla/raw/refs/heads/main/Builds/Testing/LaGrilla-1.0.0-19-unsigned.ipa)** — тестовый кандидат из source `4e85930`: Debug и Release archive прошли, полная native-приёмка ещё открыта. Это неподписанная IPA для подписи своим Apple ID через [Sideloadly](https://sideloadly.io/) на Mac или Windows. Бесплатная Personal Team подходит; подпись обычно обновляется раз в семь дней. [Инструкция, receipt, хеши и предыдущая IPA 17](Builds/Testing/README.md).
 
-Для сборки **19** из исходников нужны Mac, iPhone с iOS 18+ и Xcode 26.3+:
+Для сборки **20** из исходников нужны Mac, iPhone с iOS 18+ и Xcode 26.3+:
 
 1. Открыть ветку кандидата из [PR #21](https://github.com/alexgazin/la-grilla/pull/21) и [`LaGrilla.xcodeproj`](LaGrilla.xcodeproj).
 2. Выбрать свою **Personal Team** в **Signing & Capabilities**, включив automatic signing.
 3. Подключить iPhone, подтвердить Trust/Developer Mode и нажать **Run**.
 
-Перед обновлением экспортируйте важные проекты в portable bundle. Проекты кандидата 19 используют **schema 10**: он читает 1…9, а старые приложения не откроют сохранённую schema 10. Версия скачиваемой IPA указана выше; код кандидата и его приёмка — в [CURRENT](docs/release/CURRENT.md). [Подробно про Xcode и установку](docs/DEVELOPMENT.md#run-on-your-own-iphone).
+Перед обновлением экспортируйте важные проекты в portable bundle. Проекты кандидата 20 используют **schema 10**: он читает 1…9, а старые приложения не откроют сохранённую schema 10. Последняя опубликованная IPA пока19; перед публикацией20 требуется его собственная проверка. Код кандидата и его приёмка — в [CURRENT](docs/release/CURRENT.md). [Подробно про Xcode и установку](docs/DEVELOPMENT.md#run-on-your-own-iphone).
 
 ## Настоящее видео работы · сборка 15
 
@@ -71,7 +71,7 @@
 
 ## Готовность и дальнейшая работа
 
-Ближайший рубеж — закрыть software gate кандидата 19 и повторить пользовательский сценарий на установленном iPhone: звук, разрешённая диктовка, повторная запись/Stop, сохранение, открытие и экспорт. Реальные аудиомаршруты, USB/BLE MIDI, 30-минутные сессии, человеческий напев, FoundationModels и импорт в две DAW остаются отдельной аппаратной приёмкой. Приложение пока не опубликовано в App Store; distribution signing, TestFlight и App Review впереди.
+Ближайший рубеж — закрыть software gate кандидата 20 и повторить пользовательский сценарий на установленном iPhone: звук, разрешённая диктовка, повторная запись/Stop, сохранение, открытие и экспорт. Реальные аудиомаршруты, USB/BLE MIDI, 30-минутные сессии, человеческий напев, FoundationModels и импорт в две DAW остаются отдельной аппаратной приёмкой. Приложение пока не опубликовано в App Store; distribution signing, TestFlight и App Review впереди.
 
 [Текущие доказательства и ограничения](docs/release/CURRENT.md) · [Роадмап](ROADMAP.md) · [34 замечания и план аудитов](docs/review/2026-11-16/PLAN.md) · [Отчёт по реализации](docs/review/2026-11-16/IMPLEMENTATION.md) · [Журнал разработки](docs/IMPLEMENTATION_LOG.md).
 

@@ -587,7 +587,7 @@
 "Virtual MIDI destination failed (%d)." = "Virtual MIDI destination failed (%d).";
 "Virtual MIDI source failed (%d)." = "Virtual MIDI source failed (%d).";
 "Waiting for the recording start…" = "Waiting for the recording start…";
-"Capture ends at the section or loop edge. The backing beat keeps playing." = "Capture ends at the section or loop edge. The backing beat keeps playing.";
+"Capture ends at the section or loop edge. The beat plays during capture; microphone setup and finishing may briefly interrupt playback." = "Capture ends at the section or loop edge. The beat plays during capture; microphone setup and finishing may briefly interrupt playback.";
 "Recording starts at bar" = "Recording starts at bar";
 "Finishing dictation…" = "Finishing dictation…";
 "Section length" = "Section length";

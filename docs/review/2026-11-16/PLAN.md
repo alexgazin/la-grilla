@@ -4,7 +4,7 @@
 Эти четыре отчёта сохраняются как независимые исходные срезы. Здесь объединены повторяющиеся находки и записано, что сделано после аудита, что требует проверки и что ещё предстоит реализовать.
 
 **Направление продукта:** карманная студия для собственного редактируемого музыкального скетча: гармония → бит/бас/мелодия → живое исполнение → сохранение и перенос в DAW. Помощник ускоряет музыкальные действия, а автор сохраняет контроль через review, A/B и Undo.
-**Текущее положение:** в main интегрирован кандидат 17 с семью пройденными recovery-сценариями. Последняя [IPA для тестировщика — 19](../../../Builds/Testing/README.md), unsigned test candidate из `4e85930`, без полной native/physical приёмки. Следующий пакет — **1.0.0 (19), schema 10**, app source `0ed624a`; предыдущий test/CI source `4e85930`, [PR #21](https://github.com/alexgazin/la-grilla/pull/21). Он реализует также новые скетчи и сохранение написания аккордов. Полная нативная приёмка 19 и App Store release-ready пока не объявлены. [Детальный результат исполнения](IMPLEMENTATION.md).
+**Текущее положение:** в main интегрирован кандидат 17 с семью пройденными recovery-сценариями. Последняя [IPA для тестировщика — 19](../../../Builds/Testing/README.md), unsigned test candidate из `4e85930`, без полной native/physical приёмки. Следующий пакет — **1.0.0 (20), schema10** с portable-import range regression; предыдущий test/CI source `a61b8a5` относится к19, [PR #21](https://github.com/alexgazin/la-grilla/pull/21). Он реализует также новые скетчи и сохранение написания аккордов. Полная нативная приёмка20 и App Store release-ready пока не объявлены. [Детальный результат исполнения](IMPLEMENTATION.md).
 
 ## Как читать статусы
 
@@ -166,3 +166,5 @@ Personal Team достаточно для локальной установки 
 Пока внешний device/model/DAW/signing gate недоступен, команда продолжает независимую реализацию и проверку следующих разрешённых задач. Статус этого gate остаётся Pending; ожидание не превращается в успешный результат.
 
 Последующий focused 19 `4e85930` / [43906210190](https://github.com/alexgazin/la-grilla/actions/runs/43906210190): **14 PASS / 1 assertion FAIL / 1 allowance timeout**. Transpose/live/store прошёл; исправляются обрезанное snapshot value и нативный menu activation point. Полный ARM job не получил runner до исполнения; единственный адресный retry также не получил hosted runner до исполнения. IPA 19 опубликована отдельно как unsigned test candidate, без полной software/physical приёмки.
+
+В20 закрываются ещё два конкретных остатка прежнего scope: A02/PM06 — truthfulcapture guide, W6/W10 — первый portable-import/full listeningrange иfreshreopen. [Политика](../../../docs/PORTABLE_LISTENING.md); новый120s nativecase добавлен к **17 focused/65 functional**, Pending. Новых жанров, форматов и дополнительных roadmap-экранов в этот фикс не включено.
