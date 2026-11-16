@@ -32,6 +32,7 @@ final class SplashScreenTests: XCTestCase {
                                            reduceMotionRequired: variant.flags.contains("--splash-reduce-motion"))
             let state = try previewState(status)
             XCTAssertTrue(state.qaPreview)
+            XCTAssertEqual(state.qaReduceMotionOverride, variant.flags.contains("--splash-reduce-motion"))
             XCTAssertTrue(state.bootstrapReady, "The preview holds presentation after actual bootstrap; it must not delay bootstrap work")
             XCTAssertTrue(app.staticTexts["splash.brand"].isHittable)
             XCTAssertTrue(status.isHittable)
@@ -43,6 +44,8 @@ final class SplashScreenTests: XCTestCase {
             observations.append([
                 "name": variant.name, "qaPreview": true, "realBootstrapReady": state.bootstrapReady,
                 "appearance": state.appearance, "reduceMotion": state.reduceMotion,
+                "systemReduceMotion": state.systemReduceMotion,
+                "qaReduceMotionOverride": state.qaReduceMotionOverride,
                 "largeType": state.largeType, "uiLanguage": variant.language,
                 "bootstrapLatencyMeasured": false
             ])
@@ -61,8 +64,10 @@ final class SplashScreenTests: XCTestCase {
 
         app.launchArguments = arguments(store: store, appearance: "dark", language: "en") + ["--respect-welcome"]
         app.launch()
-        XCTAssertTrue(app.buttons["perform.transport"].waitForExistence(timeout: 15))
-        XCTAssertFalse(app.staticTexts["welcome.title"].exists)
+        let transport = app.buttons["perform.transport"]
+        XCTAssertTrue(transport.waitForExistence(timeout: 15))
+        XCTAssertFalse(app.staticTexts["welcome.title"].waitForExistence(timeout: 2))
+        XCTAssertTrue(transport.isHittable)
         XCTAssertFalse(app.staticTexts["splash.status"].exists)
         let receipt: [String: Any] = [
             "previews": observations, "realNormalLaunchReachedStudio": true,
@@ -81,6 +86,8 @@ final class SplashScreenTests: XCTestCase {
         let bootstrapReady: Bool
         let appearance: String
         let reduceMotion: Bool
+        let systemReduceMotion: Bool
+        let qaReduceMotionOverride: Bool
         let largeType: Bool
     }
 

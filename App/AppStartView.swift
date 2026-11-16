@@ -29,8 +29,8 @@ struct AppStartView: View {
                 StudioView(session: session)
                     .transition(.opacity)
             } else {
-                LoadingSplashView(bootstrapReady: session.ready, qaPreview: splashPreview)
-                    .environment(\.accessibilityReduceMotion, reduceMotion || previewReducesMotion)
+                LoadingSplashView(bootstrapReady: session.ready, qaPreview: splashPreview,
+                                  qaReduceMotion: previewReducesMotion)
                     .transition(.opacity)
             }
         }
@@ -62,10 +62,13 @@ struct AppStartView: View {
 private struct LoadingSplashView: View {
     let bootstrapReady: Bool
     let qaPreview: Bool
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    let qaReduceMotion: Bool
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.dynamicTypeSize) private var typeSize
     @State private var scanning = false
+
+    private var reduceMotion: Bool { systemReduceMotion || (qaPreview && qaReduceMotion) }
 
     var body: some View {
         GeometryReader { geometry in
@@ -78,7 +81,7 @@ private struct LoadingSplashView: View {
                     .frame(width: 280, height: 280)
                     .position(x: geometry.size.width / 2, y: centerY)
                 VStack(spacing: 22) {
-                    SplashStudioMark(scanning: scanning && !reduceMotion)
+                    SplashStudioMark(scanning: scanning, reduceMotion: reduceMotion)
                         .frame(width: 96, height: 96)
                     Text(verbatim: "La Grilla")
                         .font(.largeTitle.weight(.semibold))
@@ -150,6 +153,8 @@ private struct LoadingSplashView: View {
         let state = SplashPreviewState(qaPreview: true, bootstrapReady: bootstrapReady,
                                        appearance: colorScheme == .dark ? "dark" : "light",
                                        reduceMotion: reduceMotion,
+                                       systemReduceMotion: systemReduceMotion,
+                                       qaReduceMotionOverride: qaPreview && qaReduceMotion,
                                        largeType: typeSize.isAccessibilitySize)
         guard let data = try? JSONEncoder().encode(state) else { return "" }
         return String(decoding: data, as: UTF8.self)
@@ -160,13 +165,15 @@ private struct LoadingSplashView: View {
         let bootstrapReady: Bool
         let appearance: String
         let reduceMotion: Bool
+        let systemReduceMotion: Bool
+        let qaReduceMotionOverride: Bool
         let largeType: Bool
     }
 }
 
 private struct SplashStudioMark: View {
     let scanning: Bool
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    let reduceMotion: Bool
 
     var body: some View {
         ZStack(alignment: .topLeading) {
