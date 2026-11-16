@@ -277,64 +277,108 @@ final class TranspositionUITests:XCTestCase {
     private func field(_ key:String,in report:String)->String?{report.split(separator:" ").first(where:{$0.hasPrefix(key+"=")}).map{String($0.dropFirst(key.count+1))}}
     @MainActor private func reveal(_ element:XCUIElement,in app:XCUIApplication,up:Bool=true){
         func finiteFrame(_ frame:CGRect)->Bool{!frame.isEmpty && [frame.minX,frame.minY,frame.maxX,frame.maxY].allSatisfy{$0.isFinite}}
-        guard element.exists,!element.identifier.isEmpty else{XCTFail("A native control must expose its stable identifier before revealing it");return}
-        let identifier=element.identifier
-        for _ in 0..<7{
-            guard element.exists,element.identifier==identifier else{XCTFail("The same native control must remain present while revealing it: "+identifier);return}
-            // The notation failure swiped the background Grid while Apply
-            // already fit in its own editor. Only a target-owning viewport
-            // can establish visibility or receive a reveal gesture.
-            var owners:[(XCUIElement,CGRect)]=[]
-            // Resolve the lazy, target-scoped queries in native type order.
-            // A Form-owned control needs no table or scroll-view query.
-            for query in [app.collectionViews.containing(.any,identifier:identifier),app.tables.containing(.any,identifier:identifier),app.scrollViews.containing(.any,identifier:identifier)] {
-                let candidates=query.allElementsBoundByIndex.compactMap{candidate->(XCUIElement,CGRect)? in
-                    guard candidate.exists else{return nil}
-                    let frame=candidate.frame
-                    return finiteFrame(frame) ? (candidate,frame):nil
+        guard let initial=try? element.snapshot(),!initial.identifier.isEmpty else{XCTFail("A native control must expose its stable identifier before revealing it");return}
+        let identifier=initial.identifier,targetType=initial.elementType
+        let scrollTypes:[XCUIElement.ElementType]=[.collectionView,.table,.scrollView]
+        struct Geometry {
+            let targetFrame:CGRect
+            let ownerFrame:CGRect
+            let ownerType:XCUIElement.ElementType
+            let ownerIdentifier:String
+            let ownerPath:[Int]
+            let appFrame:CGRect
+            let windowFrame:CGRect
+            let source:String
+        }
+        func ownerQuery(_ type:XCUIElement.ElementType)->XCUIElementQuery {
+            app.descendants(matching:type).containing(.any,identifier:identifier)
+        }
+        func geometry(in root:any XCUIElementSnapshot)->Geometry? {
+            var pending:[(node:any XCUIElementSnapshot,ancestors:[any XCUIElementSnapshot],path:[Int])]=[(root,[],[])]
+            var matches=0,found:Geometry?
+            while let entry=pending.popLast(){
+                let node=entry.node
+                if node.identifier==identifier && node.elementType==targetType {
+                    matches+=1
+                    if let index=entry.ancestors.lastIndex(where:{scrollTypes.contains($0.elementType)}) {
+                        let owner=entry.ancestors[index]
+                        found=Geometry(targetFrame:node.frame,ownerFrame:owner.frame,ownerType:owner.elementType,ownerIdentifier:owner.identifier,ownerPath:Array(entry.path.prefix(index)),appFrame:root.frame,windowFrame:entry.ancestors.last(where:{$0.elementType == .window})?.frame ?? root.frame,source:"one-app-snapshot")
+                    }
                 }
-                if !candidates.isEmpty {
-                    owners=candidates.sorted{$0.1.width*$0.1.height < $1.1.width*$1.1.height}
-                    break
+                for (index,child) in node.children.enumerated(){
+                    pending.append((child,entry.ancestors+[node],entry.path+[index]))
                 }
             }
-            guard let (scroll,scrollFrame)=owners.first,finiteFrame(app.frame) else{
-                keepReport("target.exists=\(element.exists), target.hittable=\(element.isHittable), finiteOwningCandidates=\(owners.count)\n"+app.debugDescription,name:"Audit-native-reveal-owner-failure-"+identifier)
+            return matches==1 ? found:nil
+        }
+        var lastObservation=""
+        for _ in 0..<7{
+            let began=ProcessInfo.processInfo.systemUptime
+            // One public AX hierarchy supplies the target and its actual
+            // nearest scroll ancestor, window and frames at the same instant.
+            // Do not infer a viewport from an unrelated background scroll view.
+            let root=try? app.snapshot()
+            var observed=root.flatMap{geometry(in:$0)}
+            var scroll:XCUIElement?
+            if observed==nil {
+                // An absent/ambiguous snapshot keeps the target-scoped native
+                // query fallback, in its existing collection/table/scroll order.
+                guard element.exists,element.identifier==identifier,element.elementType==targetType else{XCTFail("The same native control must remain present while revealing it: "+identifier);return}
+                var owners:[(XCUIElement,any XCUIElementSnapshot)]=[]
+                for type in scrollTypes {
+                    let candidates=ownerQuery(type).allElementsBoundByIndex.compactMap{candidate->(XCUIElement,any XCUIElementSnapshot)? in
+                        guard let snapshot=try? candidate.snapshot(),finiteFrame(snapshot.frame) else{return nil}
+                        return (candidate,snapshot)
+                    }
+                    if !candidates.isEmpty {
+                        owners=candidates.sorted{$0.1.frame.width*$0.1.frame.height < $1.1.frame.width*$1.1.frame.height}
+                        break
+                    }
+                }
+                guard let (owner,snapshot)=owners.first else{
+                    keepReport("target.exists=\(element.exists), target.hittable=\(element.isHittable), finiteOwningCandidates=\(owners.count)\n"+app.debugDescription,name:"Audit-native-reveal-owner-failure-"+identifier)
+                    XCTFail("A real scroll container must own the native control: "+identifier);return
+                }
+                let appFrame=root?.frame ?? app.frame
+                observed=Geometry(targetFrame:element.frame,ownerFrame:snapshot.frame,ownerType:snapshot.elementType,ownerIdentifier:snapshot.identifier,ownerPath:[],appFrame:appFrame,windowFrame:appFrame,source:"target-containing-query-fallback")
+                scroll=owner
+            }
+            guard let observed,finiteFrame(observed.ownerFrame),finiteFrame(observed.appFrame),finiteFrame(observed.windowFrame) else{
+                keepReport("Stable target=\(identifier), snapshotOwner=\(String(describing:observed))\n"+app.debugDescription,name:"Audit-native-reveal-owner-failure-"+identifier)
                 XCTFail("A real scroll container must own the native control: "+identifier);return
             }
-            // The source19 recording and synthesized event show that XCTest
-            // called the offscreen key picker hittable, then tapped y=947.98
-            // on a 956pt screen. Expose the whole actual Form control before
-            // tapping, keeping it clear of the sheet/home-indicator boundary.
-            let visible=scrollFrame.intersection(app.frame.insetBy(dx:0,dy:44))
+            // Keep the whole native control clear of sheet/home-indicator
+            // boundaries, even when XCTest reports an offscreen row hittable.
+            let visible=observed.ownerFrame.intersection(observed.appFrame.insetBy(dx:0,dy:44)).intersection(observed.windowFrame)
             guard finiteFrame(visible) else{XCTFail("The native control's owning scroll container must have a finite visible viewport: "+identifier);return}
+            let targetHittable=element.isHittable
+            lastObservation="sampleUptime=\(began)...\(ProcessInfo.processInfo.systemUptime), source=\(observed.source), target.identifier=\(identifier), target.type=\(targetType.rawValue), owner.type=\(observed.ownerType.rawValue), owner.identifier=\(observed.ownerIdentifier), owner.path=\(observed.ownerPath), owner.snapshotFrame=\(observed.ownerFrame), app.snapshotFrame=\(observed.appFrame), window.snapshotFrame=\(observed.windowFrame), visible=\(visible), target.hittable=\(targetHittable), target.snapshotFrame=\(observed.targetFrame)"
             if !recordedRevealOwner {
-                // One bounded normal owner receipt per test retains the proof
-                // without repeating diagnostic AX work for every reveal.
-                // One immutable owner hierarchy supplies both snapshot frames.
-                // Hittability is sampled separately through the public live API;
-                // a scroll container needs no activation point to reveal a child.
-                let began=ProcessInfo.processInfo.systemUptime
-                let ownerExists=scroll.exists,targetExists=element.exists
-                let ownerHittable=scroll.isHittable,targetHittable=element.isHittable
-                let observed=try? scroll.snapshot()
-                var pending:[any XCUIElementSnapshot]=observed.map{[$0]} ?? []
-                var targetFrame:CGRect?
-                while let node=pending.popLast(){
-                    if node.identifier==identifier{targetFrame=node.frame;break}
-                    pending.append(contentsOf:node.children)
-                }
-                keepReport("sampleUptime=\(began)...\(ProcessInfo.processInfo.systemUptime), owner.exists=\(ownerExists), owner.hittable=\(ownerHittable), owner.snapshotFrame=\(String(describing:observed?.frame)), owner.selectionFrame=\(scrollFrame), visible=\(visible), target.exists=\(targetExists), target.hittable=\(targetHittable), target.snapshotFrame=\(String(describing:targetFrame))",name:"Audit-native-reveal-owner-selection-"+identifier)
+                keepReport(lastObservation,name:"Audit-native-reveal-owner-selection-"+identifier)
                 recordedRevealOwner=true
             }
-            if element.exists{
-                let frame=element.frame
-                if element.isHittable && finiteFrame(frame) && visible.contains(frame){return}
-                if finiteFrame(frame) && frame.maxY>visible.maxY{scroll.swipeUp();continue}
-                if finiteFrame(frame) && frame.minY<visible.minY{scroll.swipeDown();continue}
+            let frame=observed.targetFrame
+            if targetHittable && finiteFrame(frame) && visible.contains(frame){return}
+            if scroll==nil {
+                // Only a needed scroll resolves a live container. Its scoped
+                // ancestry, native type and measured frame must still agree
+                // with the coherent hierarchy before it receives a gesture.
+                let matches=ownerQuery(observed.ownerType).allElementsBoundByIndex.filter{candidate in
+                    guard let snapshot=try? candidate.snapshot() else{return false}
+                    return snapshot.elementType==observed.ownerType && snapshot.identifier==observed.ownerIdentifier && snapshot.frame==observed.ownerFrame
+                }
+                guard matches.count==1 else{
+                    lastObservation+="; liveOwnerFrameMatches=\(matches.count)"
+                    continue
+                }
+                scroll=matches[0]
             }
+            guard let scroll else{XCTFail("A real scroll container must own the native control: "+identifier);return}
+            if finiteFrame(frame) && frame.maxY>visible.maxY{scroll.swipeUp();continue}
+            if finiteFrame(frame) && frame.minY<visible.minY{scroll.swipeDown();continue}
             if up{scroll.swipeUp()}else{scroll.swipeDown()}
         }
+        keepReport(lastObservation+"\n"+app.debugDescription,name:"Audit-native-reveal-owner-failure-"+identifier)
         XCTFail("A real native control must be wholly visible inside the native Form: \(element.debugDescription)")
     }
     @MainActor private func wait(_ element:XCUIElement,timeout:TimeInterval=5,condition:()->Bool){

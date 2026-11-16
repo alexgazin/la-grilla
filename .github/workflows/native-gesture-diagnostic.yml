@@ -25,7 +25,7 @@ jobs:
               output.write(f'GRILLA_GESTURE_DEADLINE_EPOCH={time.time()+21*60}\n')
           PY
       - uses: actions/checkout@v4
-      - name: Verify exact official ARM toolchain and source provenance
+      - name: Verify exact official native toolchain and source provenance
         timeout-minutes: 2
         run: |
           python3 - <<'PY'
@@ -37,15 +37,19 @@ jobs:
                        repository=os.environ['GITHUB_REPOSITORY'],sourceSHA=os.environ['GITHUB_SHA'],
                        checkoutSHA=output(['git','rev-parse','HEAD']),
                        runID=os.environ['GITHUB_RUN_ID'],runAttempt=os.environ['GITHUB_RUN_ATTEMPT'],
+                       runnerArchitecture=os.environ.get('RUNNER_ARCH'),
                        recordedAtUTC=datetime.datetime.now(datetime.timezone.utc).isoformat(),
                        hostWallClockNanoseconds=time.time_ns(),hostMonotonicNanoseconds=time.monotonic_ns(),
                        architecture=output(['uname','-m']),xcode=output(['xcodebuild','-version']),
                        simulatorSDK=output(['xcrun','--sdk','iphonesimulator','--show-sdk-version']))
           pathlib.Path('gesture-source.json').write_text(json.dumps(receipt,indent=2)+'\n')
           assert receipt['checkoutSHA']==receipt['sourceSHA'],receipt
-          assert receipt['architecture']=='arm64',receipt
+          nativePairs={'arm64':'ARM64','x86_64':'X64'}
+          assert receipt['architecture'] in nativePairs and receipt['runnerArchitecture']==nativePairs[receipt['architecture']],receipt
           assert receipt['xcode'].splitlines()[0]=='Xcode 26.3',receipt
           assert receipt['simulatorSDK']=='26.2',receipt
+          with open(os.environ['GITHUB_ENV'],'a') as output:
+              output.write('GRILLA_GESTURE_ARCH='+receipt['architecture']+'\n')
           PY
       - name: Compile the actual unchanged native test inventory
         timeout-minutes: 10
@@ -53,7 +57,10 @@ jobs:
           set -o pipefail
           python3 scripts/generate_project.py
           git diff --exit-code -- LaGrilla.xcodeproj
-          xcodebuild -project LaGrilla.xcodeproj -scheme LaGrilla -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' ARCHS=arm64 ONLY_ACTIVE_ARCH=YES -configuration Debug -derivedDataPath DerivedData CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO build-for-testing 2>&1 | tee gesture-build.log
+          xcodebuild -project LaGrilla.xcodeproj -scheme LaGrilla -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' ARCHS="$GRILLA_GESTURE_ARCH" ONLY_ACTIVE_ARCH=YES -configuration Debug -derivedDataPath DerivedData CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO build-for-testing 2>&1 | tee gesture-build.log
+          for GRILLA_GESTURE_BINARY in DerivedData/Build/Products/Debug-iphonesimulator/LaGrilla.app/LaGrilla DerivedData/Build/Products/Debug-iphonesimulator/LaGrilla.app/LaGrilla.debug.dylib; do
+            xcrun lipo -verify_arch "$GRILLA_GESTURE_ARCH" "$GRILLA_GESTURE_BINARY"
+          done
       - name: Configure actual host HAL loopback
         timeout-minutes: 5
         run: bash scripts/setup_ci_audio.sh
@@ -67,7 +74,7 @@ jobs:
       - name: Discover and verify actual Simulator DragUI readiness
         id: drag_readiness
         continue-on-error: true
-        timeout-minutes: 1
+        timeout-minutes: 2
         run: |
           GRILLA_GESTURE_DEVICE=$(cat /tmp/grilla-simulator-id)
           python3 scripts/ci/prepare_simulator_drag_service.py --device "$GRILLA_GESTURE_DEVICE" --start-confirmed-system-app --start-confirmed-daemon
@@ -96,7 +103,7 @@ jobs:
             "${GRILLA_GESTURE_DRAG[@]}" \
             -only-testing:LaGrillaUITests/TranspositionUITests/testFlatsAndScaleDegreesPersistWithoutNotationChangingMusic \
             -test-timeouts-enabled YES -maximum-test-execution-time-allowance 120 \
-            ARCHS=arm64 ONLY_ACTIVE_ARCH=YES CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO test-without-building
+            ARCHS="$GRILLA_GESTURE_ARCH" ONLY_ACTIVE_ARCH=YES CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO test-without-building
       - name: Export original native attachments
         if: always()
         timeout-minutes: 2

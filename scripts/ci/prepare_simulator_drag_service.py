@@ -62,7 +62,7 @@ def discover(root, deadline):
             continue
         for candidate in directory.rglob("*.plist"):
             if time.monotonic() >= deadline:
-                raise NotReady("The 30-second readiness deadline expired during discovery.")
+                raise NotReady("The service-readiness deadline expired during discovery.")
             path = contained(candidate, root)
             if path in visited:
                 continue
@@ -140,11 +140,15 @@ def prepare(arguments):
     if receipt.exists():
         raise NotReady("Refusing to overwrite an existing readiness receipt.")
     started = time.monotonic()
-    deadline = started + 30
+    overall_deadline = started + 90
+    # Reserve the existing <=1.5-second owned-stream cleanup inside the total.
+    deadline = overall_deadline - 1.5
     state = dict(schemaVersion=1, diagnosticOnly=True, ready=False, status="starting", startedAtUTC=now(),
                  repository=os.environ.get("GITHUB_REPOSITORY"), sourceSHA=os.environ.get("GITHUB_SHA"),
                  runID=os.environ.get("GITHUB_RUN_ID"), runAttempt=os.environ.get("GITHUB_RUN_ATTEMPT"),
-                 deviceID=arguments.device, deadlineSeconds=30, normalSystemAppLaunchAuthorized=arguments.start_confirmed_system_app,
+                 deviceID=arguments.device, deadlineSeconds=90, overallDeadlineSeconds=90,
+                 metadataQueryLimitSeconds=30, serviceDeadlineSeconds=30, phase="runtime-inventory",
+                 normalSystemAppLaunchAuthorized=arguments.start_confirmed_system_app,
                  normalDaemonStartAuthorized=bool(getattr(arguments, "start_confirmed_daemon", False)),
                  commands={}, mutations=[], acceptance="No native, physical-device or release acceptance claimed")
     stream = stream_output = None
@@ -153,7 +157,7 @@ def prepare(arguments):
     def command(name, argv, limit=6):
         remaining = deadline - time.monotonic()
         if remaining <= 0:
-            raise NotReady("The 30-second readiness deadline expired.")
+            raise NotReady("The readiness phase or overall initialization deadline expired.")
         result = dict(command=argv, startedAtUTC=now())
         raw = b""
         try:
@@ -186,8 +190,14 @@ def prepare(arguments):
         state["sourceSHA"] = head
         # CoreSimulator/xcrun startup is shared. Concurrent inventory requests
         # stalled on c29, while this same VM's sequential requests succeeded.
-        devices = json.loads(command("devices.json", ["xcrun", "simctl", "list", "devices", "available", "--json"], 12))
-        runtimes = json.loads(command("runtimes.json", ["xcrun", "simctl", "list", "runtimes", "--json"], 6))
+        devices = json.loads(command("devices.json", ["xcrun", "simctl", "list", "devices", "available", "--json"], 30))
+        runtimes = json.loads(command("runtimes.json", ["xcrun", "simctl", "list", "runtimes", "--json"], 30))
+        # Inventory initializes CoreSimulator; only then budget service startup.
+        # Each phase remains subordinate to the hard overall initialization cap.
+        service_started = time.monotonic()
+        deadline = min(service_started + 30, overall_deadline - 1.5)
+        state.update(phase="service-readiness", serviceStartedAtUTC=now(),
+                     effectiveServiceBudgetSeconds=max(0, deadline - service_started))
         selected = [(runtime, device) for runtime, items in devices["devices"].items() for device in items if device["udid"] == arguments.device]
         if len(selected) != 1 or selected[0][1].get("state") != "Booted":
             raise NotReady("The exact selected Simulator is not uniquely observed Booted.")
