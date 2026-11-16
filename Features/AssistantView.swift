@@ -4,7 +4,6 @@ import AVFoundation
 
 struct AssistantView:View {
     @Bindable var session:Session
-    @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var phase
     @FocusState private var focused:Bool
     @State private var input=""
@@ -56,7 +55,7 @@ struct AssistantView:View {
                     if let proposal,let candidate,let proposalSource{review(proposal,source:proposalSource,candidate:candidate)}
                 }.padding(18)
             }.accessibilityIdentifier("assistant.review-scroll").scrollDismissesKeyboard(.interactively).background(Color.ink).navigationTitle("Assistant").navigationBarTitleDisplayMode(.inline)
-                .toolbar{ToolbarItem(placement:.cancellationAction){Button("Cancel"){dismiss()}}}
+                .toolbar{ToolbarItem(placement:.cancellationAction){Button("Cancel"){closeEditor()}}}
         }.tint(.mint)
         .sheet(isPresented:$showExamples){AssistantExamplesView(language:language){text,requiresAI in input=text;if requiresAI{mode = .onDeviceAI};showExamples=false}}
         .onChange(of:dictation.text){_,value in if !value.isEmpty{input=value}}
@@ -143,11 +142,17 @@ struct AssistantView:View {
         }
     }
     func cancelGeneration(){generationID+=1;generationTask?.cancel();generationTask=nil;timeoutTask?.cancel();timeoutTask=nil}
+    private func closeEditor(){
+        // Studio owns this editor's presentation. After changing mode or
+        // removing a proposal, the environment dismiss action can leave the
+        // Assistant covering Grid; close the authoritative presentation item.
+        session.sheet=nil
+    }
     func apply(_ proposal:AssistantProposal){
         do{_ = try proposal.candidate(for:session.project)}catch{self.error=error.localizedDescription;return}
         session.endHarmonyPreview();session.finishTake();let revision=session.project.revision
         session.edit{try proposal.apply(to:&$0)}
-        if session.project.revision>revision{if let section=session.project.sections.first(where:{$0.id==proposal.scopeSectionID}){session.select(section)};dismiss()}
+        if session.project.revision>revision{if let section=session.project.sections.first(where:{$0.id==proposal.scopeSectionID}){session.select(section)};closeEditor()}
     }
     func toggleDictation(){
         focused=false
