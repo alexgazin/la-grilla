@@ -16,7 +16,7 @@
 
 Исторические результаты сохраняют собственные источники. `5adbadb` / build 17: [focused 7](https://github.com/alexgazin/la-grilla/actions/runs/43876565702/attempts/2) — **7 PASS**, 379.622 s; Debug/archive/compatibility PASS. Это не физический повтор.
 `fefa036` / build 18: [focused 11](https://github.com/alexgazin/la-grilla/actions/runs/43879719411) — **7 PASS / 2 spelling FAIL / 2 Settings-навигационных timeout**. Три FirstResult, AI fallback и три strict PCM метода прошли. Написание нот и маршрут двух новых тестов исправлены в 19; пределы и музыкальные проверки сохранены. Старый полный [run](https://github.com/alexgazin/la-grilla/actions/runs/43879719282) не наследуется новым кодом.
-Для кода 19 локально прошли **186 Swift tests**, **61 CI/release host test**, presentation/release audits; DSP не менялся после 16 пройденных harnesses build 18. Новый обязательный scope — **14 focused / 63 functional native**, ещё Pending; эти числа не означают завершённые PASS.
+Для кода 19 локально прошли **186 Swift tests**, **61 CI/release host test**, presentation/release audits; DSP не менялся после 16 пройденных harnesses build 18. Новый обязательный scope — **15 focused / 64 functional native**, ещё Pending; эти числа не означают завершённые PASS.
 
 ## Реестр всех 34 находок
 

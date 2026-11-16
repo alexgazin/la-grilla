@@ -5,13 +5,9 @@ import XCTest
 final class AIAvailabilityTests:XCTestCase {
     override func setUp(){super.setUp();continueAfterFailure=false;executionTimeAllowance=120}
 
-    @MainActor func testActualUnavailableModelRecheckPreservesLanguagesInputAndProjectThenLocalJazzAppliesUndo(){
-        XCUIDevice.shared.orientation = .portrait
-        let app=XCUIApplication()
-        app.launchArguments=["--uitesting","--runtime-trace","--screen","grid","-AppleLanguages","(en)","-AppleLocale","en_US"]
-        app.launch()
+    @MainActor func testActualUnavailableModelRecheckPreservesIndependentLanguagesInputAndProject(){
+        let app=launch()
         let transport=app.buttons["perform.transport"]
-        XCTAssertTrue(transport.waitForExistence(timeout:15))
         let chord=app.buttons.matching(NSPredicate(format:"identifier BEGINSWITH 'grid.chord.'")).firstMatch
         XCTAssertTrue(chord.waitForExistence(timeout:5))
         let originalChord=chord.label
@@ -73,11 +69,41 @@ final class AIAvailabilityTests:XCTestCase {
         XCTAssertFalse(app.buttons["assistant.apply"].exists)
         revealFully(aiEnglish,in:app,upward:false)
         keepScreenshot("AuthorizedInput-ai-setup-independent-language-recheck")
-        // Finish the actual setup interaction before reviewing music. The
-        // compact primary composer stays usable with advanced options closed.
+        // End this setup journey with the compact primary composer visible.
+        // The separate music-review journey starts with a fresh app launch.
         revealFully(options,in:app,upward:false)
         options.tap()
         XCTAssertEqual(options.value as? String,"Collapsed")
+        keepReport("Observed actual model reason: \(observedReason)\nAI request language: en-US\nDictation language: ru-RU\nRequest: Поджазуй\nRecheck preserved input/project/revision/chord/Undo: true\nAdvanced options closed after the actual setup interaction: true\nReal model generation verified: false",
+                   name:"AuthorizedInput-ai-recheck-independent-language-scope")
+    }
+
+    @MainActor func testActualUnavailableModelLocallyReviewsJazzAppliesAndUndoesOnce(){
+        let app=launch()
+        let transport=app.buttons["perform.transport"]
+        let chord=app.buttons.matching(NSPredicate(format:"identifier BEGINSWITH 'grid.chord.'")).firstMatch
+        XCTAssertTrue(chord.waitForExistence(timeout:5))
+        let originalChord=chord.label
+        let originalDocument=documentState(transport)
+        XCTAssertFalse(app.buttons["Undo"].isEnabled)
+        app.buttons["assistant.open"].tap()
+        XCTAssertTrue(app.navigationBars["Assistant"].waitForExistence(timeout:5))
+        let status=app.staticTexts["assistant.ai-status"]
+        XCTAssertTrue(status.waitForExistence(timeout:5))
+        assertEnvironmentModelUnavailable(status)
+        let observedReason=status.value as? String ?? "unknown"
+        XCTAssertTrue(app.buttons["assistant.use-commands"].exists)
+        app.buttons["On-device AI"].tap()
+        let examples=app.buttons["assistant.examples"]
+        revealFully(examples,in:app)
+        examples.tap()
+        let jazz=app.buttons["assistant.example.jazzify"]
+        XCTAssertTrue(jazz.waitForExistence(timeout:5))
+        XCTAssertTrue(jazz.isHittable)
+        jazz.tap()
+        wait(app.navigationBars["Examples"]){!app.navigationBars["Examples"].exists}
+        XCTAssertEqual(app.textViews["assistant.input"].value as? String,"Поджазуй",
+                       "Use the real Russian example, without injecting a proposal")
 
         let generate=app.buttons["assistant.generate"]
         revealFully(generate,in:app)
@@ -92,6 +118,9 @@ final class AIAvailabilityTests:XCTestCase {
         revealFully(after,in:app)
         XCTAssertEqual(app.staticTexts["assistant.harmony.before.0.0"].label,"C")
         XCTAssertEqual(after.label,"Cmaj9")
+        XCTAssertEqual(documentState(transport),originalDocument,"Review must not edit the actual project")
+        XCTAssertEqual(chord.label,originalChord)
+        XCTAssertFalse(app.buttons["Undo"].isEnabled)
         let apply=app.buttons["assistant.apply"]
         revealFully(apply,in:app)
         apply.tap()
@@ -101,8 +130,17 @@ final class AIAvailabilityTests:XCTestCase {
         XCTAssertTrue(app.buttons["Undo"].isEnabled)
         app.buttons["Undo"].tap()
         wait(chord){chord.label==originalChord && !app.buttons["Undo"].isEnabled}
-        keepReport("Observed actual model reason: \(observedReason)\nAI request language: en-US\nDictation language: ru-RU\nRequest: Поджазуй\nRecheck preserved input/project/revision/Undo: true\nActual Commands review: C → Cmaj9\nApply then one Undo restored the original Grid chord: true\nReal model generation verified: false",
-                   name:"AuthorizedInput-ai-recheck-and-local-jazz-scope")
+        keepReport("Observed actual model reason: \(observedReason)\nRequest: Поджазуй\nActual Commands review: C → Cmaj9\nReview preserved project/revision/chord/Undo before Apply: true\nApply then one Undo restored the original Grid chord and empty Undo stack: true\nReal model generation verified: false",
+                   name:"AuthorizedInput-ai-local-jazz-apply-undo-scope")
+    }
+
+    @MainActor private func launch()->XCUIApplication {
+        XCUIDevice.shared.orientation = .portrait
+        let app=XCUIApplication()
+        app.launchArguments=["--uitesting","--runtime-trace","--screen","grid","-AppleLanguages","(en)","-AppleLocale","en_US"]
+        app.launch()
+        XCTAssertTrue(app.buttons["perform.transport"].waitForExistence(timeout:15))
+        return app
     }
 
     @MainActor private func assertEnvironmentModelUnavailable(_ status:XCUIElement){

@@ -50,14 +50,16 @@ jobs:
           GRILLA_RUNTIME_TRACE: '1'
         run: |
           GRILLA_AUDIT_DEVICE=$(cat /tmp/grilla-simulator-id)
-          # Fourteen real methods add written chords and two independent sketch
-          # journeys. This 30-minute batch retains every method's 120s cap and
+          # Fifteen real methods include independent AI setup/local-review,
+          # written chords and sketch journeys. This 30-minute batch retains
+          # every method's 120s cap and
           # the shared 40-minute cutoff/50-minute job evidence reserve.
           python3 scripts/ci/run_native.py --timeout-seconds 1800 --deadline-env GRILLA_AUDIT_DEADLINE_EPOCH --label product-audit-native --log audit-native.log --status audit-process-status.json \
             --require-test FirstResultTests/testEmptyProjectGuidesFirstChordToRealOutputAndPersists \
             --require-test FirstResultTests/testStarterAndExampleAreAudibleIndependentAndKeepSavedProject \
             --require-test FirstResultTests/testAcceptedMIDIInterleavingsKeepLatestWorkAndActiveRetryPreservesDisk \
-            --require-test AIAvailabilityTests/testActualUnavailableModelRecheckPreservesLanguagesInputAndProjectThenLocalJazzAppliesUndo \
+            --require-test AIAvailabilityTests/testActualUnavailableModelRecheckPreservesIndependentLanguagesInputAndProject \
+            --require-test AIAvailabilityTests/testActualUnavailableModelLocallyReviewsJazzAppliesAndUndoesOnce \
             --require-test HarmonyCatalogTests/testCustomFormulaPersistsEveryToneAndIsUndoable \
             --require-test HarmonyCatalogTests/testAlteredNotationAndInvalidFormulaNeverSilentlySave \
             --require-test TranspositionUITests/testTransposePreviewCancelApplyLiveUndoRedoAndReopen \

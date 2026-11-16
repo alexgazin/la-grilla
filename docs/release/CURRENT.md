@@ -8,7 +8,7 @@
 
 Следующий [PR #21](https://github.com/alexgazin/la-grilla/pull/21) — **1.0.0 (19), schema 10**, app/test source `0ed624a`, **703 EN/RU ключа**. После четырёх независимых аудитов реализованы первый звук в пустом проекте, starter/example, безопасные переходы документов, transpose/writing/ступени, новый local editable SketchComposer, timing fix Voice-to-MIDI, metadata/cache/mix оптимизации, C ABI exception guard и exact-source CI/device gates. [Подробный отчёт](../review/2026-11-16/IMPLEMENTATION.md). Кандидат 19 прочитывает проекты 1…9; старые приложения отклоняют schema 10.
 
-Локально для 19: **186 Swift tests PASS**, **61 CI/release host test PASS**, presentation/release/schema audits; DSP остаётся неизменным после 16 пройденных C++ harnesses кандидата 18. Новый scope **14 focused / 63 functional native — Pending**. Проверенные 7/11 методов прежнего 18 не считаются PASS новой версии. Этот пакет не является принятой App Store-сборкой.
+Локально для 19: **186 Swift tests PASS**, **61 CI/release host test PASS**, presentation/release/schema audits; DSP остаётся неизменным после 16 пройденных C++ harnesses кандидата 18. Новый scope **15 focused / 64 functional native — Pending**. Проверенные 7/11 методов прежнего 18 не считаются PASS новой версии. Этот пакет не является принятой App Store-сборкой.
 
 Последняя полная принятая программная база — **main 1.0.0 (16)**, source `9dfec7e117ef768c28cdfe12f342baf466f55682`: [43858734785](https://github.com/alexgazin/la-grilla/actions/runs/43858734785), три jobs SUCCESS, **51 functional PASS / 0 FAIL / 1 opt-in diagnostic SKIP**. Это историческая база, не приёмка нового source или телефона владельца.
 
@@ -41,7 +41,7 @@ OS Launch Screen следует системной Light/Dark-теме; сохр
 
 ## Что ещё требуется
 
-1. Завершить 14 focused и все 63 functional native, SDK/archive/compatibility кандидата 19 и полный exact-main run после интеграции. Scope 17 остаётся отдельной успешной recovery-проверкой.
+1. Завершить 15 focused и все 64 functional native, SDK/archive/compatibility кандидата 19 и полный exact-main run после интеграции. Scope 17 остаётся отдельной успешной recovery-проверкой.
 2. Повторить на установленном кандидате первоначальный дефект: Play, granted/denied dictation, повторный capture/Stop, новые проекты, save/reopen/export; записать точные модель, iOS и build. Проверить реальный mic indicator и маршруты.
 3. Отдельно принять настоящий человеческий напев и FoundationModels на eligible-устройстве с выбранным поддерживаемым языком. PCM loopback и proposal fixtures не заменяют эти проверки.
 4. Закрыть [аппаратную C8-матрицу](DEVICE_ACCEPTANCE.md): 30-минутные сессии, latency/thermal/dropouts, USB/BLE MIDI и импорт в две DAW. Затем — distribution signing, TestFlight и App Review по [процедуре](RELEASE.md).
