@@ -4,7 +4,7 @@
 Эти четыре отчёта сохраняются как независимые исходные срезы. Здесь объединены повторяющиеся находки и записано, что сделано после аудита, что требует проверки и что ещё предстоит реализовать.
 
 **Направление продукта:** карманная студия для собственного редактируемого музыкального скетча: гармония → бит/бас/мелодия → живое исполнение → сохранение и перенос в DAW. Помощник ускоряет музыкальные действия, а автор сохраняет контроль через review, A/B и Undo.
-**Текущее положение:** функциональная alpha с проверенным музыкальным ядром и интеграционным пакетом **1.0.0 (18), schema 9**, source **`fefa036ace0e10713689a8d22c3c0b69abfc0fbf`**, [PR #21](https://github.com/alexgazin/la-grilla/pull/21), поверх `29adf6c`. Этот source не наследует прежнюю native-приёмку main. App Store release-ready не объявлен.
+**Текущее положение:** в main интегрирован кандидат 17 с семью пройденными recovery-сценариями и [IPA для подписи тестировщиком](../../../Builds/Testing/README.md). Следующий пакет — **1.0.0 (19), schema 10**, app/test source `0ed624a`, [PR #21](https://github.com/alexgazin/la-grilla/pull/21). Он реализует также новые скетчи и сохранение написания аккордов. Полная нативная приёмка 19 и App Store release-ready пока не объявлены. [Детальный результат исполнения](IMPLEMENTATION.md).
 
 ## Как читать статусы
 
@@ -14,10 +14,9 @@
 - **Device/model/DAW Pending:** нужны фактические результаты установленного бинарника, доступной системной модели, контроллера или внешнего приложения.
 - **Запланировано:** задача остаётся в работе roadmap; экран, подпись или документация не заменяют её реализацию.
 
-Исторические полные/focused/compile результаты и прежние failures сохранены в [QA-аудите](qa.md); они не считаются приёмкой build 18.
-Предыдущий lifecycle source `29adf6c`: [43870504379](https://github.com/alexgazin/la-grilla/actions/runs/43870504379), **5 PASS / 2 UI timeouts**. Strict PCM и splash прошли; kernel/rate/MIDI/project сохранены при смене I/O graph, hardware indicator/dropout не подтверждены.
-Для текущего `fefa036` координатор зафиксировал локальные **162 Swift tests PASS**, independent export readers, **16 C++ harnesses PASS** и **59 проверок CI-скриптов PASS**. Это host/software evidence.
-Текущие exact-source native запуски: [focused 11 — 43879719411](https://github.com/alexgazin/la-grilla/actions/runs/43879719411) и [full 60 — 43879719282](https://github.com/alexgazin/la-grilla/actions/runs/43879719282) — **Pending** на момент составления плана. Числа 11/60 обозначают запланированный scope, а не завершённые PASS.
+Исторические результаты сохраняют собственные источники. `5adbadb` / build 17: [focused 7](https://github.com/alexgazin/la-grilla/actions/runs/43876565702/attempts/2) — **7 PASS**, 379.622 s; Debug/archive/compatibility PASS. Это не физический повтор.
+`fefa036` / build 18: [focused 11](https://github.com/alexgazin/la-grilla/actions/runs/43879719411) — **7 PASS / 2 spelling FAIL / 2 Settings-навигационных timeout**. Три FirstResult, AI fallback и три strict PCM метода прошли. Написание нот и маршрут двух новых тестов исправлены в 19; пределы и музыкальные проверки сохранены. Старый полный [run](https://github.com/alexgazin/la-grilla/actions/runs/43879719282) не наследуется новым кодом.
+Для кода 19 локально прошли **186 Swift tests**, **61 CI/release host test**, presentation/release audits; DSP не менялся после 16 пройденных harnesses build 18. Новый обязательный scope — **14 focused / 63 functional native**, ещё Pending; эти числа не означают завершённые PASS.
 
 ## Реестр всех 34 находок
 
@@ -27,12 +26,12 @@ W1–W10 ниже — единые рабочие потоки. Один деф�
 | --- | --- | --- |
 | A-01 | W1 | Lifecycle исправлен программно; установленный полный первый сеанс остаётся Device Pending. |
 | A-02 | W1 | Activation/retirement gaps сохраняются в receipts; zero-gap не принят, нужны реальные PCM/прослушивание и бюджет. |
-| A-03 | W2 | Empty/starter, подсказки первого действия и постоянный пример реализованы; новые native/user sessions Pending. |
-| A-04 | W3 | Контракт формы/гармонии уточнён; генератор новых editable MIDI-партий остаётся отдельной реализацией W10. |
+| A-03 | W2 | Empty/starter, подсказки первого действия и постоянный пример реализованы; три native FirstResult предыдущего 18 прошли; текущий 19 и пользовательские сессии Pending. |
+| A-04 | W3 | Контракт формы/гармонии уточнён; генератор новых editable MIDI-партий реализован в 19/W10, его native-приёмка Pending. |
 | A-05 | W3 | Четыре языковых контракта разделены, setup/Recheck компактнее; eligible model/RU/EN Speech Pending. |
 | A-06 | W4 | Mono beta/review/source сохранены; улучшение сегментации и реальная голосовая приёмка не завершены. |
 | A-07 | W6 | Форматы и независимые readers есть; одинаковый скетч в двух реальных DAW Pending. |
-| A-08 | W5 | Transpose/schema 9/degree/display notation реализованы; исходное typed enharmonic spelling ещё не хранится. |
+| A-08 | W5 | Transpose, degree/chord-tone notation и сохранение написания root/slash реализованы в schema 10; native 19 Pending. |
 | A-09 | W7 | Bar/beat review и компактная структура подготовлены; текущая compact/large-type/VoiceOver матрица Pending. |
 | PM-01 | W1 | Audio failure не должен блокировать документы; общий путь Retry и реальный первый сеанс требуется принять. |
 | PM-02 | W2 | Empty Grid показывает следующие музыкальные действия; native пустой проект → собственный звук Pending. |
@@ -91,6 +90,7 @@ W1–W10 ниже — единые рабочие потоки. Один деф�
 
 ## W4 — Напев → полезная исправляемая MIDI-фраза
 
+Исправлены отрицательные/off-grid onset при коротком take и неполной клетке квантования; placement/CAF/store/Undo проверены. [Исследование и raw evidence](voice/README.md): все 18 329 F0 frames и 587 unquantized notes до/после совпали, качество не объявлено улучшенным; две гипотезы сегментации отклонены.
 Сохранить: mono beta, исходный CAF, confidence/manual corrections, timing offset, placement в выбранную секцию и неизменный original после review/Undo/save/portable.
 Development baseline: confidence-qualified F0 95.88%, onset/pitch F1 60.28% / 54.95%, с offsets 42.76% / 38.36%. Это восемь записанных development-фрагментов, не доказательство точной телефонной транскрипции.
 Дальше: заранее объявить note/onset/offset/false-positive/coverage критерии и время ручного исправления. Проверить повторы, паузы, октавы, тихие ноты, наушники и speaker bleed поверх backing loop.
@@ -100,12 +100,9 @@ Development baseline: confidence-qualified F0 95.88%, onset/pitch F1 60.28% / 54
 
 ## W5 — Музыкальная математика, нотация и перенос тональности
 
-Реализовано в schema 9: настоящее транспонирование chords/custom voicings/slash/melody/bass, без Drums, с проверкой MIDI-диапазона/stale proposal и одной Undo. Миграции 1…8 и frozen sources сохраняют звучание/voice assets. Degree labels и Auto/Sharps/Flats — режимы отображения.
-На момент отчёта владельца изменений 12 `MusicEditingTests` PASS; новые UI-сценарии transpose пока Native Pending. Повторно проверить изменение quality/voicing после transpose, derived bass и экспорт реальных pitches.
-**Открытая часть:** исходное введённое enharmonic spelling пока не хранится в документе. Display preference нельзя объявлять сохранённым `Db` против `C#` в portable/Undo.
-Следующая реализация: независимое от sounding pitch представление письменного имени root/slash/note, проверка его эквивалентности MIDI и обратимая миграция; затем parser→edit→transpose→Undo→save/portable/export round-trip tests. Новую schema назначать при реализации, а не в описании будущей функции.
-
-**Выход:** нынешний transpose принимается отдельно; полное требование spelling закрывается только после сохранения письменных имён и нового native/domain acceptance.
+Реализовано в schema 10: настоящее транспонирование chords/custom voicings/slash/melody/bass, без Drums, с проверкой MIDI-диапазона/stale proposal и одной Undo. Миграции 1…8 и frozen sources сохраняют звучание/voice assets. Degree labels и Auto/Sharps/Flats — режимы отображения.
+Реализовано сохранённое каноническое написание root/slash: `C♯` и `D♭` различаются в документе, Undo и portable. Auto сохраняет написанное, явные Sharps/Flats меняют только отображение. Старое утраченное написание проектов 1…9 не выдумывается. Chromatic transpose убирает несовместимое имя, octave transpose сохраняет; Undo возвращает исходное. MIDI остаётся звуковысотным форматом, обещания DAW-орфографии нет.
+Аккордовые ноты учитывают интервалы: ♭3/♭9/♯9/♭5/♯11 и регистр; ступени различают C♯→♯I и D♭→♭II в C. Локально пройдены 44 целевые проверки, включая 65 качеств × 12 корней; общий пакет — 186. Новые native transposition/writing cases Pending.
 
 ## W6 — Перенос результата в реальную студию
 
@@ -147,8 +144,8 @@ Personal Team достаточно для локальной установки 
 
 ## W10 — Завершение первоначального видения и устойчивое развитие
 
-1. Создание нового editable MIDI sketch: отдельный bounded specification для drums/bass/motif, seed/варианты, тональность/метр/длина, источники каждой партии, preview/A/B и атомарная Apply/Undo. На пустом проекте действительно появляются новые ноты; Commands и модель честно различаются.
-2. Полное сохранение enharmonic writing из W5; текущая display-only опция не подменяет его.
+1. **Реализовано в 19:** новый editable MIDI sketch из пустого проекта — House/Hip-hop/Jazz, 4/8/16 тактов, BPM/key/seed, реальные новые chords/drums/bass/motif, A/B, Apply/Undo, save/export. LOCAL composer создаёт ноты; настоящая модель при доступности только интерпретирует параметры. Существующая музыка не перезаписывается. Полный 8/16-тактовый луп сохраняется при повторном открытии. Native Pending.
+2. **Реализовано в 19:** сохранение enharmonic writing из W5, отдельно от временной display preference; native Pending.
 3. Улучшение human Voice-to-MIDI по W4 с сохранением исходника и объявленных метрик. Низкий note F1 нельзя закрывать красивой визуализацией F0.
 4. Точечное разделение Session на document/export/capture coordinators по мере этих изменений; один owner каждого async job, явные cancel/stale contracts. Domain/SwiftUI/C++ стек сохраняется.
 
