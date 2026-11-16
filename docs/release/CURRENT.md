@@ -4,6 +4,8 @@
 
 ## Текущий статус
 
+**Последняя IPA для ручного тестирования — [1.0.0 (19)](../../Builds/Testing/README.md)**, source `4e85930acf006376f3861d4209bf07ea8bcdcaf0`, schema 10, из ещё не интегрированного [PR #21](https://github.com/alexgazin/la-grilla/pull/21). Debug/Release archive PASS; focused 16 и full 64 ещё не приняты. Это unsigned test candidate, не release-ready. Основной код `main` ниже остаётся версией 17 до интеграции PR.
+
 **Функциональная альфа, кандидат 1.0.0 (17), schema 8; focused recovery принят; полный exact-main software gate и физический P0-retest открыты.** Код приложения и тестов — `5adbadb37c39911c4acc2c2ef511198867098040`, **651 EN/RU ключ**; интеграция подготовлена в [PR #20](https://github.com/alexgazin/la-grilla/pull/20).
 
 Метаданные/аудиты на `main` затем обновлены docs-only merge `70cad3e04d2ccf6e1e02912f40cfefc09d8067d7`; код кандидата 17 этим не интегрирован.
