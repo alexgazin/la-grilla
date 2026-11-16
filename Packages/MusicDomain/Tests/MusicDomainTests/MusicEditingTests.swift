@@ -105,7 +105,7 @@ struct MusicEditingTests {
 
     @Test func allLegacyVersionsAndFrozenSourcesMigrateWithoutChangingMusic()throws {
         let (audio,record)=AudioAssetTests.source()
-        for version in 1...8 {
+        for version in 1...9 {
             var old=try populated();old.schemaVersion=version;old.audioAssets=[record]
             old.tracks[3].clips[0].sourceAssetID=record.id
             old.performanceTake=PerformanceTake(source:old,sampleRate:48000,durationFrames:48000,events:[PerformanceEvent(frame:0,kind:.section,sectionID:old.sections[0].id)])
@@ -114,7 +114,7 @@ struct MusicEditingTests {
             let metadata:[String:String]=["format":"La Grilla portable project","version":"2","manifestCRC32":String(format:"%08x",ProjectArchive.checksum(manifest))]
             let archive=try ProjectArchive.encode([.init("manifest.json",manifest),.init("metadata.json",try JSONSerialization.data(withJSONObject:metadata)),.init(record.relativePath,audio)])
             let migrated=try PortableProject.decodeBundle(archive,asCopy:false)
-            #expect(migrated.project.schemaVersion==9);#expect(migrated.project.performanceTake?.source.schemaVersion==9)
+            #expect(migrated.project.schemaVersion==Project.currentSchemaVersion);#expect(migrated.project.performanceTake?.source.schemaVersion==Project.currentSchemaVersion)
             #expect(Compiler.notes(migrated.project)==originalMusic)
             #expect(Compiler.notes(migrated.project.performanceTake!.source)==originalSourceMusic)
             #expect(migrated.project.performanceTake?.events==old.performanceTake?.events)
@@ -144,7 +144,8 @@ struct MusicEditingTests {
         #expect(MusicalNotation.noteName(59,keyRoot:3,minor:true)=="C♭4")
         #expect(MusicalNotation.noteName(70,keyRoot:5,minor:false,spelling:.sharps)=="A♯4")
         #expect(MusicalNotation.noteName(61,keyRoot:7,minor:false,spelling:.flats)=="D♭4")
-        #expect(MusicalNotation.chordSymbol(try Chord.parse("A#maj7/Db"),keyRoot:5,minor:false)=="B♭maj7/D♭")
+        #expect(MusicalNotation.chordSymbol(try Chord.parse("A#maj7/Db"),keyRoot:5,minor:false)=="A♯maj7/D♭")
+        #expect(MusicalNotation.chordSymbol(try Chord.parse("A#maj7/Db"),keyRoot:5,minor:false,spelling:.flats)=="B♭maj7/D♭")
         for root in 0..<12 {for minor in [false,true] {for pitch in 0..<128 {
             let name=MusicalNotation.pitchClassName(pitch,keyRoot:root,minor:minor)
             #expect(try Chord.parse(name).root==pitch%12)
@@ -165,7 +166,8 @@ struct MusicEditingTests {
         let transposed=project.patterns[0].chords[0].chord
         #expect(transposed.rootBassPitch==37)
         let same=try MusicalEditing.rebuildChord(from:"Db",preserving:transposed)
-        #expect(same==transposed)
+        #expect(same.notes==transposed.notes);#expect(same.rootBassPitch==transposed.rootBassPitch)
+        #expect(same.rootSpelling=="D♭")
         project.patterns[0].chords[0].chord=same
         #expect(Compiler.notes(project).first{$0.track==2 && $0.tick==0}?.pitch==37)
         let seventh=try MusicalEditing.rebuildChord(from:"C#maj7",preserving:transposed)

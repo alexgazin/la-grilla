@@ -172,5 +172,17 @@ class NativeAcceptanceTests(unittest.TestCase):
         payload,metadata=self.artifact_fixture('another-status.json')
         with self.assertRaises(gate.AcceptanceError):
             gate.read_native_scope_artifact(REPO,SHA,RUN,lambda path:{'artifacts':[metadata]},lambda path,limit:payload)
+    def test_sdk_retry_keeps_native_receipt_tied_to_its_actual_job_attempt(self):
+        self.verification_run['run_attempt']=2
+        self.data['actions/jobs/101']['run_attempt']=1  # successful native job
+        self.data['actions/jobs/102']['run_attempt']=2  # retried SDK job
+        self.data['actions/jobs/103']['run_attempt']=2
+        proof=self.verify()
+        self.assertEqual(next(item['job_attempt'] for item in proof if item['name']=='ios'),1)
+        self.assertEqual({item['scopeStatus'] for item in proof},{'full-functional-pass'})
+    def test_native_retry_cannot_reuse_scope_receipt_from_previous_attempt(self):
+        self.verification_run['run_attempt']=2
+        self.data['actions/jobs/101']['run_attempt']=2
+        with self.assertRaises(gate.AcceptanceError):self.verify()
 
 if __name__=='__main__':unittest.main()

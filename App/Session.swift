@@ -76,6 +76,24 @@ import Observation
         if let id=Self.qaProjectStoreID{return "studio.qa.\(id.uuidString).lastProjectID"}
         return "studio.qa.lastProjectID"
     }
+    private func generatedLoopKey(_ id:UUID)->String{lastProjectKey+".generatedLoop."+id.uuidString}
+    private func restoreGeneratedLoop(){
+        guard let value=UserDefaults.standard.dictionary(forKey:generatedLoopKey(project.id)),let bars=value["bars"] as? Int,(1...64).contains(bars),let enabled=value["enabled"] as? Bool else{return}
+        loopBars=min(bars,max(1,section.length/barTicks));loop=enabled
+    }
+    private func saveGeneratedLoopPreference(){
+        let key=generatedLoopKey(project.id)
+        guard UserDefaults.standard.dictionary(forKey:key) != nil else{return}
+        UserDefaults.standard.set(["bars":loopBars,"enabled":loop],forKey:key)
+    }
+    func adoptGeneratedSketchLoop(bars:Int){
+        guard [4,8,16].contains(bars),!recording,!armed else{return}
+        UserDefaults.standard.set(["bars":bars,"enabled":true],forKey:generatedLoopKey(project.id))
+        setLoop(bars:bars,enabled:true)
+    }
+    private func copyGeneratedLoopPreference(from source:UUID,to copy:UUID){
+        if let value=UserDefaults.standard.dictionary(forKey:generatedLoopKey(source)){UserDefaults.standard.set(value,forKey:generatedLoopKey(copy))}
+    }
     init() {
         let root:URL
         if ProcessInfo.processInfo.arguments.contains("--uitesting") {
@@ -97,13 +115,14 @@ import Observation
         if runtimeTraceEvents.count>96{runtimeTraceEvents.removeFirst(runtimeTraceEvents.count-96)}
     }
     private var runtimeTraceCurrentState:String{
-        "ready=\(ready) backgrounded=\(backgrounded) project=\(project.id) revision=\(project.revision) preview=\(harmonyPreview) outputPeak=\(audio.meters[masterBus]) saveError=\(saveError ?? "none") | \(audio.runtimeTraceState)"
+        "ready=\(ready) backgrounded=\(backgrounded) project=\(project.id) revision=\(project.revision) preview=\(harmonyPreview) loopBars=\(loopBars) loopEnabled=\(loop) loopRangeStart=\(loopRange.lowerBound) loopRangeEnd=\(loopRange.upperBound) loopRangeCount=\(loopRange.count) outputPeak=\(audio.meters[masterBus]) saveError=\(saveError ?? "none") | \(audio.runtimeTraceState)"
     }
     var runtimeTraceReport:String{
         guard runtimeTraceEnabled else{return ""}
         return "CURRENT | \(runtimeTraceCurrentState)\n"+runtimeTraceEvents.joined(separator:"\n")+(projectChangeQAReport.isEmpty ? "":"\nPROJECT_CHANGE_QA "+projectChangeQAReport)
     }
     var section: MusicDomain.Section { displayProject.sections.first(where: {$0.id == selectedSection}) ?? displayProject.sections[0] }
+    var loopLengthOptions:[Int]{Array(Set([1,2,4,8,16,32,64]+[loopBars])).sorted()}
     var loopRange: Range<Int> {if performance.contextActive{return section.start..<section.start+section.length};if loop,let clip=focusedDrumClip{return clip.start..<clip.start+clip.length};let start = section.start; return loop ? start..<min(project.length,start + loopBars*barTicks) : 0..<project.length }
     var pending: Bool { !performance.contextActive && audio.playing && audio.pendingSnapshot }
     private var focusedDrumClip:Clip?{guard let drumClipID else{return nil};return project.tracks.first{$0.role == .drums}?.clips.first{$0.id==drumClipID}}
@@ -138,6 +157,7 @@ import Observation
             // A failed device engine must not turn a valid stored project into
             // an unsaved seed or lose the user's last-opened selection.
             selectedSection=project.sections[0].id
+            restoreGeneratedLoop()
             if savedRevision>=0{UserDefaults.standard.set(project.id.uuidString,forKey:lastProjectKey)}
             runtimeTrace("bootstrap.prepare.before")
             do{try audio.prepare();sync()}
@@ -232,8 +252,8 @@ import Observation
     func mixerImmediate(_ change: (inout Project) throws -> Void) {
         mixerGesture=false; mixerEdit(change); mixerGesture=false
     }
-    func undo() {if performance.contextActive{Task{await leavePerformance();undo()};return};guard !recording && !armed else {return}; mixerGesture=false;history.undo(&project); sync();scheduleSave()}
-    func redo() {if performance.contextActive{Task{await leavePerformance();redo()};return};guard !recording && !armed else {return}; mixerGesture=false;history.redo(&project); sync();scheduleSave()}
+    func undo() {if performance.contextActive{Task{await leavePerformance();undo()};return};guard !recording && !armed else {return}; mixerGesture=false;history.undo(&project);restoreGeneratedLoop();sync();scheduleSave()}
+    func redo() {if performance.contextActive{Task{await leavePerformance();redo()};return};guard !recording && !armed else {return}; mixerGesture=false;history.redo(&project);restoreGeneratedLoop();sync();scheduleSave()}
     func scheduleSave() {saveTask?.cancel();saveTask = Task {try? await Task.sleep(for:.milliseconds(700));guard !Task.isCancelled else{return};await save()} }
     func save() async {
         // Scene/background notifications may arrive while the catalogue is
@@ -376,7 +396,7 @@ import Observation
     func addMelody(){finishTake();let count=project.tracks.count;edit{try $0.addMelody()};if project.tracks.count>count{noteTrackID=project.tracks.last?.id}}
     func duplicateMelody(_ id:UUID){finishTake();let count=project.tracks.count;edit{try $0.duplicateTrack(id)};if project.tracks.count>count{noteTrackID=project.tracks.last?.id}}
     func deleteMelody(_ id:UUID){finishTake();edit{try $0.deleteTrack(id)};noteTrackID=project.tracks.first{$0.role == .melody}?.id}
-    func setLoop(bars: Int? = nil, enabled: Bool? = nil) {guard !recording && !armed else{message="Finish the take before changing the loop.";return};if let bars{loopBars=bars};if let enabled{loop=enabled};sync()}
+    func setLoop(bars: Int? = nil, enabled: Bool? = nil) {guard !recording && !armed else{message="Finish the take before changing the loop.";return};if let bars{loopBars=bars};if let enabled{loop=enabled};saveGeneratedLoopPreference();sync()}
     func select(_ section: MusicDomain.Section) {if performance.contextActive{performance.queueSection(section.id);return};guard !recording && !armed else{return};selectedSection=section.id;sync();if !audio.playing{audio.seek(section.start)}}
     func open(_ p: Project, force: Bool = false) async {
         if p.id==project.id{await openStored(p.id);return}
@@ -478,7 +498,7 @@ import Observation
         message=NSLocalizedString("A separate project was saved but not opened. Your current project and latest edits are kept. Open the saved project from Projects.",comment:"Safe project change")
     }
     private func activateProject(_ p:Project,savedRevision:Int){
-        project=p;history=History();noteTrackID=nil;noteClipID=nil;drumClipID=nil;selectedSection=p.sections[0].id;self.savedRevision=savedRevision;audio.seek(0);sync();sheet=nil
+        project=p;history=History();noteTrackID=nil;noteClipID=nil;drumClipID=nil;selectedSection=p.sections[0].id;self.savedRevision=savedRevision;restoreGeneratedLoop();audio.seek(0);sync();sheet=nil
         UserDefaults.standard.set(p.id.uuidString,forKey:lastProjectKey)
     }
     @discardableResult func create(name: String,bpm: Double,root: Int,minor: Bool,bars: Int,template:ProjectTemplate = .empty) async -> Bool {
@@ -522,6 +542,7 @@ import Observation
             if id==project.id{source=project}else{source=try await store.load(id)}
             guard source.id==id else{throw MusicError.invalidProject}
             let copy=try await store.duplicate(source)
+            copyGeneratedLoopPreference(from:source.id,to:copy.id)
             await refreshLibraryEntry(copy.id,validated:true)
         }catch{message=error.localizedDescription}
     }
@@ -530,7 +551,7 @@ import Observation
         do{_ = try await store.rename(id,expectedRevision:expectedRevision,to:title);validated=true}catch{message=error.localizedDescription}
         await refreshLibraryEntry(id,validated:validated)
     }
-    func delete(_ id: UUID) async {do{try await store.delete(id);entries.removeAll{$0.id==id};libraryLoadFailures.removeValue(forKey:id)}catch{message=error.localizedDescription}}
+    func delete(_ id: UUID) async {do{try await store.delete(id);entries.removeAll{$0.id==id};libraryLoadFailures.removeValue(forKey:id);UserDefaults.standard.removeObject(forKey:generatedLoopKey(id))}catch{message=error.localizedDescription}}
     func recover(_ id:UUID)async {
         guard let token=beginProjectChange()else{return}
         defer{endProjectChange(token)}
@@ -660,6 +681,7 @@ import Observation
             try await projectChangeBoundary(token,expected:expected,stage:"candidate.saved")
             let verified=try await store.load(copy.id)
             try await projectChangeBoundary(token,expected:expected,stage:"copy.verified")
+            copyGeneratedLoopPreference(from:working.id,to:verified.id)
             if escapingFailure{saveError=nil;activateProject(verified,savedRevision:verified.revision)}
             await refreshLibraryEntry(copy.id,validated:true)
             message="A copy has been saved."

@@ -1,0 +1,33 @@
+{
+  "hostOnly": true,
+  "holdoutAccessed": false,
+  "segmentationChangedInProduction": false,
+  "approvedChange": "Quantized projection bounds only; segmentation/detector/timing constants unchanged",
+  "candidates": [
+    {
+      "candidate": "short-island",
+      "promotedToProduction": false,
+      "meanOnsetPitchF1Before": 0.5761077632045375,
+      "meanOnsetPitchF1After": 0.577496374782846,
+      "meanImprovementPercentagePoints": 0.13886115783084962,
+      "failedGuards": [
+        "Mean onset+pitch F1 improvement below predeclared 1 percentage point",
+        "A2 onset+pitch F1 regression exceeds predeclared 0.1 percentage point"
+      ],
+      "syntheticCandidateControlsExecuted": false,
+      "decision": "Rejected after development metrics failed the registered minimum; later gates not used to rescue candidate"
+    },
+    {
+      "candidate": "energy-reattack",
+      "promotedToProduction": false,
+      "meanOnsetPitchF1Before": 0.5761077632045375,
+      "meanOnsetPitchF1After": 0.5810057088660696,
+      "meanImprovementPercentagePoints": 0.48979456615321215,
+      "failedGuards": [
+        "Mean onset+pitch F1 improvement below predeclared 1 percentage point"
+      ],
+      "syntheticCandidateControlsExecuted": false,
+      "decision": "Rejected after development metrics failed the registered minimum; later gates not used to rescue candidate"
+    }
+  ]
+}

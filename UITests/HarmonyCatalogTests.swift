@@ -62,7 +62,9 @@ final class HarmonyCatalogTests:XCTestCase {
         let app=launch();openFirstChord(app)
         replace(app.textFields["chord.symbol"],with:"C7(b9,#11)")
         XCTAssertFalse(app.staticTexts["chord.error"].exists)
-        XCTAssertEqual(app.staticTexts["chord.notes"].label,"C4 · E4 · G4 · B♭4 · C♯5 · F♯5")
+        // A flat ninth above C is written D-flat; the sounding MIDI pitch 73
+        // is unchanged. Chord-aware spelling replaces the old pitch-class label.
+        XCTAssertEqual(app.staticTexts["chord.notes"].label,"C4 · E4 · G4 · B♭4 · D♭5 · F♯5")
         replace(app.textFields["chord.symbol"],with:"C{0,7,4}")
         XCTAssertTrue(app.staticTexts["chord.error"].waitForExistence(timeout:5))
         let apply=app.buttons["chord.apply"];reveal(apply,in:app);apply.tap()

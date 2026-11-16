@@ -15,9 +15,9 @@ struct ChordEditor: View {
     var body: some View {
         NavigationStack{ScrollView{VStack(alignment:.leading,spacing:22){
             VStack(alignment:.leading,spacing:8){
-                if chord.customIntervals != nil{HStack(alignment:.firstTextBaseline){Text(pitchName(chord.root)).font(.system(size:42,weight:.medium));Text("Custom chord").font(.title3)}}else{Text(MusicalNotation.chordSymbol(chord,keyRoot:session.project.keyRoot,minor:session.project.minor,spelling:spelling)).font(.system(size:42,weight:.medium)).lineLimit(2).minimumScaleFactor(0.6)}
+                if chord.customIntervals != nil{HStack(alignment:.firstTextBaseline){Text(chordRootName).font(.system(size:42,weight:.medium));Text("Custom chord").font(.title3)}}else{Text(MusicalNotation.chordSymbol(chord,keyRoot:session.project.keyRoot,minor:session.project.minor,spelling:spelling)).accessibilityIdentifier("chord.display-symbol").font(.system(size:42,weight:.medium)).lineLimit(2).minimumScaleFactor(0.6)}
                 if showDegrees{Text(MusicalNotation.degreeSymbol(chord,keyRoot:session.project.keyRoot,minor:session.project.minor)).font(.title3).accessibilityIdentifier("chord.degree")}
-                Text(chord.notes.map{MusicalNotation.noteName($0,keyRoot:session.project.keyRoot,minor:session.project.minor,spelling:spelling)}.joined(separator:" · ")).font(.system(.subheadline,design:.monospaced)).foregroundStyle(Color.muted).accessibilityIdentifier("chord.notes")
+                Text(MusicalNotation.chordNoteNames(chord,keyRoot:session.project.keyRoot,minor:session.project.minor,spelling:spelling).joined(separator:" · ")).font(.system(.subheadline,design:.monospaced)).foregroundStyle(Color.muted).accessibilityIdentifier("chord.notes")
             }.foregroundStyle(Color.harmony)
             HStack{TextField("Chord symbol",text:$text).focused($focusedField,equals:.symbol).textInputAutocapitalization(.never).autocorrectionDisabled().textFieldStyle(.roundedBorder).frame(minHeight:44).onSubmit{parse()}.accessibilityIdentifier("chord.symbol");Button{parse()}label:{Text("Set").frame(minWidth:44,minHeight:44).contentShape(Rectangle())}.accessibilityIdentifier("chord.set-symbol")}
             if let error{Text(LocalizedStringKey(error)).font(.caption).foregroundStyle(Color.record).accessibilityIdentifier("chord.error")}
@@ -52,6 +52,7 @@ struct ChordEditor: View {
         }.padding(22)}.background(Color.panel).navigationTitle("Edit chord").navigationBarTitleDisplayMode(.inline).toolbar{ToolbarItem(placement:.cancellationAction){Button("Cancel"){dismiss()}}}}
         .onAppear{chord=selection.chord;text=chord.symbol;duration=selection.duration;family=chord.quality.family;formulaText=chord.effectiveIntervals.map(String.init).joined(separator:", ")}
     }
+    private var chordRootName:String {spelling == .automatic ? (chord.rootSpelling ?? pitchName(chord.root)):pitchName(chord.root)}
     private func pitchName(_ value:Int)->String{MusicalNotation.pitchClassName(value,keyRoot:session.project.keyRoot,minor:session.project.minor,spelling:spelling)}
     func parse(){focusedField=nil;do{chord=try MusicalEditing.rebuildChord(from:text,preserving:chord);family=chord.quality.family;formulaText=chord.effectiveIntervals.map(String.init).joined(separator:", ");text=chord.symbol;error=nil}catch{self.error=error.localizedDescription}}
     @discardableResult func setFormula()->Bool{focusedField=nil;do{let formula=try Chord.parseCustomIntervals(formulaText);var candidate=chord;candidate.customIntervals=formula;candidate.quality = .major;candidate.inversion=0;candidate.voicedNotes=nil;try candidate.validate();chord=candidate;formulaText=chord.effectiveIntervals.map(String.init).joined(separator:", ");text=chord.symbol;error=nil;return true}catch{self.error=error.localizedDescription;return false}}
@@ -91,9 +92,9 @@ struct SettingsView: View {
         Section("Musical notation"){
             Picker("Note names",selection:$spellingValue){Text("Auto (key)").tag(PitchSpelling.automatic.rawValue);Text("Sharps").tag(PitchSpelling.sharps.rawValue);Text("Flats").tag(PitchSpelling.flats.rawValue)}.accessibilityIdentifier("settings.pitch-spelling")
             Toggle("Show scale degrees",isOn:$showDegrees).accessibilityIdentifier("settings.show-degrees")
-            Text("Names and degrees change the display, not the sound. Auto follows the key; minor degrees use the natural minor scale. Original typed enharmonic spelling is not stored.").font(.caption).foregroundStyle(.secondary)
+            Text("Names and degrees change the display, not the sound. Auto keeps the chord spelling you entered and otherwise follows the key. Minor degrees use the natural minor scale.").font(.caption).foregroundStyle(.secondary)
         }
-        Section("Transport"){Toggle("Loop",isOn:Binding(get:{session.loop},set:{session.setLoop(enabled:$0)}));Picker("Loop length",selection:Binding(get:{session.loopBars},set:{session.setLoop(bars:$0)})){ForEach([1,2,4,8],id:\.self){n in Text("\(n) bars").tag(n)}}}
+        Section("Transport"){Toggle("Loop",isOn:Binding(get:{session.loop},set:{session.setLoop(enabled:$0)}));Picker("Loop length",selection:Binding(get:{session.loopBars},set:{session.setLoop(bars:$0)})){ForEach(session.loopLengthOptions,id:\.self){n in Text("\(n) bars").tag(n)}}}
         Section("MIDI"){Button("MIDI devices"){session.sheet = .midiDevices}}
         audioSettings
         Section("About La Grilla"){

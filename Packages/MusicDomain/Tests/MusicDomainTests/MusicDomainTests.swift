@@ -13,7 +13,7 @@ struct MusicDomainTests {
         #expect(notes.allSatisfy{$0.tick+$0.duration<=15360})
     }
     @Test func chordVocabularyAndParser() throws {
-        for root in 0..<12 {for quality in Quality.allCases {let c=Chord(root:root,quality:quality);#expect(try Chord.parse(c.symbol)==c);for inversion in 0..<quality.intervals.count {let n=Chord(root:root,quality:quality,inversion:inversion).notes;#expect(n==n.sorted());#expect(n.count==quality.intervals.count)}}}
+        for root in 0..<12 {for quality in Quality.allCases {let c=Chord(root:root,quality:quality);var written=c;written.rootSpelling=Chord.roots[root];#expect(try Chord.parse(c.symbol)==written);for inversion in 0..<quality.intervals.count {let n=Chord(root:root,quality:quality,inversion:inversion).notes;#expect(n==n.sorted());#expect(n.count==quality.intervals.count)}}}
         #expect(try Chord.parse("Dbm7").root==1)
         #expect(throws:MusicError.self){try Chord.parse("Cmaj15")}
         #expect(throws:MusicError.self){try Chord.parse("C nonsense")}

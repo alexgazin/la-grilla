@@ -1,0 +1,32 @@
+{
+  "declaredAt": "2026-11-16T14:02:45.512214+00:00",
+  "developmentIDs": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8
+  ],
+  "holdoutAccessed": false,
+  "candidate": "Split same-pitch rearticulation only at a deep RMS valley inside an uninterrupted stable-pitch run; original F0/median/gap/minimum-note thresholds untouched",
+  "conditions": {
+    "medianRMSFrames": 3,
+    "peakWindowFramesEachSide": 10,
+    "valleyMaxRatioToBothPeaks": 0.5,
+    "peakMinimumRMS": 0.02,
+    "lowValleyMaximumFrames": 12,
+    "minimumNoteSeconds": 0.08,
+    "dedupBoundaryFrames": 8
+  },
+  "guards": {
+    "meanOnsetPitchF1ImprovementAtLeast": 0.01,
+    "eachAnnotatorOnsetPitchRegressionAtMost": 0.001,
+    "eachAnnotatorStrictF1RegressionAtMost": 0.001,
+    "eachTrackMeanOnsetPitchRegressionAtMost": 0.03,
+    "synthetic": "sustained, repeated with real pause, step semitone, short rejected island and silence/noise"
+  },
+  "timing": "Previous end at falling half-peak threshold frame center; new onset at rising half-peak threshold frame center. Other boundaries preserve original15/35ms window correction. No quantization."
+}

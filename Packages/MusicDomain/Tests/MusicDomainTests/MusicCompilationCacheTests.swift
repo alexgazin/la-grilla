@@ -90,7 +90,7 @@ struct MusicCompilationCacheTests {
         project.patterns[0].chords[0].chord.rootBassPitch=48
         try project.validate()
         let after=cache.notes(project)
-        #expect(project.schemaVersion==9)
+        #expect(project.schemaVersion==Project.currentSchemaVersion)
         #expect(project.patterns[0].chords[0].chord.symbol==symbol)
         #expect(after != before && after==Compiler.notes(project))
         #expect(after.first{$0.track==2 && $0.tick==0}?.pitch==48)

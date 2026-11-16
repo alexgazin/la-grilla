@@ -1,0 +1,104 @@
+{
+  "hostOnly": true,
+  "physicalCaptureVerified": false,
+  "humanAccuracyImprovementClaimed": false,
+  "holdoutAudioOrAnnotationsAccessed": false,
+  "fixedDevelopmentIDs": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8
+  ],
+  "totalFrames": 18329,
+  "totalUnquantizedNotes": 587,
+  "allTrackReportsExactlyEqual": true,
+  "canonicalization": "UTF-8 json.dumps(sort_keys=True,separators=(comma,colon),allow_nan=False); elapsedSeconds excluded; actual reports compared structurally before hashing",
+  "reportsSHA256": "e1568312b579896ea7bdeaa11a62ff6c4c8e1485f6320dbd01863a4a02fe13f1",
+  "tracks": [
+    {
+      "id": 1,
+      "frames": 2994,
+      "notes": 81,
+      "framesSHA256": "ee83ba0950640b9a916821c4bb8f5cdeb79f3f49c425e9d494f20b37e2b611ea",
+      "segmentsSHA256": "73efefdbbb6215ec063d9c7c8f8ae984a548a2a2ff62eae8d50b9443ce17ca6d",
+      "notesSHA256": "9f9f253f04f2048fbb3b7fde645a1767a73bcfeba2d4fd561821c03c2f7fbfba"
+    },
+    {
+      "id": 2,
+      "frames": 2994,
+      "notes": 77,
+      "framesSHA256": "8f5e25e706fcfcc22b646cfbb5e1240a34125a3ef168863cf06491aa59be952d",
+      "segmentsSHA256": "32e5263eecfdf3e6a09ddf64646bbe31f75070ac8f6a91518a2a7e61c16b1383",
+      "notesSHA256": "18d4fb83bbe8b696870a45dc76f2705bde02f64458bd4605ce5c45bc0f423958"
+    },
+    {
+      "id": 3,
+      "frames": 2168,
+      "notes": 55,
+      "framesSHA256": "96575cabed5530c4ce2dba425175bfc4d0cffce113c03f3b67afb237ffb086ed",
+      "segmentsSHA256": "3ccbbf51b10515c1b4a9a225a5c562b93ada7de01af128840df1b61a58509c5b",
+      "notesSHA256": "10041286a49feb14f578f1454df20d3554f3b27382999aa6d556787e71c27860"
+    },
+    {
+      "id": 4,
+      "frames": 1840,
+      "notes": 68,
+      "framesSHA256": "b99fc919a025627c4e3dfc3f45e88f9aa2c1907cfdcbb6f54a3e1f79dab2845c",
+      "segmentsSHA256": "eb438c82b03d494769f35757f9e17bf2b7d2228ab979a66ebd6f60b5b1c53e7b",
+      "notesSHA256": "9b2fa12de7b5315a7ac636418d6aebeb5486ae820394449fed2f6ada69dc356a"
+    },
+    {
+      "id": 5,
+      "frames": 2317,
+      "notes": 97,
+      "framesSHA256": "7ed32c380314714bc3d447268381207f7b106d67222f5a29e8ba5cbadc1fa9a0",
+      "segmentsSHA256": "4e7b26ee331a0b2e2e18aa0339913f2936430be08f9e720a038fc6dc1a7675c6",
+      "notesSHA256": "e45cfa92789b0be67fe13264ccb08774db13aba16d3d79057552148c7e7a1439"
+    },
+    {
+      "id": 6,
+      "frames": 2377,
+      "notes": 94,
+      "framesSHA256": "4996e505247f2fa9d9d024368d4a4c10c6b42f761c45f95893f9eabef44be034",
+      "segmentsSHA256": "a002170351b2e5083f87bc1ad11b1c3cf97566bc8bc759255b54c59e4c69c512",
+      "notesSHA256": "ba2e708d2cede7ebccb09df31d1454cd7671717414e332ff2d0c9fd97877da02"
+    },
+    {
+      "id": 7,
+      "frames": 1941,
+      "notes": 70,
+      "framesSHA256": "55df880e9865f969b0c073c103fbcfc713c9a162cec1e56ebfafaec587dacf9e",
+      "segmentsSHA256": "7f1178aeeb73db0fd4d947e3c3f5d41a2c5fcef4047ca3e7689a8da46f92d2f8",
+      "notesSHA256": "6db698e8f18d31f2c283ac1113ca2165878bd64fead3c7d0b22475a1a838db68"
+    },
+    {
+      "id": 8,
+      "frames": 1698,
+      "notes": 45,
+      "framesSHA256": "7ceba476fab3000db1b721f968f986dd931dfd5096cb5160c041726699337248",
+      "segmentsSHA256": "4220859f78cdac4f27802697e26b5fbbdc71f157cb61d7a3e0621bd2f3244b67",
+      "notesSHA256": "095c0a462a38c541b09ce735d0dc238da7912d965947e301b7f64f51fe23385f"
+    }
+  ],
+  "voiceSourceBeforeSHA256": "40d3716929973607990355be89d7f7fa8dcb04cf46354846de380b01ab10b47a",
+  "voiceSourceAfterSHA256": "db35f836764878b26d720df3fca79de0c9e04022d63b405a3fbc000674c6980e",
+  "modelSourceBeforeSHA256": "deafda1d43f9b55d80843420901153dc3e758d71b00302f0b1f1c521b0515c57",
+  "modelSourceAfterSHA256": "deafda1d43f9b55d80843420901153dc3e758d71b00302f0b1f1c521b0515c57",
+  "sourceIdentity": "Shared music-completion working tree on base fefa036; exact benchmark Voice/Model/harness/manifest hashes recorded by each protocol; not a final commit or immutable whole-package claim",
+  "rawExternalAnalysis": [
+    {
+      "path": "/tmp/grilla-voice-completion/before.analysis.json",
+      "sha256": "dd4494445b2e3918e8bbbda7f3ebdcdca3719bb5db5ea56979e5374340585125",
+      "bytes": 1861591
+    },
+    {
+      "path": "/tmp/grilla-voice-completion/after.analysis.json",
+      "sha256": "9e48a06fdbf0343d686a880fb57abd4d8bc7ed78717800a28696ebc28364a35f",
+      "bytes": 1861592
+    }
+  ]
+}

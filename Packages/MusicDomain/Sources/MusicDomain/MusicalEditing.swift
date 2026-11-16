@@ -70,6 +70,9 @@ public enum MusicalEditing {
                     // Explicit voicing retains the exact interval across B/C;
                     // rebuilding a default root position would change octaves.
                     let notes = try original.notes.map(shifted)
+                    // A chromatic interval does not specify a new written
+                    // letter. Changed pitch classes clear their old spelling;
+                    // Auto then uses the new key. Octave shifts retain writing.
                     chord.root = (original.root+semitones%12+12)%12
                     chord.slashBass = original.slashBass.map{($0+semitones%12+12)%12}
                     chord.voicedNotes = notes

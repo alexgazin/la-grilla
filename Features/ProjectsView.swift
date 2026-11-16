@@ -62,7 +62,7 @@ struct NewProjectView: View {
                     }.accessibilityIdentifier("project.key")
                     Toggle("Minor", isOn: $minor).accessibilityIdentifier("project.minor")
                     Picker("Loop length", selection: $bars) {
-                        ForEach([1,2,4,8], id: \.self) { n in Text("\(n) bars").tag(n) }
+                        ForEach([1,2,4,8,16,32,64], id: \.self) { n in Text("\(n) bars").tag(n) }
                     }.accessibilityIdentifier("project.bars")
                 }
                 if let creationError{Section{Text(LocalizedStringKey(creationError)).foregroundStyle(Color.record).accessibilityIdentifier("project.create-error")}}

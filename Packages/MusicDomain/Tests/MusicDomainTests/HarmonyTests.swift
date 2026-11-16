@@ -4,8 +4,8 @@ import Testing
 
 struct HarmonyTests {
     @Test func extendedAndSlashVocabularyRoundTrips() throws {
-        for root in 0..<12{for q in Quality.allCases{for bass in [nil,0,4,11] as [Int?]{let c=Chord(root:root,quality:q,slashBass:bass);#expect(try Chord.parse(c.symbol)==c);#expect(c.notes.count==q.intervals.count+(bass==nil ? 0:1));if let bass{#expect(c.notes.min()!%12==bass)}}}}
-        #expect(try Chord.parse("dbmaj9/ab")==Chord(root:1,quality:.maj9,slashBass:8))
+        for root in 0..<12{for q in Quality.allCases{for bass in [nil,0,4,11] as [Int?]{let c=Chord(root:root,quality:q,slashBass:bass);var written=c;written.rootSpelling=Chord.roots[root];written.slashBassSpelling=bass.map{Chord.roots[$0]};#expect(try Chord.parse(c.symbol)==written);#expect(c.notes.count==q.intervals.count+(bass==nil ? 0:1));if let bass{#expect(c.notes.min()!%12==bass)}}}}
+        #expect(try Chord.parse("dbmaj9/ab")==Chord(root:1,quality:.maj9,slashBass:8,rootSpelling:"D♭",slashBassSpelling:"A♭"))
         for invalid in ["C/","C/E/G","C/Em","C14","C7b9#11garbage"]{#expect(throws:MusicError.self){try Chord.parse(invalid)}}
         #expect(Chord(root:0,quality:.thirteenth).notes==[60,64,67,70,74,77,81])
     }

@@ -17,7 +17,7 @@ public struct AssistantSongSection:Codable,Equatable,Sendable {
 /// Portable semantic boundary between a real language model and musical edits.
 /// Generated values still pass ordinary project validation before any mutation.
 public struct AssistantInterpretation:Codable,Equatable,Sendable {
-    public enum Intent:String,Codable,Sendable {case editSection,arrangeSong,styleSelected,styleSong,unsupported}
+    public enum Intent:String,Codable,Sendable {case editSection,arrangeSong,styleSelected,styleSong,createSketch,unsupported}
     public struct Part:Codable,Equatable,Sendable {
         public var name:String;public var bars:Int;public var chordSymbols:[String];public var chordBars:[Int];public var sourceSectionIndex:Int
         public init(name:String,bars:Int,chordSymbols:[String],chordBars:[Int],sourceSectionIndex:Int){self.name=name;self.bars=bars;self.chordSymbols=chordSymbols;self.chordBars=chordBars;self.sourceSectionIndex=sourceSectionIndex}
@@ -27,8 +27,10 @@ public struct AssistantInterpretation:Codable,Equatable,Sendable {
     public var changeKey:Bool;public var keyRoot:String;public var minor:Bool
     public var targetSectionIndex:Int;public var harmonyStyle:String
     public var sections:[Part];public var explanation:String
-    public init(intent:Intent,changeTempo:Bool=false,bpm:Double=120,changeKey:Bool=false,keyRoot:String="C",minor:Bool=false,targetSectionIndex:Int=0,harmonyStyle:String="expressive",sections:[Part]=[],explanation:String=""){
+    public var sketchStyle:String?;public var sketchBars:Int?;public var sketchSeed:UInt32?
+    public init(intent:Intent,changeTempo:Bool=false,bpm:Double=120,changeKey:Bool=false,keyRoot:String="C",minor:Bool=false,targetSectionIndex:Int=0,harmonyStyle:String="expressive",sections:[Part]=[],explanation:String="",sketchStyle:String?=nil,sketchBars:Int?=nil,sketchSeed:UInt32?=nil){
         self.intent=intent;self.changeTempo=changeTempo;self.bpm=bpm;self.changeKey=changeKey;self.keyRoot=keyRoot;self.minor=minor;self.targetSectionIndex=targetSectionIndex;self.harmonyStyle=harmonyStyle;self.sections=sections;self.explanation=explanation
+        self.sketchStyle=sketchStyle;self.sketchBars=sketchBars;self.sketchSeed=sketchSeed
     }
     public func proposal(for project:Project,selectedSectionID:UUID)throws->AssistantProposal {
         try project.validate()
@@ -63,6 +65,14 @@ public struct AssistantInterpretation:Codable,Equatable,Sendable {
             guard HarmonyStyle(rawValue:harmonyStyle) != nil else{throw AssistantError.unsafe}
             operations.append(.init(.styleSong,style:harmonyStyle))
             warnings.append(NSLocalizedString("Harmony in every section will change. Rhythm and melody stay as written.",comment:"Assistant review"))
+        case .createSketch:
+            guard sections.isEmpty,let raw=sketchStyle,let style=SketchStyle(rawValue:raw),let bars=sketchBars,let seed=sketchSeed else{throw AssistantError.unsafe}
+            var root=project.keyRoot
+            if changeKey{let chord=try Chord.parse(keyRoot);guard chord.quality == .major,chord.slashBass==nil,chord.customIntervals==nil else{throw AssistantError.unsafe};root=chord.root}
+            let plan=SketchPlan(style:style,bpm:changeTempo ? bpm:project.bpm,root:root,minor:changeKey ? minor:project.minor,bars:bars,seed:seed)
+            try plan.validate()
+            operations.append(.init(.generateSketch,sketch:plan))
+            assumptions.append(NSLocalizedString("The notes are composed locally from the displayed style and seed. Existing mixer settings are kept.",comment:"Musical sketch"))
         case .unsupported:throw AssistantError.unsupported
         }
         let proposal=AssistantProposal(project:project,scope:scope,operations:operations,assumptions:assumptions,warnings:warnings)

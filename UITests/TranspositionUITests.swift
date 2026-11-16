@@ -135,7 +135,13 @@ final class TranspositionUITests:XCTestCase {
     }
 
     @MainActor private func openSettings(_ app:XCUIApplication){
-        app.buttons["tools.more"].tap();app.buttons["Settings"].tap()
+        // The ordinary 44pt tempo/key button opens the same Settings screen.
+        // Source18 stalled in the system menu's invalid activation point
+        // before either transposition scenario reached its first control.
+        let entry=app.buttons["studio.tempo"]
+        XCTAssertTrue(entry.waitForExistence(timeout:5))
+        XCTAssertTrue(entry.isHittable)
+        entry.tap()
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout:5))
     }
     @MainActor private func openTranspose(_ app:XCUIApplication){

@@ -59,7 +59,9 @@ def require_native_acceptance(repo,sha,read_json,read_native_evidence=None,expec
         require(job.get('run_id')==run_id and job.get('head_sha')==sha and job.get('name')==name,f'{name} job provenance does not match.')
         require(job.get('check_run_url')==f'https://api.github.com/repos/{repo}/check-runs/{check["id"]}',f'{name} job does not match its selected check.')
         require(job.get('status')=='completed' and job.get('conclusion')=='success',f'{name} job has not passed.')
-        proof.append(dict(name=name,run_id=run_id,job_id=job_id))
+        job_attempt=job.get('run_attempt',run.get('run_attempt',1))
+        require(type(job_attempt) is int and job_attempt>0,f'{name} job attempt could not be verified.')
+        proof.append(dict(name=name,run_id=run_id,job_id=job_id,job_attempt=job_attempt))
     require(len(runs)==1,'Acceptance jobs came from different workflow runs; verify one coherent run.')
     run_id=next(iter(runs));run=runs[run_id]
     commit=read_json(f'commits/{sha}')
@@ -67,7 +69,11 @@ def require_native_acceptance(repo,sha,read_json,read_native_evidence=None,expec
     require(read_native_evidence is not None,'Native scope and actual functional test inventory evidence is required.')
     try:
         inventory=expected_tests if expected_tests is not None else functional_inventory(ROOT/'UITests')
-        evidence=validate_scope_receipt(read_native_evidence(run_id),repo,sha,run_id,run.get('run_attempt',1),inventory)
+        # A retried SDK/archive job advances the workflow's latest attempt but
+        # does not rerun a successful ios job. Correlate native evidence with
+        # that selected job's actual attempt, not the unrelated latest retry.
+        native_attempt=next(item['job_attempt'] for item in proof if item['name']=='ios')
+        evidence=validate_scope_receipt(read_native_evidence(run_id),repo,sha,run_id,native_attempt,inventory)
     except ValueError as error:raise AcceptanceError(str(error)) from None
     scope=verification_scope(run,evidence['scope'],commit['commit']['message'])
     for item in proof:item.update(scope=scope,scopeStatus=evidence['scopeStatus'],functionalTestCount=evidence['functionalTestCount'])

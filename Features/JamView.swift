@@ -15,7 +15,7 @@ struct JamView: View {
         VStack(spacing:14){
             HStack(spacing:10){Text("Pocket kit").font(.system(size:26,weight:.semibold)).tracking(-0.6).lineLimit(1).minimumScaleFactor(0.75);Spacer(minLength:0);editorMode}.padding(.top,12)
             if focusedClip != nil{clipFocus}
-            HStack(spacing:6){Menu{ForEach([1,2,4,8],id:\.self){n in Button("\(n) bars"){session.setLoop(bars:n)}}}label:{HStack(spacing:5){Image(systemName:"repeat");Text("\(session.loopBars) bars");Image(systemName:"chevron.down").font(.system(size:11))}.font(.system(size:11,weight:.medium)).frame(minHeight:44).padding(.horizontal,12).background(Color.panel,in:RoundedRectangle(cornerRadius:12,style:.continuous))}.disabled(session.performance.contextActive)
+            HStack(spacing:6){Menu{ForEach(session.loopLengthOptions,id:\.self){n in Button("\(n) bars"){session.setLoop(bars:n)}}}label:{HStack(spacing:5){Image(systemName:"repeat");Text("\(session.loopBars) bars");Image(systemName:"chevron.down").font(.system(size:11))}.font(.system(size:11,weight:.medium)).frame(minHeight:44).padding(.horizontal,12).background(Color.panel,in:RoundedRectangle(cornerRadius:12,style:.continuous))}.disabled(session.performance.contextActive)
                 Menu{ForEach(Quantize.allCases,id:\.rawValue){q in Button(LocalizedStringKey(q == .off ? "Off":q == .eighth ? "1/8":"1/16")){session.quantize=q}}}label:{HStack(spacing:5){Text("Q").foregroundStyle(Color.muted);Text(LocalizedStringKey(session.quantize == .off ? "Off":session.quantize == .eighth ? "1/8":"1/16"))}.font(.system(size:11,weight:.medium)).frame(minHeight:44).padding(.horizontal,12).background(Color.panel,in:RoundedRectangle(cornerRadius:12,style:.continuous))}.disabled(session.performance.contextActive)
                 Spacer(minLength:0)
                 IconButton(symbol:"metronome",label:"Metronome",color:session.metronome ? .mint:.muted){session.metronome.toggle();session.audio.metronome(session.metronome)}
@@ -46,7 +46,7 @@ struct JamView: View {
                 Picker("Quantize",selection:$session.quantize){ForEach(Quantize.allCases,id:\.rawValue){value in Text(LocalizedStringKey(value == .off ? "Off":value == .eighth ? "1/8":"1/16")).tag(value)}}
                 Toggle("Count-in",isOn:$session.countIn);Toggle("Overdub",isOn:$session.overdub)
                 Toggle("Metronome",isOn:Binding(get:{session.metronome},set:{session.metronome=$0;session.audio.metronome($0)}))
-                Picker("Loop length",selection:Binding(get:{session.loopBars},set:{session.setLoop(bars:$0)})){ForEach([1,2,4,8],id:\.self){bars in Text("\(bars) bars").tag(bars)}}.disabled(session.performance.contextActive)
+                Picker("Loop length",selection:Binding(get:{session.loopBars},set:{session.setLoop(bars:$0)})){ForEach(session.loopLengthOptions,id:\.self){bars in Text("\(bars) bars").tag(bars)}}.disabled(session.performance.contextActive)
             }label:{Image(systemName:"slider.horizontal.3").frame(width:44,height:44)}.accessibilityLabel("Drum recording options")
         }
         if focusedClip != nil{clipFocus}

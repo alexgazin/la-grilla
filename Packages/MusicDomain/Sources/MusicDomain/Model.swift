@@ -78,24 +78,28 @@ public enum Quality: String, Codable, CaseIterable, Sendable {
     public var label: String { NSLocalizedString(self == .major ? "Major" : self == .minor ? "Minor" : rawValue,comment:"Chord quality") }
 }
 public struct Chord: Codable, Equatable, Sendable {
-    public var root: Int {didSet{if root != oldValue{rootBassPitch=nil}}}
+    public var root: Int {didSet{if root != oldValue{rootBassPitch=nil;rootSpelling=nil}}}
     public var quality: Quality; public var inversion: Int
-    public var slashBass:Int? {didSet{if slashBass != oldValue{rootBassPitch=nil}}}
+    public var slashBass:Int? {didSet{if slashBass != oldValue{rootBassPitch=nil;slashBassSpelling=nil};if slashBass==nil{slashBassSpelling=nil}}}
     public var voicedNotes:[Int]?
     /// Schema 9: exact generated-bass MIDI pitch after arrangement transposition.
     /// Nil uses the legacy root/register rule; changing root/slash clears the override.
     public var rootBassPitch:Int?
+    /// Schema 10: selected written letter/accidental. Nil means the legacy data
+    /// never retained it; Auto then derives a display name from the project key.
+    public var rootSpelling:String?
+    public var slashBassSpelling:String?
     public var customIntervals:[Int]?
     public static let maximumVoices=9 // Eight formula tones plus an explicit slash bass.
-    public init(root: Int = 0, quality: Quality = .major, inversion: Int = 0,slashBass:Int?=nil,voicedNotes:[Int]?=nil,customIntervals:[Int]?=nil,rootBassPitch:Int?=nil) { self.root = root; self.quality = customIntervals==nil ? quality:.major; self.inversion = inversion;self.slashBass=slashBass;self.voicedNotes=voicedNotes;self.customIntervals=customIntervals;self.rootBassPitch=rootBassPitch }
+    public init(root: Int = 0, quality: Quality = .major, inversion: Int = 0,slashBass:Int?=nil,voicedNotes:[Int]?=nil,customIntervals:[Int]?=nil,rootBassPitch:Int?=nil,rootSpelling:String?=nil,slashBassSpelling:String?=nil) { self.root = root; self.quality = customIntervals==nil ? quality:.major; self.inversion = inversion;self.slashBass=slashBass;self.voicedNotes=voicedNotes;self.customIntervals=customIntervals;self.rootBassPitch=rootBassPitch;self.rootSpelling=rootSpelling.map{ChordWriting.canonical($0) ?? $0};self.slashBassSpelling=slashBassSpelling.map{ChordWriting.canonical($0) ?? $0} }
     public static let roots = ["C", "C♯", "D", "E♭", "E", "F", "F♯", "G", "A♭", "A", "B♭", "B"]
     public var effectiveIntervals:[Int]{customIntervals ?? quality.intervals}
     public var requiredVoicingIntervals:[Int]{customIntervals ?? quality.requiredVoicingIntervals}
     public var symbol: String {
-        let rootName=Self.roots[(root % 12 + 12) % 12]
+        let rootName=ChordWriting.name(rootSpelling,for:root) ?? Self.roots[(root % 12 + 12) % 12]
         let suffix:String
         if let customIntervals{suffix="{"+customIntervals.map(String.init).joined(separator:",")+"}"}else{suffix=quality.rawValue}
-        let bassName=slashBass.map{"/"+Self.roots[($0%12+12)%12]} ?? ""
+        let bassName=slashBass.map{"/"+(ChordWriting.name(slashBassSpelling,for:$0) ?? Self.roots[($0%12+12)%12])} ?? ""
         return rootName+suffix+bassName
     }
     public var notes: [Int] {
@@ -139,28 +143,34 @@ public struct Chord: Codable, Equatable, Sendable {
     public func validate()throws {
         guard (0..<12).contains(root),Self.validIntervals(effectiveIntervals),(0..<effectiveIntervals.count).contains(inversion),customIntervals==nil || quality == .major,
               slashBass==nil || (0..<12).contains(slashBass!),
+              ChordWriting.valid(rootSpelling,for:root),
+              slashBassSpelling==nil || (slashBass != nil && ChordWriting.valid(slashBassSpelling,for:slashBass!)),
               rootBassPitch==nil || ((0...127).contains(rootBassPitch!) && rootBassPitch!%12 == (slashBass ?? root)),isValidVoicing(notes) else{throw MusicError.invalidChord}
     }
     public static func parse(_ text: String) throws -> Chord {
         guard text.utf8.count<=256 else{throw MusicError.invalidChord}
         let value=text.trimmingCharacters(in:.whitespacesAndNewlines).replacingOccurrences(of:"♯",with:"#").replacingOccurrences(of:"♭",with:"b").replacingOccurrences(of:"−",with:"-")
-        func pitch(_ raw:String)throws->(Int,String){
+        func pitch(_ raw:String)throws->(Int,String,String){
             guard let first=raw.first,let base=["C":0,"D":2,"E":4,"F":5,"G":7,"A":9,"B":11][String(first).uppercased()]else{throw MusicError.invalidChord}
-            var suffix=String(raw.dropFirst()),root=base
-            if suffix.hasPrefix("#"){root+=1;suffix.removeFirst()}else if suffix.hasPrefix("b"){root-=1;suffix.removeFirst()}
-            return ((root+12)%12,suffix.trimmingCharacters(in:.whitespaces))
+            var suffix=String(raw.dropFirst()),root=base,writing=String(first).uppercased()
+            if suffix.hasPrefix("#") || suffix.hasPrefix("b") {
+                let accidental=suffix.first!,offset=accidental=="#" ? 1:-1
+                var count=0
+                while suffix.first==accidental,count<2{root+=offset;writing.append(accidental=="#" ? "♯":"♭");suffix.removeFirst();count+=1}
+            }
+            return ((root+12)%12,writing,suffix.trimmingCharacters(in:.whitespaces))
         }
-        let (root,rawSuffix)=try pitch(value);var suffix=rawSuffix
-        var bass:Int?
+        let (root,rootWriting,rawSuffix)=try pitch(value);var suffix=rawSuffix
+        var bass:Int?,bassWriting:String?
         // A slash inside 6/9 belongs to the quality; a final /note is the bass.
         if let slash=suffix.lastIndex(of:"/") {
             let tail=String(suffix[suffix.index(after:slash)...]).trimmingCharacters(in:.whitespaces)
-            if let (note,remainder)=try? pitch(tail),remainder.isEmpty{bass=note;suffix=String(suffix[..<slash]).trimmingCharacters(in:.whitespaces)}
+            if let (note,writing,remainder)=try? pitch(tail),remainder.isEmpty{bass=note;bassWriting=writing;suffix=String(suffix[..<slash]).trimmingCharacters(in:.whitespaces)}
         }
         if suffix.hasPrefix("{") {
             guard suffix.hasSuffix("}")else{throw MusicError.invalidChord}
             let formula=try parseCustomIntervals(String(suffix.dropFirst().dropLast()))
-            let chord=Chord(root:root,slashBass:bass,customIntervals:formula);try chord.validate();return chord
+            let chord=Chord(root:root,slashBass:bass,customIntervals:formula,rootSpelling:rootWriting,slashBassSpelling:bassWriting);try chord.validate();return chord
         }
         suffix=suffix.filter{!$0.isWhitespace}
         if suffix.contains("(") || suffix.contains(")") {
@@ -184,7 +194,7 @@ public struct Chord: Codable, Equatable, Sendable {
             ,"minmaj7":.minorMajor7,"minmaj9":.minorMajor9,"minmaj11":.minorMajor11,"minmaj13":.minorMajor13
         ]
         guard let quality=Quality(rawValue:suffix) ?? aliases[suffix] ?? Quality.allCases.first(where:{$0.rawValue.lowercased()==suffix.lowercased()}) ?? aliases[suffix.lowercased()] else{throw MusicError.invalidChord}
-        let chord=Chord(root:root,quality:quality,slashBass:bass);try chord.validate();return chord
+        let chord=Chord(root:root,quality:quality,slashBass:bass,rootSpelling:rootWriting,slashBassSpelling:bassWriting);try chord.validate();return chord
     }
 }
 public struct ChordEvent: Codable, Equatable, Identifiable, Sendable {
@@ -220,7 +230,7 @@ public struct Section: Codable, Equatable, Identifiable, Sendable {
     public init(name: String, start: Int = 0, length: Int) { self.name = name; self.start = start; self.length = length }
 }
 public struct Project: Codable, Equatable, Identifiable, Sendable {
-    public var id: UUID = UUID(); public static let currentSchemaVersion=9
+    public var id: UUID = UUID(); public static let currentSchemaVersion=10
     /// Portable, nonnegative revision IDs. Exhaustion requires a new project
     /// copy rather than wrapping an ID used by history, saving and playback.
     public static let maximumRevision=Int(Int32.max)
@@ -422,6 +432,7 @@ public enum ProjectDocument {
         if p.schemaVersion==6{p.schemaVersion=7}
         if p.schemaVersion==7{p.schemaVersion=8}
         if p.schemaVersion==8{p.schemaVersion=9}
+        if p.schemaVersion==9{p.schemaVersion=10}
         if var take=p.performanceTake{take.source=try migrated(take.source);p.performanceTake=take}
         try p.validate();return p
     }

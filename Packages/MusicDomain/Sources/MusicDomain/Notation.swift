@@ -1,6 +1,7 @@
 import Foundation
 
-/// A display preference. It does not change MIDI pitches or retain typed spelling.
+/// A display preference. Explicit sharps/flats override persisted chord writing
+/// visually; Auto honors it and falls back to the project key for legacy data.
 public enum PitchSpelling: String, CaseIterable, Sendable {
     case automatic, sharps, flats
 }
@@ -49,19 +50,98 @@ public enum MusicalNotation {
     }
 
     public static func chordSymbol(_ chord: Chord, keyRoot: Int, minor: Bool, spelling: PitchSpelling = .automatic) -> String {
-        let root = pitchClassName(chord.root, keyRoot: keyRoot, minor: minor, spelling: spelling)
+        let root = rootName(chord,keyRoot:keyRoot,minor:minor,spelling:spelling)
         let suffix = chord.customIntervals.map { "{" + $0.map(String.init).joined(separator:",") + "}" } ?? chord.quality.rawValue
-        let bass = chord.slashBass.map { "/" + pitchClassName($0, keyRoot: keyRoot, minor: minor, spelling: spelling) } ?? ""
-        return root + suffix + bass
+        let bassName = chord.slashBass.map { pitch in
+            let written=spelling == .automatic ? ChordWriting.name(chord.slashBassSpelling,for:pitch):nil
+            return "/"+(written ?? pitchClassName(pitch,keyRoot:keyRoot,minor:minor,spelling:spelling))
+        } ?? ""
+        return root + suffix + bassName
     }
 
-    /// Scale-relative labels describe the written chord, not a functional analysis.
+    public static func rootName(_ chord:Chord,keyRoot:Int,minor:Bool,spelling:PitchSpelling = .automatic)->String {
+        let written=spelling == .automatic ? ChordWriting.name(chord.rootSpelling,for:chord.root):nil
+        return written ?? pitchClassName(chord.root,keyRoot:keyRoot,minor:minor,spelling:spelling)
+    }
+
+    /// Spell chord tones by their interval/letter, rather than treating a minor
+    /// third as an unrelated chromatic key note. General piano-roll notes retain
+    /// the separate key-aware `noteName` API.
+    public static func chordNoteName(_ midiPitch:Int,chord:Chord,keyRoot:Int,minor:Bool,spelling:PitchSpelling = .automatic)->String {
+        if spelling != .automatic{return noteName(midiPitch,keyRoot:keyRoot,minor:minor,spelling:spelling)}
+        if let bass=chord.slashBass,midiPitch==chord.notes.first,pc(midiPitch)==bass,
+           let name=ChordWriting.name(chord.slashBassSpelling,for:bass) {
+            return writtenNote(name,pitch:midiPitch)
+        }
+        let root=rootName(chord,keyRoot:keyRoot,minor:minor)
+        let matchingIntervals=chord.effectiveIntervals.filter{pc($0+chord.root)==pc(midiPitch)}
+        guard let first=root.first,let rootLetter=letters.firstIndex(of:String(first)),
+              var interval=matchingIntervals.first else {
+            return noteName(midiPitch,keyRoot:keyRoot,minor:minor)
+        }
+        // A custom formula can deliberately include b5/#11 or #5/b13 in
+        // different octaves. Match equal-pitch-class voices in register order.
+        if matchingIntervals.count>1 {
+            var voices=chord.notes.filter{pc($0)==pc(midiPitch)}
+            if chord.slashBass==pc(midiPitch),let first=chord.notes.first,voices.first==first{voices.removeFirst()}
+            if let index=voices.firstIndex(of:midiPitch),index<matchingIntervals.count{interval=matchingIntervals[index]}
+        }
+        let degree=chordLetterDegree(interval,in:chord)
+        let letter=(rootLetter+degree)%7
+        let delta=pc(midiPitch-naturalPitches[letter])
+        let accidental=delta<=6 ? delta:delta-12
+        guard (-2...2).contains(accidental)else{return noteName(midiPitch,keyRoot:keyRoot,minor:minor)}
+        let name=letters[letter]+String(repeating:accidental<0 ? "♭":"♯",count:abs(accidental))
+        return writtenNote(name,pitch:midiPitch)
+    }
+
+    public static func chordNoteNames(_ chord:Chord,keyRoot:Int,minor:Bool,spelling:PitchSpelling = .automatic)->[String] {
+        chord.notes.map{chordNoteName($0,chord:chord,keyRoot:keyRoot,minor:minor,spelling:spelling)}
+    }
+
+    private static func writtenNote(_ name:String,pitch:Int)->String {
+        guard let first=name.first,let letter=letters.firstIndex(of:String(first))else{return name}
+        let alteration=name.filter{$0=="♯"}.count-name.filter{$0=="♭"}.count
+        let octave=(pitch-naturalPitches[letter]-alteration)/12-1
+        return name+String(octave)
+    }
+
+    private static func chordLetterDegree(_ interval:Int,in chord:Chord)->Int {
+        let semitone=pc(interval),formula=chord.effectiveIntervals
+        switch semitone {
+        case 0:return 0
+        case 1,2:return 1
+        case 3:return interval>=12 && !formula.contains(3) ? 1:2 // #9 versus minor third/doubling.
+        case 4:return 2
+        case 5:return 3
+        case 6:return interval>=12 || (chord.customIntervals != nil && formula.contains(7)) ? 3:4 // #11 / b5.
+        case 7:return 4
+        case 8:return interval>=12 || (chord.customIntervals != nil && formula.contains(7)) ? 5:4 // b13 / #5.
+        case 9:
+            let diminished=chord.quality == .diminished7 || (chord.customIntervals != nil && formula.contains(3) && formula.contains(6) && !formula.contains(4) && !formula.contains(7))
+            return diminished ? 6:5
+        default:return 6
+        }
+    }
+
+    /// Scale-relative labels describe the persisted written chord, not a functional
+    /// analysis. A temporary Sharps/Flats display preference does not rewrite them.
     /// For minor, degrees refer to the natural minor scale (its raised seventh is ♯VII).
     public static func degreeSymbol(_ chord: Chord, keyRoot: Int, minor: Bool) -> String {
         let scale = minor ? minorScale:majorScale
         let relative = pc(chord.root-keyRoot)
         var degree = scale.firstIndex(of: relative)
         var accidental = ""
+        if let written=ChordWriting.name(chord.rootSpelling,for:chord.root),let letter=written.first,
+           let rootLetter=letters.firstIndex(of:String(letter)),
+           let tonicLetter=(minor ? minorTonics:majorTonics)[pc(keyRoot)].first,
+           let keyLetter=letters.firstIndex(of:String(tonicLetter)) {
+            let writtenDegree=(rootLetter-keyLetter+7)%7
+            let delta=pc(relative-scale[writtenDegree])
+            let alteration=delta<=6 ? delta:delta-12
+            degree=writtenDegree
+            accidental=String(repeating:alteration<0 ? "♭":"♯",count:abs(alteration))
+        }
         if degree == nil {
             // Prefer familiar borrowed major-key labels (♭III/♭VI/♭VII),
             // and raised minor sixth/seventh, rather than arbitrary ♯II/♯VI.
@@ -80,7 +160,7 @@ public enum MusicalNotation {
         else if chord.quality == .m7b5 { suffix = "ø7" }
         else { suffix = isMinor && chord.quality.rawValue.hasPrefix("m") ? String(chord.quality.rawValue.dropFirst()):chord.quality.rawValue }
         let bass = chord.slashBass.map { pitch in
-            let rootOnly = Chord(root:pitch)
+            let rootOnly = Chord(root:pitch,rootSpelling:chord.slashBassSpelling)
             return "/" + degreeSymbol(rootOnly, keyRoot:keyRoot, minor:minor)
         } ?? ""
         return accidental + (isMinor ? numeral.lowercased():numeral) + suffix + bass

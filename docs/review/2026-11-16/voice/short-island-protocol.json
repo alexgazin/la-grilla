@@ -1,0 +1,25 @@
+{
+  "declaredAt": "2026-11-16T14:00:23.083718+00:00",
+  "fixedDevelopmentIDs": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8
+  ],
+  "holdoutAccessed": false,
+  "scope": "segmentation only, original F0 frames unchanged",
+  "candidate": "Bridge a contradictory fully voiced island shorter than minimum representable note only when stable equal-pitch runs on both sides and island differs by one semitone; no gaps/silence merged",
+  "conditions": "island frames<6, flanks frames>=6, abs pitch difference=1, operate after unchanged production median and 1-frame nil repair",
+  "control": "must reproduce every original tick/duration/pitch exactly",
+  "guards": {
+    "meanOnsetPitchF1ImprovementAtLeast": 0.01,
+    "eachAnnotatorOnsetPitchRegressionAtMost": 0.001,
+    "eachAnnotatorStrictF1RegressionAtMost": 0.001,
+    "eachTrackMeanOnsetPitchRegressionAtMost": 0.03,
+    "synthetic": "sustained, repeated with real pause, step semitone, short rejected island and silence/noise"
+  }
+}
