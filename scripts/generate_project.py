@@ -37,6 +37,8 @@ plural_localized=[ref('Resources/'+lang+'.lproj/Localizable.stringsdict','text.p
 for f,lang in zip(plural_localized,['en','ru']):objects[f]['name']=lang
 plurals=obj('plurals','PBXVariantGroup',children=plural_localized,name='Localizable.stringsdict',sourceTree='<group>')
 resource_refs=[assets,strings,info_strings,plurals]
+launch=ROOT/'Resources/LaunchScreen.storyboard'
+if launch.exists():resource_refs.append(ref(str(launch.relative_to(ROOT)),'file.storyboard'))
 privacy=ROOT/'Resources/PrivacyInfo.xcprivacy'
 if privacy.exists():resource_refs.append(ref(str(privacy.relative_to(ROOT)),'text.xml'))
 groups.append(obj('group:Resources','PBXGroup',children=resource_refs,name='Resources',sourceTree='<group>'))
@@ -48,7 +50,8 @@ productgroup=obj('products','PBXGroup',children=[app_product,test_product],name=
 rootgroup=obj('rootgroup','PBXGroup',children=groups+[productgroup],sourceTree='<group>')
 app_id=ident('target:LaGrilla');test_id=ident('target:LaGrillaUITests')
 def phase(key,isa,files):return obj('phase:'+key,isa,buildActionMask=2147483647,files=files,runOnlyForDeploymentPostprocessing=0)
-appsettings=dict(base,PRODUCT_BUNDLE_IDENTIFIER='com.alexgazin.LaGrilla',PRODUCT_NAME='$(TARGET_NAME)',GENERATE_INFOPLIST_FILE='NO',INFOPLIST_FILE='App/Info.plist',MARKETING_VERSION='1.0.0',CURRENT_PROJECT_VERSION='14',ASSETCATALOG_COMPILER_APPICON_NAME='AppIcon',INFOPLIST_KEY_CFBundleDisplayName='La Grilla',INFOPLIST_KEY_LSApplicationCategoryType='public.app-category.music',INFOPLIST_KEY_UILaunchScreen_Generation='YES',INFOPLIST_KEY_UIApplicationSceneManifest_Generation='YES',INFOPLIST_KEY_UISupportedInterfaceOrientations='UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight')
+appsettings=dict(base,PRODUCT_BUNDLE_IDENTIFIER='com.alexgazin.LaGrilla',PRODUCT_NAME='$(TARGET_NAME)',GENERATE_INFOPLIST_FILE='NO',INFOPLIST_FILE='App/Info.plist',MARKETING_VERSION='1.0.0',CURRENT_PROJECT_VERSION='14',ASSETCATALOG_COMPILER_APPICON_NAME='AppIcon',INFOPLIST_KEY_CFBundleDisplayName='La Grilla',INFOPLIST_KEY_LSApplicationCategoryType='public.app-category.music',INFOPLIST_KEY_UIApplicationSceneManifest_Generation='YES',INFOPLIST_KEY_UISupportedInterfaceOrientations='UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight')
+if launch.exists():appsettings['INFOPLIST_KEY_UILaunchStoryboardName']='LaunchScreen'
 app=obj('target:LaGrilla','PBXNativeTarget',buildConfigurationList=configurations('app',appsettings),buildPhases=[phase('app-source','PBXSourcesBuildPhase',sources),phase('app-frameworks','PBXFrameworksBuildPhase',[build('dependency:'+p,p,True) for p in products]),phase('app-resources','PBXResourcesBuildPhase',[build('resource:'+r,r) for r in resource_refs])],buildRules=[],dependencies=[],name='LaGrilla',packageProductDependencies=products,productName='LaGrilla',productReference=app_product,productType='com.apple.product-type.application')
 proxy=obj('proxy','PBXContainerItemProxy',containerPortal=ident('project'),proxyType=1,remoteGlobalIDString=app_id,remoteInfo='LaGrilla')
 dep=obj('testdependency','PBXTargetDependency',target=app_id,targetProxy=proxy)
