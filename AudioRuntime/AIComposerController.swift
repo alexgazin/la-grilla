@@ -39,8 +39,10 @@ enum AIComposerFailure:Error,LocalizedError {
             }
             return
         }
-        #endif
         availabilityMessage=NSLocalizedString("On-device AI requires iOS 26 and Apple Intelligence. Supported commands still work.",comment:"Assistant AI")
+        #else
+        availabilityMessage=NSLocalizedString("On-device AI is not included in this build. Commands remain available.",comment:"Assistant AI")
+        #endif
     }
     func propose(_ text:String,project:Project,sectionID:UUID,localeIdentifier:String)async throws->AssistantProposal {
         guard !isGenerating else{throw AIComposerFailure.busy}

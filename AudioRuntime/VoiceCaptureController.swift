@@ -151,6 +151,7 @@ private final class VoicePCMSink:@unchecked Sendable {
         guard permission else{error=NSLocalizedString("Microphone access was denied. You can still write notes in Piano roll.",comment:"");state=result==nil ? .idle:.ready;return}
         do {
             guard bpm.isFinite,(40...240).contains(bpm),duration.isFinite,duration>0 else{throw VoiceAnalysisError.invalidInput}
+            if !audio.isPrepared{try audio.prepare()}
             let folder=FileManager.default.temporaryDirectory.appendingPathComponent("VoiceDraft-"+UUID().uuidString)
             try FileManager.default.createDirectory(at:folder,withIntermediateDirectories:true)
             let url=folder.appendingPathComponent("source.caf");activeURL=url

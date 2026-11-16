@@ -7,7 +7,7 @@ struct ProjectsView: View {
     @State private var deleting: UUID?;@State private var renameID: UUID?;@State private var name=""
     var body: some View {NavigationStack{ScrollView{VStack(alignment:.leading,spacing:22){
         HStack{VStack(alignment:.leading,spacing:7){Text("Your next idea\nstarts here.").font(.system(size:30,weight:.medium));Text("A little studio. A world of possibilities.").font(.system(.caption)).foregroundStyle(Color.muted)};Spacer();Image(systemName:"square.grid.3x3").font(.system(size:42,weight:.ultraLight)).foregroundStyle(Color.mint)}.padding(.vertical,15)
-        Button{session.sheet = .newProject}label:{Label("New project",systemImage:"plus").font(.system(.body,weight:.semibold)).foregroundStyle(Color.ink).frame(maxWidth:.infinity,minHeight:52).background(Color.mint,in:RoundedRectangle(cornerRadius:12))}.buttonStyle(StudioQuietButtonStyle())
+        Button{session.sheet = .newProject}label:{Label("New project",systemImage:"plus").font(.system(.body,weight:.semibold)).foregroundStyle(Color.ink).frame(maxWidth:.infinity,minHeight:52).background(Color.mint,in:RoundedRectangle(cornerRadius:12))}.buttonStyle(StudioQuietButtonStyle()).accessibilityIdentifier("project.new")
         Button{showImport=true}label:{Label("Import project",systemImage:"square.and.arrow.down").font(.system(.subheadline,weight:.medium)).frame(maxWidth:.infinity,minHeight:44)}.buttonStyle(StudioQuietButtonStyle()).tint(.mint).accessibilityIdentifier("project.import")
         HStack{SmallHeading(text:"ON THIS IPHONE");Spacer();Text("\(session.entries.count) projects").font(.system(.caption)).foregroundStyle(Color.muted)}
         ForEach(session.entries){entry in
@@ -32,11 +32,13 @@ struct NewProjectView: View {
     @State private var root = 0
     @State private var minor = false
     @State private var bars = 4
+    @State private var creating = false
+    @State private var creationError:String?
     var body: some View {
         NavigationStack {
             Form {
                 Section {
-                    TextField("Project name", text: $name)
+                    TextField("Project name", text: $name).accessibilityIdentifier("project.name")
                     Stepper("\(Int(bpm)) BPM", value: $bpm, in: 40...240)
                     Picker("Key", selection: $root) {
                         ForEach(0..<12, id: \.self) { i in Text(Chord.roots[i]).tag(i) }
@@ -47,23 +49,30 @@ struct NewProjectView: View {
                     }
                 }
                 Section {
-                    Text("All instruments are ready. No downloads, no account, just your next idea.")
+                    Text("New projects start empty. Add chords in Grid or record a beat in Jam.")
                         .font(.caption).foregroundStyle(.secondary)
                 }
+                if let creationError{Section{Text(LocalizedStringKey(creationError)).foregroundStyle(Color.record).accessibilityIdentifier("project.create-error")}}
+                if creating{Section{ProgressView("Creating project…")}}
             }
+            .disabled(creating)
             .navigationTitle("New project")
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { session.sheet = nil } }
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { session.sheet = nil }.disabled(creating) }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Create") {
+                        guard !creating else{return}
+                        creating=true;creationError=nil
                         Task {
-                            session.loopBars = bars
-                            await session.create(name: name, bpm: bpm, root: root, minor: minor, bars: bars)
+                            let created=await session.create(name: name, bpm: bpm, root: root, minor: minor, bars: bars)
+                            if !created{creationError=session.message ?? session.saveError;session.message=nil}
+                            creating=false
                         }
-                    }
+                    }.disabled(creating).accessibilityIdentifier("project.create")
                 }
             }
         }
         .presentationDetents([.medium, .large])
+        .interactiveDismissDisabled(creating)
     }
 }

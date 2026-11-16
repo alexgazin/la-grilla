@@ -635,3 +635,15 @@
 "Change this app’s language and permissions in iOS Settings. Available options depend on your device." = "Язык приложения и разрешения меняются в настройках iOS. Доступные пункты зависят от устройства.";
 "Project tempo" = "Темп проекта";
 "Project key" = "Тональность проекта";
+
+"Commands work without Apple Intelligence." = "Команды работают без Apple Intelligence.";
+"Use Commands" = "Использовать команды";
+"Reviewed with Commands because on-device AI is unavailable." = "Предложение подготовлено в режиме «Команды»: локальный ИИ недоступен.";
+"On-device AI is not included in this build. Commands remain available." = "В этой сборке нет локального ИИ. Режим «Команды» доступен.";
+"Audio could not start. Check the audio route and retry." = "Звук не запустился. Проверь аудиовыход и повтори попытку.";
+"New projects start empty. Add chords in Grid or record a beat in Jam." = "Новый проект пустой. Добавь аккорды в «Сетке» или запиши бит в «Джеме».";
+"Creating project…" = "Создание проекта…";
+"Save the current project or save a copy before opening another project." = "Сначала сохрани текущий проект или его копию, затем открывай другой проект.";
+"Share audio diagnostics" = "Поделиться диагностикой звука";
+"Includes audio route types and error codes, never recordings." = "Содержит типы аудиоподключений и коды ошибок. Записи не включаются.";
+"Audio diagnostics" = "Диагностика звука";

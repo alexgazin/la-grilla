@@ -1,25 +1,58 @@
 import AVFoundation
+import Foundation
 import Speech
 import Observation
 
 private final class SpeechRequestHandle:@unchecked Sendable {
     let request:SFSpeechAudioBufferRecognitionRequest
+    private let lock=NSLock()
+    private var ended=false
     init(_ request:SFSpeechAudioBufferRecognitionRequest){self.request=request}
+    // Speech receives PCM on InputDrain's serial worker, never on the realtime
+    // tap. Finish can also arrive from the main actor after a recognition result.
+    // Serialize those two owners and end a request only once.
+    func append(_ buffer:AVAudioPCMBuffer){
+        lock.lock();defer{lock.unlock()}
+        guard !ended else{return}
+        request.append(buffer)
+    }
+    func endAudio(){
+        lock.lock();defer{lock.unlock()}
+        guard !ended else{return}
+        ended=true;request.endAudio()
+    }
 }
 private enum SpeechCallbacks {
-    nonisolated static func receiver(_ request:SFSpeechAudioBufferRecognitionRequest)->LiveInputReceiver {
-        let handle=SpeechRequestHandle(request)
-        return LiveInputReceiver(receive:{ @Sendable [handle] buffer in handle.request.append(buffer)},finish:{ @Sendable [handle] in handle.request.endAudio()})
+    nonisolated static func authorized()async->Bool {
+        // The legacy framework callback can run off the main queue. Construct
+        // it outside MainActor, as for the render/input callbacks, rather than
+        // inheriting start()'s actor and trapping at the callback boundary.
+        await withCheckedContinuation{(continuation:CheckedContinuation<Bool,Never>) in
+            SFSpeechRecognizer.requestAuthorization{ @Sendable status in
+                continuation.resume(returning:status == .authorized)
+            }
+        }
     }
-    nonisolated static func recognize(_ recognizer:SFSpeechRecognizer,request:SFSpeechAudioBufferRecognitionRequest,update:@escaping @Sendable(String?,Bool,String?)->Void)->SFSpeechRecognitionTask {
-        recognizer.recognitionTask(with:request){result,error in update(result?.bestTranscription.formattedString,result?.isFinal ?? false,error?.localizedDescription)}
+    nonisolated static func receiver(_ handle:SpeechRequestHandle)->LiveInputReceiver {
+        LiveInputReceiver(receive:{ @Sendable [handle] buffer in handle.append(buffer)},finish:{ @Sendable [handle] in handle.endAudio()})
+    }
+    nonisolated static func recognize(_ recognizer:SFSpeechRecognizer,request:SpeechRequestHandle,update:@escaping @MainActor @Sendable(String?,Bool,String?)->Void)->SFSpeechRecognitionTask {
+        recognizer.recognitionTask(with:request.request){ @Sendable result,error in
+            let text=result?.bestTranscription.formattedString
+            let final=result?.isFinal ?? false
+            let failure=error?.localizedDescription
+            // Snapshot Sendable values on Speech's callback queue; framework
+            // result/error objects never cross into the main-actor task.
+            Task{@MainActor in update(text,final,failure)}
+        }
     }
 }
 
 @MainActor @Observable final class DictationController {
     var recording=false;var requesting=false;var finalizing=false;var text="";var error:String?
     private var microphone:LiveMicrophone?
-    private var request:SFSpeechAudioBufferRecognitionRequest?
+    private var recognizer:SFSpeechRecognizer?
+    private var request:SpeechRequestHandle?
     private var task:SFSpeechRecognitionTask?
     private var timeout:Task<Void,Never>?
     private var settling:Task<Void,Never>?
@@ -28,25 +61,29 @@ private enum SpeechCallbacks {
         guard !recording && !requesting && !finalizing else{return}
         cancelRecognition();requesting=true;error=nil;text="";let attempt=generation
         defer{if generation==attempt{requesting=false}}
-        let authorized=await withCheckedContinuation{(continuation:CheckedContinuation<SFSpeechRecognizerAuthorizationStatus,Never>) in SFSpeechRecognizer.requestAuthorization{status in continuation.resume(returning:status)}}
+        let authorized=await SpeechCallbacks.authorized()
         guard attempt==generation else{return}
-        guard authorized == .authorized else{error=NSLocalizedString("Dictation permission was denied. You can still type a command.",comment:"");return}
+        guard authorized else{error=NSLocalizedString("Dictation permission was denied. You can still type a command.",comment:"");return}
         guard let recognizer=SFSpeechRecognizer(locale:Locale(identifier:locale)),recognizer.isAvailable,recognizer.supportsOnDeviceRecognition else{error=NSLocalizedString("On-device dictation is unavailable for this language. Type a command.",comment:"");return}
         let permitted=await AVAudioApplication.requestRecordPermission()
         guard attempt==generation else{return}
         guard permitted else{error=NSLocalizedString("Microphone access was denied. You can still type a command.",comment:"");return}
         do {
+            // Permission UI and route changes can leave the output graph stopped.
+            // Recover it before creating a Speech task or taking the input lease.
+            if !audio.isPrepared{try audio.prepare()}
             let request=SFSpeechAudioBufferRecognitionRequest()
             request.requiresOnDeviceRecognition=true;request.shouldReportPartialResults=true
             request.contextualStrings=["Am","C","F","G","BPM","tempo","Chorus","Intro","Verse","куплет","припев","бридж","тактов","поджазовать"]
-            self.request=request
-            task=SpeechCallbacks.recognize(recognizer,request:request){[weak self] text,final,error in Task{@MainActor in
+            let handle=SpeechRequestHandle(request)
+            self.recognizer=recognizer;self.request=handle
+            task=SpeechCallbacks.recognize(recognizer,request:handle){[weak self] text,final,error in
                 guard let self,self.generation==attempt else{return}
                 if let text{self.text=String(text.prefix(2000))}
                 if let error{self.error=error;self.cancelRecognition()}
                 else if final{self.finishRecognition()}
-            }}
-            microphone=try LiveMicrophone(audio:audio,delay:0.05,duration:30,receiver:{_ in SpeechCallbacks.receiver(request)},onFailure:{[weak self] message in
+            }
+            microphone=try LiveMicrophone(audio:audio,delay:0.05,duration:30,receiver:{_ in SpeechCallbacks.receiver(handle)},onFailure:{[weak self] message in
                 guard let self,self.generation==attempt else{return};self.error=message;self.cancelRecognition()
             })
             recording=true
@@ -69,13 +106,17 @@ private enum SpeechCallbacks {
     private func finishRecognition(){
         generation+=1
         timeout?.cancel();timeout=nil;settling?.cancel();settling=nil
+        // Recognition is already final (or its settling deadline expired).
+        // Close Speech input before joining any still-pending PCM drain.
+        request?.endAudio()
         do{try microphone?.stop()}catch{self.error=error.localizedDescription}
         microphone=nil;recording=false;requesting=false;finalizing=false
-        request?.endAudio();task=nil;request=nil
+        task?.cancel();task=nil;request=nil;recognizer=nil
     }
     private func cancelRecognition(){
         generation+=1;timeout?.cancel();timeout=nil;settling?.cancel();settling=nil
+        request?.endAudio()
         try? microphone?.stop();microphone=nil
-        request?.endAudio();task?.cancel();task=nil;request=nil;recording=false;requesting=false;finalizing=false
+        task?.cancel();task=nil;request=nil;recognizer=nil;recording=false;requesting=false;finalizing=false
     }
 }

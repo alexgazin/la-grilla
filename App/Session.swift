@@ -47,9 +47,25 @@ import Observation
     private let runtimeTraceStart=ProcessInfo.processInfo.systemUptime
     let store: ProjectStore
     enum Sheet: String, Identifiable {case projects, newProject, export, settings, gettingStarted, bass, sections, notes, harmony, assistant, voice, perform, midiDevices; var id: String { rawValue }}
-    private var lastProjectKey:String {ProcessInfo.processInfo.arguments.contains("--uitesting") ? "studio.qa.lastProjectID":"studio.lastProjectID"}
+    private static var qaProjectStoreID:UUID? {
+        let arguments=ProcessInfo.processInfo.arguments
+        guard arguments.contains("--uitesting"),let index=arguments.firstIndex(of:"--project-store-id"),arguments.indices.contains(index+1)else{return nil}
+        return UUID(uuidString:arguments[index+1])
+    }
+    private var lastProjectKey:String {
+        guard ProcessInfo.processInfo.arguments.contains("--uitesting")else{return "studio.lastProjectID"}
+        if let id=Self.qaProjectStoreID{return "studio.qa.\(id.uuidString).lastProjectID"}
+        return "studio.qa.lastProjectID"
+    }
     init() {
-        let root = ProcessInfo.processInfo.arguments.contains("--uitesting") ? FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString) : FileManager.default.urls(for: .documentDirectory,in:.userDomainMask)[0].appendingPathComponent("Projects")
+        let root:URL
+        if ProcessInfo.processInfo.arguments.contains("--uitesting") {
+            // A UUID-scoped native test may relaunch against the same real
+            // documents. The default remains disposable per launch, and no
+            // testing path or preference can address production projects.
+            let folder=Self.qaProjectStoreID.map{"StudioQA-"+$0.uuidString} ?? UUID().uuidString
+            root=FileManager.default.temporaryDirectory.appendingPathComponent(folder,isDirectory:true)
+        }else{root=FileManager.default.urls(for:.documentDirectory,in:.userDomainMask)[0].appendingPathComponent("Projects")}
         store = ProjectStore(root: root)
         audio.onPoll={ [weak self] in self?.pollRecording() }
         if runtimeTraceEnabled{audio.onRuntimeTrace={ [weak self] event in self?.runtimeTrace(event) }}
@@ -86,14 +102,21 @@ import Observation
             do {
                 entries=try await store.list()
                 let remembered=UserDefaults.standard.string(forKey:lastProjectKey).flatMap(UUID.init(uuidString:))
-                if let previous=entries.first(where:{$0.id==remembered})?.project ?? entries.first(where:{$0.project != nil})?.project {project=previous}
-                else if entries.isEmpty {try await store.save(project);entries=try await store.list()}
-                selectedSection=project.sections[0].id
-                runtimeTrace("bootstrap.prepare.before")
-                try audio.prepare();sync();savedRevision=project.revision
-                UserDefaults.standard.set(project.id.uuidString,forKey:lastProjectKey)
-                runtimeTrace("bootstrap.prepare.after")
+                if let previous=entries.first(where:{$0.id==remembered})?.project ?? entries.first(where:{$0.project != nil})?.project {
+                    project=previous;savedRevision=previous.revision
+                }else if entries.isEmpty {
+                    savedRevision=try await store.save(project);entries=try await store.list()
+                }
             } catch {message=error.localizedDescription;runtimeTrace("bootstrap.failure \(error.localizedDescription)")}
+            // Loading and saving a document do not depend on an audio route.
+            // A failed device engine must not turn a valid stored project into
+            // an unsaved seed or lose the user's last-opened selection.
+            selectedSection=project.sections[0].id
+            if savedRevision>=0{UserDefaults.standard.set(project.id.uuidString,forKey:lastProjectKey)}
+            runtimeTrace("bootstrap.prepare.before")
+            do{try audio.prepare();sync()}
+            catch{audio.error=error.localizedDescription;runtimeTrace("bootstrap.audio.failure \(error.localizedDescription)")}
+            runtimeTrace("bootstrap.prepare.after")
             ready=true
             runtimeTrace("bootstrap.ready")
         }
@@ -294,17 +317,39 @@ import Observation
     func setLoop(bars: Int? = nil, enabled: Bool? = nil) {guard !recording && !armed else{message="Finish the take before changing the loop.";return};if let bars{loopBars=bars};if let enabled{loop=enabled};sync()}
     func select(_ section: MusicDomain.Section) {if performance.contextActive{performance.queueSection(section.id);return};guard !recording && !armed else{return};selectedSection=section.id;sync();if !audio.playing{audio.seek(section.start)}}
     func open(_ p: Project, force: Bool = false) async {
+        await bootstrap()
+        do{try p.validate()}catch{message=error.localizedDescription;return}
+        if !force && p.id==project.id {if performance.contextActive{await leavePerformance()};sheet=nil;return}
+        guard await checkpointBeforeProjectChange()else{return}
+        activateProject(p,savedRevision:p.revision)
+    }
+    private func checkpointBeforeProjectChange()async->Bool {
         if performance.contextActive{await leavePerformance()}
-        if !force && p.id==project.id {sheet=nil;return}
         if exportInProgress{cancelExport()}
         finishTake();endHarmonyPreview();audio.stop();await save()
-        guard saveError==nil else {message="Save the current project or save a copy before opening another project.";return}
-        project=p;history=History();noteTrackID=nil;noteClipID=nil;drumClipID=nil;selectedSection=p.sections[0].id;savedRevision=p.revision;audio.seek(0);sync();sheet=nil
+        if let saveError{message=NSLocalizedString("Save the current project or save a copy before opening another project.",comment:"Project switch")+"\n"+saveError;return false}
+        return true
+    }
+    private func activateProject(_ p:Project,savedRevision:Int){
+        project=p;history=History();noteTrackID=nil;noteClipID=nil;drumClipID=nil;selectedSection=p.sections[0].id;self.savedRevision=savedRevision;audio.seek(0);sync();sheet=nil
         UserDefaults.standard.set(p.id.uuidString,forKey:lastProjectKey)
     }
-    func create(name: String,bpm: Double,root: Int,minor: Bool,bars: Int) async {
-        var p=Project(name:name.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty ? "Untitled" : name,bars:bars);p.bpm=bpm;p.keyRoot=root;p.minor=minor
-        await open(p);await save()
+    @discardableResult func create(name: String,bpm: Double,root: Int,minor: Bool,bars: Int) async -> Bool {
+        await bootstrap()
+        guard (1...64).contains(bars),bpm.isFinite,(40...240).contains(bpm),(0..<12).contains(root)else{message=MusicError.invalidProject.localizedDescription;return false}
+        let title=name.trimmingCharacters(in:.whitespacesAndNewlines)
+        var p=Project(name:title.isEmpty ? "Untitled" : title,bars:bars);p.bpm=bpm;p.keyRoot=root;p.minor=minor
+        do{try p.validate()}catch{message=error.localizedDescription;return false}
+        guard await checkpointBeforeProjectChange()else{return false}
+        do {
+            // Persist the new document before replacing the current project.
+            // Save failures keep the existing work and loop settings intact.
+            let revision=try await store.save(p)
+            loopBars=bars
+            activateProject(p,savedRevision:revision)
+        }catch{message=error.localizedDescription;return false}
+        do{entries=try await store.list()}catch{message=error.localizedDescription}
+        return true
     }
     func duplicateProject(_ p:Project) async {do{_ = try await store.duplicate(p.id==project.id ? project:p);entries=try await store.list()}catch{message=error.localizedDescription}}
     func delete(_ id: UUID) async {do{try await store.delete(id);entries=try await store.list()}catch{message=error.localizedDescription}}

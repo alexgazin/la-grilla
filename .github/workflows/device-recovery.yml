@@ -1,0 +1,61 @@
+name: Device audio and input recovery verification
+on:
+  workflow_dispatch:
+  push:
+    branches: [fix/device-audio-dictation]
+concurrency:
+  group: device-recovery-${{ github.ref }}
+  cancel-in-progress: true
+env:
+  DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
+jobs:
+  verify-device-recovery:
+    runs-on: macos-15
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - name: Audit sources and compile native tests
+        run: |
+          python3 scripts/release/assert_sdk.py
+          python3 scripts/generate_project.py
+          git diff --exit-code -- LaGrilla.xcodeproj
+          python3 scripts/audit_presentation.py
+          python3 scripts/release/audit_release.py
+          set -o pipefail
+          xcodebuild -project LaGrilla.xcodeproj -scheme LaGrilla -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' ARCHS=arm64 ONLY_ACTIVE_ARCH=YES -configuration Debug -derivedDataPath DerivedData CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO build-for-testing | tee device-recovery-build.log
+      - name: Configure actual simulator audio route
+        run: bash scripts/setup_ci_audio.sh
+      - name: Boot native iPhone simulator
+        env:
+          GRILLA_CAPTURE_SCREENS: '0'
+        run: bash scripts/screenshots.sh
+      - name: Verify UI recovery and strict shared-engine PCM
+        env:
+          GRILLA_REQUIRE_MIC_INPUT: '1'
+          TEST_RUNNER_GRILLA_REQUIRE_MIC_INPUT: '1'
+        run: |
+          set -o pipefail
+          DEVICE=$(cat /tmp/grilla-simulator-id)
+          xcodebuild -project LaGrilla.xcodeproj -scheme LaGrilla -destination "platform=iOS Simulator,id=$DEVICE" -derivedDataPath DerivedData -resultBundlePath DeviceRecoveryResults.xcresult -only-testing:LaGrillaUITests/DeviceRecoveryTests -only-testing:LaGrillaUITests/AudioRuntimeContinuityTests/testSessionMicrophoneLeaseRetainsLiveEngineAndPCM -only-testing:LaGrillaUITests/AudioRuntimeContinuityTests/testProductionVoiceCaptureCAFAnalysisApplyStoreAndUndo -only-testing:LaGrillaUITests/AudioRuntimeContinuityTests/testAAOutputOnlyLaunchDoesNotRequestMicrophone -test-timeouts-enabled YES -maximum-test-execution-time-allowance 180 ARCHS=arm64 ONLY_ACTIVE_ARCH=YES CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO test-without-building | tee device-recovery-tests.log
+      - name: Preserve original native attachments
+        if: always()
+        run: |
+          if test -d DeviceRecoveryResults.xcresult; then
+            xcrun xcresulttool export attachments --path DeviceRecoveryResults.xcresult --output-path DeviceRecoveryAttachments
+          fi
+      - name: Preserve app crash diagnostics
+        if: always()
+        run: |
+          mkdir -p DeviceRecoveryCrashReports
+          find "$HOME/Library/Logs/DiagnosticReports" -iname '*LaGrilla*' -exec cp {} DeviceRecoveryCrashReports/ \; || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: device-recovery-verification
+          path: |
+            DeviceRecoveryAttachments
+            DeviceRecoveryResults.xcresult
+            DeviceRecoveryCrashReports
+            device-recovery-build.log
+            device-recovery-tests.log
+            ci-audio.log

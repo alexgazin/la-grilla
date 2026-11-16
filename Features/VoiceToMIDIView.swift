@@ -154,11 +154,13 @@ struct VoiceToMIDIView:View {
     func record(){
         guard !draftLocked else{return}
         session.endHarmonyPreview();capture.stopOriginal();session.finishTake();error=nil;pendingContext=nil
+        guard session.ensureAudio()else{error=session.audio.error;return}
         guard let lease=session.beginMicrophone(stop:{capture.stop();capture.stopOriginal()})else{return}
         microphoneLease=lease
         Task{
             guard session.ownsMicrophone(lease)else{return}
             let bpm=session.project.bpm
+            let previousEngine=session.audio.captureEngine
             await capture.start(audio:session.audio,bpm:bpm,duration:30,countIn:countIn,schedule:{lead in
                 do {
                     guard session.ownsMicrophone(lease),session.project.bpm==bpm else{throw AssistantError.stale}
@@ -167,6 +169,7 @@ struct VoiceToMIDIView:View {
                     return planned.plan.delay
                 }catch{self.error=error.localizedDescription;return nil}
             },scheduleDuration:{pendingContext?.plan.duration})
+            if session.audio.captureEngine !== previousEngine,session.audio.isPrepared{session.sync()}
             if !capture.isCapturing{session.endMicrophone(lease);if microphoneLease==lease{microphoneLease=nil}}
         }
     }
