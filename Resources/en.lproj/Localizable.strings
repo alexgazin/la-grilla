@@ -658,3 +658,9 @@
 "Write the AI request in this language. Dictation below has its own language." = "Write the AI request in this language. Dictation below has its own language.";
 "Recheck AI" = "Recheck AI";
 "The microphone could not start. Retry recording or check the audio route." = "The microphone could not start. Retry recording or check the audio route.";
+
+"AI language and setup" = "AI language and setup";
+"AI requests and dictation have separate languages. Neither changes automatically." = "AI requests and dictation have separate languages. Neither changes automatically.";
+"Creates form and chords. Existing drum and melody parts are reused; new parts are not generated." = "Creates form and chords. Existing drum and melody parts are reused; new parts are not generated.";
+"Source sections without drum notes stay empty. Add a beat in Jam." = "Source sections without drum notes stay empty. Add a beat in Jam.";
+"Source sections without melody notes stay empty. Add notes or record a melody." = "Source sections without melody notes stay empty. Add notes or record a melody.";

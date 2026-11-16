@@ -167,15 +167,16 @@ final class AuthorizedMicrophoneTests: XCTestCase {
         launch(app, arguments: ["--screen", "grid", "--device-output-startup"])
         let transport = app.buttons["perform.transport"]
         XCTAssertTrue(transport.waitForExistence(timeout: 15))
-        wait(transport, timeout: 8) { self.trace(transport).contains("engineRunning=true") }
-        XCTAssertTrue(trace(transport).contains("inputPriming=outputOnly"))
-        XCTAssertTrue(trace(transport).contains("inputPrimed=false"))
-        XCTAssertTrue(trace(transport).contains("inputConfigured=false"))
-        XCTAssertTrue(trace(transport).contains("error=none"))
-        let kernel = try XCTUnwrap(traceValue("kernel", in: trace(transport)))
-        let project = try XCTUnwrap(traceValue("project", in: trace(transport)))
-        let revision = try XCTUnwrap(traceValue("revision", in: trace(transport)))
-        let firstClock = try XCTUnwrap(UInt64(traceValue("actualClock", in: trace(transport)) ?? ""))
+        var initial = ""
+        wait(transport, timeout: 8) { initial = self.trace(transport); return initial.contains("engineRunning=true") }
+        XCTAssertTrue(initial.contains("inputPriming=outputOnly"))
+        XCTAssertTrue(initial.contains("inputPrimed=false"))
+        XCTAssertTrue(initial.contains("inputConfigured=false"))
+        XCTAssertTrue(initial.contains("error=none"))
+        let kernel = try XCTUnwrap(traceValue("kernel", in: initial))
+        let project = try XCTUnwrap(traceValue("project", in: initial))
+        let revision = try XCTUnwrap(traceValue("revision", in: initial))
+        let firstClock = try XCTUnwrap(UInt64(traceValue("actualClock", in: initial) ?? ""))
         app.buttons["Play"].tap()
         wait(transport, timeout: 8) { self.trace(transport).contains("actualPlaying=1") }
         app.buttons["assistant.open"].tap()
@@ -226,9 +227,8 @@ final class AuthorizedMicrophoneTests: XCTestCase {
         keep(try json(["diagnostic": diagnostic, "observedSystemPrompts": prompts, "successfulTranscriptionClaimed": false]), name: "AuthorizedInput-real-granted-Speech-completion")
         // Read the actual underlying transport without closing and reopening
         // the editor. Typed recovery must use this same Assistant presentation.
-        XCTAssertTrue(transport.exists)
-        wait(transport, timeout: 8) { self.trace(transport).contains("engineRunning=true") }
-        let after = trace(transport)
+        var after = ""
+        wait(transport, timeout: 8) { after = self.trace(transport); return after.contains("engineRunning=true") }
         keep(after, name: "AuthorizedInput-output-only-after-Speech")
         XCTAssertEqual(traceValue("kernel", in: after), kernel)
         XCTAssertEqual(traceValue("project", in: after), project)
@@ -305,12 +305,18 @@ final class AuthorizedMicrophoneTests: XCTestCase {
 
     @MainActor private func reveal(_ element: XCUIElement, in app: XCUIApplication, upward: Bool = true) {
         let scroll = app.scrollViews["assistant.review-scroll"]
+        let appFrame = app.frame
         for _ in 0..<7 {
-            let viewport = scroll.frame.intersection(app.frame)
-            if element.exists && element.isHittable && element.frame.minY >= viewport.minY + 8 && element.frame.maxY <= viewport.maxY - 8 { return }
-            if upward { scroll.swipeUp() } else { scroll.swipeDown() }
+            let viewport = scroll.frame.intersection(appFrame)
+            let frame = element.frame
+            if frame.minY >= viewport.minY + 8 && frame.maxY <= viewport.maxY - 8 && element.isHittable { return }
+            let targetAbove = frame.height > 0 && frame.minY < viewport.minY + 8
+            let targetBelow = frame.height > 0 && frame.maxY > viewport.maxY - 8
+            if targetAbove { scroll.swipeDown() }
+            else if targetBelow || upward { scroll.swipeUp() }
+            else { scroll.swipeDown() }
         }
-        XCTAssertTrue(element.exists && element.isHittable)
+        XCTFail("The actual Assistant control was not fully visible: \(element.identifier)")
     }
 
     @MainActor private func replace(_ field: XCUIElement, with value: String) {

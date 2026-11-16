@@ -660,3 +660,9 @@
 "Write the AI request in this language. Dictation below has its own language." = "Пиши запрос ИИ на этом языке. Язык диктовки ниже настраивается отдельно.";
 "Recheck AI" = "Проверить ИИ";
 "The microphone could not start. Retry recording or check the audio route." = "Не удалось запустить микрофон. Повтори запись или проверь аудиомаршрут.";
+
+"AI language and setup" = "Язык и настройка ИИ";
+"AI requests and dictation have separate languages. Neither changes automatically." = "Язык запроса ИИ и язык диктовки задаются отдельно. Они не меняются автоматически.";
+"Creates form and chords. Existing drum and melody parts are reused; new parts are not generated." = "Создаёт форму и аккорды. Использует существующие партии ударных и мелодии; новые партии не генерируются.";
+"Source sections without drum notes stay empty. Add a beat in Jam." = "Секции без ударных останутся без них. Добавь бит в Джеме.";
+"Source sections without melody notes stay empty. Add notes or record a melody." = "Секции без мелодии останутся без неё. Добавь ноты или запиши мелодию.";
