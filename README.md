@@ -15,7 +15,20 @@
 
 ## IPA для тестировщика
 
-**[Скачать последнюю La Grilla 1.0.0 (19) · IPA, 3.4 MiB](https://github.com/alexgazin/la-grilla/raw/refs/heads/main/Builds/Testing/LaGrilla-1.0.0-19-unsigned.ipa)** — тестовый кандидат из [PR #21](https://github.com/alexgazin/la-grilla/pull/21), source `4e85930`. iPhone / iOS 18+, подпись своим Apple ID через Sideloadly на Mac или Windows. Платная команда не нужна; бесплатная подпись действует 7 дней. Debug и Release archive проверены; полная нативная приёмка ещё открыта. [Установка, ограничения и прежняя IPA 17](Builds/Testing/README.md).
+**[Скачать тестовую La Grilla 1.0.0 (20) · архив ZIP с IPA](https://github.com/alexgazin/la-grilla/actions/runs/43957824077/artifacts/14273365913)** — iPhone / iOS 18+, source `6bb06b5`. Войдите в GitHub, скачайте ZIP и извлеките `LaGrilla-unsigned.ipa` (3.4 MiB). Подпишите файл своим Apple ID через Sideloadly на Mac или Windows: бесплатная Personal Team подходит, подпись обычно действует 7 дней. Debug и Release archive прошли; полная нативная и аппаратная приёмка остаётся открытой. [Инструкция, SHA-256 и прежние IPA 19/17](Builds/Testing/README.md).
+
+Код приложения в `main` пока **17**. Код кандидата 20 находится в ещё не интегрированном [PR #21](https://github.com/alexgazin/la-grilla/pull/21) и его последующих диагностических ветках. Тестовая IPA 20 доступна для ручной проверки до завершения полной приёмки.
+
+## Новые экраны · тестовый кандидат 20
+
+Два оригинальных кадра работающей сборки 20: Harmony A/B и фильтр Perform. Код `main` пока 17; эти экраны сняты с кандидата `deeb701` в iOS Simulator.
+
+<p align="center">
+  <a href="Screenshots/Build20Preview/harmony.png"><img src="Screenshots/Build20Preview/harmony.png" width="240" alt="Harmony Lab сборки 20: аккорды и прослушивание варианта B"></a>
+  <a href="Screenshots/Build20Preview/perform.png"><img src="Screenshots/Build20Preview/perform.png" width="240" alt="Perform сборки 20: круговой фильтр и управление живым исполнением"></a>
+</p>
+
+Методы-владельцы обоих кадров прошли; [весь запуск](https://github.com/alexgazin/la-grilla/actions/runs/43966102437) завершился с **2 PASS / 1 allowance / 1 interrupted**. Это предпросмотр интерфейса, не полная приёмка и не готовый проморолик. Исходные пиксели сохранены без изменений; [происхождение, имена вложений и SHA-256](Screenshots/Build20Preview/manifest.json).
 
 ## Независимый разбор и план доведения до релиза
 
@@ -23,7 +36,7 @@
 
 Честный статус — функциональная альфа. Сильные стороны: редактируемая гармония, общий музыкальный транспорт, A/B, Undo и переносимый проект. Основные незакрытые проверки — первый сеанс со звуком на физическом iPhone, живые Speech/Apple Intelligence, задержки записи поверх лупа и работа с настоящими контроллерами и DAW.
 
-[PR #21](https://github.com/alexgazin/la-grilla/pull/21) доводит первый результат в новом проекте, помощника, транспонирование, безопасность документов, производительность и CI. В первом прогоне кандидата 18 прошли 7 из 11 сценариев; найдены два дефекта названий нот и два таймаута тестов транспонирования. Исправления и новые редактируемые скетчи готовятся в кандидате 19; его нативная приёмка ещё впереди. **Последняя полная принятая программная база — 16**: [полный запуск](https://github.com/alexgazin/la-grilla/actions/runs/43858734785), 51 PASS / 0 FAIL / 1 diagnostic SKIP. Это отдельные источники и статусы.
+Кандидат 20 добавляет редактируемые локальные скетчи, сохранённое написание аккордов и полный диапазон воспроизведения импортированных 8/16 тактов. Последний полный прогон source `f6cea328` дал [64 из 66 PASS](https://github.com/alexgazin/la-grilla/actions/runs/43934434713); он не является приёмкой отдельного бинарника `6bb06b5`. Перетаскивание клипа и сохранение настроек нотации ещё требуют завершённых успешных сценариев. **Последняя полная принятая программная база — 16**: [полный запуск](https://github.com/alexgazin/la-grilla/actions/runs/43858734785), 51 PASS / 0 FAIL / 1 diagnostic SKIP. [Актуальные исходники, результаты и ограничения](docs/release/CURRENT.md).
 
 ## La Grilla в работе · настоящее видео со звуком
 
@@ -32,6 +45,8 @@
 **[▶ Смотреть рабочую демонстрацию — 2:12, Full HD, со звуком](https://github.com/alexgazin/la-grilla/raw/refs/heads/main/Media/WorkingDemo/la-grilla-working-demo.mp4)** · [Полная запись без монтажных сокращений](https://github.com/alexgazin/la-grilla/raw/refs/heads/main/Media/WorkingDemo/la-grilla-session-original.mp4)
 
 Запись **iOS Simulator, сборка 1.0.0 (15)**: настоящий Play, редактирование аккорда, pinch-to-zoom, пэды и overdub, шаги, микшер, ноты, Harmony A/B, Commands, Perform и WAV в системном меню экспорта. Звук записан с аудиовыхода тех же сессий; слышны pan, mute и фильтр. Три сессии смонтированы с сокращением ожиданий, действия идут в обычном темпе. Voice показан на этапе подготовки записи, beta/mono. [Происхождение, монтаж и проверки](Media/WorkingDemo/README.md).
+
+Принятого видео работы 20 пока нет. Последняя попытка записи не завершила все четыре сценария и не сохранила воспроизводимый MP4; она не заменяет историческую запись 15.
 
 <details>
 <summary>Презентация возможностей на настоящих скриншотах · 1:36</summary>
@@ -146,15 +161,15 @@ PNG сохранены без изменений; [манифест](Screenshots
 
 Бесплатная Personal Team подходит для локального запуска; такую подпись обычно нужно обновлять раз в семь дней через Xcode. Если bundle identifier занят, задайте уникальный для своей локальной сборки. [Подробная инструкция и команды сборки](docs/DEVELOPMENT.md#run-on-your-own-iphone).
 
-Приложение пока не опубликовано в App Store. CI-архив собран без distribution-подписи и не является устанавливаемым IPA.
+Приложение пока не опубликовано в App Store. Тестовая IPA из CI не подписана: перед установкой её нужно подписать своим Apple ID, как описано выше.
 
 ## Проверки и готовность
 
-Текущий пакет исправлений — **1.0.0 (17), schema 8**, [PR #20](https://github.com/alexgazin/la-grilla/pull/20). **Функциональная альфа: software gate 17 и физический P0-retest открыты.** Единый актуальный source, результаты CI и границы доказанного — в [CURRENT](docs/release/CURRENT.md). На базовом `main` 16 полный программный прогон прошёл; это не подтверждает исправление на телефоне или новые изменения 17. Снимки владельца показывают выданные Mic/Speech-разрешения и ошибку захвата; точные iPhone, iOS и установленный build ещё не записаны.
+Код приложения в `main` — **1.0.0 (17), schema 8**, интегрированный через [PR #20](https://github.com/alexgazin/la-grilla/pull/20). Следующий кандидат 20 доступен отдельно как тестовая IPA. **Функциональная альфа: полный software gate кандидата 20 и физический повтор остаются открытыми.** Единый актуальный source, результаты CI и границы доказанного — в [CURRENT](docs/release/CURRENT.md). На базовом `main` 16 полный программный прогон прошёл; это не подтверждает исправление на телефоне или новые изменения 17. Снимки владельца показывают выданные Mic/Speech-разрешения и ошибку захвата; точные iPhone, iOS и установленный build ещё не записаны.
 
 | Подтверждение | Результат и источник |
 | --- | --- |
-| Текущий кандидат 17 | Код `5adbadb`, **651 EN/RU ключ**. Debug Xcode 26.3 и полные resource-сборки 16.4 / 26.0.1 PASS. Текущие native/archive/full-regression результаты учитываются отдельно в CURRENT; отмена задания в очереди не является результатом UI-теста. Предыдущие `9fb52e0` — 6 PASS / 1 Speech timeout и `29adf6c` — 5 PASS / 2 UI timeout не выданы за полную приёмку. [Точный текущий статус и ссылки](docs/release/CURRENT.md). |
+| Код `main`, сборка 17 | Код `5adbadb`, **651 EN/RU ключ**. Debug Xcode 26.3 и полные resource-сборки 16.4 / 26.0.1 PASS. Текущие native/archive/full-regression результаты учитываются отдельно в CURRENT; отмена задания в очереди не является результатом UI-теста. Предыдущие `9fb52e0` — 6 PASS / 1 Speech timeout и `29adf6c` — 5 PASS / 2 UI timeout не выданы за полную приёмку. [Точный текущий статус и ссылки](docs/release/CURRENT.md). |
 | Полная проверка main 16 | Точный `9dfec7e`, [run 43858734785](https://github.com/alexgazin/la-grilla/actions/runs/43858734785): все три jobs SUCCESS, **51 functional native PASS / 0 FAIL / 1 opt-in diagnostic SKIP**. Это принятая программная база до изменений 17; аппаратная C8 остаётся открытой. |
 | Восстановление после первого отчёта | Source `27cbf09`: [8/8 целевых native PASS, 0 failures, 0 skips](https://github.com/alexgazin/la-grilla/actions/runs/43845748716). Проверены настоящий отказ Speech-разрешению без вылета и typed Apply/Undo, output-only граф, strict PCM/CAF, проекты при явно внедрённой аудио-ошибке и Commands при недоступной модели. [Пять новых оригинальных скриншотов](Screenshots/DeviceRepair). Физический iPhone этим не проверен. |
 | Историческая ветка 16 до merge | Source `01fb8b7`, **634 EN/RU ключа**. [iPhone Debug / Release archive](https://github.com/alexgazin/la-grilla/actions/runs/43851740287) прошли; [полные сборки Xcode 16.4 / 26.0.1](https://github.com/alexgazin/la-grilla/actions/runs/43851747604) прошли. [10 focused native](https://github.com/alexgazin/la-grilla/actions/runs/43851740283) отменён по лимиту workflow 35 минут; логи и артефакты недоступны, исходы отдельных методов неизвестны. Полный native-прогон завершился **49 PASS / 2 FAIL / 1 diagnostic SKIP**: все шесть Arrangement и пять DeviceRecovery прошли; не прошли AssistantComposition idle и Light theme. Это исторический результат до последующего успешного exact-main `9dfec7e`; физическая перепроверка остаётся открытой. |
@@ -168,7 +183,7 @@ PNG сохранены без изменений; [манифест](Screenshots
 | Локальная сборка и закрытие Assistant | Source `4d5ff47`: [iPhone SDK / Release archive](https://github.com/alexgazin/la-grilla/actions/runs/43829522207) прошли; [6/6 focused native](https://github.com/alexgazin/la-grilla/actions/runs/43829522128) подтвердили Cancel после смены режима/языка, Apply/Undo, темы и знакомство. Предыдущий точный run `aa91404` имел один сбой закрытия Assistant; он сохранён в [журнале](docs/IMPLEMENTATION_LOG.md). Новый результат относится к исправлению, а не полному повтору 46 функций. Для собственного iPhone достаточно бесплатной [Personal Team](docs/DEVELOPMENT.md#run-on-your-own-iphone). |
 | Полная регрессия после исправления Assistant | [Run 43832035629](https://github.com/alexgazin/la-grilla/actions/runs/43832035629), точный `main` source `778885b`: все три jobs SUCCESS, **46 функциональных native PASS / 1 diagnostic SKIP / 0 failures**. Это источник до последующей правки компиляции `ChordTile`; его результаты не подменяют [отдельную матрицу Xcode](docs/DEVELOPMENT.md#xcode-compatibility). |
 
-**До выпуска нужно закрыть software gate кандидата 17 и C8:** повторная установка кандидата исправлений и приёмка на физических iPhone, включая минимальную ОС; 30-минутные проверки задержки, нагрева и непрерывности звука; speaker / wired / USB / Bluetooth-маршруты; настоящие USB/BLE MIDI-контроллеры и импорт в две DAW; живой напев и реальная FoundationModels; distribution signing, TestFlight и App Review. Первый пользовательский запуск выявил дефекты и не закрывает эти пункты. [Чек-лист устройства](docs/release/DEVICE_ACCEPTANCE.md) и [процедура выпуска](docs/release/RELEASE.md).
+**До выпуска нужно закрыть software gate кандидата 20 и C8:** повторная установка кандидата исправлений и приёмка на физических iPhone, включая минимальную ОС; 30-минутные проверки задержки, нагрева и непрерывности звука; speaker / wired / USB / Bluetooth-маршруты; настоящие USB/BLE MIDI-контроллеры и импорт в две DAW; живой напев и реальная FoundationModels; distribution signing, TestFlight и App Review. Первый пользовательский запуск выявил дефекты и не закрывает эти пункты. [Чек-лист устройства](docs/release/DEVICE_ACCEPTANCE.md) и [процедура выпуска](docs/release/RELEASE.md).
 
 Voice-to-MIDI остаётся монофонической beta с ручной проверкой. В аудио-QA зафиксированы разрывы временных меток рендера; отсутствие слышимых выпадений на телефоне ещё не измерено. Границы подтверждённых результатов подробно сохранены в [приёмке C7](docs/release/C7_ACCEPTANCE.md).
 
