@@ -1,7 +1,8 @@
 import XCTest
 
-/// The Simulator's real model availability is observed, never injected. This
-/// covers setup/recheck and the local parser; it does not prove model generation.
+/// Real AI availability for the selected request locale is observed, never
+/// injected. A model that is not ready, or an unsupported locale, requires local
+/// fallback. These cases do not prove model generation or global unavailability.
 final class AIAvailabilityTests:XCTestCase {
     override func setUp(){super.setUp();continueAfterFailure=false;executionTimeAllowance=120}
 
@@ -11,13 +12,13 @@ final class AIAvailabilityTests:XCTestCase {
         let chord=app.buttons.matching(NSPredicate(format:"identifier BEGINSWITH 'grid.chord.'")).firstMatch
         XCTAssertTrue(chord.waitForExistence(timeout:5))
         let originalChord=chord.label
-        let originalDocument=documentState(transport)
+        let originalDocument=documentState(transport,verifyOutputOnlyStartup:true)
         XCTAssertFalse(app.buttons["Undo"].isEnabled)
         app.buttons["assistant.open"].tap()
         XCTAssertTrue(app.navigationBars["Assistant"].waitForExistence(timeout:5))
         let status=app.staticTexts["assistant.ai-status"]
         XCTAssertTrue(status.waitForExistence(timeout:5))
-        assertEnvironmentModelUnavailable(status)
+        observeAIAvailability(status,requestLocale:"ru-RU",requiresUnavailable:true)
         XCTAssertTrue(app.buttons["assistant.use-commands"].exists)
         let options=app.buttons["assistant.ai-options"]
         XCTAssertTrue(options.waitForExistence(timeout:5))
@@ -57,8 +58,9 @@ final class AIAvailabilityTests:XCTestCase {
         revealFully(recheck,in:app,upward:false)
         XCTAssertTrue(app.staticTexts["assistant.ai-language-guidance"].exists)
         recheck.tap()
-        assertEnvironmentModelUnavailable(status)
-        let observedReason=status.value as? String ?? "unknown"
+        // English was selected through the actual UI above. A ready model
+        // may now support this locale; recheck must report its actual state.
+        let observedReason=observeAIAvailability(status,requestLocale:"en-US",requiresUnavailable:false)
         XCTAssertEqual(input.value as? String,request)
         XCTAssertTrue(aiEnglish.isSelected)
         XCTAssertTrue(dictationRussian.isSelected)
@@ -74,7 +76,7 @@ final class AIAvailabilityTests:XCTestCase {
         revealFully(options,in:app,upward:false)
         options.tap()
         XCTAssertEqual(options.value as? String,"Collapsed")
-        keepReport("Observed actual model reason: \(observedReason)\nAI request language: en-US\nDictation language: ru-RU\nRequest: Поджазуй\nRecheck preserved input/project/revision/chord/Undo: true\nAdvanced options closed after the actual setup interaction: true\nReal model generation verified: false",
+        keepReport("Observed actual selected-locale AI reason: \(observedReason)\nAI request language: en-US\nDictation language: ru-RU\nRequest: Поджазуй\nRecheck preserved input/project/revision/chord/Undo: true\nAdvanced options closed after the actual setup interaction: true\nReal model generation verified: false",
                    name:"AuthorizedInput-ai-recheck-independent-language-scope")
     }
 
@@ -85,14 +87,13 @@ final class AIAvailabilityTests:XCTestCase {
         XCTAssertTrue(chord.exists || chord.waitForExistence(timeout:5))
         let originalUI=try jazzPhase(app)
         let originalChord=try XCTUnwrap(originalUI.firstChord?.label)
-        let originalDocument=documentState(transport)
+        let originalDocument=documentState(transport,verifyOutputOnlyStartup:true)
         XCTAssertEqual(originalUI.undo?.isEnabled,false)
         app.buttons["assistant.open"].tap()
         XCTAssertTrue(app.navigationBars["Assistant"].waitForExistence(timeout:5))
         let status=app.staticTexts["assistant.ai-status"]
         XCTAssertTrue(status.waitForExistence(timeout:5))
-        assertEnvironmentModelUnavailable(status)
-        let observedReason=status.value as? String ?? "unknown"
+        let observedReason=observeAIAvailability(status,requestLocale:"ru-RU",requiresUnavailable:true)
         XCTAssertTrue(app.buttons["assistant.use-commands"].exists)
         app.buttons["On-device AI"].tap()
         let examples=app.buttons["assistant.examples"]
@@ -144,7 +145,7 @@ final class AIAvailabilityTests:XCTestCase {
             guard let observed=try? self.jazzPhase(app)else{return false}
             return observed.firstChord?.label==originalChord && observed.undo?.isEnabled==false
         }
-        keepReport("Observed actual model reason: \(observedReason)\nRequest: Поджазуй\nActual Commands review: C → Cmaj9\nReview preserved project/revision/chord/Undo before Apply: true\nApply then one Undo restored the original Grid chord and empty Undo stack: true\nReal model generation verified: false",
+        keepReport("Observed actual selected-locale AI reason: \(observedReason)\nAI request locale: ru-RU (unchanged fresh-launch default)\nGlobal model unavailability asserted: false\nRequest: Поджазуй\nActual Commands review: C → Cmaj9\nReview preserved project/revision/chord/Undo before Apply: true\nApply then one Undo restored the original Grid chord and empty Undo stack: true\nReal model generation verified: false",
                    name:"AuthorizedInput-ai-local-jazz-apply-undo-scope")
     }
 
@@ -184,20 +185,54 @@ final class AIAvailabilityTests:XCTestCase {
     @MainActor private func launch()->XCUIApplication {
         XCUIDevice.shared.orientation = .portrait
         let app=XCUIApplication()
-        app.launchArguments=["--uitesting","--runtime-trace","--screen","grid","-AppleLanguages","(en)","-AppleLocale","en_US"]
+        // Typed fallback follows the production output-only startup policy.
+        // Simulator shared-input priming belongs to dedicated capture tests.
+        app.launchArguments=["--uitesting","--runtime-trace","--device-output-startup","--screen","grid","-AppleLanguages","(en)","-AppleLocale","en_US"]
         app.launch()
-        XCTAssertTrue(app.buttons["perform.transport"].waitForExistence(timeout:15))
+        let transport=app.buttons["perform.transport"]
+        XCTAssertTrue(transport.exists || transport.waitForExistence(timeout:15))
         return app
     }
 
-    @MainActor private func assertEnvironmentModelUnavailable(_ status:XCUIElement){
-        let reasons:Set<String>=["unsupportedDevice","notEnabled","modelNotReady","requiresSystem","notIncluded","unavailable"]
-        XCTAssertTrue(reasons.contains(status.value as? String ?? ""),
-                      "This test requires the Simulator's real environment-level model unavailability; it never overrides readiness or language support")
+    @discardableResult @MainActor private func observeAIAvailability(_ status:XCUIElement,requestLocale:String,requiresUnavailable:Bool)->String {
+        guard let observed=try? status.snapshot()else{XCTFail("The actual AI availability status must be observable");return ""}
+        let reason=observed.value as? String ?? "<missing>"
+        // The locale is the journey's fresh-launch default, or the EN control
+        // whose selected state was verified above. It is never injected into
+        // the controller or substituted for the observed native status value.
+        keepReport("AI request locale: \(requestLocale)\nLocale scope: fresh-launch RU default or actual UI-selected EN\nNative status value: \(reason)\nNative status label: \(observed.label)\nRequires unavailable for this request locale: \(requiresUnavailable)\nGlobal model unavailability asserted: false\nReal model generation verified: false",
+                   name:"AuthorizedInput-ai-actual-availability-"+requestLocale)
+        let messages:[String:String]=[
+            "available":"Describe a song form, harmonic change or a new groove. Review before applying.",
+            "requiresSystem":"On-device AI requires iOS 26 and Apple Intelligence. Supported commands still work.",
+            "notIncluded":"On-device AI is not included in this build. Commands remain available.",
+            "unsupportedDevice":"This device does not support Apple Intelligence. Supported commands still work.",
+            "notEnabled":"Enable Apple Intelligence in Settings to use on-device AI. Supported commands still work.",
+            "modelNotReady":"The on-device model is not ready. Let its download finish in Settings; Commands remain available.",
+            "unsupportedLanguage":"On-device AI does not support the selected language. Choose another language or use Commands.",
+            "unavailable":"On-device AI is unavailable. Supported commands still work."
+        ]
+        guard let message=messages[reason]else{
+            XCTFail("Unknown actual AI availability value \(reason), label \(observed.label), request locale \(requestLocale)");return reason
+        }
+        XCTAssertEqual(observed.label,message,"The user-facing guidance must agree with the actual availability reason")
+        if requiresUnavailable {
+            XCTAssertNotEqual(reason,"available","The local-fallback journey requires actual AI unavailability for \(requestLocale), not a forced or assumed model state")
+        }
+        return reason
     }
 
-    @MainActor private func documentState(_ transport:XCUIElement)->String {
-        let current=(transport.value as? String ?? "").components(separatedBy:"\n").first ?? ""
+    @MainActor private func documentState(_ transport:XCUIElement,verifyOutputOnlyStartup:Bool=false)->String {
+        // Read the actual full runtime value once; snapshots truncate it.
+        let report=transport.value as? String ?? ""
+        let current=report.components(separatedBy:"\n").first ?? ""
+        if verifyOutputOnlyStartup {
+            let fields=Set(current.split(separator:" ").map(String.init))
+            XCTAssertTrue(fields.contains("inputPriming=outputOnly"),"Typed fallback must use the production startup policy")
+            XCTAssertTrue(fields.contains("inputConfigured=false"),"Typed fallback must not configure microphone input")
+            XCTAssertTrue(fields.contains("error=none"),"The actual output-only startup must complete without an audio error")
+            keepReport(report,name:"AuthorizedInput-ai-output-only-startup-runtime")
+        }
         let regex=try! NSRegularExpression(pattern:"\\bproject=[A-Fa-f0-9-]+ revision=[0-9]+")
         guard let match=regex.firstMatch(in:current,range:NSRange(current.startIndex...,in:current)),
               let range=Range(match.range,in:current)else{XCTFail("Actual project/revision trace is missing");return ""}

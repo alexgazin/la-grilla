@@ -1,0 +1,33 @@
+{
+  "sourceSHA": "7564fe7eff86cf6fbec1caab02d152fb1741c7d2",
+  "runID": "44112860068",
+  "runAttempt": 1,
+  "artifactID": 14344395820,
+  "ownerCase": "AIAvailabilityTests/testActualUnavailableModelRecheckPreservesIndependentLanguagesInputAndProject",
+  "wholeOwnerOutcome": "passed",
+  "ownerDurationSeconds": 43.305,
+  "aggregateScope": "input-diagnostic",
+  "aggregateRequiredCount": 4,
+  "aggregateAll4Passed": true,
+  "aggregateFullAcceptance": false,
+  "pixelDimensions": {
+    "width": 1320,
+    "height": 2868
+  },
+  "manifestAttachment": {
+    "test": "AIAvailabilityTests/testActualUnavailableModelRecheckPreservesIndependentLanguagesInputAndProject()",
+    "name": "A4EA32C7-4BA1-41DB-95D1-A7699956C29A.png",
+    "humanName": "AuthorizedInput-assistant-default-composer_0_ABF57F5E-81BA-49EE-B7D3-6AB7BC96875C.png",
+    "bytes": 226902,
+    "sha256": "74d4f125a594d12beb74c3c4e79993234e4b65d5de41d5d4885da7abb48853e8",
+    "timestamp": 1794929879.602
+  },
+  "visualInspection": "Unmodified original dark default Composer visibly shows stable microphone Start and separate inactive square Stop controls; RU dictation/automatic mode and real unsupported-language guidance",
+  "newCaptureCreated": false,
+  "schemaVersion": 1,
+  "repositoryPath": "Screenshots/Build23Assistant/assistant-dictation-controls.png",
+  "originalFileName": "A4EA32C7-4BA1-41DB-95D1-A7699956C29A.png",
+  "sha256": "74d4f125a594d12beb74c3c4e79993234e4b65d5de41d5d4885da7abb48853e8",
+  "bytes": 226902,
+  "transformation": "none: original PNG bytes copied without editing"
+}

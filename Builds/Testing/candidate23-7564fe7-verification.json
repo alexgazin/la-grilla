@@ -1,0 +1,156 @@
+{
+  "schemaVersion": 1,
+  "status": "static-integrity-verified",
+  "recordedAtUTC": "2026-11-17T15:50:14.196665+00:00",
+  "sourceSHA": "7564fe7eff86cf6fbec1caab02d152fb1741c7d2",
+  "version": "1.0.0",
+  "build": "23",
+  "documentSchema": 11,
+  "classification": "unsigned-test-candidate",
+  "softwareVerified": false,
+  "physicalAccepted": false,
+  "appReviewReady": false,
+  "artifact": {
+    "id": 14342868829,
+    "runID": 44112860068,
+    "jobID": 134158882200,
+    "bytes": 13449391,
+    "sha256": "da7c2b2e9a60c903d0e9a891a6dc274d91fe9e5a15da2b5bb83b0ad41eafb003",
+    "apiDigestMatches": true,
+    "zipCRCVerified": true,
+    "url": "https://github.com/alexgazin/la-grilla/actions/runs/44112860068/artifacts/14342868829",
+    "headBranch": "feat/touch21",
+    "archiveRunAttempt": 2
+  },
+  "ipa": {
+    "file": "LaGrilla-1.0.0-23-7564fe7-unsigned.ipa",
+    "originalFile": "LaGrilla-unsigned.ipa",
+    "bytes": 3693136,
+    "sha256": "93de06cf30a23acf186dd9a2427e98c2097136a0f53c671789cb8612662245a8",
+    "originalBytesPreserved": true,
+    "all16EntriesMatchOriginalApp": true,
+    "zipCRCVerified": true,
+    "localizationKeysPerLanguage": 758
+  },
+  "binary": {
+    "architecture": "arm64",
+    "platform": "iOS",
+    "minimumOS": "18.0.0",
+    "sdk": "26.2.0",
+    "uuid": "D774D6EE-D620-3D31-A27C-CCAD261DB8B7",
+    "dsymUUIDMatches": true,
+    "foundationModelsLoadCommand": "LC_LOAD_WEAK_DYLIB",
+    "foundationModelsOrdinal": 15,
+    "foundationModelsWeakSymbols": 78,
+    "foundationModelsWeakChainedImports": 78,
+    "initializerSections": [],
+    "hasCodeSignatureCommand": false,
+    "runtimeValidation": "Static binary checks only; signed-device startup on iOS 18 still requires device QA."
+  },
+  "binaryAuditEvidence": {
+    "kind": "reuse after actual executable byte equality; fresh IPA and all16 entries separately verified",
+    "priorSourceSHA": "db8a0229a685dadad1d5af700f7ff373ea1b30ba",
+    "priorAuditSHA256": "cb675439a1ee43ef1b816345aa11dfd390064b0ec9ffa908b2312297d07b9208",
+    "actualCurrentExecutableSHA256": "b244e41ed99b74ac9829a2bf99a750477c24b0b154ea6339be88c4fd8d46111d",
+    "actualPriorExecutableSHA256": "b244e41ed99b74ac9829a2bf99a750477c24b0b154ea6339be88c4fd8d46111d",
+    "actualIPAByteIdentical": true,
+    "actualAppFilesByteIdentical": 16,
+    "changedAppFiles": [],
+    "assetCatalogDifferingBytes": 0,
+    "assetCatalogDifferingOffsets": [],
+    "freshDSYMUUIDMatches": true,
+    "sourceAuditorGitBlobUnchanged": true,
+    "duplicateBinaryAuditRun": false
+  },
+  "motionPrivacy": {
+    "usageDescriptionInApp": true,
+    "localizedDescriptionsENRU": true,
+    "coreMotionLinkedForIOS": true,
+    "tracking": false,
+    "collectedDataTypes": []
+  },
+  "sourcePrimaryJobs": {
+    "archive": {
+      "jobID": 134158882200,
+      "runAttempt": 2,
+      "conclusion": "success",
+      "actualExecutedThisAttempt": true
+    },
+    "otherLatestAPIJobs": [
+      {
+        "jobID": 134158882874,
+        "name": "ios",
+        "conclusion": "success",
+        "execution": "carried success from original attempt; not re-executed by archive-only retry"
+      },
+      {
+        "jobID": 134158884630,
+        "name": "iphone",
+        "conclusion": "success",
+        "execution": "carried success from original attempt; not re-executed by archive-only retry"
+      }
+    ]
+  },
+  "limitations": [
+    "The exact-source original attempt1 strict focused4 passed; this does not establish full73 acceptance.",
+    "Archive-only attempt2 recovered the release artifact and did not execute native4 again; latest API carried-success jobs are not new executions.",
+    "Unsigned feature preview requires tester signing with their own Apple ID.",
+    "Physical touch timing, phone motion, iOS18 installed launch and real routes remain Device Pending.",
+    "No TestFlight, App Store or release-ready claim."
+  ],
+  "sourceBlobManifest": "candidate23-7564fe7-source-manifest.json",
+  "native4OriginalAttemptEvidence": {
+    "sourceSHA": "7564fe7eff86cf6fbec1caab02d152fb1741c7d2",
+    "runID": 44112860068,
+    "runAttempt": 1,
+    "originalJobID": 134142870595,
+    "scope": "input-diagnostic",
+    "expectedCount": 4,
+    "requiredTestOutcomes": {
+      "AIAvailabilityTests/testActualUnavailableModelLocallyReviewsJazzAppliesAndUndoesOnce": "passed",
+      "AIAvailabilityTests/testActualUnavailableModelRecheckPreservesIndependentLanguagesInputAndProject": "passed",
+      "AssistantCompositionTests/testIdleProposalEndsOnLanguageChangeWithoutEditing": "passed",
+      "AuthorizedMicrophoneTests/testGrantedSpeechCallbackAndOutputOnlyAssistantRemainUsable": "passed"
+    },
+    "exitCode": 0,
+    "timedOut": false,
+    "elapsedSeconds": 261.4785726669999,
+    "strictAccepted": true,
+    "full73Accepted": false,
+    "statusSHA256": "ea50b240f90d7651892b81cec7043b1091f7747fd32c4cb044066afd6d83d10e"
+  },
+  "archiveRecovery": {
+    "originalAttempt": 1,
+    "originalArchiveJobID": 134142870361,
+    "originalArchiveStatus": "cancelled while queued; no release artifact",
+    "historicalCancellationReceipt": "archive-unavailable.json",
+    "retryAttempt": 2,
+    "retryJobID": 134158882200,
+    "retryAction": "archive only; SDK infrastructure recovery",
+    "nativeRerun": false,
+    "carriedSuccessAPIJobsAreNotFreshExecutions": true
+  },
+  "resourceComparisonTo6504": {
+    "sameFiles": 15,
+    "changedFile": "Assets.car",
+    "differingBytes": 16,
+    "priorSHA256": "d8ac6157fc67a4a88af4554436eb5fe8cfd87169431d3e4bfa3f28d707bdde3c",
+    "actualSHA256": "397b889563944383d16ca39a88b7ae5bdc4578cadf4137f3eed1f81bea949ee1",
+    "observation": "Appearance-name/index table ordering differs from6504. The entire currentIPA and all16app files exactly match the original db8 package.",
+    "nativeReleaseRenderingVerified": false
+  },
+  "manualHandoff": {
+    "status": "unsigned-feature-manual-test-preview",
+    "exactFeatureSourceSHA": "7564fe7eff86cf6fbec1caab02d152fb1741c7d2",
+    "selectedNative4Accepted": true,
+    "nativeExecutionAttempt": 1,
+    "archiveAttempt": 2,
+    "nativeRerunInArchiveRetry": false,
+    "full73Acceptance": false,
+    "softwareVerified": false,
+    "hardwareAccepted": false,
+    "appReviewReady": false,
+    "requiresTesterSigning": true,
+    "freePersonalTeamSuitableForLocalDeviceTesting": true
+  }
+}

@@ -179,7 +179,8 @@ jobs:
       - name: Native user flows
         id: native_flows
         # Independent runner-side bound also covers a blocked Python I/O call.
-        # Native process budget remains 60 minutes plus bounded signal cleanup.
+        # Default native budget stays 60 minutes; assistant3 uses 25 minutes.
+        # Both retain the shared deadline and bounded signal cleanup.
         timeout-minutes: 65
         env:
           GRILLA_REQUIRE_MIC_INPUT: '1'
@@ -188,12 +189,15 @@ jobs:
           GRILLA_INTEGRATION_ONLY: ${{ contains(github.event.head_commit.message, '[integration-only]') && '1' || '0' }}
           GRILLA_INPUT_DIAGNOSTIC: ${{ contains(github.event.head_commit.message, '[input-diagnostic]') && '1' || '0' }}
           TEST_RUNNER_GRILLA_INPUT_DIAGNOSTIC: ${{ contains(github.event.head_commit.message, '[input-diagnostic]') && '1' || '0' }}
+          GRILLA_ASSISTANT23_ONLY: ${{ contains(github.event.head_commit.message, '[assistant23-only]') && '1' || '0' }}
           GRILLA_RU_RECAPTURE: ${{ contains(github.event.head_commit.message, '[ru-capture]') && '1' || '0' }}
           TEST_RUNNER_GRILLA_RU_RECAPTURE: ${{ contains(github.event.head_commit.message, '[ru-capture]') && '1' || '0' }}
         run: |
           set -o pipefail
           DEVICE=$(cat /tmp/grilla-simulator-id)
           SCOPE=full
+          GRILLA_NATIVE_TIMEOUT_SECONDS=3600
+          GRILLA_NATIVE_LABEL=full-native-ui
           INVENTORY=(--functional-inventory UITests)
           FILTER=(-skip-testing:LaGrillaUITests/ScreenshotTests/testCaptureCompactScreens)
           if test "$GRILLA_UI_ONLY" = 1; then FILTER=(-skip-testing:LaGrillaUITests/ScreenshotTests); SCOPE=ui-only; fi
@@ -208,7 +212,31 @@ jobs:
             SCOPE=input-diagnostic
             INVENTORY=()
           fi
-          python3 scripts/ci/run_native.py --timeout-seconds 3600 --deadline-env GRILLA_NATIVE_DEADLINE_EPOCH --label full-native-ui --scope "$SCOPE" "${INVENTORY[@]}" --log uitests.log --status native-process-status.json -- xcodebuild "${FILTER[@]}" -test-timeouts-enabled YES -maximum-test-execution-time-allowance 600 -project LaGrilla.xcodeproj -scheme LaGrilla -destination "platform=iOS Simulator,id=$DEVICE" -derivedDataPath DerivedData -resultBundlePath TestResults.xcresult ARCHS="$GRILLA_SIMULATOR_ARCH" ONLY_ACTIVE_ARCH=YES CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO test-without-building
+          if test "$GRILLA_ASSISTANT23_ONLY" = 1; then
+            GRILLA_ASSISTANT_CASES=(AIAvailabilityTests/testActualUnavailableModelLocallyReviewsJazzAppliesAndUndoesOnce AIAvailabilityTests/testActualUnavailableModelRecheckPreservesIndependentLanguagesInputAndProject AssistantCompositionTests/testIdleProposalEndsOnLanguageChangeWithoutEditing AuthorizedMicrophoneTests/testGrantedSpeechCallbackAndOutputOnlyAssistantRemainUsable)
+            FILTER=()
+            INVENTORY=()
+            SCOPE=input-diagnostic
+            GRILLA_NATIVE_TIMEOUT_SECONDS=1500
+            GRILLA_NATIVE_LABEL=assistant23-regressions
+            for case_id in "${GRILLA_ASSISTANT_CASES[@]}"; do
+              FILTER+=("-only-testing:LaGrillaUITests/$case_id")
+              INVENTORY+=(--require-test "$case_id")
+            done
+            python3 - "${GRILLA_ASSISTANT_CASES[@]}" <<'PYASSISTANT'
+          import json,os,pathlib,subprocess,sys
+          cases=sys.argv[1:]
+          assert len(cases)==4 and len(set(cases))==4
+          checkout=subprocess.check_output(['git','rev-parse','HEAD'],text=True,timeout=6).strip()
+          assert checkout==os.environ['GITHUB_SHA']
+          assert os.environ.get('GRILLA_INPUT_DIAGNOSTIC')=='1'
+          receipt=dict(schemaVersion=1,repository=os.environ['GITHUB_REPOSITORY'],sourceSHA=os.environ['GITHUB_SHA'],checkoutSHA=checkout,runID=os.environ['GITHUB_RUN_ID'],runAttempt=os.environ['GITHUB_RUN_ATTEMPT'],mode='assistant23-only',scope='input-diagnostic',selectedCases=cases,expectedCount=4,fullAcceptance=False,physicalDevice=False,nativeTimeoutSeconds=1500,maximumExecutionTimeAllowance=600,requireMicInput=os.environ.get('GRILLA_REQUIRE_MIC_INPUT')=='1',selectedSimulatorID=pathlib.Path('/tmp/grilla-simulator-id').read_text().strip())
+          assert receipt['requireMicInput'] and receipt['selectedSimulatorID']
+          pathlib.Path('assistant23-selection.json').write_text(json.dumps(receipt,indent=2)+'\n')
+          print(json.dumps(receipt,indent=2))
+          PYASSISTANT
+          fi
+          python3 scripts/ci/run_native.py --timeout-seconds "$GRILLA_NATIVE_TIMEOUT_SECONDS" --deadline-env GRILLA_NATIVE_DEADLINE_EPOCH --label "$GRILLA_NATIVE_LABEL" --scope "$SCOPE" "${INVENTORY[@]}" --log uitests.log --status native-process-status.json -- xcodebuild "${FILTER[@]}" -test-timeouts-enabled YES -maximum-test-execution-time-allowance 600 -project LaGrilla.xcodeproj -scheme LaGrilla -destination "platform=iOS Simulator,id=$DEVICE" -derivedDataPath DerivedData -resultBundlePath TestResults.xcresult ARCHS="$GRILLA_SIMULATOR_ARCH" ONLY_ACTIVE_ARCH=YES CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO test-without-building
       - name: Preserve exact-source functional scope receipt
         if: always()
         timeout-minutes: 2
@@ -243,6 +271,7 @@ jobs:
           path: |
             uitests.log
             native-process-status.json
+            assistant23-selection.json
             native-device.log
             simulator-environment.json
             SimulatorDragReadiness
@@ -306,6 +335,7 @@ jobs:
             build.log
             uitests.log
             native-process-status.json
+            assistant23-selection.json
             native-device.log
             simulator-environment.json
             SimulatorDragReadiness

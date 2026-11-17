@@ -1,8 +1,10 @@
-# Сборка22 — контакт, тембры и управление наклоном
+# Сборка23 — touch-доработки и текущая приёмка
 
 Основание: первый ручной сеанс владельца на iPhone, 17 ноября 2026. Ночная тема, редактирование аккордов и параллельная мелодия удобны. Основные замечания: непредсказуемый момент удара пэда, невидимое изменение длины ноты до отпускания, неясный выбор звука. Предложено управление наклоном. Точный установленный source владельца не зафиксирован.
 
-В main интегрирована **1.0.0 (22), schema11**, source `b478021`. [Точная IPA22](https://github.com/alexgazin/la-grilla/actions/runs/44038751086/artifacts/14307869946) уже доступна; Debug/archive и Xcode16.4/26.0.1 compatibility прошли. Полная73 и аппаратная приёмка остаются открытыми. Этот отчёт не объявляет измеренную задержку или App Store ready.
+Исходные touch-доработки ниже вошли в сборку23. Полный source `0cfd12e` наблюдал73 метода: **70 PASS / 2 FAIL / 1 allowance**; все пять Perform/Transpose регрессий, Bass→Melody, десять feedback-сценариев и production CAF/input-retirement прошли. [Проверенная preview23](../../../Builds/Testing/README.md) и [оригинальный прошедший кадр main23](../../../Screenshots/Build23Main/README.md) сохраняют свой source. В этой интеграции stable Start/Stop db8 сохранены; candidate7564 прошёл strict4 4/4 без allowance и SDK4. Его IPA отдельно проверена и доступна, свежий exact-main full73/архив Pending. Старые результаты22 ниже — история, не текущая загрузка или приёмка устройства.
+
+Последующий Assistant3 `6504ccb` дал Composition и Granted Speech PASS, но Jazz FAIL на фактическом `unsupportedLanguage` для AI request locale `ru-RU` до ввода/генерации. Уточнённый fixture7564 прошёл: original strict4 attempt1 4 PASS/0 allowance/exit0 за261.479s; Jazz46.884s, setup43.305s, Composition36.929s и Speech74.992s. Он проверяет доступность для выбранного языка; реальная генерация FoundationModels не заявляется. [Разбор помощника](ASSISTANT23.md) · [Текущие scope и ограничения](../../release/CURRENT.md).
 
 ## 1. Пэды — звук по началу контакта
 

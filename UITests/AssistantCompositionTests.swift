@@ -4,7 +4,7 @@ final class AssistantCompositionTests:XCTestCase {
     override func setUp(){super.setUp();continueAfterFailure=false;executionTimeAllowance=120}
     @MainActor private func launch(screen:String="assistant-song-proposal")->XCUIApplication {
         XCUIDevice.shared.orientation = .portrait
-        let app=XCUIApplication();app.launchArguments=["--uitesting","--screen",screen,"-AppleLanguages","(en)","-AppleLocale","en_US"]
+        let app=XCUIApplication();app.launchArguments=["--uitesting","--device-output-startup","--screen",screen,"-AppleLanguages","(en)","-AppleLocale","en_US"]
         app.launch()
         if screen=="grid"{XCTAssertTrue(app.buttons["perform.transport"].waitForExistence(timeout:15))}
         else{XCTAssertTrue(app.navigationBars["Assistant"].waitForExistence(timeout:15))}
@@ -107,12 +107,50 @@ final class AssistantCompositionTests:XCTestCase {
             XCTAssertFalse(app.buttons.matching(NSPredicate(format:"identifier BEGINSWITH 'grid.section.' AND label CONTAINS 'Intro'")).firstMatch.exists)
             let chord=app.buttons.matching(NSPredicate(format:"identifier BEGINSWITH 'grid.chord.'")).firstMatch
             XCTAssertTrue(chord.exists)
-            wait(chord,NSPredicate{_,_ in chord.exists && chord.isHittable})
-            chord.tap()
+            guard tapMeasuredGridChord(chord,in:app)else{app.terminate();return}
             XCTAssertTrue(app.textFields["chord.symbol"].waitForExistence(timeout:5))
             XCTAssertEqual(app.textFields["chord.symbol"].value as? String,"C")
             app.terminate()
     }
+    @MainActor private func tapMeasuredGridChord(_ control:XCUIElement,in app:XCUIApplication)->Bool {
+        func finite(_ frame:CGRect)->Bool{!frame.isEmpty && [frame.minX,frame.minY,frame.maxX,frame.maxY].allSatisfy{$0.isFinite}}
+        func fail(_ reason:String)->Bool {
+            let context=XCTAttachment(string:reason+"\n"+app.debugDescription)
+            context.name="Assistant post-dismiss Grid — actual app hierarchy";context.lifetime = .keepAlways;add(context)
+            XCTFail(reason);return false
+        }
+        guard let observed=try? control.snapshot(),observed.elementType == .button,
+              observed.identifier.hasPrefix("grid.chord."),observed.isEnabled,finite(observed.frame),
+              let root=try? app.snapshot(),finite(root.frame)else{return fail("The real enabled Grid chord must be observable after closing Assistant")}
+        var matches:[(node:any XCUIElementSnapshot,ancestors:[any XCUIElementSnapshot])]=[]
+        var pending:[(node:any XCUIElementSnapshot,ancestors:[any XCUIElementSnapshot])]=[(root,[])]
+        while let entry=pending.popLast(){
+            let node=entry.node
+            if node.identifier=="assistant.review-scroll" || (node.elementType == .navigationBar && (node.identifier=="Assistant" || node.label=="Assistant")){
+                return fail("Assistant must be absent from the fresh hierarchy before touching Grid")
+            }
+            if node.identifier==observed.identifier{matches.append(entry)}
+            for child in node.children{pending.append((child,entry.ancestors+[node]))}
+        }
+        guard matches.count==1,let target=matches.first,
+              target.node.elementType == .button,target.node.isEnabled,
+              target.node.label==observed.label,target.node.frame==observed.frame,
+              let window=target.ancestors.last(where:{$0.elementType == .window}),finite(window.frame)else{
+            return fail("The fresh app hierarchy must contain exactly the same actual Grid chord")
+        }
+        let scrollTypes:[XCUIElement.ElementType]=[.scrollView,.collectionView,.table]
+        let owners=target.ancestors.filter{scrollTypes.contains($0.elementType)}
+        guard !owners.isEmpty,owners.allSatisfy({finite($0.frame)})else{return fail("A real scroll viewport must own the Grid chord")}
+        let viewport=owners.reduce(root.frame.intersection(window.frame)){$0.intersection($1.frame)}
+        let frame=target.node.frame
+        guard finite(viewport),viewport.contains(frame)else{return fail("The whole actual Grid chord must be visible inside its owning viewport")}
+        // One physical contact at the measured native center. No fallback,
+        // guessed screen coordinates or injected editor state; the following
+        // symbol assertion still requires the actual chord editor to open C.
+        app.coordinate(withNormalizedOffset:.zero).withOffset(CGVector(dx:frame.midX-root.frame.minX,dy:frame.midY-root.frame.minY)).tap()
+        return true
+    }
+
     @MainActor private func wait(_ element:XCUIElement,_ predicate:NSPredicate){
         XCTAssertEqual(XCTWaiter.wait(for:[XCTNSPredicateExpectation(predicate:predicate,object:element)],timeout:5),.completed)
     }
