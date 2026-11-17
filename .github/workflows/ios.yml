@@ -19,10 +19,10 @@ jobs:
     # Use the current macOS ARM image after macOS 15 runner acquisition and
     # Intel Simulator preparation failures. Execution still needs actual PASS.
     runs-on: macos-26
-    # Full main previously executed 52 methods in 30.4 minutes. Allow 60
-    # minutes for native execution, retaining each method's original limit.
-    # A shared 75-minute job-clock deadline reserves 15 minutes for diagnostics,
-    # partial xcresult export and artifact upload within this 90-minute job.
+    # Main 8bc finished all 73 methods 0.385s before the former 60-minute
+    # supervisor deadline; XCTest finalization was interrupted, leaving no
+    # xcresult Info.plist. Keep every case limit, allow 65 minutes for the full
+    # command and reserve 10 minutes for evidence in this 90-minute job.
     timeout-minutes: 90
     steps:
       - name: Reserve time for native evidence preservation
@@ -30,7 +30,7 @@ jobs:
           python3 - <<'PY'
           import os,time
           with open(os.environ['GITHUB_ENV'],'a') as output:
-              output.write(f'GRILLA_NATIVE_DEADLINE_EPOCH={time.time()+75*60}\n')
+              output.write(f'GRILLA_NATIVE_DEADLINE_EPOCH={time.time()+80*60}\n')
           PY
       - uses: actions/checkout@v4
       - name: Verify current App Store toolchain
@@ -179,9 +179,9 @@ jobs:
       - name: Native user flows
         id: native_flows
         # Independent runner-side bound also covers a blocked Python I/O call.
-        # Default native budget stays 60 minutes; assistant3 uses 25 minutes.
-        # Both retain the shared deadline and bounded signal cleanup.
-        timeout-minutes: 65
+        # Full native execution/finalization has 65 minutes; focused subsets
+        # retain 25 minutes. Per-case limits and bounded cleanup stay unchanged.
+        timeout-minutes: 70
         env:
           GRILLA_REQUIRE_MIC_INPUT: '1'
           TEST_RUNNER_GRILLA_REQUIRE_MIC_INPUT: '1'
@@ -196,7 +196,7 @@ jobs:
           set -o pipefail
           DEVICE=$(cat /tmp/grilla-simulator-id)
           SCOPE=full
-          GRILLA_NATIVE_TIMEOUT_SECONDS=3600
+          GRILLA_NATIVE_TIMEOUT_SECONDS=3900
           GRILLA_NATIVE_LABEL=full-native-ui
           INVENTORY=(--functional-inventory UITests)
           FILTER=(-skip-testing:LaGrillaUITests/ScreenshotTests/testCaptureCompactScreens)

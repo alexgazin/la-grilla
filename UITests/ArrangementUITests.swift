@@ -9,12 +9,29 @@ final class ArrangementUITests: XCTestCase {
         app.launchArguments=["--uitesting","--screen",screen,"--arrangement-clips","-AppleLanguages","(en)","-AppleLocale","en_US"]
         if runtimeTrace{app.launchArguments.append("--runtime-trace")}
         app.launch();XCTAssertTrue(app.buttons["perform.transport"].waitForExistence(timeout:15))
-        if screen=="grid"{wait(app.buttons["grid.mode.clips"],NSPredicate(format:"value == 'Clips'"))}
+        if screen=="grid"{
+            let ready=NSPredicate{_,_ in
+                guard let mode=self.snapshotElement(identifier:"grid.mode.clips",in:app),mode.elementType == .button else{return false}
+                return mode.value as? String=="Clips"
+            }
+            XCTAssertEqual(XCTWaiter.wait(for:[XCTNSPredicateExpectation(predicate:ready,object:app)],timeout:6),.completed)
+        }
         return app
     }
     @MainActor private func wait(_ element:XCUIElement,_ predicate:NSPredicate){
         let expectation=XCTNSPredicateExpectation(predicate:predicate,object:element)
         XCTAssertEqual(XCTWaiter.wait(for:[expectation],timeout:6),.completed)
+    }
+    @MainActor private func snapshotElement(identifier:String,in app:XCUIApplication)->(any XCUIElementSnapshot)? {
+        // Resolve actual fields from one fresh, immutable native hierarchy per
+        // poll, without a separate remote Find for each property accessor.
+        guard !identifier.isEmpty,let root=try? app.snapshot()else{return nil}
+        var pending:[any XCUIElementSnapshot]=[root]
+        while let node=pending.popLast(){
+            if node.identifier==identifier{return node}
+            pending.append(contentsOf:node.children)
+        }
+        return nil
     }
     @MainActor private func drag(_ source:XCUICoordinate,to destination:XCUICoordinate,liftHold:TimeInterval=1.2){
         // Give UIKit time to lift the native Transferable before moving, then
@@ -27,15 +44,22 @@ final class ArrangementUITests: XCTestCase {
         // and SwiftUI's publication of the validated drop. Wait for the exact
         // result of this single gesture; an unmoved or incorrectly snapped clip
         // must still fail, and no second drag is attempted.
+        let clipID=clip.identifier
+        var observedClip:(any XCUIElementSnapshot)?
         let settled=NSPredicate{_,_ in
-            clip.exists && abs(clip.frame.minX-x)<=3 && clip.value as? String==length
+            observedClip=self.snapshotElement(identifier:clipID,in:app)
+            guard let observedClip,observedClip.elementType == .button,observedClip.identifier==clipID else{return false}
+            let frame=observedClip.frame
+            guard [frame.minX,frame.minY,frame.maxX,frame.maxY,frame.width,frame.height].allSatisfy({$0.isFinite}),frame.width>0,frame.height>0 else{return false}
+            return abs(frame.minX-x)<=3 && observedClip.value as? String==length
         }
         let result=XCTWaiter.wait(for:[XCTNSPredicateExpectation(predicate:settled,object:clip)],timeout:6)
         let trace=app.descendants(matching:.any)["grid.drag-diagnostics"].firstMatch
         let traceValue=trace.exists ? trace.value as? String:nil
-        let receipt=XCTAttachment(string:"Expected x=\(x), length=\(length); result=\(result); actual frame=\(clip.frame)\n"+(traceValue ?? "QA trace heading unavailable"))
+        let actualFrame=observedClip.map{String(describing:$0.frame)} ?? "Missing snapshot"
+        let receipt=XCTAttachment(string:"Expected x=\(x), length=\(length); result=\(result); actual frame=\(actualFrame)\n"+(traceValue ?? "QA trace heading unavailable"))
         receipt.name="Arrangement-native-drop-trace";receipt.lifetime = .keepAlways;add(receipt)
-        XCTAssertEqual(result,.completed,"Clip did not settle at x=\(x), length=\(length); actual frame=\(clip.frame), value=\(String(describing:clip.value))")
+        XCTAssertEqual(result,.completed,"Clip did not settle at x=\(x), length=\(length); actual frame=\(actualFrame), value=\(String(describing:observedClip?.value))")
     }
 
     private struct TimelineObservation {

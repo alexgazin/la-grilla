@@ -13,9 +13,9 @@
 
 <p align="center"><a href="#экраны-сборки-23">Экраны</a> · <a href="#возможности-сборки-23">Возможности</a> · <a href="#попробовать-на-iphone">На iPhone</a> · <a href="docs/release/CURRENT.md">Текущий статус</a> · <a href="ROADMAP.md">Роадмап</a></p>
 
-**Сборка 23 — тестовая альфа.** В последнем полном прогоне main `82e4dfb` наблюдались все 73 метода: **71 PASS / 2 FAIL / 0 allowance**. Его IPA независимо проверена, четыре SDK-сборки прошли; весь software gate не принят. В этой интеграции исправлено только чтение свежего состояния в тесте секций; следующий единый полный73 — **Pending**. [Точный статус и причины двух failures](docs/release/CURRENT.md).
+**Сборка 23 — тестовая альфа.** В последнем полном прогоне main `8bc7866` наблюдались все 73 метода: **71 PASS / 2 FAIL / 0 case allowance**; общий supervisor достиг 3600 s до финализации результата. Свежая IPA независимо проверена, четыре SDK-сборки прошли; software gate не принят. После двух исправлений наблюдения в Arrangement и запаса на завершение следующий единый полный73 — **Pending**. [Точный статус и разбор](docs/release/CURRENT.md).
 
-**[Скачать свежую IPA 23 · exact main 82e4dfb](https://github.com/alexgazin/la-grilla/actions/runs/44120318741/artifacts/14346460625)** · [Source, SHA-256 и установка](Builds/Testing/README.md) · [Роадмап](ROADMAP.md)
+**[Скачать свежую IPA 23 · exact main 8bc7866](https://github.com/alexgazin/la-grilla/actions/runs/44140208148/artifacts/14355166108)** · [Source, SHA-256 и установка](Builds/Testing/README.md) · [Роадмап](ROADMAP.md)
 
 Сочиняйте аккорды, записывайте бит и добавляйте мелодию в одну сетку. Сохраните редактируемый проект или заберите MIDI/WAV для продолжения работы в DAW.
 
@@ -42,6 +42,12 @@
 <a href="Screenshots/Build23Assistant/assistant-dictation-controls.png"><img src="Screenshots/Build23Assistant/assistant-dictation-controls.png" width="220" alt="Помощник23: отдельные действия начала и остановки диктовки и независимые языки"></a>
 
 Неизменённый оригинал `7564fe7`, owner AI setup PASS; весь focused4 — **4 PASS / 0 allowance**, не полный73 и не генерация реальной моделью. На кадре показаны реальные элементы управления и исходная языковая подсказка. [Source/run и provenance](Screenshots/Build23Assistant/README.md).
+
+**Пэды после contact/hold · main `8bc7866`**
+
+<a href="Screenshots/Build23Pads/pads-contact.png"><img src="Screenshots/Build23Pads/pads-contact.png" width="220" alt="Jam23: оригинальный кадр прошедшего Pad contact/hold метода main8bc7866"></a>
+
+Неизменённый оригинал source `8bc7866`: Pad-owner **PASS13.483s**, предшествующий LiveEditing полностью **PASS83.255s**, включая Stop/hold/timing/counter. Весь full73 остаётся **71 PASS / 2 FAIL / общий timeout**, без полной приёмки. [PNG, owner и provenance](Screenshots/Build23Pads/README.md).
 
 ## Возможности сборки 23
 
@@ -71,15 +77,15 @@
 
 ## Попробовать на iPhone
 
-**[Скачать свежий оригинальный ZIP сборки23 / main `82e4dfb`](https://github.com/alexgazin/la-grilla/actions/runs/44120318741/artifacts/14346460625)**, извлечь `LaGrilla-unsigned.ipa` и подписать своим Apple ID через Sideloadly на Mac или Windows. Бесплатная Personal Team подходит; подпись обычно действует 7 дней. Файл **3 693 136 байт**, SHA-256 `93de06cf30a23acf186dd9a2427e98c2097136a0f53c671789cb8612662245a8`. [Подробная установка и provenance](Builds/Testing/README.md).
+**[Скачать свежий оригинальный ZIP сборки23 / main `8bc7866`](https://github.com/alexgazin/la-grilla/actions/runs/44140208148/artifacts/14355166108)**, извлечь `LaGrilla-unsigned.ipa` и подписать своим Apple ID через Sideloadly на Mac или Windows. Бесплатная Personal Team подходит; подпись обычно действует 7 дней. Файл **3 693 136 байт**, SHA-256 `3836ee877d766d3fa5288997e3e76e3788b4a59a62ba83c689ca1efa8893e748`. [Подробная установка и provenance](Builds/Testing/README.md).
 
-Это новый артефакт exact main, самостоятельно скачанный и проверенный со своим source/receipt; его bytes совпадают с candidate7564/db8, но файл не переименован из прежней сборки. SDK4 PASS; полный73 этого main завершился с 71 PASS / 2 FAIL / 0 allowance. Статическая проверка IPA не означает полную software, аппаратную или Store-приёмку.
+Это новый артефакт exact main `8bc7866`, самостоятельно скачанный и статически проверенный со своим source/receipt; его SHA-256 отличается от прежнего `82e4dfb`. SDK4 PASS; полный73 этого main дал наблюдаемые 71 PASS / 2 FAIL / 0 case allowance и общий timeout до финализации xcresult. Статическая проверка IPA не означает полную software, аппаратную или Store-приёмку.
 
 Перед обновлением экспортируйте важные проекты в portable bundle. Сборка 23 читает схемы **1…11** и сохраняет **schema 11**; старые приложения не открывают сохранённую schema 11.
 
 ## Следующие шаги
 
-Следующий шаг — один новый полный73 после исправления наблюдения тестом состояния секций, с прежними ожиданиями и лимитами; результат пока Pending. В исходном main82e4 кадры внутри провалившегося ожидания уже показывают PLAYING и правильный порядок секций, а следующий Pad-тест не дошёл до пэдов из-за завершения предыдущего процесса. Изменения приложения на этом основании не заявляются. Затем — установленная 23: ритм, ноты, тембры, наклон, Start/Stop диктовки, сохранение и экспорт. Реальные маршруты, human Voice-to-MIDI, FoundationModels на телефоне, MIDI и C8 остаются отдельной приёмкой перед beta/TestFlight/App Store.
+Следующий шаг — один новый полный73 после исправления двух Arrangement-наблюдателей с прежними 6 s, геометрией и проверкой длины; добавлен запас общего времени на завершение и диагностику. Результат пока Pending. В `8bc7866` прежние LiveEditing и следующий Pad-метод полностью прошли; новые два FAIL относятся к чтению AX в Pinch-readiness до жестов и после правильного wide-clip drag. [Разбор GRID23](docs/review/2026-11-17/GRID23.md). Исторический `82e4dfb` сохраняет собственные 71/2/0 с PLAYING/Pad-startup failures, `7564fe7` — scoped4 PASS, `0cfd12e` — 70/2/1; результаты не суммируются. Затем — установленная 23: ритм, ноты, тембры, наклон, Start/Stop диктовки, сохранение и экспорт. Реальные маршруты, human Voice-to-MIDI, FoundationModels на телефоне, MIDI и C8 остаются отдельной приёмкой перед beta/TestFlight/App Store.
 
 [Точный статус, ограничения и история failures](docs/release/CURRENT.md) · [Протокол устройства](docs/release/DEVICE_ACCEPTANCE.md) · [Роадмап](ROADMAP.md) · [План аудита](docs/review/2026-11-16/PLAN.md).
 

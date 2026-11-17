@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "sourceSHA": "8bc7866c0da5ecf330deaafeaf107ac2b881ec79",
+  "repository": "alexgazin/la-grilla",
+  "runID": 44140208148,
+  "runAttempt": 1,
+  "jobID": 134240633137,
+  "originalArtifactID": 14360221600,
+  "originalZIPBytes": 329852369,
+  "originalZIPSHA256": "dcdc3c20663a34fafedbdd17a78ce0be36547d29699793d10e6ce1027065513a",
+  "owner": {
+    "caseIdentifier": "PadTouchUITests/testContactEnqueuesBeforeReleaseAndHoldDoesNotRetrigger",
+    "testStatus": "Success",
+    "attachmentName": "Touch21-Native-pads-sound-and-beat",
+    "attachmentTimestampUTC": "2026-11-17T18:29:26.324+0000",
+    "originalAttachmentFilename": "Touch21-Native-pads-sound-and-beat_0_DB8D2C90-2647-4FEE-8F78-BE4C9C769418.png",
+    "originalSummaryZIPMember": "TestResults.xcresult/Data/data.0~_jV8CkMz7Hi4x5U8IS8uCFFnNhImFsvHvGe8SFN0FhsVDsZRUQBQ8RSMAdii3E4whzqtJlsGjxo8YsHYRmHLfQ==",
+    "originalSummaryCompressedBytes": 2382,
+    "originalSummaryCompressedSHA256": "f54646286a970b2299211a86d072d6b7b39a9db4fd84835fbc846a095d2cf6d0",
+    "originalSummaryDecodedBytes": 11957,
+    "originalSummaryDecodedSHA256": "8974d747d319dac4fcc09a46f6bd587f3e6daa376715ec050f838df7e90d86f8",
+    "decodedSummaryFile": "owner-2-ActionTestSummary.decoded.txt",
+    "payloadRef": "0~CGMlSmQSDeI24K63j5nLGLUGuXN6SZq2aLjplvRVx8CDGuy14fsDFInRgRrQPrlHnTV9GO6aCcTL99bzcdFvlg==",
+    "originalPayloadZIPMember": "TestResults.xcresult/Data/data.0~CGMlSmQSDeI24K63j5nLGLUGuXN6SZq2aLjplvRVx8CDGuy14fsDFInRgRrQPrlHnTV9GO6aCcTL99bzcdFvlg==",
+    "originalPayloadZIPCRC": "4836ebdb",
+    "payloadBytes": 261097,
+    "payloadSHA256": "708bdb8a4d1687c4746872254afedd5023801ba3f7eb930c10002fdb2750e3f9",
+    "payloadPNGDimensions": [
+      1320,
+      2868
+    ],
+    "payloadPNGMode": "RGB",
+    "salvagedPNGFile": "Touch21-Native-pads-sound-and-beat_0_DB8D2C90-2647-4FEE-8F78-BE4C9C769418.png",
+    "originalLogLineStart": 9371,
+    "originalLogLineEnd": 9402,
+    "originalCaseLogFile": "owner-2-original-case.log",
+    "originalCaseLogSHA256": "2a25679b52eeee76b1ece16a313930bbfb6613c6401cc53bda09151915a9ab55",
+    "originalCaseTerminalLine": "2026-11-17T18:29:27.6110840Z Test Case '-[LaGrillaUITests.PadTouchUITests testContactEnqueuesBeforeReleaseAndHoldDoesNotRetrigger]' passed (13.483 seconds).",
+    "associationProof": "The same original zstd ActionTestSummary object contains this exact root case identifier, root testStatus=Success, named keepAlways public.png attachment, timestamp, payloadSize and payloadRef; payloadRef resolves directly to this original ZIP member. Original decoded job log independently records the named attachment inside the passed case."
+  },
+  "repositoryFile": "Screenshots/Build23Pads/pads-contact.png",
+  "unmodifiedOriginal": true,
+  "wholeRun": {
+    "functionalCases": 73,
+    "passed": 71,
+    "failed": 2,
+    "caseAllowance": 0,
+    "timedOut": true,
+    "fullAcceptance": false
+  },
+  "ownerOutcome": "PASS13.483s including actual contact/hold/timing/secondtap/termination",
+  "noNewCapture": true
+}
