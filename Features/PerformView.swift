@@ -1,10 +1,18 @@
 import SwiftUI
 import MusicDomain
+import UIKit
+import AVFAudio
 
 struct PerformView:View {
     @Bindable var session:Session
     @Environment(\.dynamicTypeSize) private var dynamicType
+    @Environment(\.scenePhase) private var scenePhase
     @State private var showMore=false
+    @State private var tilt=TiltFilterController()
+    @State private var tiltOrientation=UIInterfaceOrientation.portrait
+    @State private var tiltTarget=TiltTarget.filter
+    @State private var tiltVolumeAnchor=TiltVolumeAnchor()
+    private enum TiltTarget:Equatable,Sendable {case filter,volume}
     private var live:PerformanceController{session.performance}
     private var project:Project{session.displayProject}
     var body:some View {
@@ -15,6 +23,7 @@ struct PerformView:View {
                 if let error=live.error{Text(LocalizedStringKey(error)).foregroundStyle(Color.record).font(.caption).accessibilityIdentifier("perform.error")}
                 if let notice=live.notice{Text(LocalizedStringKey(notice)).foregroundStyle(Color.muted).font(.caption)}
                 effects
+                tiltControl
                 HStack(spacing:10){
                     Button{live.toggleRepeat()}label:{Label(LocalizedStringKey(live.repeating ? "Release repeat":"Repeat fragment"),systemImage:"repeat")}.buttonStyle(StudioActionStyle(color:live.repeating ? .drums:.mint,prominent:live.repeating)).accessibilityIdentifier("perform.repeat")
                     Picker("Repeat length",selection:Binding(get:{live.repeatSize},set:{live.setRepeatSize($0)})){Text("¼").tag(240);Text("½").tag(480);Text("1").tag(960);Text("2 beats").tag(1920)}.pickerStyle(.menu).labelsHidden().fixedSize(horizontal:true,vertical:false).frame(minWidth:60,minHeight:48)
@@ -29,8 +38,18 @@ struct PerformView:View {
             }.padding(18)}.background(Color.ink)
             .safeAreaInset(edge:.bottom){transport}
             .navigationTitle("Perform").navigationBarTitleDisplayMode(.inline)
-            .toolbar{ToolbarItem(placement:.cancellationAction){Button("Done"){session.sheet=nil}.accessibilityIdentifier("perform.done")};ToolbarItem(placement:.primaryAction){Button("Panic"){live.panic();session.pollPerformance()}.foregroundStyle(Color.record).accessibilityIdentifier("perform.panic")}}
+            .toolbar{ToolbarItem(placement:.cancellationAction){Button("Done"){tilt.stop();session.sheet=nil}.accessibilityIdentifier("perform.done")};ToolbarItem(placement:.primaryAction){Button("Panic"){tilt.stop();live.panic();session.pollPerformance()}.foregroundStyle(Color.record).accessibilityIdentifier("perform.panic")}}
         }.presentationDetents([.large])
+        .background(PerformOrientationReader{next in
+            if next != tiltOrientation,tilt.active{tilt.stop(notice:"Screen rotated. Enable tilt again to set a new neutral position.")}
+            tiltOrientation=next
+        }.allowsHitTesting(false).accessibilityHidden(true))
+        .onDisappear{tilt.stop()}
+        .onChange(of:scenePhase){_,phase in if phase != .active{tilt.stop()}}
+        .onChange(of:canUseTilt){_,allowed in if !allowed{tilt.stop()}}
+        .onReceive(NotificationCenter.default.publisher(for:UIApplication.willResignActiveNotification).receive(on:RunLoop.main)){_ in tilt.stop()}
+        .onReceive(NotificationCenter.default.publisher(for:AVAudioSession.interruptionNotification).receive(on:RunLoop.main)){_ in tilt.stop()}
+        .onReceive(NotificationCenter.default.publisher(for:AVAudioSession.mediaServicesWereResetNotification).receive(on:RunLoop.main)){_ in tilt.stop()}
     }
     private var status:some View {HStack(alignment:.top){VStack(alignment:.leading,spacing:6){
         Text(LocalizedStringKey(live.recording ? "RECORDING":live.replaying ? "TAKE REPLAY":"YOUR SECTIONS. YOUR SET.")).font(.caption2.weight(.semibold)).tracking(1).foregroundStyle(live.recording ? Color.record:Color.muted).accessibilityIdentifier("perform.mode")
@@ -39,10 +58,10 @@ struct PerformView:View {
     };Spacer();Text(String(format:"%02d:%02d",Int(live.seconds)/60,Int(live.seconds)%60)).font(.system(.title3,design:.monospaced,weight:.medium)).foregroundStyle(live.recording ? Color.record:Color.mint)}}
     private var transport:some View {VStack(spacing:7){
         HStack(spacing:8){
-            Button{if live.playing || live.starting{Task{await live.stop();session.pollPerformance()}}else{session.startPerformance(record:false)}}label:{Label(LocalizedStringKey(live.playing || live.starting ? "Stop":"Play live"),systemImage:live.playing || live.starting ? "stop.fill":"play.fill")}.buttonStyle(StudioActionStyle(prominent:!live.playing)).accessibilityIdentifier("perform.play").disabled(live.stopping)
-            Button{if live.recording{live.stopRecording()}else{session.startPerformance(record:true)}}label:{Label(LocalizedStringKey(live.recording ? "Finish take":"Record take"),systemImage:live.recording ? "stop.circle":"record.circle")}.buttonStyle(StudioActionStyle(color:.record,prominent:live.recording)).accessibilityIdentifier("perform.record").disabled(live.starting || live.stopping)
+            Button{tilt.stop();if live.playing || live.starting{Task{await live.stop();session.pollPerformance()}}else{session.startPerformance(record:false)}}label:{Label(LocalizedStringKey(live.playing || live.starting ? "Stop":"Play live"),systemImage:live.playing || live.starting ? "stop.fill":"play.fill")}.buttonStyle(StudioActionStyle(prominent:!live.playing)).accessibilityIdentifier("perform.play").disabled(live.stopping)
+            Button{tilt.stop();if live.recording{live.stopRecording()}else{session.startPerformance(record:true)}}label:{Label(LocalizedStringKey(live.recording ? "Finish take":"Record take"),systemImage:live.recording ? "stop.circle":"record.circle")}.buttonStyle(StudioActionStyle(color:.record,prominent:live.recording)).accessibilityIdentifier("perform.record").disabled(live.starting || live.stopping)
         }
-        Button("Return to editing"){Task{await session.leavePerformance();session.sheet=nil}}.font(.caption).foregroundStyle(Color.muted).frame(maxWidth:.infinity,minHeight:44).accessibilityIdentifier("perform.edit")
+        Button("Return to editing"){tilt.stop();Task{await session.leavePerformance();session.sheet=nil}}.font(.caption).foregroundStyle(Color.muted).frame(maxWidth:.infinity,minHeight:44).accessibilityIdentifier("perform.edit")
     }.padding(.horizontal,18).padding(.top,10).background(Color.ink).overlay(alignment:.top){Rectangle().fill(Color.outline.opacity(0.6)).frame(height:0.5)}}
     private func sectionPad(_ section:MusicDomain.Section)->some View {
         let active=(live.contextActive ? live.activeSectionID:session.section.id)==section.id,queued=live.queuedSectionID==section.id
@@ -52,10 +71,73 @@ struct PerformView:View {
         if dynamicType.isAccessibilitySize{VStack(spacing:10){filter;delay}}else{HStack(alignment:.top,spacing:10){filter;delay}.fixedSize(horizontal:false,vertical:true)}
     }
     private var filter:some View {VStack(alignment:.leading,spacing:4){
-        HStack(spacing:0){Label("Master filter",systemImage:"line.3.horizontal.decrease").font(.caption.weight(.semibold)).lineLimit(2);Spacer(minLength:0);IconButton(symbol:"arrow.counterclockwise",label:"Reset master filter",color:.mint){live.setEffects(filter:0)}.accessibilityIdentifier("perform.filter.reset")}.frame(minHeight:44)
-        FilterKnob(value:Binding(get:{live.fx.filter},set:{live.setEffects(filter:$0)}))
+        HStack(spacing:0){Label("Master filter",systemImage:"line.3.horizontal.decrease").font(.caption.weight(.semibold)).lineLimit(2);Spacer(minLength:0);IconButton(symbol:"arrow.counterclockwise",label:"Reset master filter",color:.mint){tilt.stop();live.setEffects(filter:0)}.accessibilityIdentifier("perform.filter.reset")}.frame(minHeight:44)
+        FilterKnob(value:Binding(get:{live.fx.filter},set:{tilt.stop();live.setEffects(filter:$0)}))
         HStack{Text("LOW PASS");Spacer();Text("HIGH PASS")}.font(.system(size:11,design:.monospaced)).foregroundStyle(Color.muted).frame(minHeight:28,alignment:.bottom)
     }.padding(12).frame(maxWidth:.infinity,maxHeight:.infinity,alignment:.top).modifier(StudioSurface()).disabled(!live.contextActive || live.replaying)}
+    private var canUseTilt:Bool{
+        scenePhase == .active && live.contextActive && live.playing && !live.replaying && !live.starting && !live.stopping && live.audio.playing && live.audio.isPrepared
+    }
+    private var tiltControl:some View {VStack(alignment:.leading,spacing:10){
+        Toggle(isOn:Binding(get:{tilt.active},set:{enabled in if enabled{startTilt()}else{tilt.stop()}})){
+            Label("Tilt control",systemImage:"move.3d").font(.subheadline.weight(.semibold))
+        }.tint(.mint).frame(minHeight:44).disabled(!canUseTilt || !tilt.available).accessibilityIdentifier("perform.tilt.enabled")
+        StudioSegments(title:"Tilt target",selection:Binding(get:{tiltTarget},set:{tilt.stop();tiltTarget=$0}),options:[(.filter,"Filter"),(.volume,"Volume")]).accessibilityIdentifier("perform.tilt.target")
+        if tiltTarget == .volume {
+            HStack{Text("Master volume").font(.caption).foregroundStyle(Color.muted);Spacer();Text(String(format:"%+.1f dB",live.runtimeProject?.master ?? project.master)).font(.caption.monospaced().weight(.semibold)).monospacedDigit()}.accessibilityElement(children:.combine).accessibilityIdentifier("perform.tilt.master-volume")
+        }
+        if tilt.active {
+            GeometryReader{geometry in
+                ZStack {
+                    Capsule().fill(Color.raised).frame(height:6)
+                    Rectangle().fill(Color.muted).frame(width:1,height:14)
+                    Circle().fill(Color.mint).frame(width:16,height:16).offset(x:CGFloat(tilt.deflection)*max(0,geometry.size.width/2-8))
+                }.frame(maxWidth:.infinity,maxHeight:.infinity)
+            }.frame(height:22).accessibilityHidden(true)
+            HStack {
+                Text(LocalizedStringKey(tilt.calibrating ? "Finding neutral position…":tiltTarget == .filter ? "Tilt gently to shape the filter.":"Tilt gently to change the master volume.")).font(.caption).foregroundStyle(Color.muted)
+                Spacer(minLength:8)
+                Button("Set neutral"){calibrateTilt()}.font(.caption.weight(.semibold)).frame(minHeight:44).disabled(tilt.calibrating).accessibilityIdentifier("perform.tilt.calibrate")
+            }
+        } else {
+            Text(LocalizedStringKey(!tilt.available ? "Tilt is unavailable on this device.":canUseTilt ? "Hold the phone comfortably, then enable tilt.":"Start live playback to use tilt.")).font(.caption).foregroundStyle(Color.muted)
+        }
+        if let notice=tilt.notice{Text(LocalizedStringKey(notice)).font(.caption).foregroundStyle(Color.muted).accessibilityIdentifier("perform.tilt.notice")}
+    }.padding(14).modifier(StudioSurface())}
+    private func calibrateTilt(){
+        if tiltTarget == .volume {
+            guard let master=live.runtimeProject?.master,master.isFinite else{return}
+            tiltVolumeAnchor.baseline=master;tiltVolumeAnchor.expected=master
+            tilt.calibrate(filter:0)
+        }else{tilt.calibrate(filter:live.fx.filter)}
+    }
+    private func startTilt(){
+        guard canUseTilt else{return}
+        let axis:TiltFilterController.Axis
+        switch tiltOrientation {
+        case .landscapeLeft:axis = .landscapeLeft
+        case .landscapeRight:axis = .landscapeRight
+        case .portraitUpsideDown:axis = .portraitInverted
+        default:axis = .portrait
+        }
+        let performance=live,motion=tilt,target=tiltTarget,anchor=tiltVolumeAnchor
+        if target == .volume {
+            guard let master=performance.runtimeProject?.master,master.isFinite else{return}
+            anchor.baseline=master;anchor.expected=master
+        }
+        tilt.start(filter:target == .filter ? live.fx.filter:0,axis:axis){[weak performance,weak motion] value in
+            guard let performance,performance.contextActive,performance.playing,!performance.replaying,!performance.starting,!performance.stopping,performance.audio.playing,performance.audio.isPrepared else{motion?.stop();return}
+            if target == .filter{performance.setEffects(filter:value)}else{
+                // A manual/MIDI master change takes control until tilt is
+                // explicitly enabled again. The anchor never owns this view.
+                guard let current=performance.runtimeProject?.master,abs(current-anchor.expected)<0.0001 else{motion?.stop();return}
+                let master=min(6,max(-61,anchor.baseline+value*12))
+                guard abs(master-current)>=0.0001 else{return}
+                do{try performance.editMix{$0.master=master};anchor.expected=master}
+                catch{motion?.stop(notice:"Tilt stopped. You can enable it again.")}
+            }
+        }
+    }
     private var delay:some View {VStack(alignment:.leading,spacing:4){
         Label("Delay wet",systemImage:"circle.dotted.circle").font(.caption.weight(.semibold)).lineLimit(2).frame(minHeight:44,alignment:.leading)
         Text(String(format:"%.0f%%",live.fx.delayWet*100)).font(.system(.title3,design:.monospaced,weight:.medium)).frame(maxWidth:.infinity,minHeight:44,alignment:.leading)
@@ -68,9 +150,37 @@ struct PerformView:View {
         Text(take.name).font(.subheadline.weight(.semibold)).lineLimit(1)
         Text("\(take.events.count) events · source revision \(take.sourceRevision)").font(.caption2).foregroundStyle(Color.muted).accessibilityIdentifier("perform.saved")
         HStack(spacing:8){
-            Button{session.replayPerformance(take)}label:{Label("Replay take",systemImage:"play.circle")}.buttonStyle(StudioActionStyle(prominent:false)).accessibilityIdentifier("perform.replay").disabled(live.recording || live.starting || live.stopping)
+            Button{tilt.stop();session.replayPerformance(take)}label:{Label("Replay take",systemImage:"play.circle")}.buttonStyle(StudioActionStyle(prominent:false)).accessibilityIdentifier("perform.replay").disabled(live.recording || live.starting || live.stopping)
             Menu{Button("Export take WAV"){export(take,"wav")}.accessibilityIdentifier("perform.wav");Button("Export take MIDI"){export(take,"midi")}.accessibilityIdentifier("perform.midi")}label:{Label("Export",systemImage:"square.and.arrow.up").font(.subheadline.weight(.medium)).frame(minWidth:80,minHeight:48)}.disabled(live.recording).accessibilityIdentifier("perform.export")
         }
     }.padding(14).modifier(StudioSurface())}
-    private func export(_ take:PerformanceTake,_ format:String){session.exportTake=take;session.exportPreset=format;session.sheet = .export}
+    private func export(_ take:PerformanceTake,_ format:String){tilt.stop();session.exportTake=take;session.exportPreset=format;session.sheet = .export}
+}
+
+@MainActor private final class TiltVolumeAnchor {
+    var baseline=0.0
+    var expected=0.0
+}
+
+/// Reads this presentation's actual interface orientation, including when the
+/// phone is flat and UIDevice reports faceUp instead of a screen orientation.
+private struct PerformOrientationReader:UIViewRepresentable {
+    let changed:@MainActor (UIInterfaceOrientation)->Void
+    func makeUIView(context:Context)->OrientationView{let view=OrientationView();view.backgroundColor = .clear;view.isOpaque=false;view.changed=changed;return view}
+    func updateUIView(_ view:OrientationView,context:Context){view.changed=changed}
+    static func dismantleUIView(_ view:OrientationView,coordinator:Void){view.changed=nil}
+    final class OrientationView:UIView {
+        var changed:(@MainActor (UIInterfaceOrientation)->Void)?
+        private var reported:UIInterfaceOrientation?
+        override func didMoveToWindow(){super.didMoveToWindow();report()}
+        override func layoutSubviews(){super.layoutSubviews();report()}
+        private func report(){
+            guard let orientation=window?.windowScene?.interfaceOrientation,orientation != .unknown,orientation != reported else{return}
+            reported=orientation
+            DispatchQueue.main.async{[weak self] in
+                guard let self,self.reported==orientation else{return}
+                self.changed?(orientation)
+            }
+        }
+    }
 }

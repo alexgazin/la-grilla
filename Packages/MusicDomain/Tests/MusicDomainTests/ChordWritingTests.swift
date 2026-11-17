@@ -128,12 +128,12 @@ struct ChordWritingTests {
 
     @Test func everyOldSchemaKeepsUnknownWritingUnknownAndPreservesMusicAndSourceAudio()throws {
         let (source,record)=AudioAssetTests.source()
-        for version in 1...9 {
+        for version in 1..<Project.currentSchemaVersion {
             var old=Project.demo();old.schemaVersion=version;old.audioAssets=[record]
             old.performanceTake=PerformanceTake(source:old,sampleRate:48000,durationFrames:48000,events:[PerformanceEvent(frame:0,kind:.section,sectionID:old.sections[0].id)])
             let data=try JSONEncoder().encode(old),hash=try AssetIntegrity.sha256(data)
             let migrated=try ProjectDocument.decode(data)
-            #expect(migrated.schemaVersion==10);#expect(migrated.performanceTake?.source.schemaVersion==10)
+            #expect(migrated.schemaVersion==Project.currentSchemaVersion);#expect(migrated.performanceTake?.source.schemaVersion==Project.currentSchemaVersion)
             #expect(migrated.patterns.allSatisfy{$0.chords.allSatisfy{$0.chord.rootSpelling==nil && $0.chord.slashBassSpelling==nil}})
             #expect(Compiler.notes(migrated)==Compiler.notes(old))
             #expect(migrated.audioAssets==old.audioAssets)

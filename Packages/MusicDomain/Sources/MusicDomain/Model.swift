@@ -230,7 +230,7 @@ public struct Section: Codable, Equatable, Identifiable, Sendable {
     public init(name: String, start: Int = 0, length: Int) { self.name = name; self.start = start; self.length = length }
 }
 public struct Project: Codable, Equatable, Identifiable, Sendable {
-    public var id: UUID = UUID(); public static let currentSchemaVersion=10
+    public var id: UUID = UUID(); public static let currentSchemaVersion=11
     /// Portable, nonnegative revision IDs. Exhaustion requires a new project
     /// copy rather than wrapping an ID used by history, saving and playback.
     public static let maximumRevision=Int(Int32.max)
@@ -301,7 +301,7 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
             for e in p.drums { guard e.tick >= 0, e.tick < p.length, (0..<16).contains(e.pad), (1...127).contains(e.velocity) else { throw MusicError.invalidProject } }
         }
         for t in tracks {
-            guard (t.name==nil || (!t.name!.isEmpty && t.name!.count<=40)), t.gain.isFinite, (-61...6).contains(t.gain), t.pan.isFinite, (-1...1).contains(t.pan), (1...2).contains(t.presetVersion) else { throw MusicError.invalidProject }
+            guard (t.name==nil || (!t.name!.isEmpty && t.name!.count<=40)), t.gain.isFinite, (-61...6).contains(t.gain), t.pan.isFinite, (-1...1).contains(t.pan), SoundPalette(rawValue:t.presetVersion) != nil else { throw MusicError.invalidProject }
             var end = 0
             for c in t.clips.sorted(by: {$0.start < $1.start}) {
                 guard c.start >= end, c.start < length, c.length > 0, c.length <= length, c.start + c.length <= length, c.offset >= 0, let p = patterns.first(where: {$0.id == c.patternID}), c.offset < p.length else { throw MusicError.invalidProject }
@@ -424,6 +424,9 @@ public enum ProjectDocument {
     private static func migrated(_ value:Project)throws->Project {
         var p=value
         guard (1...Project.currentSchemaVersion).contains(p.schemaVersion)else{throw MusicError.unsupportedSchema}
+        // Schemas through 10 only knew the two original renderer versions.
+        // New palettes require 11 so an older app rejects the document safely.
+        if p.schemaVersion<11,!p.tracks.allSatisfy({(1...2).contains($0.presetVersion)}){throw MusicError.invalidProject}
         if p.schemaVersion==1 {p.schemaVersion=2;for i in p.patterns.indices{if p.patterns[i].notes==nil{p.patterns[i].notes=[]}}}
         if p.schemaVersion==2{p.schemaVersion=3}
         if p.schemaVersion==3{p.schemaVersion=4}
@@ -433,6 +436,7 @@ public enum ProjectDocument {
         if p.schemaVersion==7{p.schemaVersion=8}
         if p.schemaVersion==8{p.schemaVersion=9}
         if p.schemaVersion==9{p.schemaVersion=10}
+        if p.schemaVersion==10{p.schemaVersion=11}
         if var take=p.performanceTake{take.source=try migrated(take.source);p.performanceTake=take}
         try p.validate();return p
     }

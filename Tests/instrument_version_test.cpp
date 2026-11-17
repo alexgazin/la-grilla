@@ -4,7 +4,7 @@
 #include <cmath>
 #include <iostream>
 float lateCrash(double rate,int version){
- auto*k=lg_create(rate);assert(lg_preset_version(k,1,version));assert(!lg_preset_version(k,1,3));lg_pad(k,9,110);std::vector<float> l(512),r(512);float peak=0;
+ auto*k=lg_create(rate);assert(lg_preset_version(k,1,version));assert(!lg_preset_version(k,1,5));lg_pad(k,9,110);std::vector<float> l(512),r(512);float peak=0;
  for(int frame=0;frame<int(rate);){int count=std::min(512,int(rate)-frame);lg_render(k,l.data(),r.data(),count);for(int i=0;i<count;i++)if(frame+i>int(rate*.3)&&frame+i<int(rate*.4))peak=std::max(peak,std::abs(l[i]));frame+=count;}
  lg_destroy(k);return peak;
 }

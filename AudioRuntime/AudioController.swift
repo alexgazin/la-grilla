@@ -188,6 +188,9 @@ private enum AudioRender {
         }
     }
     var isPrepared: Bool { engine?.isRunning == true }
+    var wirelessOutput:Bool {
+        AVAudioSession.sharedInstance().currentRoute.outputs.contains{[AVAudioSession.Port.bluetoothA2DP,.bluetoothHFP,.bluetoothLE,.airPlay].contains($0.portType)}
+    }
     var captureEngine:AVAudioEngine? {engine}
     var pendingSnapshot:Bool {guard let k=handle?.pointer else{return false};return generation != Int(lg_revision(k))}
     var activeMIDIRouting:AudioMIDIRouting? {guard let k=handle?.pointer else{return nil};return routing[Int(lg_revision(k))]}
@@ -566,7 +569,12 @@ private enum AudioRender {
     }
     func stop() {if let k = handle?.pointer {lg_play(k,0)}; playing = false}
     func seek(_ tick: Int) {if let k = handle?.pointer {lg_seek(k,Int32(tick))}; self.tick = Double(tick)}
-    func pad(_ pad: Int, velocity: Int = 100) {if let k = handle?.pointer { _ = lg_pad(k,Int32(pad),Int32(velocity)) }}
+    @discardableResult func pad(_ pad: Int, velocity: Int = 100)->Bool {
+        guard (0..<16).contains(pad),let k=handle?.pointer else{return false}
+        let accepted=lg_pad(k,Int32(pad),Int32(velocity)) != 0
+        if !accepted{error=NSLocalizedString("A pad hit could not be queued. Try again.",comment:"Live drum input")}
+        return accepted
+    }
     func preview(_ chord: Chord) {if let k = handle?.pointer {for n in chord.notes {lg_preview(k,Int32(n))}}}
     func previewNote(_ pitch:Int,track:Int){
         guard (0...127).contains(pitch),let desired=routing[generation],desired.tracks.indices.contains(track)else{return}

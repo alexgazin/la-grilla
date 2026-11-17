@@ -43,6 +43,11 @@ jobs:
         env:
           GRILLA_CAPTURE_SCREENS: '0'
         run: bash scripts/screenshots.sh
+      - name: Verify the selected Simulator's actual DragUI readiness
+        timeout-minutes: 2
+        run: |
+          GRILLA_DRAG_DEVICE=$(cat /tmp/grilla-simulator-id)
+          python3 scripts/ci/prepare_simulator_drag_service.py --device "$GRILLA_DRAG_DEVICE" --output-dir SimulatorDragReadiness --start-confirmed-system-app --start-confirmed-daemon
       - name: Verify first result, anchored pinch, transposition, AI fallback, harmony and strict production PCM
         # Secondary runner bound; native 30-minute/shared 40-minute limits stay.
         timeout-minutes: 31
@@ -132,6 +137,7 @@ jobs:
             audit-native.log
             audit-process-status.json
             audit-device.log
+            SimulatorDragReadiness
             ci-audio.log
             AuditResults.xcresult
             AuditAttachments

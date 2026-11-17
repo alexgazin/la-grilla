@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "appVersion": "1.0.0",
+  "appBuild": "20",
+  "sourceSHA": "deeb701563ec4812675376c408daa72583e3dad9",
+  "runID": 43966102437,
+  "runURL": "https://github.com/alexgazin/la-grilla/actions/runs/43966102437",
+  "artifactID": 14278721996,
+  "artifactBytes": 84155445,
+  "artifactSHA256": "a786d4da91a827d838c481c7fc2269a0d42858cec98f2f588b8e91b809f6cf5f",
+  "captureEnvironment": "iPhone 16 Pro Max iOS 26.2 Simulator",
+  "wholeRun": {
+    "status": "failed",
+    "passed": 2,
+    "executionAllowanceFailures": 1,
+    "interrupted": 1,
+    "acceptedPromoVideo": false,
+    "softwareAccepted": false,
+    "physicalDevice": false
+  },
+  "selection": "Two visually reviewed original PNG attachments owned by passed methods; original bytes and pixels retained. The complete capture did not pass.",
+  "screenshots": [
+    {
+      "file": "harmony.png",
+      "originalExtractedFilename": "NativeDemo-harmony_0_DA500505-119D-4294-A39B-5125435331F8.preview-b.png",
+      "originalAttachmentName": "NativeDemo-harmony_0_DA500505-119D-4294-A39B-5125435331F8.preview-b",
+      "bytes": 227177,
+      "sha256": "8650c99b3d509d8e105b45d16983bcf06d747926dc96c1f46066e99674bbcce5",
+      "dimensions": [
+        1320,
+        2868
+      ],
+      "payloadReference": "0~mJM2XbqfZjN_KJGCJXypfDzCRS6wa-15FLw4GjomSW83O5TQvqk-2dc_rUVqv1xk1o9afyE-HgL2ax4gnTRHNA==",
+      "sourceMetadataFile": "data.0~k2YEaPyUXevs8slm8SU1XttbifnppBsizG8NGUD7-mL-17L-CaJtT2cvGCPtI7UN__fZXj2srwgC4kMRhjBasA==",
+      "sourceMetadataSHA256": "4e38c1c13b509fe10fb4e356c4fb6d50e2ad20d21d6274396fa3c0eb1744c0a8",
+      "ownerMethods": [
+        "test02HarmonyCommandsAndVoiceSetup"
+      ],
+      "ownerOutcome": "passed",
+      "bytesUnchanged": true
+    },
+    {
+      "file": "perform.png",
+      "originalExtractedFilename": "NativeDemo-perform_0_3B4D3D3A-ABE3-4C5F-B06C-D6178B46BE11.filter.png",
+      "originalAttachmentName": "NativeDemo-perform_0_3B4D3D3A-ABE3-4C5F-B06C-D6178B46BE11.filter",
+      "bytes": 220571,
+      "sha256": "3904d363638a713ff1eed4696ceb12d4599177fe2236339a4c9a531277cf8fc9",
+      "dimensions": [
+        1320,
+        2868
+      ],
+      "payloadReference": "0~q7BI2h1kLyAxgPZH06n-46OEIbrGPqnoqyDXQl11zy5I38yMJkXMaiGn6NaJ4p-8hhvUUDMvAM_ZZ6dFE4DOEA==",
+      "sourceMetadataFile": "data.0~EjxmTD-_3rS8oDZs5TjwEFDXcT4fKtndsHBs6MlqY_YBZbvgHYA74A1m4JzSYyAWspC7mtySwBWTPFpcmOiWKg==",
+      "sourceMetadataSHA256": "8e6f42777bc4e7f313c446cb887a6aee23d8bd5c4a0cc3d044fa7ab18411fdf8",
+      "ownerMethods": [
+        "test03PerformAndExport"
+      ],
+      "ownerOutcome": "passed",
+      "bytesUnchanged": true
+    }
+  ]
+}

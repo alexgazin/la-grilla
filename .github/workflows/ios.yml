@@ -52,6 +52,9 @@ jobs:
           python3 scripts/release/test_device_acceptance.py
           python3 scripts/ci/test_run_native.py
           python3 scripts/ci/test_native_scope.py
+          python3 scripts/ci/test_simulator_macho.py
+          swiftc AudioRuntime/TiltFilterMapping.swift scripts/test_tilt_filter.swift -o /tmp/grilla-tilt-contracts
+          /tmp/grilla-tilt-contracts
           for GRILLA_SCRIPT in scripts/release/*.sh; do bash -n "$GRILLA_SCRIPT"; done
       - name: Presentation and localization audit
         run: python3 scripts/audit_presentation.py && plutil -lint Resources/en.lproj/Localizable.strings Resources/ru.lproj/Localizable.strings
@@ -165,6 +168,11 @@ jobs:
           if diagnostics['preparationOutcome']=='success' and errors:
               raise SystemExit('Preparation succeeded but its actual runtime/device evidence could not be verified.')
           PY
+      - name: Verify the selected Simulator's actual DragUI readiness
+        timeout-minutes: 2
+        run: |
+          GRILLA_DRAG_DEVICE=$(cat /tmp/grilla-simulator-id)
+          python3 scripts/ci/prepare_simulator_drag_service.py --device "$GRILLA_DRAG_DEVICE" --output-dir SimulatorDragReadiness --start-confirmed-system-app --start-confirmed-daemon
       - name: Native user flows
         id: native_flows
         # Independent runner-side bound also covers a blocked Python I/O call.
@@ -234,6 +242,7 @@ jobs:
             native-process-status.json
             native-device.log
             simulator-environment.json
+            SimulatorDragReadiness
             ci-audio.log
             TestResults.xcresult
             CrashReports
@@ -296,6 +305,7 @@ jobs:
             native-process-status.json
             native-device.log
             simulator-environment.json
+            SimulatorDragReadiness
             compact-supervisor.log
             compact-process-status.json
             compact-tests.log

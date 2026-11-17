@@ -240,7 +240,16 @@ def prepare(arguments):
             # Cold xcrun/vtool repeatedly stalled before doing any service work.
             # Read the actual contained Mach-O header/load commands instead;
             # retain their original bytes and require platform7 in every slice.
-            inspection = inspect_simulator_executable(raw, architecture)
+            try:
+                inspection = inspect_simulator_executable(raw, architecture)
+            except ValueError as error:
+                state["rejectedRuntimeLaunchctl"] = dict(path=str(tool), byteCount=len(raw),
+                    sha256=hashlib.sha256(raw).hexdigest(), reason=str(error))
+                if len(raw) <= 128 * 1024 * 1024:
+                    rejected_path = folder / "runtime-launchctl-rejected.macho"
+                    rejected_path.write_bytes(raw)
+                    state["rejectedRuntimeLaunchctl"]["file"] = rejected_path.name
+                raise
             build_path = folder / "runtime-launchctl-build.json"
             build_path.write_text(json.dumps(inspection, indent=2, sort_keys=True) + "\n")
             evidence = build_path.read_bytes()

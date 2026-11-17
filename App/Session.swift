@@ -21,7 +21,14 @@ import Observation
     var passClock: UInt64 = 0; var replaceNextPass = false
     struct RawHit {let tick: Int;let sampleFrame: UInt64;let event: DrumEvent}
     var rawHits: [RawHit] = []
-    var take: [DrumEvent] = []; var takePattern: UUID?; var takeStart = 0; var takeLength = 0
+    private struct PadRecordingInput {let pad:Int;let tick:Int;let clock:UInt64}
+    @ObservationIgnored private var pendingPadInputs:[PadRecordingInput]=[]
+    @ObservationIgnored private var drumPass:DrumRecordingPass?
+    /// Read-only inspection of events already drained from the contact queue.
+    var take:[DrumEvent]{drumPass?.events ?? []}
+    @ObservationIgnored private var acceptedPadHits=0
+    @ObservationIgnored private var lastPadDispatchMilliseconds=0.0
+    var takePattern: UUID?; var takeStart = 0; var takeLength = 0
     private var drumDraft:DrumRecordingDraft?;private var drumPlayback:Project?
     private var saveGeneration = 0
     var savedRevision = -1; var saving = false; var saveError: String?; var message: String?
@@ -123,7 +130,7 @@ import Observation
         if runtimeTraceEvents.count>96{runtimeTraceEvents.removeFirst(runtimeTraceEvents.count-96)}
     }
     private var runtimeTraceCurrentState:String{
-        "ready=\(ready) backgrounded=\(backgrounded) project=\(project.id) revision=\(project.revision) preview=\(harmonyPreview) loopBars=\(loopBars) loopEnabled=\(loop) loopRangeStart=\(loopRange.lowerBound) loopRangeEnd=\(loopRange.upperBound) loopRangeCount=\(loopRange.count) outputPeak=\(audio.meters[masterBus]) saveError=\(saveError ?? "none") | \(audio.runtimeTraceState)"
+        "ready=\(ready) backgrounded=\(backgrounded) project=\(project.id) revision=\(project.revision) preview=\(harmonyPreview) loopBars=\(loopBars) loopEnabled=\(loop) loopRangeStart=\(loopRange.lowerBound) loopRangeEnd=\(loopRange.upperBound) loopRangeCount=\(loopRange.count) outputPeak=\(audio.meters[masterBus]) padAccepted=\(acceptedPadHits) padUIWaitMs=\(lastPadDispatchMilliseconds) recordedHits=\(drumPass?.events.count ?? 0) saveError=\(saveError ?? "none") | \(audio.runtimeTraceState)"
     }
     var runtimeTraceReport:String{
         guard runtimeTraceEnabled else{return ""}
@@ -320,7 +327,9 @@ import Observation
         guard ensureAudio(),let track=project.tracks.first(where:{$0.role == .drums}),let clip=focusedDrumClip ?? track.clips.first(where:{$0.start<=section.start && $0.start+$0.length>section.start})else{return}
         do{drumDraft=try DrumRecordingDraft(project:project,clipID:clip.id)}catch{message=error.localizedDescription;return}
         audio.refreshClock()
-        take=[];rawHits=[];takePattern=drumDraft?.patternID;takeStart=clip.start;takeLength=clip.length
+        rawHits=[];pendingPadInputs=[];takePattern=drumDraft?.patternID;takeStart=clip.start;takeLength=clip.length
+        do{if let drumDraft{drumPass=try DrumRecordingPass(draft:drumDraft,replacing:overdub ? nil:loopRange)}}
+        catch{drumDraft=nil;drumPass=nil;message=error.localizedDescription;return}
         let barFrames=audio.sampleRate*240/project.bpm
         if audio.playing {
             let remainder=Double(barTicks)-audio.tick.truncatingRemainder(dividingBy:Double(barTicks))
@@ -332,6 +341,7 @@ import Observation
         passClock=armClock;replaceNextPass = !overdub;armed=true;sync()
     }
     func pollRecording() {
+        drainPadRecordingInputs()
         syncMIDI();midi.poll(replaying:performance.replaying);pollPerformance()
         updateNowPlaying()
         // A finite arrangement can stop itself without a transport tap. Keep
@@ -347,34 +357,64 @@ import Observation
     }
     func commitPass() {
         guard var draft=drumDraft else{return}
-        do{try draft.commitPass(take,replacing:replaceNextPass ? loopRange:nil);drumDraft=draft;replaceNextPass=false;take=[];rawHits=[];sync()}
-        catch{message=error.localizedDescription;take=[];rawHits=[]}
+        do{
+            try draft.commitPass(drumPass?.events ?? [],replacing:replaceNextPass ? loopRange:nil)
+            drumDraft=draft;replaceNextPass=false;rawHits=[]
+            drumPass=try DrumRecordingPass(draft:draft)
+            sync()
+        }catch{message=error.localizedDescription;drumPass=nil;rawHits=[]}
     }
-    func hit(_ pad: Int) {
-        guard !performance.replaying,ensureAudio() else{return};audio.refreshClock();audio.pad(pad);pollRecording()
-        if recording {
-            guard let draft=drumDraft,let local=draft.localTick(Int(audio.tick))else{return}
-            let e=DrumEvent(tick:quantize.tick(local,length:takeLength),pad:pad)
-            do{var check=draft;try check.commitPass(take+[e],replacing:replaceNextPass ? loopRange:nil);take.append(e);rawHits.append(RawHit(tick:local,sampleFrame:audio.clock,event:e))}
-            catch{message=error.localizedDescription}
+    /// Keep the contact path bounded: enqueue sound, snapshot the transport and
+    /// return. Recording bookkeeping is drained in order by the existing poll.
+    @discardableResult func hit(_ pad:Int,touchTime:TimeInterval?=nil)->Bool {
+        guard !backgrounded,!performance.replaying,(0..<16).contains(pad),audio.isPrepared || ensureAudio() else{return false}
+        guard audio.pad(pad) else{return false}
+        acceptedPadHits+=1
+        if let touchTime,touchTime.isFinite{lastPadDispatchMilliseconds=max(0,(ProcessInfo.processInfo.systemUptime-touchTime)*1000)}
+        if recording || armed {
+            audio.refreshClock()
+            guard pendingPadInputs.count<4096 else{message=MusicError.tooDense.localizedDescription;return true}
+            pendingPadInputs.append(PadRecordingInput(pad:pad,tick:Int(audio.tick),clock:audio.clock))
+        }
+        return true
+    }
+    private func drainPadRecordingInputs(){
+        guard !pendingPadInputs.isEmpty else{return}
+        let inputs=pendingPadInputs;pendingPadInputs=[]
+        let frames=UInt64((Double(loopRange.count)/Double(ppq)*60/project.bpm*audio.sampleRate).rounded())
+        for input in inputs {
+            if armed && input.clock>=armClock{armed=false;recording=true}
+            guard recording else{continue}
+            if frames>0,input.clock>=passClock,input.clock-passClock>=frames{
+                let passes=(input.clock-passClock)/frames
+                commitPass();passClock+=passes*frames
+            }
+            guard let draft=drumDraft,let local=draft.localTick(input.tick),drumPass != nil else{continue}
+            let event=DrumEvent(tick:quantize.tick(local,length:takeLength),pad:input.pad)
+            do{
+                try drumPass?.append(event)
+                rawHits.append(RawHit(tick:local,sampleFrame:input.clock,event:event))
+            }catch{message=error.localizedDescription}
         }
     }
     func finishTake() {
+        drainPadRecordingInputs()
         let hadTake=recording;armed=false;recording=false
         if hadTake{commitPass()}
-        let finished=drumDraft;drumDraft=nil;drumPlayback=nil;take=[];rawHits=[];takePattern=nil
+        let finished=drumDraft;drumDraft=nil;drumPass=nil;drumPlayback=nil;pendingPadInputs=[];rawHits=[];takePattern=nil
         if let finished,finished.changed{edit{$0=try finished.candidate(for:$0)}}else if finished != nil{sync()}
     }
     func previewHarmony(_ p:Project,section:MusicDomain.Section){
         previewAssistant(p,wholeSong:false,sectionID:section.id)
     }
-    func previewAssistant(_ candidate:Project,wholeSong:Bool,sectionID:UUID){
+    func previewAssistant(_ candidate:Project,wholeSong:Bool,sectionID:UUID,rangeOverride:Range<Int>?=nil,loopOverride:Bool?=nil){
         guard !performance.contextActive else{message="Return to editing before changing the source project.";return}
         finishTake();guard ensureAudio()else{return}
         guard candidate.id==project.id,candidate.revision==project.revision,let section=candidate.sections.first(where:{$0.id==sectionID})else{message=AssistantError.stale.localizedDescription;return}
+        if let rangeOverride{guard rangeOverride.lowerBound>=0,rangeOverride.upperBound<=candidate.length,!rangeOverride.isEmpty else{message=MusicError.invalidProject.localizedDescription;return}}
         do{try candidate.validate()}catch{message=error.localizedDescription;return}
         if !harmonyPreview{previewPosition=Int(audio.tick);previewPlaying=audio.playing;harmonyPreview=true}
-        audio.audition(candidate,range:wholeSong ? 0..<candidate.length:section.start..<section.start+section.length);syncMIDI()
+        audio.audition(candidate,range:rangeOverride ?? (wholeSong ? 0..<candidate.length:section.start..<section.start+section.length),loop:loopOverride ?? true);syncMIDI()
     }
     func endHarmonyPreview(){
         guard harmonyPreview else{return};restorePreviewTransport();sync()

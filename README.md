@@ -13,9 +13,27 @@
 
 <p align="center"><a href="#кандидат-20-в-работе">Экраны</a> · <a href="#возможности-кандидата-20">Возможности</a> · <a href="#попробовать-на-iphone">На iPhone</a> · <a href="docs/release/CURRENT.md">Текущий статус</a> · <a href="ROADMAP.md">Роадмап</a></p>
 
-**Статус — функциональная альфа.** Кандидат **1.0.0 (20), schema 10** добавляет редактируемые локальные скетчи, нотацию, транспонирование и доработку первого музыкального результата. **[Скачать тестовую IPA 19](https://github.com/alexgazin/la-grilla/raw/refs/heads/main/Builds/Testing/LaGrilla-1.0.0-19-unsigned.ipa)** — свежая native-приёмка остаётся открытой. Исходники и этапы приёмки20 связаны с [PR #21](https://github.com/alexgazin/la-grilla/pull/21). Точные версии, CI и ограничения собраны в [CURRENT](docs/release/CURRENT.md).
+**Статус — функциональная альфа. Код этой ветки: 1.0.0 (21), schema 11.** Кандидат добавляет редактируемые локальные скетчи, нотацию, транспонирование и доработку первого музыкального результата. Полная программная и аппаратная приёмка остаётся открытой. Исходники и этапы связаны с [PR #21](https://github.com/alexgazin/la-grilla/pull/21); [точные результаты и ограничения](docs/release/CURRENT.md) сохраняются отдельно для каждого source.
 
-## Кандидат 20 в работе
+## Контакт и звук · кандидат 21
+
+Новые изменения по ручному сеансу: нативный multi-touch пэдов с коротким путём до звука, живая длина и перенос нот с рукояткой 44 pt, выбор настоящих Classic/Warm/Bright через «Звук» и опциональный наклон для фильтра или громкости. Код этой ветки — **1.0.0 (21), schema 11**; Xcode/native и проверка датчиков на iPhone ещё впереди. [Подробный технический отчёт и этапы](docs/review/2026-11-17/TOUCH21.md).
+
+Тестовая IPA 20 ниже сохраняет собственный source и не содержит этих изменений. Новая IPA 21 будет отдельным файлом. Экспортируй важные проекты перед обновлением: приложение 21 читает старые схемы, а старые версии не читают сохранённую schema 11.
+
+## Оригинальные экраны кандидата 20
+
+Два оригинальных кадра работающей сборки 20: Harmony A/B и фильтр Perform. Эти экраны сняты с кандидата `deeb701` в iOS Simulator.
+
+<p align="center">
+  <a href="Screenshots/Build20Preview/harmony.png"><img src="Screenshots/Build20Preview/harmony.png" width="240" alt="Harmony Lab сборки 20: аккорды и прослушивание варианта B"></a>
+  <a href="Screenshots/Build20Preview/perform.png"><img src="Screenshots/Build20Preview/perform.png" width="240" alt="Perform сборки 20: круговой фильтр и управление живым исполнением"></a>
+</p>
+
+Методы-владельцы обоих кадров прошли; [весь запуск](https://github.com/alexgazin/la-grilla/actions/runs/43966102437) завершился с **2 PASS / 1 allowance / 1 interrupted**. Это предпросмотр интерфейса, не полная приёмка и не готовый проморолик. Исходные пиксели сохранены без изменений; [происхождение, имена вложений и SHA-256](Screenshots/Build20Preview/manifest.json).
+
+
+### Предыдущие оригиналы сборки 19
 
 Шесть оригинальных кадров сборки19 на работающем **iPhone 16 Pro Max Simulator**; сборка20 сохраняет этот интерфейс и исправляет импортированный диапазон воспроизведения. Нажмите на экран, чтобы открыть полный PNG.
 
@@ -51,7 +69,7 @@
 
 ## Попробовать на iPhone
 
-**[Скачать последнюю IPA · La Grilla 1.0.0 (19), 3.4 MiB](https://github.com/alexgazin/la-grilla/raw/refs/heads/main/Builds/Testing/LaGrilla-1.0.0-19-unsigned.ipa)** — тестовый кандидат из source `4e85930`: Debug и Release archive прошли, полная native-приёмка ещё открыта. Это неподписанная IPA для подписи своим Apple ID через [Sideloadly](https://sideloadly.io/) на Mac или Windows. Бесплатная Personal Team подходит; подпись обычно обновляется раз в семь дней. [Инструкция, receipt, хеши и предыдущая IPA 17](Builds/Testing/README.md).
+**[Скачать тестовую La Grilla 1.0.0 (20) · архив ZIP с IPA](https://github.com/alexgazin/la-grilla/actions/runs/43957824077/artifacts/14273365913)** — iPhone / iOS 18+, source `6bb06b5`. Войдите в GitHub, скачайте ZIP и извлеките `LaGrilla-unsigned.ipa` (3.4 MiB). Подпишите файл своим Apple ID через Sideloadly на Mac или Windows: бесплатная Personal Team подходит, подпись обычно действует 7 дней. Debug и Release archive прошли; полная нативная и аппаратная приёмка остаётся открытой. [Инструкция, SHA-256 и прежние IPA 19/17](Builds/Testing/README.md).
 
 Для сборки **20** из исходников нужны Mac, iPhone с iOS 18+ и Xcode 26.3+:
 
@@ -59,7 +77,7 @@
 2. Выбрать свою **Personal Team** в **Signing & Capabilities**, включив automatic signing.
 3. Подключить iPhone, подтвердить Trust/Developer Mode и нажать **Run**.
 
-Перед обновлением экспортируйте важные проекты в portable bundle. Проекты кандидата 20 используют **schema 10**: он читает 1…9, а старые приложения не откроют сохранённую schema 10. Последняя опубликованная IPA пока19; перед публикацией20 требуется его собственная проверка. Код кандидата и его приёмка — в [CURRENT](docs/release/CURRENT.md). [Подробно про Xcode и установку](docs/DEVELOPMENT.md#run-on-your-own-iphone).
+Перед обновлением экспортируйте важные проекты в portable bundle. Проекты кандидата 20 используют **schema 10**: он читает 1…9, а старые приложения не откроют сохранённую schema 10. Тестовая IPA 20 доступна отдельно; её публикация для ручной проверки не означает завершённую программную приёмку. Код кандидата и его приёмка — в [CURRENT](docs/release/CURRENT.md). [Подробно про Xcode и установку](docs/DEVELOPMENT.md#run-on-your-own-iphone).
 
 ## Настоящее видео работы · сборка 15
 
@@ -68,6 +86,8 @@
 **[▶ Смотреть запись — 2:12, Full HD, со звуком](https://github.com/alexgazin/la-grilla/raw/refs/heads/main/Media/WorkingDemo/la-grilla-working-demo.mp4)** · [Полная исходная запись](https://github.com/alexgazin/la-grilla/raw/refs/heads/main/Media/WorkingDemo/la-grilla-session-original.mp4)
 
 Историческая запись **iOS Simulator, 1.0.0 (15)**: Play, аккорды, жесты, пэды, overdub, микшер, Harmony A/B, Commands, Perform и WAV share. Звук снят с выхода тех же сессий; три сессии смонтированы с сокращением ожиданий, действия идут в обычном темпе. Voice показан на подготовке записи. [Источники, монтаж и проверки](Media/WorkingDemo/README.md) сохраняют исходный результат capture-workflow и границы принятой записи.
+
+Принятого видео работы 20 пока нет: последняя запись не завершила все четыре сценария и не сохранила воспроизводимый MP4. Историческое видео 15 сохраняет собственный source и результат.
 
 ## Готовность и дальнейшая работа
 

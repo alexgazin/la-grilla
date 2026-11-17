@@ -1,0 +1,104 @@
+name: Native touch and sound feedback verification
+on:
+  push:
+    branches: [feat/touch21]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: native-touch21-${{ github.ref }}
+  cancel-in-progress: true
+env:
+  DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
+jobs:
+  native-touch-feedback:
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - name: Reserve original evidence preservation time
+        run: |
+          python3 - <<'PYTIME'
+          import os,time
+          with open(os.environ['GITHUB_ENV'],'a') as output:
+              output.write(f'GRILLA_TOUCH_DEADLINE_EPOCH={time.time()+35*60}\n')
+          PYTIME
+      - uses: actions/checkout@v4
+      - name: Verify source, contracts and native build
+        timeout-minutes: 12
+        run: |
+          set -o pipefail
+          python3 - <<'PYIDENTITY'
+          import json,os,pathlib,subprocess
+          def value(args):return subprocess.check_output(args,text=True,timeout=30).strip()
+          receipt=dict(repository=os.environ['GITHUB_REPOSITORY'],sourceSHA=os.environ['GITHUB_SHA'],checkoutSHA=value(['git','rev-parse','HEAD']),runID=os.environ['GITHUB_RUN_ID'],runAttempt=os.environ['GITHUB_RUN_ATTEMPT'],architecture=value(['uname','-m']),runnerArchitecture=os.environ['RUNNER_ARCH'],xcode=value(['xcodebuild','-version']),simulatorSDK=value(['xcrun','--sdk','iphonesimulator','--show-sdk-version']),scope='focused-touch-feedback',fullAcceptance=False,physicalDevice=False)
+          pathlib.Path('touch21-source.json').write_text(json.dumps(receipt,indent=2)+'\n')
+          assert receipt['sourceSHA']==receipt['checkoutSHA']
+          assert receipt['architecture']=='arm64' and receipt['runnerArchitecture']=='ARM64'
+          assert receipt['xcode'].splitlines()[0]=='Xcode 26.3' and receipt['simulatorSDK']=='26.2'
+          PYIDENTITY
+          python3 scripts/generate_project.py
+          git diff --exit-code -- LaGrilla.xcodeproj
+          python3 scripts/audit_presentation.py
+          python3 scripts/release/audit_release.py
+          python3 scripts/ci/test_simulator_macho.py
+          swiftc AudioRuntime/TiltFilterMapping.swift scripts/test_tilt_filter.swift -o /tmp/grilla-tilt-contracts
+          /tmp/grilla-tilt-contracts
+          xcodebuild -project LaGrilla.xcodeproj -scheme LaGrilla -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' ARCHS=arm64 ONLY_ACTIVE_ARCH=YES -configuration Debug -derivedDataPath DerivedData CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO build-for-testing 2>&1 | tee touch21-build.log
+      - name: Configure real host audio
+        timeout-minutes: 5
+        run: bash scripts/setup_ci_audio.sh
+      - name: Boot actual iPhone Simulator
+        timeout-minutes: 7
+        env:
+          GRILLA_CAPTURE_SCREENS: '0'
+        run: bash scripts/screenshots.sh
+      - name: Verify native contact, note gestures, sound preview and recording
+        timeout-minutes: 26
+        run: |
+          GRILLA_TOUCH_DEVICE=$(cat /tmp/grilla-simulator-id)
+          python3 scripts/ci/run_native.py --timeout-seconds 1500 --deadline-env GRILLA_TOUCH_DEADLINE_EPOCH --label touch-feedback --log touch21-native.log --status touch21-process-status.json \
+            --require-test PadTouchUITests/testContactEnqueuesBeforeReleaseAndHoldDoesNotRetrigger \
+            --require-test PadTouchUITests/testSlidingFingerKeepsItsOriginalPadAndNeverStrikesNeighbour \
+            --require-test PianoTouchUITests/testHoldAndMoveKeepsDurationAndCommitsOneUndoableEdit \
+            --require-test PianoTouchUITests/testResizeHandleUsesGridAndCommitsOneUndoableEdit \
+            --require-test SoundPickerUITests/testAppliedSoundIsOneUndoAndPersistsInTheRealStore \
+            --require-test SoundPickerUITests/testLiveSoundPreviewRetainsTheGrooveAndSourceRevision \
+            --require-test SoundPickerUITests/testSoundPreviewHasActualOutputAndCancelKeepsMusicUntouched \
+            --require-test DrumRuntimeContinuityTests/testFocusedClipRecordingAndNaturalStopRetainLiveEngine \
+            --require-test StudioTests/testDrumTakeIsUndoable \
+            --require-test StudioTests/testLandscapeKeepsPadsAndTransportReachable \
+            -- xcodebuild -project LaGrilla.xcodeproj -scheme LaGrilla \
+            -destination "platform=iOS Simulator,id=$GRILLA_TOUCH_DEVICE" \
+            -derivedDataPath DerivedData -resultBundlePath TouchResults.xcresult \
+            -only-testing:LaGrillaUITests/PadTouchUITests/testContactEnqueuesBeforeReleaseAndHoldDoesNotRetrigger \
+            -only-testing:LaGrillaUITests/PadTouchUITests/testSlidingFingerKeepsItsOriginalPadAndNeverStrikesNeighbour \
+            -only-testing:LaGrillaUITests/PianoTouchUITests/testHoldAndMoveKeepsDurationAndCommitsOneUndoableEdit \
+            -only-testing:LaGrillaUITests/PianoTouchUITests/testResizeHandleUsesGridAndCommitsOneUndoableEdit \
+            -only-testing:LaGrillaUITests/SoundPickerUITests/testAppliedSoundIsOneUndoAndPersistsInTheRealStore \
+            -only-testing:LaGrillaUITests/SoundPickerUITests/testLiveSoundPreviewRetainsTheGrooveAndSourceRevision \
+            -only-testing:LaGrillaUITests/SoundPickerUITests/testSoundPreviewHasActualOutputAndCancelKeepsMusicUntouched \
+            -only-testing:LaGrillaUITests/DrumRuntimeContinuityTests/testFocusedClipRecordingAndNaturalStopRetainLiveEngine \
+            -only-testing:LaGrillaUITests/StudioTests/testDrumTakeIsUndoable \
+            -only-testing:LaGrillaUITests/StudioTests/testLandscapeKeepsPadsAndTransportReachable \
+            -test-timeouts-enabled YES -maximum-test-execution-time-allowance 120 \
+            ARCHS=arm64 ONLY_ACTIVE_ARCH=YES CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO test-without-building
+      - name: Preserve original screenshots and gesture recordings
+        if: always()
+        timeout-minutes: 3
+        run: |
+          if test -d TouchResults.xcresult; then
+            xcrun xcresulttool export attachments --path TouchResults.xcresult --output-path TouchAttachments
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        timeout-minutes: 5
+        with:
+          name: touch21-native-verification
+          path: |
+            touch21-source.json
+            touch21-build.log
+            touch21-native.log
+            touch21-process-status.json
+            ci-audio.log
+            TouchResults.xcresult
+            TouchAttachments

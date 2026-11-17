@@ -12,7 +12,7 @@ constexpr int MaxNotes=32768, MaxTracks=8, Master=8, Buses=9, MaxVoices=64, Lega
 constexpr double Pi=3.14159265358979323846;
 struct Snapshot { std::atomic<int> state{0}, revision{-1}; std::array<LGNote,MaxNotes> notes{}; int count=0,start=0,end=15360,trackCount=0; double bpm=120; bool loop=true,hasProjectMix=false;uint64_t layoutToken=0,mixSequence=0;std::array<float,Buses> gain{},pan{};std::array<int32_t,MaxTracks> preset{},instruments{},midiChannels{};std::array<uint64_t,MaxTracks> trackKeys{};float filter=0,delay=0; };
 struct MixSnapshot {std::atomic<int> state{0};std::atomic<uint64_t> revision{0};int musicRevision=-1;std::array<float,Buses> gain{},pan{};float filter=0,delay=0;};
-struct Voice { bool on=false; int pitch=0,track=0,pad=-1,instrument=0; double phase=0,age=0,duration=0; float velocity=0,level=0;int sourceKey=-1;bool keyDown=false;bool outputAllowed=true;int outputChannel=-1,outputPitch=0;uint32_t outputEpoch=0;uint64_t outputEndFrame=0;int presetVersion=1;double phaseStep=0,decayStep=1,decay=1;uint64_t ageFrames=0;float lastSample=0; };
+struct Voice { bool on=false; int pitch=0,track=0,pad=-1,instrument=0; double phase=0,age=0,duration=0; float velocity=0,level=0;int sourceKey=-1;bool keyDown=false;bool outputAllowed=true;int outputChannel=-1,outputPitch=0;uint32_t outputEpoch=0;uint64_t outputEndFrame=0;int presetVersion=1;double phaseStep=0,decayStep=1,decay=1;uint64_t ageFrames=0;float lastSample=0;double playbackRatio=1,attack=0.004,toneAlpha=1;float toneState=0;std::array<double,4> partials{}; };
 struct Retirement {float sample=0;int track=0,remaining=0,total=1;};
 struct Input { int value=0,velocity=100,track=0,instrument=0; bool preview=false;uint64_t identity=0; };
 struct OutputTimingMeter {
@@ -126,6 +126,26 @@ struct LGKernel {
         retire(*v);endOutput(*v);*v=Voice{true,pitch,track,pad,instrument,0,0,duration,float(velocity/127.0),0};v->outputAllowed=output;v->presetVersion=presets[track].load(std::memory_order_relaxed);
         v->phaseStep=440*std::pow(2.,(pitch-69)/12.)/sr;
         if(v->presetVersion>=2){if(pad>=0)v->duration=kitFrames/sr;v->decayStep=std::exp(-(instrument==2?1.5:0.7)/sr);}
+        if(v->presetVersion>=3){
+            const bool warm=v->presetVersion==3;
+            if(pad>=0){
+                // Derive each kit from the existing rate-correct bank. Per-voice
+                // pitch and tone state need no extra sample banks or RT memory.
+                v->playbackRatio=warm?0.92:1.10;
+                v->duration=std::ceil(kitFrames/v->playbackRatio)/sr;
+                const double cutoff=pad==0?900:(pad==2||pad==3?4800:2600);
+                v->toneAlpha=1-std::exp(-2*Pi*std::min(sr*0.4,cutoff)/sr);
+                if(!warm)v->attack=0.002;
+            }else{
+                const double second=warm?(instrument==2?0.06:0.10):(instrument==3?0.48:0.38);
+                const double third=warm?0:(instrument==2?0.16:0.22);
+                const std::array<double,4> weights={1,second,third,warm?0:0.08};
+                for(int harmonic=1;harmonic<=4;harmonic++)v->partials[harmonic-1]=weights[harmonic-1]*std::clamp((0.49-v->phaseStep*harmonic)/0.04,0.0,1.0);
+                v->attack=warm?0.006:0.0025;
+                const double decay=warm?(instrument==2?0.9:0.45):(instrument==2?1.7:1.1);
+                v->decayStep=std::exp(-decay/sr);
+            }
+        }
         startOutput(*v);return v;
     }
     void midiClear(int source,bool capture=true){
@@ -253,7 +273,7 @@ static int submitSnapshot(LGKernel*k,const LGNote*notes,int count,double bpm,int
     if(project){
         if(rev<0||rev<k->applied.load(std::memory_order_acquire)||layoutToken==0||trackCount<0||trackCount>MaxTracks||(trackCount>0&&!tracks)||!validMix(k,nullptr,0,masterDB,filter,delay))return 0;
         for(int i=0;i<trackCount;i++){
-            const auto &track=tracks[i];if(!validMix(k,&track.mix,1,masterDB,filter,delay)||(track.presetVersion!=1&&track.presetVersion!=2)||track.instrument<0||track.instrument>3||track.midiChannel<0||track.midiChannel>15||track.identity==0)return 0;
+            const auto &track=tracks[i];if(!validMix(k,&track.mix,1,masterDB,filter,delay)||track.presetVersion<1||track.presetVersion>4||track.instrument<0||track.instrument>3||track.midiChannel<0||track.midiChannel>15||track.identity==0)return 0;
             for(int j=0;j<i;j++)if(tracks[j].identity==track.identity)return 0;
         }
         for(int n=0;n<count;n++)if(notes[n].track>=trackCount)return 0;
@@ -322,7 +342,7 @@ int lg_mix_snapshot(LGKernel*k,const LGTrackMix*tracks,int count,float masterDB,
 }
 int lg_mix_snapshot_for_revision(LGKernel*k,const LGTrackMix*tracks,int count,float masterDB,float filter,float delay,int revision){return revision<0?0:publishMix(k,tracks,count,masterDB,filter,delay,revision);}
 uint64_t lg_mix_revision(LGKernel*k){return k->mixPublished.load(std::memory_order_acquire);}
-int lg_preset_version(LGKernel*k,int track,int version){if(!k||track<0||track>=MaxTracks||(version!=1&&version!=2))return 0;k->presets[track].store(version,std::memory_order_release);return 1;}
+int lg_preset_version(LGKernel*k,int track,int version){if(!k||track<0||track>=MaxTracks||version<1||version>4)return 0;k->presets[track].store(version,std::memory_order_release);return 1;}
 void lg_master(LGKernel*k,float db){if(std::isfinite(db))k->gains[Master].store(db> -61?std::pow(10.f,std::clamp(db,-60.f,6.f)/20):0);}
 void lg_effects(LGKernel*k,float filter,float delay){if(std::isfinite(filter)&&std::isfinite(delay)){k->filterTarget.store(std::clamp(filter,-1.f,1.f));k->delayTarget.store(std::clamp(delay,0.f,0.5f));}}
 void lg_perform_begin(LGKernel*k,int token,int epoch,int recording,uint64_t limit){
@@ -478,9 +498,9 @@ void lg_render_midi(LGKernel*k,LGMIDIHub*hub,uint64_t hostTime,double hostTicksP
         for(auto&v:k->voices)if(v.on){
             float sample=0;const double remaining=v.duration-v.age;
             if(remaining<=0){k->endOutput(v);v.on=false;continue;}
-            if(v.pad>=0){const auto &bank=v.presetVersion>=2&&k->kitFrames!=LegacyKitFrames?k->kitV2:k->kit;int frame=v.presetVersion>=2?int(v.ageFrames):int(v.age*k->sr);if(frame>=int(bank[v.pad].size())){k->endOutput(v);v.on=false;continue;}sample=bank[v.pad][frame];}
-            else {v.phase+=v.phaseStep;if(v.phase>=1)v.phase-=1;sample=float((std::sin(2*Pi*v.phase)+(v.instrument==3?0.35:0.22)*std::sin(4*Pi*v.phase)+(v.instrument==3?0.12*std::sin(6*Pi*v.phase):0))*0.17);}
-            double envelope=std::min(1.,v.age/0.004)*std::min(1.,remaining/0.008);if(v.pad<0)envelope*=v.presetVersion>=2?v.decay:std::exp(-v.age*(v.instrument==2?1.5:0.7));
+            if(v.pad>=0){const auto &bank=v.presetVersion>=2&&k->kitFrames!=LegacyKitFrames?k->kitV2:k->kit;int frame=v.presetVersion>=3?int(double(v.ageFrames)*v.playbackRatio):v.presetVersion>=2?int(v.ageFrames):int(v.age*k->sr);if(frame>=int(bank[v.pad].size())){k->endOutput(v);v.on=false;continue;}sample=bank[v.pad][frame];if(v.presetVersion>=3){v.toneState+=float(v.toneAlpha)*(sample-v.toneState);sample=v.presetVersion==3?v.toneState:float((sample+0.65*(sample-v.toneState))*0.85);}}
+            else {v.phase+=v.phaseStep;if(v.phase>=1)v.phase-=1;if(v.presetVersion<=2){sample=float((std::sin(2*Pi*v.phase)+(v.instrument==3?0.35:0.22)*std::sin(4*Pi*v.phase)+(v.instrument==3?0.12*std::sin(6*Pi*v.phase):0))*0.17);}else{const double sine=std::sin(2*Pi*v.phase),cosine=std::cos(2*Pi*v.phase),second=2*sine*cosine;sample=float((v.partials[0]*sine+v.partials[1]*second+v.partials[2]*sine*(3-4*sine*sine)+v.partials[3]*2*second*(1-2*sine*sine))*0.17);}}
+            double envelope=std::min(1.,v.age/(v.presetVersion>=3?v.attack:0.004))*std::min(1.,remaining/0.008);if(v.pad<0)envelope*=v.presetVersion>=2?v.decay:std::exp(-v.age*(v.instrument==2?1.5:0.7));
             sample*=float(envelope)*v.velocity;v.level=std::abs(sample);if(v.presetVersion>=2){v.age=double(++v.ageFrames)/k->sr;v.decay*=v.decayStep;}else{v.age+=1/k->sr;}
             v.lastSample=sample;buses[v.track]+=sample;
         }

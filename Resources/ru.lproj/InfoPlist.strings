@@ -2,3 +2,4 @@
 "NSSpeechRecognitionUsageDescription" = "Превращение голосовых команд в редактируемый текст с распознаванием на устройстве, если оно поддерживается.";
 
 "NSBluetoothAlwaysUsageDescription" = "Подключение Bluetooth MIDI-клавиатуры или контроллера при открытии списка Bluetooth MIDI-устройств.";
+"NSMotionUsageDescription" = "Наклон телефона управляет фильтром или общей громкостью, когда ты включаешь эту функцию.";
