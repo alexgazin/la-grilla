@@ -1,0 +1,30 @@
+{
+  "sourceSHA": "aded2ffcbd96ecfcce7be72cec3fe0a24a853cff",
+  "appBuild": "22",
+  "runID": 44036545312,
+  "jobID": 133880682098,
+  "artifactID": 14307967131,
+  "scope": "input-diagnostic",
+  "selectedCaseCount": 1,
+  "passed": 1,
+  "fullSoftwareAccepted": false,
+  "physicalAccepted": false,
+  "screenshots": [
+    {
+      "file": "piano-resized-note.png",
+      "originalExportedFilename": "62D58FAC-50BB-4196-A2F0-8021B525B230.png",
+      "originalAttachmentName": "Touch21-Piano-resized-note-and-handle_0_9568BC4F-B637-4B4D-AEA9-3DB5B0F5C14E.png",
+      "owner": "PianoTouchUITests/testResizeHandleUsesGridAndCommitsOneUndoableEdit",
+      "ownerOutcome": "passed",
+      "visuallyReviewed": true,
+      "pixelBytesUnchanged": true,
+      "bytes": 196887,
+      "sha256": "72a7943ba652d2d7d6eef0e1b3b99408fc7fd3f625d4c7864a7d48e2e6da9a01",
+      "rawPixelDimensions": [
+        1320,
+        2868
+      ]
+    }
+  ],
+  "oneUndoProof": "Actual passed case asserted resize1440ticks/count1, then firstUndo480ticks, secondUndocount0. The retained PNG is before Undo."
+}

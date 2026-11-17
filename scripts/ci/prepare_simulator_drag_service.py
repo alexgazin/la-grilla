@@ -270,28 +270,27 @@ def prepare(arguments):
             mutation_kind = "normal-selected-simulator-runtime-daemon-start"
         else:
             raise NotReady("No unique confirmed Druid system app or runtime LaunchDaemon.")
-        # Only after every read-only guard succeeds, budget the owned stream
-        # and actual service startup; retain the hard overall cleanup reserve.
-        service_started = time.monotonic()
-        deadline = min(service_started + 30, overall_deadline - 1.5)
-        state.update(phase="service-readiness", serviceStartedAtUTC=now(),
-                     effectiveServiceBudgetSeconds=max(0, deadline - service_started))
-        if deadline <= service_started:
-            raise NotReady("The overall initialization budget expired before service startup.")
+        # Starting this read-only observer uses the overall initialization
+        # budget. Its human-readable header is not a subscription contract.
+        state.update(phase="subscription-readiness", subscriptionStartedAtUTC=now())
+        if deadline <= time.monotonic():
+            raise NotReady("The overall initialization budget expired before log setup.")
         predicate = 'process == "druid" AND subsystem == "com.apple.DragUI"'
         stream_path = folder / "drag-service-listener.log"
         stream_output = stream_path.open("wb", buffering=0)
         stream_command = scoped("log", "stream", "--style", "compact", "--level", "info", "--predicate", predicate)
         stream = subprocess.Popen(stream_command, stdout=stream_output, stderr=subprocess.STDOUT, start_new_session=True)
         state.update(streamCommand=stream_command, ownedLogStreamPID=stream.pid, streamStartedAtUTC=now())
-        while time.monotonic() < deadline:
-            if stream.poll() is not None:
-                raise NotReady("The actual Simulator service log stream ended before launch.")
-            if b"Filtering the log data using" in stream_path.read_bytes():
-                break
-            time.sleep(0.05)
-        else:
-            raise NotReady("The actual Simulator service log stream never became ready.")
+        if stream.poll() is not None:
+            raise NotReady("The actual Simulator service log stream ended before launch.")
+        # A live observer is only a launch prerequisite, never readiness proof.
+        # Only the actual listener and matching contained PID below can pass.
+        service_started = time.monotonic()
+        deadline = min(service_started + 30, overall_deadline - 1.5)
+        state.update(phase="service-readiness", serviceStartedAtUTC=now(),
+                     effectiveServiceBudgetSeconds=max(0, deadline - service_started))
+        if deadline <= service_started:
+            raise NotReady("The overall initialization budget expired before service startup.")
         state["mutations"].append(dict(kind=mutation_kind, command=launch, startedAtUTC=now()))
         response = command("normal-system-app-launch.txt", launch, 12)
         if mutation_kind == "normal-public-simulator-system-app-launch":

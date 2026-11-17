@@ -1,24 +1,44 @@
 # La Grilla для ручного тестирования
 
-**[Скачать последнюю тестовую сборку · 1.0.0 (20), ZIP с IPA](https://github.com/alexgazin/la-grilla/actions/runs/43957824077/artifacts/14273365913)**
+**[Скачать последнюю тестовую сборку · 1.0.0 (22), ZIP с IPA из `main`](https://github.com/alexgazin/la-grilla/actions/runs/44038751086/artifacts/14307869946)**
 
-Для **физического iPhone с iOS 18+**, arm64. Неподписанная IPA: тестировщик подписывает её своим Apple ID на ноутбуке. Простая пересылка файла на телефон её не установит.
+Для физического **iPhone с iOS 18+**, arm64. IPA не подписана: тестировщик подписывает её своим Apple ID на ноутбуке.
 
 ## Установка с Mac или Windows
 
-1. Войти в GitHub, скачать [архив сборки 20](https://github.com/alexgazin/la-grilla/actions/runs/43957824077/artifacts/14273365913) и извлечь `LaGrilla-unsigned.ipa`. ZIP содержит также исходные отчёты сборки.
+1. Войти в GitHub, скачать [архив сборки 22](https://github.com/alexgazin/la-grilla/actions/runs/44038751086/artifacts/14307869946) и извлечь `LaGrilla-unsigned.ipa`. В ZIP также находятся исходные отчёты и архив приложения.
 2. Установить [Sideloadly](https://sideloadly.io/) и подключить iPhone по USB.
-3. Выбрать iPhone, перетащить IPA, указать **свой Apple ID**, нажать Start. Платная команда Apple Developer не нужна.
-4. На iPhone включить Developer Mode, если iOS попросит. При необходимости доверить разработчику: Настройки → Основные → VPN и управление устройством.
-5. Открыть La Grilla. Бесплатная Personal Team обычно даёт подпись на **7 дней**; затем приложение нужно переподписать.
+3. Выбрать iPhone, перетащить IPA, указать свой Apple ID и нажать Start. Платная Apple Developer Team не нужна.
+4. На iPhone включить Developer Mode и доверить разработчику в Настройки → Основные → VPN и управление устройством, если iOS попросит.
+5. Открыть La Grilla. Бесплатная Personal Team обычно подписывает на 7 дней; затем нужна повторная подпись.
 
-Apple ID, пароль, 2FA и профиль остаются у тестировщика. В IPA нет персонального provisioning profile или чужой подписи.
+Apple ID, пароль, 2FA и provisioning profile остаются у тестировщика. В архиве нет чужой подписи.
 
-## Тестовая IPA 20
+## Тестовая IPA 22 из main
+
+- Точный source: [`b478021ca4281527b0b1cbfbcae38eb80ba51392`](https://github.com/alexgazin/la-grilla/commit/b478021ca4281527b0b1cbfbcae38eb80ba51392), build **22**, schema **11**, **758 EN/RU ключей**.
+- IPA: **3,678,397 bytes**, SHA-256 `66de218921b4d3aa6effc1259b04a07c5adf78e8af47819edeb168e040b1d53b`. Контрольную сумму сверять с извлечённым `LaGrilla-unsigned.ipa`: [SHA-256](LaGrilla-1.0.0-22-main.sha256).
+- Оригинальный artifact **14307869946**, **13,389,589 bytes**, SHA-256 `49b861e2f12922b284f0f858408cc4ad9a8be60f31a0ebc688c1ac622459b766`. [Исходные package-метаданные](candidate22-main-original-package.json) · [Независимая проверка](candidate22-main-verification.json).
+- ZIP CRC и все 16 файлов IPA сверены с исходным архивом; arm64/iPhoneOS, minimum iOS 18, SDK 26.2, weak FoundationModels и UUID бинарника/dSYM проверены. Подписи нет.
+
+**Статус — тестовая альфа.** [Debug/archive точного main](https://github.com/alexgazin/la-grilla/actions/runs/44038751086) прошли; [compatibility 16.4 / 26.0.1](https://github.com/alexgazin/la-grilla/actions/runs/44038751177) прошла. Изменения касаний имеют раздельные 9 PASS на `60c24ce` и 1 PASS на `aded2ff` с тем же product-кодом; это не свежий полный набор 10 или 73. Полный main73 пока не принят: первый запуск остановился на подготовке Simulator до functional-тестов. Аппаратная и Store-приёмка открыты.
+
+Что проверить в 22:
+
+1. Два пальца на пэдах, удержание и скольжение; звук начинает контакт, квантование относится к записи. Сравнить speaker/wired/Bluetooth.
+2. Piano roll: двигать и растягивать ноту, смотреть линию/позицию конца, отпускать и делать один Undo.
+3. «Звук» в Jam/Mixer: Classic/Warm/Bright → Preview → Cancel либо Apply; проверить Undo, save/reopen и звучание во время лупа.
+4. Perform: включить Tilt control, выбрать Filter или Volume, установить нейтраль; проверить ручное управление, Stop, фон и поворот телефона. Датчики и реальная громкость на устройстве ещё не приняты.
+
+Затем — диктовка/Stop/повтор, Empty → скетч → save/reopen/export, MIDI и перенос в DAW. Локальные Commands и SketchComposer работают без Apple Intelligence; настоящие Speech, FoundationModels и человеческий напев требуют отдельного физического сеанса.
+
+**Перед обновлением экспортировать важные проекты в portable bundle.** Сборка 22 читает схемы 1…10 и сохраняет schema 11; старые приложения не открывают сохранённую 11. IPA17/19/20 и их контрольные суммы сохранены.
+
+## Предыдущая IPA 20
 
 Source [`6bb06b5c1f05e0b937e2c4aba670efc72f629c41`](https://github.com/alexgazin/la-grilla/commit/6bb06b5c1f05e0b937e2c4aba670efc72f629c41), schema 10, 703 EN/RU ключа. В 20 есть локальные редактируемые скетчи, A/B, Apply/Undo, транспонирование и сохранённое написание аккордов; импортированный проект на 8/16 тактов получает полный диапазон воспроизведения. Commands и локальный композитор работают без Apple Intelligence.
 
-**Статус: неподписанный тестовый кандидат. Полная программная и аппаратная приёмка не завершена.** Код этой ветки — кандидат 20 из [PR #21](https://github.com/alexgazin/la-grilla/pull/21); его новый полный программный результат ещё требуется получить.
+**Статус: неподписанный тестовый кандидат. Полная программная и аппаратная приёмка не завершена.** Это исторический кандидат 20 из [PR #21](https://github.com/alexgazin/la-grilla/pull/21); его частичные результаты не принимают сборку 22.
 
 - [iPhone Debug и Release archive](https://github.com/alexgazin/la-grilla/actions/runs/43957824077) точного source прошли; native job в этом диагностическом запуске был пропущен, поэтому он не подтверждает полный функциональный набор.
 - [Диагностика 6bb](https://github.com/alexgazin/la-grilla/actions/runs/43957824262): нотация достигла 120-секундного лимита до нового жеста переключателя; перетаскивание не исполнялось. Полный предыдущий source `f6cea328` дал [64/66 PASS](https://github.com/alexgazin/la-grilla/actions/runs/43934434713); это не приёмка данного бинарника.

@@ -1,0 +1,72 @@
+{
+  "sourceSHA": "60c24cee68b5095d82364796b71ed4fb0c01b282",
+  "appBuild": "22",
+  "runID": 44033597734,
+  "artifactID": 14307385987,
+  "overallNativeRun": "failed9passed/1Englishnumericgroupingassertion",
+  "nativeAccepted": false,
+  "physicalDevice": false,
+  "selection": "Unmodified original PNGs from passed owner methods; resize video frames are separate derived diagnostic images and not a passed test.",
+  "screenshots": [
+    {
+      "file": "pads.png",
+      "originalExportedFilename": "9617864E-CB7B-4AAA-AE6D-27D5520A6D3D.png",
+      "originalAttachmentName": "Touch21-Native-pads-sound-and-beat_0_C9E9CA20-9302-403A-A19D-FA0B66244307.png",
+      "sourceMethod": "PadTouchUITests/testContactEnqueuesBeforeReleaseAndHoldDoesNotRetrigger",
+      "sourceOutcome": "passed",
+      "bytes": 260605,
+      "sha256": "8f9457c70eebe04f4f543a379ce01bf7c20a9449b02cf0f208e4fc50d0e58fe5",
+      "rawPixelDimensions": [
+        1320,
+        2868
+      ],
+      "pixelBytesUnchanged": true,
+      "visuallyReviewed": true
+    },
+    {
+      "file": "sound-bright-reopened.png",
+      "originalExportedFilename": "2EBB00C0-3401-411C-B095-E0BD601542DE.png",
+      "originalAttachmentName": "Touch21-bright-kit-real-store-reopen_0_401EA8A7-C5D7-4A22-A14D-176C4A743B0E.png",
+      "sourceMethod": "SoundPickerUITests/testAppliedSoundIsOneUndoAndPersistsInTheRealStore",
+      "sourceOutcome": "passed",
+      "bytes": 259160,
+      "sha256": "95243e25bb2de0ad5ba6af093260e1647114f3b6cc897a3d11fb726f3ab27aed",
+      "rawPixelDimensions": [
+        1320,
+        2868
+      ],
+      "pixelBytesUnchanged": true,
+      "visuallyReviewed": true
+    },
+    {
+      "file": "sound-warm-preview.png",
+      "originalExportedFilename": "DF45A40E-CCC1-4ABC-83CE-4CCFFF2E46C1.png",
+      "originalAttachmentName": "Touch21-warm-kit-real-preview_0_8EE936D6-9F3A-47CA-B733-081C5CB74F9A.png",
+      "sourceMethod": "SoundPickerUITests/testSoundPreviewHasActualOutputAndCancelKeepsMusicUntouched",
+      "sourceOutcome": "passed",
+      "bytes": 194415,
+      "sha256": "332938e2df001bfd6e9b8db668f13b9b3cf53b4e2e4f05bab62c2dc2fac681bb",
+      "rawPixelDimensions": [
+        1320,
+        2868
+      ],
+      "pixelBytesUnchanged": true,
+      "visuallyReviewed": true
+    },
+    {
+      "file": "landscape-jam.png",
+      "originalExportedFilename": "598D43E4-2A2B-4462-A419-D3AF59A1E7A8.png",
+      "originalAttachmentName": "OriginalVision-qa-landscape-jam_0_1D450AF9-AC12-4EB8-A270-5ED97AED3B59.png",
+      "sourceMethod": "StudioTests/testLandscapeKeepsPadsAndTransportReachable",
+      "sourceOutcome": "passed",
+      "bytes": 221768,
+      "sha256": "7ca1cbbcc30316198671d15bfe7ad10c6167acabc6e7bf9ef694e10c10563874",
+      "rawPixelDimensions": [
+        1320,
+        2868
+      ],
+      "pixelBytesUnchanged": true,
+      "visuallyReviewed": true
+    }
+  ]
+}

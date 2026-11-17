@@ -1,0 +1,42 @@
+{
+  "sourceSHA": "b478021ca4281527b0b1cbfbcae38eb80ba51392",
+  "branch": "main",
+  "version": "1.0.0",
+  "build": "22",
+  "runID": 44038751086,
+  "artifactID": 14307869946,
+  "artifactBytes": 13389589,
+  "artifactSHA256": "49b861e2f12922b284f0f858408cc4ad9a8be60f31a0ebc688c1ac622459b766",
+  "downloadURL": "https://github.com/alexgazin/la-grilla/actions/runs/44038751086/artifacts/14307869946",
+  "ipaFile": "release-original/LaGrilla-unsigned.ipa",
+  "ipaBytes": 3678397,
+  "ipaSHA256": "66de218921b4d3aa6effc1259b04a07c5adf78e8af47819edeb168e040b1d53b",
+  "all16OriginalAppFilesMatchArchive": true,
+  "allZIPCRCVerified": true,
+  "binary": {
+    "architecture": "arm64",
+    "platform": "iOS",
+    "minimumOS": "18.0.0",
+    "sdk": "26.2.0",
+    "uuid": "C6EEF5D8-E75C-34BA-8DBC-7584AE7B8CB9",
+    "dsymUUIDMatches": true,
+    "foundationModelsLoadCommand": "LC_LOAD_WEAK_DYLIB",
+    "foundationModelsOrdinal": 15,
+    "foundationModelsWeakSymbols": 78,
+    "foundationModelsWeakChainedImports": 78,
+    "initializerSections": [],
+    "hasCodeSignatureCommand": false,
+    "runtimeValidation": "Static binary checks only; signed-device startup on iOS 18 still requires device QA."
+  },
+  "CoreMotion": [
+    "/System/Library/Frameworks/CoreMotion.framework/CoreMotion"
+  ],
+  "localizationKeys": 758,
+  "ENRUKeySetsMatch": true,
+  "signed": false,
+  "requiresTesterSigning": true,
+  "softwareAccepted": false,
+  "physicalAccepted": false,
+  "appReviewReady": false,
+  "scope": "Exact-main binary integrity/static audit only; native73result tracked separately"
+}
