@@ -193,12 +193,9 @@ def prepare(arguments):
         # stalled on c29, while this same VM's sequential requests succeeded.
         devices = json.loads(command("devices.json", ["xcrun", "simctl", "list", "devices", "available", "--json"], 30))
         runtimes = json.loads(command("runtimes.json", ["xcrun", "simctl", "list", "runtimes", "--json"], 30))
-        # Inventory initializes CoreSimulator; only then budget service startup.
-        # Each phase remains subordinate to the hard overall initialization cap.
-        service_started = time.monotonic()
-        deadline = min(service_started + 30, overall_deadline - 1.5)
-        state.update(phase="service-readiness", serviceStartedAtUTC=now(),
-                     effectiveServiceBudgetSeconds=max(0, deadline - service_started))
+        # Read-only verification uses the existing overall initialization cap;
+        # plist discovery and cold manager queries do not consume startup time.
+        state.update(phase="runtime-verification", runtimeVerificationStartedAtUTC=now())
         selected = [(runtime, device) for runtime, items in devices["devices"].items() for device in items if device["udid"] == arguments.device]
         if len(selected) != 1 or selected[0][1].get("state") != "Booted":
             raise NotReady("The exact selected Simulator is not uniquely observed Booted.")
@@ -252,7 +249,7 @@ def prepare(arguments):
                                                       platformIdentifiers=inspection["platforms"],
                                                       inspectionEvidence=build_path.name)
             service = "system/" + daemon["label"]
-            job = command("runtime-druid-job.txt", scoped(str(tool), "print", service), 6)
+            job = command("runtime-druid-job.txt", scoped(str(tool), "print", service), 30)
             declared_program = daemon["job"]["definition"]["ProgramArguments"][0]
             if (daemon["label"] not in job or MACH_SERVICE not in job
                     or not any(path in job for path in (declared_program, daemon["executable"]))):
@@ -264,6 +261,14 @@ def prepare(arguments):
             mutation_kind = "normal-selected-simulator-runtime-daemon-start"
         else:
             raise NotReady("No unique confirmed Druid system app or runtime LaunchDaemon.")
+        # Only after every read-only guard succeeds, budget the owned stream
+        # and actual service startup; retain the hard overall cleanup reserve.
+        service_started = time.monotonic()
+        deadline = min(service_started + 30, overall_deadline - 1.5)
+        state.update(phase="service-readiness", serviceStartedAtUTC=now(),
+                     effectiveServiceBudgetSeconds=max(0, deadline - service_started))
+        if deadline <= service_started:
+            raise NotReady("The overall initialization budget expired before service startup.")
         predicate = 'process == "druid" AND subsystem == "com.apple.DragUI"'
         stream_path = folder / "drag-service-listener.log"
         stream_output = stream_path.open("wb", buffering=0)
