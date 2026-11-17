@@ -48,9 +48,16 @@ struct ChordEditor: View {
                     .labelsHidden().pickerStyle(.menu).frame(minHeight:44).contentShape(Rectangle()).accessibilityIdentifier("chord.slash-bass")
             }.frame(minHeight:44)
             Stepper("Duration: \(duration/240) sixteenths",value:$duration,in:240...max(240,(session.project.patterns.first(where:{$0.id==selection.patternID})?.length ?? barTicks)-selection.tick),step:240).accessibilityIdentifier("chord.duration")
-            HStack{Button{preview()}label:{Label("Preview",systemImage:"speaker.wave.2").frame(maxWidth:.infinity,minHeight:48).background(Color.raised,in:RoundedRectangle(cornerRadius:10))}.accessibilityIdentifier("chord.preview");Button{apply()}label:{Text("Apply").fontWeight(.semibold).foregroundStyle(Color.ink).frame(maxWidth:.infinity,minHeight:48).background(Color.harmony,in:RoundedRectangle(cornerRadius:10))}.accessibilityIdentifier("chord.apply")}.buttonStyle(StudioQuietButtonStyle())
-        }.padding(22)}.background(Color.panel).navigationTitle("Edit chord").navigationBarTitleDisplayMode(.inline).toolbar{ToolbarItem(placement:.cancellationAction){Button("Cancel"){dismiss()}}}}
+        }.padding(22)}.background(Color.panel)
+            .safeAreaInset(edge:.bottom,spacing:0){
+                chordActions.padding(.horizontal,22).padding(.vertical,12).background(Color.panel)
+            }
+            .navigationTitle("Edit chord").navigationBarTitleDisplayMode(.inline).toolbar{ToolbarItem(placement:.cancellationAction){Button("Cancel"){dismiss()}}}}
         .onAppear{chord=selection.chord;text=chord.symbol;duration=selection.duration;family=chord.quality.family;formulaText=chord.effectiveIntervals.map(String.init).joined(separator:", ")}
+    }
+    // Keep the two frequent actions reachable while the chord catalog scrolls.
+    private var chordActions:some View {
+        HStack{Button{preview()}label:{Label("Preview",systemImage:"speaker.wave.2").frame(maxWidth:.infinity,minHeight:48).background(Color.raised,in:RoundedRectangle(cornerRadius:10))}.accessibilityIdentifier("chord.preview");Button{apply()}label:{Text("Apply").fontWeight(.semibold).foregroundStyle(Color.ink).frame(maxWidth:.infinity,minHeight:48).background(Color.harmony,in:RoundedRectangle(cornerRadius:10))}.accessibilityIdentifier("chord.apply")}.buttonStyle(StudioQuietButtonStyle())
     }
     private var chordRootName:String {spelling == .automatic ? (chord.rootSpelling ?? pitchName(chord.root)):pitchName(chord.root)}
     private func pitchName(_ value:Int)->String{MusicalNotation.pitchClassName(value,keyRoot:session.project.keyRoot,minor:session.project.minor,spelling:spelling)}
@@ -91,7 +98,11 @@ struct SettingsView: View {
         }
         Section("Musical notation"){
             Picker("Note names",selection:$spellingValue){Text("Auto (key)").tag(PitchSpelling.automatic.rawValue).accessibilityIdentifier("settings.spelling-option.automatic");Text("Sharps").tag(PitchSpelling.sharps.rawValue).accessibilityIdentifier("settings.spelling-option.sharps");Text("Flats").tag(PitchSpelling.flats.rawValue).accessibilityIdentifier("settings.spelling-option.flats")}.pickerStyle(.navigationLink).accessibilityIdentifier("settings.pitch-spelling")
-            Toggle("Show scale degrees",isOn:$showDegrees).accessibilityIdentifier("settings.show-degrees")
+            HStack {
+                Text("Show scale degrees")
+                Spacer()
+                StudioSwitch(isOn:$showDegrees,enabled:true,identifier:"settings.show-degrees",label:"Show scale degrees",tint:.mint).frame(width:64,height:48)
+            }
             Text("Names and degrees change the display, not the sound. Auto keeps the chord spelling you entered and otherwise follows the key. Minor degrees use the natural minor scale.").font(.caption).foregroundStyle(.secondary)
         }
         Section("Transport"){Toggle("Loop",isOn:Binding(get:{session.loop},set:{session.setLoop(enabled:$0)}));Picker("Loop length",selection:Binding(get:{session.loopBars},set:{session.setLoop(bars:$0)})){ForEach(session.loopLengthOptions,id:\.self){n in Text("\(n) bars").tag(n)}}}
@@ -105,12 +116,14 @@ struct SettingsView: View {
             Text("Projects and recordings stay on your iPhone. Portable project exports include their original voice recordings.").font(.caption).foregroundStyle(.secondary)
         }
 
-    }.navigationTitle("Settings").toolbar{ToolbarItem(placement:.confirmationAction){Button("Done"){session.sheet=nil}}}}
+    }.navigationTitle("Settings").navigationBarTitleDisplayMode(.inline).toolbar{ToolbarItem(placement:.confirmationAction){Button("Done"){session.sheet=nil}}}}
         // A presented Form owns its appearance boundary. Apply the observed
         // preference here as well as to the window so live changes update the
         // current sheet, rather than only its presenter or the next opening.
         .preferredColorScheme(appearance==1 ? .light:appearance==2 ? .dark:nil)
-        .presentationDetents([.medium,.large])}
+        // Project tools and notation need a full working viewport. A medium
+        // Form only exposed preferences/tempo and deferred the key actions.
+        .presentationDetents([.large])}
     private var audioSettings:some View {
         Section("Audio"){
             LabeledContent("Sample rate",value:"\(Int(session.audio.sampleRate)) Hz")
@@ -148,7 +161,7 @@ struct BassView: View {
                 Spacer()
                 // Keep the platform switch's hit region independent of the
                 // Form cell and its descriptive/status rows on iOS 26.
-                RootBassSwitch(isOn:bassEnabled,enabled:!editingLocked).frame(width:64,height:48)
+                StudioSwitch(isOn:bassEnabled,enabled:!editingLocked,identifier:"bass.enabled",label:"Root bass",tint:.bass).frame(width:64,height:48)
             }
             Text("Bass follows the roots of your chords.").foregroundStyle(.secondary).font(.caption)
             Text(LocalizedStringKey(session.audio.playing ? "PLAYING":"STOPPED")).font(.caption.monospaced()).foregroundStyle(Color.muted).accessibilityIdentifier("bass.playback-state")
@@ -160,30 +173,33 @@ struct BassView: View {
     }.tint(.bass).navigationTitle("Bass").toolbar{ToolbarItem(placement:.confirmationAction){Button("Done"){session.sheet=nil}}}}.presentationDetents([.medium])}
 }
 
-/// The native switch owns its inner frame; its host owns only the surrounding
-/// padding. Both paths emit one native valueChanged event. The actual 64×48 host
-/// remains a 44pt screen target after the system sheet's scale.
-@MainActor private struct RootBassSwitch:UIViewRepresentable {
+/// One host owns the whole 64×48 touch surface, including the displayed thumb.
+/// The UISwitch supplies its real state and accessibility; every successful
+/// touch or VoiceOver activation reaches the same single valueChanged path.
+@MainActor private struct StudioSwitch:UIViewRepresentable {
     @Binding var isOn:Bool
     let enabled:Bool
-    func makeUIView(context:Context)->RootBassSwitchHost {
-        let host=RootBassSwitchHost()
+    let identifier:String
+    let label:String
+    let tint:Color
+    func makeUIView(context:Context)->StudioSwitchHost {
+        let host=StudioSwitchHost()
         host.control.addTarget(context.coordinator,action:#selector(Coordinator.changed(_:)),for:.valueChanged)
         return host
     }
-    func updateUIView(_ host:RootBassSwitchHost,context:Context){
+    func updateUIView(_ host:StudioSwitchHost,context:Context){
         context.coordinator.value=$isOn
         let control=host.control
         control.isEnabled=enabled && context.environment.isEnabled
         host.isUserInteractionEnabled=control.isEnabled
-        control.accessibilityIdentifier="bass.enabled"
-        control.accessibilityLabel=NSLocalizedString("Root bass",comment:"Bass switch")
-        control.onTintColor=UIColor(Color.bass)
+        control.accessibilityIdentifier=identifier
+        control.accessibilityLabel=NSLocalizedString(label,comment:"Studio switch")
+        control.onTintColor=UIColor(tint)
         if control.isOn != isOn{control.setOn(isOn,animated:control.window != nil)}
     }
     func makeCoordinator()->Coordinator{Coordinator(value:$isOn)}
-    func sizeThatFits(_ proposal:ProposedViewSize,uiView:RootBassSwitchHost,context:Context)->CGSize?{CGSize(width:64,height:48)}
-    static func dismantleUIView(_ uiView:RootBassSwitchHost,coordinator:Coordinator){uiView.control.removeTarget(coordinator,action:#selector(Coordinator.changed(_:)),for:.valueChanged)}
+    func sizeThatFits(_ proposal:ProposedViewSize,uiView:StudioSwitchHost,context:Context)->CGSize?{CGSize(width:64,height:48)}
+    static func dismantleUIView(_ uiView:StudioSwitchHost,coordinator:Coordinator){uiView.control.removeTarget(coordinator,action:#selector(Coordinator.changed(_:)),for:.valueChanged)}
     @MainActor final class Coordinator:NSObject {
         var value:Binding<Bool>
         init(value:Binding<Bool>){self.value=value}
@@ -196,15 +212,22 @@ struct BassView: View {
     }
 }
 
-@MainActor private final class RootBassSwitchHost:UIView,UIGestureRecognizerDelegate {
-    let control=RootBassUISwitch()
+@MainActor private final class StudioSwitchHost:UIView,UIGestureRecognizerDelegate {
+    let control=StudioUISwitch()
     override init(frame:CGRect){
         super.init(frame:frame)
         isAccessibilityElement=false
         addSubview(control);control.hitAreaHost=self;control.isAccessibilityElement=true
+        // The display must not start a second, ineffective UIKit tracking path.
+        // Keep isEnabled intact for the actual state and accessibility traits.
+        control.isUserInteractionEnabled=false
         accessibilityElements=[control]
-        let padding=UITapGestureRecognizer(target:self,action:#selector(paddingTapped(_:)))
-        padding.delegate=self;padding.cancelsTouchesInView=false;addGestureRecognizer(padding)
+        let tap=UITapGestureRecognizer(target:self,action:#selector(tapped(_:)))
+        let pan=UIPanGestureRecognizer(target:self,action:#selector(dragged(_:)))
+        tap.delegate=self;pan.delegate=self
+        pan.maximumNumberOfTouches=1
+        tap.require(toFail:pan)
+        addGestureRecognizer(tap);addGestureRecognizer(pan)
     }
     required init?(coder:NSCoder){fatalError("init(coder:) is unavailable")}
     override var intrinsicContentSize:CGSize{CGSize(width:64,height:48)}
@@ -213,23 +236,42 @@ struct BassView: View {
     }
     override func hitTest(_ point:CGPoint,with event:UIEvent?)->UIView? {
         guard isUserInteractionEnabled,!isHidden,alpha>0.01,bounds.contains(point)else{return nil}
-        if control.frame.contains(point){return control.hitTest(convert(point,to:control),with:event) ?? control}
         return self
     }
-    func gestureRecognizer(_ gestureRecognizer:UIGestureRecognizer,shouldReceive touch:UITouch)->Bool {
-        // A touch dispatched to the native switch is never handled a second
-        // time by its ancestor's padding recognizer.
-        control.isEnabled && !control.frame.contains(touch.location(in:self))
+    override func gestureRecognizerShouldBegin(_ gestureRecognizer:UIGestureRecognizer)->Bool {
+        guard control.isEnabled else{return false}
+        if let pan=gestureRecognizer as? UIPanGestureRecognizer {
+            let movement=pan.translation(in:self)
+            return abs(movement.x)>abs(movement.y)
+        }
+        return true
     }
-    @objc private func paddingTapped(_ gesture:UITapGestureRecognizer){
-        guard gesture.state == .ended,control.isEnabled else{return}
-        control.setOn(!control.isOn,animated:true)
-        control.sendActions(for:.valueChanged)
+    @discardableResult func activate()->Bool{commit(!control.isOn)}
+    @discardableResult private func commit(_ desired:Bool)->Bool {
+        guard control.isEnabled,isUserInteractionEnabled else{return false}
+        if desired != control.isOn {
+            control.setOn(desired,animated:true)
+            control.sendActions(for:.valueChanged)
+        }
+        return true
+    }
+    @objc private func tapped(_ gesture:UITapGestureRecognizer){
+        guard gesture.state == .ended,bounds.contains(gesture.location(in:self)) else{return}
+        activate()
+    }
+    @objc private func dragged(_ gesture:UIPanGestureRecognizer){
+        // Vertical motion belongs to the Form. Cancelled drags never change
+        // the display or binding; a horizontal release commits at most once.
+        guard gesture.state == .ended else{return}
+        let movement=gesture.translation(in:self)
+        guard abs(movement.x)>=8,abs(movement.x)>abs(movement.y),bounds.contains(gesture.location(in:self)) else{return}
+        commit(movement.x>0)
     }
 }
 
-@MainActor private final class RootBassUISwitch:UISwitch {
-    weak var hitAreaHost:RootBassSwitchHost?
+@MainActor private final class StudioUISwitch:UISwitch {
+    weak var hitAreaHost:StudioSwitchHost?
+    override func accessibilityActivate()->Bool{hitAreaHost?.activate() ?? false}
     override var accessibilityFrame:CGRect {
         get{guard let host=hitAreaHost,host.window != nil else{return super.accessibilityFrame};return UIAccessibility.convertToScreenCoordinates(host.bounds,in:host)}
         set{super.accessibilityFrame=newValue}

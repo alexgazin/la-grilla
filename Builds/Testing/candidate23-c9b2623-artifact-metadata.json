@@ -1,0 +1,43 @@
+{
+  "artifacts": [
+    {
+      "id": 14325104339,
+      "name": "unsigned-release-archive",
+      "size_in_bytes": 13438479,
+      "url": "https://api.github.com/repos/alexgazin/la-grilla/actions/artifacts/14325104339",
+      "archive_download_url": "https://api.github.com/repos/alexgazin/la-grilla/actions/artifacts/14325104339/zip",
+      "expired": false,
+      "created_at": "2026-11-17T11:53:35Z",
+      "expires_at": "2027-02-15T11:46:36Z",
+      "updated_at": "2026-11-17T11:53:35Z",
+      "digest": "sha256:821162cf224a9b00f343d17a55e02119593b650a5d100de7b0a0d9c20436bc25",
+      "workflow_run": {
+        "id": 44077041006,
+        "repository_id": 1457900401,
+        "head_repository_id": 1457900401,
+        "head_branch": "feat/touch21",
+        "head_sha": "c9b262334ad435310c2d80701dfce6fe6fbaddd5"
+      }
+    },
+    {
+      "id": 14324599526,
+      "name": "iphone-build-log",
+      "size_in_bytes": 15350,
+      "url": "https://api.github.com/repos/alexgazin/la-grilla/actions/artifacts/14324599526",
+      "archive_download_url": "https://api.github.com/repos/alexgazin/la-grilla/actions/artifacts/14324599526/zip",
+      "expired": false,
+      "created_at": "2026-11-17T11:51:13Z",
+      "expires_at": "2027-02-15T11:46:36Z",
+      "updated_at": "2026-11-17T11:51:13Z",
+      "digest": "sha256:6ed5a924a11a93b0edf4dc103afaedd7353a4b9147276929657891da8dc97850",
+      "workflow_run": {
+        "id": 44077041006,
+        "repository_id": 1457900401,
+        "head_repository_id": 1457900401,
+        "head_branch": "feat/touch21",
+        "head_sha": "c9b262334ad435310c2d80701dfce6fe6fbaddd5"
+      }
+    }
+  ]
+}
+

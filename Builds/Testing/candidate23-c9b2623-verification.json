@@ -1,0 +1,77 @@
+{
+  "schemaVersion": 1,
+  "status": "static-integrity-verified",
+  "recordedAtUTC": "2026-11-17T11:55:50.437593+00:00",
+  "sourceSHA": "c9b262334ad435310c2d80701dfce6fe6fbaddd5",
+  "version": "1.0.0",
+  "build": "23",
+  "documentSchema": 11,
+  "classification": "unsigned-test-candidate",
+  "softwareVerified": false,
+  "physicalAccepted": false,
+  "appReviewReady": false,
+  "artifact": {
+    "id": 14325104339,
+    "runID": 44077041006,
+    "jobID": 134017617305,
+    "bytes": 13438479,
+    "sha256": "821162cf224a9b00f343d17a55e02119593b650a5d100de7b0a0d9c20436bc25",
+    "apiDigestMatches": true,
+    "zipCRCVerified": true,
+    "url": "https://github.com/alexgazin/la-grilla/actions/runs/44077041006/artifacts/14325104339"
+  },
+  "ipa": {
+    "file": "LaGrilla-1.0.0-23-c9b2623-unsigned.ipa",
+    "originalFile": "LaGrilla-unsigned.ipa",
+    "bytes": 3691269,
+    "sha256": "f73de389392d9680c3263f2825c61e98feb07f11a17cb7895494941a8950a5e5",
+    "originalBytesPreserved": true,
+    "all16EntriesMatchOriginalApp": true,
+    "zipCRCVerified": true,
+    "localizationKeysPerLanguage": 758
+  },
+  "binary": {
+    "architecture": "arm64",
+    "platform": "iOS",
+    "minimumOS": "18.0.0",
+    "sdk": "26.2.0",
+    "uuid": "7F7B66E6-D5DC-36DB-A44B-4802DBB19658",
+    "dsymUUIDMatches": true,
+    "foundationModelsLoadCommand": "LC_LOAD_WEAK_DYLIB",
+    "foundationModelsOrdinal": 15,
+    "foundationModelsWeakSymbols": 78,
+    "foundationModelsWeakChainedImports": 78,
+    "initializerSections": [],
+    "hasCodeSignatureCommand": false,
+    "runtimeValidation": "Static binary checks only; signed-device startup on iOS 18 still requires device QA."
+  },
+  "motionPrivacy": {
+    "usageDescriptionInApp": true,
+    "localizedDescriptionsENRU": true,
+    "coreMotionLinkedForIOS": true,
+    "tracking": false,
+    "collectedDataTypes": []
+  },
+  "sourcePrimaryJobs": {
+    "iphone": "success",
+    "releaseArchive": "success",
+    "native": "skipped"
+  },
+  "limitations": [
+    "The source has not passed a full functional native acceptance in this receipt.",
+    "This receipt does not establish current focused3 results or full73 results.",
+    "Unsigned candidate requires tester signing with their own Apple ID.",
+    "Physical touch timing, phone motion, iOS18 installed launch and real routes remain Device Pending.",
+    "No TestFlight, App Store or release-ready claim."
+  ],
+  "sourceBlobManifest": "candidate23-c9b2623-source-manifest.json",
+  "publicationHold": {
+    "requiredExactSourceSHA": "c9b262334ad435310c2d80701dfce6fe6fbaddd5",
+    "untilExactSourceNative3Proof": true,
+    "nativeRunID": 44077041024,
+    "native3Acceptance": false,
+    "fullFunctionalNativeAcceptance": false,
+    "hardwareAcceptance": false,
+    "recommendationPublished": false
+  }
+}

@@ -26,7 +26,58 @@ final class LiveEditingTests:XCTestCase {
     }
 
     @MainActor private func wait(_ element:XCUIElement,_ predicate:NSPredicate,timeout:TimeInterval=5){
-        XCTAssertEqual(XCTWaiter.wait(for:[XCTNSPredicateExpectation(predicate:predicate,object:element)],timeout:timeout),.completed)
+        let result=XCTWaiter.wait(for:[XCTNSPredicateExpectation(predicate:predicate,object:element)],timeout:timeout)
+        if result != .completed {
+            let context=XCTAttachment(string:XCUIApplication().debugDescription)
+            context.name="LiveEditing failed wait — actual app hierarchy"
+            context.lifetime = .keepAlways
+            add(context)
+        }
+        XCTAssertEqual(result,.completed)
+    }
+
+    @MainActor private func waitForBassValue(_ control:XCUIElement,initial:String,restored:Bool){
+        var observed:String?
+        // Query one fresh native snapshot per poll. The earlier KVC predicate
+        // timed out while the recording and fresh whole-app AX already showed
+        // the restored switch on; a retained XCUIElement value is insufficient.
+        let predicate=NSPredicate{_,_ in
+            guard let snapshot=try? control.snapshot(),snapshot.elementType == .switch,
+                  snapshot.identifier=="bass.enabled",snapshot.isEnabled,
+                  let value=snapshot.value as? String,["0","1"].contains(value)else{return false}
+            observed=value
+            return restored ? value==initial:value != initial
+        }
+        let result=XCTWaiter.wait(for:[XCTNSPredicateExpectation(predicate:predicate,object:nil)],timeout:5)
+        if result != .completed {
+            let context=XCTAttachment(string:"Last actual switch value: \(observed ?? "unavailable")\n"+XCUIApplication().debugDescription)
+            context.name="LiveEditing failed fresh bass observation — actual app hierarchy"
+            context.lifetime = .keepAlways
+            add(context)
+        }
+        XCTAssertEqual(result,.completed)
+        if restored{XCTAssertEqual(observed,initial)}else{XCTAssertNotNil(observed);XCTAssertNotEqual(observed,initial)}
+    }
+
+    @MainActor private func waitForNoteCount(_ control:XCUIElement,expected:String){
+        var observed:String?
+        // Count is a changing label too. Observe its actual fresh node rather
+        // than retain a KVC value; a missing node or the wrong count still fails.
+        let predicate=NSPredicate{_,_ in
+            guard let snapshot=try? control.snapshot(),snapshot.elementType == .staticText,
+                  snapshot.identifier=="notes.count"else{return false}
+            observed=snapshot.label
+            return observed==expected
+        }
+        let result=XCTWaiter.wait(for:[XCTNSPredicateExpectation(predicate:predicate,object:nil)],timeout:5)
+        if result != .completed {
+            let context=XCTAttachment(string:"Last actual note count: \(observed ?? "unavailable")\n"+XCUIApplication().debugDescription)
+            context.name="LiveEditing failed fresh note count — actual app hierarchy"
+            context.lifetime = .keepAlways
+            add(context)
+        }
+        XCTAssertEqual(result,.completed)
+        XCTAssertEqual(observed,expected)
     }
 
     @MainActor private func playing(_ element:XCUIElement){
@@ -57,14 +108,15 @@ final class LiveEditingTests:XCTestCase {
         assertMinimumTouchDimension(toggle.frame.height)
         let initial=toggle.value as? String
         XCTAssertNotNil(initial)
+        guard let initial,["0","1"].contains(initial)else{XCTFail("The actual bass switch must expose a binary initial value");return}
         // These physical taps are outside the native ~27pt thumb, inside the
         // 44pt target. Each must toggle once through UISwitch.valueChanged.
         let center=toggle.coordinate(withNormalizedOffset:CGVector(dx:0.5,dy:0.5))
         center.withOffset(CGVector(dx:0,dy:-20)).tap()
-        wait(toggle,NSPredicate(format:"value != %@",initial ?? ""))
+        waitForBassValue(toggle,initial:initial,restored:false)
         playing(app.staticTexts["bass.playback-state"])
         center.withOffset(CGVector(dx:0,dy:20)).tap()
-        wait(toggle,NSPredicate(format:"value == %@",initial ?? ""))
+        waitForBassValue(toggle,initial:initial,restored:true)
         playing(app.staticTexts["bass.playback-state"])
         app.buttons["Done"].tap()
         XCTAssertTrue(app.buttons["Stop"].waitForExistence(timeout:5))
@@ -82,7 +134,7 @@ final class LiveEditingTests:XCTestCase {
         playing(app.staticTexts["notes.status"])
         XCTAssertTrue(app.buttons["notes.add"].exists)
         app.buttons["notes.add"].tap()
-        wait(app.staticTexts["notes.count"],NSPredicate(format:"label == '1'"))
+        waitForNoteCount(app.staticTexts["notes.count"],expected:"1")
         app.buttons["notes.tracks"].tap()
         XCTAssertTrue(app.navigationBars["Track"].waitForExistence(timeout:5))
         app.buttons["notes.track.delete"].tap()

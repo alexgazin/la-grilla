@@ -1,0 +1,66 @@
+{
+  "sourceSHA": "8f7cd0e39e2157d11ac0713524168bf455484843",
+  "version": "1.0.0",
+  "build": "23",
+  "runID": 44059775230,
+  "artifactID": 14318532904,
+  "artifactBytes": 76473366,
+  "artifactSHA256": "eb9472515042dfc73f2ca14e18cbefc4d8ac4911ba818181106eee6160118317",
+  "scope": "input-diagnostic; exactly five original targeted methods",
+  "wholeRunOutcome": {
+    "passed": 4,
+    "timeAllowanceExceeded": 1,
+    "exitCode": 65,
+    "targetedAccepted": false,
+    "fullAccepted": false
+  },
+  "failedOwnerNotSelected": "TranspositionUITests/testFlatsAndScaleDegreesPersistWithoutNotationChangingMusic()",
+  "physicalAccepted": false,
+  "captureDevice": "iPhone 16 Pro Max Simulator",
+  "appearance": "Dark; Perform accessibility large text",
+  "media": "Original native XCTest PNGs; no image/video edits or regeneration",
+  "screenshots": [
+    {
+      "file": "perform-large-type.png",
+      "originalExportedFileName": "1A2D51CD-23A8-4498-8E59-3406FCBE4554.png",
+      "originalAttachmentName": "OriginalVision-qa-large-perform_0_88278058-016D-49FF-A225-09409FB1D827.png",
+      "testIdentifier": "PerformControlTests/testLargeTypeFilterAndTransportRemainReachable()",
+      "ownerOutcome": "PASS",
+      "bytes": 313043,
+      "width": 1320,
+      "height": 2868,
+      "sha256": "8b627168ab292d45d54d4d74643aeaa462938765c857db627e07aaf66ebd4ddf",
+      "gitBlobSHA": "6e3fa982e766ef7f83544c2daac8ebda3509eedd",
+      "originalBytesUnchanged": true,
+      "visuallyReviewed": true
+    },
+    {
+      "file": "perform-sections-large-type.png",
+      "originalExportedFileName": "83C719BE-F6BA-4F2B-BFA0-35B04C20F1DA.png",
+      "originalAttachmentName": "OriginalVision-qa-large-perform-sections_0_F169EFE5-67E2-48C4-9FB9-95D575BB09D0.png",
+      "testIdentifier": "PerformControlTests/testLargeTypeFilterAndTransportRemainReachable()",
+      "ownerOutcome": "PASS",
+      "bytes": 255967,
+      "width": 1320,
+      "height": 2868,
+      "sha256": "7c42973332edce959205052ccf80cbe55193c302dd4bbec4d1ac549362f60c47",
+      "gitBlobSHA": "6bd261a4dc14a52c53000f171f8dd1aad72fdbef",
+      "originalBytesUnchanged": true,
+      "visuallyReviewed": true
+    },
+    {
+      "file": "transpose-preview.png",
+      "originalExportedFileName": "FBB0EB8B-9A9C-4B6C-9B34-2DF356043C22.png",
+      "originalAttachmentName": "Audit-transpose-real-preview_0_7A0062A0-D24B-4BAC-B162-BD5BAB79B893.png",
+      "testIdentifier": "TranspositionUITests/testTransposePreviewCancelApplyLiveUndoRedoAndReopen()",
+      "ownerOutcome": "PASS",
+      "bytes": 215765,
+      "width": 1320,
+      "height": 2868,
+      "sha256": "2a387e0c821fda1c63bf3ca43cf9a6fdd3383b92ee500ac766c3bd6cf4ee0d5d",
+      "gitBlobSHA": "289be14779f59c43cf34f35f8cf7274440c6d482",
+      "originalBytesUnchanged": true,
+      "visuallyReviewed": true
+    }
+  ]
+}
