@@ -4,6 +4,11 @@ import XCTest
 /// checked as notation; this does not infer acoustic frequency from a label.
 final class TranspositionUITests:XCTestCase {
     private var recordedRevealOwner=false
+    private struct VisibleControl {
+        let snapshot:any XCUIElementSnapshot
+        let appSnapshot:(any XCUIElementSnapshot)?
+        let viewport:CGRect
+    }
     override func setUp(){super.setUp();recordedRevealOwner=false;continueAfterFailure=false;executionTimeAllowance=120}
 
     @MainActor private func launch()->XCUIApplication {
@@ -99,8 +104,7 @@ final class TranspositionUITests:XCTestCase {
         let revisionAfterKey=try XCTUnwrap(field("revision",in:current(transport)))
         XCTAssertNotEqual(revisionAfterKey,originalRevision,"Choosing a different project key must be a real project edit")
         let spelling=app.buttons["settings.pitch-spelling"]
-        reveal(spelling,in:app)
-        let originalSpellingObservation=try spelling.snapshot()
+        let originalSpellingObservation=try XCTUnwrap(reveal(spelling,in:app)).snapshot
         let originalSpellingValue=originalSpellingObservation.value as? String,originalSpellingLabel=originalSpellingObservation.label
         let originalSpelling=try XCTUnwrap(["Auto (key)","Sharps","Flats"].first{value in
             originalSpellingValue==value || originalSpellingLabel==value || originalSpellingLabel.hasSuffix(", "+value)
@@ -108,11 +112,11 @@ final class TranspositionUITests:XCTestCase {
         spelling.tap();selectVisibleListItem("Flats",identifier:"settings.spelling-option.flats",pickerTitle:"Note names",in:app)
         XCTAssertTrue(selected("Flats",in:try spelling.snapshot()))
         let degrees=app.switches["settings.show-degrees"]
-        reveal(degrees,in:app)
-        let originalDegrees=try XCTUnwrap(degrees.value as? String)
+        let originalDegreesObservation=try XCTUnwrap(reveal(degrees,in:app))
+        let originalDegrees=try XCTUnwrap(originalDegreesObservation.snapshot.value as? String)
         XCTAssertTrue(["0","1"].contains(originalDegrees))
-        setDegrees("1",control:degrees,in:app)
-        XCTAssertEqual(degrees.value as? String,"1")
+        let enabledDegrees=setDegrees("1",control:degrees,observed:originalDegreesObservation)
+        XCTAssertEqual(enabledDegrees,"1")
         XCTAssertEqual(field("revision",in:current(transport)),revisionAfterKey,"Display preferences must not edit music")
         app.buttons["Done"].tap()
         openChord(app)
@@ -137,24 +141,28 @@ final class TranspositionUITests:XCTestCase {
         keepScreenshot("Audit-flats-degrees-real-store-reopen")
         app.buttons["Cancel"].tap()
         openSettings(app)
-        reveal(spelling,in:app)
-        XCTAssertTrue(selected("Flats",in:try spelling.snapshot()))
-        reveal(degrees,in:app);XCTAssertEqual(degrees.value as? String,"1")
+        let persistedSpelling=try XCTUnwrap(reveal(spelling,in:app))
+        XCTAssertTrue(selected("Flats",in:persistedSpelling.snapshot))
+        let persistedDegrees=try XCTUnwrap(visibleSnapshot("settings.show-degrees",type:.switch,in:try XCTUnwrap(persistedSpelling.appSnapshot)))
+        guard degrees.isHittable else{XCTFail("The persisted scale-degrees switch must remain hittable in Settings");return}
+        XCTAssertEqual(persistedDegrees.snapshot.value as? String,"1")
         let revisionBeforeRestore=field("revision",in:current(transport))
-        // Restore the actual original global preferences through real UI,
-        // after proving their persistence. Do not assume the suite's defaults.
-        // The persisted Bb project stays isolated in this test's UUID store.
-        reveal(spelling,in:app,up:false)
-        if !selected(originalSpelling,in:try spelling.snapshot()){
+        // Both preferences above come from one actual post-relaunch Settings
+        // hierarchy. Restore through its real controls, never app defaults.
+        // No gesture occurred since spelling's visibility/hittability check.
+        if !selected(originalSpelling,in:persistedSpelling.snapshot){
             spelling.tap()
             let spellingIDs=["Auto (key)":"automatic","Sharps":"sharps","Flats":"flats"]
             let option=try XCTUnwrap(spellingIDs[originalSpelling])
             selectVisibleListItem(originalSpelling,identifier:"settings.spelling-option."+option,pickerTitle:"Note names",in:app)
         }
-        XCTAssertTrue(selected(originalSpelling,in:try spelling.snapshot()))
-        reveal(degrees,in:app)
-        setDegrees(originalDegrees,control:degrees,in:app)
-        XCTAssertEqual(degrees.value as? String,originalDegrees)
+        // Picker navigation invalidates previous geometry. Reveal the actual
+        // switch again and observe restored spelling in that fresh hierarchy.
+        let restoreDegrees=try XCTUnwrap(reveal(degrees,in:app))
+        let restoredSpelling=try XCTUnwrap(visibleSnapshot("settings.pitch-spelling",type:.button,in:try XCTUnwrap(restoreDegrees.appSnapshot)))
+        XCTAssertTrue(selected(originalSpelling,in:restoredSpelling.snapshot))
+        let restoredDegrees=setDegrees(originalDegrees,control:degrees,observed:restoreDegrees)
+        XCTAssertEqual(restoredDegrees,originalDegrees)
         XCTAssertEqual(field("revision",in:current(transport)),revisionBeforeRestore)
         keepReport("Original native note names=\(originalSpelling), scale degrees=\(originalDegrees); both restored through visible Settings after relaunch/persistence assertions. Music revision unchanged.",name:"Audit-notation-original-preferences-restored")
         app.buttons["Done"].tap()
@@ -199,38 +207,66 @@ final class TranspositionUITests:XCTestCase {
     @MainActor private func selected(_ value:String,in picker:any XCUIElementSnapshot)->Bool{
         (picker.value as? String)==value || picker.label==value || picker.label.hasSuffix(", "+value)
     }
-    @MainActor private func setDegrees(_ desired:String,control:XCUIElement,in app:XCUIApplication){
-        guard ["0","1"].contains(desired),let actual=control.value as? String,["0","1"].contains(actual)else{
-            XCTFail("The actual scale-degrees switch must expose its binary state");return
+    @MainActor private func visibleSnapshot(_ identifier:String,type:XCUIElement.ElementType,in root:any XCUIElementSnapshot)->VisibleControl? {
+        let scrollTypes:[XCUIElement.ElementType]=[.collectionView,.table,.scrollView]
+        var matches:[(node:any XCUIElementSnapshot,ancestors:[any XCUIElementSnapshot])]=[]
+        var pending:[(node:any XCUIElementSnapshot,ancestors:[any XCUIElementSnapshot])]=[(root,[])]
+        while let entry=pending.popLast(){
+            if entry.node.identifier==identifier && entry.node.elementType==type{matches.append(entry)}
+            for child in entry.node.children{pending.append((child,entry.ancestors+[entry.node]))}
+        }
+        guard matches.count==1,let match=matches.first,
+              let window=match.ancestors.last(where:{$0.elementType == .window}),
+              let owner=match.ancestors.last(where:{scrollTypes.contains($0.elementType)}) ?? match.ancestors.last(where:{$0.elementType == .window}) else{return nil}
+        func finite(_ frame:CGRect)->Bool{!frame.isEmpty && [frame.minX,frame.minY,frame.maxX,frame.maxY].allSatisfy{$0.isFinite}}
+        let viewport=owner.frame.intersection(root.frame.insetBy(dx:0,dy:44)).intersection(window.frame)
+        guard match.node.isEnabled,finite(match.node.frame),finite(owner.frame),finite(window.frame),finite(root.frame),finite(viewport),viewport.contains(match.node.frame) else{return nil}
+        return VisibleControl(snapshot:match.node,appSnapshot:root,viewport:viewport)
+    }
+    @MainActor private func setDegrees(_ desired:String,control:XCUIElement,observed:VisibleControl)->String? {
+        let row=observed.snapshot
+        guard ["0","1"].contains(desired),row.identifier=="settings.show-degrees",row.elementType == .switch,
+              let actual=row.value as? String,["0","1"].contains(actual)else{
+            XCTFail("The actual scale-degrees switch must expose its binary state");return nil
         }
         if actual != desired {
-            let frame=control.frame,visible=app.frame.insetBy(dx:0,dy:44)
-            guard !frame.isEmpty,[frame.minX,frame.minY,frame.maxX,frame.maxY].allSatisfy({$0.isFinite}),visible.contains(frame),control.isEnabled else{
-                XCTFail("The real scale-degrees switch must be enabled and fully visible");return
+            func finite(_ frame:CGRect)->Bool{!frame.isEmpty && [frame.minX,frame.minY,frame.maxX,frame.maxY].allSatisfy{$0.isFinite}}
+            let frame=row.frame,visible=observed.viewport
+            guard finite(frame),finite(visible),visible.contains(frame),row.isEnabled else{
+                XCTFail("The real scale-degrees switch must be enabled and fully visible");return nil
             }
-            // The aggregate AX switch is the whole Form row. Resolve its
-            // actual native child instead of guessing a point in that row.
+            // The revealed row already contains its actual native child. Use
+            // that coherent pre-gesture state/geometry instead of re-fetching
+            // the row and every child attribute through separate AX requests.
+            var nativeSnapshots:[any XCUIElementSnapshot]=[],pending=row.children
+            while let node=pending.popLast(){
+                if node.elementType == .switch{nativeSnapshots.append(node)}
+                pending.append(contentsOf:node.children)
+            }
+            guard nativeSnapshots.count==1,let nativeSnapshot=nativeSnapshots.first,
+                  (nativeSnapshot.value as? String)==actual,nativeSnapshot.isEnabled else{
+                XCTFail("The actual native switch must exist, be enabled and agree with its row state");return nil
+            }
+            let nativeFrame=nativeSnapshot.frame
+            guard finite(nativeFrame),visible.contains(nativeFrame),frame.contains(nativeFrame),nativeFrame != frame else{
+                XCTFail("The actual native switch must be wholly visible inside its measured Form row");return nil
+            }
             let native=control.switches.firstMatch
-            guard native.exists,let observed=try? native.snapshot(),
-                  (observed.value as? String)==actual,observed.isEnabled,native.isHittable else{
-                XCTFail("The actual native switch must exist, be enabled and agree with its row state");return
-            }
-            let nativeFrame=observed.frame
-            guard !nativeFrame.isEmpty,
-                  [nativeFrame.minX,nativeFrame.minY,nativeFrame.maxX,nativeFrame.maxY].allSatisfy({$0.isFinite}),
-                  visible.contains(nativeFrame),frame.contains(nativeFrame),nativeFrame != frame else{
-                XCTFail("The actual native switch must be wholly visible inside its measured Form row");return
-            }
-            // Move the real UISwitch thumb in the requested direction. The
-            // caller has already revealed this control; do not repeat that
-            // ownership lookup or fall back to another gesture after failure.
-            // The observed 53pt .slow swipe lasted only 70.7ms. Use explicit
-            // points per second; the next native event must verify its duration.
+            guard native.isHittable else{XCTFail("The actual native switch must be hittable before the gesture");return nil}
             let velocity=XCUIGestureVelocity(rawValue:100)
             if desired=="1"{native.swipeRight(velocity:velocity)}else{native.swipeLeft(velocity:velocity)}
+            var afterGesture:String?
+            wait(control,timeout:5){
+                afterGesture=(try? control.snapshot())?.value as? String
+                return afterGesture==desired
+            }
+            // Both adjacent assertions use the same actual fresh observation;
+            // no pre-gesture value is substituted for the gesture result.
+            XCTAssertEqual(afterGesture,desired)
+            return afterGesture
         }
-        wait(control,timeout:5){(control.value as? String)==desired}
-        XCTAssertEqual(control.value as? String,desired)
+        XCTAssertEqual(actual,desired)
+        return actual
     }
     @MainActor private func selectVisibleListItem(_ title:String,identifier:String,pickerTitle:String,in app:XCUIApplication){
         let navigation=app.navigationBars[pickerTitle]
@@ -295,13 +331,14 @@ final class TranspositionUITests:XCTestCase {
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout:5))
     }
     private func field(_ key:String,in report:String)->String?{report.split(separator:" ").first(where:{$0.hasPrefix(key+"=")}).map{String($0.dropFirst(key.count+1))}}
-    @MainActor private func reveal(_ element:XCUIElement,in app:XCUIApplication,up:Bool=true){
+    @discardableResult @MainActor private func reveal(_ element:XCUIElement,in app:XCUIApplication,up:Bool=true)->VisibleControl? {
         func finiteFrame(_ frame:CGRect)->Bool{!frame.isEmpty && [frame.minX,frame.minY,frame.maxX,frame.maxY].allSatisfy{$0.isFinite}}
-        guard let initial=try? element.snapshot(),!initial.identifier.isEmpty else{XCTFail("A native control must expose its stable identifier before revealing it");return}
+        guard let initial=try? element.snapshot(),!initial.identifier.isEmpty else{XCTFail("A native control must expose its stable identifier before revealing it");return nil}
         let identifier=initial.identifier,targetType=initial.elementType
         let scrollTypes:[XCUIElement.ElementType]=[.collectionView,.table,.scrollView]
         struct Geometry {
             let targetFrame:CGRect
+            let targetSnapshot:any XCUIElementSnapshot
             let ownerFrame:CGRect
             let ownerType:XCUIElement.ElementType
             let ownerIdentifier:String
@@ -320,9 +357,11 @@ final class TranspositionUITests:XCTestCase {
                 let node=entry.node
                 if node.identifier==identifier && node.elementType==targetType {
                     matches+=1
-                    if let index=entry.ancestors.lastIndex(where:{scrollTypes.contains($0.elementType)}) {
+                    // A pinned action can be a window sibling of the scroll
+                    // content. Use its real window only when no scroll owns it.
+                    if let index=entry.ancestors.lastIndex(where:{scrollTypes.contains($0.elementType)}) ?? entry.ancestors.lastIndex(where:{$0.elementType == .window}) {
                         let owner=entry.ancestors[index]
-                        found=Geometry(targetFrame:node.frame,ownerFrame:owner.frame,ownerType:owner.elementType,ownerIdentifier:owner.identifier,ownerPath:Array(entry.path.prefix(index)),appFrame:root.frame,windowFrame:entry.ancestors.last(where:{$0.elementType == .window})?.frame ?? root.frame,source:"one-app-snapshot")
+                        found=Geometry(targetFrame:node.frame,targetSnapshot:node,ownerFrame:owner.frame,ownerType:owner.elementType,ownerIdentifier:owner.identifier,ownerPath:Array(entry.path.prefix(index)),appFrame:root.frame,windowFrame:entry.ancestors.last(where:{$0.elementType == .window})?.frame ?? root.frame,source:"one-app-snapshot")
                     }
                 }
                 for (index,child) in node.children.enumerated(){
@@ -343,7 +382,7 @@ final class TranspositionUITests:XCTestCase {
             if observed==nil {
                 // An absent/ambiguous snapshot keeps the target-scoped native
                 // query fallback, in its existing collection/table/scroll order.
-                guard element.exists,element.identifier==identifier,element.elementType==targetType else{XCTFail("The same native control must remain present while revealing it: "+identifier);return}
+                guard element.exists,element.identifier==identifier,element.elementType==targetType else{XCTFail("The same native control must remain present while revealing it: "+identifier);return nil}
                 var owners:[(XCUIElement,any XCUIElementSnapshot)]=[]
                 for type in scrollTypes {
                     let candidates=ownerQuery(type).allElementsBoundByIndex.compactMap{candidate->(XCUIElement,any XCUIElementSnapshot)? in
@@ -357,20 +396,21 @@ final class TranspositionUITests:XCTestCase {
                 }
                 guard let (owner,snapshot)=owners.first else{
                     keepReport("target.exists=\(element.exists), target.hittable=\(element.isHittable), finiteOwningCandidates=\(owners.count)\n"+app.debugDescription,name:"Audit-native-reveal-owner-failure-"+identifier)
-                    XCTFail("A real scroll container must own the native control: "+identifier);return
+                    XCTFail("A real scroll container must own the native control: "+identifier);return nil
                 }
+                guard let targetSnapshot=try? element.snapshot()else{XCTFail("The native control must remain observable while revealing it: "+identifier);return nil}
                 let appFrame=root?.frame ?? app.frame
-                observed=Geometry(targetFrame:element.frame,ownerFrame:snapshot.frame,ownerType:snapshot.elementType,ownerIdentifier:snapshot.identifier,ownerPath:[],appFrame:appFrame,windowFrame:appFrame,source:"target-containing-query-fallback")
+                observed=Geometry(targetFrame:targetSnapshot.frame,targetSnapshot:targetSnapshot,ownerFrame:snapshot.frame,ownerType:snapshot.elementType,ownerIdentifier:snapshot.identifier,ownerPath:[],appFrame:appFrame,windowFrame:appFrame,source:"target-containing-query-fallback")
                 scroll=owner
             }
             guard let observed,finiteFrame(observed.ownerFrame),finiteFrame(observed.appFrame),finiteFrame(observed.windowFrame) else{
                 keepReport("Stable target=\(identifier), snapshotOwner=\(String(describing:observed))\n"+app.debugDescription,name:"Audit-native-reveal-owner-failure-"+identifier)
-                XCTFail("A real scroll container must own the native control: "+identifier);return
+                XCTFail("A real scroll container must own the native control: "+identifier);return nil
             }
             // Keep the whole native control clear of sheet/home-indicator
             // boundaries, even when XCTest reports an offscreen row hittable.
             let visible=observed.ownerFrame.intersection(observed.appFrame.insetBy(dx:0,dy:44)).intersection(observed.windowFrame)
-            guard finiteFrame(visible) else{XCTFail("The native control's owning scroll container must have a finite visible viewport: "+identifier);return}
+            guard finiteFrame(visible) else{XCTFail("The native control's owning scroll container must have a finite visible viewport: "+identifier);return nil}
             let targetHittable=element.isHittable
             lastObservation="sampleUptime=\(began)...\(ProcessInfo.processInfo.systemUptime), source=\(observed.source), target.identifier=\(identifier), target.type=\(targetType.rawValue), owner.type=\(observed.ownerType.rawValue), owner.identifier=\(observed.ownerIdentifier), owner.path=\(observed.ownerPath), owner.snapshotFrame=\(observed.ownerFrame), app.snapshotFrame=\(observed.appFrame), window.snapshotFrame=\(observed.windowFrame), visible=\(visible), target.hittable=\(targetHittable), target.snapshotFrame=\(observed.targetFrame)"
             if !recordedRevealOwner {
@@ -378,7 +418,12 @@ final class TranspositionUITests:XCTestCase {
                 recordedRevealOwner=true
             }
             let frame=observed.targetFrame
-            if targetHittable && finiteFrame(frame) && visible.contains(frame){return}
+            if targetHittable && observed.targetSnapshot.isEnabled && finiteFrame(frame) && visible.contains(frame){
+                return VisibleControl(snapshot:observed.targetSnapshot,appSnapshot:root,viewport:visible)
+            }
+            guard scrollTypes.contains(observed.ownerType)else{
+                XCTFail("A fixed native control must be enabled and wholly visible in its actual window: "+identifier);return nil
+            }
             if scroll==nil {
                 // Only a needed scroll resolves a live container. Its scoped
                 // ancestry, native type and measured frame must still agree
@@ -393,13 +438,14 @@ final class TranspositionUITests:XCTestCase {
                 }
                 scroll=matches[0]
             }
-            guard let scroll else{XCTFail("A real scroll container must own the native control: "+identifier);return}
+            guard let scroll else{XCTFail("A real scroll container must own the native control: "+identifier);return nil}
             if finiteFrame(frame) && frame.maxY>visible.maxY{scroll.swipeUp();continue}
             if finiteFrame(frame) && frame.minY<visible.minY{scroll.swipeDown();continue}
             if up{scroll.swipeUp()}else{scroll.swipeDown()}
         }
         keepReport(lastObservation+"\n"+app.debugDescription,name:"Audit-native-reveal-owner-failure-"+identifier)
-        XCTFail("A real native control must be wholly visible inside the native Form: \(element.debugDescription)")
+        XCTFail("A real native control must be wholly visible inside its actual native viewport: \(element.debugDescription)")
+        return nil
     }
     @MainActor private func wait(_ element:XCUIElement,timeout:TimeInterval=5,condition:()->Bool){
         let deadline=Date().addingTimeInterval(timeout)
