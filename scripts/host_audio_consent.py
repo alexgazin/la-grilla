@@ -84,8 +84,17 @@ def wait_for_audio_ready(output: Path, process: subprocess.Popen, timeout: float
             handle.write(json.dumps(value, sort_keys=True)+'\n')
         if 'ACCEPTED_EXPECTED_NORMAL_MICROPHONE_PROMPT' in value.get('stdout', ''):
             print('Accepted the expected recorder’s ordinary macOS microphone prompt.', flush=True)
-    names = subprocess.run(['osascript', '-e', 'tell application "System Events" to get name of every application process'], capture_output=True, text=True, timeout=5)
-    log(dict(action='process-list', exit_code=names.returncode, stdout=names.stdout, stderr=names.stderr))
+    # A fresh, already authorized recorder can supply actual PCM while AX is
+    # busy. Its ready file takes priority over this optional desktop diagnostic.
+    if not (output / 'ready.json').exists():
+        try:
+            names = subprocess.run(['osascript', '-e', 'tell application "System Events" to get name of every application process'], capture_output=True, text=True, timeout=5)
+            log(dict(action='process-list', exit_code=names.returncode, stdout=names.stdout, stderr=names.stderr))
+        except subprocess.TimeoutExpired as error:
+            def decoded(value):
+                return value.decode(errors='replace') if isinstance(value, bytes) else value or ''
+            log(dict(action='process-list', error='timeout', timeout_seconds=5,
+                     stdout=decoded(error.stdout), stderr=decoded(error.stderr)))
     while not (output / 'ready.json').exists():
         elapsed = time.monotonic()-start
         for threshold in [10, 25]:
@@ -106,4 +115,6 @@ def wait_for_audio_ready(output: Path, process: subprocess.Popen, timeout: float
                     accepted_prompt = True
                     break
         time.sleep(0.25)
+    if process.poll() is not None:
+        raise RuntimeError('The actual recorder ended before ongoing PCM readiness could be accepted.')
     log(dict(action='actual-timestamped-pcm-ready', ready=json.loads((output/'ready.json').read_text())))
