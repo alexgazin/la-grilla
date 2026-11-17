@@ -1,5 +1,5 @@
 {
-  "name": "Export Nocturne 24 original diagnostic evidence",
+  "name": "Read original Nocturne Jam PNG for visual review",
   "on": {
     "push": {
       "branches": [
@@ -11,53 +11,16 @@
     }
   },
   "permissions": {
-    "contents": "write",
-    "actions": "read"
+    "contents": "read"
   },
   "jobs": {
-    "publish": {
+    "read": {
       "runs-on": "ubuntu-latest",
-      "timeout-minutes": 10,
-      "env": {
-        "DESIGN_SOURCE": "207fc2b4ccd4cfadd5848443c92deca2a338e4f9",
-        "DESIGN_RUN": "44173635746",
-        "DESIGN_ATTEMPT": "2",
-        "DESIGN_EVIDENCE": "/tmp/design26-evidence"
-      },
+      "timeout-minutes": 3,
       "steps": [
         {
-          "uses": "actions/checkout@v4",
-          "with": {
-            "ref": "207fc2b4ccd4cfadd5848443c92deca2a338e4f9",
-            "fetch-depth": 1
-          }
-        },
-        {
-          "uses": "actions/download-artifact@v4",
-          "with": {
-            "name": "design26-native-verification",
-            "run-id": 44173635746,
-            "github-token": "${{ github.token }}",
-            "path": "${{ env.DESIGN_EVIDENCE }}"
-          }
-        },
-        {
-          "name": "Validate actual native outcomes and preserve original PNG data",
-          "shell": "bash",
-          "run": "python3 - <<'PY'\nimport hashlib,json,os,pathlib,struct,subprocess\nsource=os.environ[\"DESIGN_SOURCE\"]\nrun=os.environ[\"DESIGN_RUN\"]\nattempt=os.environ[\"DESIGN_ATTEMPT\"]\nassert source==\"207fc2b4ccd4cfadd5848443c92deca2a338e4f9\" and run.isdigit() and attempt.isdigit()\nroot=pathlib.Path(os.environ[\"DESIGN_EVIDENCE\"]).resolve()\ndef read(name):\n p=root/name\n assert p.is_file() and not p.is_symlink() and p.resolve().is_relative_to(root) and p.stat().st_size<300000\n return json.loads(p.read_text())\nidentity=read(\"design26-source.json\");process=read(\"design26-process-status.json\")\nselection=read(\"design26-selection.json\");capture=read(\"design26-capture.json\")\nfor doc in (identity,process):\n assert doc[\"repository\"]==\"alexgazin/la-grilla\" and doc[\"sourceSHA\"]==source\n assert str(doc[\"runID\"])==run and str(doc[\"runAttempt\"])==attempt\nassert identity[\"checkoutSHA\"]==source and identity[\"scope\"]==\"focused-design26\" and identity[\"architecture\"]==\"arm64\"\nassert process[\"status\"]==\"completed\" and process[\"scope\"]==\"focused\" and process[\"scopeStatus\"]!=\"focused-pass\"\nassert type(process[\"exitCode\"]) is int and process[\"exitCode\"]==65\nassert type(process[\"subprocessExitCode\"]) is int and process[\"subprocessExitCode\"]==65\nassert process[\"timedOut\"] is False and process[\"receivedSignal\"] is None\ncases=[\n\"DesignPresentationTests/testNightSurfacesRemainReachableWithoutEditingMusic\",\n\"DesignPresentationTests/testLightSurfacesRemainReachableWithoutEditingMusic\",\n\"PadTouchUITests/testContactEnqueuesBeforeReleaseAndHoldDoesNotRetrigger\",\n\"PadTouchUITests/testSlidingFingerKeepsItsOriginalPadAndNeverStrikesNeighbour\",\n\"PianoTouchUITests/testHoldAndMoveKeepsDurationAndCommitsOneUndoableEdit\",\n\"PianoTouchUITests/testResizeHandleUsesGridAndCommitsOneUndoableEdit\",\n\"SoundPickerUITests/testAppliedSoundIsOneUndoAndPersistsInTheRealStore\",\n\"SoundPickerUITests/testLiveSoundPreviewRetainsTheGrooveAndSourceRevision\",\n\"SoundPickerUITests/testSoundPreviewHasActualOutputAndCancelKeepsMusicUntouched\",\n\"StudioTests/testLandscapeKeepsPadsAndTransportReachable\",\n\"StudioTests/testLargeTypeMixerAndAccessibleNoteList\"]\nassert selection[\"scope\"]==\"focused-design26\" and selection[\"expectedCount\"]==11 and selection[\"selectedCases\"]==cases\nassert set(process[\"requiredTestOutcomes\"])==set(cases)\nassert process[\"requiredTestOutcomes\"][cases[0]]==\"passed\"\nassert sum(value==\"passed\" for value in process[\"requiredTestOutcomes\"].values())==9\nnames={a+\"-\"+s+\".png\" for a in (\"night\",\"light\") for s in (\"grid\",\"jam\",\"mixer\",\"piano\",\"sound\")}\nassert capture[\"complete\"] is True and set(capture[\"expected\"])==names and names.issubset(set(capture[\"actual\"]))\ndestination=pathlib.Path(\"Screenshots/Design26\");destination.mkdir(parents=True,exist_ok=True)\nimages={}\n(destination/\"Diagnostics\").mkdir(exist_ok=True)\nfor name in sorted(names):\n p=root/\"Screenshots/Design26\"/name\n assert p.is_file() and not p.is_symlink() and p.resolve().is_relative_to(root)\n raw=p.read_bytes();assert raw[:8]==b\"\\x89PNG\\r\\n\\x1a\\n\" and len(raw)<10000000\n width,height=struct.unpack(\">II\",raw[16:24]);assert 300<=width<=8192 and 500<=height<=8192\n digest=hashlib.sha256(raw).hexdigest();assert digest==capture[\"images\"][name]\n output=destination/name if name.startswith(\"night-\") else destination/\"Diagnostics\"/name\n output.write_bytes(raw);images[name]={\"bytes\":len(raw),\"sha256\":digest,\"width\":width,\"height\":height,\"path\":str(output),\"ownerOutcome\":process[\"requiredTestOutcomes\"][cases[0] if name.startswith(\"night-\") else cases[1]]}\nreceipt=dict(repository=\"alexgazin/la-grilla\",sourceSHA=source,runID=int(run),runAttempt=int(attempt),scope=\"focused-design26-diagnostic\",requiredTestOutcomes=process[\"requiredTestOutcomes\"],images=images,fullAcceptance=False,physicalDevice=False,customVideoCapture=False,imageOwners={\"night\":cases[0],\"light\":cases[1]})\n(destination/\"provenance.json\").write_text(json.dumps(receipt,indent=2)+\"\\n\")\nfor name in (\"design26-source.json\",\"design26-process-status.json\",\"design26-selection.json\",\"design26-capture.json\"):\n (destination/name).write_bytes((root/name).read_bytes())\nurl=\"https://github.com/alexgazin/la-grilla/actions/runs/\"+run+\"/attempts/\"+attempt\n(destination/\"README.md\").write_text(\"# Nocturne 24 — original native PNGs\\n\\nSource: \"+source+\"\\n\\n[Original run](\"+url+\"): 9 methods passed; Light exceeded its120s case allowance during final checks; PadContact lost the runner connection at launch before pad UI. The full focused run failed. Five Night PNGs have a passed103.043s presentation owner. Five Light PNGs are diagnostic only and stored in Diagnostics/. All copied unchanged from actual attachments. Hashes and original outcomes are in provenance.json. No full75, physical-device or App Store acceptance. No new custom video.\\n\")\ngallery=\"\\n## Nocturne 24 — новые экраны\\n\\nРеальные экраны Night: пять PNG, owner PASS103.043с. Весь focused-прогон: 9 PASS / 2 FAIL; Light и запуск одного теста пэдов ещё не приняты. [Оригиналы и источник](Screenshots/Design26/README.md). Общий gate75 и устройство остаются отдельной проверкой.\\n\\n<table><tr>\"\nfor index,surface in enumerate((\"grid\",\"jam\",\"mixer\",\"piano\",\"sound\")):\n if index==3:gallery+=\"</tr><tr>\"\n gallery+='<td><a href=\"Screenshots/Design26/night-'+surface+'.png\"><img src=\"Screenshots/Design26/night-'+surface+'.png\" width=\"180\" alt=\"Nocturne24 '+surface+'\"></a></td>'\ngallery+='</tr></table>\\n\\n[Диагностические кадры Light](Screenshots/Design26/Diagnostics/light-grid.png) · [IPA 24](https://github.com/alexgazin/la-grilla/actions/runs/44173635688/artifacts/14368802814)\\n\\n'\np=pathlib.Path(\"README.md\");text=p.read_text();marker=\"**В работе — сборка 24\"\nstart=text.index(marker);end=text.index(\"\\n\\n\",start)\np.write_text(text[:start]+gallery+text[end+2:])\nremote=subprocess.check_output([\"git\",\"ls-remote\",\"origin\",\"refs/heads/feat/design26\"],text=True).split()\nassert remote and remote[0]==source,\"Branch moved; refuse to overwrite\"\nprint(\"Preserved original9PASS/2FAIL; Night passed owner and diagnostic Light PNG hashes verified.\")\n\nPY"
-        },
-        {
-          "name": "Commit verified screenshots with a fast-forward source lease",
-          "shell": "bash",
-          "run": "git config user.name 'github-actions[bot]'\ngit config user.email '41898282+github-actions[bot]@users.noreply.github.com'\ngit add -- Screenshots/Design26 README.md\ngit diff --cached --check\ngit commit -m 'Preserve original Night screenshots and failed native diagnostics'\ngit push origin HEAD:refs/heads/feat/design26\ngit rev-parse HEAD > publication-head.txt\n"
-        },
-        {
-          "uses": "actions/upload-artifact@v4",
-          "if": "always()",
-          "with": {
-            "name": "design26-diagnostic-publication-receipt",
-            "path": "publication-head.txt\nScreenshots/Design26/provenance.json"
-          }
+          "name": "Read unchanged public original PNG and verify its Git blob",
+          "run": "python3 - <<'PY'\nimport urllib.request,hashlib,base64\nurl='https://raw.githubusercontent.com/alexgazin/la-grilla/a314442bd5c4dac8f567e76c1a617705927e120e/Screenshots/Design26/night-jam.png'\nraw=urllib.request.urlopen(url,timeout=30).read()\nassert raw[:8]==b'\\x89PNG\\r\\n\\x1a\\n'\nassert hashlib.sha1(b'blob '+str(len(raw)).encode()+b'\\0'+raw).hexdigest()=='0613d391ab30dd1ae790ff22ff7b74d75c4a11c1'\nprint('ORIGINAL_JAM_BASE64_BEGIN')\nencoded=base64.b64encode(raw).decode()\nfor start in range(0,len(encoded),12000):print(encoded[start:start+12000])\nprint('ORIGINAL_JAM_BASE64_END')\nPY"
         }
       ]
     }
