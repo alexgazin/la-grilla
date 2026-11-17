@@ -184,7 +184,7 @@ def prepare(arguments):
     try:
         if sys.platform != "darwin":
             raise NotReady("Readiness discovery requires the actual macOS Simulator host.")
-        head = command("checkout-sha.txt", ["git", "rev-parse", "HEAD"], 2)
+        head = command("checkout-sha.txt", ["git", "rev-parse", "HEAD"])
         state["checkoutSHA"] = head
         if not re.fullmatch(r"[0-9a-f]{40}", head) or (state["sourceSHA"] and state["sourceSHA"] != head):
             raise NotReady("Readiness source SHA differs from the actual checkout.")
@@ -230,7 +230,7 @@ def prepare(arguments):
             if not state["normalDaemonStartAuthorized"]:
                 raise NotReady("A Druid LaunchDaemon was found, but its selected-Simulator start was not authorized.")
             tool = runtime_launchctl(root)
-            architecture = command("host-architecture.txt", ["uname", "-m"], 2)
+            architecture = command("host-architecture.txt", ["uname", "-m"])
             if architecture not in ("arm64", "x86_64"):
                 raise NotReady("The native Simulator host architecture is unsupported.")
             command("runtime-launchctl-architecture.txt", ["xcrun", "lipo", str(tool), "-verify_arch", architecture])
@@ -294,7 +294,7 @@ def prepare(arguments):
                              and int(match[1]) > 1 and (expected_pid is None or int(match[1]) == expected_pid)), None)
             if listener:
                 pid = int(LISTENER.search(listener)[1])
-                process = command("ready-process-command.txt", ["ps", "-p", str(pid), "-o", "comm="], 2)
+                process = command("ready-process-command.txt", ["ps", "-p", str(pid), "-o", "comm="])
                 if contained(Path(process), root) != expected_executable:
                     raise NotReady("The observed listening PID is not the confirmed runtime Druid executable.")
                 state.update(ready=True, status="observed-listening", listeningProcessPID=pid,
