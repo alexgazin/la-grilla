@@ -17,7 +17,7 @@ public struct AssistantSongSection:Codable,Equatable,Sendable {
 /// Portable semantic boundary between a real language model and musical edits.
 /// Generated values still pass ordinary project validation before any mutation.
 public struct AssistantInterpretation:Codable,Equatable,Sendable {
-    public enum Intent:String,Codable,Sendable {case editSection,arrangeSong,styleSelected,styleSong,unsupported}
+    public enum Intent:String,Codable,Sendable {case editSection,arrangeSong,styleSelected,styleSong,createSketch,unsupported}
     public struct Part:Codable,Equatable,Sendable {
         public var name:String;public var bars:Int;public var chordSymbols:[String];public var chordBars:[Int];public var sourceSectionIndex:Int
         public init(name:String,bars:Int,chordSymbols:[String],chordBars:[Int],sourceSectionIndex:Int){self.name=name;self.bars=bars;self.chordSymbols=chordSymbols;self.chordBars=chordBars;self.sourceSectionIndex=sourceSectionIndex}
@@ -27,8 +27,10 @@ public struct AssistantInterpretation:Codable,Equatable,Sendable {
     public var changeKey:Bool;public var keyRoot:String;public var minor:Bool
     public var targetSectionIndex:Int;public var harmonyStyle:String
     public var sections:[Part];public var explanation:String
-    public init(intent:Intent,changeTempo:Bool=false,bpm:Double=120,changeKey:Bool=false,keyRoot:String="C",minor:Bool=false,targetSectionIndex:Int=0,harmonyStyle:String="expressive",sections:[Part]=[],explanation:String=""){
+    public var sketchStyle:String?;public var sketchBars:Int?;public var sketchSeed:UInt32?
+    public init(intent:Intent,changeTempo:Bool=false,bpm:Double=120,changeKey:Bool=false,keyRoot:String="C",minor:Bool=false,targetSectionIndex:Int=0,harmonyStyle:String="expressive",sections:[Part]=[],explanation:String="",sketchStyle:String?=nil,sketchBars:Int?=nil,sketchSeed:UInt32?=nil){
         self.intent=intent;self.changeTempo=changeTempo;self.bpm=bpm;self.changeKey=changeKey;self.keyRoot=keyRoot;self.minor=minor;self.targetSectionIndex=targetSectionIndex;self.harmonyStyle=harmonyStyle;self.sections=sections;self.explanation=explanation
+        self.sketchStyle=sketchStyle;self.sketchBars=sketchBars;self.sketchSeed=sketchSeed
     }
     public func proposal(for project:Project,selectedSectionID:UUID)throws->AssistantProposal {
         try project.validate()
@@ -63,6 +65,14 @@ public struct AssistantInterpretation:Codable,Equatable,Sendable {
             guard HarmonyStyle(rawValue:harmonyStyle) != nil else{throw AssistantError.unsafe}
             operations.append(.init(.styleSong,style:harmonyStyle))
             warnings.append(NSLocalizedString("Harmony in every section will change. Rhythm and melody stay as written.",comment:"Assistant review"))
+        case .createSketch:
+            guard sections.isEmpty,let raw=sketchStyle,let style=SketchStyle(rawValue:raw),let bars=sketchBars,let seed=sketchSeed else{throw AssistantError.unsafe}
+            var root=project.keyRoot
+            if changeKey{let chord=try Chord.parse(keyRoot);guard chord.quality == .major,chord.slashBass==nil,chord.customIntervals==nil else{throw AssistantError.unsafe};root=chord.root}
+            let plan=SketchPlan(style:style,bpm:changeTempo ? bpm:project.bpm,root:root,minor:changeKey ? minor:project.minor,bars:bars,seed:seed)
+            try plan.validate()
+            operations.append(.init(.generateSketch,sketch:plan))
+            assumptions.append(NSLocalizedString("The notes are composed locally from the displayed style and seed. Existing mixer settings are kept.",comment:"Musical sketch"))
         case .unsupported:throw AssistantError.unsupported
         }
         let proposal=AssistantProposal(project:project,scope:scope,operations:operations,assumptions:assumptions,warnings:warnings)
@@ -77,6 +87,23 @@ public struct AssistantInterpretation:Codable,Equatable,Sendable {
 }
 
 extension Arrangement {
+    /// A model/parser chord literal has no register information. When it repeats
+    /// exactly the source harmony at that musical origin, retain the source's
+    /// actual bass/voicing instead of silently rebuilding a different octave.
+    /// Explicit replacement voicing/bass and genuinely changed harmony win.
+    static func chordPreservingSource(_ requested:Chord,at sourceTick:Int,from harmony:[ChordEvent])->Chord {
+        guard let source=harmony.first(where:{$0.tick<=sourceTick && sourceTick<$0.tick+$0.duration})?.chord,
+              requested.root==source.root,requested.slashBass==source.slashBass,
+              requested.quality==source.quality,requested.customIntervals==source.customIntervals else{return requested}
+        var retained=requested
+        if retained.rootBassPitch==nil{retained.rootBassPitch=source.rootBassPitch}
+        if retained.voicedNotes==nil,retained.inversion==0 {
+            retained.inversion=source.inversion
+            retained.voicedNotes=source.voicedNotes
+        }
+        return retained
+    }
+
     /// Rebuild form from immutable original material; never sequentially copy a
     /// section that was already edited by a previous generated part.
     public static func composing(_ project:Project,parts:[AssistantSongSection],scope:UUID)throws->Project {
@@ -96,8 +123,12 @@ extension Arrangement {
                 let track=project.tracks[trackIndex]
                 var pattern=Pattern(length:length)
                 if track.role == .harmony {
+                    let sourceHarmony=harmony(project,section:original)
                     var tick=0
-                    for (chord,bars) in zip(part.chords,part.durations){pattern.chords.append(ChordEvent(tick:tick,duration:bars*barTicks,chord:chord));tick+=bars*barTicks}
+                    for (chord,bars) in zip(part.chords,part.durations){
+                        let retained=chordPreservingSource(chord,at:tick%original.length,from:sourceHarmony)
+                        pattern.chords.append(ChordEvent(tick:tick,duration:bars*barTicks,chord:retained));tick+=bars*barTicks
+                    }
                 }else{
                     let material=materialize(project,track:track,section:original)
                     let repeats=(length+original.length-1)/original.length

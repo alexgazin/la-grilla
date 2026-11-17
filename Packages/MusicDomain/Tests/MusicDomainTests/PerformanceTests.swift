@@ -12,7 +12,7 @@ struct PerformanceTests {
         #expect(migrated.tracks.allSatisfy{$0.presetVersion==1})
         #expect(migrated.performanceTake?.source.tracks.allSatisfy{$0.presetVersion==1}==true)
         #expect(Project.demo().tracks.allSatisfy{$0.presetVersion==2})
-        var invalid=migrated;invalid.tracks[0].presetVersion=3;#expect(throws:MusicError.self){try invalid.validate()}
+        var invalid=migrated;invalid.tracks[0].presetVersion=5;#expect(throws:MusicError.self){try invalid.validate()}
     }
     @Test func finiteTimelineFollowsLaunchJumpRepeatAndLiveInputs()throws {
         var p=Project(name:"Timeline",bars:2);p.bpm=120

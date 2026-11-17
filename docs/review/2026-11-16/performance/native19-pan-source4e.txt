@@ -1,0 +1,5 @@
+Settle result=XCTWaiterResult(rawValue: 1)
+Initial ruler03=(248.0, 294.29999999999995, 13.666666666666629, 13.333333333333371), ruler04=(344.0, 294.29999999999995, 13.666666666666686, 13.333333333333371), clip=(59.0, 321.0, 378.0, 166.33333333333331)
+Last coherent observation: Viewport=(56.0, 287.0, 384.0, 465.33333333333326), ruler03=(162.0, 294.29999999999995, 13.666666666666657, 13.333333333333371), ruler04=(258.0, 294.29999999999995, 13.666666666666686, 13.333333333333371), actualBarWidth=96.0, snapshotMilliseconds=302.38645833333067, finiteGeometry=true
+Clip=(-27.0, 321.0, 378.0, 166.33333333333331), hittable=true
+CURRENT | ready=true backgrounded=false project=418693B1-ACE3-4B64-A8C8-89C590460337 revision=0 preview=false loopBars=4 loopEnabled=true loopRangeStart=0 loopRangeEnd=15360 loopRangeCount=15360 outputPeak=0.021361155 saveError=none | engineRunning=true controllerPlaying=true controllerTick=11386.84 controllerClock=810496 appliedRevision=0 submittedGeneration=1 inputPriming=sharedInputFirst inputPrimed=true inputConfigured=false inputTransitionCount=0 inputTransitionMilliseconds=0.0 inputRetirementCount=0 i

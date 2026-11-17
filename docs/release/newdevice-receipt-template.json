@@ -1,0 +1,209 @@
+{
+  "schemaVersion": 1,
+  "classification": "release-ready",
+  "physicalAcceptance": false,
+  "instructions": "Blank template only. Fill from actual installed-device sessions; retain source/build identities and hash-checked evidence files. Pending fields never authorize release. No credentials or private keys belong here.",
+  "repository": "alexgazin/la-grilla",
+  "sourceSHA": null,
+  "version": null,
+  "build": null,
+  "testedAtUTC": null,
+  "tester": null,
+  "unresolvedP0P1": null,
+  "installedCandidates": [
+    {
+      "id": "minimum-device",
+      "role": "minimum-ios18",
+      "physicalDevice": false,
+      "model": null,
+      "iOSVersion": null,
+      "modelAvailable": null,
+      "sourceSHA": null,
+      "version": null,
+      "build": null,
+      "installationMethod": null,
+      "installedBuildID": null,
+      "binarySHA256": null,
+      "testedAtUTC": null,
+      "evidenceIDs": []
+    },
+    {
+      "id": "current-device",
+      "role": "current-model-eligible",
+      "physicalDevice": false,
+      "model": null,
+      "iOSVersion": null,
+      "modelAvailable": null,
+      "sourceSHA": null,
+      "version": null,
+      "build": null,
+      "installationMethod": null,
+      "installedBuildID": null,
+      "binarySHA256": null,
+      "testedAtUTC": null,
+      "evidenceIDs": []
+    }
+  ],
+  "evidence": [
+    {
+      "id": "recorded-evidence",
+      "path": null,
+      "sha256": null,
+      "kind": null
+    }
+  ],
+  "gates": [
+    {
+      "id": "phone-startup-and-privacy",
+      "status": "pending",
+      "testedBy": null,
+      "testedAtUTC": null,
+      "observedResult": null,
+      "deviceIDs": [],
+      "evidenceIDs": []
+    },
+    {
+      "id": "audio-live-loads-and-routes",
+      "status": "pending",
+      "testedBy": null,
+      "testedAtUTC": null,
+      "observedResult": null,
+      "deviceIDs": [],
+      "evidenceIDs": []
+    },
+    {
+      "id": "voice-human-and-dictation",
+      "status": "pending",
+      "testedBy": null,
+      "testedAtUTC": null,
+      "observedResult": null,
+      "deviceIDs": [],
+      "evidenceIDs": []
+    },
+    {
+      "id": "actual-foundation-models",
+      "status": "pending",
+      "testedBy": null,
+      "testedAtUTC": null,
+      "observedResult": null,
+      "deviceIDs": [],
+      "evidenceIDs": []
+    },
+    {
+      "id": "editing-accessibility-and-persistence",
+      "status": "pending",
+      "testedBy": null,
+      "testedAtUTC": null,
+      "observedResult": null,
+      "deviceIDs": [],
+      "evidenceIDs": []
+    },
+    {
+      "id": "external-midi",
+      "status": "pending",
+      "testedBy": null,
+      "testedAtUTC": null,
+      "observedResult": null,
+      "deviceIDs": [],
+      "evidenceIDs": []
+    },
+    {
+      "id": "two-daw-export-import",
+      "status": "pending",
+      "testedBy": null,
+      "testedAtUTC": null,
+      "observedResult": null,
+      "deviceIDs": [],
+      "evidenceIDs": []
+    },
+    {
+      "id": "minimum-ios18-runtime",
+      "status": "pending",
+      "testedBy": null,
+      "testedAtUTC": null,
+      "observedResult": null,
+      "deviceIDs": [],
+      "evidenceIDs": []
+    },
+    {
+      "id": "signed-candidate-and-upgrade",
+      "status": "pending",
+      "testedBy": null,
+      "testedAtUTC": null,
+      "observedResult": null,
+      "deviceIDs": [],
+      "evidenceIDs": []
+    }
+  ],
+  "audioLoadSessions": [
+    {
+      "fixture": "P1",
+      "durationMinutes": null,
+      "unexplainedDropouts": null,
+      "peakMemoryMB": null,
+      "touchToSoundP95Milliseconds": null,
+      "route": null,
+      "evidenceIDs": []
+    },
+    {
+      "fixture": "P2",
+      "durationMinutes": null,
+      "unexplainedDropouts": null,
+      "peakMemoryMB": null,
+      "touchToSoundP95Milliseconds": null,
+      "route": null,
+      "evidenceIDs": []
+    },
+    {
+      "fixture": "P3",
+      "durationMinutes": null,
+      "unexplainedDropouts": null,
+      "peakMemoryMB": null,
+      "touchToSoundP95Milliseconds": null,
+      "route": null,
+      "evidenceIDs": []
+    }
+  ],
+  "midiControllers": [
+    {
+      "transport": "usb",
+      "model": null,
+      "firmware": null,
+      "evidenceIDs": []
+    },
+    {
+      "transport": "ble",
+      "model": null,
+      "firmware": null,
+      "evidenceIDs": []
+    }
+  ],
+  "dawImports": [
+    {
+      "name": null,
+      "version": null,
+      "formats": [],
+      "evidenceIDs": []
+    },
+    {
+      "name": null,
+      "version": null,
+      "formats": [],
+      "evidenceIDs": []
+    }
+  ],
+  "actualModel": {
+    "availability": null,
+    "requestLocale": null,
+    "proposalSHA256": null,
+    "evidenceIDs": []
+  },
+  "humanVoice": {
+    "sourceSHA256": null,
+    "successfulDictationLocales": [],
+    "noteOnsetPitchF1": null,
+    "declaredMinimumF1": null,
+    "protocolDeclaredBeforeSession": false,
+    "evidenceIDs": []
+  }
+}

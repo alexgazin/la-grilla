@@ -1,0 +1,112 @@
+{
+  "formatVersion": 1,
+  "createdAt": "2026-11-16T14:15:10.584518+00:00",
+  "files": [
+    {
+      "path": "baseline-report.json.gz",
+      "sha256": "756350ce4af9271da0158aa1fd9379ba4aceddc7205a565a6b19fe2dff574566",
+      "bytes": 8646,
+      "uncompressedSHA256": "be7ce1860367ca75e841063afe0e921e1d9c8f858c05a12cebdc2eca5d62dcd8",
+      "uncompressedBytes": 36456,
+      "originalExternalPath": "/tmp/grilla-voice-completion/before.json"
+    },
+    {
+      "path": "projection-report.json.gz",
+      "sha256": "fb6dab513f02ea271f69cf3258b6ee9996882e6482c35414d5fa9eca98875cf7",
+      "bytes": 8643,
+      "uncompressedSHA256": "7b58afe529a86b4a796f5def27e0f121b5582fc85af40269912a6cfa391c3f92",
+      "uncompressedBytes": 36455,
+      "originalExternalPath": "/tmp/grilla-voice-completion/after.json"
+    },
+    {
+      "path": "short-island-report.json.gz",
+      "sha256": "306bf2d7333213907c0dfa97a4c60532067844965670d094000b4082a0674ed3",
+      "bytes": 6866,
+      "uncompressedSHA256": "c110e235ee5f482709a840f5c59788f5aff7373be647b9c3ade410d55bdf87c4",
+      "uncompressedBytes": 58941,
+      "originalExternalPath": "/tmp/grilla-voice-completion/short-island-report.json"
+    },
+    {
+      "path": "energy-reattack-report.json.gz",
+      "sha256": "24bc1ca91c00f6ffe59cfbb925a7ca94396d97947a80e05a1c83e680a7f3cd16",
+      "bytes": 6344,
+      "uncompressedSHA256": "5a04865cb17fb0558410cb42f50e60b2040f61beb9a6ad0e298bc46e2a5e9fb0",
+      "uncompressedBytes": 57863,
+      "originalExternalPath": "/tmp/grilla-voice-completion/energy-reattack-report.json"
+    },
+    {
+      "path": "development-diagnostic.json.gz",
+      "sha256": "ada71b42bb68ef9785d50e11ac311afbe91c2072b14293bb3d92b8928a7b15e0",
+      "bytes": 7638,
+      "uncompressedSHA256": "274be5b02f4191f36401f4b226c2b67ea02737ceff29fb55818f2c10fc5e577f",
+      "uncompressedBytes": 60861,
+      "originalExternalPath": "/tmp/grilla-voice-completion/diagnostic.json"
+    },
+    {
+      "path": "baseline-protocol.json",
+      "sha256": "4150ba4ff04f54536f109067cf84caca6a1efc59263707a5dc15a824e71e79f3",
+      "bytes": 2777,
+      "originalExternalPath": "/tmp/grilla-voice-completion/before.protocol.json"
+    },
+    {
+      "path": "projection-protocol.json",
+      "sha256": "21a97f4c06458c6910c233fe7aae8f336c9d3486d663607daaf3773fcc7eb46d",
+      "bytes": 2777,
+      "originalExternalPath": "/tmp/grilla-voice-completion/after.protocol.json"
+    },
+    {
+      "path": "short-island-protocol.json",
+      "sha256": "fc8faa46449d20e68a6188bc87906c7833e3b3d21107453fbd50bcddead52074",
+      "bytes": 993,
+      "originalExternalPath": "/tmp/grilla-voice-completion/short-island-protocol.json"
+    },
+    {
+      "path": "energy-reattack-protocol.json",
+      "sha256": "29d626d8b4f01361fd84f4fc33fe5b14f4e84ba1a5517511b0a0e83104e56755",
+      "bytes": 1127,
+      "originalExternalPath": "/tmp/grilla-voice-completion/energy-reattack-protocol.json"
+    },
+    {
+      "path": "VoiceAnalyzer.baseline.swift.gz",
+      "sha256": "7c23dd2689529777e8b1c1c7a97cdabf5e734c945b34c6fd29c29d8ac66a9f90",
+      "bytes": 3047,
+      "uncompressedSHA256": "40d3716929973607990355be89d7f7fa8dcb04cf46354846de380b01ab10b47a",
+      "uncompressedBytes": 8683
+    },
+    {
+      "path": "VoiceAnalyzer.projection.swift.gz",
+      "sha256": "6a4c23f36eeb6cd972d74c11cb4e00237e45acdb291d7fcf73c9f5a996b708b0",
+      "bytes": 3193,
+      "uncompressedSHA256": "db35f836764878b26d720df3fca79de0c9e04022d63b405a3fbc000674c6980e",
+      "uncompressedBytes": 9040
+    }
+  ],
+  "additionalEvidence": [
+    {
+      "path": "README.md",
+      "sha256": "afda93587705edb74afc596a0d9f076f12696ba4bdae86d43c60ad5a08d198c7",
+      "bytes": 9381
+    },
+    {
+      "path": "decisions.json",
+      "sha256": "5e8cd2996e2f1c31a1758a028e832434a838de2ee3495abf6d8057e57256a7cb",
+      "bytes": 1386
+    },
+    {
+      "path": "production-equivalence.json",
+      "sha256": "34e2da8935aab8c113550570490405463758b136176bb8865534027144f69cc7",
+      "bytes": 4323
+    },
+    {
+      "path": "reproduce_candidates.py",
+      "sha256": "d04bff445a1acfcc92e476c52f0970e84ecd36ef9a0452ed6dc2c1dc39c33632",
+      "bytes": 6784
+    },
+    {
+      "path": "validation.json",
+      "sha256": "d0023158523a735fa36f142a6696fc400006d1e3c7c620878fd063eac8f2635f",
+      "bytes": 1338
+    }
+  ],
+  "corpusAudioOrAnnotationsIncluded": false
+}

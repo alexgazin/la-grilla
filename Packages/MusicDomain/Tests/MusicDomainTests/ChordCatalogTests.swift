@@ -19,7 +19,8 @@ struct ChordCatalogTests {
         #expect(Quality.allCases.count>=50)
         for root in 0..<12 {for quality in Quality.allCases {for bass in [nil,0,3,7,11] as [Int?] {
             let chord=Chord(root:root,quality:quality,slashBass:bass)
-            #expect(try Chord.parse(chord.symbol)==chord)
+            var written=chord;written.rootSpelling=Chord.roots[root];written.slashBassSpelling=bass.map{Chord.roots[$0]}
+            #expect(try Chord.parse(chord.symbol)==written)
             try chord.validate()
             if let bass{#expect(chord.notes.first!%12==bass)}
         }}}
@@ -35,9 +36,9 @@ struct ChordCatalogTests {
         for alias in ["C°7","Co7","Cdim7"]{#expect(try Chord.parse(alias).quality == .diminished7)}
         for alias in ["CM7#11","CΔ7(#11)"]{#expect(try Chord.parse(alias).quality == .major7Sharp11)}
         #expect(try Chord.parse("Cø9").quality == .minor9Flat5)
-        #expect(try Chord.parse("Db6/9/Ab")==Chord(root:1,quality:.sixNine,slashBass:8))
+        #expect(try Chord.parse("Db6/9/Ab")==Chord(root:1,quality:.sixNine,slashBass:8,rootSpelling:"Db",slashBassSpelling:"Ab"))
         #expect(try Chord.parse("C6/9/E").notes==[52,60,64,67,69,74])
-        #expect(try Chord.parse("F♯m7♭5/C♯")==Chord(root:6,quality:.m7b5,slashBass:1))
+        #expect(try Chord.parse("F♯m7♭5/C♯")==Chord(root:6,quality:.m7b5,slashBass:1,rootSpelling:"F♯",slashBassSpelling:"C♯"))
         for invalid in ["C/","C/E/G","C/Em","C7(b9","C7((b9))","C7(b9)garbage","C9#banana","H7","C14","C6/9/9"] {
             #expect(throws:MusicError.self){try Chord.parse(invalid)}
         }
@@ -47,7 +48,8 @@ struct ChordCatalogTests {
         let formula=[0,3,7,11,14,18,21,24]
         for root in 0..<12 {
             let chord=Chord(root:root,slashBass:4,customIntervals:formula)
-            let parsed=try Chord.parse(chord.symbol);#expect(parsed==chord);try parsed.validate()
+            var written=chord;written.rootSpelling=Chord.roots[root];written.slashBassSpelling=Chord.roots[4]
+            let parsed=try Chord.parse(chord.symbol);#expect(parsed==written);try parsed.validate()
             #expect(parsed.notes.count==9);#expect(parsed.notes.first!%12==4)
             var project=Project.demo();project.patterns[0].chords[0].chord=chord;try project.validate()
             #expect(Compiler.notes(project).filter{$0.tick==0 && $0.track==0}.map(\.pitch).sorted()==chord.notes)
@@ -129,7 +131,7 @@ struct ChordCatalogTests {
         let encoder=JSONEncoder();encoder.outputFormatting=[.sortedKeys]
         let original=try encoder.encode(legacy),notes=Compiler.notes(legacy)
         let migrated=try ProjectDocument.decode(original)
-        #expect(migrated.schemaVersion==8);#expect(migrated.performanceTake?.source.schemaVersion==8)
+        #expect(migrated.schemaVersion==Project.currentSchemaVersion);#expect(migrated.performanceTake?.source.schemaVersion==Project.currentSchemaVersion)
         #expect(Compiler.notes(migrated)==notes)
         #expect(migrated.performanceTake?.source.patterns==legacy.performanceTake?.source.patterns)
         #expect(migrated.performanceTake?.source.tracks==legacy.performanceTake?.source.tracks)

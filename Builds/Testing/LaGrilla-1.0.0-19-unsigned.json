@@ -111,7 +111,7 @@
   "artifactID": 14246785600,
   "archiveRunID": 43906210319,
   "archiveJobID": 133435629865,
-  "nativeAcceptance": "pending; focused16 executing, full64 hosted runner not acquired before code",
+  "nativeAcceptance": "not accepted: source4e focused16 14 PASS / 1 assertion FAIL / 1 execution allowance timeout; both full64 ARM attempts could not acquire runner before code",
   "physicalAcceptance": "pending",
   "classification": "unsigned-test-candidate"
 }

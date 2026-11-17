@@ -212,6 +212,12 @@ final class ArrangementClipControlView:UIView,UIGestureRecognizerDelegate,UIDrag
         recordDiagnostic("cancel preview");return nil
     }
     func dragInteraction(_ interaction:UIDragInteraction,sessionAllowsMoveOperation session:UIDragSession)->Bool{true}
+    func dragInteraction(_ interaction:UIDragInteraction,sessionIsRestrictedToDraggingApplication session:UIDragSession)->Bool {
+        // Clip drags carry a current-project/revision token for our receiver,
+        // rather than portable musical content for another application.
+        recordDiagnostic("session restriction localOnly=true")
+        return true
+    }
     func dragInteraction(_ interaction:UIDragInteraction,previewForLifting item:UIDragItem,session:UIDragSession)->UITargetedDragPreview? {
         let started=ProcessInfo.processInfo.systemUptime
         defer{recordDiagnostic("preview return duration=\(ProcessInfo.processInfo.systemUptime-started)")}

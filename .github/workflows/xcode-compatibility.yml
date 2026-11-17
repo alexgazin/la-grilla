@@ -17,7 +17,9 @@ concurrency:
 jobs:
   iphone-build:
     name: Full iPhone app / Xcode ${{ matrix.xcode }}
-    runs-on: macos-15
+    # Default legs compile for iPhone without booting a Simulator. Keep the
+    # explicitly requested legacy runtime path on its original host.
+    runs-on: ${{ matrix.xcode == '16.2' && 'macos-15' || 'macos-15-intel' }}
     timeout-minutes: 20
     strategy:
       fail-fast: false

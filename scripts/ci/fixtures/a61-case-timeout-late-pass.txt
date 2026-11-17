@@ -1,0 +1,2 @@
+Test Case '-[LaGrillaUITests.AIAvailabilityTests testActualUnavailableModelLocallyReviewsJazzAppliesAndUndoesOnce]' exceeded execution time allowance of 2 minutes. The test may have hung; check Xcode's test report for additional diagnostics. If the test requires additional time, use -[XCTestCase executionTimeAllowance] or one of xcodebuild's command-line overrides.
+Test Case '-[LaGrillaUITests.AIAvailabilityTests testActualUnavailableModelLocallyReviewsJazzAppliesAndUndoesOnce]' passed (129.610 seconds).

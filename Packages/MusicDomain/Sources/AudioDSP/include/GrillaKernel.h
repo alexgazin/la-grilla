@@ -9,7 +9,8 @@ typedef struct LGKernel LGKernel;
 int lg_sha256(const uint8_t *data, int32_t count, char *hex);
 typedef struct { int32_t tick, duration, pitch, velocity, track, pad, instrument; } LGNote;
 typedef struct {float gainDB,pan;int32_t audible;} LGTrackMix;
-// identity is stable, nonzero and unique within a project; presetVersion is 1/2,
+// identity is stable, nonzero and unique within a project; presetVersion is
+// legacy 1, Classic 2, Warm 3 or Bright 4 (persisted with schema 11),
 // instrument is harmony/drums/bass/melody (0...3), midiChannel is 0...15.
 typedef struct {LGTrackMix mix;int32_t presetVersion,instrument,midiChannel;uint64_t identity;} LGProjectTrack;
 typedef struct { uint64_t frame; int32_t epoch,kind,track,a,b,token; float value; } LGPerformanceEvent;

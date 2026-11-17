@@ -20,6 +20,7 @@ struct MixerView: View {
     private var accessibleMixer:some View {Form {
         ForEach(Array(session.displayProject.tracks.enumerated()),id:\.element.id){index,track in
             SwiftUI.Section(track.displayName){
+                TrackSoundButton(session:session,trackID:track.id)
                 Text(String(format:"%.1f dB",track.gain)).font(.headline.monospaced())
                 Slider(value:Binding(get:{session.displayProject.tracks[index].gain},set:{setGain(index,$0)}),in:-61...6,step:1,onEditingChanged:{_ in session.mixerGesture=false}).accessibilityLabel("Gain \(track.displayName)")
                 Slider(value:Binding(get:{session.displayProject.tracks[index].pan},set:{value in session.mixerEdit{$0.tracks[index].pan=value}}),in:-1...1,onEditingChanged:{_ in session.mixerGesture=false}).accessibilityLabel("Pan \(track.displayName)").accessibilityIdentifier("mixer.pan.\(index)")
@@ -38,6 +39,7 @@ struct MixerView: View {
         return VStack(spacing:8){
             RoundedRectangle(cornerRadius:2).fill(color).frame(height:3)
             Text(track?.displayName ?? NSLocalizedString("Master",comment:"Master channel")).font(.system(size:11,weight:.semibold)).lineLimit(1)
+            if let track{TrackSoundButton(session:session,trackID:track.id,compact:true)}
             Button{session.mixerGesture=false;setGain(index,0);session.mixerGesture=false}label:{Text(LocalizedStringKey(gain<=(-61) ? "−∞":String(format:"%.1f",gain))).font(.system(size:16,weight:.semibold,design:.monospaced)).frame(maxWidth:.infinity,minHeight:44)}.buttonStyle(StudioQuietButtonStyle()).foregroundStyle(color).accessibilityLabel("\(gain,specifier:"%.1f") decibels. Tap to reset.").accessibilityIdentifier("mixer.reset.\(index)")
             GeometryReader{geo in
                 let h=max(60,geo.size.height-22)

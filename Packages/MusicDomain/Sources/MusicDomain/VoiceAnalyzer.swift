@@ -97,7 +97,15 @@ public enum VoiceAnalyzer {
         for segment in analysis.segments {
             var start=max(0,Int(((segment.start-offset)*ticksPerSecond).rounded())),end=min(length,Int(((segment.start+segment.duration-offset)*ticksPerSecond).rounded()))
             guard end>start,start<length else{continue}
-            if quantize != .off{let grid=quantize.rawValue;start=min(length-grid,max(0,Int((Double(start)/Double(grid)).rounded())*grid));end=min(length,max(start+grid,Int((Double(end)/Double(grid)).rounded())*grid))}
+            if quantize != .off {
+                let grid=quantize.rawValue
+                // A take may end inside a grid cell or be shorter than one.
+                // Clamp to its last actual grid line, then trim the note's tail;
+                // length-grid can be negative or invent an off-grid onset.
+                let lastGridStart=((length-1)/grid)*grid
+                start=min(lastGridStart,max(0,Int((Double(start)/Double(grid)).rounded())*grid))
+                end=min(length,max(start+grid,Int((Double(end)/Double(grid)).rounded())*grid))
+            }
             var pitch=segment.pitch
             if let root=scaleRoot,(0..<12).contains(root){let range=max(0,pitch-6)...min(127,pitch+6);let allowed=range.filter{scale.contains(($0-root+12)%12)};let sourcePitch=pitch;pitch=allowed.min{abs($0-sourcePitch)<abs($1-sourcePitch)} ?? pitch}
             result.append(NoteEvent(tick:start,duration:end-start,pitch:pitch,velocity:min(120,max(30,Int(segment.level/peak*90+30))),confidence:segment.confidence))

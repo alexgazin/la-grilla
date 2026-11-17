@@ -1,0 +1,23 @@
+{
+  "hostOnly": true,
+  "testFramework": "Swift Testing 6.1.2 on x86_64 Linux",
+  "targetedTestFunctionsPassed": 21,
+  "newProjectionTestFunctions": 4,
+  "parameterCasesInBoundaryTest": 9,
+  "suites": [
+    "VoiceTests",
+    "VoiceCapturePlanTests",
+    "AudioAssetTests",
+    "VoiceNoteProjectionTests"
+  ],
+  "command": "GRILLA_SWIFT_BIN=/workspace/tools/swift-6.1.2-RELEASE-ubuntu24.04/usr/bin/swift GRILLA_CACHE_ROOT=/tmp/grilla-voice-completion/domain-cache bash scripts/test_domain.sh --scratch-path /tmp/grilla-voice-completion/domain-build --filter 'VoiceNoteProjectionTests|VoiceTests|VoiceCapturePlanTests|AudioAssetTests'",
+  "initialBuild": "Compile failure in concurrently authored SketchComposerTests at throws:any Error.self before test execution; owner corrected syntax, final build/run passed",
+  "productionFramesAndUnquantizedNotesExactlyEqual": true,
+  "candidateReplayBothMetricReportsExactlyEqual": true,
+  "gzipAndSHAValidationPassed": true,
+  "pythonASTAndDiffCheckPassed": true,
+  "phoneCaptureOrAccuracyImprovementClaimed": false,
+  "sourceSHA256": "db35f836764878b26d720df3fca79de0c9e04022d63b405a3fbc000674c6980e",
+  "projectionTestSHA256": "3b26bd7496a9675dea764a1c535369a0a2cdcb51b7a0f36ff6ffb0ce43400528",
+  "replayOutputExternalSHA256": "8722a2cf92c0a4c75e507896b6444d58161f26ca02b039ad0a2f59af38723712"
+}

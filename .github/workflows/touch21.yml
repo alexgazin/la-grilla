@@ -1,0 +1,115 @@
+name: Native touch and sound feedback verification
+on:
+  push:
+    branches: [feat/touch21]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: native-touch21-${{ github.ref }}
+  cancel-in-progress: true
+env:
+  DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
+  GRILLA_TOUCH_RESIZE_ONLY: ${{ contains(github.event.head_commit.message, '[resize-only]') && '1' || '0' }}
+jobs:
+  native-touch-feedback:
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - name: Reserve original evidence preservation time
+        run: |
+          python3 - <<'PYTIME'
+          import os,time
+          with open(os.environ['GITHUB_ENV'],'a') as output:
+              output.write(f'GRILLA_TOUCH_DEADLINE_EPOCH={time.time()+35*60}\n')
+          PYTIME
+      - uses: actions/checkout@v4
+      - name: Verify source, contracts and native build
+        timeout-minutes: 12
+        run: |
+          set -o pipefail
+          python3 - <<'PYIDENTITY'
+          import json,os,pathlib,subprocess
+          def value(args):return subprocess.check_output(args,text=True,timeout=30).strip()
+          receipt=dict(repository=os.environ['GITHUB_REPOSITORY'],sourceSHA=os.environ['GITHUB_SHA'],checkoutSHA=value(['git','rev-parse','HEAD']),runID=os.environ['GITHUB_RUN_ID'],runAttempt=os.environ['GITHUB_RUN_ATTEMPT'],architecture=value(['uname','-m']),runnerArchitecture=os.environ['RUNNER_ARCH'],xcode=value(['xcodebuild','-version']),simulatorSDK=value(['xcrun','--sdk','iphonesimulator','--show-sdk-version']),scope='input-diagnostic' if os.environ.get('GRILLA_TOUCH_RESIZE_ONLY')=='1' else 'focused-touch-feedback',fullAcceptance=False,physicalDevice=False)
+          pathlib.Path('touch21-source.json').write_text(json.dumps(receipt,indent=2)+'\n')
+          assert receipt['sourceSHA']==receipt['checkoutSHA']
+          assert receipt['architecture']=='arm64' and receipt['runnerArchitecture']=='ARM64'
+          assert receipt['xcode'].splitlines()[0]=='Xcode 26.3' and receipt['simulatorSDK']=='26.2'
+          PYIDENTITY
+          python3 scripts/generate_project.py
+          git diff --exit-code -- LaGrilla.xcodeproj
+          python3 scripts/audit_presentation.py
+          python3 scripts/release/audit_release.py
+          python3 scripts/ci/test_simulator_macho.py
+          swiftc AudioRuntime/TiltFilterMapping.swift scripts/test_tilt_filter.swift -o /tmp/grilla-tilt-contracts
+          /tmp/grilla-tilt-contracts
+          xcodebuild -project LaGrilla.xcodeproj -scheme LaGrilla -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' ARCHS=arm64 ONLY_ACTIVE_ARCH=YES -configuration Debug -derivedDataPath DerivedData CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO build-for-testing 2>&1 | tee touch21-build.log
+      - name: Configure real host audio
+        timeout-minutes: 5
+        run: bash scripts/setup_ci_audio.sh
+      - name: Boot actual iPhone Simulator
+        timeout-minutes: 7
+        env:
+          GRILLA_CAPTURE_SCREENS: '0'
+        run: bash scripts/screenshots.sh
+      - name: Verify native contact, note gestures, sound preview and recording
+        timeout-minutes: 26
+        run: |
+          python3 - <<'PYRUN'
+          import json,os,pathlib,subprocess
+          cases=['PadTouchUITests/testContactEnqueuesBeforeReleaseAndHoldDoesNotRetrigger', 'PadTouchUITests/testSlidingFingerKeepsItsOriginalPadAndNeverStrikesNeighbour', 'PianoTouchUITests/testHoldAndMoveKeepsDurationAndCommitsOneUndoableEdit', 'PianoTouchUITests/testResizeHandleUsesGridAndCommitsOneUndoableEdit', 'SoundPickerUITests/testAppliedSoundIsOneUndoAndPersistsInTheRealStore', 'SoundPickerUITests/testLiveSoundPreviewRetainsTheGrooveAndSourceRevision', 'SoundPickerUITests/testSoundPreviewHasActualOutputAndCancelKeepsMusicUntouched', 'DrumRuntimeContinuityTests/testFocusedClipRecordingAndNaturalStopRetainLiveEngine', 'StudioTests/testDrumTakeIsUndoable', 'StudioTests/testLandscapeKeepsPadsAndTransportReachable']
+          focused=os.environ.get('GRILLA_TOUCH_RESIZE_ONLY')=='1'
+          if focused:cases=['PianoTouchUITests/testResizeHandleUsesGridAndCommitsOneUndoableEdit']
+          selection=dict(scope='input-diagnostic' if focused else 'focused-touch-feedback',selectedCases=cases,expectedCount=len(cases),fullAcceptance=False)
+          pathlib.Path('touch21-selection.json').write_text(json.dumps(selection,indent=2)+'\n')
+          device=pathlib.Path('/tmp/grilla-simulator-id').read_text().strip()
+          command=['python3','scripts/ci/run_native.py','--timeout-seconds','1500','--deadline-env','GRILLA_TOUCH_DEADLINE_EPOCH','--scope','input-diagnostic' if focused else 'focused','--label','resize-regression' if focused else 'touch-feedback','--log','touch21-native.log','--status','touch21-process-status.json']
+          for identifier in cases:command+=['--require-test',identifier]
+          command+=['--','xcodebuild','-project','LaGrilla.xcodeproj','-scheme','LaGrilla','-destination','platform=iOS Simulator,id='+device,'-derivedDataPath','DerivedData','-resultBundlePath','TouchResults.xcresult']
+          for identifier in cases:command+=['-only-testing:LaGrillaUITests/'+identifier]
+          command+=['-test-timeouts-enabled','YES','-maximum-test-execution-time-allowance','120','ARCHS=arm64','ONLY_ACTIVE_ARCH=YES','CODE_SIGN_IDENTITY=-','CODE_SIGNING_REQUIRED=NO','test-without-building']
+          raise SystemExit(subprocess.call(command))
+          PYRUN
+      - name: Preserve actual app crash and device diagnostics
+        if: always()
+        timeout-minutes: 2
+        run: |
+          python3 - <<'PYDIAGNOSTICS'
+          import pathlib,shutil,subprocess
+          output=pathlib.Path('TouchCrashReports');output.mkdir(exist_ok=True)
+          directory=pathlib.Path.home()/'Library/Logs/DiagnosticReports'
+          if directory.exists():
+              for item in directory.glob('*LaGrilla*'):
+                  if item.is_file():shutil.copy2(item,output/item.name)
+          selected=pathlib.Path('/tmp/grilla-simulator-id')
+          if selected.exists():
+              with pathlib.Path('touch21-device.log').open('wb') as stream:
+                  try:
+                      result=subprocess.run(['xcrun','simctl','spawn',selected.read_text().strip(),'log','show','--last','20m','--style','compact','--predicate','process == "LaGrilla"'],stdout=stream,stderr=subprocess.STDOUT,timeout=45)
+                      stream.write(f'\nDevice log command exit: {result.returncode}\n'.encode())
+                  except subprocess.TimeoutExpired:stream.write(b'\nDevice log timed out; original partial bytes retained.\n')
+          PYDIAGNOSTICS
+      - name: Preserve original screenshots and gesture recordings
+        if: always()
+        timeout-minutes: 3
+        run: |
+          if test -d TouchResults.xcresult; then
+            xcrun xcresulttool export attachments --path TouchResults.xcresult --output-path TouchAttachments
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        timeout-minutes: 5
+        with:
+          name: touch21-native-verification
+          path: |
+            touch21-source.json
+            touch21-build.log
+            touch21-native.log
+            touch21-process-status.json
+            touch21-selection.json
+            touch21-device.log
+            TouchCrashReports
+            ci-audio.log
+            TouchResults.xcresult
+            TouchAttachments

@@ -1,0 +1,67 @@
+{
+  "sourceSHA": "4e85930acf006376f3861d4209bf07ea8bcdcaf0",
+  "build": 19,
+  "projectSchema": 10,
+  "runID": 43906210190,
+  "runAttempt": 1,
+  "jobID": 133435629176,
+  "artifactID": 14248805266,
+  "wholeFocusedOutcome": {
+    "passed": 14,
+    "assertionFailed": 1,
+    "executionAllowanceTimeout": 1,
+    "accepted": false
+  },
+  "owningMethodDurationSeconds": 66.046,
+  "artifactBytes": 127591912,
+  "artifactSHA256": "27620cc5fa4e2fb5e3baf08b52ebb1d81f87c7f43b32464c115d6606f7d27f97",
+  "images": [
+    {
+      "configurationName": "Test Scheme Action",
+      "deviceId": "FA1105A3-CFB2-45AC-B4DB-EBAC55DD946D",
+      "deviceName": "iPhone 16 Pro Max",
+      "exportedFileName": "76BD9844-4DED-4C29-93D3-5462B98501B0.png",
+      "isAssociatedWithFailure": false,
+      "suggestedHumanReadableName": "Audit-transpose-real-preview_0_442450EF-3FE7-4A95-A5E0-892B437B50DC.png",
+      "timestamp": 1794847245.934,
+      "testIdentifier": "TranspositionUITests/testTransposePreviewCancelApplyLiveUndoRedoAndReopen",
+      "testIdentifierURL": "test://com.apple.xcode/LaGrilla/LaGrillaUITests/TranspositionUITests/testTransposePreviewCancelApplyLiveUndoRedoAndReopen",
+      "owningTestOutcome": "PASSED",
+      "artifactMember": "AuditAttachments/76BD9844-4DED-4C29-93D3-5462B98501B0.png",
+      "byteCount": 219832,
+      "sha256": "9de4cd5ad8ca38955f092abd40d6dc87c737f4d775786e95ea0c448c7e896244",
+      "pixelEdits": false,
+      "contentKind": "original-png",
+      "width": 1320,
+      "height": 2868,
+      "file": "01-transpose-preview.png",
+      "visuallyReviewed": true
+    },
+    {
+      "configurationName": "Test Scheme Action",
+      "deviceId": "FA1105A3-CFB2-45AC-B4DB-EBAC55DD946D",
+      "deviceName": "iPhone 16 Pro Max",
+      "exportedFileName": "56C4CCBD-476E-472B-8A72-F72D8A06A6E9.png",
+      "isAssociatedWithFailure": false,
+      "suggestedHumanReadableName": "Audit-transpose-live-adopted_0_B93AD913-7245-446D-8232-B20DC3A44139.png",
+      "timestamp": 1794847271.54,
+      "testIdentifier": "TranspositionUITests/testTransposePreviewCancelApplyLiveUndoRedoAndReopen",
+      "testIdentifierURL": "test://com.apple.xcode/LaGrilla/LaGrillaUITests/TranspositionUITests/testTransposePreviewCancelApplyLiveUndoRedoAndReopen",
+      "owningTestOutcome": "PASSED",
+      "artifactMember": "AuditAttachments/56C4CCBD-476E-472B-8A72-F72D8A06A6E9.png",
+      "byteCount": 189306,
+      "sha256": "6451f246e05007ab4d40ecdf021ab4cd652c9c3b41288b835d4942a6c390de56",
+      "pixelEdits": false,
+      "contentKind": "original-png",
+      "width": 1320,
+      "height": 2868,
+      "file": "02-transpose-playing.png",
+      "visuallyReviewed": true
+    }
+  ],
+  "limitations": [
+    "Simulator only; no physical iPhone acceptance",
+    "Actual DSP revision/clock/meter adoption; no acoustic pitch measurement",
+    "Original app pixels; not build20 screenshots"
+  ]
+}

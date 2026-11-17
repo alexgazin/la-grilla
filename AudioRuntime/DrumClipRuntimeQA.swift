@@ -84,6 +84,7 @@ import MusicDomain
         try await wait(session,deadline:deadline,stage:"focused take arm"){session.recording && !session.armed && audio.playing}
         let firstPass=session.passClock
         session.hit(14)
+        try await wait(session,deadline:deadline,stage:"first pad recording drain"){session.take.contains{$0.pad==14}}
         try require(session.take.filter{$0.pad==14}.count==1,"The first live pad did not enter the focused take exactly once")
         session.mixerImmediate{$0.tracks[1].gain = -14;$0.tracks[1].pan=0.25}
         let mixed=session.project
@@ -100,6 +101,7 @@ import MusicDomain
         guard let liveClip=session.displayProject.tracks[1].clips.first(where:{$0.id==focused.id}),let livePattern=session.displayProject.patterns.first(where:{$0.id==liveClip.patternID})else{throw Failure(message:"The live draft lost the focused clip")}
         try require(livePattern.drums.filter{$0.pad==14}.count==1,"The completed loop was not retained in the audible draft")
         session.hit(15)
+        try await wait(session,deadline:deadline,stage:"second pad recording drain"){session.take.contains{$0.pad==15}}
         try require(session.take.filter{$0.pad==15}.count==1,"The second-pass live pad was not captured exactly once")
         session.finishTake()
         let finished=session.project
@@ -147,10 +149,14 @@ import MusicDomain
         try await wait(session,deadline:deadline,timeout:4,stage:"finite arm inside focused clip"){session.recording && audio.tick>=Double(finiteClip.start+240) && audio.tick<Double(finiteClip.start+finiteClip.length-240)}
         let partialStart=session.passClock
         session.hit(13)
+        try await wait(session,deadline:deadline,stage:"finite pad recording drain"){session.take.contains{$0.pad==13}}
         try require(session.take.filter{$0.pad==13}.count==1,"Finite focused pad was not captured")
         try await wait(session,deadline:deadline,timeout:4,stage:"outside focused clip"){audio.playing && session.recording && audio.tick>=Double(finiteClip.start+finiteClip.length+240)}
         let captured=session.take.count
         session.hit(12)
+        // Observe the ordinary poll draining the new contact before checking
+        // that it was excluded; checking an undrained queue could pass vacuously.
+        audio.poll()
         try require(session.take.count==captured && !session.rawHits.contains{$0.event.pad==12},"An out-of-clip touch wrapped into the focused pattern")
         try await wait(session,deadline:deadline,timeout:5,stage:"natural finite end"){!audio.playing && !session.recording && !session.armed}
         try await wait(session,deadline:deadline,stage:"finite take adoption"){!audio.pendingSnapshot}

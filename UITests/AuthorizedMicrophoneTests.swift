@@ -218,6 +218,11 @@ final class AuthorizedMicrophoneTests: XCTestCase {
                 return current["requesting"] as? Bool == false && current["finalizing"] as? Bool == false && current["recording"] as? Bool == false
             }
             diagnostic = try object(try XCTUnwrap(dictate.value as? String))
+            let stopMetrics=try XCTUnwrap(diagnostic["inputStopMetrics"] as? [String:Any])
+            for phase in ["tapRemovalMilliseconds","workerDrainMilliseconds","outputRestorationMilliseconds","elapsedMilliseconds"] {
+                let measured=try XCTUnwrap(stopMetrics[phase] as? Double,"Missing actual Stop phase: \(phase)")
+                XCTAssertTrue(measured.isFinite && measured>=0,"Invalid Stop measurement: \(phase)")
+            }
         } else {
             XCTAssertEqual(diagnostic["everStartedCapture"] as? Bool, false)
             XCTAssertEqual(app.staticTexts["assistant.dictation-error"].label, "On-device dictation is unavailable for this language. Type a command.")

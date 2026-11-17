@@ -125,7 +125,7 @@ static void validation(){
     assert(!lg_submit_project(nullptr,&note,1,120,0,3840,1,1,1,tracks.data(),2,0,0,0));
     assert(!lg_submit_project(k,&note,1,120,0,3840,1,1,0,tracks.data(),2,0,0,0));
     assert(!lg_submit_project(k,&note,1,120,0,3840,1,1,1,nullptr,2,0,0,0));
-    auto invalid=tracks;invalid[1].presetVersion=3;assert(!lg_submit_project(k,&note,1,120,0,3840,1,1,1,invalid.data(),2,0,0,0));
+    auto invalid=tracks;invalid[1].presetVersion=5;assert(!lg_submit_project(k,&note,1,120,0,3840,1,1,1,invalid.data(),2,0,0,0));
     invalid=tracks;invalid[1].identity=1;assert(!lg_submit_project(k,&note,1,120,0,3840,1,1,1,invalid.data(),2,0,0,0));
     invalid=tracks;invalid[1].identity=0;assert(!lg_submit_project(k,&note,1,120,0,3840,1,1,1,invalid.data(),2,0,0,0));
     invalid=tracks;invalid[1].instrument=4;assert(!lg_submit_project(k,&note,1,120,0,3840,1,1,1,invalid.data(),2,0,0,0));

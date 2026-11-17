@@ -1,0 +1,33 @@
+{
+  "sourceSHA": "f00585461b4ba3453d6f90a7bf479b349d85698f",
+  "build": 19,
+  "projectSchema": 10,
+  "runID": 43890521274,
+  "runAttempt": 1,
+  "jobID": 133380570419,
+  "workflowConclusion": "failure",
+  "nativeJobConclusion": "failure",
+  "completedAtUTC": "2026-11-16T16:15:56Z",
+  "nativeStepReportedStatus": "in_progress",
+  "classification": "hosted-runner-communication-failure; native functional outcome unobserved",
+  "annotationMessages": [
+    "The hosted runner lost communication with the server. Anything in your workflow that terminates the runner process, starves it for CPU/Memory, or blocks its network access can cause this error.",
+    "Due to capacity constraints, jobs targeting macOS arm64 runners may experience longer queue times."
+  ],
+  "underlyingRunnerFailureCause": "unknown",
+  "functionalInventoryCount": 64,
+  "observedFunctionalTestCount": null,
+  "rawNativeLogAvailable": false,
+  "nativeProcessReceiptAvailable": false,
+  "xcresultAvailable": false,
+  "jobLogFetchResult": "404 BlobNotFound at 2026-11-16T16:19:18Z",
+  "wholeSuiteAccepted": false,
+  "sourceGateAccepted": false,
+  "notes": [
+    "No explicit native terminal outcomes are available; this is not a zero-tests result or a functional failure verdict.",
+    "Only simulator-build, iphone-build-log and unsigned-release-archive artifacts were listed when checked after completion.",
+    "A separate local console-backpressure supervisor defect was reproduced and fixed; it does not establish the cause of this hosted runner communication failure.",
+    "The focused run for this same source remains separately classified13 PASS/2 test-assertion FAIL.",
+    "No physical-device or Apple-model acceptance is supplied by this run."
+  ]
+}

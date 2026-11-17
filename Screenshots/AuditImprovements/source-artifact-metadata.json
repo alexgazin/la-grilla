@@ -1,0 +1,20 @@
+{
+  "id": 14238218198,
+  "node_id": "MDg6QXJ0aWZhY3QxNDIzODIxODE5OA==",
+  "name": "product-audit-native-verification",
+  "size_in_bytes": 133294064,
+  "url": "https://api.github.com/repos/alexgazin/la-grilla/actions/artifacts/14238218198",
+  "archive_download_url": "https://api.github.com/repos/alexgazin/la-grilla/actions/artifacts/14238218198/zip",
+  "expired": false,
+  "digest": "sha256:165b39d46698885361466a4d680f51a4fb4c952bc939b9ab3af1e034b8d2f768",
+  "created_at": "2026-11-16T15:19:11Z",
+  "updated_at": "2026-11-16T15:19:11Z",
+  "expires_at": "2027-02-14T14:53:25Z",
+  "workflow_run": {
+    "id": 43890521487,
+    "repository_id": 1457900401,
+    "head_repository_id": 1457900401,
+    "head_branch": "feat/audit-improvements",
+    "head_sha": "f00585461b4ba3453d6f90a7bf479b349d85698f"
+  }
+}

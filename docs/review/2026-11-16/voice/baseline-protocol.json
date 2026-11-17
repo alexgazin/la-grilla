@@ -1,0 +1,41 @@
+{
+  "declaredBeforeAnalysisAt": "2026-11-16T14:03:10.213960+00:00",
+  "dataset": "Vocadito v3",
+  "doi": "10.5281/zenodo.5578807",
+  "license": {
+    "id": "cc-by-4.0",
+    "url": "https://creativecommons.org/licenses/by/4.0/",
+    "attribution": "Rachel M. Bittner, Katherine Pasalo, Juan José Bosch, Gabriel Meseguer-Brocal and David Rubinstein (2021), vocadito: A dataset of solo vocals with f0, note, and lyric annotations, v3. DOI:10.5281/zenodo.5578807."
+  },
+  "selection": "Fixed numeric IDs1–8; first min(30.000s, full duration), offset0. Holdout9–16 is not read.",
+  "f0Rules": "Nearest reference sample at each frame center within half reference hop; 0Hz unvoiced; conf>=0.72, pitch<=50cents, no octave folding; report coverage/recall/falsepositives.",
+  "noteRules": "Production MIDI at120BPM/PPQ960, quantize.off, no scale projection. A1/A2 separately; maximum-cardinality one-to-one onset<=50ms/pitch<=50cents; strict offset<=max(50ms,20%reference duration). Clip reference notes to analysis end.",
+  "exploratoryCriterion": "Aggregate confidence-qualified F0 accuracy>=90%; not a release gate, per-track guarantee or note-transcription criterion.",
+  "sourceSHA256": "40d3716929973607990355be89d7f7fa8dcb04cf46354846de380b01ab10b47a",
+  "manifestSHA256": "a4f0ea0d1f5c6c2877b4d17e398f226a2b18c6d88f0db6004531d9fba7f6e756",
+  "modelSHA256": "deafda1d43f9b55d80843420901153dc3e758d71b00302f0b1f1c521b0515c57",
+  "packageSHA256": "2dfa90c634fc2b24b5cbdbbf729ed2ca63d7aeccf411d362f53d9f239e32badf",
+  "compilerConfiguration": "SwiftPM release; production local MusicDomain dependency",
+  "sourceIntegrity": {
+    "memberVerification": "Pinned byte size and SHA256 for all34 source members, every run",
+    "expectedArchiveBytes": 58492257,
+    "expectedArchiveMD5": "dea40fd18f14d899643c4ba221b33a46",
+    "fullArchiveSizeAndMD5VerifiedThisRun": false,
+    "livePrimaryLicenseCheckedThisRun": false,
+    "offlineLicenseEvidence": "https://zenodo.org/api/records/5578807 pinned CC BY4.0 declaration"
+  },
+  "swiftHarnessSHA256": "48985ae25b3ac5925f2e76a97008587c80b3b4a3179753c4666764d76c5be499",
+  "scorerSHA256": "33280992c1a1105985dcf417218f4c080b75a09930bb1bf44710295513329bbe",
+  "gitHead": "fefa036ace0e10713689a8d22c3c0b69abfc0fbf",
+  "environment": {
+    "platform": "Linux-6.18.57-x86_64-with-glibc2.41",
+    "python": "3.12.14 (main, Aug 25 2026, 14:00:49) [Clang 22.1.3 ]",
+    "numpy": "2.3.5",
+    "scipy": "1.17.0"
+  },
+  "limitations": [
+    "Recorded human algorithm evidence; not physical iPhone microphone/route/noise/bleed validation.",
+    "Eight fixed development excerpts, six singers, not a full-corpus or unseen-holdout evaluation.",
+    "Human note annotations are subjective; both annotators and their agreement remain separate."
+  ]
+}

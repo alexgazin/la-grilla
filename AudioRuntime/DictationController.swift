@@ -71,6 +71,8 @@ private enum SpeechCallbacks {
     private var supportsOnDeviceSpeech:Bool?
     private var speechErrorDomain:String?
     private var speechErrorCode:Int?
+    private var lastInputStopMetrics:LiveInputStopMetrics?
+    private var stopSynchronousMilliseconds:Double?
     private var generation=0
     /// Native tests read actual authorization and received PCM, never a supplied
     /// transcript or simulated permission result. No debug values reach normal UI.
@@ -82,16 +84,19 @@ private enum SpeechCallbacks {
             let receivedFrames:UInt64
             let speechAvailable:Bool?,supportsOnDeviceSpeech:Bool?,error:String?,speechErrorDomain:String?
             let speechErrorCode:Int?
+            let inputStopMetrics:LiveInputStopMetrics?
+            let stopSynchronousMilliseconds:Double?
         }
         let authorization:String=switch SFSpeechRecognizer.authorizationStatus(){case .authorized:"authorized";case .denied:"denied";case .restricted:"restricted";case .notDetermined:"notDetermined";@unknown default:"unknown"}
         let permission:String=switch AVAudioApplication.shared.recordPermission{case .granted:"granted";case .denied:"denied";case .undetermined:"undetermined";@unknown default:"unknown"}
-        let state=State(speechAuthorization:authorization,microphonePermission:permission,recording:recording,requesting:requesting,finalizing:finalizing,everStartedCapture:everStartedCapture,receivedFrames:max(observedFrames,request?.receivedFrames ?? 0),speechAvailable:speechAvailable,supportsOnDeviceSpeech:supportsOnDeviceSpeech,error:error.map{String($0.prefix(1024))},speechErrorDomain:speechErrorDomain,speechErrorCode:speechErrorCode)
+        let state=State(speechAuthorization:authorization,microphonePermission:permission,recording:recording,requesting:requesting,finalizing:finalizing,everStartedCapture:everStartedCapture,receivedFrames:max(observedFrames,request?.receivedFrames ?? 0),speechAvailable:speechAvailable,supportsOnDeviceSpeech:supportsOnDeviceSpeech,error:error.map{String($0.prefix(1024))},speechErrorDomain:speechErrorDomain,speechErrorCode:speechErrorCode,inputStopMetrics:lastInputStopMetrics,stopSynchronousMilliseconds:stopSynchronousMilliseconds)
         guard let data=try? JSONEncoder().encode(state)else{return ""}
         return String(decoding:data,as:UTF8.self)
     }
     func start(locale:String,audio:AudioController)async {
         guard !recording && !requesting && !finalizing else{return}
         cancelRecognition();requesting=true;error=nil;text="";let attempt=generation
+        lastInputStopMetrics=nil;stopSynchronousMilliseconds=nil
         observedFrames=0;everStartedCapture=false;speechAvailable=nil;supportsOnDeviceSpeech=nil;speechErrorDomain=nil;speechErrorCode=nil
         defer{if generation==attempt{requesting=false}}
         let authorized=await SpeechCallbacks.authorized()
@@ -142,13 +147,20 @@ private enum SpeechCallbacks {
     func stop(){
         if requesting && !recording{cancelRecognition();return}
         guard recording || microphone != nil else{return}
+        let started=DispatchTime.now().uptimeNanoseconds
+        defer{stopSynchronousMilliseconds=Double(DispatchTime.now().uptimeNanoseconds-started)/1_000_000}
         timeout?.cancel();timeout=nil
-        do{try microphone?.stop()}catch{self.error=error.localizedDescription}
+        do{try stopInput()}catch{self.error=error.localizedDescription}
         microphone=nil;recording=false;requesting=false;finalizing=true
         retainFrameCount()
         request?.endAudio();task?.finish()
         let attempt=generation
         settling?.cancel();settling=Task{try? await Task.sleep(for:.seconds(2));guard !Task.isCancelled,self.generation==attempt else{return};self.finishRecognition()}
+    }
+    private func stopInput()throws {
+        guard let microphone else{return}
+        defer{lastInputStopMetrics=microphone.stopMetrics}
+        try microphone.stop()
     }
     func cancel(){cancelRecognition()}
     private func retainFrameCount(){
@@ -161,7 +173,7 @@ private enum SpeechCallbacks {
         // Recognition is already final (or its settling deadline expired).
         // Close Speech input before joining any still-pending PCM drain.
         request?.endAudio()
-        do{try microphone?.stop()}catch{self.error=error.localizedDescription}
+        do{try stopInput()}catch{self.error=error.localizedDescription}
         retainFrameCount()
         microphone=nil;recording=false;requesting=false;finalizing=false
         task?.cancel();task=nil;request=nil;recognizer=nil
@@ -169,7 +181,7 @@ private enum SpeechCallbacks {
     private func cancelRecognition(){
         generation+=1;timeout?.cancel();timeout=nil;settling?.cancel();settling=nil
         request?.endAudio()
-        try? microphone?.stop();microphone=nil
+        try? stopInput();microphone=nil
         retainFrameCount()
         task?.cancel();task=nil;request=nil;recognizer=nil;recording=false;requesting=false;finalizing=false
     }

@@ -1,0 +1,14 @@
+{
+  "runID": 43890521487,
+  "runAttempt": 1,
+  "jobID": 133380171307,
+  "sourceSHA": "f00585461b4ba3453d6f90a7bf479b349d85698f",
+  "build": 19,
+  "projectSchema": 10,
+  "artifactID": 14238218198,
+  "byteCount": 133294064,
+  "sha256": "165b39d46698885361466a4d680f51a4fb4c952bc939b9ab3af1e034b8d2f768",
+  "originalBytesVerified": true,
+  "pixelEdits": false,
+  "verifiedAtUTC": "2026-11-16T15:23:45.605181+00:00"
+}

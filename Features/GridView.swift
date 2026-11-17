@@ -60,6 +60,8 @@ struct ChordSelection: Identifiable {let id: UUID;let patternID: UUID;let tick: 
 struct GridView: View {
     @Bindable var session: Session
     @Environment(\.dynamicTypeSize) private var dynamicType
+    @AppStorage("studio.pitchSpelling") private var pitchSpelling="automatic"
+    @AppStorage("studio.showDegrees") private var showDegrees=false
     @State private var barWidth: CGFloat = 96
     @State private var selection: ChordSelection?
     @State private var dragStart: Int?
@@ -93,6 +95,9 @@ struct GridView: View {
     private var melodyHeight:CGFloat{64}
     private var musicHeight:CGFloat{harmonyHeight+drumHeight+bassHeight+CGFloat(session.displayProject.tracks.filter{$0.role == .melody}.count)*melodyHeight}
     private var editingLocked:Bool{session.performance.contextActive || session.recording || session.armed || pinchReference != nil}
+    private var hasMusicalEvents:Bool {
+        session.displayProject.patterns.contains{!$0.chords.isEmpty || !$0.drums.isEmpty || !($0.notes ?? []).isEmpty}
+    }
     private var timelineBars:Int {
         let base=session.displayProject.length/barTicks
         let resized=resizeDraft.map{($0.start+$0.length+barTicks-1)/barTicks} ?? 0
@@ -105,6 +110,7 @@ struct GridView: View {
                     VStack(alignment:.leading,spacing:0){
                         arrangementHeader
                         sectionChips
+                        if !hasMusicalEvents{emptyProjectGuide.padding(.horizontal,16).padding(.bottom,14)}
                         if clipMode{clipControls.padding(.horizontal,16).padding(.bottom,8)}
                         HStack(spacing:0){
                             VStack(spacing:0){Color.clear.frame(height:28);trackLabel(.harmony,height:harmonyHeight);trackLabel(.drums,height:drumHeight);trackLabel(.bass,height:bassHeight);ForEach(session.displayProject.tracks.filter{$0.role == .melody}){track in Button{session.openNotes(track.id)}label:{Text(track.displayName).font(.system(size:11,weight:.semibold)).lineLimit(2).foregroundStyle(Color.mint).padding(8).frame(width:gutter,height:melodyHeight)}.buttonStyle(StudioQuietButtonStyle())}}.frame(width:gutter)
@@ -138,6 +144,24 @@ struct GridView: View {
         }.sheet(item:$selection){selection in ChordEditor(session:session,selection:selection).presentationDetents([.large]).presentationDragIndicator(.visible).presentationBackground(Color.panel)}
             .sheet(item:$clipSelection,onDismiss:openPendingClipEditor){choice in ArrangementClipInspector(session:session,selection:choice){pendingClipEditor=choice;clipSelection=nil}.presentationDragIndicator(.visible).presentationBackground(Color.panel)}
             .sheet(isPresented:$showClipList,onDismiss:{if let choice=pendingClipInspector{pendingClipInspector=nil;clipSelection=choice}}){clipList}
+    }
+    private var emptyProjectGuide:some View {
+        VStack(alignment:.leading,spacing:8){
+            Text("No notes yet. Add a chord or play a beat to hear your idea.").font(.callout).foregroundStyle(Color.muted).accessibilityIdentifier("grid.empty-state")
+            HStack(spacing:10){
+                Button{addFirstChord()}label:{Label("Add first chord",systemImage:"plus").frame(maxWidth:.infinity,minHeight:44)}.accessibilityIdentifier("grid.empty-chord")
+                Button{session.tab=1}label:{Label("Play a beat",systemImage:"square.grid.2x2.fill").frame(maxWidth:.infinity,minHeight:44)}.accessibilityIdentifier("grid.empty-jam")
+            }.buttonStyle(StudioQuietButtonStyle()).font(.subheadline.weight(.medium)).foregroundStyle(Color.mint)
+        }.padding(12).modifier(StudioSurface()).disabled(editingLocked)
+    }
+    private func addFirstChord(){
+        guard let track=session.project.tracks.first(where:{$0.role == .harmony}),
+              let clip=track.clips.first(where:{$0.start<session.section.start+session.section.length && $0.start+$0.length>session.section.start}),
+              let pattern=session.project.patterns.first(where:{$0.id==clip.patternID}) else{return}
+        let local=(max(clip.start,session.section.start)-clip.start+clip.offset)%pattern.length
+        selection=ChordSelection(id:UUID(),patternID:pattern.id,tick:local,
+                                 chord:Chord(root:session.project.keyRoot,quality:session.project.minor ? .minor:.major),
+                                 duration:min(barTicks,pattern.length-local))
     }
     private func configureViewport(_ size:CGSize){
         viewport=size
@@ -461,7 +485,7 @@ struct GridView: View {
                 tick:tick,
                 chord:event?.chord ?? Chord(root:session.displayProject.keyRoot,quality:session.displayProject.minor ? .minor:.major),
                 duration:event?.duration ?? slice.duration)
-        } label: { ChordTile(chord:event?.chord,width:max(8,CGFloat(slice.duration)/CGFloat(barTicks)*barWidth-6),height:harmonyHeight-16) }
+        } label: { ChordTile(chord:event?.chord,width:max(8,CGFloat(slice.duration)/CGFloat(barTicks)*barWidth-6),height:harmonyHeight-16,keyRoot:session.displayProject.keyRoot,minor:session.displayProject.minor,spelling:PitchSpelling(rawValue:pitchSpelling) ?? .automatic,showDegrees:showDegrees) }
         .buttonStyle(StudioQuietButtonStyle()).disabled(editingLocked).accessibilityIdentifier("grid.chord.\(slice.id)").offset(x:CGFloat(slice.timelineTick)/CGFloat(barTicks)*barWidth+3,y:8)
         .simultaneousGesture(LongPressGesture(minimumDuration:0.35).sequenced(before:DragGesture()).onEnded { value in
             if case .second(true,let drag?)=value,let event {
@@ -536,10 +560,15 @@ struct ChordTile: View {
     let chord: Chord?
     let width: CGFloat
     let height:CGFloat
+    let keyRoot:Int
+    let minor:Bool
+    let spelling:PitchSpelling
+    let showDegrees:Bool
     var body: some View {
-        VStack(alignment:.leading,spacing:13) {
-            HStack { Text(chord?.symbol ?? "+").font(.system(size:26,weight:.semibold)).lineLimit(1).minimumScaleFactor(0.5); Spacer() }
+        VStack(alignment:.leading,spacing:showDegrees ? 6:13) {
+            HStack { Text(chord.map{MusicalNotation.chordSymbol($0,keyRoot:keyRoot,minor:minor,spelling:spelling)} ?? "+").font(.system(size:26,weight:.semibold)).lineLimit(1).minimumScaleFactor(0.5); Spacer() }
             if let chord {
+                if showDegrees{Text(MusicalNotation.degreeSymbol(chord,keyRoot:keyRoot,minor:minor)).font(.caption.weight(.medium)).lineLimit(1).accessibilityIdentifier("grid.chord-degree")}
                 let notes: [Int] = chord.notes
                 let spacing: CGFloat = width < 64 ? 1 : 3
                 let gapCount: Int = max(0, notes.count - 1)
@@ -555,8 +584,9 @@ struct ChordTile: View {
                             .offset(y: noteOffset)
                     }
                 }
-                Text(chord.customIntervals == nil ? chord.quality.label:NSLocalizedString("Custom chord",comment:"Chord formula label"))
+                if !showDegrees || height>=112{Text(chord.customIntervals == nil ? chord.quality.label:NSLocalizedString("Custom chord",comment:"Chord formula label"))
                     .font(.system(size:11)).lineLimit(1).foregroundStyle(Color.harmony.opacity(0.9))
+                }
             }
         }.foregroundStyle(Color.harmony).padding(12).frame(width:width,height:height,alignment:.topLeading)
             .background(Color.harmony.opacity(chord == nil ? 0.04:0.12),in:RoundedRectangle(cornerRadius:10))

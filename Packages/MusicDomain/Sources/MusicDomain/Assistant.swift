@@ -15,14 +15,15 @@ public enum AssistantError:Error,LocalizedError {
     }
 }
 public struct AssistantOperation:Codable,Equatable,Sendable {
-    public enum Kind:String,Codable,Sendable {case setTempo,setKey,renameSection,resizeSection,setProgression,arrangeSong,styleHarmony,styleSong}
+    public enum Kind:String,Codable,Sendable {case setTempo,setKey,renameSection,resizeSection,setProgression,arrangeSong,styleHarmony,styleSong,generateSketch}
     public var type:Kind
     public var sectionID:UUID?;public var bpm:Double?;public var root:Int?;public var minor:Bool?;public var name:String?;public var bars:Int?;public var chords:[Chord]?;public var durations:[Int]?
     public var sections:[AssistantSongSection]?;public var style:String?
-    public init(_ type:Kind,sectionID:UUID?=nil,bpm:Double?=nil,root:Int?=nil,minor:Bool?=nil,name:String?=nil,bars:Int?=nil,chords:[Chord]?=nil,durations:[Int]?=nil,sections:[AssistantSongSection]?=nil,style:String?=nil){self.type=type;self.sectionID=sectionID;self.bpm=bpm;self.root=root;self.minor=minor;self.name=name;self.bars=bars;self.chords=chords;self.durations=durations;self.sections=sections;self.style=style}
-    private var parameters:Set<String>{var p=Set<String>();if sectionID != nil{p.insert("sectionID")};if bpm != nil{p.insert("bpm")};if root != nil{p.insert("root")};if minor != nil{p.insert("minor")};if name != nil{p.insert("name")};if bars != nil{p.insert("bars")};if chords != nil{p.insert("chords")};if durations != nil{p.insert("durations")};if sections != nil{p.insert("sections")};if style != nil{p.insert("style")};return p}
+    public var sketch:SketchPlan?
+    public init(_ type:Kind,sectionID:UUID?=nil,bpm:Double?=nil,root:Int?=nil,minor:Bool?=nil,name:String?=nil,bars:Int?=nil,chords:[Chord]?=nil,durations:[Int]?=nil,sections:[AssistantSongSection]?=nil,style:String?=nil,sketch:SketchPlan?=nil){self.type=type;self.sectionID=sectionID;self.bpm=bpm;self.root=root;self.minor=minor;self.name=name;self.bars=bars;self.chords=chords;self.durations=durations;self.sections=sections;self.style=style;self.sketch=sketch}
+    private var parameters:Set<String>{var p=Set<String>();if sectionID != nil{p.insert("sectionID")};if bpm != nil{p.insert("bpm")};if root != nil{p.insert("root")};if minor != nil{p.insert("minor")};if name != nil{p.insert("name")};if bars != nil{p.insert("bars")};if chords != nil{p.insert("chords")};if durations != nil{p.insert("durations")};if sections != nil{p.insert("sections")};if style != nil{p.insert("style")};if sketch != nil{p.insert("sketch")};return p}
     func apply(to project:inout Project,scope:UUID)throws {
-        let allowed:Set<String>=switch type{case .setTempo:["bpm"];case .setKey:["root","minor"];case .renameSection:["sectionID","name"];case .resizeSection:["sectionID","bars"];case .setProgression:["sectionID","chords","durations"];case .arrangeSong:["sections"];case .styleHarmony:["sectionID","style"];case .styleSong:["style"]}
+        let allowed:Set<String>=switch type{case .setTempo:["bpm"];case .setKey:["root","minor"];case .renameSection:["sectionID","name"];case .resizeSection:["sectionID","bars"];case .setProgression:["sectionID","chords","durations"];case .arrangeSong:["sections"];case .styleHarmony:["sectionID","style"];case .styleSong:["style"];case .generateSketch:["sketch"]}
         guard parameters==allowed else{throw AssistantError.unsafe}
         if let sectionID{guard sectionID==scope,project.sections.contains(where:{$0.id==sectionID})else{throw AssistantError.unsafe}}
         switch type {
@@ -33,10 +34,15 @@ public struct AssistantOperation:Codable,Equatable,Sendable {
         case .setProgression:
             guard let section=project.sections.first(where:{$0.id==sectionID}),let chords,let durations,!chords.isEmpty,chords.count<=256,chords.count==durations.count,durations.allSatisfy({(1...64).contains($0)})else{throw AssistantError.unsafe}
             guard durations.reduce(0,+)*barTicks==section.length else{throw AssistantError.mismatch}
+            let sourceHarmony=Arrangement.harmony(project,section:section)
             var tick=0;var events:[ChordEvent]=[]
-            for (c,duration) in zip(chords,durations){events.append(ChordEvent(tick:tick,duration:duration*barTicks,chord:c));tick+=duration*barTicks}
+            for (c,duration) in zip(chords,durations){
+                let retained=Arrangement.chordPreservingSource(c,at:tick,from:sourceHarmony)
+                events.append(ChordEvent(tick:tick,duration:duration*barTicks,chord:retained));tick+=duration*barTicks
+            }
             try Arrangement.replaceHarmony(events,in:section,project:&project)
         case .arrangeSong:project=try Arrangement.composing(project,parts:sections!,scope:scope)
+        case .generateSketch:project=try SketchComposer.compose(project,plan:sketch!,scope:scope)
         case .styleHarmony,.styleSong:
             guard let style=HarmonyStyle(rawValue:style!)else{throw AssistantError.unsafe}
             let targets=type == .styleSong ? project.sections.filter{!Arrangement.harmony(project,section:$0).isEmpty}.map(\.id):[sectionID!]
@@ -49,11 +55,13 @@ public struct AssistantProposal:Codable,Identifiable,Sendable {
     public var id=UUID();public var schemaVersion=1
     public var projectID:UUID;public var baseRevision:Int;public var scopeSectionID:UUID
     public var operations:[AssistantOperation];public var assumptions:[String];public var warnings:[String]
-    public var changesWholeSong:Bool{operations.contains{[AssistantOperation.Kind.arrangeSong,.styleSong].contains($0.type)}}
-    public init(project:Project,scope:UUID,operations:[AssistantOperation],assumptions:[String]=[],warnings:[String]=[]){projectID=project.id;baseRevision=project.revision;scopeSectionID=scope;self.operations=operations;self.assumptions=assumptions;self.warnings=warnings;if operations.contains(where:{[AssistantOperation.Kind.arrangeSong,.styleHarmony,.styleSong].contains($0.type)}){schemaVersion=2}}
+    public var changesWholeSong:Bool{operations.contains{[AssistantOperation.Kind.arrangeSong,.styleSong,.generateSketch].contains($0.type)}}
+    public init(project:Project,scope:UUID,operations:[AssistantOperation],assumptions:[String]=[],warnings:[String]=[]){projectID=project.id;baseRevision=project.revision;scopeSectionID=scope;self.operations=operations;self.assumptions=assumptions;self.warnings=warnings;if operations.contains(where:{$0.type == .generateSketch}){schemaVersion=3}else if operations.contains(where:{[AssistantOperation.Kind.arrangeSong,.styleHarmony,.styleSong].contains($0.type)}){schemaVersion=2}}
     public func candidate(for project:Project)throws->Project {
         guard project.id==projectID,project.revision==baseRevision else{throw AssistantError.stale}
-        guard (1...2).contains(schemaVersion),(1...16).contains(operations.count),project.sections.contains(where:{$0.id==scopeSectionID}),assumptions.count<=16,warnings.count<=16,(assumptions+warnings).allSatisfy({$0.count<=500})else{throw AssistantError.unsafe}
+        guard (1...3).contains(schemaVersion),(1...16).contains(operations.count),project.sections.contains(where:{$0.id==scopeSectionID}),assumptions.count<=16,warnings.count<=16,(assumptions+warnings).allSatisfy({$0.count<=500})else{throw AssistantError.unsafe}
+        if schemaVersion<3,operations.contains(where:{$0.type == .generateSketch}){throw AssistantError.unsafe}
+        if operations.contains(where:{$0.type == .generateSketch}),operations.count != 1{throw AssistantError.unsafe}
         if schemaVersion==1,operations.contains(where:{[AssistantOperation.Kind.arrangeSong,.styleHarmony,.styleSong].contains($0.type)}){throw AssistantError.unsafe}
         var result=project
         for op in operations{try op.apply(to:&result,scope:scopeSectionID);try result.validate()}
@@ -62,10 +70,11 @@ public struct AssistantProposal:Codable,Identifiable,Sendable {
     public func apply(to project:inout Project)throws{project=try candidate(for:project)}
     public static func decode(_ data:Data,for project:Project)throws->AssistantProposal {
         guard data.count<=64_000,let json=try JSONSerialization.jsonObject(with:data) as? [String:Any],Set(json.keys)==Set(["id","schemaVersion","projectID","baseRevision","scopeSectionID","operations","assumptions","warnings"]),let ops=json["operations"] as? [[String:Any]],ops.count<=16 else{throw AssistantError.unsafe}
-        let keys:Set<String>=["type","sectionID","bpm","root","minor","name","bars","chords","durations","sections","style"]
+        let keys:Set<String>=["type","sectionID","bpm","root","minor","name","bars","chords","durations","sections","style","sketch"]
         guard ops.allSatisfy({Set($0.keys).isSubset(of:keys)})else{throw AssistantError.unsafe}
-        func safeChords(_ chords:[[String:Any]])->Bool{chords.count<=256 && chords.allSatisfy({Set($0.keys).isSubset(of:["root","quality","inversion","slashBass","voicedNotes","customIntervals"]) && Set(["root","quality","inversion"]).isSubset(of:Set($0.keys))})}
+        func safeChords(_ chords:[[String:Any]])->Bool{chords.count<=256 && chords.allSatisfy({Set($0.keys).isSubset(of:["root","quality","inversion","slashBass","voicedNotes","customIntervals","rootBassPitch","rootSpelling","slashBassSpelling"]) && Set(["root","quality","inversion"]).isSubset(of:Set($0.keys))})}
         for op in ops{
+            if let sketch=op["sketch"]{guard let plan=sketch as? [String:Any],Set(plan.keys)==Set(["version","style","bpm","root","minor","bars","seed"])else{throw AssistantError.unsafe}}
             if let chords=op["chords"] as? [[String:Any]]{guard safeChords(chords)else{throw AssistantError.unsafe}}
             if let sections=op["sections"] as? [[String:Any]]{guard (1...8).contains(sections.count),sections.allSatisfy({Set($0.keys)==Set(["name","bars","chords","durations","sourceSectionID"]) && (($0["chords"] as? [[String:Any]]).map(safeChords) ?? false)})else{throw AssistantError.unsafe}}
         }
@@ -131,6 +140,7 @@ public enum AssistantEngine {
     }
     public static func propose(_ text:String,project:Project,sectionID:UUID,distribution:ChordDistribution?=nil)throws->AssistantProposal {
         try project.validate();guard text.count<=2000,let selected=project.sections.first(where:{$0.id==sectionID})else{throw AssistantError.unsafe}
+        if SketchCommandParser.recognizes(text){return try SketchCommandParser.propose(text,project:project,scope:sectionID)}
         if let match=captures("^(?:song|песня|структура|форма)\\s*:\\s*(.+)$",text){return try song(match[0],project:project,selected:selected,distribution:distribution)}
         var operations:[AssistantOperation]=[];var assumptions:[String]=[];var warnings:[String]=[];var scope=selected.id;var sectionBars=Dictionary(uniqueKeysWithValues:project.sections.map{($0.id,$0.length/barTicks)})
         let commands=text.split(separator:";",omittingEmptySubsequences:true).map{trim(String($0))}

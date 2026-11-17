@@ -1,5 +1,13 @@
 name: iOS build and verification
-on: [push, workflow_dispatch]
+on:
+  push:
+    # Dedicated diagnostic and recording workflows build their own app/test
+    # targets. Release candidates and main retain all three acceptance jobs.
+    branches-ignore:
+      - feat/native-gesture-diagnostic
+      - feat/native-demo20
+      - feat/native-demo-intel-preflight
+  workflow_dispatch:
 env:
   DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
 concurrency:
@@ -8,12 +16,22 @@ concurrency:
 jobs:
   ios:
     if: "!contains(github.event.head_commit.message, '[device-only]')"
-    runs-on: macos-15
-    # 43 functional flows, three capture methods and two device boots share
-    # this job (the measured candidate took 53.5 minutes with failures). Keep
-    # every individual test limit unchanged and allow result/artifact cleanup.
+    # Use the current macOS ARM image after macOS 15 runner acquisition and
+    # Intel Simulator preparation failures. Execution still needs actual PASS.
+    runs-on: macos-26
+    # Full main previously executed 52 methods in 30.4 minutes. Allow 60
+    # minutes for native execution, retaining each method's original limit.
+    # A shared 75-minute job-clock deadline reserves 15 minutes for diagnostics,
+    # partial xcresult export and artifact upload within this 90-minute job.
     timeout-minutes: 90
     steps:
+      - name: Reserve time for native evidence preservation
+        run: |
+          python3 - <<'PY'
+          import os,time
+          with open(os.environ['GITHUB_ENV'],'a') as output:
+              output.write(f'GRILLA_NATIVE_DEADLINE_EPOCH={time.time()+75*60}\n')
+          PY
       - uses: actions/checkout@v4
       - name: Verify current App Store toolchain
         run: python3 scripts/release/assert_sdk.py
@@ -31,6 +49,12 @@ jobs:
         run: |
           python3 scripts/release/audit_release.py
           python3 scripts/release/test_native_acceptance.py
+          python3 scripts/release/test_device_acceptance.py
+          python3 scripts/ci/test_run_native.py
+          python3 scripts/ci/test_native_scope.py
+          python3 scripts/ci/test_simulator_macho.py
+          swiftc AudioRuntime/TiltFilterMapping.swift scripts/test_tilt_filter.swift -o /tmp/grilla-tilt-contracts
+          /tmp/grilla-tilt-contracts
           for GRILLA_SCRIPT in scripts/release/*.sh; do bash -n "$GRILLA_SCRIPT"; done
       - name: Presentation and localization audit
         run: python3 scripts/audit_presentation.py && plutil -lint Resources/en.lproj/Localizable.strings Resources/ru.lproj/Localizable.strings
@@ -40,9 +64,41 @@ jobs:
         env:
           GRILLA_CXX_BIN: clang++
         run: bash scripts/test_audio.sh
+      - name: Record host-native Simulator toolchain
+        timeout-minutes: 2
+        run: |
+          python3 - <<'PY'
+          import json,os,pathlib,subprocess
+          def output(command,timeout=30):
+              return subprocess.check_output(command,text=True,timeout=timeout).strip()
+          architecture=output(['uname','-m'],10)
+          if architecture not in ('arm64','x86_64'):
+              raise SystemExit('Unsupported native Simulator host architecture: '+architecture)
+          receipt=dict(schemaVersion=1,repository=os.environ['GITHUB_REPOSITORY'],sourceSHA=os.environ['GITHUB_SHA'],
+                       runID=os.environ['GITHUB_RUN_ID'],runAttempt=os.environ['GITHUB_RUN_ATTEMPT'],
+                       runnerArchitecture=os.environ.get('RUNNER_ARCH'),simulatorArchitecture=architecture,
+                       xcode=output(['xcodebuild','-version']),simulatorSDK=output(['xcrun','--sdk','iphonesimulator','--show-sdk-version']))
+          pathlib.Path('simulator-environment.json').write_text(json.dumps(receipt,indent=2)+'\n')
+          with open(os.environ['GITHUB_ENV'],'a') as environment:
+              environment.write('GRILLA_SIMULATOR_ARCH='+architecture+'\n')
+          print(json.dumps(receipt,indent=2))
+          PY
       - name: Build iOS app
         id: simulator_build
-        run: set -o pipefail; xcodebuild -test-timeouts-enabled YES -maximum-test-execution-time-allowance 600 -project LaGrilla.xcodeproj -scheme LaGrilla -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' ARCHS=arm64 ONLY_ACTIVE_ARCH=YES -configuration Debug -derivedDataPath DerivedData CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO build-for-testing | tee build.log
+        run: set -o pipefail; xcodebuild -test-timeouts-enabled YES -maximum-test-execution-time-allowance 600 -project LaGrilla.xcodeproj -scheme LaGrilla -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' ARCHS="$GRILLA_SIMULATOR_ARCH" ONLY_ACTIVE_ARCH=YES -configuration Debug -derivedDataPath DerivedData CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO build-for-testing | tee build.log
+      - name: Verify actual Simulator binary architecture
+        timeout-minutes: 1
+        run: |
+          python3 - <<'PY'
+          import json,os,pathlib,subprocess
+          path=pathlib.Path('simulator-environment.json');receipt=json.loads(path.read_text())
+          binary='DerivedData/Build/Products/Debug-iphonesimulator/LaGrilla.app/LaGrilla'
+          architectures=subprocess.check_output(['xcrun','lipo','-archs',binary],text=True,timeout=30).split()
+          if architectures!=[os.environ['GRILLA_SIMULATOR_ARCH']]:
+              raise SystemExit('Simulator binary does not match the validated native host architecture: '+repr(architectures))
+          receipt['builtAppArchitectures']=architectures
+          path.write_text(json.dumps(receipt,indent=2)+'\n');print(json.dumps(receipt,indent=2))
+          PY
       - name: Package simulator app
         run: ditto -c -k --sequesterRsrc --keepParent DerivedData/Build/Products/Debug-iphonesimulator/LaGrilla.app LaGrilla-Simulator.zip
       - name: Save simulator build
@@ -52,13 +108,76 @@ jobs:
           path: |
             LaGrilla.xcodeproj
             LaGrilla-Simulator.zip
+            simulator-environment.json
       - name: Configure virtual host microphone for native PCM
         run: bash scripts/setup_ci_audio.sh
       - name: Prepare iOS Simulator
+        id: prepare_simulator
+        timeout-minutes: 7
         env:
           GRILLA_CAPTURE_SCREENS: '0'
         run: bash scripts/screenshots.sh
+      - name: Preserve actual Simulator preparation diagnostics
+        if: always()
+        timeout-minutes: 2
+        env:
+          GRILLA_SIMULATOR_PREPARE_OUTCOME: ${{ steps.prepare_simulator.outcome }}
+        run: |
+          python3 - <<'PY'
+          import datetime,json,os,pathlib,subprocess
+          path=pathlib.Path('simulator-environment.json');errors=[]
+          try:receipt=json.loads(path.read_text()) if path.exists() else {}
+          except (OSError,ValueError) as error:
+              receipt={};errors.append('Existing environment receipt: '+str(error))
+          receipt.update(schemaVersion=1,repository=os.environ['GITHUB_REPOSITORY'],sourceSHA=os.environ['GITHUB_SHA'],
+                         runID=os.environ['GITHUB_RUN_ID'],runAttempt=os.environ['GITHUB_RUN_ATTEMPT'])
+          diagnostics=dict(diagnosticOnly=True,observedAtUTC=datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                           preparationOutcome=os.environ.get('GRILLA_SIMULATOR_PREPARE_OUTCOME'),commands=[],errors=errors)
+          def query(command):
+              result=dict(command=command)
+              try:
+                  completed=subprocess.run(command,text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,timeout=30)
+                  result.update(exitCode=completed.returncode,output=completed.stdout)
+                  if completed.returncode!=0:
+                      errors.append('Simulator inventory command exited '+str(completed.returncode));return None
+                  payload=json.loads(completed.stdout)
+                  if not isinstance(payload,dict):raise ValueError('Simulator inventory is not a JSON object.')
+                  return payload
+              except subprocess.TimeoutExpired as error:
+                  output=error.stdout or b''
+                  result.update(timedOut=True,output=output.decode(errors='replace') if isinstance(output,bytes) else output)
+                  errors.append('Simulator inventory command exceeded 30 seconds');return None
+              except (OSError,ValueError) as error:
+                  result['error']=str(error);errors.append(str(error));return None
+              finally:diagnostics['commands'].append(result)
+          runtimes=query(['xcrun','simctl','list','runtimes','-j'])
+          devices=query(['xcrun','simctl','list','devices','available','-j'])
+          diagnostics.update(runtimeInventory=runtimes,deviceInventory=devices)
+          try:target=pathlib.Path('/tmp/grilla-simulator-id').read_text().strip()
+          except OSError as error:target=None;errors.append('Selected target file: '+str(error))
+          diagnostics['selectedTargetID']=target
+          selected=[(runtime,device) for runtime,items in (devices or {}).get('devices',{}).items() for device in items if device.get('udid')==target]
+          if len(selected)==1:
+              runtime_id,device=selected[0]
+              receipt['selectedSimulator']=device
+              receipt['selectedRuntime']=next((item for item in (runtimes or {}).get('runtimes',[]) if item.get('identifier')==runtime_id),None)
+              if receipt['selectedRuntime'] is None:errors.append('Selected runtime was not observed in the actual runtime inventory.')
+          else:errors.append('Selected target was not uniquely observed in the actual available-device inventory.')
+          receipt['simulatorPreparationDiagnostics']=diagnostics
+          path.write_text(json.dumps(receipt,indent=2)+'\n');print(json.dumps(receipt,indent=2))
+          if diagnostics['preparationOutcome']=='success' and errors:
+              raise SystemExit('Preparation succeeded but its actual runtime/device evidence could not be verified.')
+          PY
+      - name: Verify the selected Simulator's actual DragUI readiness
+        timeout-minutes: 2
+        run: |
+          GRILLA_DRAG_DEVICE=$(cat /tmp/grilla-simulator-id)
+          python3 scripts/ci/prepare_simulator_drag_service.py --device "$GRILLA_DRAG_DEVICE" --output-dir SimulatorDragReadiness --start-confirmed-system-app --start-confirmed-daemon
       - name: Native user flows
+        id: native_flows
+        # Independent runner-side bound also covers a blocked Python I/O call.
+        # Native process budget remains 60 minutes plus bounded signal cleanup.
+        timeout-minutes: 65
         env:
           GRILLA_REQUIRE_MIC_INPUT: '1'
           TEST_RUNNER_GRILLA_REQUIRE_MIC_INPUT: '1'
@@ -71,18 +190,65 @@ jobs:
         run: |
           set -o pipefail
           DEVICE=$(cat /tmp/grilla-simulator-id)
+          SCOPE=full
+          INVENTORY=(--functional-inventory UITests)
           FILTER=(-skip-testing:LaGrillaUITests/ScreenshotTests/testCaptureCompactScreens)
-          if test "$GRILLA_UI_ONLY" = 1; then FILTER=(-skip-testing:LaGrillaUITests/ScreenshotTests); fi
+          if test "$GRILLA_UI_ONLY" = 1; then FILTER=(-skip-testing:LaGrillaUITests/ScreenshotTests); SCOPE=ui-only; fi
           if test "$GRILLA_INTEGRATION_ONLY" = 1; then
             FILTER=(-only-testing:LaGrillaUITests/ArrangementUITests -only-testing:LaGrillaUITests/AudioRuntimeContinuityTests -only-testing:LaGrillaUITests/DrumRuntimeContinuityTests -only-testing:LaGrillaUITests/LiveEditingTests -only-testing:LaGrillaUITests/VoiceReviewUITests)
+            SCOPE=integration-only
+            INVENTORY=()
           fi
-          if test "$GRILLA_RU_RECAPTURE" = 1; then FILTER+=(-only-testing:LaGrillaUITests/ScreenshotTests/testCaptureStoreScreens); fi
+          if test "$GRILLA_RU_RECAPTURE" = 1; then FILTER+=(-only-testing:LaGrillaUITests/ScreenshotTests/testCaptureStoreScreens); SCOPE=ru-capture; INVENTORY=(); fi
           if test "$GRILLA_INPUT_DIAGNOSTIC" = 1; then
             FILTER=(-only-testing:LaGrillaUITests/AudioRuntimeContinuityTests/testAAOutputOnlyLaunchDoesNotRequestMicrophone -only-testing:LaGrillaUITests/AudioRuntimeContinuityTests/testSessionMicrophoneLeaseRetainsLiveEngineAndPCM -only-testing:LaGrillaUITests/AudioRuntimeContinuityTests/testProductionVoiceCaptureCAFAnalysisApplyStoreAndUndo -only-testing:LaGrillaUITests/AudioRuntimeContinuityTests/testDiagnosticOnlyFreshInputLifecycleControls)
+            SCOPE=input-diagnostic
+            INVENTORY=()
           fi
-          xcodebuild "${FILTER[@]}" -test-timeouts-enabled YES -maximum-test-execution-time-allowance 600 -project LaGrilla.xcodeproj -scheme LaGrilla -destination "platform=iOS Simulator,id=$DEVICE" -derivedDataPath DerivedData -resultBundlePath TestResults.xcresult ARCHS=arm64 ONLY_ACTIVE_ARCH=YES CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO test-without-building | tee uitests.log
+          python3 scripts/ci/run_native.py --timeout-seconds 3600 --deadline-env GRILLA_NATIVE_DEADLINE_EPOCH --label full-native-ui --scope "$SCOPE" "${INVENTORY[@]}" --log uitests.log --status native-process-status.json -- xcodebuild "${FILTER[@]}" -test-timeouts-enabled YES -maximum-test-execution-time-allowance 600 -project LaGrilla.xcodeproj -scheme LaGrilla -destination "platform=iOS Simulator,id=$DEVICE" -derivedDataPath DerivedData -resultBundlePath TestResults.xcresult ARCHS="$GRILLA_SIMULATOR_ARCH" ONLY_ACTIVE_ARCH=YES CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO test-without-building
+      - name: Preserve exact-source functional scope receipt
+        if: always()
+        timeout-minutes: 2
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-acceptance-scope
+          path: native-process-status.json
+      - name: Preserve native crash reports and partial device log
+        if: always()
+        timeout-minutes: 2
+        run: |
+          mkdir -p CrashReports
+          find "$HOME/Library/Logs/DiagnosticReports" -iname '*LaGrilla*' -exec cp {} CrashReports/ \; || true
+          python3 - <<'PY'
+          from pathlib import Path
+          import subprocess
+          device_file=Path('/tmp/grilla-simulator-id')
+          if device_file.exists():
+              with Path('native-device.log').open('wb') as output:
+                  try:
+                      result=subprocess.run(['xcrun','simctl','spawn',device_file.read_text().strip(),'log','show','--last','20m','--style','compact','--predicate','process == "LaGrilla"'],stdout=output,stderr=subprocess.STDOUT,timeout=45)
+                      output.write(f'\nDiagnostic command exit: {result.returncode}\n'.encode())
+                  except subprocess.TimeoutExpired:
+                      output.write(b'\nDevice diagnostic timed out; original partial output retained.\n')
+          PY
+      - name: Upload original native process evidence before later captures
+        if: always()
+        timeout-minutes: 5
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-process-evidence
+          path: |
+            uitests.log
+            native-process-status.json
+            native-device.log
+            simulator-environment.json
+            SimulatorDragReadiness
+            ci-audio.log
+            TestResults.xcresult
+            CrashReports
       - name: Record read-only host microphone authorization diagnostics
         if: always() && !cancelled() && contains(github.event.head_commit.message, '[input-diagnostic]')
+        timeout-minutes: 1
         run: |
           set -o pipefail
           bash scripts/log_ci_audio_tcc.sh | tee -a ci-audio.log
@@ -91,9 +257,10 @@ jobs:
         env:
           GRILLA_RU_RECAPTURE: ${{ contains(github.event.head_commit.message, '[ru-capture]') && '1' || '0' }}
           TEST_RUNNER_GRILLA_RU_RECAPTURE: ${{ contains(github.event.head_commit.message, '[ru-capture]') && '1' || '0' }}
-        run: bash scripts/compact_screenshots.sh
+        run: python3 scripts/ci/run_native.py --timeout-seconds 900 --deadline-env GRILLA_NATIVE_DEADLINE_EPOCH --label compact-native-capture --log compact-supervisor.log --status compact-process-status.json -- bash scripts/compact_screenshots.sh
       - name: Export native QA screenshots
         if: always() && !cancelled()
+        timeout-minutes: 2
         env:
           GRILLA_CAPTURE_OPTION: ${{ (contains(github.event.head_commit.message, '[input-diagnostic]') || (contains(github.event.head_commit.message, '[ui-only]') && !contains(github.event.head_commit.message, '[ru-capture]'))) && '--allow-empty' || '' }}
         run: |
@@ -114,17 +281,20 @@ jobs:
         run: python3 scripts/release/prepare_store_screenshots.py Screenshots/OriginalVision Screenshots/AppStore
       - name: Save simulator screenshots
         if: always()
+        timeout-minutes: 3
         uses: actions/upload-artifact@v4
         with:
           name: simulator-screenshots
           path: Screenshots/**/*.png
       - name: Collect app crash reports
         if: always()
+        timeout-minutes: 1
         run: |
           mkdir -p CrashReports
           find "$HOME/Library/Logs/DiagnosticReports" -iname '*LaGrilla*' -exec cp {} CrashReports/ \; || true
       - uses: actions/upload-artifact@v4
         if: always()
+        timeout-minutes: 5
         with:
           name: ios-verification
           path: |
@@ -132,6 +302,12 @@ jobs:
             ExportFixtures
             build.log
             uitests.log
+            native-process-status.json
+            native-device.log
+            simulator-environment.json
+            SimulatorDragReadiness
+            compact-supervisor.log
+            compact-process-status.json
             compact-tests.log
             ci-audio.log
             TestResults.xcresult
@@ -142,7 +318,8 @@ jobs:
             LaGrilla-Simulator.zip
 
   iphone:
-    runs-on: macos-15
+    # Generic iPhone builds cross-compile arm64; reserve ARM hosts for native UI.
+    runs-on: macos-15-intel
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
@@ -159,7 +336,7 @@ jobs:
           path: iphone-build.log
 
   release-archive:
-    runs-on: macos-15
+    runs-on: macos-15-intel
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4

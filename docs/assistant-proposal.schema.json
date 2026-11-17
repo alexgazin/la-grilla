@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "La Grilla assistant proposal — versions 1 and 2",
-  "description": "Canonical AssistantProposal JSON envelope, distinct from project schema v8 and from the internal model interpretation. Always decode and validate against the actual project before review/apply.",
+  "title": "La Grilla assistant proposal — versions 1, 2 and 3",
+  "description": "Canonical AssistantProposal JSON envelope, distinct from project schema 10 and the internal model parameter interpretation. Always decode and validate against the actual project before review/apply.",
   "$comment": "AssistantProposal.decode also enforces a 64,000-byte payload limit, exact project/revision/scope identity, operation parameter whitelist and full project validation after every operation. JSON Schema cannot express those stateful musical relations. JSONEncoder omits nil optionals; this canonical schema does not permit unrelated null operation parameters that Codable may ignore.",
   "type": "object",
   "additionalProperties": false,
@@ -24,7 +24,8 @@
       "type": "integer",
       "enum": [
         1,
-        2
+        2,
+        3
       ]
     },
     "projectID": {
@@ -80,6 +81,53 @@
             "items": {
               "$ref": "#/$defs/legacyOperation"
             }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "schemaVersion": {
+            "const": 2
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "operations": {
+            "items": {
+              "$ref": "#/$defs/operationV2"
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "operations": {
+            "contains": {
+              "type": "object",
+              "required": [
+                "type"
+              ],
+              "properties": {
+                "type": {
+                  "const": "generateSketch"
+                }
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "schemaVersion": {
+            "const": 3
+          },
+          "operations": {
+            "maxItems": 1
           }
         }
       }
@@ -220,6 +268,31 @@
             "maximum": 48
           },
           "description": "Semitone formula; Swift additionally requires strictly increasing values and a valid realized MIDI voicing. Array form requires the canonical major quality marker."
+        },
+        "rootBassPitch": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 127,
+          "description": "Optional absolute generated root-bass MIDI pitch from project schema 9. Swift additionally requires its pitch class to match the chord root or slash bass. Omitted values preserve the legacy bass-register formula."
+        },
+        "rootSpelling": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[A-G](?:♯{1,2}|♭{1,2})?$",
+          "description": "Optional canonical written letter and accidental, project schema 10. Swift verifies equality with the corresponding root/slash pitch class; slash spelling requires a slash bass. This does not change sounding MIDI pitch."
+        },
+        "slashBassSpelling": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[A-G](?:♯{1,2}|♭{1,2})?$",
+          "description": "Optional canonical written letter and accidental, project schema 10. Swift verifies equality with the corresponding root/slash pitch class; slash spelling requires a slash bass. This does not change sounding MIDI pitch."
         }
       },
       "allOf": [
@@ -432,6 +505,138 @@
       ]
     },
     "operation": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/legacyOperation"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "sections"
+          ],
+          "properties": {
+            "type": {
+              "const": "arrangeSong"
+            },
+            "sections": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 8,
+              "items": {
+                "$ref": "#/$defs/songSection"
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "sectionID",
+            "style"
+          ],
+          "properties": {
+            "type": {
+              "const": "styleHarmony"
+            },
+            "sectionID": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "style": {
+              "$ref": "#/$defs/harmonyStyle"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "style"
+          ],
+          "properties": {
+            "type": {
+              "const": "styleSong"
+            },
+            "style": {
+              "$ref": "#/$defs/harmonyStyle"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "type",
+            "sketch"
+          ],
+          "properties": {
+            "type": {
+              "const": "generateSketch"
+            },
+            "sketch": {
+              "$ref": "#/$defs/sketchPlan"
+            }
+          }
+        }
+      ]
+    },
+    "sketchPlan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "style",
+        "bpm",
+        "root",
+        "minor",
+        "bars",
+        "seed"
+      ],
+      "properties": {
+        "version": {
+          "const": 1
+        },
+        "style": {
+          "enum": [
+            "house",
+            "hipHop",
+            "jazz"
+          ]
+        },
+        "bpm": {
+          "type": "number",
+          "minimum": 40,
+          "maximum": 240
+        },
+        "root": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 11
+        },
+        "minor": {
+          "type": "boolean"
+        },
+        "bars": {
+          "enum": [
+            4,
+            8,
+            16
+          ]
+        },
+        "seed": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4294967295
+        }
+      },
+      "$comment": "Bounded local music composition parameters. The current arrangement must be empty, with no voice assets or frozen performances; Swift checks this before producing editable notes. The model interprets parameters; a deterministic local composer makes the notes."
+    },
+    "operationV2": {
       "oneOf": [
         {
           "$ref": "#/$defs/legacyOperation"

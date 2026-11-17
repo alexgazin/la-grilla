@@ -1,0 +1,20 @@
+{
+  "source": "a61b8a5563e1ff93d0f3cd16057ade41db76b700",
+  "run": 43912714984,
+  "job": 133458619667,
+  "hostArchitecture": "x86_64",
+  "stage": "Prepare iOS Simulator",
+  "outcome": "FAIL",
+  "observedExitCode": 124,
+  "lastBootStatus": "2026-11-16T17:11:08.2191460Z [2026-11-16 17:09:37 +0000] Status=4, isTerminal=NO, Elapsed=04:30.",
+  "lastObservedWait": "Waiting on System App",
+  "selectedDeviceName": "iPhone 16 Pro Max",
+  "selectedDeviceID": "95BA7042-C493-49FF-A71D-8A11DA63CB0F",
+  "nativeStepOutcome": "SKIPPED",
+  "completedNativeMethods": [],
+  "exactSelectedRuntimeReceiptWritten": false,
+  "runtimeLimitation": "The post-boot runtime receipt was not reached. SDK26.2 and actualx86_64 binaries are verified independently, but no successfully booted runtime or native UI/audio acceptance is claimed.",
+  "appLaunched": false,
+  "deviceErrorInferred": false,
+  "decodedLogSHA256": "9b5b38d43238ee1a2fc30a1f00abecaa072346f38ed98e3321313b338d118901"
+}

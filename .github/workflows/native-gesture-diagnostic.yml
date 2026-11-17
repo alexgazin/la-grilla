@@ -1,0 +1,147 @@
+name: Native gesture diagnostic (two cases only)
+on:
+  workflow_dispatch:
+  push:
+    branches: [feat/native-gesture-diagnostic]
+permissions:
+  contents: read
+concurrency:
+  group: native-gesture-diagnostic-${{ github.ref }}
+  cancel-in-progress: true
+env:
+  DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
+jobs:
+  native-gesture-diagnostic:
+    runs-on: macos-26
+    timeout-minutes: 30
+    # Diagnostic only. These two actual cases cannot establish a full native,
+    # software-verified, internal-beta or App Review acceptance receipt.
+    steps:
+      - name: Reserve time for original evidence preservation
+        run: |
+          python3 - <<'PY'
+          import os,time
+          with open(os.environ['GITHUB_ENV'],'a') as output:
+              output.write(f'GRILLA_GESTURE_DEADLINE_EPOCH={time.time()+21*60}\n')
+          PY
+      - uses: actions/checkout@v4
+      - name: Verify exact official native toolchain and source provenance
+        timeout-minutes: 2
+        run: |
+          python3 - <<'PY'
+          import datetime,json,os,pathlib,subprocess,time
+          def output(command):
+              return subprocess.check_output(command,text=True,timeout=30).strip()
+          receipt=dict(schemaVersion=1,diagnosticOnly=True,scope='input-diagnostic',
+                       acceptance='not-full-functional-or-release-acceptance',
+                       repository=os.environ['GITHUB_REPOSITORY'],sourceSHA=os.environ['GITHUB_SHA'],
+                       checkoutSHA=output(['git','rev-parse','HEAD']),
+                       runID=os.environ['GITHUB_RUN_ID'],runAttempt=os.environ['GITHUB_RUN_ATTEMPT'],
+                       runnerArchitecture=os.environ.get('RUNNER_ARCH'),
+                       recordedAtUTC=datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                       hostWallClockNanoseconds=time.time_ns(),hostMonotonicNanoseconds=time.monotonic_ns(),
+                       architecture=output(['uname','-m']),xcode=output(['xcodebuild','-version']),
+                       simulatorSDK=output(['xcrun','--sdk','iphonesimulator','--show-sdk-version']))
+          pathlib.Path('gesture-source.json').write_text(json.dumps(receipt,indent=2)+'\n')
+          assert receipt['checkoutSHA']==receipt['sourceSHA'],receipt
+          nativePairs={'arm64':'ARM64','x86_64':'X64'}
+          assert receipt['architecture'] in nativePairs and receipt['runnerArchitecture']==nativePairs[receipt['architecture']],receipt
+          assert receipt['xcode'].splitlines()[0]=='Xcode 26.3',receipt
+          assert receipt['simulatorSDK']=='26.2',receipt
+          with open(os.environ['GITHUB_ENV'],'a') as output:
+              output.write('GRILLA_GESTURE_ARCH='+receipt['architecture']+'\n')
+          PY
+      - name: Compile the actual unchanged native test inventory
+        timeout-minutes: 10
+        run: |
+          set -o pipefail
+          python3 scripts/generate_project.py
+          git diff --exit-code -- LaGrilla.xcodeproj
+          xcodebuild -project LaGrilla.xcodeproj -scheme LaGrilla -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' ARCHS="$GRILLA_GESTURE_ARCH" ONLY_ACTIVE_ARCH=YES -configuration Debug -derivedDataPath DerivedData CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO build-for-testing 2>&1 | tee gesture-build.log
+          for GRILLA_GESTURE_BINARY in DerivedData/Build/Products/Debug-iphonesimulator/LaGrilla.app/LaGrilla DerivedData/Build/Products/Debug-iphonesimulator/LaGrilla.app/LaGrilla.debug.dylib; do
+            xcrun lipo "$GRILLA_GESTURE_BINARY" -verify_arch "$GRILLA_GESTURE_ARCH"
+          done
+      - name: Configure actual host HAL loopback
+        timeout-minutes: 5
+        run: bash scripts/setup_ci_audio.sh
+      - name: Boot the actual native iPhone Simulator
+        timeout-minutes: 7
+        env:
+          GRILLA_CAPTURE_SCREENS: '0'
+        run: |
+          set -o pipefail
+          bash scripts/screenshots.sh 2>&1 | tee gesture-simulator.log
+      - name: Discover and verify actual Simulator DragUI readiness
+        id: drag_readiness
+        continue-on-error: true
+        timeout-minutes: 2
+        run: |
+          GRILLA_GESTURE_DEVICE=$(cat /tmp/grilla-simulator-id)
+          python3 scripts/ci/prepare_simulator_drag_service.py --device "$GRILLA_GESTURE_DEVICE" --start-confirmed-system-app --start-confirmed-daemon
+      - name: Record early drag services and run the available original cases
+        timeout-minutes: 13
+        env:
+          GRILLA_RUNTIME_TRACE: '1'
+          GRILLA_DRAG_READY: ${{ steps.drag_readiness.outcome == 'success' && '1' || '0' }}
+        run: |
+          GRILLA_GESTURE_DEVICE=$(cat /tmp/grilla-simulator-id)
+          GRILLA_GESTURE_DRAG=()
+          if test "$GRILLA_DRAG_READY" = 1; then
+            GRILLA_GESTURE_DRAG=(-only-testing:LaGrillaUITests/ArrangementUITests/testClipTapResizeNativeDragAndUndo)
+          fi
+          # If service readiness is unavailable, verify notation independently.
+          # Both cases remain required below: an unobserved drag makes this
+          # diagnostic fail even when notation passes. No cold gesture is retried.
+          python3 scripts/ci/capture_native_gesture.py --device "$GRILLA_GESTURE_DEVICE" --output-dir GestureDiagnostics -- \
+            python3 scripts/ci/run_native.py --timeout-seconds 600 --deadline-env GRILLA_GESTURE_DEADLINE_EPOCH \
+            --scope input-diagnostic --label native-gesture-diagnostic --log gesture-native.log --status gesture-process-status.json \
+            --require-test ArrangementUITests/testClipTapResizeNativeDragAndUndo \
+            --require-test TranspositionUITests/testFlatsAndScaleDegreesPersistWithoutNotationChangingMusic \
+            -- xcodebuild -project LaGrilla.xcodeproj -scheme LaGrilla \
+            -destination "platform=iOS Simulator,id=$GRILLA_GESTURE_DEVICE" \
+            -derivedDataPath DerivedData -resultBundlePath GestureResults.xcresult \
+            "${GRILLA_GESTURE_DRAG[@]}" \
+            -only-testing:LaGrillaUITests/TranspositionUITests/testFlatsAndScaleDegreesPersistWithoutNotationChangingMusic \
+            -test-timeouts-enabled YES -maximum-test-execution-time-allowance 120 \
+            ARCHS="$GRILLA_GESTURE_ARCH" ONLY_ACTIVE_ARCH=YES CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO test-without-building
+      - name: Export original native attachments
+        if: always()
+        timeout-minutes: 2
+        run: |
+          if test -d GestureResults.xcresult; then
+            xcrun xcresulttool export attachments --path GestureResults.xcresult --output-path GestureAttachments
+          fi
+      - name: Preserve crash reports and original partial device diagnostics
+        if: always()
+        timeout-minutes: 2
+        run: |
+          mkdir -p GestureCrashReports
+          find "$HOME/Library/Logs/DiagnosticReports" -iname '*LaGrilla*' -exec cp {} GestureCrashReports/ \; || true
+          python3 - <<'PY'
+          import pathlib,subprocess
+          device_file=pathlib.Path('/tmp/grilla-simulator-id')
+          if device_file.exists():
+              with pathlib.Path('gesture-device-last-window.log').open('wb') as output:
+                  try:
+                      subprocess.run(['xcrun','simctl','spawn',device_file.read_text().strip(),'log','show','--last','15m','--style','compact','--predicate','process == "LaGrilla" OR process == "druid" OR subsystem CONTAINS[c] "DragUI" OR subsystem CONTAINS[c] "DragDrop"'],stdout=output,stderr=subprocess.STDOUT,timeout=45)
+                  except (subprocess.TimeoutExpired,OSError):
+                      # The actual partial bytes remain unchanged in the file.
+                      pass
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        timeout-minutes: 3
+        with:
+          name: native-gesture-diagnostic-originals
+          path: |
+            gesture-source.json
+            gesture-build.log
+            gesture-simulator.log
+            gesture-native.log
+            gesture-process-status.json
+            gesture-device-last-window.log
+            GestureDiagnostics
+            GestureResults.xcresult
+            GestureAttachments
+            GestureCrashReports
+            ci-audio.log

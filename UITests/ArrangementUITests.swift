@@ -16,11 +16,11 @@ final class ArrangementUITests: XCTestCase {
         let expectation=XCTNSPredicateExpectation(predicate:predicate,object:element)
         XCTAssertEqual(XCTWaiter.wait(for:[expectation],timeout:6),.completed)
     }
-    @MainActor private func drag(_ source:XCUICoordinate,to destination:XCUICoordinate){
+    @MainActor private func drag(_ source:XCUICoordinate,to destination:XCUICoordinate,liftHold:TimeInterval=1.2){
         // Give UIKit time to lift the native Transferable before moving, then
         // dwell over the receiver. A 0.6s press with immediate release raced the
         // lift/target registration in the recorded iOS 26 simulator run.
-        source.press(forDuration:1.2,thenDragTo:destination,withVelocity:.slow,thenHoldForDuration:0.6)
+        source.press(forDuration:liftHold,thenDragTo:destination,withVelocity:.slow,thenHoldForDuration:0.6)
     }
     @MainActor private func waitForClipPosition(_ clip:XCUIElement,x:CGFloat,length:String,in app:XCUIApplication){
         // Releasing the native gesture precedes asynchronous String item loading
@@ -38,6 +38,52 @@ final class ArrangementUITests: XCTestCase {
         XCTAssertEqual(result,.completed,"Clip did not settle at x=\(x), length=\(length); actual frame=\(clip.frame), value=\(String(describing:clip.value))")
     }
 
+    private struct TimelineObservation {
+        let viewport:CGRect
+        let third:CGRect
+        let fourth:CGRect
+        let zoom:String
+        let transport:String
+        let snapshotMilliseconds:Double
+
+        var barWidth:CGFloat {fourth.minX-third.minX}
+
+        var hasFiniteGeometry:Bool {
+            [viewport,third,fourth].allSatisfy{frame in
+                frame.minX.isFinite && frame.minY.isFinite && frame.maxX.isFinite && frame.maxY.isFinite
+                    && frame.width>0 && frame.height>0
+            }
+        }
+
+        var geometryDescription:String {
+            "Viewport=\(viewport), ruler03=\(third), ruler04=\(fourth), actualBarWidth=\(barWidth), snapshotMilliseconds=\(snapshotMilliseconds), finiteGeometry=\(hasFiniteGeometry)"
+        }
+    }
+
+    @MainActor private func timelineObservation(in app:XCUIApplication)->TimelineObservation? {
+        // Public XCUIElementSnapshotProviding API: one immutable hierarchy per
+        // observation. Four separate AX queries could consume the entire six-
+        // second waiter and mix valid ruler frames with an incomplete viewport.
+        let began=ProcessInfo.processInfo.systemUptime
+        guard let root=try? app.snapshot()else{return nil}
+        let elapsed=(ProcessInfo.processInfo.systemUptime-began)*1000
+        var pending:[any XCUIElementSnapshot]=[root]
+        var viewport:CGRect?,third:CGRect?,fourth:CGRect?,zoom:String?,transport:String?
+        while let node=pending.popLast(){
+            switch node.identifier {
+            case "grid.timeline" where node.elementType == .scrollView:viewport=node.frame
+            case "grid.bar.2" where node.elementType == .staticText:third=node.frame
+            case "grid.bar.3" where node.elementType == .staticText:fourth=node.frame
+            case "grid.zoom-diagnostics" where node.elementType == .staticText:zoom=node.value as? String
+            case "perform.transport" where node.elementType == .button:transport=node.value as? String
+            default:break
+            }
+            pending.append(contentsOf:node.children)
+        }
+        guard let viewport,let third,let fourth,let zoom,let transport else{return nil}
+        return TimelineObservation(viewport:viewport,third:third,fourth:fourth,zoom:zoom,transport:transport,snapshotMilliseconds:elapsed)
+    }
+
     @MainActor func testPinchRetainsScrolledMusicalCenterWithoutEditingOrStopping()throws {
         let app=launch(runtimeTrace:true)
         let timeline=app.scrollViews["grid.timeline"]
@@ -49,7 +95,9 @@ final class ArrangementUITests: XCTestCase {
         XCTAssertTrue(third.waitForExistence(timeout:5));XCTAssertTrue(fourth.waitForExistence(timeout:5))
         let clipID=clip.identifier,length=clip.value as? String
         XCTAssertEqual(length,"4.00 bars");XCTAssertFalse(app.buttons["Undo"].isEnabled)
-        let initialClip=clip.frame,initialThird=third.frame,initialFourth=fourth.frame
+        let initial=try XCTUnwrap(timelineObservation(in:app))
+        XCTAssertTrue(initial.hasFiniteGeometry)
+        let initialClip=clip.frame,initialThird=initial.third,initialFourth=initial.fourth
         let initialWidth=initialFourth.minX-initialThird.minX
         XCTAssertGreaterThan(initialWidth,0)
         let transport=app.buttons["perform.transport"]
@@ -68,16 +116,21 @@ final class ArrangementUITests: XCTestCase {
         // Drag the ruler to establish a real nonzero horizontal offset. Fully
         // visible ruler landmarks avoid assumptions about offscreen clip AX
         // clipping or hittability. Their leading-edge delta is the bar width.
-        let ruler=timeline.coordinate(withNormalizedOffset:.zero).withOffset(CGVector(dx:timeline.frame.width*0.75,dy:14))
+        let ruler=timeline.coordinate(withNormalizedOffset:.zero).withOffset(CGVector(dx:initial.viewport.width*0.75,dy:14))
         ruler.press(forDuration:0.05,thenDragTo:ruler.withOffset(CGVector(dx:-initialWidth,dy:0)),withVelocity:.slow,thenHoldForDuration:0.4)
+        var panObservation:TimelineObservation?
         let panSettled=XCTWaiter.wait(for:[XCTNSPredicateExpectation(predicate:NSPredicate{_,_ in
-            let a=third.frame,b=fourth.frame,view=timeline.frame
+            guard let observed=self.timelineObservation(in:app)else{return false}
+            panObservation=observed
+            guard observed.hasFiniteGeometry else{return false}
+            let a=observed.third,b=observed.fourth,view=observed.viewport
             return a.minX<initialThird.minX-40 && a.minX>=view.minX && b.maxX<=view.maxX+1
         },object:third)],timeout:6)
-        let scrolledThird=third.frame,scrolledFourth=fourth.frame,viewFrame=timeline.frame
-        let panReceipt=XCTAttachment(string:"Settle result=\(panSettled)\nViewport=\(viewFrame)\nRuler03=\(initialThird) → \(scrolledThird), ruler04=\(initialFourth) → \(scrolledFourth)\nClip=\(initialClip) → \(clip.frame), hittable=\(clip.isHittable)\n\(transport.value as? String ?? "Missing runtime trace")")
+        let panReceipt=XCTAttachment(string:"Settle result=\(panSettled)\nInitial ruler03=\(initialThird), ruler04=\(initialFourth), clip=\(initialClip)\nLast coherent observation: \(panObservation?.geometryDescription ?? "Missing snapshot")\nClip=\(clip.frame), hittable=\(clip.isHittable)\n\(panObservation?.transport ?? "Missing runtime trace")")
         panReceipt.name="Anchored-pinch actual ruler pan";panReceipt.lifetime = .keepAlways;add(panReceipt)
         XCTAssertEqual(panSettled,.completed)
+        let scrolled=try XCTUnwrap(panObservation)
+        let scrolledThird=scrolled.third,scrolledFourth=scrolled.fourth,viewFrame=scrolled.viewport
         let widthBefore=scrolledFourth.minX-scrolledThird.minX
         XCTAssertGreaterThan(widthBefore,0)
         XCTAssertLessThan(scrolledThird.minX,initialThird.minX-40)
@@ -93,8 +146,12 @@ final class ArrangementUITests: XCTestCase {
         // value is independent of the timeline's hosted native clip controls.
         timeline.pinch(withScale:1.1,velocity:1)
         var firstInput="",firstAnchorX=CGFloat.nan,barsBefore=CGFloat.nan
+        var firstObservation:TimelineObservation?
         let enlargedSettled=XCTWaiter.wait(for:[XCTNSPredicateExpectation(predicate:NSPredicate{_,_ in
-            firstInput=zoomDiagnostics.value as? String ?? ""
+            guard let observed=self.timelineObservation(in:app)else{return false}
+            firstObservation=observed
+            firstInput=observed.zoom
+            guard observed.hasFiniteGeometry else{return false}
             guard number("id",line:"BEGIN",in:firstInput)==1,
                   number("id",line:"REQUEST",in:firstInput)==1,
                   number("id",line:"ACK",in:firstInput)==1,
@@ -102,25 +159,31 @@ final class ArrangementUITests: XCTestCase {
                   let rawWidth=number("viewportWidth",line:"BEGIN",in:firstInput),abs(rawWidth-Double(viewFrame.width))<=0.5 else{return false}
             firstAnchorX=viewFrame.minX+CGFloat(unit)*viewFrame.width
             barsBefore=2+(firstAnchorX-scrolledThird.minX)/widthBefore
-            let a=third.frame,b=fourth.frame,view=timeline.frame,width=b.minX-a.minX
+            let a=observed.third,b=observed.fourth,view=observed.viewport,width=b.minX-a.minX
             guard width>0 else{return false}
             let center=2+(firstAnchorX-a.minX)/width
             return width>widthBefore*1.2 && abs(center-barsBefore)<=0.04 && a.minX>=view.minX && b.maxX<=view.maxX+1
         },object:third)],timeout:6)
-        let enlargedThird=third.frame,enlargedFourth=fourth.frame
-        let enlargedWidth=enlargedFourth.minX-enlargedThird.minX
-        let barsEnlarged=2+(firstAnchorX-enlargedThird.minX)/enlargedWidth
-        let firstReceipt=XCTAttachment(string:"Settle result=\(enlargedSettled)\nViewport=\(viewFrame) → \(timeline.frame), ruler03=\(scrolledThird) → \(enlargedThird), ruler04=\(scrolledFourth) → \(enlargedFourth)\nRaw-input global anchorX=\(firstAnchorX), actual bar widths=\(widthBefore) → \(enlargedWidth), anchor bars=\(barsBefore) → \(barsEnlarged)\n\(firstInput)\n\(transport.value as? String ?? "Missing runtime trace")")
+        let observedFirstBars=firstObservation.map{2+(firstAnchorX-$0.third.minX)/$0.barWidth}
+        let firstReceipt=XCTAttachment(string:"Settle result=\(enlargedSettled)\nBefore viewport=\(viewFrame), ruler03=\(scrolledThird), ruler04=\(scrolledFourth)\nLast coherent observation: \(firstObservation?.geometryDescription ?? "Missing snapshot")\nRaw-input global anchorX=\(firstAnchorX), prior bar width=\(widthBefore), anchor bars=\(barsBefore) → \(observedFirstBars.map{String(describing:$0)} ?? "Missing snapshot")\n\(firstInput)\n\(firstObservation?.transport ?? "Missing runtime trace")")
         firstReceipt.name="Anchored-pinch first actual geometry";firstReceipt.lifetime = .keepAlways;add(firstReceipt)
         XCTAssertEqual(enlargedSettled,.completed)
+        let enlarged=try XCTUnwrap(firstObservation)
+        let enlargedThird=enlarged.third,enlargedFourth=enlarged.fourth
+        let enlargedWidth=enlargedFourth.minX-enlargedThird.minX
+        let barsEnlarged=2+(firstAnchorX-enlargedThird.minX)/enlargedWidth
         XCTAssertEqual(barsEnlarged,barsBefore,accuracy:0.04,"The real musical point under the actual finger anchor moved")
-        let secondViewport=timeline.frame
+        let secondViewport=enlarged.viewport
         // A second gesture has its own physical anchor, which need not match
         // the first. Freeze that gesture's before-frames before performing it.
         timeline.pinch(withScale:0.75,velocity:-1)
         var secondInput="",secondAnchorX=CGFloat.nan,secondBarsBefore=CGFloat.nan
+        var secondObservation:TimelineObservation?
         let reducedSettled=XCTWaiter.wait(for:[XCTNSPredicateExpectation(predicate:NSPredicate{_,_ in
-            secondInput=zoomDiagnostics.value as? String ?? ""
+            guard let observed=self.timelineObservation(in:app)else{return false}
+            secondObservation=observed
+            secondInput=observed.zoom
+            guard observed.hasFiniteGeometry else{return false}
             guard number("id",line:"BEGIN",in:secondInput)==2,
                   number("id",line:"REQUEST",in:secondInput)==2,
                   number("id",line:"ACK",in:secondInput)==2,
@@ -128,18 +191,23 @@ final class ArrangementUITests: XCTestCase {
                   let rawWidth=number("viewportWidth",line:"BEGIN",in:secondInput),abs(rawWidth-Double(secondViewport.width))<=0.5 else{return false}
             secondAnchorX=secondViewport.minX+CGFloat(unit)*secondViewport.width
             secondBarsBefore=2+(secondAnchorX-enlargedThird.minX)/enlargedWidth
-            let a=third.frame,b=fourth.frame,view=timeline.frame,width=b.minX-a.minX
+            let a=observed.third,b=observed.fourth,view=observed.viewport,width=b.minX-a.minX
             guard width>0 else{return false}
             let center=2+(secondAnchorX-a.minX)/width
             return width<enlargedWidth*0.9 && abs(center-secondBarsBefore)<=0.04 && a.minX>=view.minX && b.maxX<=view.maxX+1
         },object:third)],timeout:6)
-        let reducedThird=third.frame,reducedFourth=fourth.frame
-        let reducedWidth=reducedFourth.minX-reducedThird.minX
-        let barsReduced=2+(secondAnchorX-reducedThird.minX)/reducedWidth
+        let observedSecondBars=secondObservation.map{2+(secondAnchorX-$0.third.minX)/$0.barWidth}
+        // The public hierarchy snapshot truncates long accessibility values
+        // to 512 characters on the verified runtime. Keep its coherent geometry,
+        // then read the complete live value for the post-gesture DSP invariants.
         let afterTrace=try XCTUnwrap(transport.value as? String)
-        let repeatedReceipt=XCTAttachment(string:"Settle result=\(reducedSettled)\nViewport=\(secondViewport) → \(timeline.frame), ruler03=\(enlargedThird) → \(reducedThird), ruler04=\(enlargedFourth) → \(reducedFourth)\nRaw-input global anchorX=\(secondAnchorX), actual bar widths=\(enlargedWidth) → \(reducedWidth), anchor bars=\(secondBarsBefore) → \(barsReduced)\n\(secondInput)\nBEFORE\n\(beforeTrace)\nAFTER\n\(afterTrace)")
+        let repeatedReceipt=XCTAttachment(string:"Settle result=\(reducedSettled)\nBefore viewport=\(secondViewport), ruler03=\(enlargedThird), ruler04=\(enlargedFourth)\nLast coherent observation: \(secondObservation?.geometryDescription ?? "Missing snapshot")\nRaw-input global anchorX=\(secondAnchorX), prior bar width=\(enlargedWidth), anchor bars=\(secondBarsBefore) → \(observedSecondBars.map{String(describing:$0)} ?? "Missing snapshot")\n\(secondInput)\nBEFORE\n\(beforeTrace)\nSNAPSHOT TRANSPORT PREVIEW\n\(secondObservation?.transport ?? "Missing runtime trace")\nAFTER FULL LIVE VALUE\n\(afterTrace)")
         repeatedReceipt.name="Anchored-pinch repeated actual geometry";repeatedReceipt.lifetime = .keepAlways;add(repeatedReceipt)
         XCTAssertEqual(reducedSettled,.completed)
+        let reduced=try XCTUnwrap(secondObservation)
+        let reducedThird=reduced.third,reducedFourth=reduced.fourth
+        let reducedWidth=reducedFourth.minX-reducedThird.minX
+        let barsReduced=2+(secondAnchorX-reducedThird.minX)/reducedWidth
         XCTAssertEqual(barsReduced,secondBarsBefore,accuracy:0.04)
         XCTAssertGreaterThanOrEqual(reducedWidth,68-0.000001);XCTAssertLessThanOrEqual(reducedWidth,640+0.000001)
         XCTAssertEqual(clip.identifier,clipID);XCTAssertEqual(clip.value as? String,length)
@@ -175,7 +243,10 @@ final class ArrangementUITests: XCTestCase {
         let initialX=clip.frame.minX,bar=clip.frame.width+6
         XCTAssertLessThan(bar,app.windows.firstMatch.frame.width/2,"Clip accessibility frame must match the one-bar clip, not its entire lane")
         let finger=clip.coordinate(withNormalizedOffset:CGVector(dx:0.4,dy:0.5))
-        drag(finger,to:finger.withOffset(CGVector(dx:bar,dy:0)))
+        // With verified DragUI readiness, test the original natural lift hold.
+        // The b07 lift cancelled at 4.138s while a five-second hold was still
+        // stationary; keep every drop assertion unchanged for this experiment.
+        drag(finger,to:finger.withOffset(CGVector(dx:bar,dy:0)),liftHold:1.2)
         waitForClipPosition(clip,x:initialX+bar,length:"1.00 bars",in:app)
         XCTAssertGreaterThan(clip.frame.minX,initialX+bar*0.5)
         XCTAssertEqual(clip.frame.minX,initialX+bar,accuracy:3)

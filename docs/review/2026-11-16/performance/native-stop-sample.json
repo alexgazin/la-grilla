@@ -1,0 +1,54 @@
+[
+  {
+    "provenance": {
+      "artifactMember": "TestResults.xcresult/Data/data.0~69LevVuqRyprabIGGYOSNfzQJe6r0bd9Z7tS9Nfc6c0WTS9I1gzqHOTagiec4zpzCkowDgpfItKdSe31-2Qrmw==",
+      "rawSHA256": "60ef07901d1b4c688969d4e9401654a19d414f4e8262083be3467647da9c9f08",
+      "rawByteCount": 719,
+      "recovered": "RecoveredNativeData/data.0~69LevVuqRyprabIGGYOSNfzQJe6r0bd9Z7tS9Nfc6c0WTS9I1gzqHOTagiec4zpzCkowDgpfItKdSe31-2Qrmw==.txt",
+      "sha256": "4c8b9c178c5834a94a9b4664895a7381aff5be46b504e4ac6cf0c8c7f7e055a8",
+      "byteCount": 1423,
+      "kind": "txt",
+      "decodesAsJSON": true
+    },
+    "document": {
+      "diagnostic": {
+        "error": "No speech detected",
+        "everStartedCapture": true,
+        "finalizing": false,
+        "inputStopMetrics": {
+          "elapsedMilliseconds": 375.913167,
+          "outputRestorationMilliseconds": 374.511291,
+          "tapRemovalMilliseconds": 1.333417,
+          "workerDrainMilliseconds": 0.037833
+        },
+        "microphonePermission": "granted",
+        "receivedFrames": 919426,
+        "recording": false,
+        "requesting": false,
+        "speechAuthorization": "authorized",
+        "speechAvailable": true,
+        "speechErrorCode": 1110,
+        "speechErrorDomain": "kAFAssistantErrorDomain",
+        "stopSynchronousMilliseconds": 376.058417,
+        "supportsOnDeviceSpeech": true
+      },
+      "observedSystemPrompts": [
+        "\u201cLa Grilla\u201d would like to access the Microphone. \u201cLa Grilla\u201d would like to access the Microphone. Record a spoken command or a short melody you choose to capture. Microphone access starts only when you tap Record or Dictate.",
+        "\u201cLa Grilla\u201d would like to access Speech Recognition. \u201cLa Grilla\u201d would like to access Speech Recognition. Speech data from this app will be sent to Apple to process your requests. This will also help Apple improve its speech recognition technology.\n\nTurn your spoken commands into editable text using on-device speech recognition when supported."
+      ],
+      "successfulTranscriptionClaimed": false
+    },
+    "textPrefix": null,
+    "attachmentAssociation": {
+      "name": "AuthorizedInput-real-granted-Speech-completion",
+      "filename": "AuthorizedInput-real-granted-Speech-completion_0_CC4C8FC7-1786-4276-B3C3-B6A689823873.txt",
+      "timestamp": "2026-11-16T14:32:17.649+0000",
+      "testIdentifier": "AuthorizedMicrophoneTests/testGrantedSpeechCallbackAndOutputOnlyAssistantRemainUsable",
+      "owningTestOutcome": "PASS",
+      "owningTestDurationSeconds": 118.491,
+      "decodedActivity": "RecoveredNativeData/data.0~hvKeevJhPIYmKCJepNRz5sunjD2CscI4MjEWTZdwMJZ48EYmiYcv3Xg9L6a9MctcBCHOm3_jlsyf-mrzZPCuyg==.txt",
+      "decodedActivitySHA256": "749323bdc90ad539abde59dc98374de0d408e3e5e23ee55b745543e5e6b78aef",
+      "associationMethod": "Original decoded activity records this name and exact payloadRef within the identified test summary; no synthesized attachment data."
+    }
+  }
+]

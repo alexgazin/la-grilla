@@ -67,3 +67,11 @@ python3 docs/review/2026-11-16/performance/metadata-reprofile.py --mode metadata
 Чтобы измерить опубликованный финальный commit вместо исторического AFTER, передайте `--source-ref <полный-SHA>` в metadata mode. Runner прочитает только committed source; незакоммиченные правки текущего checkout не попадут в этот результат. Требуются API `listSummaries()`/`summary(id)`; старый commit без них будет отклонен.
 
 Новые receipt/log/provenance записываются только во внешний output. Receipt-only constants адаптируются под фактические Swift/architecture/source status; отдельный hash фиксирует скомпилированную копию harness. Операции, число samples и assertions сохраняются. Исторические receipts и исходные `/tmp` артефакты runner не изменяет.
+
+## Измеренный Stop в Simulator, source fefa036
+
+[Оригинальное наблюдение с lossless-payload provenance](native-stop-sample.json) восстановлено из full run [43879719282](https://github.com/alexgazin/la-grilla/actions/runs/43879719282), artifact `ios-verification`14236480842 (102125974bytes). Весь run **CANCELLED** при переходе к исправленной версии; owning method `AuthorizedMicrophoneTests/testGrantedSpeechCallbackAndOutputOnlyAssistantRemainUsable` успел завершиться **PASS,118.491s**. Связь payloadRef с исходным activity/test summary и SHA записана в JSON.
+
+Один настоящий sample: Stop synchronous376.058ms; cleanup375.913ms, из них tap removal1.333ms, serial worker drain0.0378ms, output restoration374.511ms. Это elapsed wall-clock, не CPU time. В этом sample многосекундная блокировка workerDrain не наблюдалась; основная цена — восстановление I/O. По нему нельзя обещать phone latency или переносить AVAudioEngine на произвольную очередь.
+
+Speech получил919426реальных PCM frames, оба разрешения предоставлены; результат NoSpeech1110. Успешная человеческая транскрипция, hardware gap/indicator и полный software gate не заявляются.

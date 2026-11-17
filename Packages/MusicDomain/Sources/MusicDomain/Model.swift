@@ -78,19 +78,28 @@ public enum Quality: String, Codable, CaseIterable, Sendable {
     public var label: String { NSLocalizedString(self == .major ? "Major" : self == .minor ? "Minor" : rawValue,comment:"Chord quality") }
 }
 public struct Chord: Codable, Equatable, Sendable {
-    public var root: Int; public var quality: Quality; public var inversion: Int
-    public var slashBass:Int?;public var voicedNotes:[Int]?
+    public var root: Int {didSet{if root != oldValue{rootBassPitch=nil;rootSpelling=nil}}}
+    public var quality: Quality; public var inversion: Int
+    public var slashBass:Int? {didSet{if slashBass != oldValue{rootBassPitch=nil;slashBassSpelling=nil};if slashBass==nil{slashBassSpelling=nil}}}
+    public var voicedNotes:[Int]?
+    /// Schema 9: exact generated-bass MIDI pitch after arrangement transposition.
+    /// Nil uses the legacy root/register rule; changing root/slash clears the override.
+    public var rootBassPitch:Int?
+    /// Schema 10: selected written letter/accidental. Nil means the legacy data
+    /// never retained it; Auto then derives a display name from the project key.
+    public var rootSpelling:String?
+    public var slashBassSpelling:String?
     public var customIntervals:[Int]?
     public static let maximumVoices=9 // Eight formula tones plus an explicit slash bass.
-    public init(root: Int = 0, quality: Quality = .major, inversion: Int = 0,slashBass:Int?=nil,voicedNotes:[Int]?=nil,customIntervals:[Int]?=nil) { self.root = root; self.quality = customIntervals==nil ? quality:.major; self.inversion = inversion;self.slashBass=slashBass;self.voicedNotes=voicedNotes;self.customIntervals=customIntervals }
+    public init(root: Int = 0, quality: Quality = .major, inversion: Int = 0,slashBass:Int?=nil,voicedNotes:[Int]?=nil,customIntervals:[Int]?=nil,rootBassPitch:Int?=nil,rootSpelling:String?=nil,slashBassSpelling:String?=nil) { self.root = root; self.quality = customIntervals==nil ? quality:.major; self.inversion = inversion;self.slashBass=slashBass;self.voicedNotes=voicedNotes;self.customIntervals=customIntervals;self.rootBassPitch=rootBassPitch;self.rootSpelling=rootSpelling.map{ChordWriting.canonical($0) ?? $0};self.slashBassSpelling=slashBassSpelling.map{ChordWriting.canonical($0) ?? $0} }
     public static let roots = ["C", "C♯", "D", "E♭", "E", "F", "F♯", "G", "A♭", "A", "B♭", "B"]
     public var effectiveIntervals:[Int]{customIntervals ?? quality.intervals}
     public var requiredVoicingIntervals:[Int]{customIntervals ?? quality.requiredVoicingIntervals}
     public var symbol: String {
-        let rootName=Self.roots[(root % 12 + 12) % 12]
+        let rootName=ChordWriting.name(rootSpelling,for:root) ?? Self.roots[(root % 12 + 12) % 12]
         let suffix:String
         if let customIntervals{suffix="{"+customIntervals.map(String.init).joined(separator:",")+"}"}else{suffix=quality.rawValue}
-        let bassName=slashBass.map{"/"+Self.roots[($0%12+12)%12]} ?? ""
+        let bassName=slashBass.map{"/"+(ChordWriting.name(slashBassSpelling,for:$0) ?? Self.roots[($0%12+12)%12])} ?? ""
         return rootName+suffix+bassName
     }
     public var notes: [Int] {
@@ -133,28 +142,35 @@ public struct Chord: Codable, Equatable, Sendable {
     }
     public func validate()throws {
         guard (0..<12).contains(root),Self.validIntervals(effectiveIntervals),(0..<effectiveIntervals.count).contains(inversion),customIntervals==nil || quality == .major,
-              slashBass==nil || (0..<12).contains(slashBass!),isValidVoicing(notes) else{throw MusicError.invalidChord}
+              slashBass==nil || (0..<12).contains(slashBass!),
+              ChordWriting.valid(rootSpelling,for:root),
+              slashBassSpelling==nil || (slashBass != nil && ChordWriting.valid(slashBassSpelling,for:slashBass!)),
+              rootBassPitch==nil || ((0...127).contains(rootBassPitch!) && rootBassPitch!%12 == (slashBass ?? root)),isValidVoicing(notes) else{throw MusicError.invalidChord}
     }
     public static func parse(_ text: String) throws -> Chord {
         guard text.utf8.count<=256 else{throw MusicError.invalidChord}
         let value=text.trimmingCharacters(in:.whitespacesAndNewlines).replacingOccurrences(of:"♯",with:"#").replacingOccurrences(of:"♭",with:"b").replacingOccurrences(of:"−",with:"-")
-        func pitch(_ raw:String)throws->(Int,String){
+        func pitch(_ raw:String)throws->(Int,String,String){
             guard let first=raw.first,let base=["C":0,"D":2,"E":4,"F":5,"G":7,"A":9,"B":11][String(first).uppercased()]else{throw MusicError.invalidChord}
-            var suffix=String(raw.dropFirst()),root=base
-            if suffix.hasPrefix("#"){root+=1;suffix.removeFirst()}else if suffix.hasPrefix("b"){root-=1;suffix.removeFirst()}
-            return ((root+12)%12,suffix.trimmingCharacters(in:.whitespaces))
+            var suffix=String(raw.dropFirst()),root=base,writing=String(first).uppercased()
+            if suffix.hasPrefix("#") || suffix.hasPrefix("b") {
+                let accidental=suffix.first!,offset=accidental=="#" ? 1:-1
+                var count=0
+                while suffix.first==accidental,count<2{root+=offset;writing.append(accidental=="#" ? "♯":"♭");suffix.removeFirst();count+=1}
+            }
+            return ((root+12)%12,writing,suffix.trimmingCharacters(in:.whitespaces))
         }
-        let (root,rawSuffix)=try pitch(value);var suffix=rawSuffix
-        var bass:Int?
+        let (root,rootWriting,rawSuffix)=try pitch(value);var suffix=rawSuffix
+        var bass:Int?,bassWriting:String?
         // A slash inside 6/9 belongs to the quality; a final /note is the bass.
         if let slash=suffix.lastIndex(of:"/") {
             let tail=String(suffix[suffix.index(after:slash)...]).trimmingCharacters(in:.whitespaces)
-            if let (note,remainder)=try? pitch(tail),remainder.isEmpty{bass=note;suffix=String(suffix[..<slash]).trimmingCharacters(in:.whitespaces)}
+            if let (note,writing,remainder)=try? pitch(tail),remainder.isEmpty{bass=note;bassWriting=writing;suffix=String(suffix[..<slash]).trimmingCharacters(in:.whitespaces)}
         }
         if suffix.hasPrefix("{") {
             guard suffix.hasSuffix("}")else{throw MusicError.invalidChord}
             let formula=try parseCustomIntervals(String(suffix.dropFirst().dropLast()))
-            let chord=Chord(root:root,slashBass:bass,customIntervals:formula);try chord.validate();return chord
+            let chord=Chord(root:root,slashBass:bass,customIntervals:formula,rootSpelling:rootWriting,slashBassSpelling:bassWriting);try chord.validate();return chord
         }
         suffix=suffix.filter{!$0.isWhitespace}
         if suffix.contains("(") || suffix.contains(")") {
@@ -178,7 +194,7 @@ public struct Chord: Codable, Equatable, Sendable {
             ,"minmaj7":.minorMajor7,"minmaj9":.minorMajor9,"minmaj11":.minorMajor11,"minmaj13":.minorMajor13
         ]
         guard let quality=Quality(rawValue:suffix) ?? aliases[suffix] ?? Quality.allCases.first(where:{$0.rawValue.lowercased()==suffix.lowercased()}) ?? aliases[suffix.lowercased()] else{throw MusicError.invalidChord}
-        let chord=Chord(root:root,quality:quality,slashBass:bass);try chord.validate();return chord
+        let chord=Chord(root:root,quality:quality,slashBass:bass,rootSpelling:rootWriting,slashBassSpelling:bassWriting);try chord.validate();return chord
     }
 }
 public struct ChordEvent: Codable, Equatable, Identifiable, Sendable {
@@ -214,7 +230,7 @@ public struct Section: Codable, Equatable, Identifiable, Sendable {
     public init(name: String, start: Int = 0, length: Int) { self.name = name; self.start = start; self.length = length }
 }
 public struct Project: Codable, Equatable, Identifiable, Sendable {
-    public var id: UUID = UUID(); public static let currentSchemaVersion=8
+    public var id: UUID = UUID(); public static let currentSchemaVersion=11
     /// Portable, nonnegative revision IDs. Exhaustion requires a new project
     /// copy rather than wrapping an ID used by history, saving and playback.
     public static let maximumRevision=Int(Int32.max)
@@ -226,6 +242,9 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
     public var performanceTake:PerformanceTake?{get{performanceTakes?.first}set{performanceTakes=newValue.map{[$0]}}}
     public var audioAssets:[AudioAssetRecord]?
     public var midi:MIDISettings?
+    /// Legacy register for implicit root bass. To change it in an existing project,
+    /// use MusicalEditing.setBassRegister: explicit rootBassPitch values are absolute
+    /// and must be shifted atomically as well; raw field assignment does not do that.
     public var bassOctave = 0; public var bassGate = 0.9; public var master: Double = -3
     public var length: Int { sections.reduce(0) { total, section in let (sum, overflow) = total.addingReportingOverflow(section.length); return overflow ? Int.max : sum } }
     public var keyName: String { Chord.roots[keyRoot] + " " + NSLocalizedString(minor ? "minor":"major",comment:"Key mode") }
@@ -282,7 +301,7 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
             for e in p.drums { guard e.tick >= 0, e.tick < p.length, (0..<16).contains(e.pad), (1...127).contains(e.velocity) else { throw MusicError.invalidProject } }
         }
         for t in tracks {
-            guard (t.name==nil || (!t.name!.isEmpty && t.name!.count<=40)), t.gain.isFinite, (-61...6).contains(t.gain), t.pan.isFinite, (-1...1).contains(t.pan), (1...2).contains(t.presetVersion) else { throw MusicError.invalidProject }
+            guard (t.name==nil || (!t.name!.isEmpty && t.name!.count<=40)), t.gain.isFinite, (-61...6).contains(t.gain), t.pan.isFinite, (-1...1).contains(t.pan), SoundPalette(rawValue:t.presetVersion) != nil else { throw MusicError.invalidProject }
             var end = 0
             for c in t.clips.sorted(by: {$0.start < $1.start}) {
                 guard c.start >= end, c.start < length, c.length > 0, c.length <= length, c.start + c.length <= length, c.offset >= 0, let p = patterns.first(where: {$0.id == c.patternID}), c.offset < p.length else { throw MusicError.invalidProject }
@@ -353,15 +372,37 @@ public enum Quantize: Int, CaseIterable, Sendable { case off = 0, eighth = 480, 
 }
 public struct History: Sendable {
     private var past: [Project] = []; private var future: [Project] = []
+    /// One bounded value/COW certificate, obtained only by full validation.
+    /// Never reduce this to a revision/ID pair: callers can mutate values directly.
+    private var fullyValidatedProject:Project?
     public init() {}
     public var canUndo: Bool { !past.isEmpty }; public var canRedo: Bool { !future.isEmpty }
     public mutating func apply(_ project: inout Project, coalescing: Bool = false, _ change: (inout Project) throws -> Void) throws {
         guard let revision=project.nextRevision else{throw MusicError.revisionLimit}
         var candidate = project; try change(&candidate); candidate.revision = revision; candidate.modified = Date(); try candidate.validate()
-        if !coalescing || past.isEmpty { past.append(project) }; if past.count > 80 { past.removeFirst() }; future.removeAll(); project = candidate
+        commit(candidate,replacing:&project,coalescing:coalescing)
     }
-    public mutating func undo(_ project: inout Project) { guard let revision=project.nextRevision,var p = past.last else { return };past.removeLast(); future.append(project); p.revision = revision; p.modified = Date(); project = p }
-    public mutating func redo(_ project: inout Project) { guard let revision=project.nextRevision,var p = future.last else { return };future.removeLast(); past.append(project); p.revision = revision; p.modified = Date(); project = p }
+    /// Fast only for certified music plus finite, bounded mix changes. The first
+    /// edit of an unchecked/changed baseline performs the ordinary full validation.
+    public mutating func applyMix(_ project:inout Project,coalescing:Bool=false,_ change:(inout Project)throws->Void)throws {
+        guard let revision=project.nextRevision else{throw MusicError.revisionLimit}
+        if fullyValidatedProject != project {
+            try project.validate()
+            fullyValidatedProject=project
+        }
+        var candidate=project
+        try change(&candidate)
+        candidate.revision=revision;candidate.modified=Date()
+        try MixEditValidation.validateChange(from:project,to:candidate)
+        commit(candidate,replacing:&project,coalescing:coalescing)
+    }
+    private mutating func commit(_ candidate:Project,replacing project:inout Project,coalescing:Bool) {
+        if !coalescing || past.isEmpty { past.append(project) }
+        if past.count>80{past.removeFirst()}
+        future.removeAll();project=candidate;fullyValidatedProject=candidate
+    }
+    public mutating func undo(_ project: inout Project) { guard let revision=project.nextRevision,var p = past.last else { return };past.removeLast(); future.append(project); p.revision = revision; p.modified = Date(); project = p;fullyValidatedProject=nil }
+    public mutating func redo(_ project: inout Project) { guard let revision=project.nextRevision,var p = future.last else { return };future.removeLast(); past.append(project); p.revision = revision; p.modified = Date(); project = p;fullyValidatedProject=nil }
 }
 
 public enum ProjectDocument {
@@ -383,6 +424,9 @@ public enum ProjectDocument {
     private static func migrated(_ value:Project)throws->Project {
         var p=value
         guard (1...Project.currentSchemaVersion).contains(p.schemaVersion)else{throw MusicError.unsupportedSchema}
+        // Schemas through 10 only knew the two original renderer versions.
+        // New palettes require 11 so an older app rejects the document safely.
+        if p.schemaVersion<11,!p.tracks.allSatisfy({(1...2).contains($0.presetVersion)}){throw MusicError.invalidProject}
         if p.schemaVersion==1 {p.schemaVersion=2;for i in p.patterns.indices{if p.patterns[i].notes==nil{p.patterns[i].notes=[]}}}
         if p.schemaVersion==2{p.schemaVersion=3}
         if p.schemaVersion==3{p.schemaVersion=4}
@@ -390,6 +434,9 @@ public enum ProjectDocument {
         if p.schemaVersion==5{p.schemaVersion=6}
         if p.schemaVersion==6{p.schemaVersion=7}
         if p.schemaVersion==7{p.schemaVersion=8}
+        if p.schemaVersion==8{p.schemaVersion=9}
+        if p.schemaVersion==9{p.schemaVersion=10}
+        if p.schemaVersion==10{p.schemaVersion=11}
         if var take=p.performanceTake{take.source=try migrated(take.source);p.performanceTake=take}
         try p.validate();return p
     }

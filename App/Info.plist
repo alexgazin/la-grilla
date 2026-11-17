@@ -90,5 +90,7 @@
 	</array>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<key>NSMotionUsageDescription</key>
+	<string>Use phone tilt to control the live filter or master volume when you enable it.</string>
 </dict>
 </plist>

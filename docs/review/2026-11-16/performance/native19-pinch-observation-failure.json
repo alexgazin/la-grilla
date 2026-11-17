@@ -1,0 +1,46 @@
+{
+  "sourceSHA": "4e85930acf006376f3861d4209bf07ea8bcdcaf0",
+  "runID": 43906210190,
+  "runAttempt": 1,
+  "build": 19,
+  "wholeRun": "14 PASS / 1 assertion FAIL / 1 execution allowance timeout",
+  "processTimedOut": false,
+  "pinchOwningTestOutcome": "failed",
+  "postGestureRuntimeInvariants": "not accepted: snapshot value missing required fields",
+  "receipts": [
+    {
+      "attachment": "ABCF2804-A197-476F-8E8E-BB2663207ADD.txt",
+      "sha256": "fdcb1fcdd6ac4953afd20c43170517cd560b2212f49ade9e3e7461eb6e7af0f0",
+      "waiterCompleted": true,
+      "kind": "pan"
+    },
+    {
+      "attachment": "3AD152C2-548E-4AB1-B8AD-43EE903A85C5.txt",
+      "sha256": "d94b195e9234e3ec4e846da9cab6c953ba3619251848522aa3b74c17ec8234e1",
+      "waiterCompleted": true,
+      "kind": "pinch2",
+      "anchorBefore": 2.6352760402970965,
+      "anchorAfter": 2.6359119572689353,
+      "absoluteAnchorError": 0.0006359169718388458,
+      "unchangedToleranceBars": 0.04,
+      "snapshotValueLength": 512,
+      "snapshotValueEnds": "t=0 inputTransitionMilliseconds=0.0 inputRetiremen",
+      "missingPostGestureFields": [
+        "kernel",
+        "actualClock",
+        "actualPlaying",
+        "pending"
+      ]
+    },
+    {
+      "attachment": "700C91AC-0CDA-4AE8-A4C5-226274338BFB.txt",
+      "sha256": "1e8c219cf8c37d23c923c0b1b97fd5b0a92c4c1f84e37849ca250ae14a9d8246",
+      "waiterCompleted": true,
+      "kind": "pinch1",
+      "anchorBefore": 2.6354166666666665,
+      "anchorAfter": 2.6352760402970965,
+      "absoluteAnchorError": 0.00014062636957001828,
+      "unchangedToleranceBars": 0.04
+    }
+  ]
+}

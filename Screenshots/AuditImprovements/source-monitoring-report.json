@@ -1,0 +1,153 @@
+{
+  "sourceSHA": "f00585461b4ba3453d6f90a7bf479b349d85698f",
+  "build": 19,
+  "projectSchema": 10,
+  "runID": 43890521487,
+  "runAttempt": 1,
+  "jobID": 133380171307,
+  "artifactID": 14238218198,
+  "workflowConclusion": "failure",
+  "wholeSuitePass": false,
+  "explicitPasses": 13,
+  "explicitFailures": 2,
+  "executionAllowanceExceeded": 0,
+  "cases": [
+    {
+      "testIdentifier": "AIAvailabilityTests/testActualUnavailableModelLocallyReviewsJazzAppliesAndUndoesOnce",
+      "outcome": "PASS",
+      "durationSeconds": 114.534
+    },
+    {
+      "testIdentifier": "AIAvailabilityTests/testActualUnavailableModelRecheckPreservesIndependentLanguagesInputAndProject",
+      "outcome": "PASS",
+      "durationSeconds": 64.317
+    },
+    {
+      "testIdentifier": "AudioRuntimeContinuityTests/testAAOutputOnlyLaunchDoesNotRequestMicrophone",
+      "outcome": "PASS",
+      "durationSeconds": 31.898
+    },
+    {
+      "testIdentifier": "AudioRuntimeContinuityTests/testProductionVoiceCaptureCAFAnalysisApplyStoreAndUndo",
+      "outcome": "PASS",
+      "durationSeconds": 23.092
+    },
+    {
+      "testIdentifier": "AudioRuntimeContinuityTests/testSessionMicrophoneLeaseRetainsLiveEngineAndPCM",
+      "outcome": "PASS",
+      "durationSeconds": 9.543
+    },
+    {
+      "testIdentifier": "ChordWritingUITests/testTypedRootAndSlashWritingSurviveUndoRedoAndStoreReopen",
+      "outcome": "PASS",
+      "durationSeconds": 48.918
+    },
+    {
+      "testIdentifier": "FirstResultTests/testAcceptedMIDIInterleavingsKeepLatestWorkAndActiveRetryPreservesDisk",
+      "outcome": "PASS",
+      "durationSeconds": 22.152
+    },
+    {
+      "testIdentifier": "FirstResultTests/testEmptyProjectGuidesFirstChordToRealOutputAndPersists",
+      "outcome": "PASS",
+      "durationSeconds": 73.118
+    },
+    {
+      "testIdentifier": "FirstResultTests/testStarterAndExampleAreAudibleIndependentAndKeepSavedProject",
+      "outcome": "PASS",
+      "durationSeconds": 68.264
+    },
+    {
+      "testIdentifier": "HarmonyCatalogTests/testAlteredNotationAndInvalidFormulaNeverSilentlySave",
+      "outcome": "PASS",
+      "durationSeconds": 29.666
+    },
+    {
+      "testIdentifier": "HarmonyCatalogTests/testCustomFormulaPersistsEveryToneAndIsUndoable",
+      "outcome": "PASS",
+      "durationSeconds": 31.728
+    },
+    {
+      "testIdentifier": "SketchGenerationTests/testEmptyProjectLocalSketchABApplyUndo",
+      "outcome": "PASS",
+      "durationSeconds": 48.199
+    },
+    {
+      "testIdentifier": "SketchGenerationTests/testGeneratedSketchReopensWithRealAudioAndMIDIShare",
+      "outcome": "PASS",
+      "durationSeconds": 73.248
+    },
+    {
+      "testIdentifier": "TranspositionUITests/testFlatsAndScaleDegreesPersistWithoutNotationChangingMusic",
+      "outcome": "FAIL",
+      "durationSeconds": 21.438
+    },
+    {
+      "testIdentifier": "TranspositionUITests/testTransposePreviewCancelApplyLiveUndoRedoAndReopen",
+      "outcome": "FAIL",
+      "durationSeconds": 40.699
+    }
+  ],
+  "nativeProcess": {
+    "argumentCount": 28,
+    "descendantCleanupRequired": false,
+    "effectiveTimeoutSeconds": 1800.0,
+    "elapsedSeconds": 820.2997065830001,
+    "endedAtUTC": "2026-11-16T15:18:44.763136+00:00",
+    "executable": "xcodebuild",
+    "exitCode": 65,
+    "expectedFunctionalTests": [],
+    "functionalInventoryVerified": false,
+    "label": "product-audit-native",
+    "processGroupID": 6456,
+    "receivedSignal": null,
+    "repository": "alexgazin/la-grilla",
+    "requiredTestOutcomes": {
+      "AIAvailabilityTests/testActualUnavailableModelLocallyReviewsJazzAppliesAndUndoesOnce": "passed",
+      "AIAvailabilityTests/testActualUnavailableModelRecheckPreservesIndependentLanguagesInputAndProject": "passed",
+      "AudioRuntimeContinuityTests/testAAOutputOnlyLaunchDoesNotRequestMicrophone": "passed",
+      "AudioRuntimeContinuityTests/testProductionVoiceCaptureCAFAnalysisApplyStoreAndUndo": "passed",
+      "AudioRuntimeContinuityTests/testSessionMicrophoneLeaseRetainsLiveEngineAndPCM": "passed",
+      "ChordWritingUITests/testTypedRootAndSlashWritingSurviveUndoRedoAndStoreReopen": "passed",
+      "FirstResultTests/testAcceptedMIDIInterleavingsKeepLatestWorkAndActiveRetryPreservesDisk": "passed",
+      "FirstResultTests/testEmptyProjectGuidesFirstChordToRealOutputAndPersists": "passed",
+      "FirstResultTests/testStarterAndExampleAreAudibleIndependentAndKeepSavedProject": "passed",
+      "HarmonyCatalogTests/testAlteredNotationAndInvalidFormulaNeverSilentlySave": "passed",
+      "HarmonyCatalogTests/testCustomFormulaPersistsEveryToneAndIsUndoable": "passed",
+      "SketchGenerationTests/testEmptyProjectLocalSketchABApplyUndo": "passed",
+      "SketchGenerationTests/testGeneratedSketchReopensWithRealAudioAndMIDIShare": "passed",
+      "TranspositionUITests/testFlatsAndScaleDegreesPersistWithoutNotationChangingMusic": "failed",
+      "TranspositionUITests/testTransposePreviewCancelApplyLiveUndoRedoAndReopen": "failed"
+    },
+    "runAttempt": "1",
+    "runID": "43890521487",
+    "schemaVersion": 1,
+    "scope": "focused",
+    "scopeStatus": "not-accepted",
+    "sourceSHA": "f00585461b4ba3453d6f90a7bf479b349d85698f",
+    "startedAtUTC": "2026-11-16T15:05:04.787433+00:00",
+    "status": "completed",
+    "subprocessExitCode": 65,
+    "subprocessPID": 6456,
+    "terminationPhase": null,
+    "timedOut": false,
+    "timeoutSeconds": 1800.0
+  },
+  "xcresultFinalized": true,
+  "originalPNGs": [
+    "AuditAttachments/BC0ADF0F-191B-4742-9FC6-856B8E61520D.png",
+    "AuditAttachments/06D5C7DD-4A44-44A2-BBD5-F33FA442259A.png",
+    "AuditAttachments/A9019F43-90AF-48DB-990A-DA7679C38B97.png",
+    "AuditAttachments/D16841BB-FEA1-4DB5-9544-0DA56B13F6FE.png",
+    "AuditAttachments/6BD7D012-846F-45A7-A694-163C9E3099EB.png",
+    "AuditAttachments/1F93CD9B-A80C-40BF-8D9B-C83BFAEA6B19.png",
+    "AuditAttachments/279BFA5E-0F49-442B-A73A-64C09754E83C.png",
+    "AuditAttachments/422407AD-3FD0-4E2E-9CB5-63DCC0CF4787.png",
+    "AuditAttachments/45F03C20-AFC3-49D8-85F1-62B87EC38962.png",
+    "AuditAttachments/307FF9AC-DF2A-4351-B588-984EA7EC6819.png",
+    "AuditAttachments/1830B805-DC30-45EE-AF79-09948C6C6B88.png",
+    "AuditAttachments/493AFC58-67E4-4F0F-8E82-9FF7B3C15204.png"
+  ],
+  "attachmentProvenance": "attachment-provenance.json",
+  "scope": "Simulator/real HAL PCM. No physical phone, actual model generation or human speech transcription acceptance."
+}

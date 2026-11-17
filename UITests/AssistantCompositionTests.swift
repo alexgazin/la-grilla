@@ -65,8 +65,13 @@ final class AssistantCompositionTests:XCTestCase {
         firstChord.tap();XCTAssertTrue(app.textFields["chord.symbol"].waitForExistence(timeout:5))
         XCTAssertEqual(app.textFields["chord.symbol"].value as? String,"C")
     }
-    @MainActor func testIdleProposalEndsOnModeAndLanguageChangesWithoutEditing(){
-        for change in ["mode","language"] {
+    @MainActor func testIdleProposalEndsOnModeChangeWithoutEditing(){
+        verifyIdleProposalEndsWithoutEditing(change:"mode")
+    }
+    @MainActor func testIdleProposalEndsOnLanguageChangeWithoutEditing(){
+        verifyIdleProposalEndsWithoutEditing(change:"language")
+    }
+    @MainActor private func verifyIdleProposalEndsWithoutEditing(change:String){
             let app=launch()
             let state=app.staticTexts["assistant.preview-state"]
             XCTAssertTrue(state.waitForExistence(timeout:5));XCTAssertEqual(state.label,"STOPPED")
@@ -107,7 +112,6 @@ final class AssistantCompositionTests:XCTestCase {
             XCTAssertTrue(app.textFields["chord.symbol"].waitForExistence(timeout:5))
             XCTAssertEqual(app.textFields["chord.symbol"].value as? String,"C")
             app.terminate()
-        }
     }
     @MainActor private func wait(_ element:XCUIElement,_ predicate:NSPredicate){
         XCTAssertEqual(XCTWaiter.wait(for:[XCTNSPredicateExpectation(predicate:predicate,object:element)],timeout:5),.completed)
