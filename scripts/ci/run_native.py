@@ -94,6 +94,7 @@ def run(arguments):
         "effectiveTimeoutSeconds": max(0, effective_limit),
         "timedOut": False, "receivedSignal": None,
         "terminationPhase": None, "descendantCleanupRequired": False,
+        "groupKillDelivered": False,
         "subprocessExitCode": None, "exitCode": None,
         "repository": os.environ.get("GITHUB_REPOSITORY"), "sourceSHA": os.environ.get("GITHUB_SHA"),
         "runID": os.environ.get("GITHUB_RUN_ID"), "runAttempt": os.environ.get("GITHUB_RUN_ATTEMPT"),
@@ -119,10 +120,15 @@ def run(arguments):
 
     def signal_group(number):
         if process is not None:
+            if number == signal.SIGKILL and state["groupKillDelivered"]:
+                return  # Re-signalling an already killed group can be EPERM on macOS.
             try:
                 os.killpg(process.pid, number)
             except ProcessLookupError:
                 pass
+            else:
+                if number == signal.SIGKILL:
+                    state["groupKillDelivered"] = True
 
     with ConsoleMirror(state) as console, log_path.open("wb") as log:
         def diagnostic(message):
@@ -228,10 +234,24 @@ def run(arguments):
             persist()
             return 127
         finally:
-            signal_group(signal.SIGKILL)
+            try:
+                signal_group(signal.SIGKILL)
+            except OSError as cleanup_error:
+                if state.get("exitCode") != 127:
+                    raise
+                # Preserve an already-fatal first error rather than replacing
+                # it with another cleanup exception; never call this success.
+                state.update(cleanupErrorType=type(cleanup_error).__name__, cleanupErrorErrno=cleanup_error.errno)
+                persist()
             if process is not None:
                 process.stdout.close()
-                process.wait(timeout=5)
+                try:
+                    process.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    if state.get("exitCode") != 127:
+                        raise
+                    state["cleanupIncomplete"] = True
+                    persist()
             for number, handler in previous_handlers.items():
                 signal.signal(number, handler)
 

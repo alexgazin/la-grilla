@@ -116,6 +116,67 @@ class NativeSupervisorTests(unittest.TestCase):
         pid = int(self.log.read_text().split("descendant=")[1].splitlines()[0])
         self.assert_process_not_running(pid)
 
+    def invoke_with_group_kill_fault(self, always_denied=False):
+        # Exercise the actual resistant process group. The injected kernel
+        # behavior rejects a second KILL, or every KILL, without changing the
+        # supervisor's timeout, signal escalation or original child script.
+        child = "import signal,time;signal.signal(signal.SIGINT,signal.SIG_IGN);signal.signal(signal.SIGTERM,signal.SIG_IGN);time.sleep(50)"
+        script = ("import signal,subprocess,sys,time;signal.signal(signal.SIGINT,signal.SIG_IGN);"
+                  "signal.signal(signal.SIGTERM,signal.SIG_IGN);"
+                  f"p=subprocess.Popen([sys.executable,'-c',{child!r}]);print('descendant='+str(p.pid));time.sleep(50)")
+        counter = self.root / "group-kill-calls.json"
+        driver = f"""import errno,json,os,signal,sys
+sys.path.insert(0,{str(SUPERVISOR.parent)!r})
+import run_native as supervisor
+original_killpg=os.killpg
+calls=0
+def injected_killpg(pid,number):
+    global calls
+    if number==signal.SIGKILL:
+        calls+=1
+        if {always_denied!r} or calls>1:
+            raise PermissionError(errno.EPERM,'controlled kernel rejection')
+    return original_killpg(pid,number)
+supervisor.os.killpg=injected_killpg
+sys.argv={self.command(script,timeout=0.25)[1:]!r}
+try:
+    code=supervisor.main()
+finally:
+    # An injected denial must not orphan the test's real resistant child.
+    state=json.loads(open({str(self.status)!r}).read())
+    if {always_denied!r} and state.get('processGroupID'):
+        try:original_killpg(state['processGroupID'],signal.SIGKILL)
+        except ProcessLookupError:pass
+        try:os.waitpid(state['subprocessPID'],0)
+        except ChildProcessError:pass
+    open({str(counter)!r},'w').write(json.dumps({{'sigkillCalls':calls}}))
+sys.exit(code)
+"""
+        result = subprocess.run([sys.executable, "-u", "-c", driver], capture_output=True, timeout=10)
+        return result, json.loads(self.status.read_text()), json.loads(counter.read_text())["sigkillCalls"]
+
+    def test_successful_group_kill_is_not_repeated_after_process_exit(self):
+        result, state, kills = self.invoke_with_group_kill_fault()
+        self.assertEqual(result.returncode, 124, {"status": state, "stderr": result.stderr[-2000:]})
+        self.assertTrue(state["timedOut"])
+        self.assertTrue(state["groupKillDelivered"])
+        self.assertEqual(state["terminationPhase"], "kill")
+        self.assertEqual(state["subprocessExitCode"], -signal.SIGKILL)
+        self.assertEqual(kills, 1, "Post-loop and finally must not re-signal an already killed group")
+        self.assert_process_not_running(int(self.log.read_text().split("descendant=")[1].splitlines()[0]))
+
+    def test_first_group_kill_permission_error_stays_fatal(self):
+        result, state, kills = self.invoke_with_group_kill_fault(always_denied=True)
+        self.assertEqual(result.returncode, 127, {"status": state, "stderr": result.stderr[-2000:]})
+        self.assertFalse(state["groupKillDelivered"])
+        self.assertEqual(state["errorType"], "PermissionError")
+        self.assertEqual(state["errorErrno"], 1)
+        self.assertEqual(state["cleanupErrorErrno"], 1)
+        self.assertTrue(state["cleanupIncomplete"])
+        self.assertGreaterEqual(kills, 1)
+        self.assertEqual(state["scopeStatus"], "not-accepted")
+        self.assert_process_not_running(int(self.log.read_text().split("descendant=")[1].splitlines()[0]))
+
     def test_external_sigterm_stops_child_and_records_cancellation_separately(self):
         ready = self.root / "ready"
         script = f"from pathlib import Path;import time;Path({str(ready)!r}).write_text('ready');print('ready');time.sleep(50)"
