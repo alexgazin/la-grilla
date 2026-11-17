@@ -87,24 +87,26 @@ final class TranspositionUITests:XCTestCase {
     @MainActor func testFlatsAndScaleDegreesPersistWithoutNotationChangingMusic()throws {
         let app=launch();defer{app.terminate()}
         let transport=app.buttons["perform.transport"]
-        let originalID=try XCTUnwrap(field("project",in:current(transport)))
-        let originalRevision=try XCTUnwrap(field("revision",in:current(transport)))
+        let initialReport=current(transport)
+        let originalID=try XCTUnwrap(field("project",in:initialReport))
+        let originalRevision=try XCTUnwrap(field("revision",in:initialReport))
         openSettings(app)
         let root=app.buttons["settings.key-root"]
         reveal(root,in:app);root.tap()
         selectVisibleListItem("F",identifier:"settings.key-option.5",pickerTitle:"Root",in:app)
         XCTAssertTrue(app.navigationBars["Settings"].exists,"Selecting a project key must keep Settings open")
-        XCTAssertTrue(selected("F",in:root),"The actual project-key picker must select F")
+        XCTAssertTrue(selected("F",in:try root.snapshot()),"The actual project-key picker must select F")
         let revisionAfterKey=try XCTUnwrap(field("revision",in:current(transport)))
         XCTAssertNotEqual(revisionAfterKey,originalRevision,"Choosing a different project key must be a real project edit")
         let spelling=app.buttons["settings.pitch-spelling"]
         reveal(spelling,in:app)
-        let originalSpellingValue=spelling.value as? String,originalSpellingLabel=spelling.label
+        let originalSpellingObservation=try spelling.snapshot()
+        let originalSpellingValue=originalSpellingObservation.value as? String,originalSpellingLabel=originalSpellingObservation.label
         let originalSpelling=try XCTUnwrap(["Auto (key)","Sharps","Flats"].first{value in
             originalSpellingValue==value || originalSpellingLabel==value || originalSpellingLabel.hasSuffix(", "+value)
         },"Read the original preference from the real native picker")
         spelling.tap();selectVisibleListItem("Flats",identifier:"settings.spelling-option.flats",pickerTitle:"Note names",in:app)
-        XCTAssertTrue(selected("Flats",in:spelling))
+        XCTAssertTrue(selected("Flats",in:try spelling.snapshot()))
         let degrees=app.switches["settings.show-degrees"]
         reveal(degrees,in:app)
         let originalDegrees=try XCTUnwrap(degrees.value as? String)
@@ -120,8 +122,9 @@ final class TranspositionUITests:XCTestCase {
         symbol.typeText(String(repeating:XCUIKeyboardKey.delete.rawValue,count:old.count)+"Bb\n")
         let degree=app.staticTexts["chord.degree"]
         XCTAssertTrue(degree.waitForExistence(timeout:5));XCTAssertEqual(degree.label,"IV")
-        XCTAssertTrue(app.staticTexts["chord.notes"].label.contains("B♭"))
-        XCTAssertFalse(app.staticTexts["chord.notes"].label.contains("A♯"))
+        let displayedNotes=try app.staticTexts["chord.notes"].snapshot().label
+        XCTAssertTrue(displayedNotes.contains("B♭"))
+        XCTAssertFalse(displayedNotes.contains("A♯"))
         let apply=app.buttons["chord.apply"];reveal(apply,in:app);apply.tap()
         wait(app.navigationBars["Edit chord"]){!app.navigationBars["Edit chord"].exists}
         awaitSaved(app)
@@ -135,20 +138,20 @@ final class TranspositionUITests:XCTestCase {
         app.buttons["Cancel"].tap()
         openSettings(app)
         reveal(spelling,in:app)
-        XCTAssertTrue(spelling.label.contains("Flats") || (spelling.value as? String)=="Flats")
+        XCTAssertTrue(selected("Flats",in:try spelling.snapshot()))
         reveal(degrees,in:app);XCTAssertEqual(degrees.value as? String,"1")
         let revisionBeforeRestore=field("revision",in:current(transport))
         // Restore the actual original global preferences through real UI,
         // after proving their persistence. Do not assume the suite's defaults.
         // The persisted Bb project stays isolated in this test's UUID store.
         reveal(spelling,in:app,up:false)
-        if !selected(originalSpelling,in:spelling){
+        if !selected(originalSpelling,in:try spelling.snapshot()){
             spelling.tap()
             let spellingIDs=["Auto (key)":"automatic","Sharps":"sharps","Flats":"flats"]
             let option=try XCTUnwrap(spellingIDs[originalSpelling])
             selectVisibleListItem(originalSpelling,identifier:"settings.spelling-option."+option,pickerTitle:"Note names",in:app)
         }
-        XCTAssertTrue(selected(originalSpelling,in:spelling))
+        XCTAssertTrue(selected(originalSpelling,in:try spelling.snapshot()))
         reveal(degrees,in:app)
         setDegrees(originalDegrees,control:degrees,in:app)
         XCTAssertEqual(degrees.value as? String,originalDegrees)
@@ -193,7 +196,7 @@ final class TranspositionUITests:XCTestCase {
         XCTAssertTrue(saved.waitForExistence(timeout:8))
     }
     @MainActor private func current(_ transport:XCUIElement)->String{(transport.value as? String ?? "").components(separatedBy:"\n").first ?? ""}
-    @MainActor private func selected(_ value:String,in picker:XCUIElement)->Bool{
+    @MainActor private func selected(_ value:String,in picker:any XCUIElementSnapshot)->Bool{
         (picker.value as? String)==value || picker.label==value || picker.label.hasSuffix(", "+value)
     }
     @MainActor private func setDegrees(_ desired:String,control:XCUIElement,in app:XCUIApplication){
@@ -230,29 +233,46 @@ final class TranspositionUITests:XCTestCase {
         XCTAssertEqual(control.value as? String,desired)
     }
     @MainActor private func selectVisibleListItem(_ title:String,identifier:String,pickerTitle:String,in app:XCUIApplication){
-        // This is the real public navigation-link Picker list. It has no
-        // floating-menu animation handshake or synthesized hit coordinates.
         let navigation=app.navigationBars[pickerTitle]
         XCTAssertTrue(navigation.waitForExistence(timeout:5))
-        let candidates=app.descendants(matching:.any).matching(NSPredicate(format:"identifier == %@",identifier))
+        let optionTypes:[XCUIElement.ElementType]=[.button,.cell,.staticText]
+        let scrollTypes:[XCUIElement.ElementType]=[.collectionView,.table,.scrollView]
+        func finite(_ frame:CGRect)->Bool{!frame.isEmpty && [frame.minX,frame.minY,frame.maxX,frame.maxY].allSatisfy{$0.isFinite}}
         var visibleOption:XCUIElement?
         for _ in 0..<7 {
-            if let found=candidates.allElementsBoundByIndex.first(where:{candidate in
-                guard let observed=try? candidate.snapshot(),[XCUIElement.ElementType.cell,.button,.staticText].contains(observed.elementType),
-                      observed.label==title || observed.label.hasPrefix(title+", ") else{return false}
-                let frame=observed.frame
-                return !frame.isEmpty && [frame.minX,frame.minY,frame.maxX,frame.maxY].allSatisfy{$0.isFinite} && candidate.isHittable
-            }){reveal(found,in:app);visibleOption=found;break}
-            let list=app.collectionViews.allElementsBoundByIndex.first(where:{$0.isHittable}) ?? app.tables.allElementsBoundByIndex.first(where:{$0.isHittable})
-            guard let list else{break};list.swipeUp()
+            // Read the option and its real scroll/window ancestors together.
+            // Re-fetching label, enabled, frame and selection separately added
+            // six AX round trips after this same native list was already ready.
+            let root=try? app.snapshot()
+            var matches:[(node:any XCUIElementSnapshot,ancestors:[any XCUIElementSnapshot])]=[]
+            if let root {
+                var pending:[(node:any XCUIElementSnapshot,ancestors:[any XCUIElementSnapshot])]=[(root,[])]
+                while let entry=pending.popLast(){
+                    if entry.node.identifier==identifier && optionTypes.contains(entry.node.elementType){matches.append(entry)}
+                    for child in entry.node.children{pending.append((child,entry.ancestors+[entry.node]))}
+                }
+            }
+            for type in optionTypes {
+                let typed=matches.filter{$0.node.elementType==type}
+                guard typed.count==1,let match=typed.first,let root,
+                      let owner=match.ancestors.last(where:{scrollTypes.contains($0.elementType)}),
+                      let window=match.ancestors.last(where:{$0.elementType == .window}) else{continue}
+                let observed=match.node,frame=observed.frame
+                let visible=owner.frame.intersection(root.frame.insetBy(dx:0,dy:44)).intersection(window.frame)
+                guard observed.label==title || observed.label.hasPrefix(title+", "),observed.isEnabled,
+                      finite(frame),finite(owner.frame),finite(root.frame),finite(window.frame),finite(visible),visible.contains(frame) else{continue}
+                let option=app.descendants(matching:type).matching(NSPredicate(format:"identifier == %@",identifier)).firstMatch
+                guard option.isHittable else{continue}
+                keepReport("Public native Picker list=\(pickerTitle), option=\(observed.label), frame=\(frame), selectedBefore=\(observed.isSelected), owner.type=\(owner.elementType.rawValue), owner.frame=\(owner.frame), visible=\(visible), source=one-app-snapshot; liveHittable=true",name:"Audit-native-selection-list-"+identifier)
+                visibleOption=option
+                break
+            }
+            if visibleOption != nil{break}
+            let lists=app.collectionViews.allElementsBoundByIndex.filter{$0.isHittable}+app.tables.allElementsBoundByIndex.filter{$0.isHittable}
+            guard lists.count==1,let list=lists.first else{break}
+            list.swipeUp()
         }
-        guard let option=visibleOption else{XCTFail("The native selection list must expose its real visible option: "+identifier);return}
-        XCTAssertTrue(option.label==title || option.label.hasPrefix(title+", "))
-        XCTAssertTrue(option.isEnabled)
-        let frame=option.frame
-        XCTAssertTrue([frame.minX,frame.minY,frame.maxX,frame.maxY].allSatisfy{$0.isFinite})
-        XCTAssertFalse(frame.isEmpty)
-        keepReport("Public native Picker list=\(pickerTitle), option=\(option.label), frame=\(frame), selectedBefore=\(option.isSelected)",name:"Audit-native-selection-list-"+identifier)
+        guard let option=visibleOption else{XCTFail("The native selection list must expose its enabled, wholly visible real option: "+identifier);return}
         option.tap()
         let settingsNavigation=app.navigationBars["Settings"]
         if settingsNavigation.exists && settingsNavigation.isHittable{return}

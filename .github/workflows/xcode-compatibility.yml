@@ -10,7 +10,7 @@ on:
   pull_request:
     branches: [main]
   push:
-    branches: [main, fix/chord-tile-build]
+    branches: [main, fix/chord-tile-build, feat/touch21]
 concurrency:
   group: xcode-compatibility-${{ github.ref }}
   cancel-in-progress: true

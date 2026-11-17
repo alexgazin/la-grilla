@@ -105,12 +105,14 @@ struct SettingsView: View {
             Text("Projects and recordings stay on your iPhone. Portable project exports include their original voice recordings.").font(.caption).foregroundStyle(.secondary)
         }
 
-    }.navigationTitle("Settings").toolbar{ToolbarItem(placement:.confirmationAction){Button("Done"){session.sheet=nil}}}}
+    }.navigationTitle("Settings").navigationBarTitleDisplayMode(.inline).toolbar{ToolbarItem(placement:.confirmationAction){Button("Done"){session.sheet=nil}}}}
         // A presented Form owns its appearance boundary. Apply the observed
         // preference here as well as to the window so live changes update the
         // current sheet, rather than only its presenter or the next opening.
         .preferredColorScheme(appearance==1 ? .light:appearance==2 ? .dark:nil)
-        .presentationDetents([.medium,.large])}
+        // Project tools and notation need a full working viewport. A medium
+        // Form only exposed preferences/tempo and deferred the key actions.
+        .presentationDetents([.large])}
     private var audioSettings:some View {
         Section("Audio"){
             LabeledContent("Sample rate",value:"\(Int(session.audio.sampleRate)) Hz")
