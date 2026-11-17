@@ -21,6 +21,7 @@ import signal
 import subprocess
 import sys
 import time
+from simulator_macho import inspect_simulator_executable
 
 
 MACH_SERVICE = "com.apple.DragUI.druid.source"
@@ -233,14 +234,23 @@ def prepare(arguments):
             if architecture not in ("arm64", "x86_64"):
                 raise NotReady("The native Simulator host architecture is unsupported.")
             command("runtime-launchctl-architecture.txt", ["xcrun", "lipo", str(tool), "-verify_arch", architecture])
-            build = command("runtime-launchctl-build.txt", ["xcrun", "vtool", "-show-build", str(tool)])
-            platforms = re.findall(r"^\s*platform\s+(\S+)\s*$", build, re.M)
-            if not platforms or any(value not in ("IOSSIMULATOR", "7") for value in platforms):
-                raise NotReady("The runtime launchctl must be built for iOS Simulator, never macOS.")
+            if tool.stat().st_size > 128 * 1024 * 1024:
+                raise NotReady("The contained runtime tool exceeds the bounded inspection size.")
             raw = tool.read_bytes()
+            # Cold xcrun/vtool repeatedly stalled before doing any service work.
+            # Read the actual contained Mach-O header/load commands instead;
+            # retain their original bytes and require platform7 in every slice.
+            inspection = inspect_simulator_executable(raw, architecture)
+            build_path = folder / "runtime-launchctl-build.json"
+            build_path.write_text(json.dumps(inspection, indent=2, sort_keys=True) + "\n")
+            evidence = build_path.read_bytes()
+            state["readOnlyBinaryInspections"] = {"runtime-launchctl-build.json": dict(
+                byteCount=len(evidence), sha256=hashlib.sha256(evidence).hexdigest())}
             state["verifiedRuntimeLaunchctl"] = dict(path=str(tool), byteCount=len(raw),
                                                       sha256=hashlib.sha256(raw).hexdigest(),
-                                                      architecture=architecture, platforms=platforms)
+                                                      architecture=architecture, platforms=["IOSSIMULATOR"],
+                                                      platformIdentifiers=inspection["platforms"],
+                                                      inspectionEvidence=build_path.name)
             service = "system/" + daemon["label"]
             job = command("runtime-druid-job.txt", scoped(str(tool), "print", service), 6)
             declared_program = daemon["job"]["definition"]["ProgramArguments"][0]
