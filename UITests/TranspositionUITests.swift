@@ -252,9 +252,15 @@ final class TranspositionUITests:XCTestCase {
                 XCTFail("The actual native switch must be wholly visible inside its measured Form row");return nil
             }
             let native=control.switches.firstMatch
-            guard native.isHittable else{XCTFail("The actual native switch must be hittable before the gesture");return nil}
-            let velocity=XCUIGestureVelocity(rawValue:100)
-            if desired=="1"{native.swipeRight(velocity:velocity)}else{native.swipeLeft(velocity:velocity)}
+            guard let live=try? native.snapshot(),live.elementType == nativeSnapshot.elementType,
+                  live.identifier==nativeSnapshot.identifier,live.label==nativeSnapshot.label,
+                  (live.value as? String)==actual,live.isEnabled,live.frame==nativeFrame,native.isHittable else{
+                XCTFail("The live native switch must match the measured child and be hittable before activation");return nil
+            }
+            // Activate the verified UISwitch accessory itself. A synthetic
+            // track swipe can leave this native control unchanged on iOS 26.
+            // Use one ordinary tap, with no fallback gesture or repeated tap.
+            native.tap()
             var afterGesture:String?
             wait(control,timeout:5){
                 afterGesture=(try? control.snapshot())?.value as? String
