@@ -213,7 +213,7 @@ jobs:
             INVENTORY=()
           fi
           if test "$GRILLA_ASSISTANT23_ONLY" = 1; then
-            GRILLA_ASSISTANT_CASES=(AIAvailabilityTests/testActualUnavailableModelLocallyReviewsJazzAppliesAndUndoesOnce AssistantCompositionTests/testIdleProposalEndsOnLanguageChangeWithoutEditing AuthorizedMicrophoneTests/testGrantedSpeechCallbackAndOutputOnlyAssistantRemainUsable)
+            GRILLA_ASSISTANT_CASES=(AIAvailabilityTests/testActualUnavailableModelLocallyReviewsJazzAppliesAndUndoesOnce AIAvailabilityTests/testActualUnavailableModelRecheckPreservesIndependentLanguagesInputAndProject AssistantCompositionTests/testIdleProposalEndsOnLanguageChangeWithoutEditing AuthorizedMicrophoneTests/testGrantedSpeechCallbackAndOutputOnlyAssistantRemainUsable)
             FILTER=()
             INVENTORY=()
             SCOPE=input-diagnostic
@@ -226,11 +226,11 @@ jobs:
             python3 - "${GRILLA_ASSISTANT_CASES[@]}" <<'PYASSISTANT'
           import json,os,pathlib,subprocess,sys
           cases=sys.argv[1:]
-          assert len(cases)==3 and len(set(cases))==3
+          assert len(cases)==4 and len(set(cases))==4
           checkout=subprocess.check_output(['git','rev-parse','HEAD'],text=True,timeout=6).strip()
           assert checkout==os.environ['GITHUB_SHA']
           assert os.environ.get('GRILLA_INPUT_DIAGNOSTIC')=='1'
-          receipt=dict(schemaVersion=1,repository=os.environ['GITHUB_REPOSITORY'],sourceSHA=os.environ['GITHUB_SHA'],checkoutSHA=checkout,runID=os.environ['GITHUB_RUN_ID'],runAttempt=os.environ['GITHUB_RUN_ATTEMPT'],mode='assistant23-only',scope='input-diagnostic',selectedCases=cases,expectedCount=3,fullAcceptance=False,physicalDevice=False,nativeTimeoutSeconds=1500,maximumExecutionTimeAllowance=600,requireMicInput=os.environ.get('GRILLA_REQUIRE_MIC_INPUT')=='1',selectedSimulatorID=pathlib.Path('/tmp/grilla-simulator-id').read_text().strip())
+          receipt=dict(schemaVersion=1,repository=os.environ['GITHUB_REPOSITORY'],sourceSHA=os.environ['GITHUB_SHA'],checkoutSHA=checkout,runID=os.environ['GITHUB_RUN_ID'],runAttempt=os.environ['GITHUB_RUN_ATTEMPT'],mode='assistant23-only',scope='input-diagnostic',selectedCases=cases,expectedCount=4,fullAcceptance=False,physicalDevice=False,nativeTimeoutSeconds=1500,maximumExecutionTimeAllowance=600,requireMicInput=os.environ.get('GRILLA_REQUIRE_MIC_INPUT')=='1',selectedSimulatorID=pathlib.Path('/tmp/grilla-simulator-id').read_text().strip())
           assert receipt['requireMicInput'] and receipt['selectedSimulatorID']
           pathlib.Path('assistant23-selection.json').write_text(json.dumps(receipt,indent=2)+'\n')
           print(json.dumps(receipt,indent=2))
