@@ -224,6 +224,46 @@ def read_gate(path):
     return json.loads(path.read_text())
 
 
+def simulator_inventory(source_sha):
+    """One actual snapshot shares the former two metadata RPCs' 60s total."""
+    command = ['xcrun', 'simctl', 'list', '-j']
+    began = time.monotonic()
+    stdout = stderr = b''
+    status = dict(source_sha=source_sha, command=command, maximum_total_seconds=60,
+                  started_at_utc=time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
+                  started_uptime=began, timed_out=False, retry_count=0)
+    try:
+        remaining = float(os.environ.get('GRILLA_DEMO_DEADLINE_EPOCH', time.time() + 60)) - time.time()
+        if not math.isfinite(remaining) or remaining <= 0:
+            raise RuntimeError('The shared capture deadline expired before Simulator metadata acquisition')
+        status['effective_timeout_seconds'] = min(60, remaining)
+        result = subprocess.run(command, cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                timeout=status['effective_timeout_seconds'])
+        stdout, stderr = result.stdout, result.stderr
+        status['exit_code'] = result.returncode
+        if result.returncode != 0:
+            raise RuntimeError('The actual combined Simulator inventory command failed')
+        inventory = json.loads(stdout)
+        if not isinstance(inventory.get('devices'), dict) or not isinstance(inventory.get('runtimes'), list):
+            raise RuntimeError('The actual combined Simulator inventory must contain devices and runtimes')
+        return inventory
+    except subprocess.TimeoutExpired as error:
+        stdout, stderr = error.stdout or b'', error.stderr or b''
+        status.update(exit_code=124, timed_out=True, error='combined-simulator-inventory-timeout')
+        raise RuntimeError('The actual combined Simulator inventory exceeded its shared metadata budget') from error
+    except BaseException as error:
+        status.setdefault('exit_code', 127 if isinstance(error, OSError) else None)
+        status['error'] = type(error).__name__ + ': ' + str(error)
+        raise
+    finally:
+        for name, data in [('simulator-inventory.json', stdout), ('simulator-inventory-stderr.log', stderr)]:
+            (OUT / name).write_bytes(data)
+        status.update(finished_uptime=time.monotonic(), elapsed_seconds=time.monotonic() - began,
+                      stdout=file_receipt(OUT / 'simulator-inventory.json'),
+                      stderr=file_receipt(OUT / 'simulator-inventory-stderr.log'))
+        receipt('simulator-inventory-status.json', status)
+
+
 def capture_source(device, audio_helper):
     """Bind the actual built app, source, toolchain and device to this session."""
     def command(*args):
@@ -253,12 +293,14 @@ def capture_source(device, audio_helper):
     iphone_sdk = command('xcrun', '--sdk', 'iphoneos', '--show-sdk-version')
     if xcode.splitlines()[0] != 'Xcode 26.3' or sdk != '26.2' or iphone_sdk != '26.2':
         raise RuntimeError(f'The native demo requires Xcode26.3 / Simulator SDK26.2: {xcode}; SDK {sdk}')
-    devices = json.loads(command('xcrun', 'simctl', 'list', 'devices', 'available', '-j'))['devices']
+    inventory = simulator_inventory(head)
+    devices = inventory['devices']
     selected = [(key, item) for key, items in devices.items() for item in items if item['udid'] == device]
     runtime = selected[0][0] if len(selected) == 1 else None
-    if runtime != 'com.apple.CoreSimulator.SimRuntime.iOS-26-2' or selected[0][1].get('state') != 'Booted':
-        raise RuntimeError(f'The selected native Simulator must run iOS26.2: {runtime}')
-    runtimes = json.loads(command('xcrun', 'simctl', 'list', 'runtimes', '-j'))['runtimes']
+    if (runtime != 'com.apple.CoreSimulator.SimRuntime.iOS-26-2'
+            or selected[0][1].get('state') != 'Booted' or selected[0][1].get('isAvailable') is not True):
+        raise RuntimeError(f'The selected native Simulator must be uniquely available and Booted on iOS26.2: {runtime}')
+    runtimes = inventory['runtimes']
     runtime_info = next((item for item in runtimes if item['identifier'] == runtime), None)
     if not runtime_info or not runtime_info.get('isAvailable') or runtime_info.get('version') != '26.2':
         raise RuntimeError('The actual selected iOS26.2 runtime identity is unavailable')

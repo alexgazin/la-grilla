@@ -62,6 +62,15 @@ capture; every recording still creates new PCM. The first native failure closes
 owned media immediately, with a30-minute shared deadline inside the35-minute job
 reserving five minutes for finalization and original artifacts. These changes
 are prepared source, not a successful new capture.
+The restored `a916c02` passed the real host probe and Simulator boot, then its
+first post-boot metadata query exceeded30s before any test or movie started.
+The next candidate requests one actual `simctl list -j` snapshot for devices
+and runtimes, redistributing the previous two30s RPCs' total60s budget. That
+single request is clamped to the existing30-minute shared deadline and never
+retried; other commands retain30s. Raw stdout, stderr, command, exit status and
+elapsed time are preserved even on failure. The uniquely selected available
+Booted device and eligible iOS26.2 runtime checks remain required. This metadata
+change does not establish a successful musical journey or recording.
 `simctl io recordVideo` captures the real display; a standalone macOS helper
 captures timestamped stereo host-loopback PCM. The helper checks the actual
 BlackHole UID, uses normal system microphone authorization, and refuses
