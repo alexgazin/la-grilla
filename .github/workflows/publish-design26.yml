@@ -23,7 +23,7 @@
         "DESIGN_SOURCE": "${{ github.event.workflow_run.head_sha }}",
         "DESIGN_RUN": "${{ github.event.workflow_run.id }}",
         "DESIGN_ATTEMPT": "${{ github.event.workflow_run.run_attempt }}",
-        "DESIGN_EVIDENCE": "${{ runner.temp }}/design26-evidence"
+        "DESIGN_EVIDENCE": "/tmp/design26-evidence"
       },
       "steps": [
         {
