@@ -16,10 +16,30 @@ import wave
 from host_audio_consent import wait_for_audio_ready
 
 ROOT = Path(__file__).resolve().parents[1]
+RECORDER_SOURCES = ('Demos/record_host_audio.swift', 'Demos/AudioRecorderInfo.plist',
+                    'scripts/host_audio_consent.py')
 
 
 def write_json(path, value):
     path.write_text(json.dumps(value, indent=2, sort_keys=True) + '\n')
+
+
+def recorder_build_receipt(app):
+    def entry(path):
+        data = path.read_bytes()
+        return dict(bytes=len(data), sha256=hashlib.sha256(data).hexdigest())
+    if app.is_symlink() or any(path.is_symlink() for path in app.rglob('*')):
+        raise RuntimeError('The purpose-built recorder bundle must not contain aliases')
+    executable = app / 'Contents/MacOS/LaGrillaDemoAudioRecorder'
+    architecture = subprocess.check_output(['uname', '-m'], text=True, timeout=10).strip()
+    architectures = subprocess.check_output(['xcrun', 'lipo', '-archs', str(executable)], text=True, timeout=30).split()
+    if architecture not in ('arm64', 'x86_64') or architectures != [architecture]:
+        raise RuntimeError('The actual preboot recorder must match its native host architecture')
+    subprocess.run(['codesign', '--verify', '--strict', str(app)], check=True, timeout=30)
+    return dict(bundle=str(app.resolve().relative_to(ROOT)), architectures=architectures,
+                sources={name: entry(ROOT / name) for name in RECORDER_SOURCES},
+                files={str(path.relative_to(app)): entry(path)
+                       for path in sorted(app.rglob('*')) if path.is_file()})
 
 
 def make_probe_tone(path):
@@ -100,6 +120,7 @@ def main():
     subprocess.run(['codesign', '--force', '--sign', '-', str(app)], check=True)
     probe = {'kind': 'Audio-only normal-consent host-loopback probe',
              'source_sha': os.environ.get('GITHUB_SHA'),
+             'recorder_build': recorder_build_receipt(app),
              'probe_tone_in_final_film': False, 'simulator_launched': False,
              'tcc_policy_mutated': False, 'physical_microphone_selected': False,
              'launched_uptime': time.monotonic()}
@@ -138,6 +159,8 @@ def main():
         converted = output / 'actual-loopback.wav'
         subprocess.run(['/usr/bin/afconvert', '-f', 'WAVE', '-d', 'LEI16', str(output / 'audio.caf'), str(converted)], check=True)
         probe['actual_pcm_analysis'] = analyze_capture(converted)
+        if recorder_build_receipt(app) != probe['recorder_build']:
+            raise RuntimeError('The actual preboot recorder changed during its independent probe')
         probe['status'] = 'passed'
     except BaseException as error:
         probe['status'] = 'failed'

@@ -6,6 +6,7 @@ on:
     branches-ignore:
       - feat/native-gesture-diagnostic
       - feat/native-demo20
+      - feat/native-demo22
       - feat/native-demo-intel-preflight
   workflow_dispatch:
 env:
