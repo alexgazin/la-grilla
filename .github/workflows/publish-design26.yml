@@ -1,0 +1,66 @@
+{
+  "name": "Publish verified Nocturne 24 screenshots",
+  "on": {
+    "workflow_run": {
+      "workflows": [
+        "Native Design 26 presentation and interaction verification"
+      ],
+      "types": [
+        "completed"
+      ]
+    }
+  },
+  "permissions": {
+    "contents": "write",
+    "actions": "read"
+  },
+  "jobs": {
+    "publish": {
+      "if": "${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_repository.full_name == github.repository && github.event.workflow_run.head_branch == 'feat/design26' && github.event.workflow_run.head_sha == '207fc2b4ccd4cfadd5848443c92deca2a338e4f9' }}",
+      "runs-on": "ubuntu-latest",
+      "timeout-minutes": 10,
+      "env": {
+        "DESIGN_SOURCE": "${{ github.event.workflow_run.head_sha }}",
+        "DESIGN_RUN": "${{ github.event.workflow_run.id }}",
+        "DESIGN_ATTEMPT": "${{ github.event.workflow_run.run_attempt }}",
+        "DESIGN_EVIDENCE": "${{ runner.temp }}/design26-evidence"
+      },
+      "steps": [
+        {
+          "uses": "actions/checkout@v4",
+          "with": {
+            "ref": "${{ github.event.workflow_run.head_sha }}",
+            "fetch-depth": 1
+          }
+        },
+        {
+          "uses": "actions/download-artifact@v4",
+          "with": {
+            "name": "design26-native-verification",
+            "run-id": "${{ github.event.workflow_run.id }}",
+            "github-token": "${{ github.token }}",
+            "path": "${{ env.DESIGN_EVIDENCE }}"
+          }
+        },
+        {
+          "name": "Validate actual native outcomes and preserve original PNG data",
+          "shell": "bash",
+          "run": "python3 - <<'PY'\nimport hashlib,json,os,pathlib,struct,subprocess\nsource=os.environ[\"DESIGN_SOURCE\"]\nrun=os.environ[\"DESIGN_RUN\"]\nattempt=os.environ[\"DESIGN_ATTEMPT\"]\nassert source==\"207fc2b4ccd4cfadd5848443c92deca2a338e4f9\" and run.isdigit() and attempt.isdigit()\nroot=pathlib.Path(os.environ[\"DESIGN_EVIDENCE\"]).resolve()\ndef read(name):\n p=root/name\n assert p.is_file() and not p.is_symlink() and p.resolve().is_relative_to(root) and p.stat().st_size<300000\n return json.loads(p.read_text())\nidentity=read(\"design26-source.json\");process=read(\"design26-process-status.json\")\nselection=read(\"design26-selection.json\");capture=read(\"design26-capture.json\")\nfor doc in (identity,process):\n assert doc[\"repository\"]==\"alexgazin/la-grilla\" and doc[\"sourceSHA\"]==source\n assert str(doc[\"runID\"])==run and str(doc[\"runAttempt\"])==attempt\nassert identity[\"checkoutSHA\"]==source and identity[\"scope\"]==\"focused-design26\" and identity[\"architecture\"]==\"arm64\"\nassert process[\"status\"]==\"completed\" and process[\"scope\"]==\"focused\" and process[\"scopeStatus\"]==\"focused-pass\"\nassert type(process[\"exitCode\"]) is int and process[\"exitCode\"]==0\nassert type(process[\"subprocessExitCode\"]) is int and process[\"subprocessExitCode\"]==0\nassert process[\"timedOut\"] is False and process[\"receivedSignal\"] is None\ncases=[\n\"DesignPresentationTests/testNightSurfacesRemainReachableWithoutEditingMusic\",\n\"DesignPresentationTests/testLightSurfacesRemainReachableWithoutEditingMusic\",\n\"PadTouchUITests/testContactEnqueuesBeforeReleaseAndHoldDoesNotRetrigger\",\n\"PadTouchUITests/testSlidingFingerKeepsItsOriginalPadAndNeverStrikesNeighbour\",\n\"PianoTouchUITests/testHoldAndMoveKeepsDurationAndCommitsOneUndoableEdit\",\n\"PianoTouchUITests/testResizeHandleUsesGridAndCommitsOneUndoableEdit\",\n\"SoundPickerUITests/testAppliedSoundIsOneUndoAndPersistsInTheRealStore\",\n\"SoundPickerUITests/testLiveSoundPreviewRetainsTheGrooveAndSourceRevision\",\n\"SoundPickerUITests/testSoundPreviewHasActualOutputAndCancelKeepsMusicUntouched\",\n\"StudioTests/testLandscapeKeepsPadsAndTransportReachable\",\n\"StudioTests/testLargeTypeMixerAndAccessibleNoteList\"]\nassert selection[\"scope\"]==\"focused-design26\" and selection[\"expectedCount\"]==11 and selection[\"selectedCases\"]==cases\nassert set(process[\"requiredTestOutcomes\"])==set(cases)\nassert all(process[\"requiredTestOutcomes\"][case]==\"passed\" for case in cases)\nnames={a+\"-\"+s+\".png\" for a in (\"night\",\"light\") for s in (\"grid\",\"jam\",\"mixer\",\"piano\",\"sound\")}\nassert capture[\"complete\"] is True and set(capture[\"expected\"])==names and names.issubset(set(capture[\"actual\"]))\ndestination=pathlib.Path(\"Screenshots/Design26\");destination.mkdir(parents=True,exist_ok=True)\nimages={}\nfor name in sorted(names):\n p=root/\"Screenshots/Design26\"/name\n assert p.is_file() and not p.is_symlink() and p.resolve().is_relative_to(root)\n raw=p.read_bytes();assert raw[:8]==b\"\\x89PNG\\r\\n\\x1a\\n\" and len(raw)<10000000\n width,height=struct.unpack(\">II\",raw[16:24]);assert 300<=width<=8192 and 500<=height<=8192\n digest=hashlib.sha256(raw).hexdigest();assert digest==capture[\"images\"][name]\n (destination/name).write_bytes(raw);images[name]={\"bytes\":len(raw),\"sha256\":digest,\"width\":width,\"height\":height}\nreceipt=dict(repository=\"alexgazin/la-grilla\",sourceSHA=source,runID=int(run),runAttempt=int(attempt),scope=\"focused-design26\",passedCases=cases,images=images,fullAcceptance=False,physicalDevice=False,customVideoCapture=False,imageOwners={\"night\":cases[0],\"light\":cases[1]})\n(destination/\"provenance.json\").write_text(json.dumps(receipt,indent=2)+\"\\n\")\nfor name in (\"design26-source.json\",\"design26-process-status.json\",\"design26-selection.json\",\"design26-capture.json\"):\n (destination/name).write_bytes((root/name).read_bytes())\nurl=\"https://github.com/alexgazin/la-grilla/actions/runs/\"+run+\"/attempts/\"+attempt\n(destination/\"README.md\").write_text(\"# Nocturne 24 — original native PNGs\\n\\nSource: \"+source+\"\\n\\n[Original run](\"+url+\"): 11 focused methods passed, including both screenshot owners. Ten PNGs copied unchanged from actual XCTest attachments. Hashes, dimensions and owners are in provenance.json. Focused scope does not establish the full75, physical-device or App Store acceptance. No new custom video.\\n\")\ngallery=\"\\n## Nocturne 24 — новые экраны\\n\\nРеальные экраны приложения; Night и Light, 11 нативных сценариев PASS. [Оригиналы и источник](Screenshots/Design26/README.md). Общий gate75 и устройство остаются отдельной проверкой.\\n\\n<table><tr>\"\nfor surface in (\"grid\",\"jam\",\"mixer\",\"piano\",\"sound\"):\n gallery+='<td><a href=\"Screenshots/Design26/night-'+surface+'.png\"><img src=\"Screenshots/Design26/night-'+surface+'.png\" width=\"180\" alt=\"Nocturne24 '+surface+'\"></a></td>'\ngallery+='</tr></table>\\n\\n[Светлая тема](Screenshots/Design26/light-grid.png) · [IPA 24](https://github.com/alexgazin/la-grilla/actions/runs/44173635688/artifacts/14368802814)\\n\\n'\np=pathlib.Path(\"README.md\");text=p.read_text();marker=\"**В работе — сборка 24\"\nstart=text.index(marker);end=text.index(\"\\n\\n\",start)\np.write_text(text[:start]+gallery+text[end+2:])\nremote=subprocess.check_output([\"git\",\"ls-remote\",\"origin\",\"refs/heads/feat/design26\"],text=True).split()\nassert remote and remote[0]==source,\"Branch moved; refuse to overwrite\"\nprint(\"Verified exact source/run/attempt, 11 actual passes and 10 original PNG hashes.\")\n\nPY"
+        },
+        {
+          "name": "Commit verified screenshots with a fast-forward source lease",
+          "shell": "bash",
+          "run": "git config user.name 'github-actions[bot]'\ngit config user.email '41898282+github-actions[bot]@users.noreply.github.com'\ngit add -- Screenshots/Design26 README.md\ngit diff --cached --check\ngit commit -m 'Preserve verified Nocturne 24 native screenshots and source receipts'\ngit push origin HEAD:refs/heads/feat/design26\ngit rev-parse HEAD > publication-head.txt\n"
+        },
+        {
+          "uses": "actions/upload-artifact@v4",
+          "if": "always()",
+          "with": {
+            "name": "design26-publication-receipt",
+            "path": "publication-head.txt\nScreenshots/Design26/provenance.json"
+          }
+        }
+      ]
+    }
+  }
+}
