@@ -157,8 +157,8 @@ final class Recorder {
 func main() throws {
     let arguments = CommandLine.arguments
     guard arguments.count == 4, arguments[2] == "--max-seconds",
-          let limit = Double(arguments[3]), limit > 0, limit <= 600 else {
-        throw CaptureFailure.reason("Usage: LaGrillaDemoAudioRecorder <output-directory> --max-seconds <1...600>")
+          let limit = Double(arguments[3]), limit > 0, limit <= 900 else {
+        throw CaptureFailure.reason("Usage: LaGrillaDemoAudioRecorder <output-directory> --max-seconds <1...900>")
     }
     let directory = URL(fileURLWithPath: arguments[1]).standardizedFileURL
     try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
