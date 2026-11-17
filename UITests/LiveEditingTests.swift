@@ -82,7 +82,25 @@ final class LiveEditingTests:XCTestCase {
 
     @MainActor private func playing(_ element:XCUIElement){
         XCTAssertTrue(element.waitForExistence(timeout:5))
-        wait(element,NSPredicate(format:"label == 'PLAYING'"))
+        let expectedIdentifier=element.identifier
+        guard !expectedIdentifier.isEmpty else{XCTFail("The actual playback status must expose its stable identifier");return}
+        var actual="No native snapshot observed"
+        // After a List reorder the retained KVC label predicate timed out while
+        // the original recording and fresh AX hierarchy both showed PLAYING.
+        // Read the actual identified native node anew on every bounded poll.
+        let predicate=NSPredicate{_,_ in
+            guard let snapshot=try? element.snapshot()else{actual="Native snapshot unavailable";return false}
+            actual="identifier=\(snapshot.identifier), type=\(snapshot.elementType.rawValue), label=\(snapshot.label), value=\(String(describing:snapshot.value))"
+            return snapshot.elementType == .staticText && snapshot.identifier==expectedIdentifier && snapshot.label=="PLAYING"
+        }
+        let result=XCTWaiter.wait(for:[XCTNSPredicateExpectation(predicate:predicate,object:nil)],timeout:5)
+        if result != .completed {
+            let context=XCTAttachment(string:"Expected identifier=\(expectedIdentifier), type=\(XCUIElement.ElementType.staticText.rawValue), label=PLAYING\nLast actual observation: \(actual)\n"+XCUIApplication().debugDescription)
+            context.name="LiveEditing failed fresh playback observation — actual app hierarchy"
+            context.lifetime = .keepAlways
+            add(context)
+        }
+        XCTAssertEqual(result,.completed)
     }
 
     @MainActor private func reveal(_ element:XCUIElement,in app:XCUIApplication){

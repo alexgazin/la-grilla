@@ -1,0 +1,174 @@
+{
+  "schemaVersion": 1,
+  "status": "static-integrity-verified",
+  "recordedAtUTC": "2026-11-17T16:08:39.833234+00:00",
+  "sourceSHA": "82e4dfb02d2016dcbe31e7b34af6cd09b0f0457a",
+  "version": "1.0.0",
+  "build": "23",
+  "documentSchema": 11,
+  "classification": "unsigned-test-candidate",
+  "softwareVerified": false,
+  "physicalAccepted": false,
+  "appReviewReady": false,
+  "artifact": {
+    "id": 14346460625,
+    "runID": 44120318741,
+    "jobID": 134169591398,
+    "bytes": 13449336,
+    "sha256": "eb0271e156e4546357a17944cca48941e2ad0e77c063b391570dc1ebf9170025",
+    "apiDigestMatches": true,
+    "zipCRCVerified": true,
+    "url": "https://github.com/alexgazin/la-grilla/actions/runs/44120318741/artifacts/14346460625",
+    "headBranch": "main",
+    "archiveRunAttempt": 1
+  },
+  "ipa": {
+    "file": "LaGrilla-1.0.0-23-main-82e4dfb-unsigned.ipa",
+    "originalFile": "LaGrilla-unsigned.ipa",
+    "bytes": 3693136,
+    "sha256": "93de06cf30a23acf186dd9a2427e98c2097136a0f53c671789cb8612662245a8",
+    "originalBytesPreserved": true,
+    "all16EntriesMatchOriginalApp": true,
+    "zipCRCVerified": true,
+    "localizationKeysPerLanguage": 758
+  },
+  "binary": {
+    "architecture": "arm64",
+    "platform": "iOS",
+    "minimumOS": "18.0.0",
+    "sdk": "26.2.0",
+    "uuid": "D774D6EE-D620-3D31-A27C-CCAD261DB8B7",
+    "dsymUUIDMatches": true,
+    "foundationModelsLoadCommand": "LC_LOAD_WEAK_DYLIB",
+    "foundationModelsOrdinal": 15,
+    "foundationModelsWeakSymbols": 78,
+    "foundationModelsWeakChainedImports": 78,
+    "initializerSections": [],
+    "hasCodeSignatureCommand": false,
+    "runtimeValidation": "Static binary checks only; signed-device startup on iOS 18 still requires device QA."
+  },
+  "binaryAuditEvidence": {
+    "kind": "reuse after actual executable byte equality; fresh IPA and all16 entries separately verified",
+    "priorSourceSHA": "db8a0229a685dadad1d5af700f7ff373ea1b30ba",
+    "priorAuditSHA256": "cb675439a1ee43ef1b816345aa11dfd390064b0ec9ffa908b2312297d07b9208",
+    "actualCurrentExecutableSHA256": "b244e41ed99b74ac9829a2bf99a750477c24b0b154ea6339be88c4fd8d46111d",
+    "actualPriorExecutableSHA256": "b244e41ed99b74ac9829a2bf99a750477c24b0b154ea6339be88c4fd8d46111d",
+    "actualIPAByteIdentical": true,
+    "actualAppFilesByteIdentical": 16,
+    "changedAppFiles": [],
+    "assetCatalogDifferingBytes": 0,
+    "assetCatalogDifferingOffsets": [],
+    "freshDSYMUUIDMatches": true,
+    "sourceAuditorGitBlobUnchanged": true,
+    "duplicateBinaryAuditRun": false
+  },
+  "motionPrivacy": {
+    "usageDescriptionInApp": true,
+    "localizedDescriptionsENRU": true,
+    "coreMotionLinkedForIOS": true,
+    "tracking": false,
+    "collectedDataTypes": []
+  },
+  "sourcePrimaryJobs": {
+    "iphone": {
+      "jobID": 134169592116,
+      "runAttempt": 1,
+      "conclusion": "success"
+    },
+    "releaseArchive": {
+      "jobID": 134169591398,
+      "runAttempt": 1,
+      "conclusion": "success"
+    },
+    "native": {
+      "jobID": 134181279988,
+      "actualRunAttempt": 2,
+      "conclusion": "failure",
+      "passed": 71,
+      "failed": 2,
+      "allowanceViolations": 0
+    }
+  },
+  "limitations": [
+    "Exact-main package integrity passed; full73 completed with71 PASS/2 FAIL/0 allowance and remains unaccepted.",
+    "The two failed methods remain failed. PadContact stopped before pad discovery while terminating the preceding app; its hold assertions were not executed.",
+    "Prior feature7564 focused4 PASS is separate evidence; it is not summed with the current full73 result.",
+    "Unsigned alpha preview requires tester signing with their own Apple ID.",
+    "Physical touch timing, sensors, minimum-iOS18 installed startup and real audio/MIDI routes remain Device Pending.",
+    "No TestFlight, App Store or release-ready claim."
+  ],
+  "sourceBlobManifest": "candidate23-main-82e4dfb-source-manifest.json",
+  "candidateByteIdentity": {
+    "candidateSourceSHA": "7564fe7eff86cf6fbec1caab02d152fb1741c7d2",
+    "actualFullIPAByteIdentical": true,
+    "all16PayloadFilesByteIdentical": true,
+    "packageIndependentlyDownloadedFromNewMainArtifact": true,
+    "nativeResultsInherited": false
+  },
+  "priorFocused4": {
+    "sourceSHA": "7564fe7eff86cf6fbec1caab02d152fb1741c7d2",
+    "runID": 44112860068,
+    "actualAttempt": 1,
+    "strictScope": "input-diagnostic focused4",
+    "passed": 4,
+    "full73Acceptance": false,
+    "appliesToCurrentMainNativeResult": false
+  },
+  "manualHandoff": {
+    "status": "unsigned-exact-main-alpha-with-known-native-failures",
+    "exactMainSourceSHA": "82e4dfb02d2016dcbe31e7b34af6cd09b0f0457a",
+    "full73RunID": 44120318741,
+    "full73Acceptance": false,
+    "softwareVerified": false,
+    "hardwareAccepted": false,
+    "appReviewReady": false,
+    "requiresTesterSigning": true,
+    "freePersonalTeamSuitableForLocalDeviceTesting": true,
+    "full73Status": "completed:71 PASS /2 FAIL /0 allowance",
+    "actualNativeAttempt": 2
+  },
+  "nativeOutcomeRecordedAtUTC": "2026-11-17T17:41:37.606993+00:00",
+  "nativeFullRun": {
+    "sourceSHA": "82e4dfb02d2016dcbe31e7b34af6cd09b0f0457a",
+    "runID": 44120318741,
+    "actualAttempt": 2,
+    "actualNativeJobID": 134181279988,
+    "scope": "ui-only",
+    "expectedCount": 73,
+    "observedCount": 73,
+    "passed": 71,
+    "failed": 2,
+    "allowanceViolations": 0,
+    "strictAccepted": false,
+    "full73Accepted": false,
+    "scopeStatus": "not-accepted",
+    "exitCode": 65,
+    "subprocessExitCode": 65,
+    "wrapperTimedOut": false,
+    "elapsedSeconds": 3227.617589,
+    "failingTests": [
+      "LiveEditingTests/testDuplicateMoveAndDeleteSectionDuringPlayback",
+      "PadTouchUITests/testContactEnqueuesBeforeReleaseAndHoldDoesNotRetrigger"
+    ],
+    "originalStatusSHA256": "ae27c0cdb65da6db4557feeb6580c53964cafc0e067eee60d01f29039ec4b0b7"
+  },
+  "nativeInfrastructureHistory": {
+    "firstAttempt": 1,
+    "originalNativeJobID": 134169591834,
+    "status": "cancelled before VM acquisition; no native methods observed",
+    "reason": "hosted runner capacity annotation verified by CI monitor",
+    "secondAttempt": 2,
+    "nativeOnlyInfrastructureRetry": true,
+    "releaseArchiveRerun": false
+  },
+  "sourcePrimaryJobsAtArchiveCapture": {
+    "iphone": "success",
+    "releaseArchive": "success",
+    "native": "queued"
+  },
+  "sourceJobsSnapshot": {
+    "file": "candidate23-main-82e4dfb-source-jobs.json",
+    "scope": "Historical API snapshot at archive upload on attempt1; its native queued status is not current. Actual runtime result is nativeFullRun/attempt2 above.",
+    "originalBytesPreserved": true
+  }
+}

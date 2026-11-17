@@ -13,9 +13,9 @@
 
 <p align="center"><a href="#экраны-сборки-23">Экраны</a> · <a href="#возможности-сборки-23">Возможности</a> · <a href="#попробовать-на-iphone">На iPhone</a> · <a href="docs/release/CURRENT.md">Текущий статус</a> · <a href="ROADMAP.md">Роадмап</a></p>
 
-**Сборка 23 — тестовая альфа.** Исправления диктовки и помощника интегрированы. Проверенный candidate `7564fe7` прошёл **4/4 адресных сценария** и все четыре SDK-сборки; его IPA доступна ниже. Это focused4 своего source, не полный73 нового main. Свежий exact-main full73 и архив этой интеграции ещё Pending. [Точный статус](docs/release/CURRENT.md).
+**Сборка 23 — тестовая альфа.** В последнем полном прогоне main `82e4dfb` наблюдались все 73 метода: **71 PASS / 2 FAIL / 0 allowance**. Его IPA независимо проверена, четыре SDK-сборки прошли; весь software gate не принят. В этой интеграции исправлено только чтение свежего состояния в тесте секций; следующий единый полный73 — **Pending**. [Точный статус и причины двух failures](docs/release/CURRENT.md).
 
-**[Скачать IPA 23 после исправлений помощника · candidate 7564fe7](https://github.com/alexgazin/la-grilla/actions/runs/44112860068/artifacts/14342868829)** · [Source, SHA-256 и установка](Builds/Testing/README.md) · [Роадмап](ROADMAP.md)
+**[Скачать свежую IPA 23 · exact main 82e4dfb](https://github.com/alexgazin/la-grilla/actions/runs/44120318741/artifacts/14346460625)** · [Source, SHA-256 и установка](Builds/Testing/README.md) · [Роадмап](ROADMAP.md)
 
 Сочиняйте аккорды, записывайте бит и добавляйте мелодию в одну сетку. Сохраните редактируемый проект или заберите MIDI/WAV для продолжения работы в DAW.
 
@@ -31,13 +31,13 @@
 
 Эти три кадра сохраняют source `8f7cd0e`: методы-владельцы прошли, весь тот targeted-запуск — 4 PASS / 1 allowance. [Неизменённые оригиналы и происхождение](Screenshots/Build23Layout/README.md).
 
-**Ступени и бемоли после перезапуска · точный main 23**
+**Ступени и бемоли после перезапуска · прежний main 0cfd12e**
 
 <a href="Screenshots/Build23Main/flats-degrees-reopened.png"><img src="Screenshots/Build23Main/flats-degrees-reopened.png" width="220" alt="Main23: сохранённый B♭ и ступень IV после перезапуска проекта, закреплённые Preview и Apply"></a>
 
 Оригинальный кадр `0cfd12e` принадлежит прошедшему Flats/scale-degrees методу. Весь main-run: 70 PASS / 2 FAIL / 1 allowance; один прошедший кадр не принимает весь релиз. [PNG, source/run и SHA-256](Screenshots/Build23Main/README.md).
 
-**Помощник после исправлений · candidate 23**
+**Помощник после исправлений · исходный кадр candidate 7564**
 
 <a href="Screenshots/Build23Assistant/assistant-dictation-controls.png"><img src="Screenshots/Build23Assistant/assistant-dictation-controls.png" width="220" alt="Помощник23: отдельные действия начала и остановки диктовки и независимые языки"></a>
 
@@ -71,19 +71,15 @@
 
 ## Попробовать на iPhone
 
-**[Скачать проверенный ZIP candidate 23 / `7564fe7`](https://github.com/alexgazin/la-grilla/actions/runs/44112860068/artifacts/14342868829)**, извлечь `LaGrilla-unsigned.ipa` и подписать своим Apple ID через Sideloadly на Mac или Windows. Бесплатная Personal Team подходит; подпись обычно действует 7 дней. Файл **3 693 136 байт**, SHA-256 `93de06cf30a23acf186dd9a2427e98c2097136a0f53c671789cb8612662245a8`. [Подробная установка и происхождение](Builds/Testing/README.md).
+**[Скачать свежий оригинальный ZIP сборки23 / main `82e4dfb`](https://github.com/alexgazin/la-grilla/actions/runs/44120318741/artifacts/14346460625)**, извлечь `LaGrilla-unsigned.ipa` и подписать своим Apple ID через Sideloadly на Mac или Windows. Бесплатная Personal Team подходит; подпись обычно действует 7 дней. Файл **3 693 136 байт**, SHA-256 `93de06cf30a23acf186dd9a2427e98c2097136a0f53c671789cb8612662245a8`. [Подробная установка и provenance](Builds/Testing/README.md).
 
-Это независимо проверенный candidate-source со strict4 и четырьмя SDK PASS, а не новый exact-main/full73 accepted package. Архив точного main после этой интеграции и его полный73 ещё Pending. Прежняя preview `0cfd12e` до исправлений помощника сохранена отдельно со своим результатом70/2/1 и receipts.
-
-Для запуска из Xcode откройте `LaGrilla.xcodeproj` из `main`, выберите свою Personal Team, подключите iPhone и нажмите Run. Нужен Mac и Xcode, поддерживающий установленную на телефоне iOS; рекомендуется актуальный 26.x. Проверенные 16.4/26.0.1 подтверждают совместимость компилятора, а не поддержку любой новой iOS телефона. Release-архив собирается с Xcode 26/iOS 26 SDK.
-
-На прежнем main-source `0cfd12e` прошли пять регрессий Perform/транспонирования, Bass→Melody и десять сценариев касаний, нот, звука, записи и landscape. Его итог70/2/1 сохранён. Исправления помощника прошли отдельный strict4 на `7564fe7`; полный набор этой интеграции ещё Pending. [Подробный результат](docs/release/CURRENT.md).
+Это новый артефакт exact main, самостоятельно скачанный и проверенный со своим source/receipt; его bytes совпадают с candidate7564/db8, но файл не переименован из прежней сборки. SDK4 PASS; полный73 этого main завершился с 71 PASS / 2 FAIL / 0 allowance. Статическая проверка IPA не означает полную software, аппаратную или Store-приёмку.
 
 Перед обновлением экспортируйте важные проекты в portable bundle. Сборка 23 читает схемы **1…11** и сохраняет **schema 11**; старые приложения не открывают сохранённую schema 11.
 
 ## Следующие шаги
 
-Получить новый exact-main full73 и отдельно проверить его архив; 70 прежних PASS и focused4 не складываются в новый полный результат. Затем — установленная 23: ритм, ноты, тембры, наклон, Start/Stop диктовки, сохранение и экспорт. Реальные маршруты, human Voice-to-MIDI, FoundationModels на телефоне, MIDI и C8 остаются отдельной приёмкой перед beta/TestFlight/App Store.
+Следующий шаг — один новый полный73 после исправления наблюдения тестом состояния секций, с прежними ожиданиями и лимитами; результат пока Pending. В исходном main82e4 кадры внутри провалившегося ожидания уже показывают PLAYING и правильный порядок секций, а следующий Pad-тест не дошёл до пэдов из-за завершения предыдущего процесса. Изменения приложения на этом основании не заявляются. Затем — установленная 23: ритм, ноты, тембры, наклон, Start/Stop диктовки, сохранение и экспорт. Реальные маршруты, human Voice-to-MIDI, FoundationModels на телефоне, MIDI и C8 остаются отдельной приёмкой перед beta/TestFlight/App Store.
 
 [Точный статус, ограничения и история failures](docs/release/CURRENT.md) · [Протокол устройства](docs/release/DEVICE_ACCEPTANCE.md) · [Роадмап](ROADMAP.md) · [План аудита](docs/review/2026-11-16/PLAN.md).
 
