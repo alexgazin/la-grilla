@@ -1,0 +1,16 @@
+{
+  "repository": "alexgazin/la-grilla",
+  "sourceSHA": "207fc2b4ccd4cfadd5848443c92deca2a338e4f9",
+  "checkoutSHA": "207fc2b4ccd4cfadd5848443c92deca2a338e4f9",
+  "runID": "44173635746",
+  "runAttempt": "2",
+  "architecture": "arm64",
+  "runnerArchitecture": "ARM64",
+  "xcode": "Xcode 26.3\nBuild version 17C529",
+  "simulatorSDK": "26.2",
+  "themeSHA256": "abd850b31485fef378a0a8f231dbc45b74bb5a8241a1963bb9705ce2c84e8f49",
+  "scope": "focused-design26",
+  "fullAcceptance": false,
+  "physicalDevice": false,
+  "customVideoCapture": false
+}

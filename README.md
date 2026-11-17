@@ -13,7 +13,14 @@
 
 <p align="center"><a href="#экраны-сборки-23">Экраны</a> · <a href="#возможности-сборки-23">Возможности</a> · <a href="#попробовать-на-iphone">На iPhone</a> · <a href="docs/release/CURRENT.md">Текущий статус</a> · <a href="ROADMAP.md">Роадмап</a></p>
 
-**В работе — сборка 24, дизайн Nocturne.** Общая ночная палитра, новая консоль транспорта, выразительные пэды, точная сетка и piano roll, выбор тембра и студийный микшер. [Дизайн-система, действия и этапы проверки](DESIGN.md). Скриншоты ниже пока относятся к сборке 23; новые будут добавлены после нативной проверки 24.
+
+## Nocturne 24 — новые экраны
+
+Реальные экраны Night: пять PNG, owner PASS103.043с. Весь focused-прогон: 9 PASS / 2 FAIL; Light и запуск одного теста пэдов ещё не приняты. [Оригиналы и источник](Screenshots/Design26/README.md). Общий gate75 и устройство остаются отдельной проверкой.
+
+<table><tr><td><a href="Screenshots/Design26/night-grid.png"><img src="Screenshots/Design26/night-grid.png" width="180" alt="Nocturne24 grid"></a></td><td><a href="Screenshots/Design26/night-jam.png"><img src="Screenshots/Design26/night-jam.png" width="180" alt="Nocturne24 jam"></a></td><td><a href="Screenshots/Design26/night-mixer.png"><img src="Screenshots/Design26/night-mixer.png" width="180" alt="Nocturne24 mixer"></a></td></tr><tr><td><a href="Screenshots/Design26/night-piano.png"><img src="Screenshots/Design26/night-piano.png" width="180" alt="Nocturne24 piano"></a></td><td><a href="Screenshots/Design26/night-sound.png"><img src="Screenshots/Design26/night-sound.png" width="180" alt="Nocturne24 sound"></a></td></tr></table>
+
+[Диагностические кадры Light](Screenshots/Design26/Diagnostics/light-grid.png) · [IPA 24](https://github.com/alexgazin/la-grilla/actions/runs/44173635688/artifacts/14368802814)
 
 **Сборка 23 — тестовая альфа.** Последний полный прогон exact main `e22f487`: **70 PASS / 3 FAIL / 0 case allowance**, все 73 метода наблюдались, общего timeout нет. Четыре SDK-сборки прошли. Полная software-приёмка пока не пройдена; исторические результаты не суммируются.
 
