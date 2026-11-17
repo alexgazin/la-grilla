@@ -243,10 +243,10 @@ final class ArrangementUITests: XCTestCase {
         let initialX=clip.frame.minX,bar=clip.frame.width+6
         XCTAssertLessThan(bar,app.windows.firstMatch.frame.width/2,"Clip accessibility frame must match the one-bar clip, not its entire lane")
         let finger=clip.coordinate(withNormalizedOffset:CGVector(dx:0.4,dy:0.5))
-        // The recorded resized-clip lift took 3.75s and cancelled after the
-        // 2.184s touch ended. Keep contact through that lift before moving;
-        // the six-second position wait still measures the actual drop result.
-        drag(finger,to:finger.withOffset(CGVector(dx:bar,dy:0)),liftHold:5)
+        // With verified DragUI readiness, test the original natural lift hold.
+        // The b07 lift cancelled at 4.138s while a five-second hold was still
+        // stationary; keep every drop assertion unchanged for this experiment.
+        drag(finger,to:finger.withOffset(CGVector(dx:bar,dy:0)),liftHold:1.2)
         waitForClipPosition(clip,x:initialX+bar,length:"1.00 bars",in:app)
         XCTAssertGreaterThan(clip.frame.minX,initialX+bar*0.5)
         XCTAssertEqual(clip.frame.minX,initialX+bar,accuracy:3)

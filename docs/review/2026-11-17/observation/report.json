@@ -1,0 +1,51 @@
+{
+  "scope": "Linux host Observation reentrancy regression with source-extracted Session methods and real MusicDomain; not Apple SDK or native UI acceptance",
+  "sourceSHA256": "e7d0c43fc6b177edcff644743429abbb2f94deee0ad2c74e8b050b87de7167ad",
+  "legacySourceSHA": "c5ee17c69b52341a47c1c0de76657b397054f604",
+  "extractedFunctionSHA256": {
+    "withHistoryTransaction": "de79be694dee8a94963e251efdf32ac627b79b9a1ef5fe8ccdf6e2913acd3e7b",
+    "edit": "e6c86bb9a1e9d79cab19a1fba9e140396569e3d09a059fa728f72d9e20d90303",
+    "mixerEdit": "aa3022a8007f9fde1cb53ac477f26a31d1509eeac1d013d1b67bde2319435d36",
+    "coalescedMusicEdit": "9adfe79dfd7cd386eeee60afa20cfb91e40d9af2d5f9d08f31bd0c83e46b1d3e",
+    "undo": "c1be7b01af760306b034b8b80a357c7cfe6176a18d2ca85a937e063b614c3ada",
+    "redo": "dfb724007aa52a72935848e4a036322cccf657cd91eba70cecd4043994c16166"
+  },
+  "legacyFunctionSHA256": "bcc222ae9e80fb6e8f799fd8c5986859c2efdef76429cb4e1c402b9d5bd58916",
+  "results": {
+    "current": {
+      "exitCode": 0,
+      "stdout": "PASS extracted edit/undo/redo/mix/coalesced reentrancy, one-gesture Undo, throw rollback\n",
+      "stderrPrefix": ""
+    },
+    "legacy": {
+      "exitCode": -6,
+      "stdout": "",
+      "stderrPrefix": "Simultaneous accesses to 0x561bfc6e6f58, but modification requires exclusive access.\nPrevious access (a modification) started at legacy`<unavailable> + 1828677 (0x561bd6ff8745).\nCurrent access (a read) started at:\n0    legacy                             0x0000561bd74a3198 <unavailable> + 6721944\n1  "
+    }
+  },
+  "status": "passed",
+  "audioAndLivePerformance": "Not exercised; stub branches precondition-fail if reached",
+  "compilerVersion": "Swift version 6.1.2 (swift-6.1.2-RELEASE)\nTarget: x86_64-unknown-linux-gnu",
+  "compilerFlags": [
+    "-swift-version",
+    "6",
+    "-parse-as-library",
+    "-static-stdlib"
+  ],
+  "runtimeNote": "Unmodified static toolchain runtime used because the packaged dynamic libswiftObservation.so failed to resolve swift::threading::fatal at link time. This is host setup, not an app failure.",
+  "currentGeneratedHarnessSHA256": "68efc94d3f5e86f3ce704ce8de7365bb05de8a75c8b9eb78266c045ebdf8e9c0",
+  "legacyGeneratedHarnessSHA256": "186bb4b28c069545d6175dedb03e182627c34d2f8057068f82f1fe093e2b663a",
+  "realSPMObjectCount": 37,
+  "realSPMObjectInventorySHA256": "76e487a2ec9bd2e88faf32ea3c902c5d1a13974aa0b356da5a08002aab338c6c",
+  "actualChecks": [
+    "Synchronous observed project change reads real History.canUndo during edit publication",
+    "Undo and Redo retain the same observer safety",
+    "Two mix edits coalesce into one Undo",
+    "Two coalesced music edits revert with one Undo",
+    "Validation-error edit leaves project and history flags unchanged without project notification",
+    "Fresh validation-error edit creates no Undo or Redo entry",
+    "Negative control extracted from actual legacy source aborts with Swift exclusivity SIGABRT"
+  ],
+  "sourceExtraction": "Current helper and edit/mixerEdit/coalescedMusicEdit/undo/redo function bodies are extracted from App/Session.swift; no handwritten replacement helper is used.",
+  "scriptSHA256": "de1770111916e2e5b1fc428a00ba136fa947224effec255a2a835d4ffa750976"
+}

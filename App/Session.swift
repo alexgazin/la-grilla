@@ -247,28 +247,39 @@ import Observation
         if let drumDraft{drumPlayback=try? drumDraft.candidate(for:project)}else{drumPlayback=nil}
         audio.submit(drumPlayback ?? project,loop:loop,range:loopRange);audio.metronome(metronome);syncMIDI()
     }
+    /// Complete value mutations before publishing either observed property.
+    /// A project willSet can synchronously render a view that reads history;
+    /// holding an inout borrow of Session.history across that callback aborts.
+    private func withHistoryTransaction<T>(_ change:(inout History,inout Project)throws->T) rethrows->T {
+        var nextHistory=history
+        var nextProject=project
+        let result=try change(&nextHistory,&nextProject)
+        history=nextHistory
+        project=nextProject
+        return result
+    }
     func edit(_ change: (inout Project) throws -> Void) {
         mixerGesture=false
         guard !performance.contextActive else{message="Return to editing before changing the source project.";return}
         guard !recording && !armed else {message = "Finish the drum take before editing the project.";return}
-        do {try history.apply(&project,change); sync(); scheduleSave()} catch {message = error.localizedDescription}
+        do {try withHistoryTransaction{h,p in try h.apply(&p,change)}; sync(); scheduleSave()} catch {message = error.localizedDescription}
     }
     var mixerGesture = false
     func mixerEdit(_ change: (inout Project) throws -> Void) {
         if performance.contextActive{do{try performance.editMix(change)}catch{message=error.localizedDescription};return}
-        do { try history.applyMix(&project, coalescing: mixerGesture, change); mixerGesture = true; sync(); scheduleSave() }
+        do { try withHistoryTransaction{h,p in try h.applyMix(&p, coalescing: mixerGesture, change)}; mixerGesture = true; sync(); scheduleSave() }
         catch { message = error.localizedDescription }
     }
     func coalescedMusicEdit(_ change:(inout Project)throws->Void){
         guard !performance.contextActive else{message="Return to editing before changing the source project.";return}
         guard !recording && !armed else{message="Finish the drum take before editing the project.";return}
-        do{try history.apply(&project,coalescing:mixerGesture,change);mixerGesture=true;sync();scheduleSave()}catch{message=error.localizedDescription}
+        do{try withHistoryTransaction{h,p in try h.apply(&p,coalescing:mixerGesture,change)};mixerGesture=true;sync();scheduleSave()}catch{message=error.localizedDescription}
     }
     func mixerImmediate(_ change: (inout Project) throws -> Void) {
         mixerGesture=false; mixerEdit(change); mixerGesture=false
     }
-    func undo() {if performance.contextActive{Task{await leavePerformance();undo()};return};guard !recording && !armed else {return}; mixerGesture=false;history.undo(&project);restoreGeneratedLoop();sync();scheduleSave()}
-    func redo() {if performance.contextActive{Task{await leavePerformance();redo()};return};guard !recording && !armed else {return}; mixerGesture=false;history.redo(&project);restoreGeneratedLoop();sync();scheduleSave()}
+    func undo() {if performance.contextActive{Task{await leavePerformance();undo()};return};guard !recording && !armed else {return}; mixerGesture=false;withHistoryTransaction{h,p in h.undo(&p)};restoreGeneratedLoop();sync();scheduleSave()}
+    func redo() {if performance.contextActive{Task{await leavePerformance();redo()};return};guard !recording && !armed else {return}; mixerGesture=false;withHistoryTransaction{h,p in h.redo(&p)};restoreGeneratedLoop();sync();scheduleSave()}
     func scheduleSave() {saveTask?.cancel();saveTask = Task {try? await Task.sleep(for:.milliseconds(700));guard !Task.isCancelled else{return};await save()} }
     func save() async {
         // Scene/background notifications may arrive while the catalogue is
@@ -683,7 +694,7 @@ import Observation
         guard project.id==projectID,project.revision==revision,!recording,!armed,!performance.contextActive else{throw AssistantError.stale}
         try await store.writeAsset(data,record:record,projectID:projectID)
         guard project.id==projectID,project.revision==revision,!recording,!armed,!performance.contextActive else{await store.removeStagedAsset(record,projectID:projectID);throw AssistantError.stale}
-        do{try history.apply(&project){$0=placement.project}}
+        do{try withHistoryTransaction{h,p in try h.apply(&p){$0=placement.project}}}
         catch{await store.removeStagedAsset(record,projectID:projectID);throw error}
         noteTrackID=placement.trackID;sync();await save();return saveError==nil
     }
@@ -697,13 +708,13 @@ import Observation
         if performance.contextActive,let id=performance.activeSectionID{selectedSection=id}
         guard let take=performance.takeReady else{return}
         guard take.source.id==project.id else{performance.error="The project changed. Export the performance before closing it.";return}
-        do{try history.apply(&project){$0.performanceTake=take};performance.takeReady=nil;scheduleSave()}
+        do{try withHistoryTransaction{h,p in try h.apply(&p){$0.performanceTake=take}};performance.takeReady=nil;scheduleSave()}
         catch{performance.error=error.localizedDescription}
     }
     func leavePerformance()async{await performance.exit();pollPerformance();mixerGesture=false;audio.invalidateMusicSnapshot();sync();audio.seek(loopRange.lowerBound)}
     func commitPerformanceMix(){
         guard !performance.recording,!performance.replaying,let runtime=performance.runtimeProject,runtime.tracks.map(\.id)==project.tracks.map(\.id)else{return}
-        do{try history.apply(&project){p in for i in p.tracks.indices{p.tracks[i].gain=runtime.tracks[i].gain;p.tracks[i].pan=runtime.tracks[i].pan;p.tracks[i].mute=runtime.tracks[i].mute;p.tracks[i].solo=runtime.tracks[i].solo};p.master=runtime.master;p.masterFX=runtime.masterFX};scheduleSave()}catch{performance.error=error.localizedDescription}
+        do{try withHistoryTransaction{h,p in try h.apply(&p){p in for i in p.tracks.indices{p.tracks[i].gain=runtime.tracks[i].gain;p.tracks[i].pan=runtime.tracks[i].pan;p.tracks[i].mute=runtime.tracks[i].mute;p.tracks[i].solo=runtime.tracks[i].solo};p.master=runtime.master;p.masterFX=runtime.masterFX}};scheduleSave()}catch{performance.error=error.localizedDescription}
     }
     func applyMIDI(_ mapping:MIDIMapping,value:Double){
         guard !performance.replaying else{return}

@@ -82,6 +82,25 @@ jobs:
             -only-testing:LaGrillaUITests/StudioTests/testLandscapeKeepsPadsAndTransportReachable \
             -test-timeouts-enabled YES -maximum-test-execution-time-allowance 120 \
             ARCHS=arm64 ONLY_ACTIVE_ARCH=YES CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO test-without-building
+      - name: Preserve actual app crash and device diagnostics
+        if: always()
+        timeout-minutes: 2
+        run: |
+          python3 - <<'PYDIAGNOSTICS'
+          import pathlib,shutil,subprocess
+          output=pathlib.Path('TouchCrashReports');output.mkdir(exist_ok=True)
+          directory=pathlib.Path.home()/'Library/Logs/DiagnosticReports'
+          if directory.exists():
+              for item in directory.glob('*LaGrilla*'):
+                  if item.is_file():shutil.copy2(item,output/item.name)
+          selected=pathlib.Path('/tmp/grilla-simulator-id')
+          if selected.exists():
+              with pathlib.Path('touch21-device.log').open('wb') as stream:
+                  try:
+                      result=subprocess.run(['xcrun','simctl','spawn',selected.read_text().strip(),'log','show','--last','20m','--style','compact','--predicate','process == "LaGrilla"'],stdout=stream,stderr=subprocess.STDOUT,timeout=45)
+                      stream.write(f'\nDevice log command exit: {result.returncode}\n'.encode())
+                  except subprocess.TimeoutExpired:stream.write(b'\nDevice log timed out; original partial bytes retained.\n')
+          PYDIAGNOSTICS
       - name: Preserve original screenshots and gesture recordings
         if: always()
         timeout-minutes: 3
@@ -99,6 +118,8 @@ jobs:
             touch21-build.log
             touch21-native.log
             touch21-process-status.json
+            touch21-device.log
+            TouchCrashReports
             ci-audio.log
             TouchResults.xcresult
             TouchAttachments
