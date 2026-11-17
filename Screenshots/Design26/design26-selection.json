@@ -1,0 +1,20 @@
+{
+  "scope": "focused-design26",
+  "selectedCases": [
+    "DesignPresentationTests/testNightSurfacesRemainReachableWithoutEditingMusic",
+    "DesignPresentationTests/testLightSurfacesRemainReachableWithoutEditingMusic",
+    "PadTouchUITests/testContactEnqueuesBeforeReleaseAndHoldDoesNotRetrigger",
+    "PadTouchUITests/testSlidingFingerKeepsItsOriginalPadAndNeverStrikesNeighbour",
+    "PianoTouchUITests/testHoldAndMoveKeepsDurationAndCommitsOneUndoableEdit",
+    "PianoTouchUITests/testResizeHandleUsesGridAndCommitsOneUndoableEdit",
+    "SoundPickerUITests/testAppliedSoundIsOneUndoAndPersistsInTheRealStore",
+    "SoundPickerUITests/testLiveSoundPreviewRetainsTheGrooveAndSourceRevision",
+    "SoundPickerUITests/testSoundPreviewHasActualOutputAndCancelKeepsMusicUntouched",
+    "StudioTests/testLandscapeKeepsPadsAndTransportReachable",
+    "StudioTests/testLargeTypeMixerAndAccessibleNoteList"
+  ],
+  "expectedCount": 11,
+  "maximumExecutionTimeAllowance": 120,
+  "fullAcceptance": false,
+  "physicalDevice": false
+}

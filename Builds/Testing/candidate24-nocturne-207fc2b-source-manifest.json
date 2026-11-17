@@ -1,0 +1,153 @@
+{
+  "tree": "3601e40a26e8b04a9cbed6600b1e252c947e14ef",
+  "baseLocal": "22802c2ae5e33608ebfa501da82612078368b25d",
+  "files": [
+    {
+      "path": ".github/workflows/design26.yml",
+      "bytes": 8569,
+      "characters": 8569,
+      "sha256": "0f1c61e69792446bb8b6e7167b3b2c3374d1857b76ac529531fd5a1ef029866c",
+      "blob": "99b581cda131d3a6e4c6e69118fc9038f839da27"
+    },
+    {
+      "path": "App/StudioView.swift",
+      "bytes": 13296,
+      "characters": 13289,
+      "sha256": "645309514ef37e1f816e40bd9f37a48ec4108415ef54d851f15ec12642a8f62a",
+      "blob": "46b00d6fb59d65d0f4f32403e103859b0c858ef6"
+    },
+    {
+      "path": "App/Theme.swift",
+      "bytes": 13923,
+      "characters": 13923,
+      "sha256": "abd850b31485fef378a0a8f231dbc45b74bb5a8241a1963bb9705ce2c84e8f49",
+      "blob": "b19518148107f00e2b72473198445ed6cb0e5437"
+    },
+    {
+      "path": "AudioRuntime/AudioRuntimeQA.swift",
+      "bytes": 34994,
+      "characters": 34994,
+      "sha256": "472ec8802bda8c8c89ffbf760893e046e12c926bdc1a15f8127590e2f6d75b14",
+      "blob": "7bc223a45564ef6d84ba30adf851aa09ffd5dcf2"
+    },
+    {
+      "path": "DESIGN.md",
+      "bytes": 11591,
+      "characters": 11588,
+      "sha256": "fb5f187787b16f244a504c0d15c8eaa89d165d64542eaee47d31f74b3e776dc5",
+      "blob": "f3da2497bd3162493325bcdbd38f021cf39ff883"
+    },
+    {
+      "path": "Features/GridView.swift",
+      "bytes": 47355,
+      "characters": 47353,
+      "sha256": "ea6b949c2e848c61efa17616dbaefc7b4dd272948c45d050a10cac4ce697057e",
+      "blob": "f70b378f2890e3da2d7934bf1f9953eab795e857"
+    },
+    {
+      "path": "Features/JamView.swift",
+      "bytes": 18167,
+      "characters": 18164,
+      "sha256": "b9fbd191c959798660b077a4be1a15f9c2ea8654403f7f77a03707da452435ef",
+      "blob": "f192b1e7063cedd4c2bbcbf425a1fea7a62c2362"
+    },
+    {
+      "path": "Features/MixerView.swift",
+      "bytes": 20133,
+      "characters": 20124,
+      "sha256": "801af34c2260fa83e63a6f3cac17cca6081387c92ce01e9ac700525bf97e908b",
+      "blob": "2e2e5aa5ce50d7f6317d1220b2a6a6bea6ee542e"
+    },
+    {
+      "path": "Features/PianoRollView.swift",
+      "bytes": 30517,
+      "characters": 30511,
+      "sha256": "acdc1f7f1cfcea859b025527a7209d4a7434de7d26a7c8b0286ecf2e08ccb991",
+      "blob": "9c2012cc8768d5f93da0dd0ca27cf29f8fee6b64"
+    },
+    {
+      "path": "Features/TrackSoundPicker.swift",
+      "bytes": 14231,
+      "characters": 14230,
+      "sha256": "699c0bc1482e4f346917b945bbe01af75c41981eb046d0cd9cc172622ca89219",
+      "blob": "5786d1e5dd84b6b19a3e1ae7c872235f6ec455e6"
+    },
+    {
+      "path": "LaGrilla.xcodeproj/project.pbxproj",
+      "bytes": 43046,
+      "characters": 43046,
+      "sha256": "86fb88736ee13b7bd62b3fc2ec6d1dcc0a314b95b0b1a733eee80751878aa52d",
+      "blob": "e4f1b6364a987f27a2d66c91b7cafa6b9257c058"
+    },
+    {
+      "path": "README.md",
+      "bytes": 24303,
+      "characters": 17210,
+      "sha256": "b8cd7b9c064d2d79ef9f63d9122d2748982cb652c92eec16a3bf9bde827c97b4",
+      "blob": "cf49fdc2592c1e46cb65ab998887630c989988c9"
+    },
+    {
+      "path": "UITests/DesignPresentationTests.swift",
+      "bytes": 10217,
+      "characters": 10201,
+      "sha256": "21325b3b5d7e2cfca9401cd2a24c84767bbc054eb83e6c11be5591544ebce595",
+      "blob": "b1daa1df4abebd38144b4105520aaf87d528bfc7"
+    },
+    {
+      "path": "docs/design/research-craft-skills.md",
+      "bytes": 27386,
+      "characters": 27333,
+      "sha256": "b6467f6558ce880e8ffa31827934fde05126ec6138f86603b98a6f2ade1a371f",
+      "blob": "b6e4a8cf52ecddc834a3b61782d9ede37f9309d3"
+    },
+    {
+      "path": "docs/design/research-interaction-skills.md",
+      "bytes": 32633,
+      "characters": 32541,
+      "sha256": "1e7730129294f71412f1921b73101cc29a4fe7f38df5f5d2d31237734a6ab82f",
+      "blob": "a7dfe7ab2becfe4dc32bc539b7ce31ecbf22a2a8"
+    },
+    {
+      "path": "docs/design/research-stageshow-sub.md",
+      "bytes": 12175,
+      "characters": 12142,
+      "sha256": "6c3fae7fa3cc08f249ffe87569b1ba0195fbda4294e9616d3c524c9deda6bf3a",
+      "blob": "2f6976b0b79f7cfc18b5dde845f186d66f4bbca4"
+    },
+    {
+      "path": "docs/design/research-visual.md",
+      "bytes": 16744,
+      "characters": 16714,
+      "sha256": "0396bec354ecaab8529aab693fe528d903d4eed8387d4e6ff27d8b82b6bff0c2",
+      "blob": "959b9e8c8022cf3a14008c8c760ba86b555b5dd3"
+    },
+    {
+      "path": "docs/release/CURRENT.md",
+      "bytes": 42524,
+      "characters": 31098,
+      "sha256": "23f9745d3eef9d114f604e36ec16169ffd8c3a77b5dcd2e1e6ab4a234af1022d",
+      "blob": "fc93cc1b087505a52325496c3d90de500ebca931"
+    },
+    {
+      "path": "project.yml",
+      "bytes": 2220,
+      "characters": 2220,
+      "sha256": "44c86c2e4822cafde6e3be8324a52b734cef9fadab8e09f60674bd30a4ee87e4",
+      "blob": "6fa718ecbc3f78f44e7e772d89c44ff3b5c01453"
+    },
+    {
+      "path": "scripts/audit_presentation.py",
+      "bytes": 8020,
+      "characters": 8007,
+      "sha256": "38e77096d6d919152dd15f0b5c7efe44256db779eb61f196a936078488801a4e",
+      "blob": "09029cb99c9682966419bacc5b779864f663af06"
+    },
+    {
+      "path": "scripts/generate_project.py",
+      "bytes": 11502,
+      "characters": 11502,
+      "sha256": "4833e8e68630ef15e8e3ae4f6868f8214c340a25ea3644f95addd5203747ef7b",
+      "blob": "0566490b927cdd5ce07d15c8df081e8a806d78ea"
+    }
+  ]
+}

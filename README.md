@@ -13,11 +13,20 @@
 
 <p align="center"><a href="#экраны-сборки-23">Экраны</a> · <a href="#возможности-сборки-23">Возможности</a> · <a href="#попробовать-на-iphone">На iPhone</a> · <a href="docs/release/CURRENT.md">Текущий статус</a> · <a href="ROADMAP.md">Роадмап</a></p>
 
-**В работе — сборка 24, дизайн Nocturne.** Общая ночная палитра, новая консоль транспорта, выразительные пэды, точная сетка и piano roll, выбор тембра и студийный микшер. [Дизайн-система, действия и этапы проверки](DESIGN.md). Скриншоты ниже пока относятся к сборке 23; новые будут добавлены после нативной проверки 24.
 
-**Сборка 23 — тестовая альфа.** Последний полный прогон exact main `e22f487`: **70 PASS / 3 FAIL / 0 case allowance**, все 73 метода наблюдались, общего timeout нет. Четыре SDK-сборки прошли. Полная software-приёмка пока не пройдена; исторические результаты не суммируются.
+**Nocturne 24 — новая тестовая сборка.** Пять реальных ночных экранов сохранены в [Design26](Screenshots/Design26/README.md); их общий сценарий прошёл за 103.043 с. Нативный focused-прогон исходника 207fc2b: 9 PASS, Light превысил120 с на заключительных проверках, PadContact оборвался при запуске до UI. Gate не принят. Повторные запросы геометрии и неиспользуемые снимки в новом тесте удалены; все проверки и лимиты сохранены. Следующий полный inventory 75 — Pending.
 
-**[Скачать IPA 23 · exact main e22f487](https://github.com/alexgazin/la-grilla/actions/runs/44156364284/artifacts/14361297972)** · [Установка](Builds/Testing/README.md) · [Роадмап](ROADMAP.md)
+## Nocturne 24 — новые экраны
+
+Реальные экраны Night: пять PNG, owner PASS 103.043 с. Весь focused-прогон: 9 PASS / 2 FAIL; Light и запуск одного теста пэдов ещё не приняты. [Оригиналы и источник](Screenshots/Design26/README.md). Общий gate 75 и устройство остаются отдельной проверкой.
+
+<table><tr><td><a href="Screenshots/Design26/night-grid.png"><img src="Screenshots/Design26/night-grid.png" width="180" alt="Nocturne 24 grid"></a></td><td><a href="Screenshots/Design26/night-jam.png"><img src="Screenshots/Design26/night-jam.png" width="180" alt="Nocturne 24 jam"></a></td><td><a href="Screenshots/Design26/night-mixer.png"><img src="Screenshots/Design26/night-mixer.png" width="180" alt="Nocturne 24 mixer"></a></td></tr><tr><td><a href="Screenshots/Design26/night-piano.png"><img src="Screenshots/Design26/night-piano.png" width="180" alt="Nocturne 24 piano"></a></td><td><a href="Screenshots/Design26/night-sound.png"><img src="Screenshots/Design26/night-sound.png" width="180" alt="Nocturne 24 sound"></a></td></tr></table>
+
+[Диагностические кадры Light](Screenshots/Design26/Diagnostics/light-grid.png) · [IPA 24](https://github.com/alexgazin/la-grilla/actions/runs/44173635688/artifacts/14368802814)
+
+**Предыдущая сборка 23 — тестовая альфа.** Последний полный прогон exact main `e22f487`: **70 PASS / 3 FAIL / 0 case allowance**, все 73 метода наблюдались, общего timeout нет. Четыре SDK-сборки прошли. Полная software-приёмка пока не пройдена; исторические результаты не суммируются.
+
+**[Архив IPA 23 · exact main e22f487](https://github.com/alexgazin/la-grilla/actions/runs/44156364284/artifacts/14361297972)** · [Установка](Builds/Testing/README.md) · [Роадмап](ROADMAP.md)
 
 Сочиняйте аккорды, записывайте бит и добавляйте мелодию в одну сетку. Сохраните редактируемый проект или заберите MIDI/WAV для продолжения работы в DAW.
 
@@ -79,11 +88,11 @@
 
 ## Попробовать на iPhone
 
-**[Скачать оригинальный ZIP сборки 23 / main `e22f487`](https://github.com/alexgazin/la-grilla/actions/runs/44156364284/artifacts/14361297972)**, извлечь `LaGrilla-unsigned.ipa` и подписать своим Apple ID через Sideloadly на Mac или Windows. Бесплатная Personal Team подходит; подпись обычно действует 7 дней. Файл **3 693 136 байт**, SHA-256 `93de06cf30a23acf186dd9a2427e98c2097136a0f53c671789cb8612662245a8`.
+**[Скачать Nocturne 1.0.0 (24)](https://github.com/alexgazin/la-grilla/actions/runs/44173635688/artifacts/14368802814)**, извлечь LaGrilla-unsigned.ipa и подписать своим Apple ID через Sideloadly. Бесплатная Personal Team подходит; подпись обычно действует7 дней. IPA 3 771 460 байт, SHA-256 a92df476c0ba8b9cb1032684b06f00cd7e084b4d8ef976013f969e7abbe5796f.
 
-Это артефакт исходника `e22f487`, отдельно скачанный и проверенный по source, ZIP digest, составу пакета и исполняемому файлу. Полный прогон этого исходника дал 70 PASS / 3 FAIL / 0 case allowance, exit 65 без общего timeout. Статическая проверка IPA не означает полную software, аппаратную или Store-приёмку.
+Исходник пакета207fc2b: physical iPhone Debug и Release PASS; ZIP/CRC/все 16 app-файлов/arm64/iOS18/SDK26.2/weak FoundationModels/fresh dSYM независимо проверены. Полный native75, физические маршруты и Store-приёмка открыты. [Provenance и установка](Builds/Testing/README.md).
 
-Перед обновлением экспортируйте важные проекты в portable bundle. Сборка 23 читает схемы **1…11** и сохраняет **schema 11**; старые приложения не открывают сохранённую schema 11.
+Перед обновлением экспортируйте важные проекты в portable bundle. Сборка 24 читает схемы **1…11** и сохраняет **schema 11**; старые приложения не открывают сохранённую schema 11.
 
 ## Следующие шаги
 

@@ -140,19 +140,21 @@ final class DesignPresentationTests: XCTestCase {
             throw PresentationError.unreachable
         }
         if minimumTarget {
-            XCTAssertGreaterThanOrEqual(element.frame.width, 44)
-            XCTAssertGreaterThanOrEqual(element.frame.height, 44)
+            let frame = element.frame
+            XCTAssertGreaterThanOrEqual(frame.width, 44)
+            XCTAssertGreaterThanOrEqual(frame.height, 44)
         }
     }
 
     @MainActor private func keepScreen(_ app: XCUIApplication, name: String, light: Bool) throws {
         let deadline = Date().addingTimeInterval(6)
         var consecutive = 0
-        var last = XCUIScreen.main.screenshot()
+        var last: XCUIScreenshot?
         var lastLuminance: Double?
         repeat {
-            last = XCUIScreen.main.screenshot()
-            lastLuminance = medianLuminance(last)
+            let current = XCUIScreen.main.screenshot()
+            last = current
+            lastLuminance = medianLuminance(current)
             if let luma = lastLuminance, (light ? luma > 0.65 : luma < 0.35), !app.alerts.firstMatch.exists {
                 consecutive += 1
             } else {
@@ -161,6 +163,10 @@ final class DesignPresentationTests: XCTestCase {
             if consecutive == 2 { break }
             Thread.sleep(forTimeInterval: 0.15)
         } while Date() < deadline
+        guard let last else {
+            XCTFail("No original native screenshot was captured")
+            throw PresentationError.appearanceUnsettled
+        }
         let attachment = XCTAttachment(data: last.pngRepresentation, uniformTypeIdentifier: "public.png")
         attachment.name = name
         attachment.lifetime = .keepAlways

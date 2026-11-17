@@ -1,0 +1,42 @@
+{
+  "expected": [
+    "light-grid.png",
+    "light-jam.png",
+    "light-mixer.png",
+    "light-piano.png",
+    "light-sound.png",
+    "night-grid.png",
+    "night-jam.png",
+    "night-mixer.png",
+    "night-piano.png",
+    "night-sound.png"
+  ],
+  "actual": [
+    "light-grid.png",
+    "light-jam.png",
+    "light-mixer.png",
+    "light-piano.png",
+    "light-sound.png",
+    "night-grid.png",
+    "night-jam.png",
+    "night-mixer.png",
+    "night-piano.png",
+    "night-sound.png"
+  ],
+  "complete": true,
+  "originalAttachments": "Design26Attachments",
+  "originalResult": "Design26Results.xcresult",
+  "images": {
+    "light-grid.png": "24a91172bbe4c06a3c067a7ec49260151d1bb8ac77a8383b02773b0c107cdcf8",
+    "light-jam.png": "4b8aa9a9d12899ce63c94e939045d0283c6ae318efac6ac81342d3f652794cd6",
+    "light-mixer.png": "40f3f6b9d7d658c286c60b60958db967c9491f47b0fc42e77fca5b8c36d1246b",
+    "light-piano.png": "7137ad174998ab8109c1952f84e2e545e53aeaa4383d5787d5dd92e291566747",
+    "light-sound.png": "10c616948e70e151abdd9ffbe47319c615da3250cbe1e917fdceaaa080fb307f",
+    "night-grid.png": "7079fea4eeb108338da938e53107b4fcd031763753767f9a47a148e7247e1146",
+    "night-jam.png": "6197abde7ad3b5bd8cb22e9fdca4746ad81dfd90b8d07dfc1e298558124b1b35",
+    "night-mixer.png": "ed5b8dea9c98ba04d39c861f71e1aea4e1b11aaa4b53b44fe73f31a87abe7789",
+    "night-piano.png": "18590953c7143cf2433c9dc57561bd25776b09947456f61d94808aec17fc54ad",
+    "night-sound.png": "1a055782fce69d301c38e2f1908512f491d790a636a75829a555981816f9fcdc"
+  },
+  "fullAcceptance": false
+}

@@ -1,0 +1,56 @@
+{
+  "repository": "alexgazin/la-grilla",
+  "sourceSHA": "207fc2b4ccd4cfadd5848443c92deca2a338e4f9",
+  "runID": 44173635688,
+  "artifactID": 14368802814,
+  "artifactBytes": 13825617,
+  "artifactSHA256": "0a68c9439daf5bb61e9c982861be016e8523787e59a8540864807ff028ff28fa",
+  "IPABytes": 3771460,
+  "IPASHA256": "a92df476c0ba8b9cb1032684b06f00cd7e084b4d8ef976013f969e7abbe5796f",
+  "version": "1.0.0",
+  "build": "24",
+  "apiDigestVerified": true,
+  "zipCRCVerified": true,
+  "all16OriginalArchiveEntriesEqual": true,
+  "binary": {
+    "architecture": "arm64",
+    "platform": "iOS",
+    "minimumOS": "18.0.0",
+    "sdk": "26.2.0",
+    "uuid": "8038B7D6-2EAD-3F5A-A8B5-7057595696EE",
+    "dsymUUIDMatches": true,
+    "foundationModelsLoadCommand": "LC_LOAD_WEAK_DYLIB",
+    "foundationModelsOrdinal": 15,
+    "foundationModelsWeakSymbols": 78,
+    "foundationModelsWeakChainedImports": 78,
+    "initializerSections": [],
+    "hasCodeSignatureCommand": false,
+    "runtimeValidation": "Static binary checks only; signed-device startup on iOS 18 still requires device QA."
+  },
+  "nativeFocusedResult": {
+    "runID": 44173635746,
+    "runAttempt": 2,
+    "jobID": 134369662348,
+    "passed": 9,
+    "timeAllowanceExceeded": [
+      "DesignPresentationTests/testLightSurfacesRemainReachableWithoutEditingMusic"
+    ],
+    "notObservedAfterStartupInterruption": [
+      "PadTouchUITests/testContactEnqueuesBeforeReleaseAndHoldDoesNotRetrigger"
+    ],
+    "exitCode": 65,
+    "timedOut": false,
+    "scopeStatus": "not-accepted",
+    "elapsedSeconds": 899.6795527500001
+  },
+  "fullAcceptance": false,
+  "physicalDevice": false,
+  "appReviewReady": false,
+  "verifiedUTC": "2026-11-17T20:59:48.822475+00:00",
+  "nightPresentationOwner": {
+    "result": "passed",
+    "seconds": 103.043,
+    "originalPNGs": 5
+  },
+  "nextFull75": "Pending after fixture-only query efficiency correction; no caps/assertions changed"
+}
