@@ -98,7 +98,11 @@ struct SettingsView: View {
         }
         Section("Musical notation"){
             Picker("Note names",selection:$spellingValue){Text("Auto (key)").tag(PitchSpelling.automatic.rawValue).accessibilityIdentifier("settings.spelling-option.automatic");Text("Sharps").tag(PitchSpelling.sharps.rawValue).accessibilityIdentifier("settings.spelling-option.sharps");Text("Flats").tag(PitchSpelling.flats.rawValue).accessibilityIdentifier("settings.spelling-option.flats")}.pickerStyle(.navigationLink).accessibilityIdentifier("settings.pitch-spelling")
-            Toggle("Show scale degrees",isOn:$showDegrees).accessibilityIdentifier("settings.show-degrees")
+            HStack {
+                Text("Show scale degrees")
+                Spacer()
+                StudioSwitch(isOn:$showDegrees,enabled:true,identifier:"settings.show-degrees",label:"Show scale degrees",tint:.mint).frame(width:64,height:48)
+            }
             Text("Names and degrees change the display, not the sound. Auto keeps the chord spelling you entered and otherwise follows the key. Minor degrees use the natural minor scale.").font(.caption).foregroundStyle(.secondary)
         }
         Section("Transport"){Toggle("Loop",isOn:Binding(get:{session.loop},set:{session.setLoop(enabled:$0)}));Picker("Loop length",selection:Binding(get:{session.loopBars},set:{session.setLoop(bars:$0)})){ForEach(session.loopLengthOptions,id:\.self){n in Text("\(n) bars").tag(n)}}}
@@ -157,7 +161,7 @@ struct BassView: View {
                 Spacer()
                 // Keep the platform switch's hit region independent of the
                 // Form cell and its descriptive/status rows on iOS 26.
-                RootBassSwitch(isOn:bassEnabled,enabled:!editingLocked).frame(width:64,height:48)
+                StudioSwitch(isOn:bassEnabled,enabled:!editingLocked,identifier:"bass.enabled",label:"Root bass",tint:.bass).frame(width:64,height:48)
             }
             Text("Bass follows the roots of your chords.").foregroundStyle(.secondary).font(.caption)
             Text(LocalizedStringKey(session.audio.playing ? "PLAYING":"STOPPED")).font(.caption.monospaced()).foregroundStyle(Color.muted).accessibilityIdentifier("bass.playback-state")
@@ -172,27 +176,30 @@ struct BassView: View {
 /// The native switch owns its inner frame; its host owns only the surrounding
 /// padding. Both paths emit one native valueChanged event. The actual 64×48 host
 /// remains a 44pt screen target after the system sheet's scale.
-@MainActor private struct RootBassSwitch:UIViewRepresentable {
+@MainActor private struct StudioSwitch:UIViewRepresentable {
     @Binding var isOn:Bool
     let enabled:Bool
-    func makeUIView(context:Context)->RootBassSwitchHost {
-        let host=RootBassSwitchHost()
+    let identifier:String
+    let label:String
+    let tint:Color
+    func makeUIView(context:Context)->StudioSwitchHost {
+        let host=StudioSwitchHost()
         host.control.addTarget(context.coordinator,action:#selector(Coordinator.changed(_:)),for:.valueChanged)
         return host
     }
-    func updateUIView(_ host:RootBassSwitchHost,context:Context){
+    func updateUIView(_ host:StudioSwitchHost,context:Context){
         context.coordinator.value=$isOn
         let control=host.control
         control.isEnabled=enabled && context.environment.isEnabled
         host.isUserInteractionEnabled=control.isEnabled
-        control.accessibilityIdentifier="bass.enabled"
-        control.accessibilityLabel=NSLocalizedString("Root bass",comment:"Bass switch")
-        control.onTintColor=UIColor(Color.bass)
+        control.accessibilityIdentifier=identifier
+        control.accessibilityLabel=NSLocalizedString(label,comment:"Studio switch")
+        control.onTintColor=UIColor(tint)
         if control.isOn != isOn{control.setOn(isOn,animated:control.window != nil)}
     }
     func makeCoordinator()->Coordinator{Coordinator(value:$isOn)}
-    func sizeThatFits(_ proposal:ProposedViewSize,uiView:RootBassSwitchHost,context:Context)->CGSize?{CGSize(width:64,height:48)}
-    static func dismantleUIView(_ uiView:RootBassSwitchHost,coordinator:Coordinator){uiView.control.removeTarget(coordinator,action:#selector(Coordinator.changed(_:)),for:.valueChanged)}
+    func sizeThatFits(_ proposal:ProposedViewSize,uiView:StudioSwitchHost,context:Context)->CGSize?{CGSize(width:64,height:48)}
+    static func dismantleUIView(_ uiView:StudioSwitchHost,coordinator:Coordinator){uiView.control.removeTarget(coordinator,action:#selector(Coordinator.changed(_:)),for:.valueChanged)}
     @MainActor final class Coordinator:NSObject {
         var value:Binding<Bool>
         init(value:Binding<Bool>){self.value=value}
@@ -205,8 +212,8 @@ struct BassView: View {
     }
 }
 
-@MainActor private final class RootBassSwitchHost:UIView,UIGestureRecognizerDelegate {
-    let control=RootBassUISwitch()
+@MainActor private final class StudioSwitchHost:UIView,UIGestureRecognizerDelegate {
+    let control=StudioUISwitch()
     override init(frame:CGRect){
         super.init(frame:frame)
         isAccessibilityElement=false
@@ -237,8 +244,8 @@ struct BassView: View {
     }
 }
 
-@MainActor private final class RootBassUISwitch:UISwitch {
-    weak var hitAreaHost:RootBassSwitchHost?
+@MainActor private final class StudioUISwitch:UISwitch {
+    weak var hitAreaHost:StudioSwitchHost?
     override var accessibilityFrame:CGRect {
         get{guard let host=hitAreaHost,host.window != nil else{return super.accessibilityFrame};return UIAccessibility.convertToScreenCoordinates(host.bounds,in:host)}
         set{super.accessibilityFrame=newValue}

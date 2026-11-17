@@ -235,32 +235,23 @@ final class TranspositionUITests:XCTestCase {
             guard finite(frame),finite(visible),visible.contains(frame),row.isEnabled else{
                 XCTFail("The real scale-degrees switch must be enabled and fully visible");return nil
             }
-            // The revealed row already contains its actual native child. Use
-            // that coherent pre-gesture state/geometry instead of re-fetching
-            // the row and every child attribute through separate AX requests.
-            var nativeSnapshots:[any XCUIElementSnapshot]=[],pending=row.children
+            // The public control is now the actual UISwitch from its 64×48
+            // native host, rather than an aggregate SwiftUI Toggle row.
+            var nestedSwitches:[any XCUIElementSnapshot]=[],pending=row.children
             while let node=pending.popLast(){
-                if node.elementType == .switch{nativeSnapshots.append(node)}
+                if node.elementType == .switch{nestedSwitches.append(node)}
                 pending.append(contentsOf:node.children)
             }
-            guard nativeSnapshots.count==1,let nativeSnapshot=nativeSnapshots.first,
-                  (nativeSnapshot.value as? String)==actual,nativeSnapshot.isEnabled else{
-                XCTFail("The actual native switch must exist, be enabled and agree with its row state");return nil
+            guard nestedSwitches.isEmpty,frame.width>=44,frame.height>=44 else{
+                XCTFail("The scale-degrees target must be the direct native switch with a 44pt touch surface");return nil
             }
-            let nativeFrame=nativeSnapshot.frame
-            guard finite(nativeFrame),visible.contains(nativeFrame),frame.contains(nativeFrame),nativeFrame != frame else{
-                XCTFail("The actual native switch must be wholly visible inside its measured Form row");return nil
+            guard let live=try? control.snapshot(),live.elementType == row.elementType,
+                  live.identifier==row.identifier,live.label==row.label,
+                  (live.value as? String)==actual,live.isEnabled,live.frame==frame,control.isHittable else{
+                XCTFail("The live native switch must match its measured state and be hittable before activation");return nil
             }
-            let native=control.switches.firstMatch
-            guard let live=try? native.snapshot(),live.elementType == nativeSnapshot.elementType,
-                  live.identifier==nativeSnapshot.identifier,live.label==nativeSnapshot.label,
-                  (live.value as? String)==actual,live.isEnabled,live.frame==nativeFrame,native.isHittable else{
-                XCTFail("The live native switch must match the measured child and be hittable before activation");return nil
-            }
-            // Activate the verified UISwitch accessory itself. A synthetic
-            // track swipe can leave this native control unchanged on iOS 26.
-            // Use one ordinary tap, with no fallback gesture or repeated tap.
-            native.tap()
+            // Exactly one native activation; no fallback or repeated tap.
+            control.tap()
             var afterGesture:String?
             wait(control,timeout:5){
                 afterGesture=(try? control.snapshot())?.value as? String

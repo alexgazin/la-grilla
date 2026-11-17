@@ -67,7 +67,7 @@ jobs:
           notation23=os.environ.get('GRILLA_NOTATION23_ONLY')=='1'
           if focused:cases=['PianoTouchUITests/testResizeHandleUsesGridAndCommitsOneUndoableEdit']
           if device23:cases=['PerformControlTests/testFilterIsReadOnlyDuringTakeReplay', 'PerformControlTests/testLargeTypeFilterAndTransportRemainReachable', 'StudioTests/testPerformRecordingSurvivesNavigationAndReplays', 'TranspositionUITests/testFlatsAndScaleDegreesPersistWithoutNotationChangingMusic', 'TranspositionUITests/testTransposePreviewCancelApplyLiveUndoRedoAndReopen']
-          if notation23:cases=['TranspositionUITests/testTransposePreviewCancelApplyLiveUndoRedoAndReopen', 'TranspositionUITests/testFlatsAndScaleDegreesPersistWithoutNotationChangingMusic']
+          if notation23:cases=['TranspositionUITests/testTransposePreviewCancelApplyLiveUndoRedoAndReopen', 'TranspositionUITests/testFlatsAndScaleDegreesPersistWithoutNotationChangingMusic', 'LiveEditingTests/testBassAndMelodyTrackEditsKeepPlaybackRunning']
           diagnostic=focused or device23 or notation23
           selection=dict(scope='input-diagnostic' if diagnostic else 'focused-touch-feedback',selectedCases=cases,expectedCount=len(cases),fullAcceptance=False)
           pathlib.Path('touch21-selection.json').write_text(json.dumps(selection,indent=2)+'\n')
