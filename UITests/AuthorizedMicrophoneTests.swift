@@ -212,7 +212,22 @@ final class AuthorizedMicrophoneTests: XCTestCase {
             }
             diagnostic = try object(try XCTUnwrap(dictate.value as? String))
             XCTAssertGreaterThan(diagnostic["receivedFrames"] as? Int ?? 0, 0)
-            if diagnostic["recording"] as? Bool == true { dictate.tap() }
+            // Start and Stop keep separate physical targets. The capture may
+            // already have ended while XCTest reads the real diagnostics; a
+            // contact on the now-disabled Stop must never start another one.
+            let stop = app.buttons["assistant.dictation-stop"]
+            let stopSnapshot = try stop.snapshot()
+            XCTAssertEqual(stopSnapshot.label, "Stop dictation")
+            let stopFrame = stopSnapshot.frame
+            let appFrame = app.frame
+            let viewport = app.scrollViews["assistant.review-scroll"].frame.intersection(appFrame)
+            XCTAssertGreaterThanOrEqual(stopFrame.width, 44)
+            XCTAssertGreaterThanOrEqual(stopFrame.height, 44)
+            XCTAssertTrue(stopFrame.minX >= viewport.minX && stopFrame.maxX <= viewport.maxX)
+            XCTAssertTrue(stopFrame.minY >= viewport.minY + 8 && stopFrame.maxY <= viewport.maxY - 8)
+            app.coordinate(withNormalizedOffset: .zero)
+                .withOffset(CGVector(dx: stopFrame.midX - appFrame.minX, dy: stopFrame.midY - appFrame.minY))
+                .press(forDuration: 0.05)
             wait(dictate, timeout: 5) {
                 guard let value = dictate.value as? String, let current = try? self.object(value) else { return false }
                 return current["requesting"] as? Bool == false && current["finalizing"] as? Bool == false && current["recording"] as? Bool == false

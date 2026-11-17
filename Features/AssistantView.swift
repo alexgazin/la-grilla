@@ -6,6 +6,7 @@ struct AssistantView:View {
     @Bindable var session:Session
     @AppStorage("studio.pitchSpelling") private var pitchSpelling=PitchSpelling.automatic.rawValue
     @Environment(\.scenePhase) private var phase
+    @Environment(\.dynamicTypeSize) private var dynamicType
     @FocusState private var focused:Bool
     @State private var input=""
     @State private var generatedInput=""
@@ -45,12 +46,7 @@ struct AssistantView:View {
                             if value != generatedInput{cancelGeneration();proposal=nil;candidate=nil;proposalSource=nil;usedUnavailableAIFallback=false}
                             session.endHarmonyPreview()
                         }
-                    HStack {
-                        Button("Examples"){focused=false;showExamples=true}.frame(minHeight:44).disabled(dictation.recording || dictation.requesting || dictation.finalizing).accessibilityIdentifier("assistant.examples")
-                        Spacer()
-                        VStack(spacing:2){Text("Dictation language").font(.caption2).foregroundStyle(Color.muted);languageControl}.disabled(dictation.recording || dictation.requesting || dictation.finalizing)
-                        Button{toggleDictation()}label:{Image(systemName:dictation.recording ? "stop.circle.fill":"mic.fill").frame(width:44,height:44).foregroundStyle(dictation.recording ? Color.record:Color.mint)}.accessibilityLabel(LocalizedStringKey(dictation.recording ? "Stop dictation":"Dictate a command")).accessibilityIdentifier("assistant.dictate").accessibilityValue(Text(verbatim:dictation.diagnosticState)).disabled(dictation.requesting || dictation.finalizing)
-                    }
+                    dictationToolbar
                     if dictation.requesting{ProgressView("Preparing dictation…")}
                     if dictation.finalizing{ProgressView("Finishing dictation…")}
                     if dictation.recording{Label("LISTENING · COMMAND",systemImage:"waveform").font(.caption.monospaced()).foregroundStyle(Color.record)}
@@ -127,6 +123,36 @@ struct AssistantView:View {
     }
     private var languageControl:some View {
         languageSelector($language,title:"Dictation language",identifier:"assistant.language.")
+    }
+    @ViewBuilder private var dictationToolbar:some View {
+        if dynamicType.isAccessibilitySize {
+            VStack(alignment:.leading,spacing:12){
+                examplesButton
+                HStack(alignment:.bottom,spacing:12){dictationLanguage;Spacer(minLength:0);dictationControls}
+            }
+        }else{
+            HStack{examplesButton;Spacer();dictationLanguage;dictationControls}
+        }
+    }
+    private var examplesButton:some View {
+        Button("Examples"){focused=false;showExamples=true}.frame(minHeight:44).disabled(dictation.recording || dictation.requesting || dictation.finalizing).accessibilityIdentifier("assistant.examples")
+    }
+    private var dictationLanguage:some View {
+        VStack(alignment:.leading,spacing:2){
+            Text("Dictation language").font(.caption2).foregroundStyle(Color.muted).fixedSize(horizontal:false,vertical:true)
+            languageControl
+        }.disabled(dictation.recording || dictation.requesting || dictation.finalizing)
+    }
+    private var dictationControls:some View {
+        HStack(spacing:8){
+            IconButton(symbol:"mic.fill",label:"Dictate a command",color:.mint){startDictation()}
+                .accessibilityIdentifier("assistant.dictate")
+                .accessibilityValue(Text(verbatim:dictation.diagnosticState))
+                .disabled(dictation.recording || dictation.requesting || dictation.finalizing)
+            IconButton(symbol:"stop.circle.fill",label:"Stop dictation",color:.record){stopDictation()}
+                .accessibilityIdentifier("assistant.dictation-stop")
+                .disabled(dictation.finalizing || (!dictation.recording && !dictation.requesting))
+        }
     }
     private func languageSelector(_ selection:Binding<String>,title:LocalizedStringKey,identifier:String)->some View {
         HStack(spacing:3){
@@ -295,10 +321,9 @@ struct AssistantView:View {
             closeEditor()
         }
     }
-    func toggleDictation(){
+    func startDictation(){
+        guard !dictation.recording,!dictation.requesting,!dictation.finalizing else{return}
         focused=false
-        if dictation.recording{dictation.stop();restoreAudio();return}
-        guard !dictation.finalizing else{return}
         guard session.ensureAudio()else{dictation.error=session.audio.error;return}
         guard let lease=session.beginMicrophone(stop:{dictation.cancel()})else{return};microphoneLease=lease
         Task{
@@ -308,6 +333,11 @@ struct AssistantView:View {
             if session.audio.captureEngine !== previousEngine,session.audio.isPrepared{session.sync()}
             if !dictation.recording{session.endMicrophone(lease);if microphoneLease==lease{microphoneLease=nil}}
         }
+    }
+    func stopDictation(){
+        // A delayed Stop remains a Stop even if Speech or the capture timer
+        // already ended the session. stop() also cancels an authorization request.
+        focused=false;dictation.stop();restoreAudio()
     }
     func restoreAudio(){if let lease=microphoneLease{microphoneLease=nil;session.endMicrophone(lease)}}
 }

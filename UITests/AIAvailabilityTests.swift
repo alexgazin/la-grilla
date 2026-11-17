@@ -11,7 +11,7 @@ final class AIAvailabilityTests:XCTestCase {
         let chord=app.buttons.matching(NSPredicate(format:"identifier BEGINSWITH 'grid.chord.'")).firstMatch
         XCTAssertTrue(chord.waitForExistence(timeout:5))
         let originalChord=chord.label
-        let originalDocument=documentState(transport)
+        let originalDocument=documentState(transport,verifyOutputOnlyStartup:true)
         XCTAssertFalse(app.buttons["Undo"].isEnabled)
         app.buttons["assistant.open"].tap()
         XCTAssertTrue(app.navigationBars["Assistant"].waitForExistence(timeout:5))
@@ -85,7 +85,7 @@ final class AIAvailabilityTests:XCTestCase {
         XCTAssertTrue(chord.exists || chord.waitForExistence(timeout:5))
         let originalUI=try jazzPhase(app)
         let originalChord=try XCTUnwrap(originalUI.firstChord?.label)
-        let originalDocument=documentState(transport)
+        let originalDocument=documentState(transport,verifyOutputOnlyStartup:true)
         XCTAssertEqual(originalUI.undo?.isEnabled,false)
         app.buttons["assistant.open"].tap()
         XCTAssertTrue(app.navigationBars["Assistant"].waitForExistence(timeout:5))
@@ -184,9 +184,12 @@ final class AIAvailabilityTests:XCTestCase {
     @MainActor private func launch()->XCUIApplication {
         XCUIDevice.shared.orientation = .portrait
         let app=XCUIApplication()
-        app.launchArguments=["--uitesting","--runtime-trace","--screen","grid","-AppleLanguages","(en)","-AppleLocale","en_US"]
+        // Typed fallback follows the production output-only startup policy.
+        // Simulator shared-input priming belongs to dedicated capture tests.
+        app.launchArguments=["--uitesting","--runtime-trace","--device-output-startup","--screen","grid","-AppleLanguages","(en)","-AppleLocale","en_US"]
         app.launch()
-        XCTAssertTrue(app.buttons["perform.transport"].waitForExistence(timeout:15))
+        let transport=app.buttons["perform.transport"]
+        XCTAssertTrue(transport.exists || transport.waitForExistence(timeout:15))
         return app
     }
 
@@ -196,8 +199,17 @@ final class AIAvailabilityTests:XCTestCase {
                       "This test requires the Simulator's real environment-level model unavailability; it never overrides readiness or language support")
     }
 
-    @MainActor private func documentState(_ transport:XCUIElement)->String {
-        let current=(transport.value as? String ?? "").components(separatedBy:"\n").first ?? ""
+    @MainActor private func documentState(_ transport:XCUIElement,verifyOutputOnlyStartup:Bool=false)->String {
+        // Read the actual full runtime value once; snapshots truncate it.
+        let report=transport.value as? String ?? ""
+        let current=report.components(separatedBy:"\n").first ?? ""
+        if verifyOutputOnlyStartup {
+            let fields=Set(current.split(separator:" ").map(String.init))
+            XCTAssertTrue(fields.contains("inputPriming=outputOnly"),"Typed fallback must use the production startup policy")
+            XCTAssertTrue(fields.contains("inputConfigured=false"),"Typed fallback must not configure microphone input")
+            XCTAssertTrue(fields.contains("error=none"),"The actual output-only startup must complete without an audio error")
+            keepReport(report,name:"AuthorizedInput-ai-output-only-startup-runtime")
+        }
         let regex=try! NSRegularExpression(pattern:"\\bproject=[A-Fa-f0-9-]+ revision=[0-9]+")
         guard let match=regex.firstMatch(in:current,range:NSRange(current.startIndex...,in:current)),
               let range=Range(match.range,in:current)else{XCTFail("Actual project/revision trace is missing");return ""}
