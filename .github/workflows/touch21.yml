@@ -10,6 +10,7 @@ concurrency:
   cancel-in-progress: true
 env:
   DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
+  GRILLA_TOUCH_RESIZE_ONLY: ${{ contains(github.event.head_commit.message, '[resize-only]') && '1' || '0' }}
 jobs:
   native-touch-feedback:
     runs-on: macos-26
@@ -30,7 +31,7 @@ jobs:
           python3 - <<'PYIDENTITY'
           import json,os,pathlib,subprocess
           def value(args):return subprocess.check_output(args,text=True,timeout=30).strip()
-          receipt=dict(repository=os.environ['GITHUB_REPOSITORY'],sourceSHA=os.environ['GITHUB_SHA'],checkoutSHA=value(['git','rev-parse','HEAD']),runID=os.environ['GITHUB_RUN_ID'],runAttempt=os.environ['GITHUB_RUN_ATTEMPT'],architecture=value(['uname','-m']),runnerArchitecture=os.environ['RUNNER_ARCH'],xcode=value(['xcodebuild','-version']),simulatorSDK=value(['xcrun','--sdk','iphonesimulator','--show-sdk-version']),scope='focused-touch-feedback',fullAcceptance=False,physicalDevice=False)
+          receipt=dict(repository=os.environ['GITHUB_REPOSITORY'],sourceSHA=os.environ['GITHUB_SHA'],checkoutSHA=value(['git','rev-parse','HEAD']),runID=os.environ['GITHUB_RUN_ID'],runAttempt=os.environ['GITHUB_RUN_ATTEMPT'],architecture=value(['uname','-m']),runnerArchitecture=os.environ['RUNNER_ARCH'],xcode=value(['xcodebuild','-version']),simulatorSDK=value(['xcrun','--sdk','iphonesimulator','--show-sdk-version']),scope='input-diagnostic' if os.environ.get('GRILLA_TOUCH_RESIZE_ONLY')=='1' else 'focused-touch-feedback',fullAcceptance=False,physicalDevice=False)
           pathlib.Path('touch21-source.json').write_text(json.dumps(receipt,indent=2)+'\n')
           assert receipt['sourceSHA']==receipt['checkoutSHA']
           assert receipt['architecture']=='arm64' and receipt['runnerArchitecture']=='ARM64'
@@ -55,33 +56,21 @@ jobs:
       - name: Verify native contact, note gestures, sound preview and recording
         timeout-minutes: 26
         run: |
-          GRILLA_TOUCH_DEVICE=$(cat /tmp/grilla-simulator-id)
-          python3 scripts/ci/run_native.py --timeout-seconds 1500 --deadline-env GRILLA_TOUCH_DEADLINE_EPOCH --label touch-feedback --log touch21-native.log --status touch21-process-status.json \
-            --require-test PadTouchUITests/testContactEnqueuesBeforeReleaseAndHoldDoesNotRetrigger \
-            --require-test PadTouchUITests/testSlidingFingerKeepsItsOriginalPadAndNeverStrikesNeighbour \
-            --require-test PianoTouchUITests/testHoldAndMoveKeepsDurationAndCommitsOneUndoableEdit \
-            --require-test PianoTouchUITests/testResizeHandleUsesGridAndCommitsOneUndoableEdit \
-            --require-test SoundPickerUITests/testAppliedSoundIsOneUndoAndPersistsInTheRealStore \
-            --require-test SoundPickerUITests/testLiveSoundPreviewRetainsTheGrooveAndSourceRevision \
-            --require-test SoundPickerUITests/testSoundPreviewHasActualOutputAndCancelKeepsMusicUntouched \
-            --require-test DrumRuntimeContinuityTests/testFocusedClipRecordingAndNaturalStopRetainLiveEngine \
-            --require-test StudioTests/testDrumTakeIsUndoable \
-            --require-test StudioTests/testLandscapeKeepsPadsAndTransportReachable \
-            -- xcodebuild -project LaGrilla.xcodeproj -scheme LaGrilla \
-            -destination "platform=iOS Simulator,id=$GRILLA_TOUCH_DEVICE" \
-            -derivedDataPath DerivedData -resultBundlePath TouchResults.xcresult \
-            -only-testing:LaGrillaUITests/PadTouchUITests/testContactEnqueuesBeforeReleaseAndHoldDoesNotRetrigger \
-            -only-testing:LaGrillaUITests/PadTouchUITests/testSlidingFingerKeepsItsOriginalPadAndNeverStrikesNeighbour \
-            -only-testing:LaGrillaUITests/PianoTouchUITests/testHoldAndMoveKeepsDurationAndCommitsOneUndoableEdit \
-            -only-testing:LaGrillaUITests/PianoTouchUITests/testResizeHandleUsesGridAndCommitsOneUndoableEdit \
-            -only-testing:LaGrillaUITests/SoundPickerUITests/testAppliedSoundIsOneUndoAndPersistsInTheRealStore \
-            -only-testing:LaGrillaUITests/SoundPickerUITests/testLiveSoundPreviewRetainsTheGrooveAndSourceRevision \
-            -only-testing:LaGrillaUITests/SoundPickerUITests/testSoundPreviewHasActualOutputAndCancelKeepsMusicUntouched \
-            -only-testing:LaGrillaUITests/DrumRuntimeContinuityTests/testFocusedClipRecordingAndNaturalStopRetainLiveEngine \
-            -only-testing:LaGrillaUITests/StudioTests/testDrumTakeIsUndoable \
-            -only-testing:LaGrillaUITests/StudioTests/testLandscapeKeepsPadsAndTransportReachable \
-            -test-timeouts-enabled YES -maximum-test-execution-time-allowance 120 \
-            ARCHS=arm64 ONLY_ACTIVE_ARCH=YES CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO test-without-building
+          python3 - <<'PYRUN'
+          import json,os,pathlib,subprocess
+          cases=['PadTouchUITests/testContactEnqueuesBeforeReleaseAndHoldDoesNotRetrigger', 'PadTouchUITests/testSlidingFingerKeepsItsOriginalPadAndNeverStrikesNeighbour', 'PianoTouchUITests/testHoldAndMoveKeepsDurationAndCommitsOneUndoableEdit', 'PianoTouchUITests/testResizeHandleUsesGridAndCommitsOneUndoableEdit', 'SoundPickerUITests/testAppliedSoundIsOneUndoAndPersistsInTheRealStore', 'SoundPickerUITests/testLiveSoundPreviewRetainsTheGrooveAndSourceRevision', 'SoundPickerUITests/testSoundPreviewHasActualOutputAndCancelKeepsMusicUntouched', 'DrumRuntimeContinuityTests/testFocusedClipRecordingAndNaturalStopRetainLiveEngine', 'StudioTests/testDrumTakeIsUndoable', 'StudioTests/testLandscapeKeepsPadsAndTransportReachable']
+          focused=os.environ.get('GRILLA_TOUCH_RESIZE_ONLY')=='1'
+          if focused:cases=['PianoTouchUITests/testResizeHandleUsesGridAndCommitsOneUndoableEdit']
+          selection=dict(scope='input-diagnostic' if focused else 'focused-touch-feedback',selectedCases=cases,expectedCount=len(cases),fullAcceptance=False)
+          pathlib.Path('touch21-selection.json').write_text(json.dumps(selection,indent=2)+'\n')
+          device=pathlib.Path('/tmp/grilla-simulator-id').read_text().strip()
+          command=['python3','scripts/ci/run_native.py','--timeout-seconds','1500','--deadline-env','GRILLA_TOUCH_DEADLINE_EPOCH','--scope','input-diagnostic' if focused else 'focused','--label','resize-regression' if focused else 'touch-feedback','--log','touch21-native.log','--status','touch21-process-status.json']
+          for identifier in cases:command+=['--require-test',identifier]
+          command+=['--','xcodebuild','-project','LaGrilla.xcodeproj','-scheme','LaGrilla','-destination','platform=iOS Simulator,id='+device,'-derivedDataPath','DerivedData','-resultBundlePath','TouchResults.xcresult']
+          for identifier in cases:command+=['-only-testing:LaGrillaUITests/'+identifier]
+          command+=['-test-timeouts-enabled','YES','-maximum-test-execution-time-allowance','120','ARCHS=arm64','ONLY_ACTIVE_ARCH=YES','CODE_SIGN_IDENTITY=-','CODE_SIGNING_REQUIRED=NO','test-without-building']
+          raise SystemExit(subprocess.call(command))
+          PYRUN
       - name: Preserve actual app crash and device diagnostics
         if: always()
         timeout-minutes: 2
@@ -118,6 +107,7 @@ jobs:
             touch21-build.log
             touch21-native.log
             touch21-process-status.json
+            touch21-selection.json
             touch21-device.log
             TouchCrashReports
             ci-audio.log

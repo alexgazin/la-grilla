@@ -30,7 +30,8 @@ final class PianoTouchUITests:XCTestCase {
         let start=handle.coordinate(withNormalizedOffset:CGVector(dx:0.5,dy:0.5))
         // 240pt/bar and 3840 ticks/bar: 60pt extends 480 ticks to1440.
         start.press(forDuration:0.1,thenDragTo:start.withOffset(CGVector(dx:60,dy:0)),withVelocity:80,thenHoldForDuration:0.8)
-        XCTAssertEqual(duration.label,"1440 ticks")
+        let resizedTicks=1_440.formatted(.number.locale(Locale(identifier:"en_US")))
+        XCTAssertEqual(duration.label,resizedTicks+" ticks")
         XCTAssertEqual(app.staticTexts["notes.count"].label,"1")
         let screenshot=XCTAttachment(screenshot:XCUIScreen.main.screenshot())
         screenshot.name="Touch21-Piano-resized-note-and-handle";screenshot.lifetime = .keepAlways;add(screenshot)
