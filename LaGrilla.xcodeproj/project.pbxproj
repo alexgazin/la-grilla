@@ -502,6 +502,12 @@
 			"path" = "UITests/ChordWritingUITests.swift";
 			"sourceTree" = "SOURCE_ROOT";
 		};
+		"A0AB1C7AC5C3693FE07678FB" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "UITests/DesignPresentationTests.swift";
+			"sourceTree" = "SOURCE_ROOT";
+		};
 		"FEB3B283D0AA50FB5A20F7C9" = {
 			"isa" = "PBXFileReference";
 			"lastKnownFileType" = "sourcecode.swift";
@@ -601,6 +607,7 @@
 				"59CA5379F0D235A02508DF6D",
 				"FEFA3EFE9A010ED0C7DE91BB",
 				"EC11CC277B38E7141A590858",
+				"A0AB1C7AC5C3693FE07678FB",
 				"FEB3B283D0AA50FB5A20F7C9",
 				"B4D4FF714F7EF3F257AC9BFE",
 				"F0B86C33D4B3D7DF10F015B2",
@@ -810,7 +817,7 @@
 				"GENERATE_INFOPLIST_FILE" = "NO";
 				"INFOPLIST_FILE" = "App/Info.plist";
 				"MARKETING_VERSION" = "1.0.0";
-				"CURRENT_PROJECT_VERSION" = "23";
+				"CURRENT_PROJECT_VERSION" = "24";
 				"ASSETCATALOG_COMPILER_APPICON_NAME" = "AppIcon";
 				"INFOPLIST_KEY_CFBundleDisplayName" = "La Grilla";
 				"INFOPLIST_KEY_LSApplicationCategoryType" = "public.app-category.music";
@@ -844,7 +851,7 @@
 				"GENERATE_INFOPLIST_FILE" = "NO";
 				"INFOPLIST_FILE" = "App/Info.plist";
 				"MARKETING_VERSION" = "1.0.0";
-				"CURRENT_PROJECT_VERSION" = "23";
+				"CURRENT_PROJECT_VERSION" = "24";
 				"ASSETCATALOG_COMPILER_APPICON_NAME" = "AppIcon";
 				"INFOPLIST_KEY_CFBundleDisplayName" = "La Grilla";
 				"INFOPLIST_KEY_LSApplicationCategoryType" = "public.app-category.music";
@@ -1023,6 +1030,10 @@
 			"isa" = "PBXBuildFile";
 			"fileRef" = "EC11CC277B38E7141A590858";
 		};
+		"BA195D10AF007B384EF5DD9D" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "A0AB1C7AC5C3693FE07678FB";
+		};
 		"9CF7038F0FD5B0B98458CB1B" = {
 			"isa" = "PBXBuildFile";
 			"fileRef" = "FEB3B283D0AA50FB5A20F7C9";
@@ -1152,6 +1163,7 @@
 				"4AEC3071068FA71AC6BDF305",
 				"070EA23D73AD71D8F18CF251",
 				"CFBCB4CE9422545C53E155D9",
+				"BA195D10AF007B384EF5DD9D",
 				"9CF7038F0FD5B0B98458CB1B",
 				"D22AA41F79624E943B38E898",
 				"5A4D6689E60000CF61FE571D",

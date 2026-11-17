@@ -1,103 +1,360 @@
 import SwiftUI
 import MusicDomain
 import UIKit
+
+// Nocturne: a quiet graphite chassis, with color reserved for musical meaning.
 extension Color {
-    private static func adaptive(_ dark:UInt32,_ light:UInt32,contrastDark:UInt32?=nil,contrastLight:UInt32?=nil)->Color {
-        Color(uiColor:UIColor{trait in let high=trait.accessibilityContrast == .high;let hex=trait.userInterfaceStyle == .dark ? (high ? contrastDark ?? dark:dark):(high ? contrastLight ?? light:light);return UIColor(red:CGFloat((hex>>16)&255)/255,green:CGFloat((hex>>8)&255)/255,blue:CGFloat(hex&255)/255,alpha:1)})
+    private static func adaptive(
+        _ dark: UInt32,
+        _ light: UInt32,
+        contrastDark: UInt32? = nil,
+        contrastLight: UInt32? = nil
+    ) -> Color {
+        Color(uiColor: UIColor { trait in
+            let high = trait.accessibilityContrast == .high
+            let hex = trait.userInterfaceStyle == .dark
+                ? (high ? contrastDark ?? dark : dark)
+                : (high ? contrastLight ?? light : light)
+            return UIColor(
+                red: CGFloat((hex >> 16) & 255) / 255,
+                green: CGFloat((hex >> 8) & 255) / 255,
+                blue: CGFloat(hex & 255) / 255,
+                alpha: 1
+            )
+        })
     }
-    static let ink=adaptive(0x111510,0xF5F5EF)
-    static let panel=adaptive(0x1A2018,0xFFFFFF)
-    static let raised=adaptive(0x272E24,0xE8ECDD)
-    static let muted=adaptive(0xB4BCAF,0x535D4C)
-    static let mint=adaptive(0xD8F780,0x435D00)
-    static let harmony=adaptive(0xEDBF7A,0x795000)
-    static let drums=adaptive(0xA5ADFF,0x4749A2)
-    static let bass=adaptive(0x86DCC6,0x00675A)
-    static let record=adaptive(0xFF7B80,0xAA2D3D)
-    static let studioText=adaptive(0xF1F2E8,0x192016)
-    static let outline=adaptive(0x414A3A,0xD0D8C5,contrastDark:0xA3B990,contrastLight:0x4A6036)
-    static func track(_ role: TrackRole) -> Color {role == .harmony ? .harmony : role == .drums ? .drums : role == .bass ? .bass : .mint}
+
+    static let ink = adaptive(0x0C0E12, 0xF3F5F7, contrastDark: 0x050609, contrastLight: 0xFFFFFF)
+    static let panel = adaptive(0x171C23, 0xFFFFFF, contrastDark: 0x10141A, contrastLight: 0xFFFFFF)
+    static let raised = adaptive(0x222A34, 0xE9EEF3, contrastDark: 0x1D2631, contrastLight: 0xE4EBF2)
+    static let studioText = adaptive(0xF3F5F0, 0x19232E, contrastDark: 0xFFFFFF, contrastLight: 0x09111C)
+    static let muted = adaptive(0xA8B2BE, 0x536171, contrastDark: 0xCFD8E3, contrastLight: 0x354455)
+    static let outline = adaptive(0x343E4C, 0xCDD6E1, contrastDark: 0x8797AB, contrastLight: 0x66788C)
+
+    static let mint = adaptive(0xD8F780, 0x405900, contrastDark: 0xE0FF86, contrastLight: 0x304800)
+    static let drums = adaptive(0xB7BCEF, 0x4B4E99, contrastDark: 0xCCD1FF, contrastLight: 0x343878)
+    static let harmony = adaptive(0xE5BE69, 0x795000, contrastDark: 0xF7D58B, contrastLight: 0x624000)
+    static let bass = adaptive(0x85D6C3, 0x00675A, contrastDark: 0x9FE8D7, contrastLight: 0x005044)
+    static let record = adaptive(0xFF858D, 0xAA2D3D, contrastDark: 0xFFA9AF, contrastLight: 0x8F1C2C)
+    // Physical piano keys retain their familiar polarity in either app appearance.
+    static let keyboardIvory = adaptive(0xF2F0E7, 0xF2F0E7, contrastDark: 0xFFFFFF, contrastLight: 0xFFFFFF)
+    static let keyboardGraphite = adaptive(0x171C23, 0x171C23, contrastDark: 0x050609, contrastLight: 0x050609)
+
+    static func track(_ role: TrackRole) -> Color {
+        role == .harmony ? .harmony : role == .drums ? .drums : role == .bass ? .bass : .mint
+    }
 }
+
+enum StudioMetrics {
+    static let micro: CGFloat = 4
+    static let tight: CGFloat = 8
+    static let compact: CGFloat = 12
+    static let standard: CGFloat = 16
+    static let section: CGFloat = 24
+    static let generous: CGFloat = 32
+    static let hitTarget: CGFloat = 44
+    static let actionHeight: CGFloat = 48
+    static let controlRadius: CGFloat = 12
+    static let surfaceRadius: CGFloat = 18
+    static let navigationRadius: CGFloat = 22
+}
+
+enum StudioTypography {
+    static let title = Font.system(.title2, design: .default, weight: .semibold)
+    static let action = Font.system(.subheadline, design: .default, weight: .semibold)
+    static let label = Font.system(.caption, design: .default, weight: .semibold)
+    static let detail = Font.system(.caption2, design: .default, weight: .medium)
+    static let icon = Font.system(.body, design: .default, weight: .medium)
+    static let value = Font.system(.body, design: .monospaced, weight: .medium)
+}
+
+enum StudioMotion {
+    // Contact is immediate. Only release settles; repeated musical input never waits.
+    static let release = Animation.easeOut(duration: 0.12)
+    static let selection = Animation.easeOut(duration: 0.18)
+    static let panel = Animation.spring(response: 0.32, dampingFraction: 1)
+}
+
 struct IconButton: View {
-    let symbol: String; let label: LocalizedStringKey; var color: Color = .primary; let action: () -> Void
-    var body: some View {Button(action:action){Image(systemName:symbol).font(.system(size:18,weight:.medium)).foregroundStyle(color).frame(minWidth:44,minHeight:44).contentShape(Rectangle())}.buttonStyle(StudioQuietButtonStyle()).accessibilityLabel(label)}
+    let symbol: String
+    let label: LocalizedStringKey
+    var color: Color = .primary
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(StudioTypography.icon)
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(color)
+                .frame(minWidth: StudioMetrics.hitTarget, minHeight: StudioMetrics.hitTarget)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(StudioQuietButtonStyle())
+        .accessibilityLabel(label)
+    }
 }
+
 struct CapsuleLabel: View {
-    let text: String; var color: Color = .muted
-    var body: some View {Text(LocalizedStringKey(text)).font(.system(.caption2,design:.monospaced,weight:.semibold)).foregroundStyle(color).padding(.horizontal,9).padding(.vertical,5).background(color.opacity(0.1),in:Capsule())}
+    @Environment(\.colorSchemeContrast) private var contrast
+    let text: String
+    var color: Color = .muted
+
+    var body: some View {
+        Text(LocalizedStringKey(text))
+            .font(StudioTypography.detail)
+            .foregroundStyle(color)
+            .padding(.horizontal, 9)
+            .padding(.vertical, 5)
+            .background(color.opacity(contrast == .increased ? 0.15 : 0.08), in: Capsule())
+            .overlay {
+                Capsule().strokeBorder(color.opacity(contrast == .increased ? 0.75 : 0.22), lineWidth: 0.75)
+                    .allowsHitTesting(false)
+            }
+    }
 }
+
 struct SmallHeading: View {
     let text: LocalizedStringKey
-    var body: some View {Text(text).font(.caption2.weight(.semibold)).tracking(1).foregroundStyle(Color.muted)}
+
+    var body: some View {
+        Text(text)
+            .font(StudioTypography.detail.weight(.semibold))
+            .tracking(0.55)
+            .foregroundStyle(Color.muted)
+    }
 }
-struct ScrollableForLargeType:ViewModifier {
+
+struct ScrollableForLargeType: ViewModifier {
     @Environment(\.dynamicTypeSize) private var size
-    @ViewBuilder func body(content:Content)->some View {
-        if size.isAccessibilitySize{ScrollView(.vertical){content}}else{content}
-    }
-}
-struct StudioQATypeSize:ViewModifier {
-    @ViewBuilder func body(content:Content)->some View {
-        if ProcessInfo.processInfo.arguments.contains("--large-type"){content.dynamicTypeSize(.accessibility3)}else{content}
-    }
-}
 
-// Shared surfaces and actions keep the instrument's visual rhythm consistent.
-struct StudioSurface:ViewModifier {
-    @Environment(\.colorSchemeContrast) private var contrast
-    var color:Color = .panel
-    init(color:Color = .panel){self.color=color}
-    func body(content:Content)->some View {content.background(color,in:RoundedRectangle(cornerRadius:16,style:.continuous)).overlay{RoundedRectangle(cornerRadius:16,style:.continuous).stroke(Color.outline.opacity(contrast == .increased ? 1:0.65),lineWidth:contrast == .increased ? 1:0.6)}}
-}
-struct StudioActionStyle:ButtonStyle {
-    @Environment(\.isEnabled) private var enabled
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    var color:Color = .mint
-    var prominent=true
-    init(color:Color = .mint,prominent:Bool = true){self.color=color;self.prominent=prominent}
-    func makeBody(configuration:Configuration)->some View {
-        configuration.label.font(.system(.subheadline,weight:.semibold)).foregroundStyle(prominent ? Color.ink:color)
-            .frame(maxWidth:.infinity,minHeight:48).padding(.horizontal,12)
-            .background(prominent ? color:Color.raised,in:RoundedRectangle(cornerRadius:14,style:.continuous))
-            .opacity(!enabled ? 0.35:configuration.isPressed ? 0.76:1).scaleEffect(configuration.isPressed && !reduceMotion ? 0.98:1)
-    }
-}
-struct StudioMark:View {
-    var body:some View {Canvas{context,_ in
-        for row in 0..<3 {
-            let y=CGFloat(row)*8+5
-            let segments:[(CGFloat,CGFloat,Color)]=row==1 ? [(2,8,.studioText),(15,5,.harmony),(21,9,.studioText)]:[(1,10,.studioText),(15,10,.studioText),(26,4,.harmony)]
-            for (x,width,color) in segments{context.fill(Path(roundedRect:CGRect(x:x,y:y,width:width,height:4),cornerRadius:1),with:.color(color))}
+    @ViewBuilder func body(content: Content) -> some View {
+        if size.isAccessibilitySize {
+            ScrollView(.vertical) { content }
+        } else {
+            content
         }
-        context.fill(Path(roundedRect:CGRect(x:11,y:1,width:3,height:28),cornerRadius:1.5),with:.color(.mint))
-    }.frame(width:30,height:30).accessibilityHidden(true)}
+    }
 }
 
-struct StudioSegments<Value:Equatable>:View {
-    let title:LocalizedStringKey
-    @Binding var selection:Value
-    let options:[(Value,LocalizedStringKey)]
-    var body:some View {HStack(spacing:3){ForEach(options.indices,id:\.self){index in
-        Button{selection=options[index].0}label:{Text(options[index].1).font(.system(.caption,weight:.semibold)).lineLimit(2).minimumScaleFactor(1).frame(maxWidth:.infinity,minHeight:44).foregroundStyle(selection==options[index].0 ? Color.ink:Color.muted).background(selection==options[index].0 ? Color.mint:Color.clear,in:RoundedRectangle(cornerRadius:11,style:.continuous))}.buttonStyle(StudioQuietButtonStyle()).accessibilityAddTraits(selection==options[index].0 ? .isSelected:[])
-    }}.padding(3).modifier(StudioSurface()).accessibilityElement(children:.contain).accessibilityLabel(title)}
+struct StudioQATypeSize: ViewModifier {
+    @ViewBuilder func body(content: Content) -> some View {
+        if ProcessInfo.processInfo.arguments.contains("--large-type") {
+            content.dynamicTypeSize(.accessibility3)
+        } else {
+            content
+        }
+    }
 }
 
-struct StudioQuietButtonStyle:ButtonStyle {
-    @Environment(\.isEnabled) private var enabled
-    init(){}
-    func makeBody(configuration:Configuration)->some View {configuration.label.contentShape(Rectangle()).opacity(!enabled ? 0.35:configuration.isPressed ? 0.6:1)}
-}
-struct StudioNavigationSurface:ViewModifier {
+// Solid editing surfaces: a fine seam and a restrained light edge, never glass on glass.
+struct StudioSurface: ViewModifier {
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.colorSchemeContrast) private var contrast
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
-    init(){}
-    @ViewBuilder func body(content:Content)->some View {
+    var color: Color = .panel
+
+    init(color: Color = .panel) { self.color = color }
+
+    private var shape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: StudioMetrics.surfaceRadius, style: .continuous)
+    }
+
+    func body(content: Content) -> some View {
+        content
+            .background(color, in: shape)
+            .overlay {
+                shape.strokeBorder(Color.outline, lineWidth: contrast == .increased ? 1.25 : 0.75)
+                    .allowsHitTesting(false)
+            }
+            .overlay {
+                if contrast != .increased && !reduceTransparency {
+                    shape.strokeBorder(
+                        LinearGradient(
+                            colors: [Color.studioText.opacity(0.055), .clear, .clear],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 0.75
+                    )
+                    .allowsHitTesting(false)
+                }
+            }
+            .shadow(
+                color: .black.opacity(contrast == .increased ? 0 : scheme == .dark ? 0.12 : 0.035),
+                radius: 6,
+                x: 0,
+                y: 3
+            )
+    }
+}
+
+struct StudioActionStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var enabled
+    @Environment(\.isFocused) private var focused
+    @Environment(\.colorSchemeContrast) private var contrast
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    var color: Color = .mint
+    var prominent = true
+
+    init(color: Color = .mint, prominent: Bool = true) {
+        self.color = color
+        self.prominent = prominent
+    }
+
+    func makeBody(configuration: Configuration) -> some View {
+        let pressed = enabled && configuration.isPressed
+        let shape = RoundedRectangle(cornerRadius: StudioMetrics.controlRadius, style: .continuous)
+        return configuration.label
+            .font(StudioTypography.action)
+            .foregroundStyle(prominent ? Color.ink : color)
+            .frame(maxWidth: .infinity, minHeight: StudioMetrics.actionHeight)
+            .padding(.horizontal, StudioMetrics.compact)
+            .background {
+                shape.fill(prominent ? color : Color.raised)
+                    .overlay { shape.fill(Color.black.opacity(pressed ? 0.08 : 0)) }
+            }
+            .overlay {
+                shape.strokeBorder(
+                    focused ? Color.studioText : prominent ? Color.ink.opacity(0.12) : Color.outline,
+                    lineWidth: focused || contrast == .increased ? 1.5 : 0.75
+                )
+                .allowsHitTesting(false)
+            }
+            .opacity(enabled ? 1 : contrast == .increased ? 0.6 : 0.42)
+            .scaleEffect(pressed && !reduceMotion ? 0.985 : 1)
+            .animation(pressed || reduceMotion ? nil : StudioMotion.release, value: pressed)
+    }
+}
+
+struct StudioMark: View {
+    var body: some View {
+        Canvas { context, _ in
+            let rows: [(CGFloat, CGFloat, CGFloat, Color)] = [
+                (4, 1, 9, .studioText), (4, 16, 14, .drums),
+                (13, 1, 6, .harmony), (13, 16, 9, .studioText),
+                (22, 1, 9, .studioText), (22, 19, 11, .bass)
+            ]
+            for (y, x, width, color) in rows {
+                context.fill(
+                    Path(roundedRect: CGRect(x: x, y: y, width: width, height: 4), cornerRadius: 1.5),
+                    with: .color(color)
+                )
+            }
+            context.fill(
+                Path(roundedRect: CGRect(x: 11, y: 0, width: 3, height: 30), cornerRadius: 1.5),
+                with: .color(.mint)
+            )
+        }
+        .frame(width: 30, height: 30)
+        .accessibilityHidden(true)
+    }
+}
+
+struct StudioSegments<Value: Equatable>: View {
+    let title: LocalizedStringKey
+    @Binding var selection: Value
+    let options: [(Value, LocalizedStringKey)]
+
+    var body: some View {
+        HStack(spacing: StudioMetrics.micro) {
+            ForEach(options.indices, id: \.self) { index in
+                segment(at: index)
+            }
+        }
+        .padding(StudioMetrics.micro)
+        .background(Color.ink, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .strokeBorder(Color.outline, lineWidth: 0.75)
+                .allowsHitTesting(false)
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(title)
+    }
+
+    private func segment(at index: Int) -> some View {
+        let selected = selection == options[index].0
+        return Button {
+            selection = options[index].0
+        } label: {
+            Text(options[index].1)
+                .font(StudioTypography.label)
+                .lineLimit(2)
+                .minimumScaleFactor(1)
+                .frame(maxWidth: .infinity, minHeight: StudioMetrics.hitTarget)
+                .foregroundStyle(selected ? Color.ink : Color.muted)
+                .background(selected ? Color.mint : Color.clear, in: RoundedRectangle(cornerRadius: StudioMetrics.controlRadius, style: .continuous))
+        }
+        .buttonStyle(StudioQuietButtonStyle())
+        .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+}
+
+struct StudioQuietButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var enabled
+    @Environment(\.isFocused) private var focused
+    @Environment(\.colorSchemeContrast) private var contrast
+
+    init() {}
+
+    func makeBody(configuration: Configuration) -> some View {
+        let pressed = enabled && configuration.isPressed
+        let shape = RoundedRectangle(cornerRadius: StudioMetrics.controlRadius, style: .continuous)
+        return configuration.label
+            .contentShape(Rectangle())
+            .background {
+                shape.fill(Color.studioText.opacity(pressed ? (contrast == .increased ? 0.04 : 0.065) : 0))
+            }
+            .overlay {
+                shape.strokeBorder(
+                    focused ? Color.mint : pressed ? Color.outline : .clear,
+                    lineWidth: focused ? 1.5 : 0.75
+                )
+                    .allowsHitTesting(false)
+            }
+            .opacity(enabled ? 1 : contrast == .increased ? 0.6 : 0.42)
+    }
+}
+
+private struct StudioNavigationPlate: View {
+    @Environment(\.colorSchemeContrast) private var contrast
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+
+    private var shape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: StudioMetrics.navigationRadius, style: .continuous)
+    }
+
+    var body: some View {
+        Group {
+            if reduceTransparency || contrast == .increased {
+                shape.fill(Color.panel)
+            } else {
+                shape.fill(.regularMaterial).overlay { shape.fill(Color.panel.opacity(0.72)) }
+            }
+        }
+        .overlay {
+            shape.strokeBorder(Color.outline, lineWidth: contrast == .increased ? 1.25 : 0.75)
+        }
+        .allowsHitTesting(false)
+    }
+}
+
+struct StudioNavigationSurface: ViewModifier {
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorSchemeContrast) private var contrast
+
+    init() {}
+
+    @ViewBuilder func body(content: Content) -> some View {
         #if compiler(>=6.2)
-        if #available(iOS 26.0,*),!reduceTransparency{content.glassEffect(.regular,in:RoundedRectangle(cornerRadius:20,style:.continuous))}
-        else{content.modifier(StudioSurface())}
+        if #available(iOS 26.0, *), !reduceTransparency, contrast != .increased {
+            content.glassEffect(.regular, in: RoundedRectangle(cornerRadius: StudioMetrics.navigationRadius, style: .continuous))
+        } else {
+            content.background { StudioNavigationPlate() }
+        }
         #else
-        // Older local Xcode toolchains do not include the iOS 26 glass API.
-        // Keep the same surface already used when running on iOS 18.
-        content.modifier(StudioSurface())
+        content.background { StudioNavigationPlate() }
         #endif
     }
 }

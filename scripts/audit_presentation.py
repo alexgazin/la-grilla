@@ -120,7 +120,7 @@ def luminance(hex_value):
 def contrast(a,b):
     x,y=sorted((luminance(a),luminance(b)));return (y+.05)/(x+.05)
 theme=(root/'App/Theme.swift').read_text()
-tokens={name:(dark,light) for name,dark,light in re.findall(r'static let (\w+)=adaptive\(0x([A-Fa-f0-9]{6}),0x([A-Fa-f0-9]{6})\)',theme)}
+tokens={name:(dark,light) for name,dark,light in re.findall(r'static\s+let\s+(\w+)\s*=\s*adaptive\(\s*0x([A-Fa-f0-9]{6})\s*,\s*0x([A-Fa-f0-9]{6})',theme)}
 for index in (0,1):
     for background in ('ink','panel','raised'):
         assert contrast(tokens['muted'][index],tokens[background][index])>=4.5

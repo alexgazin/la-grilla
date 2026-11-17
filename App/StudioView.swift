@@ -16,8 +16,9 @@ struct StudioView: View {
             if verticalSize == .compact {
                 HStack(spacing:0){VStack(spacing:0){compactHeader;workspace.frame(maxWidth:.infinity,maxHeight:.infinity)};compactSidebar}
             }else{
-                header;workspace.frame(maxWidth:.infinity,maxHeight:.infinity);transport
-                HStack(spacing:4){tab("square.grid.3x3","Grid",0);tab("square.grid.2x2.fill","Jam",1);tab("slider.vertical.3","Mixer",2)} .padding(6).modifier(StudioNavigationSurface()).padding(.horizontal,12).padding(.bottom,4).background(Color.ink)
+                header
+                workspace.frame(maxWidth:.infinity,maxHeight:.infinity)
+                console
             }
         }.background(Color.ink).foregroundStyle(Color.studioText)
         .overlay{if AudioRuntimeQA.enabled{AudioRuntimeQAView(session:session)}}
@@ -61,26 +62,104 @@ struct StudioView: View {
         tab("square.grid.3x3","Grid",0);tab("square.grid.2x2.fill","Jam",1);tab("slider.vertical.3","Mixer",2)
         Spacer(minLength:0)
     }.padding(.top,6).frame(width:104).background(Color.panel)}
+    private var saveColor: Color {
+        if session.saveError != nil { return .record }
+        return session.saving || session.savedRevision != session.project.revision ? .harmony : .mint
+    }
     var header: some View {
-        HStack(spacing:4){
-            Button{session.sheet = .projects}label:{StudioMark().frame(width:44,height:44)}.buttonStyle(StudioQuietButtonStyle()).accessibilityLabel("Projects")
+        HStack(spacing:8){
+            Button{session.sheet = .projects}label:{
+                StudioMark().frame(width:44,height:44)
+                    .background(Color.panel,in:RoundedRectangle(cornerRadius:14))
+                    .overlay{RoundedRectangle(cornerRadius:14).strokeBorder(Color.outline.opacity(0.7),lineWidth:0.75)}
+            }.buttonStyle(StudioQuietButtonStyle()).accessibilityLabel("Projects")
             VStack(alignment:.leading,spacing:0){
-                HStack(spacing:6){Text(session.displayProject.name).font(.system(size:20,weight:.semibold)).tracking(-0.5).lineLimit(1);Circle().fill(session.saveError == nil ? Color.mint:Color.record).frame(width:5,height:5).accessibilityLabel(LocalizedStringKey(session.saveError != nil ? "Save failed":session.saving ? "Saving…":session.savedRevision==session.project.revision ? "Saved on this iPhone":"Unsaved changes"))}
-                Button{session.presentEditor(.settings)}label:{HStack(spacing:6){Text("\(Int(session.displayProject.bpm)) BPM").accessibilityIdentifier("studio.tempo");Text("·");Text(displayedKeyName);Image(systemName:"chevron.down").font(.system(size:11))}.font(.system(size:11,weight:.medium,design:.monospaced)).foregroundStyle(Color.muted).lineLimit(1).minimumScaleFactor(1).frame(minHeight:44,alignment:.leading)}.buttonStyle(StudioQuietButtonStyle())
+                HStack(spacing:6){
+                    Text(session.displayProject.name).font(StudioTypography.title).tracking(-0.5).lineLimit(1)
+                    Circle().fill(saveColor).frame(width:5,height:5)
+                        .accessibilityLabel(LocalizedStringKey(session.saveError != nil ? "Save failed":session.saving ? "Saving…":session.savedRevision==session.project.revision ? "Saved on this iPhone":"Unsaved changes"))
+                }
+                Button{session.presentEditor(.settings)}label:{
+                    HStack(spacing:5){
+                        Text("\(Int(session.displayProject.bpm)) BPM").monospacedDigit().accessibilityIdentifier("studio.tempo")
+                        Text("·").accessibilityHidden(true)
+                        Text(displayedKeyName)
+                        Image(systemName:"chevron.down").font(.system(size:11,weight:.semibold)).accessibilityHidden(true)
+                    }.font(StudioTypography.detail).foregroundStyle(Color.muted).lineLimit(1)
+                        .frame(minHeight:44,alignment:.leading).contentShape(Rectangle())
+                }.buttonStyle(StudioQuietButtonStyle())
             }.frame(maxWidth:.infinity,alignment:.leading)
-            IconButton(symbol:"arrow.uturn.backward",label:"Undo"){session.undo()}.disabled(!session.history.canUndo || session.recording || session.armed).opacity(session.history.canUndo ? 1:0.3)
-            IconButton(symbol:"arrow.uturn.forward",label:"Redo"){session.redo()}.disabled(!session.history.canRedo || session.recording || session.armed).opacity(session.history.canRedo ? 1:0.3)
-            IconButton(symbol:"square.and.arrow.up",label:"Export"){session.finishTake();session.exportTake=nil;session.sheet = .export}.accessibilityIdentifier("export.open")
-        }.padding(.horizontal,8).padding(.top,7).padding(.bottom,2)
+            HStack(spacing:0){
+                IconButton(symbol:"arrow.uturn.backward",label:"Undo"){session.undo()}
+                    .disabled(!session.history.canUndo || session.recording || session.armed).opacity(session.history.canUndo ? 1:0.3)
+                IconButton(symbol:"arrow.uturn.forward",label:"Redo"){session.redo()}
+                    .disabled(!session.history.canRedo || session.recording || session.armed).opacity(session.history.canRedo ? 1:0.3)
+            }.background(Color.panel,in:RoundedRectangle(cornerRadius:14))
+            IconButton(symbol:"square.and.arrow.up",label:"Export"){session.finishTake();session.exportTake=nil;session.sheet = .export}
+                .background(Color.raised,in:RoundedRectangle(cornerRadius:14)).accessibilityIdentifier("export.open")
+        }.padding(.horizontal,12).padding(.top,8).padding(.bottom,6)
+    }
+    private var transportStatus: LocalizedStringKey {
+        if session.performance.contextActive {
+            return session.performance.recording ? "REC · PERFORM":session.performance.replaying ? "TAKE REPLAY":"PERFORM"
+        }
+        return session.armed ? "COUNT IN":session.recording ? "REC · DRUMS":session.pending ? "PENDING · NEXT BAR":session.audio.playing ? "PLAYING":"STOPPED"
+    }
+    private var transportReadout: some View {
+        VStack(alignment:.leading,spacing:4){
+            HStack(alignment:.center,spacing:8){
+                Text(String(format:"%02d : %d",Int(session.audio.tick)/barTicks+1,Int(session.audio.tick)%barTicks/ppq+1))
+                    .font(.system(size:23,weight:.medium,design:.monospaced)).tracking(-1).monospacedDigit()
+                HStack(spacing:2){
+                    ForEach(0..<4,id:\.self){beat in
+                        Capsule().fill(session.audio.playing && Int(session.audio.tick)%barTicks/ppq == beat ? Color.mint:Color.outline)
+                            .frame(width:3,height:beat == 0 ? 12:8)
+                    }
+                }.accessibilityHidden(true)
+            }
+            Text(transportStatus).font(StudioTypography.detail)
+                .foregroundStyle(session.recording || session.armed ? Color.record:Color.muted).lineLimit(1)
+        }.frame(maxWidth:.infinity,minHeight:52,alignment:.leading)
     }
     var transport: some View {
         HStack(spacing:4){
-            Button{if session.performance.contextActive{session.sheet = .perform}}label:{VStack(alignment:.leading,spacing:3){Text(String(format:"%02d : %d",Int(session.audio.tick)/barTicks+1,Int(session.audio.tick)%barTicks/ppq+1)).font(.system(size:23,weight:.semibold,design:.monospaced)).monospacedDigit();Text(LocalizedStringKey(session.performance.contextActive ? (session.performance.recording ? "REC · PERFORM":session.performance.replaying ? "TAKE REPLAY":"PERFORM") : session.armed ? "COUNT IN" : session.recording ? "REC · DRUMS" : session.pending ? "PENDING · NEXT BAR" : session.audio.playing ? "PLAYING":"STOPPED")).font(.system(size:11,weight:.medium,design:.monospaced)).foregroundStyle(session.recording || session.armed ? Color.record:Color.muted)}.frame(maxWidth:.infinity,minHeight:52,alignment:.leading)}.buttonStyle(StudioQuietButtonStyle()).accessibilityIdentifier("perform.transport").accessibilityValue(Text(verbatim:session.runtimeTraceReport))
+            Button{if session.performance.contextActive{session.sheet = .perform}}label:{transportReadout}
+                .buttonStyle(StudioQuietButtonStyle()).accessibilityIdentifier("perform.transport")
+                .accessibilityValue(Text(verbatim:session.runtimeTraceReport))
             IconButton(symbol:"backward.end.fill",label:"Return to start",color:.muted){session.rewind()}
-            Button{session.togglePlay()}label:{Image(systemName:session.audio.playing ? "stop.fill":"play.fill").font(.system(size:22,weight:.semibold)).foregroundStyle(Color.ink).frame(width:58,height:58).background(Color.mint,in:Circle())}.buttonStyle(StudioQuietButtonStyle()).accessibilityLabel(LocalizedStringKey(session.audio.playing ? "Stop":"Play"))
-            IconButton(symbol:session.recording ? "stop.circle.fill":"record.circle",label:session.recording ? "Finish drum take":"Record drums",color:.record){session.tab=1;session.record()}.background(session.recording || session.armed ? Color.record.opacity(0.12):Color.clear,in:Circle()).disabled(session.performance.contextActive).opacity(session.performance.contextActive ? 0.35:1)
-            IconButton(symbol:"repeat",label:"Toggle loop",color:session.loop ? .mint:.muted){session.setLoop(enabled:!session.loop)}.disabled(session.performance.contextActive).opacity(session.performance.contextActive ? 0.35:1)
-        }.padding(.horizontal,18).padding(.vertical,10).background(Color.ink)
+            Button{session.togglePlay()}label:{
+                Image(systemName:session.audio.playing ? "stop.fill":"play.fill")
+                    .font(.system(size:22,weight:.semibold)).foregroundStyle(Color.ink)
+                    .offset(x:session.audio.playing ? 0:2).frame(width:58,height:58)
+                    .background(Color.mint,in:RoundedRectangle(cornerRadius:21))
+                    .overlay{RoundedRectangle(cornerRadius:21).strokeBorder(Color.studioText.opacity(0.15),lineWidth:1)}
+            }.buttonStyle(StudioQuietButtonStyle()).accessibilityLabel(LocalizedStringKey(session.audio.playing ? "Stop":"Play"))
+            IconButton(symbol:session.recording ? "stop.circle.fill":"record.circle",label:session.recording ? "Finish drum take":"Record drums",color:.record){session.tab=1;session.record()}
+                .background(session.recording || session.armed ? Color.record.opacity(0.12):Color.clear,in:RoundedRectangle(cornerRadius:14))
+                .disabled(session.performance.contextActive).opacity(session.performance.contextActive ? 0.35:1)
+            IconButton(symbol:"repeat",label:"Toggle loop",color:session.loop ? .mint:.muted){session.setLoop(enabled:!session.loop)}
+                .background(session.loop ? Color.mint.opacity(0.08):Color.clear,in:RoundedRectangle(cornerRadius:14))
+                .disabled(session.performance.contextActive).opacity(session.performance.contextActive ? 0.35:1)
+        }.padding(.horizontal,12).padding(.top,10).padding(.bottom,8)
     }
-    func tab(_ symbol: String,_ label: LocalizedStringKey,_ index: Int)->some View {Button{session.tab=index}label:{HStack(spacing:7){Image(systemName:symbol).font(.system(size:17,weight:.medium)).accessibilityHidden(true);Text(label).font(.system(size:11,weight:.semibold))}.foregroundStyle(session.tab==index ? Color.mint:Color.muted).frame(maxWidth:.infinity,minHeight:44).background(session.tab==index ? Color.mint.opacity(0.1):Color.clear,in:RoundedRectangle(cornerRadius:11))}.buttonStyle(StudioQuietButtonStyle()).accessibilityAddTraits(session.tab==index ? .isSelected:[]).overlay(alignment:.bottom){Capsule().fill(Color.mint).frame(width:16,height:2).opacity(session.tab==index ? 1:0).padding(.bottom,2)}}
+    private var console: some View {
+        VStack(spacing:0){
+            transport
+            Rectangle().fill(Color.outline.opacity(0.65)).frame(height:0.5).padding(.horizontal,12).accessibilityHidden(true)
+            HStack(spacing:4){tab("square.grid.3x3","Grid",0);tab("square.grid.2x2.fill","Jam",1);tab("slider.vertical.3","Mixer",2)}
+                .padding(6)
+        }.modifier(StudioNavigationSurface()).padding(.horizontal,8).padding(.top,6).padding(.bottom,4)
+    }
+    func tab(_ symbol:String,_ label:LocalizedStringKey,_ index:Int)->some View {
+        let selected=session.tab == index
+        return Button{session.tab=index}label:{
+            HStack(spacing:7){
+                Image(systemName:symbol).font(.system(size:17,weight:.medium)).accessibilityHidden(true)
+                Text(label).font(StudioTypography.label)
+            }.foregroundStyle(selected ? Color.studioText:Color.muted)
+                .frame(maxWidth:.infinity,minHeight:44)
+                .background(selected ? Color.raised:Color.clear,in:RoundedRectangle(cornerRadius:14))
+                .overlay(alignment:.bottom){Capsule().fill(Color.mint).frame(width:16,height:2).opacity(selected ? 1:0).padding(.bottom,2)}
+        }.buttonStyle(StudioQuietButtonStyle()).accessibilityAddTraits(selected ? .isSelected:[])
+    }
 }

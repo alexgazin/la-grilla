@@ -39,7 +39,7 @@ struct PianoRollView: View {
                     if let note {NoteInspector(session:session,patternID:pattern.id,note:note,snap:snap,spelling:spelling)}
                     editBar(pattern).padding(.horizontal,16)
                 } else {ContentUnavailableView("Add a melody track",systemImage:"pianokeys",description:Text("Write a melody above your harmony."))}
-                HStack{IconButton(symbol:"arrow.uturn.backward",label:"Undo"){session.undo()}.disabled(!session.history.canUndo).accessibilityIdentifier("notes.undo");IconButton(symbol:"arrow.uturn.forward",label:"Redo"){session.redo()}.disabled(!session.history.canRedo).accessibilityIdentifier("notes.redo");Spacer();Text(LocalizedStringKey(session.audio.playing ? "PLAYING":"STOPPED")).font(.caption.monospaced()).foregroundStyle(Color.muted).accessibilityIdentifier("notes.status");IconButton(symbol:session.audio.playing ? "stop.fill":"play.fill",label:session.audio.playing ? "Stop":"Play",color:.mint){session.togglePlay()}.accessibilityIdentifier("notes.play")}.padding(.horizontal,12)
+                HStack(spacing:4){IconButton(symbol:"arrow.uturn.backward",label:"Undo"){session.undo()}.disabled(!session.history.canUndo).accessibilityIdentifier("notes.undo");IconButton(symbol:"arrow.uturn.forward",label:"Redo"){session.redo()}.disabled(!session.history.canRedo).accessibilityIdentifier("notes.redo");Spacer();Text(LocalizedStringKey(session.audio.playing ? "PLAYING":"STOPPED")).font(.caption.monospaced()).foregroundStyle(Color.muted).accessibilityIdentifier("notes.status");IconButton(symbol:session.audio.playing ? "stop.fill":"play.fill",label:session.audio.playing ? "Stop":"Play",color:.mint){session.togglePlay()}.accessibilityIdentifier("notes.play")}.padding(.horizontal,12).overlay(alignment:.top){Rectangle().fill(Color.outline.opacity(0.5)).frame(height:0.5)}
             }.padding(.top,12).padding(.bottom,8).background(Color.ink).modifier(ScrollableForLargeType())
             .navigationTitle("Piano roll").navigationBarTitleDisplayMode(.inline)
             .toolbar{ToolbarItem(placement:.topBarTrailing){Button("Done"){dismiss()}}}
@@ -66,8 +66,15 @@ struct PianoRollView: View {
         }
     }
     private var trackControl:some View {
-        Button{showTrackActions=true}label:{Label(track?.displayName ?? NSLocalizedString("Add melody",comment:"Track menu"),systemImage:"pianokeys")
-            .lineLimit(dynamicType.isAccessibilitySize ? nil:1).fixedSize(horizontal:false,vertical:dynamicType.isAccessibilitySize).frame(minHeight:44)}.accessibilityIdentifier("notes.tracks")
+        Button{showTrackActions=true}label:{
+            HStack(spacing:8){
+                Image(systemName:"pianokeys").font(.system(size:17,weight:.medium)).foregroundStyle(Color.mint)
+                Text(track?.displayName ?? NSLocalizedString("Add melody",comment:"Track menu"))
+                    .font(.subheadline.weight(.semibold)).foregroundStyle(Color.studioText)
+                    .lineLimit(dynamicType.isAccessibilitySize ? nil:1).fixedSize(horizontal:false,vertical:dynamicType.isAccessibilitySize)
+                Image(systemName:"chevron.down").font(.system(size:11,weight:.semibold)).foregroundStyle(Color.muted)
+            }.frame(minHeight:44)
+        }.buttonStyle(StudioQuietButtonStyle()).accessibilityIdentifier("notes.tracks")
     }
     private var sectionControl:some View {
         Picker("Section",selection:Binding(get:{session.section.id},set:{id in if let s=session.project.sections.first(where:{$0.id==id}){session.noteClipID=nil;session.select(s)}})){ForEach(session.project.sections){s in Text(s.name).tag(s.id)}}.pickerStyle(.menu).accessibilityIdentifier("notes.section")
@@ -79,6 +86,7 @@ struct PianoRollView: View {
         Button("Add melody",systemImage:"plus"){session.addMelody();showTrackActions=false}.disabled(session.project.tracks.count>=8).accessibilityIdentifier("notes.track.add")
         if let sourceRecord{Button("Original voice",systemImage:"waveform"){pendingOriginal=sourceRecord;showTrackActions=false}.accessibilityIdentifier("notes.track.source")}
         if let track {
+            if dynamicType.isAccessibilitySize {TrackSoundButton(session:session,trackID:track.id)}
             Button("Rename track",systemImage:"pencil"){pendingTrackRename=true;showTrackActions=false}.accessibilityIdentifier("notes.track.rename")
             Button("Duplicate track",systemImage:"plus.square.on.square"){session.duplicateMelody(track.id);showTrackActions=false}.disabled(session.project.tracks.count>=8).accessibilityIdentifier("notes.track.duplicate")
             Button("Delete track",systemImage:"trash",role:.destructive){session.deleteMelody(track.id);showTrackActions=false}.accessibilityIdentifier("notes.track.delete")
@@ -97,9 +105,19 @@ struct PianoRollView: View {
             HStack{Button{lowPitch=max(0,lowPitch-12)}label:{Label("Octave",systemImage:"minus").frame(minHeight:44)}.disabled(lowPitch==0);Spacer();Text("\(noteName(lowPitch)) – \(noteName(lowPitch+23))").font(.caption.monospaced()).foregroundStyle(Color.muted);Spacer();Button{lowPitch=min(104,lowPitch+12)}label:{Image(systemName:"plus").frame(width:44,height:44)}.disabled(lowPitch==104)}.padding(.horizontal,16)
             ScrollView([.horizontal,.vertical]) {
                 HStack(spacing:0){
-                    VStack(spacing:0){Color.clear.frame(height:24);ForEach((lowPitch...lowPitch+23).reversed(),id:\.self){pitch in Button{preview(pitch)}label:{Text(noteName(pitch)).font(.system(size:11,design:.monospaced)).foregroundStyle(isBlack(pitch) ? Color.white:Color.black).frame(width:48,height:24).background(isBlack(pitch) ? Color(white:0.14):Color.white)}.buttonStyle(StudioQuietButtonStyle()).accessibilityLabel("Preview \(noteName(pitch))")}}
+                    VStack(spacing:0){Color.raised.frame(height:24);ForEach((lowPitch...lowPitch+23).reversed(),id:\.self){pitch in Button{preview(pitch)}label:{
+                        Text(noteName(pitch)).font(.system(size:11,weight:pitch%12==0 ? .bold:.medium,design:.monospaced))
+                            .foregroundStyle(isBlack(pitch) ? Color.keyboardIvory:Color.keyboardGraphite)
+                            .frame(width:48,height:24).background(isBlack(pitch) ? Color.keyboardGraphite:Color.keyboardIvory)
+                            .overlay(alignment:.bottom){Rectangle().fill(Color.ink.opacity(0.2)).frame(height:0.5)}
+                            .overlay(alignment:.trailing){Rectangle().fill(Color.outline).frame(width:0.5)}
+                    }.buttonStyle(StudioQuietButtonStyle()).accessibilityLabel("Preview \(noteName(pitch))")}}
                     VStack(spacing:0){
-                        HStack(spacing:0){ForEach(0..<p.length/barTicks,id:\.self){bar in Text("\(bar+1)").font(.caption2.monospaced()).frame(width:barWidth,alignment:.leading)}}.foregroundStyle(Color.muted).frame(height:24)
+                        HStack(spacing:0){ForEach(0..<p.length/barTicks,id:\.self){bar in
+                            HStack(spacing:5){Rectangle().fill(Color.muted).frame(width:1,height:8);Text(String(format:"%02d",bar+1)).font(.system(.caption2,design:.monospaced,weight:.semibold));Spacer(minLength:0)}
+                                .frame(width:barWidth,alignment:.leading)
+                        }}.foregroundStyle(Color.muted).frame(height:24).background(Color.raised)
+                            .overlay(alignment:.bottom){Rectangle().fill(Color.outline).frame(height:0.5)}
                         RollCanvas(pattern:p,projectID:session.project.id,revision:session.project.revision,clipID:clip?.id,sectionID:session.section.id,selected:selected,lowPitch:lowPitch,barWidth:barWidth,snap:snap,tick:sourcePlayhead,editingChanged:{noteDragging=$0},select:{id in selected=id},insert:{tick,pitch in add(p,tick:tick,pitch:pitch)},move:{id,tick,pitch in change(p.id){NoteEditing.move(id,in:&$0,tick:tick,pitch:pitch,step:snap)}},resize:{id,duration in change(p.id){NoteEditing.resize(id,in:&$0,duration:duration,step:snap)}})
                             .frame(width:CGFloat(p.length)/CGFloat(barTicks)*barWidth,height:576)
                     }
@@ -128,13 +146,15 @@ struct PianoRollView: View {
         Text("\(note.tick/ppq+1):\(note.tick%ppq) · \(note.duration) ticks · v\(note.velocity)").font(.caption.monospaced())
     }
     func editBar(_ p:Pattern)->some View {
-        HStack(spacing:4){
+        HStack(spacing:2){
             IconButton(symbol:"plus",label:"Add note",color:.mint){add(p,tick:(note.map{$0.tick+$0.duration} ?? 0),pitch:note?.pitch ?? 72)}.accessibilityIdentifier("notes.add")
             IconButton(symbol:"doc.on.doc",label:"Copy note"){clipboard=note}.disabled(note==nil)
             IconButton(symbol:"doc.on.clipboard",label:"Paste note"){if var n=clipboard{n.tick=note.map{$0.tick+$0.duration} ?? n.tick;change(p.id){try NoteEditing.insert(n,into:&$0,step:snap)}}}.disabled(clipboard==nil)
             IconButton(symbol:"plus.square.on.square",label:"Duplicate note"){if let id=selected{change(p.id){try NoteEditing.duplicate(id,in:&$0,step:snap)}}}.disabled(note==nil)
             IconButton(symbol:"trash",label:"Delete note",color:.record){if let id=selected{change(p.id){$0.notes?.removeAll{$0.id==id}};selected=nil}}.disabled(note==nil)
-            Spacer(minLength:0);Text("\(p.notes?.count ?? 0)").font(.caption.monospaced()).foregroundStyle(Color.muted).accessibilityIdentifier("notes.count")
+            Spacer(minLength:0)
+            if !dynamicType.isAccessibilitySize,let track {TrackSoundButton(session:session,trackID:track.id,compact:true).frame(width:80)}
+            Text("\(p.notes?.count ?? 0)").font(.caption.monospaced()).foregroundStyle(Color.muted).accessibilityIdentifier("notes.count")
         }
     }
     func change(_ id:UUID,_ action:(inout Pattern)throws->Void){session.edit{p in if let i=p.patterns.firstIndex(where:{$0.id==id}){try action(&p.patterns[i])}}}
@@ -223,16 +243,36 @@ private struct RollCanvas:View {
     }
     private var drawing:some View {
         Canvas{context,size in
-            for row in 0..<24 {let pitch=lowPitch+23-row;context.fill(Path(CGRect(x:0,y:CGFloat(row)*24,width:size.width,height:24)),with:.color([1,3,6,8,10].contains(pitch%12) ? .ink:.panel));var line=Path();line.move(to:CGPoint(x:0,y:CGFloat(row)*24));line.addLine(to:CGPoint(x:size.width,y:CGFloat(row)*24));context.stroke(line,with:.color(.raised),lineWidth:0.5)}
-            for step in 0...pattern.length/snap{let x=CGFloat(step*snap)/CGFloat(barTicks)*barWidth;var line=Path();line.move(to:CGPoint(x:x,y:0));line.addLine(to:CGPoint(x:x,y:size.height));context.stroke(line,with:.color(step*snap%barTicks==0 ? .muted.opacity(0.5):.raised),lineWidth:1)}
+            for row in 0..<24 {
+                let pitch=lowPitch+23-row,y=CGFloat(row)*24
+                let black=[1,3,6,8,10].contains(pitch%12)
+                context.fill(Path(CGRect(x:0,y:y,width:size.width,height:24)),with:.color(black ? .ink:.panel))
+                var line=Path();line.move(to:CGPoint(x:0,y:y));line.addLine(to:CGPoint(x:size.width,y:y))
+                context.stroke(line,with:.color(pitch%12==11 ? .outline:.raised),lineWidth:0.5)
+            }
+            for step in 0...pattern.length/snap {
+                let position=step*snap,x=CGFloat(position)/CGFloat(barTicks)*barWidth
+                let bar=position%barTicks==0,beat=position%ppq==0
+                var line=Path();line.move(to:CGPoint(x:x,y:0));line.addLine(to:CGPoint(x:x,y:size.height))
+                let color:Color=bar ? .muted.opacity(0.5):beat ? .outline:.raised
+                context.stroke(line,with:.color(color),lineWidth:bar ? 1:0.5)
+            }
             let drag=interaction
             for original in pattern.notes ?? [] {
                 var note=original
                 if let drag,drag.original.id==original.id{note=drag.preview}
                 guard (lowPitch...lowPitch+23).contains(note.pitch) else{continue}
                 let r=rect(note),active=note.id==selected || note.id==drag?.original.id
-                context.fill(Path(roundedRect:r,cornerRadius:4),with:.color(.mint.opacity(active ? 1:0.35+Double(note.velocity)/254)))
-                if active{context.fill(Path(CGRect(x:r.maxX-3,y:r.minY+3,width:2,height:14)),with:.color(.ink))}
+                let shape=Path(roundedRect:r,cornerRadius:4)
+                context.fill(shape,with:.color(.mint.opacity(active ? 1:0.35+Double(note.velocity)/254)))
+                context.stroke(shape,with:.color(active ? .studioText.opacity(0.8):.mint.opacity(0.45)),lineWidth:active ? 1:0.5)
+                // The cap and endpoint belong to the note's actual rectangle;
+                // neither introduces a second animated geometry while held.
+                if r.width>6 {
+                    let top=CGRect(x:r.minX+3,y:r.minY+2,width:r.width-6,height:1)
+                    context.fill(Path(top),with:.color(active ? .studioText.opacity(0.6):.mint.opacity(0.4)))
+                    if active{context.fill(Path(CGRect(x:r.maxX-3,y:r.minY+4,width:2,height:12)),with:.color(.ink))}
+                }
                 if note.id==drag?.original.id {
                     context.stroke(Path(roundedRect:rect(original),cornerRadius:4),with:.color(.mint.opacity(0.35)),style:StrokeStyle(lineWidth:1,dash:[3,3]))
                 }
@@ -243,6 +283,7 @@ private struct RollCanvas:View {
     private func resizeGrip(_ note:NoteEvent)->some View {
         Image(systemName:"arrow.left.and.right").font(.system(size:12,weight:.bold)).foregroundStyle(Color.ink)
             .frame(width:28,height:28).background(Color.mint,in:Circle())
+            .overlay{Circle().stroke(Color.studioText.opacity(0.7),lineWidth:1).frame(width:28,height:28)}
             .frame(width:44,height:44).contentShape(Rectangle())
             .accessibilityLabel("Resize note").accessibilityValue("\(note.duration) ticks")
             .accessibilityAddTraits(.isButton).accessibilityIdentifier("notes.resize-handle")
@@ -260,11 +301,12 @@ private struct RollCanvas:View {
             .stroke(Color.mint,style:StrokeStyle(lineWidth:1,dash:[3,3])).allowsHitTesting(false)
     }
     private func readout(_ note:NoteEvent)->some View {
-        VStack(spacing:2){
-            Text("End \(position(note.tick+note.duration))").font(.caption.weight(.semibold))
-            Text("\(Double(note.duration)/Double(ppq),specifier:"%.2f") beats").font(.caption2.monospacedDigit())
-        }.foregroundStyle(Color.studioText).padding(.horizontal,10).padding(.vertical,6)
-            .background(Color.ink,in:RoundedRectangle(cornerRadius:10)).overlay{RoundedRectangle(cornerRadius:10).stroke(Color.mint.opacity(0.65),lineWidth:1)}
+        VStack(spacing:3){
+            Text("End \(position(note.tick+note.duration))").font(.system(.caption,design:.monospaced,weight:.semibold))
+            Text("\(Double(note.duration)/Double(ppq),specifier:"%.2f") beats").font(.caption2.monospacedDigit()).foregroundStyle(Color.muted)
+        }.foregroundStyle(Color.studioText).padding(.horizontal,12).padding(.vertical,8)
+            .background(Color.raised,in:RoundedRectangle(cornerRadius:10,style:.continuous))
+            .overlay{RoundedRectangle(cornerRadius:10,style:.continuous).stroke(Color.mint,lineWidth:1)}
             .fixedSize().position(x:min(max(64,endpoint(note)),max(64,contentWidth-64)),y:rect(note).minY>=70 ? rect(note).midY-60:rect(note).midY+64)
             .accessibilityIdentifier("notes.drag-preview")
     }
@@ -316,7 +358,9 @@ private struct NoteInspector:View {
             layout{Stepper(noteName,value:Binding(get:{note.pitch},set:{v in edit{$0.pitch=v}}),in:0...127).accessibilityLabel("Note pitch").accessibilityValue(Text(verbatim:noteName)).accessibilityIdentifier("notes.selection.pitch");Text("\(note.duration) ticks").monospacedDigit().accessibilityIdentifier("notes.selection.duration")}
             layout{Stepper("Start",onIncrement:{move(note.tick+snap)},onDecrement:{move(note.tick-snap)}).accessibilityLabel("Note start").accessibilityValue(MusicalPosition(tick:note.tick).description).accessibilityIdentifier("notes.selection.start");Stepper("Length",onIncrement:{resize(note.duration+snap)},onDecrement:{resize(note.duration-snap)}).accessibilityLabel("Note duration")}
             HStack{Text("Velocity").font(.caption);Slider(value:Binding(get:{Double(note.velocity)},set:{v in session.coalescedMusicEdit{p in if let i=p.patterns.firstIndex(where:{$0.id==patternID}),let j=p.patterns[i].notes?.firstIndex(where:{$0.id==note.id}){p.patterns[i].notes?[j].velocity=Int(v)}}}),in:1...127,step:1,onEditingChanged:{_ in session.mixerGesture=false}).accessibilityLabel("Note velocity");Text("\(note.velocity)").font(.caption.monospaced()).frame(width:28)}
-        }.padding(.horizontal,16).font(.caption)
+        }.padding(.horizontal,16).font(.caption).background(Color.panel)
+            .overlay(alignment:.top){Rectangle().fill(Color.outline.opacity(0.6)).frame(height:0.5)}
+            .overlay(alignment:.bottom){Rectangle().fill(Color.outline.opacity(0.6)).frame(height:0.5)}
     }
     func move(_ tick:Int){session.edit{p in if let i=p.patterns.firstIndex(where:{$0.id==patternID}){NoteEditing.move(note.id,in:&p.patterns[i],tick:tick,pitch:note.pitch,step:snap)}}}
     func resize(_ duration:Int){session.edit{p in if let i=p.patterns.firstIndex(where:{$0.id==patternID}){NoteEditing.resize(note.id,in:&p.patterns[i],duration:duration,step:snap)}}}

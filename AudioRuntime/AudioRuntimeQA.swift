@@ -338,21 +338,25 @@ import SwiftUI
             p.bpm=40
             var settings=MIDISettings();settings.enabled=true;settings.inputIDs=[source];settings.outputID=output;settings.trackID=p.tracks[0].id;p.midi=settings
         }
+        // A playing tick can still predate a queued seek. Settle fixture
+        // positioning while stopped before admitting the structural edits.
+        audio.seek(240)
+        try await wait(audio){!audio.playing && !audio.pendingSnapshot && abs(audio.tick-240)<1}
         audio.play()
         try await wait(audio){audio.playing && midi.isConnected(source) && lg_midi_output_active_epoch(audio.midiHub.pointer) != 0}
         midi.sendFixture()
         try await wait(audio){midi.fixtureReceivedNotes>0 && midi.lastMessage.contains("74")}
         let kernel=try pointer(audio)
-        // This seek belongs only to fixture setup. The following two Session
-        // edits run in one MainActor turn, safely away from the six-second bar.
-        audio.seek(240);try await wait(audio){audio.tick>240 && audio.tick<960}
+        // The following two Session edits run in one MainActor turn,
+        // safely away from the six-second bar, with no pending setup seek.
+        try await wait(audio){audio.tick>240 && audio.tick<960}
         let clock=audio.clock
         session.edit{try $0.addMelody()}
         try require(audio.pendingSnapshot,"Structural edit did not remain pending")
         session.edit{p in p.midi?.enabled=false;p.midi?.outputID=nil}
         try require(!midi.isConnected(source),"Input Off waited for the pending structural bar")
         try require(lg_midi_output_active_epoch(audio.midiHub.pointer)==0,"Output None waited for the pending structural bar")
-        try require(audio.pendingSnapshot && audio.playing,"MIDI Off adopted or stopped the pending song")
+        try require(audio.pendingSnapshot && audio.playing,"MIDI Off adopted or stopped the pending song\nBefore fixture cleanup: \(audio.runtimeTraceState)")
         try await wait(audio,timeout:8){!audio.pendingSnapshot}
         try require(!midi.isConnected(source) && lg_midi_output_active_epoch(audio.midiHub.pointer)==0,"Old snapshot settings reconnected a disabled MIDI endpoint")
         let sameKernel=try pointer(audio)==kernel

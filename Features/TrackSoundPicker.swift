@@ -42,18 +42,24 @@ struct TrackSoundButton:View {
     var body:some View {
         if let track {
             Button{presented=true}label:{
-                HStack(spacing:compact ? 4:8){
-                    Image(systemName:"waveform").font(compact ? .caption:.body)
-                    VStack(alignment:.leading,spacing:2){
-                        Text("Sound").font(compact ? .system(size:11,weight:.medium):.caption)
+                HStack(spacing:10){
+                    if !compact {
+                        Image(systemName:"waveform").font(.system(size:17,weight:.medium))
+                            .frame(width:32,height:32)
+                            .background(Color.track(track.role).opacity(0.1),in:RoundedRectangle(cornerRadius:8,style:.continuous))
+                    }
+                    VStack(alignment:.leading,spacing:3){
+                        Text("Sound").font(compact ? .system(size:11,weight:.medium):.caption).foregroundStyle(Color.muted)
                         Text(LocalizedStringKey(TrackSoundNames.title(track.presetVersion,role:track.role)))
                             .font(compact ? .system(size:11,weight:.semibold):.subheadline.weight(.semibold))
                             .lineLimit(2).fixedSize(horizontal:false,vertical:true)
                     }
-                    if !compact{Spacer(minLength:0);Image(systemName:"chevron.right").font(.caption)}
-                }.frame(maxWidth:.infinity,minHeight:48,alignment:.leading)
-                    .padding(.horizontal,compact ? 5:12)
-                    .background(Color.track(track.role).opacity(0.12),in:RoundedRectangle(cornerRadius:10,style:.continuous))
+                    if !compact{Spacer(minLength:0);Image(systemName:"chevron.right").font(.system(size:11,weight:.semibold)).foregroundStyle(Color.muted)}
+                }.frame(maxWidth:.infinity,minHeight:compact ? 44:48,alignment:.leading)
+                    .padding(.horizontal,compact ? 7:12)
+                    .padding(.vertical,compact ? 0:4)
+                    .background(Color.panel,in:RoundedRectangle(cornerRadius:12,style:.continuous))
+                    .overlay{RoundedRectangle(cornerRadius:12,style:.continuous).stroke(Color.track(track.role).opacity(0.4),lineWidth:0.5)}
             }.buttonStyle(StudioQuietButtonStyle()).foregroundStyle(Color.track(track.role))
                 .disabled(locked)
                 .accessibilityLabel(String(format:NSLocalizedString("Sound for %@",comment:"Track sound"),track.displayName))
@@ -93,33 +99,61 @@ struct TrackSoundPicker:View {
         NavigationStack {
             ScrollView {VStack(alignment:.leading,spacing:18){
                 if let track {
-                    VStack(alignment:.leading,spacing:6){
-                        Text(track.displayName).font(.title2.weight(.semibold))
-                        Text(LocalizedStringKey(track.role == .drums ? "Built-in synthesized kit · 16 pads":"Built-in instrument"))
-                            .font(.caption).foregroundStyle(Color.muted)
-                    }
-                    ForEach(choices,id:\.rawValue){palette in paletteRow(palette,track:track)}
+                    HStack(alignment:.center,spacing:14){
+                        Image(systemName:track.role == .drums ? "square.grid.2x2.fill":"pianokeys")
+                            .font(.system(size:23,weight:.medium)).foregroundStyle(Color.track(track.role))
+                            .frame(width:52,height:52).background(Color.track(track.role).opacity(0.1),in:RoundedRectangle(cornerRadius:14,style:.continuous))
+                        VStack(alignment:.leading,spacing:6){
+                            Text(track.displayName).font(.title2.weight(.semibold)).foregroundStyle(Color.studioText)
+                            Text(LocalizedStringKey(track.role == .drums ? "Built-in synthesized kit · 16 pads":"Built-in instrument"))
+                                .font(.caption).foregroundStyle(Color.muted)
+                        }
+                        Spacer(minLength:0)
+                    }.padding(.vertical,8)
+                    VStack(spacing:0){
+                        ForEach(Array(choices.enumerated()),id:\.element.rawValue){index,palette in
+                            paletteRow(palette,track:track)
+                            if index<choices.count-1 {Rectangle().fill(Color.outline.opacity(0.6)).frame(height:0.5).padding(.leading,52)}
+                        }
+                    }.background(Color.panel,in:RoundedRectangle(cornerRadius:16,style:.continuous))
+                        .clipShape(RoundedRectangle(cornerRadius:16,style:.continuous))
+                        .overlay{RoundedRectangle(cornerRadius:16,style:.continuous).stroke(Color.outline.opacity(0.75),lineWidth:0.5)}
                     Text(LocalizedStringKey(previewAlongsideTrack || (!previewing && session.audio.playing) ? "Hear the sound with your track. Your notes stay unchanged.":"Preview plays a short example. Your notes stay unchanged."))
                         .font(.caption).foregroundStyle(Color.muted)
                     if previewAlongsideTrack || (!previewing && session.audio.playing){
                         Text("While playing, sound changes on the next bar.").font(.caption2).foregroundStyle(Color.muted)
                     }
-                    Button{if sounding{stopPreview()}else{startPreview()}}label:{
-                        Label(LocalizedStringKey(sounding ? "Stop preview":"Hear sound"),systemImage:sounding ? "stop.fill":"speaker.wave.2.fill")
-                    }.buttonStyle(StudioActionStyle(color:Color.track(track.role),prominent:false))
-                        .disabled(!canChange).accessibilityIdentifier("sound.preview")
-                        .accessibilityValue(Text(verbatim:session.runtimeTraceEnabled ? session.runtimeTraceReport:""))
-                    Text("Preview follows your track and master levels.")
-                        .font(.caption2).foregroundStyle(Color.muted)
+                    VStack(alignment:.leading,spacing:10){
+                        HStack(spacing:8){
+                            Image(systemName:error != nil ? "exclamationmark.circle":sounding ? "speaker.wave.2.fill":"speaker")
+                                .font(.system(size:13,weight:.medium)).foregroundStyle(error != nil ? Color.record:Color.track(track.role)).frame(width:18)
+                            Text(LocalizedStringKey(error != nil ? "Preview":sounding ? "PLAYING":"Ready"))
+                                .font(.system(.caption,design:.monospaced,weight:.medium)).foregroundStyle(Color.muted)
+                            Spacer(minLength:0)
+                            Text(LocalizedStringKey(TrackSoundNames.title(selectedVersion,role:track.role)))
+                                .font(.caption.weight(.semibold)).foregroundStyle(Color.track(track.role)).multilineTextAlignment(.trailing)
+                        }.frame(minHeight:24).accessibilityIdentifier("sound.preview.status")
+                        Button{if sounding{stopPreview()}else{startPreview()}}label:{
+                            Label(LocalizedStringKey(sounding ? "Stop preview":"Hear sound"),systemImage:sounding ? "stop.fill":"speaker.wave.2.fill")
+                        }.buttonStyle(StudioActionStyle(color:Color.track(track.role),prominent:false))
+                            .disabled(!canChange).accessibilityIdentifier("sound.preview")
+                            .accessibilityValue(Text(verbatim:session.runtimeTraceEnabled ? session.runtimeTraceReport:""))
+                        Text("Preview follows your track and master levels.")
+                            .font(.caption2).foregroundStyle(Color.muted)
+                        Group {
+                            if let error{Label{Text(LocalizedStringKey(error))}icon:{Image(systemName:"exclamationmark.circle")}.foregroundStyle(Color.record).accessibilityIdentifier("sound.error")}
+                            else{Text(" ").accessibilityHidden(true)}
+                        }.font(.caption).frame(maxWidth:.infinity,minHeight:36,alignment:.topLeading)
+                    }.padding(.top,2)
                 }else{ContentUnavailableView("Track unavailable",systemImage:"waveform")}
                 if !contextMatches{Text("The project changed. Close this picker and open it again.").font(.caption).foregroundStyle(Color.record)}
-                if let error{Text(LocalizedStringKey(error)).font(.caption).foregroundStyle(Color.record).accessibilityIdentifier("sound.error")}
             }.padding(18)}.background(Color.ink)
                 .safeAreaInset(edge:.bottom){
                     Button{apply()}label:{Text("Apply sound").frame(maxWidth:.infinity)}
                         .buttonStyle(StudioActionStyle())
                         .disabled(!canChange || selectedVersion==track?.presetVersion)
-                        .padding(16).background(Color.ink).accessibilityIdentifier("sound.apply")
+                        .padding(16).background(Color.ink)
+                        .overlay(alignment:.top){Rectangle().fill(Color.outline.opacity(0.6)).frame(height:0.5)}.accessibilityIdentifier("sound.apply")
                 }
                 .navigationTitle("Sound").navigationBarTitleDisplayMode(.inline)
                 .toolbar{ToolbarItem(placement:.cancellationAction){Button("Cancel"){stopPreview();dismiss()}}}
@@ -146,9 +180,9 @@ struct TrackSoundPicker:View {
                         .font(.caption).foregroundStyle(Color.muted).multilineTextAlignment(.leading)
                 }
                 Spacer(minLength:0)
-            }.frame(maxWidth:.infinity,minHeight:68,alignment:.leading).padding(12)
-                .background(selected ? Color.track(track.role).opacity(0.13):Color.panel,in:RoundedRectangle(cornerRadius:14,style:.continuous))
-                .overlay{RoundedRectangle(cornerRadius:14,style:.continuous).stroke(selected ? Color.track(track.role):Color.outline,lineWidth:selected ? 1.5:0.6)}
+            }.frame(maxWidth:.infinity,minHeight:72,alignment:.leading).padding(.horizontal,14).padding(.vertical,10)
+                .background(selected ? Color.track(track.role).opacity(0.1):Color.clear)
+                .overlay(alignment:.leading){Rectangle().fill(selected ? Color.track(track.role):Color.clear).frame(width:3)}
         }.buttonStyle(StudioQuietButtonStyle()).disabled(!canChange)
             .accessibilityAddTraits(selected ? [.isSelected]:[])
             .accessibilityIdentifier("sound.palette.\(palette.rawValue)")
