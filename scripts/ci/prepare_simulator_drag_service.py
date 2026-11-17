@@ -232,7 +232,7 @@ def prepare(arguments):
             architecture = command("host-architecture.txt", ["uname", "-m"], 2)
             if architecture not in ("arm64", "x86_64"):
                 raise NotReady("The native Simulator host architecture is unsupported.")
-            command("runtime-launchctl-architecture.txt", ["xcrun", "lipo", "-verify_arch", architecture, str(tool)], 2)
+            command("runtime-launchctl-architecture.txt", ["xcrun", "lipo", str(tool), "-verify_arch", architecture], 2)
             build = command("runtime-launchctl-build.txt", ["xcrun", "vtool", "-show-build", str(tool)], 2)
             platforms = re.findall(r"^\s*platform\s+(\S+)\s*$", build, re.M)
             if not platforms or any(value not in ("IOSSIMULATOR", "7") for value in platforms):
