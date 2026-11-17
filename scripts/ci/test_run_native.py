@@ -105,7 +105,10 @@ class NativeSupervisorTests(unittest.TestCase):
                   "signal.signal(signal.SIGTERM,signal.SIG_IGN);"
                   f"p=subprocess.Popen([sys.executable,'-c',{child!r}]);print('descendant='+str(p.pid));time.sleep(50)")
         result, state = self.invoke(script, timeout=0.25)
-        self.assertEqual(result.returncode, 124)
+        evidence = json.dumps({"status": state,
+                               "stdoutTail": result.stdout[-2000:].decode(errors="replace"),
+                               "stderrTail": result.stderr[-2000:].decode(errors="replace")}, sort_keys=True)
+        self.assertEqual(result.returncode, 124, evidence)
         self.assertTrue(state["timedOut"])
         self.assertEqual(state["terminationPhase"], "kill")
         self.assertEqual(state["subprocessExitCode"], -signal.SIGKILL)
@@ -144,7 +147,13 @@ class NativeSupervisorTests(unittest.TestCase):
         command[command.index("--") + 1:] = [str(self.root / "missing")]
         result = subprocess.run(command, capture_output=True, timeout=5)
         self.assertEqual(result.returncode, 127)
-        self.assertEqual(json.loads(self.status.read_text())["errorType"], "FileNotFoundError")
+        state = json.loads(self.status.read_text())
+        self.assertEqual(state["errorType"], "FileNotFoundError")
+        self.assertEqual(state["errorErrno"], 2)
+        self.assertEqual(state["errorOperation"], "start-subprocess")
+        self.assertTrue(state["errorFrames"])
+        self.assertTrue(all(set(frame) == {"function", "line"} for frame in state["errorFrames"]))
+        self.assertNotIn(str(self.root / "missing"), self.status.read_text())
 
     def test_parent_exit_does_not_leave_inherited_pipe_hanging(self):
         script = "import subprocess,sys;child=subprocess.Popen([sys.executable,'-c','import time;time.sleep(50)']);print('descendant='+str(child.pid))"

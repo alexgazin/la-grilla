@@ -17,6 +17,7 @@ import signal
 import subprocess
 import sys
 import time
+import traceback
 from native_scope import functional_inventory, observed_outcomes
 
 
@@ -218,8 +219,12 @@ def run(arguments):
         except OSError as error:
             # The command can contain paths; expose the error class without
             # echoing credentials or arbitrary OS exception text into receipts.
-            diagnostic("Native subprocess failed: " + type(error).__name__)
-            state.update(status="completed", errorType=type(error).__name__, exitCode=127, endedAtUTC=utc_now())
+            diagnostic("Native subprocess failed: " + type(error).__name__ + " (errno=" + str(error.errno) + ")")
+            frames = [{"function": frame.name, "line": frame.lineno}
+                      for frame in traceback.extract_tb(error.__traceback__)[-4:]]
+            state.update(status="completed", errorType=type(error).__name__, errorErrno=error.errno,
+                         errorOperation="start-subprocess" if process is None else "supervise-subprocess",
+                         errorFrames=frames, exitCode=127, endedAtUTC=utc_now())
             persist()
             return 127
         finally:
