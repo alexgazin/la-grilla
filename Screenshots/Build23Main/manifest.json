@@ -1,0 +1,36 @@
+{
+  "sourceSHA": "0cfd12e3e1a821d50c7a1502f627329b7d60ff02",
+  "version": "1.0.0",
+  "build": "23",
+  "runID": 44083683395,
+  "artifactID": 14333087866,
+  "artifactBytes": 372388431,
+  "artifactSHA256": "d6bbdb57037313e16ab5b3016daf3250e694a20f0ad680c07bd6941e9a3e9242",
+  "sourceAttachmentManifestSHA256": "c4aba5f3e716eb29bafcde80ba331c8dfab3655ad12af72ddfd9c76b23bc9eea",
+  "captureDevice": "iPhone 16 Pro Max Simulator",
+  "appearance": "Dark",
+  "wholeRunOutcome": {
+    "expectedFunctionalCount": 73,
+    "observedFunctionalCount": 73,
+    "passed": 70,
+    "failed": 2,
+    "timeAllowanceExceeded": 1,
+    "exitCode": 65,
+    "supervisorTimedOut": false,
+    "nativeAccepted": false
+  },
+  "physicalAccepted": false,
+  "screenshot": {
+    "file": "flats-degrees-reopened.png",
+    "originalExportedFile": "C54FFC7F-ED05-4E39-8C9F-1E63B0E4A158.png",
+    "originalAttachmentName": "Audit-flats-degrees-real-store-reopen_0_4A8D840C-A84F-4AC8-B090-25AF1BA6EAD0.png",
+    "testIdentifier": "TranspositionUITests/testFlatsAndScaleDegreesPersistWithoutNotationChangingMusic",
+    "ownerOutcome": "PASS",
+    "bytes": 182673,
+    "width": 1320,
+    "height": 2868,
+    "sha256": "3684a063a2a48ceccddea69f5cf88061079aa59b524b0a74ec648cd5f6c1034c",
+    "originalBytesUnchanged": true,
+    "visuallyReviewed": true
+  }
+}

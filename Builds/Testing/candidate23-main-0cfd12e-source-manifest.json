@@ -1,0 +1,34 @@
+{
+  "sourceSHA": "0cfd12e3e1a821d50c7a1502f627329b7d60ff02",
+  "provider": "GitHub connector fetch_file exact ref",
+  "files": [
+    {
+      "path": "Resources/PrivacyInfo.xcprivacy",
+      "blobSHA": "dc900deebb9348dba88af2f8fec48783546e86cc",
+      "bytes": 816,
+      "sha256": "f9e21baa2ade53f025f455dd07237c2ae59bcd0af2e1aeb6d7944cd431c0c342",
+      "blobVerified": true
+    },
+    {
+      "path": "Packages/MusicDomain/Sources/MusicDomain/Model.swift",
+      "blobSHA": "7a1bef2ca9e121f6036b6677e2ce82b731c7b4d3",
+      "bytes": 33893,
+      "sha256": "2dd15bb45cee5a6302529b74165ad5ba6aec56086c921bc5e9cd32b286b7c526",
+      "blobVerified": true
+    },
+    {
+      "path": "project.yml",
+      "blobSHA": "ba11a4d9f80d0c621fc1b1ee4358c6941236bdaf",
+      "bytes": 2220,
+      "sha256": "4b9bc89c701e83d8b3081a1ea19d9bd343bc4bb465e890c868bbcebad260bcdb",
+      "blobVerified": true
+    },
+    {
+      "path": "scripts/release/audit_binary.py",
+      "blobSHA": "b99e811f09813c183557ec1c312592875f313b64",
+      "bytes": 10753,
+      "sha256": "3c1e2189a4aaf61a15334e7a306c9107b6e5ea1d0da2a251d1ced7e191ff8a73",
+      "blobVerified": true
+    }
+  ]
+}
