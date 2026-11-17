@@ -26,7 +26,14 @@ final class LiveEditingTests:XCTestCase {
     }
 
     @MainActor private func wait(_ element:XCUIElement,_ predicate:NSPredicate,timeout:TimeInterval=5){
-        XCTAssertEqual(XCTWaiter.wait(for:[XCTNSPredicateExpectation(predicate:predicate,object:element)],timeout:timeout),.completed)
+        let result=XCTWaiter.wait(for:[XCTNSPredicateExpectation(predicate:predicate,object:element)],timeout:timeout)
+        if result != .completed {
+            let context=XCTAttachment(string:XCUIApplication().debugDescription)
+            context.name="LiveEditing failed wait — actual app hierarchy"
+            context.lifetime = .keepAlways
+            add(context)
+        }
+        XCTAssertEqual(result,.completed)
     }
 
     @MainActor private func playing(_ element:XCUIElement){

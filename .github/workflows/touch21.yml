@@ -69,14 +69,18 @@ jobs:
           if device23:cases=['PerformControlTests/testFilterIsReadOnlyDuringTakeReplay', 'PerformControlTests/testLargeTypeFilterAndTransportRemainReachable', 'StudioTests/testPerformRecordingSurvivesNavigationAndReplays', 'TranspositionUITests/testFlatsAndScaleDegreesPersistWithoutNotationChangingMusic', 'TranspositionUITests/testTransposePreviewCancelApplyLiveUndoRedoAndReopen']
           if notation23:cases=['TranspositionUITests/testTransposePreviewCancelApplyLiveUndoRedoAndReopen', 'TranspositionUITests/testFlatsAndScaleDegreesPersistWithoutNotationChangingMusic', 'LiveEditingTests/testBassAndMelodyTrackEditsKeepPlaybackRunning']
           diagnostic=focused or device23 or notation23
-          selection=dict(scope='input-diagnostic' if diagnostic else 'focused-touch-feedback',selectedCases=cases,expectedCount=len(cases),fullAcceptance=False)
+          # The added Bass/Melody case declares its original 180s allowance.
+          # Transposition retains its own 120s setUp bound; the focused touch
+          # selection keeps the original 120s maximum.
+          maximum_allowance='180' if notation23 else '120'
+          selection=dict(scope='input-diagnostic' if diagnostic else 'focused-touch-feedback',selectedCases=cases,expectedCount=len(cases),maximumExecutionTimeAllowance=int(maximum_allowance),fullAcceptance=False)
           pathlib.Path('touch21-selection.json').write_text(json.dumps(selection,indent=2)+'\n')
           device=pathlib.Path('/tmp/grilla-simulator-id').read_text().strip()
           command=['python3','scripts/ci/run_native.py','--timeout-seconds','1500','--deadline-env','GRILLA_TOUCH_DEADLINE_EPOCH','--scope','input-diagnostic' if diagnostic else 'focused','--label','notation23-regressions' if notation23 else 'device23-regressions' if device23 else 'resize-regression' if focused else 'touch-feedback','--log','touch21-native.log','--status','touch21-process-status.json']
           for identifier in cases:command+=['--require-test',identifier]
           command+=['--','xcodebuild','-project','LaGrilla.xcodeproj','-scheme','LaGrilla','-destination','platform=iOS Simulator,id='+device,'-derivedDataPath','DerivedData','-resultBundlePath','TouchResults.xcresult']
           for identifier in cases:command+=['-only-testing:LaGrillaUITests/'+identifier]
-          command+=['-test-timeouts-enabled','YES','-maximum-test-execution-time-allowance','120','ARCHS=arm64','ONLY_ACTIVE_ARCH=YES','CODE_SIGN_IDENTITY=-','CODE_SIGNING_REQUIRED=NO','test-without-building']
+          command+=['-test-timeouts-enabled','YES','-maximum-test-execution-time-allowance',maximum_allowance,'ARCHS=arm64','ONLY_ACTIVE_ARCH=YES','CODE_SIGN_IDENTITY=-','CODE_SIGNING_REQUIRED=NO','test-without-building']
           raise SystemExit(subprocess.call(command))
           PYRUN
       - name: Preserve actual app crash and device diagnostics

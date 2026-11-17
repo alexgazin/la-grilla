@@ -173,9 +173,9 @@ struct BassView: View {
     }.tint(.bass).navigationTitle("Bass").toolbar{ToolbarItem(placement:.confirmationAction){Button("Done"){session.sheet=nil}}}}.presentationDetents([.medium])}
 }
 
-/// The native switch owns its inner frame; its host owns only the surrounding
-/// padding. Both paths emit one native valueChanged event. The actual 64×48 host
-/// remains a 44pt screen target after the system sheet's scale.
+/// One host owns the whole 64×48 touch surface, including the displayed thumb.
+/// The UISwitch supplies its real state and accessibility; every successful
+/// touch or VoiceOver activation reaches the same single valueChanged path.
 @MainActor private struct StudioSwitch:UIViewRepresentable {
     @Binding var isOn:Bool
     let enabled:Bool
@@ -218,9 +218,16 @@ struct BassView: View {
         super.init(frame:frame)
         isAccessibilityElement=false
         addSubview(control);control.hitAreaHost=self;control.isAccessibilityElement=true
+        // The display must not start a second, ineffective UIKit tracking path.
+        // Keep isEnabled intact for the actual state and accessibility traits.
+        control.isUserInteractionEnabled=false
         accessibilityElements=[control]
-        let padding=UITapGestureRecognizer(target:self,action:#selector(paddingTapped(_:)))
-        padding.delegate=self;padding.cancelsTouchesInView=false;addGestureRecognizer(padding)
+        let tap=UITapGestureRecognizer(target:self,action:#selector(tapped(_:)))
+        let pan=UIPanGestureRecognizer(target:self,action:#selector(dragged(_:)))
+        tap.delegate=self;pan.delegate=self
+        pan.maximumNumberOfTouches=1
+        tap.require(toFail:pan)
+        addGestureRecognizer(tap);addGestureRecognizer(pan)
     }
     required init?(coder:NSCoder){fatalError("init(coder:) is unavailable")}
     override var intrinsicContentSize:CGSize{CGSize(width:64,height:48)}
@@ -229,23 +236,42 @@ struct BassView: View {
     }
     override func hitTest(_ point:CGPoint,with event:UIEvent?)->UIView? {
         guard isUserInteractionEnabled,!isHidden,alpha>0.01,bounds.contains(point)else{return nil}
-        if control.frame.contains(point){return control.hitTest(convert(point,to:control),with:event) ?? control}
         return self
     }
-    func gestureRecognizer(_ gestureRecognizer:UIGestureRecognizer,shouldReceive touch:UITouch)->Bool {
-        // A touch dispatched to the native switch is never handled a second
-        // time by its ancestor's padding recognizer.
-        control.isEnabled && !control.frame.contains(touch.location(in:self))
+    override func gestureRecognizerShouldBegin(_ gestureRecognizer:UIGestureRecognizer)->Bool {
+        guard control.isEnabled else{return false}
+        if let pan=gestureRecognizer as? UIPanGestureRecognizer {
+            let movement=pan.translation(in:self)
+            return abs(movement.x)>abs(movement.y)
+        }
+        return true
     }
-    @objc private func paddingTapped(_ gesture:UITapGestureRecognizer){
-        guard gesture.state == .ended,control.isEnabled else{return}
-        control.setOn(!control.isOn,animated:true)
-        control.sendActions(for:.valueChanged)
+    @discardableResult func activate()->Bool{commit(!control.isOn)}
+    @discardableResult private func commit(_ desired:Bool)->Bool {
+        guard control.isEnabled,isUserInteractionEnabled else{return false}
+        if desired != control.isOn {
+            control.setOn(desired,animated:true)
+            control.sendActions(for:.valueChanged)
+        }
+        return true
+    }
+    @objc private func tapped(_ gesture:UITapGestureRecognizer){
+        guard gesture.state == .ended,bounds.contains(gesture.location(in:self)) else{return}
+        activate()
+    }
+    @objc private func dragged(_ gesture:UIPanGestureRecognizer){
+        // Vertical motion belongs to the Form. Cancelled drags never change
+        // the display or binding; a horizontal release commits at most once.
+        guard gesture.state == .ended else{return}
+        let movement=gesture.translation(in:self)
+        guard abs(movement.x)>=8,abs(movement.x)>abs(movement.y),bounds.contains(gesture.location(in:self)) else{return}
+        commit(movement.x>0)
     }
 }
 
 @MainActor private final class StudioUISwitch:UISwitch {
     weak var hitAreaHost:StudioSwitchHost?
+    override func accessibilityActivate()->Bool{hitAreaHost?.activate() ?? false}
     override var accessibilityFrame:CGRect {
         get{guard let host=hitAreaHost,host.window != nil else{return super.accessibilityFrame};return UIAccessibility.convertToScreenCoordinates(host.bounds,in:host)}
         set{super.accessibilityFrame=newValue}
