@@ -6,7 +6,9 @@ final class AuthorizedMicrophoneTests: XCTestCase {
     override func setUp() {
         super.setUp()
         continueAfterFailure = false
-        executionTimeAllowance = 120
+        // This end-to-end case includes two real processes, TCC, Speech and
+        // typed recovery. Its per-step deadlines remain independent and strict.
+        executionTimeAllowance = name.contains("testGrantedSpeechCallbackAndOutputOnlyAssistantRemainUsable") ? 180 : 120
     }
 
     @MainActor func testOutputOnlyFirstConsentCapturesActualCAFAndRetainsKernel() throws {
