@@ -22,6 +22,17 @@ final class ArrangementUITests: XCTestCase {
         let expectation=XCTNSPredicateExpectation(predicate:predicate,object:element)
         XCTAssertEqual(XCTWaiter.wait(for:[expectation],timeout:6),.completed)
     }
+    @MainActor private func waitForPinchObservation(_ matches: () -> Bool) -> XCTWaiter.Result {
+        let deadline = ProcessInfo.processInfo.systemUptime + 6
+        // A native hierarchy snapshot is a synchronous remote query. If it
+        // completes with valid geometry, evaluate it even when XCTest's
+        // predicate scheduler would have abandoned that query mid-result.
+        repeat {
+            if matches() { return .completed }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.08))
+        } while ProcessInfo.processInfo.systemUptime < deadline
+        return .timedOut
+    }
     @MainActor private func snapshotElement(identifier:String,in app:XCUIApplication)->(any XCUIElementSnapshot)? {
         // Resolve actual fields from one fresh, immutable native hierarchy per
         // poll, without a separate remote Find for each property accessor.
@@ -209,7 +220,7 @@ final class ArrangementUITests: XCTestCase {
         timeline.pinch(withScale:1.1,velocity:1)
         var firstInput="",firstAnchorX=CGFloat.nan,barsBefore=CGFloat.nan
         var firstObservation:TimelineObservation?
-        let enlargedSettled=XCTWaiter.wait(for:[XCTNSPredicateExpectation(predicate:NSPredicate{_,_ in
+        let enlargedSettled=waitForPinchObservation {
             guard let observed=self.timelineObservation(in:app)else{return false}
             firstObservation=observed
             firstInput=observed.zoom
@@ -225,7 +236,7 @@ final class ArrangementUITests: XCTestCase {
             guard width>0 else{return false}
             let center=2+(firstAnchorX-a.minX)/width
             return width>widthBefore*1.2 && abs(center-barsBefore)<=0.04 && a.minX>=view.minX && b.maxX<=view.maxX+1
-        },object:third)],timeout:6)
+        }
         let observedFirstBars=firstObservation.map{2+(firstAnchorX-$0.third.minX)/$0.barWidth}
         let firstReceipt=XCTAttachment(string:"Settle result=\(enlargedSettled)\nBefore viewport=\(viewFrame), ruler03=\(scrolledThird), ruler04=\(scrolledFourth)\nLast coherent observation: \(firstObservation?.geometryDescription ?? "Missing snapshot")\nRaw-input global anchorX=\(firstAnchorX), prior bar width=\(widthBefore), anchor bars=\(barsBefore) → \(observedFirstBars.map{String(describing:$0)} ?? "Missing snapshot")\n\(firstInput)\n\(firstObservation?.transport ?? "Missing runtime trace")")
         firstReceipt.name="Anchored-pinch first actual geometry";firstReceipt.lifetime = .keepAlways;add(firstReceipt)
@@ -241,7 +252,7 @@ final class ArrangementUITests: XCTestCase {
         timeline.pinch(withScale:0.75,velocity:-1)
         var secondInput="",secondAnchorX=CGFloat.nan,secondBarsBefore=CGFloat.nan
         var secondObservation:TimelineObservation?
-        let reducedSettled=XCTWaiter.wait(for:[XCTNSPredicateExpectation(predicate:NSPredicate{_,_ in
+        let reducedSettled=waitForPinchObservation {
             guard let observed=self.timelineObservation(in:app)else{return false}
             secondObservation=observed
             secondInput=observed.zoom
@@ -257,7 +268,7 @@ final class ArrangementUITests: XCTestCase {
             guard width>0 else{return false}
             let center=2+(secondAnchorX-a.minX)/width
             return width<enlargedWidth*0.9 && abs(center-secondBarsBefore)<=0.04 && a.minX>=view.minX && b.maxX<=view.maxX+1
-        },object:third)],timeout:6)
+        }
         let observedSecondBars=secondObservation.map{2+(secondAnchorX-$0.third.minX)/$0.barWidth}
         // The public hierarchy snapshot truncates long accessibility values
         // to 512 characters on the verified runtime. Keep its coherent geometry,

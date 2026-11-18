@@ -810,3 +810,13 @@
 "A sound sample is missing. Restore it from a portable project." = "A sound sample is missing. Restore it from a portable project.";
 "This project has reached its sound sample limit." = "This project has reached its sound sample limit.";
 "The project changed while preparing this sound. Try again." = "The project changed while preparing this sound. Try again.";
+"Search instruments" = "Search instruments";
+"No matching instruments" = "No matching instruments";
+"Choose from library" = "Choose from library";
+"Sample library" = "Sample library";
+"Search samples" = "Search samples";
+"No saved samples" = "No saved samples";
+"No matching samples" = "No matching samples";
+"Remove from library" = "Remove from library";
+"Tap a sample to use it on this pad. Your library is available in every project." = "Tap a sample to use it on this pad. Your library is available in every project.";
+"The pad sample library is full. Remove a sample to make room." = "The pad sample library is full. Remove a sample to make room.";

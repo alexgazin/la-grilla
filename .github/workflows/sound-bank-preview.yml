@@ -1,7 +1,7 @@
 name: SoundFont and sample audio
 on:
   push:
-    branches: [main, feat/sample-instruments]
+    branches: [main, feat/sample-instruments, feat/sound-library]
   workflow_dispatch:
 permissions:
   contents: read
@@ -27,7 +27,7 @@ jobs:
           EOF
           xcrun swift run --package-path "$TEMP_BANK" Verify "$BANK"
   ios-sound:
-    if: github.ref_name == 'feat/sample-instruments' || github.event_name == 'workflow_dispatch'
+    if: github.ref_name == 'feat/sample-instruments' || github.ref_name == 'feat/sound-library' || github.event_name == 'workflow_dispatch'
     runs-on: macos-26
     timeout-minutes: 35
     env:
@@ -52,13 +52,24 @@ jobs:
           DESTINATION="$DATA/Library/Application Support/SoundBanks/9024816D-3752-4DDB-B9CF-1C236482680A"
           mkdir -p "$DESTINATION"
           cp "$BANK" "$DESTINATION/"
-      - name: Verify kit, instrument assignment and previous live preview
+          python3 - "$DATA/Library/Application Support/PadSamples" <<'PY'
+          import hashlib,json,pathlib,struct,sys
+          identity='326FA160-F668-4DEB-B58F-A9B24B5E4086'
+          root=pathlib.Path(sys.argv[1])/identity
+          root.mkdir(parents=True,exist_ok=True)
+          frames=1920
+          values=[int((4000 if i%80<40 else -4000)*(frames-i)/frames) for i in range(frames)]
+          audio=b'LGS1'+struct.pack('<IIIII',32000,1,60,frames,0)+struct.pack('<'+'h'*frames,*values)
+          (root/'sound.lgpcm').write_bytes(audio)
+          (root/'sample.json').write_text(json.dumps(dict(id=identity,kind='oneShot',name='Studio Click',byteCount=len(audio),sha256=hashlib.sha256(audio).hexdigest())))
+          PY
+      - name: Verify kit, library reuse, instrument search and timeline pinch
         timeout-minutes: 11
         env:
           TEST_RUNNER_GRILLA_TEST_SOUNDFONT: '1'
         run: |
           DEVICE=$(cat /tmp/grilla-simulator-id)
-          CASES=(SoundPickerUITests/testPocketKitIsAnUndoableEditAndReopensWithTheSamePadSamples SoundPickerUITests/testLiveSoundPreviewRetainsTheGrooveAndSourceRevision)
+          CASES=(ArrangementUITests/testPinchRetainsScrolledMusicalCenterWithoutEditingOrStopping SoundPickerUITests/testPocketKitIsAnUndoableEditAndReopensWithTheSamePadSamples SoundPickerUITests/testSavedPadSampleCanBeUsedInTwoProjects SoundPickerUITests/testLiveSoundPreviewRetainsTheGrooveAndSourceRevision)
           REQUIRED=()
           SELECTED=()
           for CASE_ID in "${CASES[@]}"; do

@@ -3,12 +3,17 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 struct DrumSamplePicker: View {
+    private struct LibraryTarget: Identifiable {
+        let id: Int
+    }
+
     let session: Session
     let trackID: UUID
     let sourceID: UUID
     @Environment(\.dismiss) private var dismiss
     @State private var pendingPad: Int?
     @State private var showImporter = false
+    @State private var libraryTarget: LibraryTarget?
     @State private var busy = false
     @State private var task: Task<Void, Never>?
     @State private var error: String?
@@ -52,10 +57,15 @@ struct DrumSamplePicker: View {
             switch result {
             case .success(let url):
                 prepare {
-                    let sound = try await DrumSamplePreparation.shared.importSample(url)
+                    let sound = try await DrumSamplePreparation.shared.importAndKeep(url)
                     return [(pendingPad, sound)]
                 }
             case .failure(let failure): error = failure.localizedDescription
+            }
+        }
+        .sheet(item: $libraryTarget) { target in
+            PadSampleLibraryView(session: session, pad: target.id) { sound in
+                prepare { [(target.id, sound)] }
             }
         }
         .onDisappear { task?.cancel() }
@@ -85,6 +95,9 @@ struct DrumSamplePicker: View {
             }
             Spacer(minLength: 0)
             Menu {
+                Button { libraryTarget = LibraryTarget(id: pad) } label: {
+                    Label("Choose from library", systemImage: "waveform")
+                }
                 Button { pendingPad = pad; showImporter = true } label: {
                     Label("Import sample", systemImage: "square.and.arrow.down")
                 }

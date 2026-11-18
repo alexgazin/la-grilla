@@ -91,4 +91,35 @@ struct SampleAssetTests {
         project.schemaVersion = 11
         #expect(throws: MusicError.invalidProject) { try ProjectDocument.decode(JSONEncoder().encode(project)) }
     }
+
+    @Test func reusableSampleIsDeduplicatedAndProjectCopiesOutliveDeletion() async throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let root = folder.appendingPathComponent("PadSamples")
+        let library = PadSampleStore(root: root)
+        let (original, data) = try fixture(.oneShot)
+        let added = try await library.add(data, asset: original)
+        let repeated = try SampleAsset(kind: .oneShot, name: original.name, bytes: data)
+        let deduplicated = try await library.add(data, asset: repeated)
+        #expect(deduplicated == added)
+        let reopened = PadSampleStore(root: root)
+        #expect(try await reopened.list() == [added])
+        #expect(try await reopened.bytes(for: added) == data)
+        let wav = try await reopened.previewWAV(for: added)
+        #expect(wav.prefix(4) == Data("RIFF".utf8) && wav.count == 44 + 3200 * 2)
+        #expect(wav[22] == 1 && wav[34] == 16)
+        let projects = ProjectStore(root: folder.appendingPathComponent("Projects"))
+        var first = Project.demo(), second = Project.demo()
+        for projectID in [first.id, second.id] {
+            _ = try await projects.stageSample(data, asset: repeated, projectID: projectID)
+        }
+        first.tracks[1].padSamples = [0: repeated]
+        second.tracks[1].padSamples = [2: repeated]
+        _ = try await projects.save(first)
+        _ = try await projects.save(second)
+        try await reopened.remove(added)
+        #expect(try await library.list().isEmpty)
+        #expect(try await projects.loadSamples(for: first).assets == [repeated])
+        #expect(try await projects.loadSamples(for: second).assets == [repeated])
+    }
 }

@@ -812,3 +812,13 @@
 "A sound sample is missing. Restore it from a portable project." = "Файл сэмпла отсутствует. Восстанови его из архива проекта.";
 "This project has reached its sound sample limit." = "Достигнут лимит сэмплов проекта.";
 "The project changed while preparing this sound. Try again." = "Проект изменился, пока звук подготавливался. Попробуй ещё раз.";
+"Search instruments" = "Поиск инструментов";
+"No matching instruments" = "Инструменты не найдены";
+"Choose from library" = "Выбрать из библиотеки";
+"Sample library" = "Библиотека сэмплов";
+"Search samples" = "Поиск сэмплов";
+"No saved samples" = "В библиотеке пока пусто";
+"No matching samples" = "Сэмплы не найдены";
+"Remove from library" = "Удалить из библиотеки";
+"Tap a sample to use it on this pad. Your library is available in every project." = "Нажми на сэмпл, чтобы назначить его пэду. Библиотека доступна во всех проектах.";
+"The pad sample library is full. Remove a sample to make room." = "Библиотека заполнена. Удали сэмпл, чтобы освободить место.";

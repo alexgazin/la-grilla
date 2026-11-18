@@ -10,6 +10,11 @@ struct PreparedSound: Sendable {
         data = try pcm.encode(kind: kind)
         asset = try SampleAsset(kind: kind, name: name, bytes: data)
     }
+
+    init(copying asset: SampleAsset, data: Data) throws {
+        self.data = data
+        self.asset = try SampleAsset(kind: asset.kind, name: asset.name, bytes: data)
+    }
 }
 
 extension SoundBankLibrary {
@@ -78,6 +83,17 @@ extension SoundBankLibrary {
 
 actor DrumSamplePreparation {
     static let shared = DrumSamplePreparation()
+    static let library: Result<PadSampleStore, Error> = Result {
+        let support = try FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask,
+                                                  appropriateFor: nil, create: true)
+        return PadSampleStore(root: support.appendingPathComponent("PadSamples", isDirectory: true))
+    }
+
+    func importAndKeep(_ url: URL) async throws -> PreparedSound {
+        let sound = try importSample(url)
+        _ = try await Self.library.get().add(sound.data, asset: sound.asset)
+        return sound
+    }
 
     func importSample(_ url: URL) throws -> PreparedSound {
         let granted = url.startAccessingSecurityScopedResource()

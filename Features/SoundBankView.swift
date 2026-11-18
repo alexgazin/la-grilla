@@ -20,10 +20,16 @@ struct SoundBankView: View {
     @State private var error: String?
     @State private var auditionTask: Task<Void, Never>?
     @State private var auditionProgram: SoundBankProgram?
+    @State private var search = ""
     @State private var output: URL?
     @State private var player: AVAudioPlayer?
 
     private var bank: ImportedSoundBank? { banks.first { $0.id == bankID } }
+    private var matchingPrograms: [SoundBankProgram] {
+        let query = search.trimmingCharacters(in: .whitespacesAndNewlines)
+        let programs = bank?.programs ?? []
+        return query.isEmpty ? programs : programs.filter { $0.name.localizedStandardContains(query) }
+    }
 
     var body: some View {
         NavigationStack {
@@ -42,7 +48,10 @@ struct SoundBankView: View {
                 }
                 if let bank {
                     Section("Instruments") {
-                        ForEach(bank.programs, id: \.self) { program in
+                        if matchingPrograms.isEmpty {
+                            Text("No matching instruments").foregroundStyle(Color.muted)
+                        }
+                        ForEach(matchingPrograms, id: \.self) { program in
                             programRow(program, bank: bank)
                         }
                     }
@@ -52,6 +61,7 @@ struct SoundBankView: View {
             .background(Color.ink)
             .navigationTitle("Sound banks")
             .navigationBarTitleDisplayMode(.inline)
+            .searchable(text: $search, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search instruments")
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
             .safeAreaInset(edge: .bottom) {
                 VStack(alignment: .leading, spacing: 10) {
@@ -78,6 +88,9 @@ struct SoundBankView: View {
             }
         }
         .onChange(of: bankID) { _, _ in stopAudition(); selectedProgram = nil }
+        .onChange(of: search) { _, _ in
+            if let selectedProgram, !matchingPrograms.contains(selectedProgram) { self.selectedProgram = nil }
+        }
         .onChange(of: scenePhase) { _, phase in if phase != .active { stopAudition() } }
         .onDisappear { stopAudition(); applyTask?.cancel() }
     }

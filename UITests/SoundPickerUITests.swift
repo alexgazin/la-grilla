@@ -164,22 +164,64 @@ final class SoundPickerUITests:XCTestCase {
         XCTAssertTrue(harmony.waitForExistence(timeout: 5))
         harmony.tap()
         app.buttons["sound.banks"].tap()
-        let piano = app.buttons["sound-bank.program.0.0"]
-        XCTAssertTrue(piano.waitForExistence(timeout: 12), "The real test SoundFont should appear in the library")
-        piano.tap()
+        let search = app.searchFields.firstMatch
+        XCTAssertTrue(search.waitForExistence(timeout: 12))
+        search.tap(); search.typeText("Nylon")
+        let guitar = app.buttons["sound-bank.program.0.24"]
+        XCTAssertTrue(guitar.waitForExistence(timeout: 12), "The search should reveal Nylon Guitar from the actual bank")
+        XCTAssertFalse(app.buttons["sound-bank.program.0.0"].exists)
+        if app.keyboards.buttons["Search"].exists { app.keyboards.buttons["Search"].tap() }
+        guitar.tap()
         let image = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
-        image.name = "Sound28-soundfont"; image.lifetime = .keepAlways; add(image)
+        image.name = "Sound29-soundfont-search"; image.lifetime = .keepAlways; add(image)
         app.buttons["sound-bank.apply"].tap()
-        let selected = app.staticTexts["Piano 1"]
+        let selected = app.staticTexts["Nylon Guitar"]
         XCTAssertTrue(selected.waitForExistence(timeout: 30))
         XCTAssertTrue(app.navigationBars["Sound"].buttons["Cancel"].waitForExistence(timeout: 30))
         app.navigationBars["Sound"].buttons["Cancel"].tap()
-        XCTAssertEqual(harmony.value as? String, "Piano 1")
+        XCTAssertEqual(harmony.value as? String, "Nylon Guitar")
         wait(app) { trace in
             guard let submitted = self.field("submittedGeneration", in: trace) else { return false }
             return self.field("actualGeneration", in: trace) == submitted
         }
         let proof = XCTAttachment(string: report(app))
         proof.name = "Sound28-assigned-instrument-adopted"; proof.lifetime = .keepAlways; add(proof)
+    }
+
+    @MainActor func testSavedPadSampleCanBeUsedInTwoProjects() {
+        let app = launch(); defer { app.terminate() }
+        openSampleLibrary(app)
+        XCTAssertTrue(app.buttons["pad-library.import"].waitForExistence(timeout: 8))
+        guard ProcessInfo.processInfo.environment["GRILLA_TEST_SOUNDFONT"] == "1" else { return }
+        let item = app.buttons["pad-library.sample.326FA160-F668-4DEB-B58F-A9B24B5E4086"]
+        XCTAssertTrue(item.waitForExistence(timeout: 8))
+        let image = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        image.name = "Sound29-sample-library"; image.lifetime = .keepAlways; add(image)
+        item.tap()
+        assertAssignedSample(app)
+        app.terminate()
+
+        let another = launch(); defer { another.terminate() }
+        XCTAssertEqual(entry(another).value as? String, "Classic kit")
+        openSampleLibrary(another)
+        let reusable = another.buttons["pad-library.sample.326FA160-F668-4DEB-B58F-A9B24B5E4086"]
+        XCTAssertTrue(reusable.waitForExistence(timeout: 8))
+        reusable.tap()
+        assertAssignedSample(another)
+    }
+
+    @MainActor private func openSampleLibrary(_ app: XCUIApplication) {
+        let sound = entry(app)
+        XCTAssertTrue(sound.waitForExistence(timeout: 5)); sound.tap()
+        app.buttons["sound.samples"].tap()
+        let options = app.buttons["pad-samples.options.0"]
+        XCTAssertTrue(options.waitForExistence(timeout: 5)); options.tap()
+        app.buttons["Choose from library"].tap()
+        XCTAssertTrue(app.navigationBars["Sample library"].waitForExistence(timeout: 5))
+    }
+
+    @MainActor private func assertAssignedSample(_ app: XCUIApplication) {
+        let predicate = NSPredicate(format: "identifier == 'pad-samples.name.0' AND label == 'Studio Click'")
+        XCTAssertTrue(app.staticTexts.matching(predicate).firstMatch.waitForExistence(timeout: 12))
     }
 }

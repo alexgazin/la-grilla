@@ -113,9 +113,7 @@ private final class PCMWriter {
         try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         guard FileManager.default.createFile(atPath:url.path,contents:nil) else {throw CocoaError(.fileWriteUnknown)}
         handle = try FileHandle(forWritingTo:url)
-        var header = Data("RIFF".utf8); header.little(UInt32(bytes+36)); header.append(contentsOf:"WAVEfmt ".utf8)
-        header.little(UInt32(16)); header.little(UInt16(1)); header.little(UInt16(2)); header.little(UInt32(sampleRate)); header.little(UInt32(sampleRate*2*(bits/8))); header.little(UInt16(2*(bits/8))); header.little(UInt16(bits)); header.append(contentsOf:"data".utf8); header.little(UInt32(bytes))
-        try handle.write(contentsOf:header)
+        try handle.write(contentsOf: pcmWAVHeader(rate: sampleRate, channels: 2, bits: bits, byteCount: bytes))
     }
     func append(left:[Float],right:[Float],count:Int,dither:Bool,random:inout UInt32) throws {
         var data=Data(); data.reserveCapacity(count*2*(bits/8)); let scale = bits == 16 ? 32767.0 : 8388607.0
@@ -131,6 +129,16 @@ private final class PCMWriter {
     }
     func close() throws {if !closed {closed=true;try handle.close()}}
 }
+func pcmWAVHeader(rate: Int, channels: Int, bits: Int, byteCount: Int) -> Data {
+    let blockBytes = channels * (bits / 8)
+    var header = Data("RIFF".utf8)
+    header.little(UInt32(byteCount + 36)); header.append(contentsOf: "WAVEfmt ".utf8)
+    header.little(UInt32(16)); header.little(UInt16(1)); header.little(UInt16(channels))
+    header.little(UInt32(rate)); header.little(UInt32(rate * blockBytes)); header.little(UInt16(blockBytes)); header.little(UInt16(bits))
+    header.append(contentsOf: "data".utf8); header.little(UInt32(byteCount))
+    return header
+}
+
 extension Data {
     mutating func little<T: FixedWidthInteger>(_ value:T) {var v=value.littleEndian; Swift.withUnsafeBytes(of:&v){append(contentsOf:$0)}}
 }

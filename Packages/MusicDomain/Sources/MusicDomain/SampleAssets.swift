@@ -43,13 +43,14 @@ public extension Project {
 }
 
 public enum SampleError: Error, LocalizedError, Sendable {
-    case invalid, unavailable, limit, stale
+    case invalid, unavailable, limit, libraryLimit, stale
 
     public var errorDescription: String? {
         let key: String = switch self {
         case .invalid: "This sound sample is unsupported or damaged."
         case .unavailable: "A sound sample is missing. Restore it from a portable project."
         case .limit: "This project has reached its sound sample limit."
+        case .libraryLimit: "The pad sample library is full. Remove a sample to make room."
         case .stale: "The project changed while preparing this sound. Try again."
         }
         return NSLocalizedString(key, comment: "Imported sound")
