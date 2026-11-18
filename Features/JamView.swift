@@ -24,7 +24,7 @@ struct JamView: View {
         VStack(spacing:14){
             jamHeading.padding(.top,12)
             if focusedClip != nil{clipFocus}
-            HStack(spacing:10){soundControl;beatIndicator}
+            HStack(spacing:10){soundControl;InstrumentKeyboardButton(session: session, compact: true);beatIndicator}
             recordingControls
             if session.recording || session.armed{recordingStatus}
             if steps {stepEditor.disabled(session.performance.contextActive)}else if dynamicType.isAccessibilitySize{accessiblePads}else{padGrid(height:(compact ? 264:312)-(compact && (session.recording || session.armed) ? 24:0)).disabled(session.performance.replaying).allowsHitTesting(!session.performance.replaying)}
@@ -77,9 +77,9 @@ struct JamView: View {
     private var compactJam:some View {VStack(spacing:8){
         if dynamicType.isAccessibilitySize{
             HStack{Text("Pocket kit").font(.headline);Spacer();compactOptions}
-            HStack(spacing:10){soundControl;editorMode}
+            HStack(spacing:10){soundControl;InstrumentKeyboardButton(session: session, compact: true);editorMode}
         }else{
-            HStack(spacing:10){Text("Pocket kit").font(.headline);soundControl;Spacer(minLength:0);editorMode;compactOptions}
+            HStack(spacing:10){Text("Pocket kit").font(.headline);soundControl;InstrumentKeyboardButton(session: session, compact: true);Spacer(minLength:0);editorMode;compactOptions}
         }
         if focusedClip != nil{clipFocus}
         if steps{ScrollView{stepEditor.disabled(session.performance.contextActive)}}else if dynamicType.isAccessibilitySize{accessiblePads}else{padGrid(height:200).disabled(session.performance.replaying)}

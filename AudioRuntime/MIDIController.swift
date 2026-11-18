@@ -58,6 +58,7 @@ private enum MIDICallbacks {
     @ObservationIgnored private var configuredOutput=MIDIEndpointRef()
     @ObservationIgnored private var outputChannels:[Int32]=[]
     @ObservationIgnored private var outputNeedsRefresh=true
+    @ObservationIgnored private var keyboardConnection: (slot: Int, handle: UInt32, track: UUID)?
     @ObservationIgnored private var generation:UInt32=0
     @ObservationIgnored private var connections:[Int32:(endpoint:MIDIEndpointRef,slot:Int,handle:UInt32)]=[:]
     @ObservationIgnored private var settings=MIDISettings()
@@ -168,13 +169,50 @@ private enum MIDICallbacks {
         let wanted=value.enabled ? Set(value.inputIDs):[]
         for id in Array(connections.keys) where !wanted.contains(id){disconnect(id)}
         for source in sources where wanted.contains(source.id) && connections[source.id]==nil {
-            guard let slot=(0..<16).first(where:{index in !connections.values.contains{$0.slot==index}})else{continue}
-            generation &+= 1;if generation==0 || generation>0x00ff_ffff{generation=1};let handle=generation<<8|UInt32(slot)
+            guard let slot = availableSlot else { continue }
+            let handle = nextHandle(for: slot)
             lg_midi_configure_track(hub.pointer,handle,identity,Int32(track),Int32(instrument),value.channel.map{Int32(1<<$0)} ?? 65535)
             let status=MIDIPortConnectSource(input,source.reference,UnsafeMutableRawPointer(bitPattern:UInt(handle)))
             if status==noErr{connections[source.id]=(source.reference,slot,handle)}else{lg_midi_disconnect(hub.pointer,Int32(slot));error=String(format:NSLocalizedString("Could not connect %@ (%d).",comment:"MIDI device connection error"),source.name,status)}
         }
     }
+    private var availableSlot: Int? {
+        (0..<16).first { slot in
+            keyboardConnection?.slot != slot && !connections.values.contains { $0.slot == slot }
+        }
+    }
+
+    private func nextHandle(for slot: Int) -> UInt32 {
+        generation = generation % 0x00ff_ffff + 1
+        return generation << 8 | UInt32(slot)
+    }
+
+    func playKey(_ pitch: Int, down: Bool, track: Track, index: Int) -> Bool {
+        guard (0...127).contains(pitch), (0..<8).contains(index) else { return false }
+        if keyboardConnection?.track != track.id {
+            guard down else { return false }
+            releaseKeyboard()
+            guard let slot = availableSlot else { return false }
+            let handle = nextHandle(for: slot)
+            lg_midi_configure_track(hub.pointer, handle, Self.trackIdentity(track.id),
+                                    Int32(index), Int32(track.role.instrument), 1)
+            keyboardConnection = (slot, handle, track.id)
+        }
+        guard let connection = keyboardConnection else { return false }
+        let bytes: [UInt8] = [down ? 0x90 : 0x80, UInt8(pitch), down ? 96 : 0]
+        let accepted = bytes.withUnsafeBufferPointer {
+            lg_midi_push(hub.pointer, connection.handle, mach_absolute_time(), $0.baseAddress, 3) != 0
+        }
+        if !accepted { releaseKeyboard() }
+        return accepted
+    }
+
+    func releaseKeyboard() {
+        guard let connection = keyboardConnection else { return }
+        lg_midi_disconnect(hub.pointer, Int32(connection.slot))
+        keyboardConnection = nil
+    }
+
     private func disconnect(_ id:Int32){guard let connection=connections.removeValue(forKey:id)else{return};MIDIPortDisconnectSource(input,connection.endpoint);lg_midi_disconnect(hub.pointer,Int32(connection.slot))}
     func createFixture()->Int32? {
         guard ProcessInfo.processInfo.arguments.contains("--uitesting")else{return nil}

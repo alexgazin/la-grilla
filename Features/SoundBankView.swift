@@ -50,7 +50,7 @@ struct SoundBankView: View {
         NavigationStack {
             List {
                 if !matchingIncluded.isEmpty {
-                    Section("Recorded instruments") {
+                    Section("Studio instruments") {
                         ForEach(matchingIncluded) { instrument in
                             soundRow(.included(instrument), identifier: "sound-bank.included.\(instrument.id)")
                         }
@@ -130,6 +130,11 @@ struct SoundBankView: View {
                 HStack(spacing: 12) {
                     Image(systemName: selected ? "checkmark.circle.fill" : "circle")
                         .foregroundStyle(selected ? Color.mint : Color.muted)
+                    if case .included(let instrument) = choice {
+                        Image("instrument-" + instrument.id).resizable().scaledToFill()
+                            .frame(width: 52, height: 52).clipShape(RoundedRectangle(cornerRadius: 9))
+                            .accessibilityHidden(true)
+                    }
                     VStack(alignment: .leading, spacing: 4) {
                         Text(choice.name).font(.headline).foregroundStyle(Color.studioText)
                         if let detail { detail.font(.caption.monospacedDigit()).foregroundStyle(Color.muted) }

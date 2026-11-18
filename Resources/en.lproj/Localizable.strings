@@ -827,3 +827,12 @@
 "Creating editable song…" = "Creating editable song…";
 "Create editable song" = "Create editable song";
 "Creates a project from the played sections and parts. The exact live mix stays in the take." = "Creates a project from the played sections and parts. The exact live mix stays in the take.";
+"Keyboard" = "Keyboard";
+"Electric piano" = "Electric piano";
+"Marimba" = "Marimba";
+"Vibraphone" = "Vibraphone";
+"Drawbar organ" = "Drawbar organ";
+"Studio instruments" = "Studio instruments";
+"Record phrase" = "Record phrase";
+"Finish phrase" = "Finish phrase";
+"Keyboard input unavailable. Release the keys and try again." = "Keyboard input unavailable. Release the keys and try again.";

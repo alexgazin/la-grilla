@@ -218,7 +218,8 @@ jobs:
             GRILLA_NATIVE_TIMEOUT_SECONDS=600
             GRILLA_NATIVE_LABEL=piano-gestures
             FILTER=(-only-testing:LaGrillaUITests/PianoTouchUITests)
-            INVENTORY=(--require-test PianoTouchUITests/testPinchChangesTimeScaleAndKeepsPitchRowsInPlace
+            INVENTORY=(--require-test PianoTouchUITests/testKeyboardSelectsInstrumentRecordsPhraseAndReturnsToNotes
+                       --require-test PianoTouchUITests/testPinchChangesTimeScaleAndKeepsPitchRowsInPlace
                        --require-test PianoTouchUITests/testHoldAndMoveKeepsDurationAndCommitsOneUndoableEdit
                        --require-test PianoTouchUITests/testResizeHandleUsesGridAndCommitsOneUndoableEdit)
           fi

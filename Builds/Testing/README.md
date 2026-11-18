@@ -1,5 +1,9 @@
 # La Grilla для ручного тестирования
 
+**[Скачать IPA 32 для iPhone](https://github.com/alexgazin/la-grilla/actions/runs/44303173892/artifacts/14427263161)**. В нотном редакторе два пальца меняют горизонтальный масштаб, один палец прокручивает сетку. Распакуйте ZIP и подпишите IPA своей Personal Team. Размер 7 205 154 байта, SHA-256 `fba236db930bb370e79aa6f77c8b20ec8df3101f084c21c9751019ff5d57ec66`. [Проверка пакета](candidate32-verification.json)
+
+### Сборка 31
+
 **[Скачать IPA 31 для iPhone](https://github.com/alexgazin/la-grilla/actions/runs/44289170060/artifacts/14421860271)**. Распакуйте ZIP и подпишите `LaGrilla-unsigned.ipa` своей Personal Team на ноутбуке. Пакет 1.0.0 (31), arm64, iOS 18+. В нём есть записанное пианино и нейлоновая гитара. Размер 7 198 875 байт, SHA-256 `62007167db2acb797bf8cd7c94cf4f947ef05e66729acf3a7e579ed9e0a794a1`. [Проверка исходника и пакета](candidate31-verification.json)
 
 На исходнике пакета прошли сборки iPhone Debug и Release, все 80 нативных сценариев Simulator и 207 Swift-тестов. Установка и работа на физическом iPhone проверяются отдельно. [Итоговый прогон](https://github.com/alexgazin/la-grilla/actions/runs/44289170060/attempts/1) · [Кадр сборки 31](../../Screenshots/Release31/README.md)

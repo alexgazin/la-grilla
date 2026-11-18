@@ -43,6 +43,36 @@ final class PianoTouchUITests:XCTestCase {
         XCTAssertEqual(app.staticTexts["notes.count"].label, "0")
     }
 
+    @MainActor func testKeyboardSelectsInstrumentRecordsPhraseAndReturnsToNotes() {
+        let app = openNoteRoll()
+        defer { app.terminate() }
+        app.buttons["keyboard.open"].tap()
+        let electric = app.buttons["keyboard.instrument.electric-piano"]
+        let shelf = app.scrollViews["keyboard.instruments"]
+        for _ in 0..<3 where !electric.isHittable { shelf.swipeLeft() }
+        XCTAssertTrue(electric.isHittable)
+        electric.tap()
+        let current = app.staticTexts["keyboard.current-sound"]
+        let updated = NSPredicate(format: "label == %@", "Electric piano")
+        expectation(for: updated, evaluatedWith: current)
+        waitForExpectations(timeout: 12)
+        let keyboard = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        keyboard.name = "Studio33-instrument-keyboard"
+        keyboard.lifetime = .keepAlways
+        add(keyboard)
+        app.buttons["Octave up"].tap()
+        XCTAssertEqual(app.staticTexts["keyboard.octave"].label, "C5")
+        app.buttons["keyboard.record"].tap()
+        let c = app.buttons["keyboard.key.72"]
+        XCTAssertTrue(c.waitForExistence(timeout: 5))
+        c.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.8)).press(forDuration: 0.35)
+        app.buttons["keyboard.record"].tap()
+        app.buttons["Done"].firstMatch.tap()
+        XCTAssertEqual(app.staticTexts["notes.count"].label, "2")
+        app.buttons["notes.undo"].tap()
+        XCTAssertEqual(app.staticTexts["notes.count"].label, "1")
+    }
+
     @MainActor func testResizeHandleUsesGridAndCommitsOneUndoableEdit(){
         let app=openNoteRoll();defer{app.terminate()}
         let duration=app.staticTexts["notes.selection.duration"]

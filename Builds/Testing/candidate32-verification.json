@@ -1,0 +1,38 @@
+{
+  "artifact": 14427263161,
+  "run": 44303173892,
+  "source": "983cc507a63cf23d6a9d25fd0cb78b52c77c8e82",
+  "build": 32,
+  "version": "1.0.0",
+  "bytes": 7205154,
+  "sha256": "fba236db930bb370e79aa6f77c8b20ec8df3101f084c21c9751019ff5d57ec66",
+  "entries": 20,
+  "binary": {
+    "architecture": "arm64",
+    "platform": "iOS",
+    "minimumOS": "18.0.0",
+    "sdk": "26.2.0",
+    "uuid": "365B7864-AE0E-37E2-A132-C01595A2A934",
+    "dsymUUIDMatches": true,
+    "foundationModelsLoadCommand": "LC_LOAD_WEAK_DYLIB",
+    "foundationModelsOrdinal": 15,
+    "foundationModelsWeakSymbols": 78,
+    "foundationModelsWeakChainedImports": 78,
+    "initializerSections": [],
+    "hasCodeSignatureCommand": false,
+    "runtimeValidation": "Static binary checks only; signed-device startup on iOS 18 still requires device QA."
+  },
+  "factoryPCM": {
+    "piano.lgpcm": {
+      "bytes": 3225864,
+      "sha256": "99ab675b5a3ba11a060a8e1c748d091dea9a57af6a45372a9b976d679634980c",
+      "zones": 21
+    },
+    "nylon-guitar.lgpcm": {
+      "bytes": 1974030,
+      "sha256": "a5a079fb6045f961c0788a98d3d2cf3fb7c220dcc0537b9fdffce8d455573c07",
+      "zones": 16
+    }
+  },
+  "physicalDevice": false
+}

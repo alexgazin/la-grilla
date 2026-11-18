@@ -45,7 +45,12 @@ struct PianoRollView: View {
                 HStack(spacing:4){IconButton(symbol:"arrow.uturn.backward",label:"Undo"){session.undo()}.disabled(!session.history.canUndo).accessibilityIdentifier("notes.undo");IconButton(symbol:"arrow.uturn.forward",label:"Redo"){session.redo()}.disabled(!session.history.canRedo).accessibilityIdentifier("notes.redo");Spacer();Text(LocalizedStringKey(session.audio.playing ? "PLAYING":"STOPPED")).font(.caption.monospaced()).foregroundStyle(Color.muted).accessibilityIdentifier("notes.status");IconButton(symbol:session.audio.playing ? "stop.fill":"play.fill",label:session.audio.playing ? "Stop":"Play",color:.mint){session.togglePlay()}.accessibilityIdentifier("notes.play")}.padding(.horizontal,12).overlay(alignment:.top){Rectangle().fill(Color.outline.opacity(0.5)).frame(height:0.5)}
             }.padding(.top,12).padding(.bottom,8).background(Color.ink).modifier(ScrollableForLargeType())
             .navigationTitle("Piano roll").navigationBarTitleDisplayMode(.inline)
-            .toolbar{ToolbarItem(placement:.topBarTrailing){Button("Done"){dismiss()}}}
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    InstrumentKeyboardButton(session: session, trackID: track?.id, clipID: clip?.id)
+                }
+                ToolbarItem(placement: .topBarTrailing) { Button("Done") { dismiss() } }
+            }
         }.tint(.mint).alert("Rename track",isPresented:$renaming){TextField("Track name",text:$trackName);Button("Save"){if let id=track?.id{let name=String(trackName.trimmingCharacters(in:.whitespacesAndNewlines).prefix(40));if !name.isEmpty{session.edit{p in if let i=p.tracks.firstIndex(where:{$0.id==id}){p.tracks[i].name=name}}}}};Button("Cancel",role:.cancel){}}
         .onChange(of:dynamicType,initial:true){_,size in if size.isAccessibilitySize || UIAccessibility.isVoiceOverRunning{listMode=true}}
         .onChange(of:session.noteTrackID){_,_ in selected=nil}

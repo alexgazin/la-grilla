@@ -829,3 +829,12 @@
 "Creating editable song…" = "Создаём редактируемую песню…";
 "Create editable song" = "Создать редактируемую песню";
 "Creates a project from the played sections and parts. The exact live mix stays in the take." = "Из сыгранных секций и партий создаётся проект. Полный лайв-микс сохраняется в дубле.";
+"Keyboard" = "Клавиши";
+"Electric piano" = "Электропианино";
+"Marimba" = "Маримба";
+"Vibraphone" = "Вибрафон";
+"Drawbar organ" = "Электроорган";
+"Studio instruments" = "Инструменты студии";
+"Record phrase" = "Записать фразу";
+"Finish phrase" = "Завершить фразу";
+"Keyboard input unavailable. Release the keys and try again." = "Не удалось сыграть ноту. Отпустите клавиши и попробуйте ещё раз.";

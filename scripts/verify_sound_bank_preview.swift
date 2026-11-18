@@ -67,7 +67,7 @@ import MusicDomain
             exported.append(try Data(contentsOf: output))
             print("Bundled \(instrument.displayName) generated \(result.frames) audible WAV frames, peak \(result.peak)")
         }
-        guard exported[0] != exported[1] else { throw SoundBankError.cannotRender }
+        guard Set(exported).count == FactoryInstrument.allCases.count else { throw SoundBankError.cannotRender }
     }
 
     static func PCM(program: SoundBankProgram, bank: ImportedSoundBank, library: SoundBankLibrary) async throws -> [Float] {
