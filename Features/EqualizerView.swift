@@ -87,7 +87,8 @@ struct EqualizerView: View {
         VStack(alignment:.leading,spacing:4) {
             Canvas { context,size in
                 func point(_ normalized:Double,_ db:Double)->CGPoint {
-                    CGPoint(x:normalized*size.width,y:(18-min(18,max(-18,db)))/36*size.height)
+                    let y:Double=(18-min(18,max(-18,db)))/36
+                    return CGPoint(x:CGFloat(normalized)*size.width,y:CGFloat(y)*size.height)
                 }
                 var grid=Path()
                 let gainGrid:[Double]=[-12,-6,0,6,12]
@@ -115,23 +116,29 @@ struct EqualizerView: View {
                     .gesture(DragGesture(minimumDistance:0).onChanged{ value in
                         let size=proxy.size
                         guard size.width>0,size.height>0 else{return}
+                        let width=Double(size.width), height=Double(size.height)
                         if !dragging {
                             dragging=true;session.mixerGesture=false
                             let start=value.startLocation
                             selected=eq.bands.indices.min { a,b in
                                 func distance(_ index:Int)->Double {
                                     let v=eq.bands[index]
-                                    return hypot(x(v.frequency)*size.width-start.x,(18-(v.filter.hasGain ? v.gain:0))/36*size.height-start.y)
+                                    let dx=x(v.frequency)*width-Double(start.x)
+                                    let level:Double=v.filter.hasGain ? v.gain:0
+                                    let dy=(18-level)/36*height-Double(start.y)
+                                    return hypot(dx,dy)
                                 }
                                 return distance(a)<distance(b)
                             } ?? selected
                         }
                         guard abs(value.translation.width)+abs(value.translation.height)>2 else{return}
                         let index=selected
+                        let frequency=hz(Double(value.location.x)/width)
+                        let gain:Double=min(18,max(-18,18-36*Double(value.location.y)/height))
                         update(continuous:true){ settings in
-                            settings.bands[index].frequency=hz(value.location.x/size.width)
+                            settings.bands[index].frequency=frequency
                             if settings.bands[index].filter.hasGain {
-                                settings.bands[index].gain=min(18,max(-18,18-36*value.location.y/size.height))
+                                settings.bands[index].gain=gain
                             }
                         }
                     }.onEnded{ _ in dragging=false;session.mixerGesture=false })
