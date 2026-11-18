@@ -782,7 +782,7 @@
 "Chorus" = "Припев";
 "Bridge" = "Бридж";
 "Could not add this section." = "Не удалось добавить секцию.";
-"Hold and drag a section to move it. Tap its menu for more actions." = "Удерживай и перетаскивай секцию, чтобы поменять порядок. Другие действия есть в её меню.";
+"Drag the handle to move a section. Tap its menu for more actions." = "Потяни за ручку, чтобы переставить секцию. Другие действия есть в её меню.";
 "Import SoundFont" = "Загрузить SoundFont";
 "Importing sound bank…" = "Загружаем банк…";
 "Sound bank" = "Звуковой банк";

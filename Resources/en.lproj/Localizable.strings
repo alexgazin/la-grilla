@@ -780,7 +780,7 @@
 "Chorus" = "Chorus";
 "Bridge" = "Bridge";
 "Could not add this section." = "Could not add this section.";
-"Hold and drag a section to move it. Tap its menu for more actions." = "Hold and drag a section to move it. Tap its menu for more actions.";
+"Drag the handle to move a section. Tap its menu for more actions." = "Drag the handle to move a section. Tap its menu for more actions.";
 "Import SoundFont" = "Import SoundFont";
 "Importing sound bank…" = "Importing sound bank…";
 "Sound bank" = "Sound bank";

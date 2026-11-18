@@ -81,11 +81,15 @@ final class ArrangementUITests: XCTestCase {
         XCTAssertEqual(bridge.value as? String, "Bars 5–8")
         XCTAssertTrue(verse.isHittable)
         XCTAssertTrue(bridge.isHittable)
-        // The second card may be partially visible on compact phones. Use its
-        // leading quarter, clear of both the screen edge and the separator.
-        drag(bridge.coordinate(withNormalizedOffset: CGVector(dx: 0.25, dy: 0.5)),
-             to: verse.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)))
-        wait(bridge, NSPredicate(format: "value == 'Bars 1–4'"))
+        // The grip is a fixed 44 pt square at the top left of the card.
+        let grip = bridge.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: 22, dy: 22))
+        grip.press(forDuration: 0.15, thenDragTo: verse.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)),
+                   withVelocity: .slow, thenHoldForDuration: 0.2)
+        let bridgeID = bridge.identifier
+        let moved = NSPredicate { _, _ in
+            self.snapshotElement(identifier: bridgeID, in: app)?.value as? String == "Bars 1–4"
+        }
+        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: moved, object: app)], timeout: 6), .completed)
         XCTAssertEqual(verse.value as? String, "Bars 5–8")
         let shot = XCTAttachment(data: XCUIScreen.main.screenshot().pngRepresentation, uniformTypeIdentifier: "public.png")
         shot.name = "SongForm-reordered-sections"

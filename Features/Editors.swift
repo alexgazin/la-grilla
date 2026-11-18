@@ -300,7 +300,7 @@ struct SectionsView: View {
                     SongFormOverview(sections: session.project.sections, selectedID: session.selectedSection)
                     SongFormLegend(sections: session.project.sections, actions: { actions = $0 }, editingLocked: editingLocked)
                     SongFormLane(session: session, editingLocked: editingLocked)
-                    Text("Hold and drag a section to move it. Tap its menu for more actions.")
+                    Text("Drag the handle to move a section. Tap its menu for more actions.")
                         .font(.caption).foregroundStyle(Color.muted)
                     Button { adding = true } label: { Label("Add section", systemImage: "plus") }
                         .buttonStyle(StudioActionStyle(prominent: false))
