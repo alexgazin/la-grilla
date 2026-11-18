@@ -41,10 +41,10 @@ enum SongFormStyle {
         default: break
         }
         switch section.id.uuid.0 % 4 {
-        case 0: .harmony
-        case 1: .drums
-        case 2: .bass
-        default: .mint
+        case 0: return .harmony
+        case 1: return .drums
+        case 2: return .bass
+        default: return .mint
         }
     }
 }
