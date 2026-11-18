@@ -26,11 +26,11 @@
 
 ### Звуковые банки и Pocket Kit
 
-Выберите программу SoundFont у мелодической дорожки и услышите тот же тембр в WAV и stems. В Джеме можно загрузить Pocket Kit из 16 сэмплов или назначить свой WAV/AIFF на любой пэд.
+Акустическое пианино и нейлоновая гитара доступны сразу. В звуковых банках можно найти и назначить инструмент из SoundFont. Тот же тембр используется в WAV и stems. В Джеме можно загрузить Pocket Kit из 16 сэмплов или выбрать свой звук из общей библиотеки.
 
-<table><tr><td><a href="Screenshots/Sounds28/soundfont.png"><img src="Screenshots/Sounds28/soundfont.png" width="220" alt="Выбор Piano 1 из банка SoundFont"></a></td><td><a href="Screenshots/Sounds28/pocket-kit.png"><img src="Screenshots/Sounds28/pocket-kit.png" width="220" alt="Прослушивание сэмплов пэдов Pocket Kit"></a></td></tr></table>
+<table><tr><td><a href="Screenshots/InstrumentLibrary30/recorded-instruments.png"><img src="Screenshots/InstrumentLibrary30/recorded-instruments.png" width="185" alt="Выбор записанного пианино и гитары"></a></td><td><a href="Screenshots/InstrumentLibrary30/sample-library.png"><img src="Screenshots/InstrumentLibrary30/sample-library.png" width="185" alt="Общая библиотека сэмплов для пэда"></a></td><td><a href="Screenshots/Sounds28/pocket-kit.png"><img src="Screenshots/Sounds28/pocket-kit.png" width="185" alt="Прослушивание сэмплов пэдов Pocket Kit"></a></td></tr></table>
 
-[Оригиналы и нативные тесты](Screenshots/Sounds28/README.md) · [Звуковые настройки](docs/SONG_FORM_AND_SOUND_BANKS.md)
+[Оригинальные экраны инструментов](Screenshots/InstrumentLibrary30/README.md) · [Pocket Kit](Screenshots/Sounds28/README.md) · [Настройки звука и исполнение](docs/SONG_FORM_AND_SOUND_BANKS.md)
 
 ### Ночная тема
 
@@ -80,7 +80,7 @@
 | **Grid и редакторы** | До 8 дорожек, 8 секций и 64 тактов. Карта всей песни, перетаскивание секций, изменение длины клипов, pinch-to-zoom, piano roll, Undo/Redo. |
 | **Гармония** | 65 типов аккордов, свои интервальные формулы и voicing. A/B, стилизация, slash chords, буквенная запись, ступени и транспонирование. |
 | **Локальный SketchComposer** | Скетч из аккордов, ударных, баса и мелодии по стилю и seed. Проверка, прослушивание, Apply одной операцией и дальнейшее редактирование. |
-| **Jam и Perform** | Multi-touch пэды 4×4, шаги, квантование записи, overdub; запуск секций, фильтр/delay/repeat, запись и replay. Наклон для фильтра или Master включается вручную. |
+| **Jam и Perform** | Multi-touch пэды 4×4, шаги, квантование записи, overdub; запуск секций, фильтр/delay/repeat, запись, повтор и создание редактируемой песни из лайва. Наклон для фильтра или Master включается вручную. |
 | **Помощник и голос** | RU/EN Commands; необязательный адаптер FoundationModels для музыкальных запросов на совместимом устройстве. Диктовка отдельно от монофонического Voice-to-MIDI beta с сохранением исходника и ручной коррекцией. |
 | **Микшер и MIDI** | Вертикальные фейдеры, pan, mute/solo, Master, выбор встроенного тембра, назначение SoundFont и сэмплов пэдов. CoreMIDI input/output, CC Learn, Panic и интерфейс BLE MIDI. |
 | **Проекты и экспорт** | Автосохранение, восстановление и переносимый `.grillapack`; MIDI Type 1, WAV mixdown и выровненные stems, 44.1/48 kHz, 16/24 bit. |
@@ -101,9 +101,9 @@
 
 ## Попробовать на iPhone
 
-**[Скачать La Grilla 1.0.0 (28)](https://github.com/alexgazin/la-grilla/actions/runs/44255310833/artifacts/14406207053)**. Из ZIP извлеките `LaGrilla-unsigned.ipa` и подпишите своим Apple ID через Sideloadly. Бесплатная Personal Team подходит. [Установка и проверка пакета](Builds/Testing/README.md).
+**[Скачать La Grilla 1.0.0 (31)](https://github.com/alexgazin/la-grilla/actions/runs/44289170060/artifacts/14421860271)**. Из ZIP извлеките `LaGrilla-unsigned.ipa` и подпишите своим Apple ID через Sideloadly. Бесплатная Personal Team подходит. [Установка и проверка пакета](Builds/Testing/README.md).
 
-Перед обновлением экспортируйте важные проекты в `.grillapack`. Сборка 28 открывает схемы 1…12 и сохраняет схему 12 с назначенными тембрами и сэмплами.
+Перед обновлением экспортируйте важные проекты в `.grillapack`. Сборка 31 открывает схемы 1…12 и сохраняет схему 12 с назначенными тембрами и сэмплами.
 
 ## Подготовка к выпуску
 

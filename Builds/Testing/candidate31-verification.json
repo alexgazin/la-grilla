@@ -1,0 +1,55 @@
+{
+  "artifact": 14421860271,
+  "run": 44289170060,
+  "source": "7711796f687070b92df64cf7a0c5d1674d636d66",
+  "build": 31,
+  "version": "1.0.0",
+  "bytes": 7198875,
+  "sha256": "62007167db2acb797bf8cd7c94cf4f947ef05e66729acf3a7e579ed9e0a794a1",
+  "entries": 20,
+  "binary": {
+    "architecture": "arm64",
+    "platform": "iOS",
+    "minimumOS": "18.0.0",
+    "sdk": "26.2.0",
+    "uuid": "AE571149-B183-37ED-B6E9-CDD04A382178",
+    "dsymUUIDMatches": true,
+    "foundationModelsLoadCommand": "LC_LOAD_WEAK_DYLIB",
+    "foundationModelsOrdinal": 15,
+    "foundationModelsWeakSymbols": 78,
+    "foundationModelsWeakChainedImports": 78,
+    "initializerSections": [],
+    "hasCodeSignatureCommand": false,
+    "runtimeValidation": "Static binary checks only; signed-device startup on iOS 18 still requires device QA."
+  },
+  "factoryPCM": {
+    "piano.lgpcm": {
+      "bytes": 3225864,
+      "sha256": "99ab675b5a3ba11a060a8e1c748d091dea9a57af6a45372a9b976d679634980c",
+      "zones": 21
+    },
+    "nylon-guitar.lgpcm": {
+      "bytes": 1974030,
+      "sha256": "a5a079fb6045f961c0788a98d3d2cf3fb7c220dcc0537b9fdffce8d455573c07",
+      "zones": 16
+    }
+  },
+  "physicalDevice": false,
+  "focusedNative": {
+    "run": 44289169811,
+    "artifact": 14420694425,
+    "attempt": 1,
+    "requiredTestOutcomes": {
+      "ArrangementUITests/testPinchRetainsScrolledMusicalCenterWithoutEditingOrStopping": "failed",
+      "SoundPickerUITests/testIncludedInstrumentCanBeAssignedWithoutImport": "passed",
+      "SoundPickerUITests/testLiveSoundPreviewRetainsTheGrooveAndSourceRevision": "passed",
+      "SoundPickerUITests/testPocketKitIsAnUndoableEditAndReopensWithTheSamePadSamples": "passed",
+      "SoundPickerUITests/testSavedPadSampleCanBeUsedInTwoProjects": "passed",
+      "StudioTests/testSavedPerformanceCreatesEditableSong": "passed"
+    },
+    "timedOut": true,
+    "exitCode": 124
+  },
+  "domainSwift": 207,
+  "fullAcceptance": false
+}

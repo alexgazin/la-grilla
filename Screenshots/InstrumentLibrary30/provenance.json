@@ -1,0 +1,46 @@
+{
+  "source": "699f560f73a4e7700858844b9b49a0653ffb5a58",
+  "run": 44285511183,
+  "attempt": 1,
+  "artifact": 14418724535,
+  "build": 30,
+  "testOutcomes": {
+    "ArrangementUITests/testPinchRetainsScrolledMusicalCenterWithoutEditingOrStopping": "passed",
+    "SoundPickerUITests/testIncludedInstrumentCanBeAssignedWithoutImport": "passed",
+    "SoundPickerUITests/testLiveSoundPreviewRetainsTheGrooveAndSourceRevision": "passed",
+    "SoundPickerUITests/testPocketKitIsAnUndoableEditAndReopensWithTheSamePadSamples": "passed",
+    "SoundPickerUITests/testSavedPadSampleCanBeUsedInTwoProjects": "passed"
+  },
+  "images": [
+    {
+      "file": "recorded-instruments.png",
+      "owner": "SoundPickerUITests/testIncludedInstrumentCanBeAssignedWithoutImport",
+      "bytes": 232384,
+      "width": 1320,
+      "height": 2868,
+      "sha256": "f65198173d41cc4622b9d3a3eb0458f6e57ebf84aa8936a42fe9acd20f1f2ba2",
+      "original": "67E9A7D1-40D1-4A35-A980-FCC01A2C0A37.png",
+      "device": "iPhone 16 Pro Max"
+    },
+    {
+      "file": "soundfont-search.png",
+      "owner": "SoundPickerUITests/testPocketKitIsAnUndoableEditAndReopensWithTheSamePadSamples",
+      "bytes": 182356,
+      "width": 1320,
+      "height": 2868,
+      "sha256": "f5ef50193e07975650615b434405a1e06214081110ba15d7661fa1f55a0d155e",
+      "original": "7635D7A7-27A7-4E5A-A0C4-E4DD461B9B89.png",
+      "device": "iPhone 16 Pro Max"
+    },
+    {
+      "file": "sample-library.png",
+      "owner": "SoundPickerUITests/testSavedPadSampleCanBeUsedInTwoProjects",
+      "bytes": 146901,
+      "width": 1320,
+      "height": 2868,
+      "sha256": "9076a2a4896200f31393fdf5ac44cdda81485f82a4c7a00139a81bd4d7a9bcf4",
+      "original": "F5229F1E-5C2A-4565-BFB4-F824BF564F8C.png",
+      "device": "iPhone 16 Pro Max"
+    }
+  ]
+}

@@ -1,14 +1,15 @@
 # Physical release acceptance record
 
-## Candidate 28 on a physical iPhone
+## Candidate 31 on a physical iPhone
 
-Use the [build 28 IPA and signing instructions](../../Builds/Testing/README.md). Record the signed build, device model, iOS version, audio route and evidence identifiers. Save a portable copy before upgrading projects. The build uses schema 12.
+Use the [build 31 IPA and signing instructions](../../Builds/Testing/README.md). Record the signed build, device model, iOS version, audio route and evidence identifiers. Save a portable copy before upgrading projects. The build uses schema 12.
 
 | Workflow | Required device observation | Result |
 | --- | --- | --- |
 | Song Form while playing | Move two unequal-length sections with the card grip, switch playback to a new section, then undo. Confirm the groove continues and Assistant shows the new order. | Pending |
 | SoundFont on a track | Import a permitted SF2, preview piano and guitar, assign on Harmony and edit notes while playing. Record assignment duration, output peak, bar change, CPU and audible dropouts. | Pending |
 | Sample kit and one-shot | Load Pocket Kit, import a short WAV or AIFF on a pad and record a quantized loop. Compare the immediate hit, sequencer output, audition and loop playback on the speaker and a USB route. Record touch-to-audio measurements with the existing pad protocol. | Pending |
+| Editable song from Perform | Record a take with section launches, a pad hit and a filter change. Create the editable song, modify its chords and verify the original project and exact take export are available. | Pending |
 | Reopen and publish audio | Undo and redo a sound change, force-quit and reopen, export WAV and aligned stems. Open a `.grillapack` copy on a second install and compare the sound even with only the portable project available. Verify the files in two DAWs. | Pending |
 
 Windows and Mac DAW checks can use the same files and signed iPhone build. Preserve each device and audio-route result with its own evidence. [Current software results](CURRENT.md)
