@@ -1,0 +1,64 @@
+{
+  "artifact": 14433869024,
+  "run": 44319624212,
+  "source": "0c9f0902d7849eff7cf213973fbec68034e06b20",
+  "build": 35,
+  "version": "1.0.0",
+  "bytes": 7507537,
+  "sha256": "75a368c31bf1755ab39c4e5b8d686a14615b1eeee76cf1bfca13498398f89940",
+  "entries": 20,
+  "binary": {
+    "architecture": "arm64",
+    "platform": "iOS",
+    "minimumOS": "18.0.0",
+    "sdk": "26.2.0",
+    "uuid": "5A8E5EDF-47CA-38D4-8F88-B24C379C1D69",
+    "dsymUUIDMatches": true,
+    "foundationModelsLoadCommand": "LC_LOAD_WEAK_DYLIB",
+    "foundationModelsOrdinal": 15,
+    "foundationModelsWeakSymbols": 78,
+    "foundationModelsWeakChainedImports": 78,
+    "initializerSections": [],
+    "hasCodeSignatureCommand": false,
+    "runtimeValidation": "Static binary checks only; signed-device startup on iOS 18 still requires device QA."
+  },
+  "factoryPCM": {
+    "piano.lgpcm": {
+      "bytes": 3225864,
+      "sha256": "99ab675b5a3ba11a060a8e1c748d091dea9a57af6a45372a9b976d679634980c",
+      "zones": 21
+    },
+    "nylon-guitar.lgpcm": {
+      "bytes": 1974030,
+      "sha256": "a5a079fb6045f961c0788a98d3d2cf3fb7c220dcc0537b9fdffce8d455573c07",
+      "zones": 16
+    }
+  },
+  "physicalDevice": false,
+  "briefExample": {
+    "path": "local RU suggestions, composer, compiler and offline WAV export",
+    "prompt": "Ночной хип-хоп, 88 BPM, ре минор, 8 тактов; аккорды: Dm7 Bbmaj7 Gm7 A7",
+    "bars": 8,
+    "tempo": 88,
+    "minor": true,
+    "root": 2,
+    "cycle": [
+      "Dm7",
+      "Bbmaj7",
+      "Gm7",
+      "A7"
+    ],
+    "compiledNotes": {
+      "harmony": 32,
+      "drums": 108,
+      "bass": 8,
+      "melody": 29
+    },
+    "wav": {
+      "sampleRate": 44100,
+      "channels": 2,
+      "seconds": 21.8182
+    }
+  },
+  "fullSuite": "Deferred by request. Foundation Models generation and hands-on iPhone UI were not exercised."
+}
