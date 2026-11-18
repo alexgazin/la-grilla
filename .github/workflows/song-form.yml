@@ -1,7 +1,7 @@
-name: Song form on iPhone Simulator
+name: Build 38 Automatic offline fallback
 on:
   push:
-    branches: [feat/song-board]
+    branches: [qa/assistant-offline-38]
   workflow_dispatch:
 permissions:
   contents: read
@@ -28,11 +28,11 @@ jobs:
         env:
           GRILLA_CAPTURE_SCREENS: '0'
         run: bash scripts/screenshots.sh
-      - name: Verify section drag, live section edits and Assistant form review
+      - name: Verify reported English genre request and unrelated unsupported command
         timeout-minutes: 10
         run: |
           DEVICE=$(cat /tmp/grilla-simulator-id)
-          CASES=(ArrangementUITests/testSongFormAddsDragsAndUndoesWholeSection LiveEditingTests/testDuplicateMoveAndDeleteSectionDuringPlayback AssistantCompositionTests/testFullSongReviewAppliesAsOneUndoOnCommandFallback)
+          CASES=(DeviceRecoveryTests/testAutomaticOpensOfflineBuilderForJazzHipHopDescription DeviceRecoveryTests/testUnavailableAIFreeTextShowsReasonAndCommandsKeepsInput)
           REQUIRED=()
           SELECTED=()
           for CASE_ID in "${CASES[@]}"; do
