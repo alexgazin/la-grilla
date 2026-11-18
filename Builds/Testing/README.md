@@ -1,5 +1,7 @@
 # La Grilla для ручного тестирования
 
+**[Скачать IPA 38 для iPhone](https://github.com/alexgazin/la-grilla/actions/runs/44393273269/artifacts/14468754178)**. В Automatic запрос «Create jazz hip hop old school» при недоступной системной модели открывает автономный конструктор с готовыми параметрами. Из ZIP извлеките IPA и подпишите своим Apple ID через Sideloadly. SHA-256 файла — `a513a7d9035b0eabe9450b6f4b3fb0c0aecd40b300d1e5abc22162719fedb9e8`.
+
 **[Скачать IPA 37 для iPhone](https://github.com/alexgazin/la-grilla/actions/runs/44375324030/artifacts/14461599286)**. Автономный генератор инструментальных аранжировок, раздельные вариации баса и ударных, вступление и пауза перед повтором. Из ZIP извлеките LaGrilla-unsigned.ipa и подпишите своим Apple ID через Sideloadly. SHA-256 файла IPA — `d28f3f92d41bbb8ed974743fb8f09c1d5cbfdb27f41b11872aeac8c1134fcc33`. [Проверка создания проекта на симуляторе](https://github.com/alexgazin/la-grilla/actions/runs/44376030143).
 
 **[Скачать IPA 36 для iPhone](https://github.com/alexgazin/la-grilla/actions/runs/44325351752/artifacts/14437696953)**. Четыре синтезированных саксофона, четырёхполосный эквалайзер на дорожках и мастере, 27 EQ-пресетов и 18 музыкальных заготовок. В ZIP лежит неподписанная IPA для Personal Team. [Проверка пакета и экспорта](candidate36-verification.json) · [Послушать тембры](../../Media/Audio/saxophone-voices.mp3)
