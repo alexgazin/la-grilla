@@ -194,8 +194,8 @@ private enum MIDICallbacks {
             releaseKeyboard()
             guard let slot = availableSlot else { return false }
             let handle = nextHandle(for: slot)
-            lg_midi_configure_track(hub.pointer, handle, Self.trackIdentity(track.id),
-                                    Int32(index), Int32(track.role.instrument), 1)
+            lg_midi_configure_keyboard(hub.pointer, handle, Self.trackIdentity(track.id),
+                                       Int32(index), Int32(track.role.instrument))
             keyboardConnection = (slot, handle, track.id)
         }
         guard let connection = keyboardConnection else { return false }

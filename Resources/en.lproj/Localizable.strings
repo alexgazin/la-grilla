@@ -526,7 +526,7 @@
 "Edit clip contents" = "Edit clip contents";
 "Editing the source pattern updates every loop of this clip." = "Editing the source pattern updates every loop of this clip.";
 "Editing this drum clip's source pattern. Repeats share these steps." = "Editing this drum clip's source pattern. Repeats share these steps.";
-"Enable Apple Intelligence in Settings to use on-device AI. Supported commands still work." = "Enable Apple Intelligence in Settings to use on-device AI. Supported commands still work.";
+"iOS reports that Apple Intelligence is off. Check Apple Intelligence & Siri in the main iPhone Settings." = "iOS reports that Apple Intelligence is off. Check Apple Intelligence & Siri in the main iPhone Settings.";
 "Extensions" = "Extensions";
 "Harmony in every section will change. Rhythm and melody stay as written." = "Harmony in every section will change. Rhythm and melody stay as written.";
 "Jazz up this section" = "Jazz up this section";
@@ -836,3 +836,5 @@
 "Record phrase" = "Record phrase";
 "Finish phrase" = "Finish phrase";
 "Keyboard input unavailable. Release the keys and try again." = "Keyboard input unavailable. Release the keys and try again.";
+
+"Use English for AI requests" = "Use English for AI requests";

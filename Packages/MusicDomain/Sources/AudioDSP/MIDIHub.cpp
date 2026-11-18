@@ -1,10 +1,10 @@
 #include "MIDIHub.hpp"
 #include <new>
-static void configureConnection(LGMIDIHub*h,uint32_t handle,uint64_t identity,int track,int instrument,int channels){
+static void configureConnection(LGMIDIHub*h,uint32_t handle,uint64_t identity,int track,int instrument,int channels,bool keyboard=false){
     const int slot=int(handle&255);if(!h||handle<256||slot>=16||track<0||track>=8||instrument<0||instrument>3)return;
     auto &connection=h->connections[size_t(slot)];
     connection.configuration.fetch_add(1,std::memory_order_acq_rel);
-    connection.routing.store(uint32_t(channels&65535)|(uint32_t(track)<<16)|(uint32_t(instrument)<<20),std::memory_order_relaxed);
+    connection.routing.store(uint32_t(channels&65535)|(uint32_t(track)<<16)|(uint32_t(instrument)<<20)|(keyboard?screenKeyboardRoute:0u),std::memory_order_relaxed);
     connection.identity.store(identity,std::memory_order_relaxed);connection.handle.store(handle,std::memory_order_release);
     connection.configuration.fetch_add(1,std::memory_order_release);h->panic.fetch_or(1u<<slot);
 }
@@ -15,6 +15,9 @@ void lg_midi_configure(LGMIDIHub*h,uint32_t handle,int track,int instrument,int 
     configureConnection(h,handle,0,track,instrument,channels);
 }
 void lg_midi_configure_track(LGMIDIHub*h,uint32_t handle,uint64_t identity,int track,int instrument,int channels){if(identity)configureConnection(h,handle,identity,track,instrument,channels);}
+void lg_midi_configure_keyboard(LGMIDIHub*h,uint32_t handle,uint64_t identity,int track,int instrument){
+    if(identity)configureConnection(h,handle,identity,track,instrument,1,true);
+}
 void lg_midi_disconnect(LGMIDIHub*h,int slot){if(!h||slot<0||slot>=16)return;h->connections[slot].handle.store(0,std::memory_order_release);h->panic.fetch_or(1u<<slot);}
 int lg_midi_push(LGMIDIHub*h,uint32_t handle,uint64_t time,const uint8_t*bytes,int count){
     const int slot=int(handle&255);if(!h||slot>=16||handle<256||!bytes||count<1)return 0;

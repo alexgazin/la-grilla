@@ -528,7 +528,7 @@
 "Edit clip contents" = "Редактировать содержимое клипа";
 "Editing the source pattern updates every loop of this clip." = "Изменения исходного паттерна применятся ко всем повторам этого клипа.";
 "Editing this drum clip's source pattern. Repeats share these steps." = "Редактируется исходный паттерн этого барабанного клипа. Шаги общие для всех его повторов.";
-"Enable Apple Intelligence in Settings to use on-device AI. Supported commands still work." = "Включи Apple Intelligence в настройках для работы локального ИИ. Режим «Команды» уже доступен.";
+"iOS reports that Apple Intelligence is off. Check Apple Intelligence & Siri in the main iPhone Settings." = "По данным iOS, системная модель выключена. Открой «Настройки» iPhone → «Apple Intelligence и Siri».";
 "Extensions" = "Расширения";
 "Harmony in every section will change. Rhythm and melody stay as written." = "Гармония изменится во всех секциях. Ритм и мелодия сохранятся.";
 "Jazz up this section" = "Поджазовать эту секцию";
@@ -838,3 +838,5 @@
 "Record phrase" = "Записать фразу";
 "Finish phrase" = "Завершить фразу";
 "Keyboard input unavailable. Release the keys and try again." = "Не удалось сыграть ноту. Отпустите клавиши и попробуйте ещё раз.";
+
+"Use English for AI requests" = "Перейти на английский для запросов к ИИ";

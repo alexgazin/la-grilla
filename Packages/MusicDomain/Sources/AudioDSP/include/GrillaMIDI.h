@@ -16,6 +16,8 @@ void lg_midi_configure(LGMIDIHub *hub,uint32_t handle,int track,int instrument,i
 // LGProjectTrack; its current index/instrument is resolved at audio adoption.
 // Configuration functions have one serialized control-thread owner.
 void lg_midi_configure_track(LGMIDIHub *hub,uint32_t handle,uint64_t identity,int track,int instrument,int channelMask);
+// The built-in keybed has its own listening level before the track mixer.
+void lg_midi_configure_keyboard(LGMIDIHub *hub,uint32_t handle,uint64_t identity,int track,int instrument);
 void lg_midi_disconnect(LGMIDIHub *hub,int slot);
 int lg_midi_push(LGMIDIHub *hub,uint32_t handle,uint64_t hostTime,const uint8_t *bytes,int count);
 int lg_midi_monitor_pop(LGMIDIHub *hub,LGMIDIEvent *events,int capacity);

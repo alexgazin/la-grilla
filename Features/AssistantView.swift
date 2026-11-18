@@ -96,6 +96,11 @@ struct AssistantView:View {
                 .accessibilityValue(Text(verbatim:aiAvailabilityDiagnostic))
             if mode != .commands {
                 if !ai.available {
+                    if ai.availabilityReason == .unsupportedLanguage, aiLanguage != "en-US", ai.supportsEnglishRequests() {
+                        Button("Use English for AI requests") { aiLanguage = "en-US" }
+                            .frame(minHeight:44).accessibilityIdentifier("assistant.use-english-ai")
+                            .disabled(dictation.recording || dictation.requesting || dictation.finalizing)
+                    }
                     Button("Use Commands"){mode = .commands}.frame(minHeight:44)
                         .accessibilityIdentifier("assistant.use-commands")
                         .disabled(dictation.recording || dictation.requesting || dictation.finalizing)

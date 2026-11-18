@@ -43,6 +43,18 @@ enum AIComposerFailure:Error,LocalizedError {
         availabilityReason=reason
         availabilityMessage=NSLocalizedString(message,comment:"Assistant AI")
     }
+    func supportsEnglishRequests() -> Bool {
+        #if canImport(FoundationModels)
+        if #available(iOS 26.0, *) {
+            let model = SystemLanguageModel.default
+            if case .available = model.availability {
+                return model.supportsLocale(Locale(identifier: "en-US"))
+            }
+        }
+        #endif
+        return false
+    }
+
     func refresh(localeIdentifier:String){
         #if canImport(FoundationModels)
         if #available(iOS 26.0,*) {
@@ -52,7 +64,7 @@ enum AIComposerFailure:Error,LocalizedError {
                 guard model.supportsLocale(Locale(identifier:localeIdentifier))else{setAvailability(.unsupportedLanguage,message:"On-device AI does not support the selected language. Choose another language or use Commands.");return}
                 setAvailability(.available,message:"Describe a song form, harmonic change or a new groove. Review before applying.")
             case .unavailable(.deviceNotEligible):setAvailability(.unsupportedDevice,message:"This device does not support Apple Intelligence. Supported commands still work.")
-            case .unavailable(.appleIntelligenceNotEnabled):setAvailability(.notEnabled,message:"Enable Apple Intelligence in Settings to use on-device AI. Supported commands still work.")
+            case .unavailable(.appleIntelligenceNotEnabled):setAvailability(.notEnabled,message:"iOS reports that Apple Intelligence is off. Check Apple Intelligence & Siri in the main iPhone Settings.")
             case .unavailable(.modelNotReady):setAvailability(.modelNotReady,message:"The on-device model is not ready. Let its download finish in Settings; Commands remain available.")
             case .unavailable:setAvailability(.unavailable,message:"On-device AI is unavailable. Supported commands still work.")
             @unknown default:setAvailability(.unavailable,message:"On-device AI is unavailable. Supported commands still work.")

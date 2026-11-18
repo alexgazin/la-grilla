@@ -32,8 +32,9 @@ public:
 };
 struct MIDIRawPacket{uint64_t time=0;uint32_t handle=0,configuration=0;uint16_t count=0;std::array<uint8_t,256> bytes{};};
 struct MIDIParserState{uint8_t status=0,used=0,needed=0;std::array<uint8_t,2> data{};bool sysex=false;};
+constexpr uint32_t screenKeyboardRoute = 1u << 24;
 struct MIDIConnection{std::atomic<uint32_t> handle{0},routing{0},configuration{0};std::atomic<uint64_t> identity{0};};
-struct MIDIPending{LGMIDIEvent event{};uint64_t order=0,identity=0;uint32_t handle=0,configuration=0;};
+struct MIDIPending{LGMIDIEvent event{};uint64_t order=0,identity=0;uint32_t handle=0,configuration=0;bool screenKeyboard=false;};
 struct MIDIMonitored{LGMIDIEvent event{};uint32_t handle=0,configuration=0;};
 struct LGMIDIHub {
     MIDIProducerQueue<MIDIRawPacket,1024> packets;
@@ -123,7 +124,7 @@ struct LGMIDIHub {
         if(count>0&&--count==0)outputEvent(state,time,0x80|channel,pitch,0);
     }
     static bool later(const MIDIPending&a,const MIDIPending&b){return a.event.hostTime==b.event.hostTime?a.order>b.order:a.event.hostTime>b.event.hostTime;}
-    void schedule(LGMIDIEvent event,uint64_t identity=0,uint32_t handle=0,uint32_t configuration=0){if(count==future.size()){dropped.fetch_add(1);if(handle&&connections[event.source].handle.compare_exchange_strong(handle,0))panic.fetch_or(1u<<event.source);return;}future[count++]={event,order++,identity,handle,configuration};std::push_heap(future.begin(),future.begin()+count,later);}
+    void schedule(LGMIDIEvent event,uint64_t identity=0,uint32_t handle=0,uint32_t configuration=0,bool screenKeyboard=false){if(count==future.size()){dropped.fetch_add(1);if(handle&&connections[event.source].handle.compare_exchange_strong(handle,0))panic.fetch_or(1u<<event.source);return;}future[count++]={event,order++,identity,handle,configuration,screenKeyboard};std::push_heap(future.begin(),future.begin()+count,later);}
     void decode(const MIDIRawPacket &packet){
         const int slot=int(packet.handle&255);if(slot>=16||packet.configuration&1||!currentBinding(slot,packet.handle,packet.configuration))return;
         auto &connection=connections[size_t(slot)];const auto routing=connection.routing.load(std::memory_order_relaxed);const auto requested=connection.identity.load(std::memory_order_relaxed);
@@ -144,7 +145,7 @@ struct LGMIDIHub {
             const int status=p.status>>4,channel=p.status&15;
             if(status>=0xf){p.status=0;p.needed=0;continue;}
             if(!(routing&(1u<<channel)))continue;
-            if(status==8||status==9||status==11){LGMIDIEvent event{packet.time,slot,status==9&&p.data[1]==0?8:status,channel,p.data[0],p.data[1],int((routing>>16)&15),int((routing>>20)&3)};if(identity){int track=0,instrument=0;if(resolve(identity,track,instrument)){event.track=track;event.instrument=instrument;}}schedule(event,identity,packet.handle,packet.configuration);}
+            if(status==8||status==9||status==11){LGMIDIEvent event{packet.time,slot,status==9&&p.data[1]==0?8:status,channel,p.data[0],p.data[1],int((routing>>16)&15),int((routing>>20)&3)};if(identity){int track=0,instrument=0;if(resolve(identity,track,instrument)){event.track=track;event.instrument=instrument;}}schedule(event,identity,packet.handle,packet.configuration,(routing & screenKeyboardRoute) != 0);}
         }
     }
     template<class Clear> void prepare(Clear clear){
@@ -154,6 +155,9 @@ struct LGMIDIHub {
         MIDIRawPacket packet;for(int i=0;i<128&&packets.pop(packet);i++)decode(packet);
     }
     template<class Apply> void due(uint64_t hostTime,uint64_t oneSample,Apply apply){
+        dueWithOrigin(hostTime,oneSample,[&](const LGMIDIEvent &event,bool){ apply(event); });
+    }
+    template<class Apply> void dueWithOrigin(uint64_t hostTime,uint64_t oneSample,Apply apply){
         // Bounded work even under a controller flood. Remaining events become late,
         // are counted, and NoteOff protection is supplied by per-source panic.
         for(int n=0;n<64&&count&&future[0].event.hostTime<=hostTime;n++){
@@ -161,7 +165,7 @@ struct LGMIDIHub {
             if(pending.handle&&!currentBinding(event.source,pending.handle,pending.configuration))continue;
             if(pending.identity){int track=0,instrument=0;if(!resolve(pending.identity,track,instrument))continue;event.track=track;event.instrument=instrument;}
             if(event.hostTime&&hostTime>event.hostTime+oneSample)late.fetch_add(1,std::memory_order_relaxed);
-            apply(event);if(!monitor.push({event,pending.handle,pending.configuration}))dropped.fetch_add(1,std::memory_order_relaxed);
+            apply(event,pending.screenKeyboard);if(!monitor.push({event,pending.handle,pending.configuration}))dropped.fetch_add(1,std::memory_order_relaxed);
         }
     }
 };

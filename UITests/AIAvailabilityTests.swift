@@ -207,7 +207,7 @@ final class AIAvailabilityTests:XCTestCase {
             "requiresSystem":"On-device AI requires iOS 26 and Apple Intelligence. Supported commands still work.",
             "notIncluded":"On-device AI is not included in this build. Commands remain available.",
             "unsupportedDevice":"This device does not support Apple Intelligence. Supported commands still work.",
-            "notEnabled":"Enable Apple Intelligence in Settings to use on-device AI. Supported commands still work.",
+            "notEnabled":"iOS reports that Apple Intelligence is off. Check Apple Intelligence & Siri in the main iPhone Settings.",
             "modelNotReady":"The on-device model is not ready. Let its download finish in Settings; Commands remain available.",
             "unsupportedLanguage":"On-device AI does not support the selected language. Choose another language or use Commands.",
             "unavailable":"On-device AI is unavailable. Supported commands still work."
