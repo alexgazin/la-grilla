@@ -81,22 +81,34 @@ public struct PortableProjectBundle:Sendable {public var project:Project;public 
 public enum PortableProject {
     static func documentEntries(_ project:Project)throws->[ProjectArchive.Entry] {
         try project.validate();let encoder=JSONEncoder();encoder.outputFormatting=[.sortedKeys];let manifest=try encoder.encode(project)
-        let metadata:[String:String]=["format":"La Grilla portable project","version":(project.audioAssets ?? []).isEmpty ? "1":"2","manifestCRC32":String(format:"%08x",ProjectArchive.checksum(manifest)),"instruments":"Bundled synthetic presets version 1. Voice source recordings are included when present."]
+        let version = project.referencedSamples.isEmpty ? ((project.audioAssets ?? []).isEmpty ? "1" : "2") : "3"
+        let instruments = version == "3" ? "Built-in presets and referenced PCM sample assets. Voice recordings are included when present." : "Bundled synthetic presets version 1. Voice source recordings are included when present."
+        let metadata:[String:String]=["format":"La Grilla portable project","version":version,"manifestCRC32":String(format:"%08x",ProjectArchive.checksum(manifest)),"instruments":instruments]
         return [.init("manifest.json",manifest),.init("metadata.json",try JSONSerialization.data(withJSONObject:metadata,options:[.sortedKeys]))]
     }
     public static func data(_ project:Project,assets:[String:Data]=[:])throws->Data {
         var entries=try documentEntries(project)
-        guard Set(assets.keys)==Set((project.audioAssets ?? []).map(\.relativePath))else{throw ExportError.invalidArchive}
+        guard Set(assets.keys)==Set((project.audioAssets ?? []).map(\.relativePath) + project.referencedSamples.map(\.relativePath))else{throw ExportError.invalidArchive}
         for record in project.audioAssets ?? []{guard let data=assets[record.relativePath]else{throw ExportError.invalidArchive};try AssetIntegrity.validate(data,record:record);entries.append(.init(record.relativePath,data))}
+        for asset in project.referencedSamples.sorted(by: { $0.relativePath < $1.relativePath }) {
+            guard let data = assets[asset.relativePath] else { throw SampleError.unavailable }
+            _ = try SamplePCM.decode(data, asset: asset)
+            entries.append(.init(asset.relativePath, data))
+        }
         return try ProjectArchive.encode(entries)
     }
     public static func decodeBundle(_ data:Data,asCopy:Bool=true)throws->PortableProjectBundle {
         let entries=try ProjectArchive.decode(data,maxBytes:128_000_000)
-        guard let manifest=entries.first(where:{$0.name=="manifest.json"})?.data,manifest.count<=8_000_000,let meta=entries.first(where:{$0.name=="metadata.json"})?.data,meta.count<=64_000,let metadata=try JSONSerialization.jsonObject(with:meta) as? [String:String],["1","2"].contains(metadata["version"] ?? ""),metadata["manifestCRC32"]==String(format:"%08x",ProjectArchive.checksum(manifest))else{throw ExportError.invalidArchive}
-        var p=try ProjectDocument.decode(manifest);let expected=Set(["manifest.json","metadata.json"]+(p.audioAssets ?? []).map(\.relativePath))
-        guard Set(entries.map(\.name))==expected else{throw ExportError.invalidArchive}
+        guard let manifest=entries.first(where:{$0.name=="manifest.json"})?.data,manifest.count<=8_000_000,let meta=entries.first(where:{$0.name=="metadata.json"})?.data,meta.count<=64_000,let metadata=try JSONSerialization.jsonObject(with:meta) as? [String:String],["1","2","3"].contains(metadata["version"] ?? ""),metadata["manifestCRC32"]==String(format:"%08x",ProjectArchive.checksum(manifest))else{throw ExportError.invalidArchive}
+        var p=try ProjectDocument.decode(manifest);let expected=Set(["manifest.json","metadata.json"]+(p.audioAssets ?? []).map(\.relativePath)+p.referencedSamples.map(\.relativePath))
+        guard Set(entries.map(\.name))==expected, (metadata["version"] == "3") == !p.referencedSamples.isEmpty else{throw ExportError.invalidArchive}
         var assets:[String:Data]=[:]
         for record in p.audioAssets ?? []{guard let data=entries.first(where:{$0.name==record.relativePath})?.data else{throw ExportError.invalidArchive};try AssetIntegrity.validate(data,record:record);assets[record.relativePath]=data}
+        for asset in p.referencedSamples {
+            guard let data = entries.first(where: { $0.name == asset.relativePath })?.data else { throw SampleError.unavailable }
+            _ = try SamplePCM.decode(data, asset: asset)
+            assets[asset.relativePath] = data
+        }
         if asCopy{p.id=UUID();p.revision=0;p.modified=Date();p.name=String(p.name.prefix(110))+" imported"}
         return PortableProjectBundle(project:p,assets:assets)
     }

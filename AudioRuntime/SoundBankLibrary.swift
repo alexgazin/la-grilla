@@ -85,17 +85,17 @@ actor SoundBankLibrary {
         let noteLength: AVAudioFramePosition = 10_240
         for note in notes {
             sampler.startNote(note, withVelocity: 92, onChannel: 0)
-            try render(frames: noteLength, in: engine, buffer: buffer, to: file)
+            try render(frames: noteLength, in: engine, buffer: buffer) { try file.write(from: $0) }
             sampler.stopNote(note, onChannel: 0)
         }
-        try render(frames: 11_264, in: engine, buffer: buffer, to: file)
+        try render(frames: 11_264, in: engine, buffer: buffer) { try file.write(from: $0) }
         try Task.checkCancellation()
         completed = true
         return output
     }
 
-    private func render(frames: AVAudioFramePosition, in engine: AVAudioEngine,
-                        buffer: AVAudioPCMBuffer, to file: AVAudioFile) throws {
+    func render(frames: AVAudioFramePosition, in engine: AVAudioEngine,
+                buffer: AVAudioPCMBuffer, receive: (AVAudioPCMBuffer) throws -> Void) throws {
         let end = engine.manualRenderingSampleTime + frames
         var stalled = 0
         while engine.manualRenderingSampleTime < end {
@@ -105,7 +105,7 @@ actor SoundBankLibrary {
             switch try engine.renderOffline(count, to: buffer) {
             case .success:
                 guard buffer.frameLength > 0, engine.manualRenderingSampleTime > previous else { throw SoundBankError.cannotRender }
-                try file.write(from: buffer)
+                try receive(buffer)
                 stalled = 0
             case .cannotDoInCurrentContext:
                 stalled += 1
@@ -115,7 +115,7 @@ actor SoundBankLibrary {
         }
     }
 
-    private func load(_ program: SoundBankProgram, into sampler: AVAudioUnitSampler, from url: URL) throws {
+    func load(_ program: SoundBankProgram, into sampler: AVAudioUnitSampler, from url: URL) throws {
         try sampler.loadSoundBankInstrument(at: url, program: program.program,
                                             bankMSB: program.bankMSB, bankLSB: program.bankLSB)
     }

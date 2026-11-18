@@ -2,6 +2,13 @@ import SwiftUI
 import MusicDomain
 
 enum TrackSoundNames {
+    static func current(_ track: Track) -> String {
+        if let sound = track.instrumentSample { return sound.name }
+        if track.role == .drums, let pads = track.padSamples, !pads.isEmpty {
+            return NSLocalizedString("Custom kit", comment: "Drum kit with assigned samples")
+        }
+        return NSLocalizedString(title(track.presetVersion, role: track.role), comment: "Track sound")
+    }
     static func title(_ version:Int,role:TrackRole)->String {
         guard let palette=SoundPalette(rawValue:version) else{return "Classic sound"}
         if palette == .legacy{return "Original sound"}
@@ -50,7 +57,7 @@ struct TrackSoundButton:View {
                     }
                     VStack(alignment:.leading,spacing:3){
                         Text("Sound").font(compact ? .system(size:11,weight:.medium):.caption).foregroundStyle(Color.muted)
-                        Text(LocalizedStringKey(TrackSoundNames.title(track.presetVersion,role:track.role)))
+                        Text(TrackSoundNames.current(track))
                             .font(compact ? .system(size:11,weight:.semibold):.subheadline.weight(.semibold))
                             .lineLimit(2).fixedSize(horizontal:false,vertical:true)
                     }
@@ -63,7 +70,7 @@ struct TrackSoundButton:View {
             }.buttonStyle(StudioQuietButtonStyle()).foregroundStyle(Color.track(track.role))
                 .disabled(locked)
                 .accessibilityLabel(String(format:NSLocalizedString("Sound for %@",comment:"Track sound"),track.displayName))
-                .accessibilityValue(LocalizedStringKey(TrackSoundNames.title(track.presetVersion,role:track.role)))
+                .accessibilityValue(TrackSoundNames.current(track))
                 .accessibilityIdentifier("sound.track.\(track.role.rawValue).\(trackID.uuidString)")
                 .sheet(isPresented:$presented){TrackSoundPicker(session:session,trackID:trackID)}
         }
@@ -82,6 +89,7 @@ struct TrackSoundPicker:View {
     @State private var previewAlongsideTrack=false
     @State private var error:String?
     @State private var showBanks = false
+    @State private var showSamples = false
 
     init(session:Session,trackID:UUID){
         self.session=session;self.trackID=trackID
@@ -93,6 +101,7 @@ struct TrackSoundPicker:View {
     private var locked:Bool{session.performance.contextActive || session.recording || session.armed}
     private var contextMatches:Bool{session.project.id==sourceID && session.project.revision==sourceRevision && track != nil}
     private var canChange:Bool{contextMatches && !locked}
+    private var canApply: Bool { canChange && (selectedVersion != track?.presetVersion || track?.instrumentSample != nil) }
     private var sounding:Bool{previewing && session.harmonyPreview && session.audio.playing}
     private var choices:[SoundPalette]{track?.presetVersion==1 ? [.legacy]+SoundPalette.selectable:SoundPalette.selectable}
 
@@ -106,7 +115,7 @@ struct TrackSoundPicker:View {
                             .frame(width:52,height:52).background(Color.track(track.role).opacity(0.1),in:RoundedRectangle(cornerRadius:14,style:.continuous))
                         VStack(alignment:.leading,spacing:6){
                             Text(track.displayName).font(.title2.weight(.semibold)).foregroundStyle(Color.studioText)
-                            Text(LocalizedStringKey(track.role == .drums ? "Built-in synthesized kit · 16 pads":"Built-in instrument"))
+                            Text(TrackSoundNames.current(track))
                                 .font(.caption).foregroundStyle(Color.muted)
                         }
                         Spacer(minLength:0)
@@ -148,31 +157,42 @@ struct TrackSoundPicker:View {
                     }.padding(.top,2)
                 }else{ContentUnavailableView("Track unavailable",systemImage:"waveform")}
                 if !contextMatches{Text("The project changed. Close this picker and open it again.").font(.caption).foregroundStyle(Color.record)}
-                Button {
-                    stopPreview()
-                    showBanks = true
-                } label: {
-                    Label("Sound banks", systemImage: "pianokeys")
+                if track?.role == .drums {
+                    Button { stopPreview(); showSamples = true } label: { Label("Pad samples", systemImage: "waveform") }
+                        .buttonStyle(StudioActionStyle(prominent: false)).disabled(!canChange)
+                        .accessibilityIdentifier("sound.samples")
+                } else {
+                    Button { stopPreview(); showBanks = true } label: { Label("Sound banks", systemImage: "pianokeys") }
+                        .buttonStyle(StudioActionStyle(prominent: false)).disabled(!canChange)
+                        .accessibilityIdentifier("sound.banks")
                 }
-                .buttonStyle(StudioActionStyle(prominent: false))
-                .disabled(!canChange)
-                .accessibilityIdentifier("sound.banks")
             }.padding(18)}.background(Color.ink)
                 .safeAreaInset(edge:.bottom){
                     Button{apply()}label:{Text("Apply sound").frame(maxWidth:.infinity)}
                         .buttonStyle(StudioActionStyle())
-                        .disabled(!canChange || selectedVersion==track?.presetVersion)
+                        .disabled(!canApply)
                         .padding(16).background(Color.ink)
                         .overlay(alignment:.top){Rectangle().fill(Color.outline.opacity(0.6)).frame(height:0.5)}.accessibilityIdentifier("sound.apply")
                 }
                 .navigationTitle("Sound").navigationBarTitleDisplayMode(.inline)
                 .toolbar{ToolbarItem(placement:.cancellationAction){Button("Cancel"){stopPreview();dismiss()}}}
         }.presentationDetents([.large]).presentationDragIndicator(.visible).presentationBackground(Color.panel).tint(.mint)
-            .sheet(isPresented: $showBanks) { SoundBankView(session: session) }
+            .sheet(isPresented: $showBanks, onDismiss: refreshContext) {
+                SoundBankView(session: session, trackID: trackID, projectID: sourceID, revision: sourceRevision)
+            }
+            .sheet(isPresented: $showSamples, onDismiss: refreshContext) {
+                DrumSamplePicker(session: session, trackID: trackID, sourceID: sourceID)
+            }
             .onDisappear{stopPreview()}
             .onChange(of:session.project.id){_,_ in stopPreview()}
             .onChange(of:session.project.revision){_,_ in stopPreview()}
             .onChange(of:scenePhase){_,value in if value != .active{stopPreview()}}
+    }
+
+    private func refreshContext() {
+        guard sourceID == session.project.id, let track else { return }
+        sourceRevision = session.project.revision
+        selectedVersion = track.presetVersion
     }
 
     private func paletteRow(_ palette:SoundPalette,track:Track)->some View {
@@ -207,6 +227,7 @@ struct TrackSoundPicker:View {
                 var candidate=session.project
                 guard let index=candidate.tracks.firstIndex(where:{$0.id==trackID})else{return}
                 candidate.tracks[index].presetVersion=palette.rawValue
+                candidate.tracks[index].instrumentSample = nil
                 session.previewAssistant(candidate,wholeSong:false,sectionID:session.section.id,rangeOverride:session.loopRange,loopOverride:session.loop)
             }else{
                 let candidate=try TrackSoundPreview.project(from:session.project,trackID:trackID,palette:palette)
@@ -221,12 +242,13 @@ struct TrackSoundPicker:View {
         previewing=false;previewAlongsideTrack=false;session.endHarmonyPreview()
     }
     private func apply(){
-        guard canChange,SoundPalette(rawValue:selectedVersion) != nil,selectedVersion != track?.presetVersion else{return}
+        guard canApply, SoundPalette(rawValue:selectedVersion) != nil else{return}
         stopPreview()
         let previous=session.project.revision
         session.edit{project in
             guard let index=project.tracks.firstIndex(where:{$0.id==trackID})else{throw MusicError.invalidProject}
             project.tracks[index].presetVersion=selectedVersion
+            project.tracks[index].instrumentSample = nil
         }
         if session.project.revision != previous{dismiss()}else{error=session.message}
     }

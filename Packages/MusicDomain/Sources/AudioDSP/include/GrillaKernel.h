@@ -6,6 +6,12 @@
 extern "C" {
 #endif
 typedef struct LGKernel LGKernel;
+typedef struct LGSampleBank LGSampleBank;
+typedef struct {int32_t pitch,offset,frames,loopStart;} LGSampleZone;
+// Preparation and release are control-thread operations. Audio snapshots
+// retain independent references to immutable sample banks.
+LGSampleBank *lg_sample_create(int32_t rate,const LGSampleZone *zones,int32_t zoneCount,const int16_t *pcm,int32_t frameCount);
+void lg_sample_release(LGSampleBank *bank);
 int lg_sha256(const uint8_t *data, int32_t count, char *hex);
 typedef struct { int32_t tick, duration, pitch, velocity, track, pad, instrument; } LGNote;
 typedef struct {float gainDB,pan;int32_t audible;} LGTrackMix;
@@ -29,6 +35,9 @@ int lg_submit(LGKernel *k, const LGNote *notes, int count, double bpm, int start
 // Publication has one serialized control-thread owner. A seek or stopped
 // transport adopts immediately; playback keeps its tick and sample clock.
 int lg_submit_project(LGKernel *k,const LGNote *notes,int count,double bpm,int start,int end,int loop,int revision,uint64_t layoutToken,const LGProjectTrack *tracks,int trackCount,float masterDB,float filter,float delayWet);
+// Routes are fixed-size arrays of 8 track and 16 pad bank handles (or NULL).
+int lg_submit_project_samples(LGKernel *k,const LGNote *notes,int count,double bpm,int start,int end,int loop,int revision,uint64_t layoutToken,const LGProjectTrack *tracks,int trackCount,float masterDB,float filter,float delayWet,LGSampleBank *const *instruments,LGSampleBank *const *pads);
+int lg_submit_samples(LGKernel *k,const LGNote *notes,int count,double bpm,int start,int end,int loop,int revision,LGSampleBank *const *instruments,LGSampleBank *const *pads);
 // On the serialized publication/control thread, copy up to three slot revision
 // IDs. Retain routing metadata for these generations until the next publication;
 // a concurrent audio handover cannot hide its generation from this bounded set.

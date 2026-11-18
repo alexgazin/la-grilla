@@ -16,6 +16,8 @@ private struct AudioTrackLayout:Equatable {
     let instrument:Int32
     let preset:Int32
     let channel:Int32
+    let sample: SampleAsset?
+    let pads: [Int: SampleAsset]?
 }
 final class KernelHandle: @unchecked Sendable {
     let pointer: OpaquePointer
@@ -116,6 +118,7 @@ private enum AudioRender {
     }
 }
 @MainActor @Observable final class AudioController {
+    @ObservationIgnored var samples = SampleLibrary()
     enum InputPrimingPolicy:String {case platformDefault,outputOnly,sharedInputFirst}
     private let inputPriming:InputPrimingPolicy
     private(set) var inputPrimedAtStartup=false
@@ -512,9 +515,14 @@ private enum AudioRender {
         let mixes=trackMix(p)
         let tracks=layout.enumerated().map{i,t in LGProjectTrack(mix:mixes[i],presetVersion:t.preset,instrument:t.instrument,midiChannel:t.channel,identity:t.identity)}
         let fx=p.masterFX ?? MasterFX()
-        let ok=notes.withUnsafeBufferPointer{n in tracks.withUnsafeBufferPointer{t in
-            lg_submit_project(k,n.baseAddress,Int32(n.count),p.bpm,Int32(range.lowerBound),Int32(range.upperBound),loop ? 1:0,Int32(next),layoutToken(layout),t.baseAddress,Int32(t.count),Float(p.master),Float(fx.filter),Float(fx.delayWet))
-        }}
+        let ok: Int32
+        do {
+            ok = try samples.withRoutes(for: p) { instruments, pads in
+                notes.withUnsafeBufferPointer { n in tracks.withUnsafeBufferPointer { t in
+                    lg_submit_project_samples(k,n.baseAddress,Int32(n.count),p.bpm,Int32(range.lowerBound),Int32(range.upperBound),loop ? 1:0,Int32(next),layoutToken(layout),t.baseAddress,Int32(t.count),Float(p.master),Float(fx.filter),Float(fx.delayWet),instruments,pads)
+                }}
+            }
+        } catch { self.error = error.localizedDescription; return }
         guard ok != 0 else{error="Audio update could not be queued. Stop and retry.";return}
         generation=next;sentRevisions[next]=p.revision;routing[next]=midiRouting(p)
         pruneRouting(k)
@@ -535,7 +543,7 @@ private enum AudioRender {
         return p.tracks.map{track in
             let channel:Int32
             switch track.role{case .harmony:channel=0;case .drums:channel=9;case .bass:channel=1;case .melody:channel=melody;melody+=1}
-            return AudioTrackLayout(identity:MIDIController.trackIdentity(track.id),instrument:Int32(track.role.instrument),preset:Int32(track.presetVersion),channel:channel)
+            return AudioTrackLayout(identity:MIDIController.trackIdentity(track.id),instrument:Int32(track.role.instrument),preset:Int32(track.presetVersion),channel:channel,sample:track.instrumentSample,pads:track.padSamples)
         }
     }
     private func layoutToken(_ layout:[AudioTrackLayout])->UInt64 {

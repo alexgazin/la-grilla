@@ -1,7 +1,7 @@
-name: SoundFont import and sampler audition
+name: SoundFont and sample audio
 on:
   push:
-    branches: [feat/sound-bank-preview]
+    branches: [main, feat/sample-instruments]
   workflow_dispatch:
 permissions:
   contents: read
@@ -11,13 +11,73 @@ jobs:
     timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
-      - name: Verify a real bank using Apple's sampler
+      - name: Verify native sampler, portable zones and WAV output using a real bank
         shell: bash
         run: |
           TEMP_BANK=$(mktemp -d)
-          curl --fail --silent --show-error --max-time 120 --output "$TEMP_BANK/bank.deb" https://deb.debian.org/debian/pool/main/t/timgm6mb-soundfont/timgm6mb-soundfont_1.3-5_all.deb
-          ar -p "$TEMP_BANK/bank.deb" data.tar.xz | tar -xJf - -C "$TEMP_BANK" ./usr/share/sounds/sf2/TimGM6mb.sf2
-          BANK="$TEMP_BANK/usr/share/sounds/sf2/TimGM6mb.sf2"
-          printf '%s  %s\n' c5378b62028c920cb11e4803327983fee2f2cdff5dc89c708e39da417e51c854 "$BANK" | shasum -a 256 -c
-          xcrun swiftc -swift-version 6 AudioRuntime/SoundFontProgramTable.swift AudioRuntime/SoundBankLibrary.swift scripts/verify_sound_bank_preview.swift -o "$TEMP_BANK/verify"
-          "$TEMP_BANK/verify" "$BANK"
+          BANK=$(bash scripts/ci/fetch_test_sound_bank.sh "$TEMP_BANK")
+          mkdir "$TEMP_BANK/Verify"
+          cp AudioRuntime/{SoundFontProgramTable,SoundBankLibrary,InstrumentPreparation,StarterDrumKit}.swift scripts/verify_sound_bank_preview.swift "$TEMP_BANK/Verify/"
+          cat > "$TEMP_BANK/Package.swift" <<EOF
+          // swift-tools-version: 6.0
+          import PackageDescription
+          let package = Package(name: "Verify", platforms: [.macOS(.v13)],
+              dependencies: [.package(name: "MusicDomain", path: "$GITHUB_WORKSPACE/Packages/MusicDomain")],
+              targets: [.executableTarget(name: "Verify", dependencies: [.product(name: "MusicDomain", package: "MusicDomain")], path: "Verify")])
+          EOF
+          xcrun swift run --package-path "$TEMP_BANK" Verify "$BANK"
+  ios-sound:
+    if: github.ref_name == 'feat/sample-instruments' || github.event_name == 'workflow_dispatch'
+    runs-on: macos-26
+    timeout-minutes: 35
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build app and tests for iPhone Simulator
+        timeout-minutes: 12
+        run: |
+          set -o pipefail
+          xcodebuild -project LaGrilla.xcodeproj -scheme LaGrilla -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' ARCHS=arm64 ONLY_ACTIVE_ARCH=YES -configuration Debug -derivedDataPath DerivedData CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO build-for-testing | tee sound-build.log
+      - name: Boot iPhone and seed a test-only bank
+        timeout-minutes: 8
+        env:
+          GRILLA_CAPTURE_SCREENS: '0'
+        run: |
+          bash scripts/screenshots.sh
+          DEVICE=$(cat /tmp/grilla-simulator-id)
+          BANK=$(bash scripts/ci/fetch_test_sound_bank.sh "$(mktemp -d)")
+          xcrun simctl install "$DEVICE" DerivedData/Build/Products/Debug-iphonesimulator/LaGrilla.app
+          DATA=$(xcrun simctl get_app_container "$DEVICE" com.alexgazin.LaGrilla data)
+          DESTINATION="$DATA/Library/Application Support/SoundBanks/9024816D-3752-4DDB-B9CF-1C236482680A"
+          mkdir -p "$DESTINATION"
+          cp "$BANK" "$DESTINATION/"
+      - name: Verify kit, instrument assignment and previous live preview
+        timeout-minutes: 11
+        env:
+          TEST_RUNNER_GRILLA_TEST_SOUNDFONT: '1'
+        run: |
+          DEVICE=$(cat /tmp/grilla-simulator-id)
+          CASES=(SoundPickerUITests/testPocketKitIsAnUndoableEditAndReopensWithTheSamePadSamples SoundPickerUITests/testLiveSoundPreviewRetainsTheGrooveAndSourceRevision)
+          REQUIRED=()
+          SELECTED=()
+          for CASE_ID in "${CASES[@]}"; do
+            REQUIRED+=(--require-test "$CASE_ID")
+            SELECTED+=("-only-testing:LaGrillaUITests/$CASE_ID")
+          done
+          python3 scripts/ci/run_native.py --timeout-seconds 570 --scope focused --label sample-audio "${REQUIRED[@]}" --log sound-native.log --status sound-native-status.json -- xcodebuild "${SELECTED[@]}" -parallel-testing-enabled NO -test-timeouts-enabled YES -maximum-test-execution-time-allowance 210 -project LaGrilla.xcodeproj -scheme LaGrilla -destination "platform=iOS Simulator,id=$DEVICE" -derivedDataPath DerivedData -resultBundlePath SoundResults.xcresult ARCHS=arm64 ONLY_ACTIVE_ARCH=YES CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO test-without-building
+      - name: Export original screenshots
+        if: always()
+        run: |
+          if test -f SoundResults.xcresult/Info.plist; then
+            xcrun xcresulttool export attachments --path SoundResults.xcresult --output-path SoundAttachments
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sound-native-verification
+          path: |
+            sound-build.log
+            sound-native.log
+            sound-native-status.json
+            SoundAttachments

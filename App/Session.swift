@@ -161,6 +161,7 @@ import Observation
                     do{
                         let previous=try await store.load(entry.id)
                         guard previous.id==entry.id else{throw MusicError.invalidProject}
+                        audio.samples = try await store.loadSamples(for: previous)
                         project=previous;savedRevision=previous.revision;break
                     }catch{markLibraryFailure(entry.id,error:error.localizedDescription)}
                 }
@@ -481,8 +482,9 @@ import Observation
         do{
             try p.validate()
             let expected=try await prepareProjectChange(token,checkpoint:true)
+            let samples = try await store.loadSamples(for: p)
             try verifyProjectChange(token,expected:expected)
-            activateProject(p,savedRevision:p.revision)
+            activateProject(p,savedRevision:p.revision,samples:samples)
         }catch{message=error.localizedDescription}
     }
     func openStored(_ id:UUID)async {
@@ -495,6 +497,7 @@ import Observation
             let expected=try await prepareProjectChange(token,checkpoint:!active)
             let stored=try await store.load(id)
             guard stored.id==id else{throw MusicError.invalidProject}
+            let samples = try await store.loadSamples(for: stored)
             try await projectChangeBoundary(token,expected:expected,stage:"stored.loaded")
             if active {
                 let hasUnsavedWork=project.revision>savedRevision || saveError != nil
@@ -511,7 +514,7 @@ import Observation
                 }
             }
             try verifyProjectChange(token,expected:expected)
-            activateProject(stored,savedRevision:stored.revision)
+            activateProject(stored,savedRevision:stored.revision,samples:samples)
             await refreshLibraryEntry(id,validated:true)
         }catch{
             message=error.localizedDescription
@@ -573,7 +576,8 @@ import Observation
         sheet = .projects
         message=NSLocalizedString("A separate project was saved but not opened. Your current project and latest edits are kept. Open the saved project from Projects.",comment:"Safe project change")
     }
-    private func activateProject(_ p:Project,savedRevision:Int){
+    private func activateProject(_ p:Project,savedRevision:Int,samples:SampleLibrary=SampleLibrary()){
+        audio.samples = samples
         project=p;history=History();noteTrackID=nil;noteClipID=nil;drumClipID=nil;selectedSection=p.sections[0].id;self.savedRevision=savedRevision;restoreGeneratedLoop();audio.seek(0);sync();sheet=nil
         UserDefaults.standard.set(p.id.uuidString,forKey:lastProjectKey)
     }
@@ -640,8 +644,9 @@ import Observation
             try verifyProjectChange(token,expected:expected)
             let candidate=try await store.duplicate(original,suffix:" recovered")
             written=candidate
+            let samples = try await store.loadSamples(for: candidate)
             try await projectChangeBoundary(token,expected:expected,stage:"candidate.saved")
-            activateProject(candidate,savedRevision:candidate.revision)
+            activateProject(candidate,savedRevision:candidate.revision,samples:samples)
             await refreshLibraryEntry(candidate.id,validated:true)
             message="Recovered the last working copy."
         }catch{if let written{await retainUnopenedProject(written)}else{message=error.localizedDescription}}
@@ -655,7 +660,7 @@ import Observation
     func export(format:ExportFormat,settings:WAVSettings,range:Range<Int>,tracks:Set<UUID>,performance:PerformanceTake?=nil) {
         if performance != nil && format != .midi && format != .wav{exportError="Choose WAV or MIDI for a performance.";return}
         finishTake();cancelExport();exportGeneration+=1;let generation=exportGeneration
-        let snapshot=performance?.source ?? project;exportInProgress=true;exportProgress=0;exportWarning=nil
+        let snapshot=performance?.source ?? project;let samples=audio.samples;exportInProgress=true;exportProgress=0;exportWarning=nil
         let folder=FileManager.default.temporaryDirectory.appendingPathComponent("GrillaExport-"+UUID().uuidString)
         let safe=String((performance?.name ?? snapshot.name).prefix(80)).components(separatedBy:CharacterSet(charactersIn:"/\\").union(.controlCharacters)).joined(separator:"-").trimmingCharacters(in:CharacterSet(charactersIn:". "))
         let url=folder.appendingPathComponent(safe.isEmpty ? "La Grilla":safe).appendingPathExtension(format.fileExtension)
@@ -668,9 +673,9 @@ import Observation
                 case .midi:let data=try await Task.detached(priority:.userInitiated){if let performance{return try PerformanceTimeline.midi(performance)};return try MIDIExporter.data(snapshot,range:range)}.value;try Task.checkCancellation();try data.write(to:url,options:.atomic)
                 case .project:try await store.portable(snapshot,to:url)
                 case .wav:
-                    let receipt:RenderReceipt;if let performance{receipt=try await OfflineRenderer.renderPerformance(performance,to:url,settings:settings,progress:progress)}else{receipt=try await OfflineRenderer.render(snapshot,to:url,settings:settings,range:range,progress:progress)}
+                    let receipt:RenderReceipt;if let performance{receipt=try await OfflineRenderer.renderPerformance(performance,to:url,settings:settings,samples:samples,progress:progress)}else{receipt=try await OfflineRenderer.render(snapshot,to:url,settings:settings,range:range,samples:samples,progress:progress)}
                     if receipt.clipped{exportWarning="Clipping was detected. Lower track or master gain for a cleaner export."}
-                case .stems:_ = try await StemExporter.render(snapshot,to:url,settings:settings,range:range,selected:tracks,progress:progress)
+                case .stems:_ = try await StemExporter.render(snapshot,to:url,settings:settings,range:range,selected:tracks,samples:samples,progress:progress)
                 }
                 try Task.checkCancellation();guard generation==exportGeneration else{return}
                 exportProgress=1;exportInProgress=false;exportedFolder=folder;exportedURL=url;sheet=nil;exportTask=nil
@@ -701,9 +706,10 @@ import Observation
             try await projectChangeBoundary(token,expected:expected,stage:"import.decoded")
             let installed=try await store.install(imported)
             written=installed
+            let samples = try await store.loadSamples(for: installed)
             initializeImportedListeningPreference(installed)
             try await projectChangeBoundary(token,expected:expected,stage:"candidate.saved")
-            activateProject(installed,savedRevision:installed.revision)
+            activateProject(installed,savedRevision:installed.revision,samples:samples)
             await refreshLibraryEntry(installed.id,validated:true)
         }catch{if let written{await retainUnopenedProject(written)}else{message=error.localizedDescription}}
     }
@@ -714,6 +720,48 @@ import Observation
         do{try withHistoryTransaction{h,p in try h.apply(&p){$0=placement.project}}}
         catch{await store.removeStagedAsset(record,projectID:projectID);throw error}
         noteTrackID=placement.trackID;sync();await save();return saveError==nil
+    }
+    func assignSounds(_ changes: [(pad: Int?, sound: PreparedSound)], trackID: UUID,
+                      projectID: UUID, revision: Int) async throws {
+        func matches() -> Bool {
+            project.id == projectID && project.revision == revision && projectChangeToken == nil &&
+                !recording && !armed && !performance.contextActive
+        }
+        guard matches(), let index = project.tracks.firstIndex(where: { $0.id == trackID }) else { throw SampleError.stale }
+        guard !changes.isEmpty, Set(changes.map { $0.pad }).count == changes.count else { throw SampleError.invalid }
+        var candidate = project
+        for (pad, sound) in changes {
+            if let pad {
+                var pads = candidate.tracks[index].padSamples ?? [:]
+                pads[pad] = sound.asset
+                candidate.tracks[index].padSamples = pads
+            } else {
+                candidate.tracks[index].instrumentSample = sound.asset
+            }
+        }
+        try candidate.validate()
+        let retained = history.retainedSamples.union(project.referencedSamples).union(candidate.referencedSamples)
+        guard retained.reduce(0, { $0 + $1.byteCount }) <= 128_000_000 else { throw SampleError.limit }
+        var prepared: [PreparedSampleBank] = []
+        do {
+            for change in changes {
+                try Task.checkCancellation()
+                guard matches() else { throw SampleError.stale }
+                let sound = change.sound
+                prepared.append(try await store.stageSample(sound.data, asset: sound.asset, projectID: projectID))
+            }
+            try Task.checkCancellation()
+            guard matches() else { throw SampleError.stale }
+            try withHistoryTransaction { history, project in try history.apply(&project) { $0 = candidate } }
+        } catch {
+            for bank in prepared { await store.removeStagedSample(bank.asset, projectID: projectID) }
+            throw error
+        }
+        for bank in prepared { audio.samples.insert(bank) }
+        audio.samples.retainOnly(history.retainedSamples.union(project.referencedSamples))
+        mixerGesture = false
+        sync()
+        scheduleSave()
     }
     func startPerformance(record:Bool){
         finishTake();guard ensureAudio()else{return};mixerGesture=false
@@ -757,9 +805,10 @@ import Observation
             written=copy
             try await projectChangeBoundary(token,expected:expected,stage:"candidate.saved")
             let verified=try await store.load(copy.id)
+            let samples = escapingFailure ? try await store.loadSamples(for: verified) : SampleLibrary()
             try await projectChangeBoundary(token,expected:expected,stage:"copy.verified")
             copyGeneratedLoopPreference(from:working.id,to:verified.id)
-            if escapingFailure{saveError=nil;activateProject(verified,savedRevision:verified.revision)}
+            if escapingFailure{saveError=nil;activateProject(verified,savedRevision:verified.revision,samples:samples)}
             await refreshLibraryEntry(copy.id,validated:true)
             message="A copy has been saved."
         }catch{if let written{await retainUnopenedProject(written)}else{message=error.localizedDescription}}

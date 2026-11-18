@@ -92,6 +92,7 @@ public actor ProjectStore {
     private func package(_ id: UUID) -> URL { root.appendingPathComponent(id.uuidString).appendingPathExtension("grilla") }
     @discardableResult public func save(_ project: Project) throws -> Int {
         try project.validate()
+        for asset in project.referencedSamples { _ = try sampleURL(asset, projectID: project.id) }
         let folder = package(project.id); try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let encoder = JSONEncoder(); encoder.outputFormatting = [.sortedKeys]; let data = try encoder.encode(project)
         _ = try JSONDecoder().decode(Project.self, from: data)
@@ -193,6 +194,59 @@ public actor ProjectStore {
 }
 
 public extension ProjectStore {
+    /// Each staged asset uses a fresh UUID so a cancelled edit can remove
+    /// its file without affecting a saved or undoable assignment.
+    func stageSample(_ data: Data, asset: SampleAsset, projectID: UUID) throws -> PreparedSampleBank {
+        let prepared = try PreparedSampleBank(asset: asset, data: data)
+        guard !FileManager.default.fileExists(atPath: package(projectID).appendingPathComponent(asset.relativePath).path) else {
+            throw SampleError.invalid
+        }
+        try putSample(data, asset: asset, projectID: projectID)
+        return prepared
+    }
+
+    func removeStagedSample(_ asset: SampleAsset, projectID: UUID) {
+        try? FileManager.default.removeItem(at: package(projectID).appendingPathComponent(asset.relativePath))
+    }
+
+    private func putSample(_ data: Data, asset: SampleAsset, projectID: UUID) throws {
+        let url = package(projectID).appendingPathComponent(asset.relativePath)
+        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        if FileManager.default.fileExists(atPath: url.path) {
+            let current = try readSample(asset, projectID: projectID)
+            guard current == data else { throw SampleError.invalid }
+        } else {
+            try data.write(to: url, options: .atomic)
+        }
+    }
+
+    private func sampleURL(_ asset: SampleAsset, projectID: UUID) throws -> URL {
+        try asset.validate()
+        let url = package(projectID).appendingPathComponent(asset.relativePath)
+        let values = try? url.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey, .fileSizeKey])
+        guard values?.isRegularFile == true, values?.isSymbolicLink != true,
+              values?.fileSize == asset.byteCount else { throw SampleError.unavailable }
+        return url
+    }
+
+    private func readSample(_ asset: SampleAsset, projectID: UUID) throws -> Data {
+        let url = try sampleURL(asset, projectID: projectID)
+        let file = try FileHandle(forReadingFrom: url)
+        defer { try? file.close() }
+        let data = try file.read(upToCount: asset.byteCount + 1) ?? Data()
+        guard data.count == asset.byteCount else { throw SampleError.invalid }
+        return data
+    }
+
+    func loadSamples(for project: Project) throws -> SampleLibrary {
+        var library = SampleLibrary()
+        for asset in project.referencedSamples {
+            try Task.checkCancellation()
+            try library.insert(PreparedSampleBank(asset: asset, data: readSample(asset, projectID: project.id)))
+        }
+        return library
+    }
+
     func writeAsset(_ data:Data,record:AudioAssetRecord,projectID:UUID)throws {
         try AssetIntegrity.validate(data,record:record)
         let url=package(projectID).appendingPathComponent(record.relativePath)
@@ -210,18 +264,43 @@ public extension ProjectStore {
         let entries=try PortableProject.documentEntries(project)
         var files:[(name:String,url:URL)]=[]
         for record in project.audioAssets ?? []{try Task.checkCancellation();files.append((record.relativePath,try assetURL(record,projectID:project.id)))}
+        for asset in project.referencedSamples.sorted(by: { $0.relativePath < $1.relativePath }) {
+            try Task.checkCancellation()
+            _ = try SamplePCM.decode(readSample(asset, projectID: project.id), asset: asset)
+            files.append((asset.relativePath, try sampleURL(asset, projectID: project.id)))
+        }
         try ProjectArchive.writeFiles(files,extras:entries,to:url)
     }
     func install(_ bundle:PortableProjectBundle)throws->Project {
         try bundle.project.validate();let folder=package(bundle.project.id)
         guard !FileManager.default.fileExists(atPath:folder.path)else{throw ExportError.invalidArchive}
-        do{for record in bundle.project.audioAssets ?? []{guard let data=bundle.assets[record.relativePath]else{throw ExportError.invalidArchive};try writeAsset(data,record:record,projectID:bundle.project.id)};try save(bundle.project);return bundle.project}
+        do {
+            for record in bundle.project.audioAssets ?? []{guard let data=bundle.assets[record.relativePath]else{throw ExportError.invalidArchive};try writeAsset(data,record:record,projectID:bundle.project.id)}
+            for asset in bundle.project.referencedSamples {
+                try Task.checkCancellation()
+                guard let data = bundle.assets[asset.relativePath] else { throw SampleError.unavailable }
+                _ = try SamplePCM.decode(data, asset: asset)
+                try putSample(data, asset: asset, projectID: bundle.project.id)
+            }
+            try save(bundle.project)
+            return bundle.project
+        }
         catch{try? FileManager.default.removeItem(at:folder);throw error}
     }
     func duplicate(_ source:Project,suffix:String=" copy")throws->Project {
         try source.validate();var copy=source;copy.id=UUID();copy.name=String(copy.name.prefix(110))+suffix;copy.modified=Date();copy.revision=0
         let folder=package(copy.id)
-        do{for record in source.audioAssets ?? []{try Task.checkCancellation();let url=try assetURL(record,projectID:source.id);try writeAsset(Data(contentsOf:url),record:record,projectID:copy.id)};try save(copy);return copy}
+        do {
+            for record in source.audioAssets ?? []{try Task.checkCancellation();let url=try assetURL(record,projectID:source.id);try writeAsset(Data(contentsOf:url),record:record,projectID:copy.id)}
+            for asset in source.referencedSamples {
+                try Task.checkCancellation()
+                let data = try readSample(asset, projectID: source.id)
+                _ = try SamplePCM.decode(data, asset: asset)
+                try putSample(data, asset: asset, projectID: copy.id)
+            }
+            try save(copy)
+            return copy
+        }
         catch{try? FileManager.default.removeItem(at:folder);throw error}
     }
 }

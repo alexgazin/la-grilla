@@ -121,8 +121,51 @@ static void dumpClassic(){
         for(int pad=0;pad<16;pad++){const auto value=sound(rate,version,1,pad,60,false,false,0.08);assert(std::fwrite(value.data(),sizeof(float),value.size(),stdout)==value.size());}
     }}releaseKernels();
 }
+static void sampleSnapshots(){
+    auto *kernel=lg_create(48000);
+    assert(kernel);
+    std::array<int16_t,4096> pcm{};
+    for(std::size_t i=0;i<pcm.size();i++)pcm[i]=int16_t(i%80<40?12000:-9000);
+    const LGSampleZone zone={60,0,int(pcm.size()),0};
+    auto *bank=lg_sample_create(32000,&zone,1,pcm.data(),int(pcm.size()));
+    assert(bank);
+    std::array<LGSampleBank*,8> instruments{};
+    std::array<LGSampleBank*,16> pads{};
+    instruments[0]=bank;
+    pads[0]=bank;
+    std::array<LGProjectTrack,2> tracks={{{{0,0,1},2,0,0,1},{{0,0,1},2,1,9,2}}};
+    const LGNote note={0,1920,60,100,1,0,1};
+    assert(lg_submit_project_samples(kernel,&note,1,120,0,3840,0,1,1,tracks.data(),2,0,0,0,instruments.data(),pads.data()));
+    auto *offline=lg_create(48000);
+    assert(offline&&lg_submit_samples(offline,&note,1,120,0,3840,0,1,instruments.data(),pads.data()));
+    lg_mix(offline,1,0,0,1);
+    lg_master(offline,0);
+    lg_sample_release(bank);
+    // The app drops its ownership before the callback has claimed the slot.
+    std::array<float,2048> live{},rendered{},right{};
+    block(kernel,live.data(),right.data(),int(live.size()));
+    for(int i=0;i<4;i++)block(offline,rendered.data(),right.data(),int(rendered.size()));
+    assert(lg_pad(kernel,0,100));
+    lg_play(offline,1);
+    block(kernel,live.data(),right.data(),int(live.size()));
+    block(offline,rendered.data(),right.data(),int(rendered.size()));
+    assert(*std::max_element(live.begin(),live.end())>0.05f);
+    for(std::size_t i=0;i<live.size();i++)assert(std::abs(live[i]-rendered[i])<0.00002f);
+    lg_destroy(offline);
+
+    // Replacing the active route while it still rings must retire the voice
+    // before the producer can overwrite its former snapshot.
+    assert(lg_submit_project(kernel,nullptr,0,120,0,3840,0,2,1,tracks.data(),2,0,0,0));
+    block(kernel,live.data(),right.data(),int(live.size()));
+    assert(live.back()==0);
+    assert(lg_submit_project(kernel,nullptr,0,120,0,3840,0,3,1,tracks.data(),2,0,0,0));
+    block(kernel,live.data(),right.data(),int(live.size()));
+    assert(std::all_of(live.begin(),live.end(),[](float x){return x==0;}));
+    lg_destroy(kernel);
+}
 int main(int argc,char**argv){
     if(argc==2&&std::string(argv[1])=="--dump-classic"){dumpClassic();return 0;}
-    validity();distinctPalettes();rateCorrectTails();polyphonyAndRetirement();assert(renderAllocations==0);
+    validity();distinctPalettes();rateCorrectTails();polyphonyAndRetirement();sampleSnapshots();assert(renderAllocations==0);
     std::cout<<"Sound palettes: Classic/Warm/Bright have distinct normalized waveforms for all roles and 16 pads at44.1–192kHz; live pad/sequencer and snapshot/direct presets match, tails rate-correct, output finite and allocation-free\n";
+    std::cout<<"Imported PCM: live pad and scheduled export match within the mix settling tolerance; sample slots retain and retire assets without render allocations\n";
 }

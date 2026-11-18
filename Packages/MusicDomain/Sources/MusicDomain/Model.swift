@@ -223,6 +223,8 @@ public struct Clip: Codable, Equatable, Identifiable, Sendable {
 public struct Track: Codable, Equatable, Identifiable, Sendable {
     public var id: UUID = UUID(); public var role: TrackRole; public var name:String?; public var displayName:String{name ?? NSLocalizedString(role.rawValue.capitalized,comment:"Track role")}; public var gain: Double = -6; public var pan: Double = 0
     public var mute = false; public var solo = false; public var presetVersion = 2; public var clips: [Clip] = []
+    public var instrumentSample: SampleAsset?
+    public var padSamples: [Int: SampleAsset]?
     public init(role: TrackRole) { self.role = role }
 }
 public struct Section: Codable, Equatable, Identifiable, Sendable {
@@ -230,7 +232,7 @@ public struct Section: Codable, Equatable, Identifiable, Sendable {
     public init(name: String, start: Int = 0, length: Int) { self.name = name; self.start = start; self.length = length }
 }
 public struct Project: Codable, Equatable, Identifiable, Sendable {
-    public var id: UUID = UUID(); public static let currentSchemaVersion=11
+    public var id: UUID = UUID(); public static let currentSchemaVersion=12
     /// Portable, nonnegative revision IDs. Exhaustion requires a new project
     /// copy rather than wrapping an ID used by history, saving and playback.
     public static let maximumRevision=Int(Int32.max)
@@ -280,7 +282,21 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
         if let take=performanceTake{guard (take.source.audioAssets ?? []).allSatisfy({asset in (audioAssets ?? []).contains(asset)})else{throw MusicError.invalidProject}}
         guard (audioAssets ?? []).count<=8 else{throw MusicError.tooDense}
         for asset in audioAssets ?? []{try asset.validate()}
+        let samples = referencedSamples
+        guard samples.count <= 48 else { throw SampleError.limit }
+        for asset in samples { try asset.validate() }
+        let sampleBytes = samples.reduce(0) { $0 + $1.byteCount }
+        guard sampleBytes <= 48_000_000,
+              sampleBytes <= 116_000_000 - (audioAssets ?? []).reduce(0, { $0 + $1.byteCount }) else { throw SampleError.limit }
+        for track in tracks {
+            if let asset = track.instrumentSample, track.role == .drums || asset.kind != .instrument { throw MusicError.invalidProject }
+            if let pads = track.padSamples {
+                guard track.role == .drums, pads.count <= 16,
+                      pads.allSatisfy({ (0..<16).contains($0.key) && $0.value.kind == .oneShot }) else { throw MusicError.invalidProject }
+            }
+        }
         var ids=[id];if let take=performanceTake{ids.append(take.id)};ids += (audioAssets ?? []).map(\.id)
+        ids += samples.map(\.id)
         ids += tracks.map(\.id);ids += patterns.map(\.id);ids += sections.map(\.id)
         ids += tracks.flatMap{$0.clips.map(\.id)}
         for p in patterns {ids += p.chords.map(\.id);ids += p.drums.map(\.id);ids += (p.notes ?? []).map(\.id)}
@@ -377,6 +393,9 @@ public struct History: Sendable {
     private var fullyValidatedProject:Project?
     public init() {}
     public var canUndo: Bool { !past.isEmpty }; public var canRedo: Bool { !future.isEmpty }
+    public var retainedSamples: Set<SampleAsset> {
+        Set((past + future).flatMap { $0.referencedSamples })
+    }
     public mutating func apply(_ project: inout Project, coalescing: Bool = false, _ change: (inout Project) throws -> Void) throws {
         guard let revision=project.nextRevision else{throw MusicError.revisionLimit}
         var candidate = project; try change(&candidate); candidate.revision = revision; candidate.modified = Date(); try candidate.validate()
@@ -437,6 +456,10 @@ public enum ProjectDocument {
         if p.schemaVersion==8{p.schemaVersion=9}
         if p.schemaVersion==9{p.schemaVersion=10}
         if p.schemaVersion==10{p.schemaVersion=11}
+        if p.schemaVersion==11 {
+            guard p.tracks.allSatisfy({ $0.instrumentSample == nil && $0.padSamples == nil }) else { throw MusicError.invalidProject }
+            p.schemaVersion=12
+        }
         if var take=p.performanceTake{take.source=try migrated(take.source);p.performanceTake=take}
         try p.validate();return p
     }

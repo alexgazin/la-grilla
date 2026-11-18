@@ -122,4 +122,64 @@ final class SoundPickerUITests:XCTestCase {
         XCTAssertEqual(entry(app).value as? String,"Classic kit")
         app.buttons["Stop"].tap()
     }
+
+    @MainActor func testPocketKitIsAnUndoableEditAndReopensWithTheSamePadSamples() {
+        let app = launch(); defer { app.terminate() }
+        let sound = entry(app)
+        XCTAssertTrue(sound.waitForExistence(timeout: 5))
+        sound.tap()
+        app.buttons["sound.samples"].tap()
+        let pocket = app.buttons["pad-samples.pocket-kit"]
+        XCTAssertTrue(pocket.waitForExistence(timeout: 5))
+        pocket.tap()
+        let kick = app.staticTexts.matching(NSPredicate(format: "label == 'Pocket · Kick'")).firstMatch
+        XCTAssertTrue(kick.waitForExistence(timeout: 15))
+        let image = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        image.name = "Sound28-pocket-kit"; image.lifetime = .keepAlways; add(image)
+        app.buttons["Done"].tap()
+        app.buttons["Cancel"].tap()
+        XCTAssertEqual(entry(app).value as? String, "Custom kit")
+        app.buttons["Undo"].tap()
+        XCTAssertEqual(entry(app).value as? String, "Classic kit")
+        XCTAssertFalse(app.buttons["Undo"].isEnabled)
+        app.buttons["Redo"].tap()
+        XCTAssertEqual(entry(app).value as? String, "Custom kit")
+        let saved = app.descendants(matching: .any).matching(NSPredicate(format: "label == 'Saved on this iPhone'")).firstMatch
+        XCTAssertTrue(saved.waitForExistence(timeout: 8))
+        app.terminate(); app.launch()
+        XCTAssertTrue(app.buttons["perform.transport"].waitForExistence(timeout: 15))
+        XCTAssertEqual(entry(app).value as? String, "Custom kit")
+        entry(app).tap(); app.buttons["sound.samples"].tap()
+        XCTAssertTrue(kick.waitForExistence(timeout: 10))
+        if ProcessInfo.processInfo.environment["GRILLA_TEST_SOUNDFONT"] == "1" {
+            app.buttons["Done"].tap()
+            app.navigationBars["Sound"].buttons["Cancel"].tap()
+            verifySeededSoundFont(app)
+        }
+    }
+
+    @MainActor private func verifySeededSoundFont(_ app: XCUIApplication) {
+        app.buttons["Mixer"].tap()
+        let harmony = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'sound.track.harmony.'")).firstMatch
+        XCTAssertTrue(harmony.waitForExistence(timeout: 5))
+        harmony.tap()
+        app.buttons["sound.banks"].tap()
+        let piano = app.buttons["sound-bank.program.0.0"]
+        XCTAssertTrue(piano.waitForExistence(timeout: 12), "The real test SoundFont should appear in the library")
+        piano.tap()
+        let image = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        image.name = "Sound28-soundfont"; image.lifetime = .keepAlways; add(image)
+        app.buttons["sound-bank.apply"].tap()
+        let selected = app.staticTexts["Piano 1"]
+        XCTAssertTrue(selected.waitForExistence(timeout: 30))
+        XCTAssertTrue(app.navigationBars["Sound"].buttons["Cancel"].waitForExistence(timeout: 30))
+        app.navigationBars["Sound"].buttons["Cancel"].tap()
+        XCTAssertEqual(harmony.value as? String, "Piano 1")
+        wait(app) { trace in
+            guard let submitted = self.field("submittedGeneration", in: trace) else { return false }
+            return self.field("actualGeneration", in: trace) == submitted
+        }
+        let proof = XCTAttachment(string: report(app))
+        proof.name = "Sound28-assigned-instrument-adopted"; proof.lifetime = .keepAlways; add(proof)
+    }
 }

@@ -27,6 +27,7 @@ public enum TrackSoundPreview {
         }
         preview.tracks[selected].gain=min(-6,source.tracks[selected].gain)
         preview.tracks[selected].presetVersion=palette.rawValue
+        preview.tracks[selected].instrumentSample = nil
         var pattern=Pattern(length:barTicks)
         let role=preview.tracks[selected].role
         switch role {

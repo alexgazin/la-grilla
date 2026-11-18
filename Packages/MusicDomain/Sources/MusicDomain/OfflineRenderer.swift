@@ -36,11 +36,11 @@ public struct RenderReceipt: Sendable, Equatable {
     public let clipped: Bool
 }
 public enum OfflineRenderer {
-    public static func renderPerformance(_ take:PerformanceTake,to url:URL,settings:WAVSettings=WAVSettings(tailSeconds:0),progress:@Sendable(Double)->Void={_ in})async throws->RenderReceipt {
-        try take.validate();return try await render(take.source,to:url,settings:settings,performance:take,progress:progress)
+    public static func renderPerformance(_ take:PerformanceTake,to url:URL,settings:WAVSettings=WAVSettings(tailSeconds:0),samples:SampleLibrary=SampleLibrary(),progress:@Sendable(Double)->Void={_ in})async throws->RenderReceipt {
+        try take.validate();return try await render(take.source,to:url,settings:settings,performance:take,samples:samples,progress:progress)
     }
     /// Compiles an immutable value snapshot; the live AVAudioEngine is never touched.
-    public static func render(_ project: Project, to url: URL, settings: WAVSettings = WAVSettings(), range requested: Range<Int>? = nil, isolatedTrack: UUID? = nil, performance:PerformanceTake?=nil, progress: @Sendable (Double) -> Void = { _ in }) async throws -> RenderReceipt {
+    public static func render(_ project: Project, to url: URL, settings: WAVSettings = WAVSettings(), range requested: Range<Int>? = nil, isolatedTrack: UUID? = nil, performance:PerformanceTake?=nil, samples: SampleLibrary = SampleLibrary(), progress: @Sendable (Double) -> Void = { _ in }) async throws -> RenderReceipt {
         try Task.checkCancellation(); try project.validate(); try settings.validate()
         let range = requested ?? 0..<project.length
         guard range.lowerBound >= 0, range.upperBound <= project.length, !range.isEmpty else { throw ExportError.invalidRange }
@@ -55,7 +55,12 @@ public enum OfflineRenderer {
         let notes = compiled.map { LGNote(tick: Int32($0.tick), duration: Int32($0.duration), pitch: Int32($0.pitch), velocity: Int32($0.velocity), track: Int32($0.track), pad: Int32($0.pad),instrument:Int32($0.instrument)) }
         let firstSection=performance.flatMap{take in take.source.sections.first{$0.id==take.events.first?.sectionID}}
         let start=firstSection?.start ?? 0,end=firstSection.map{$0.start+$0.length} ?? range.count
-        let submitted = notes.withUnsafeBufferPointer { lg_submit(kernel, $0.baseAddress, Int32($0.count), project.bpm, Int32(start), Int32(end), performance==nil ? 0:1, Int32(clamping: project.revision)) }
+        let submitted = try samples.withRoutes(for: project) { instruments, pads in
+            notes.withUnsafeBufferPointer {
+                lg_submit_samples(kernel, $0.baseAddress, Int32($0.count), project.bpm, Int32(start), Int32(end),
+                                  performance == nil ? 0 : 1, Int32(clamping: project.revision), instruments, pads)
+            }
+        }
         guard submitted != 0 else { throw ExportError.renderUnavailable }
         let solo = project.tracks.contains(where: \.solo)
         for (index, track) in project.tracks.enumerated() {

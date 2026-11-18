@@ -10,16 +10,21 @@ struct SoundPaletteTests {
             old.performanceTake=PerformanceTake(source:old,sampleRate:48000,durationFrames:48000,events:[PerformanceEvent(frame:0,kind:.section,sectionID:old.sections[0].id)])
             let data=try JSONEncoder().encode(old)
             let loaded=try ProjectDocument.decode(data)
-            #expect(loaded.schemaVersion==11)
+            #expect(loaded.schemaVersion==Project.currentSchemaVersion)
             #expect(loaded.tracks==old.tracks)
             #expect(loaded.patterns==old.patterns)
             #expect(Compiler.notes(loaded)==Compiler.notes(old))
             #expect(loaded.performanceTake?.source.tracks==old.tracks)
-            #expect(loaded.performanceTake?.source.schemaVersion==11)
+            #expect(loaded.performanceTake?.source.schemaVersion==Project.currentSchemaVersion)
             #expect(try JSONDecoder().decode(Project.self,from:data)==old)
             var malformed=old;malformed.tracks[0].presetVersion=3
             #expect(throws:MusicError.self){try ProjectDocument.decode(JSONEncoder().encode(malformed))}
         }
+        var previous = Project.demo()
+        previous.schemaVersion = 11
+        previous.tracks[0].presetVersion = SoundPalette.bright.rawValue
+        let migrated = try ProjectDocument.decode(JSONEncoder().encode(previous))
+        #expect(migrated.schemaVersion == Project.currentSchemaVersion && migrated.tracks == previous.tracks)
         var future=Project.demo();future.schemaVersion=Project.currentSchemaVersion+1
         #expect(throws:MusicError.unsupportedSchema){try ProjectDocument.decode(JSONEncoder().encode(future))}
     }
