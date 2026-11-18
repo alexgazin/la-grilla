@@ -1,0 +1,75 @@
+{
+  "artifact": 14406207053,
+  "run": 44255310833,
+  "source": "19f914584e25ad20b6d3264faef6ade7d1eba42d",
+  "sourceTree": "fe48ab6b3b6dc169f609546c19bef0e93072cae1",
+  "bytes": 3954385,
+  "sha256": "e64b2a878d8c170f8514483eaa729b96a7a56bd4c96e3e43dc12076a95e0bcde",
+  "entries": 16,
+  "binary": {
+    "architecture": "arm64",
+    "platform": "iOS",
+    "minimumOS": "18.0.0",
+    "sdk": "26.2.0",
+    "uuid": "6C28F504-6C2E-3E95-88AD-D62A3D64A756",
+    "dsymUUIDMatches": true,
+    "foundationModelsLoadCommand": "LC_LOAD_WEAK_DYLIB",
+    "foundationModelsOrdinal": 15,
+    "foundationModelsWeakSymbols": 78,
+    "foundationModelsWeakChainedImports": 78,
+    "initializerSections": [],
+    "hasCodeSignatureCommand": false,
+    "runtimeValidation": "Static binary checks only; signed-device startup on iOS 18 still requires device QA."
+  },
+  "build": 28,
+  "version": "1.0.0",
+  "fullAcceptance": false,
+  "soundSimulator": {
+    "repository": "alexgazin/la-grilla",
+    "sourceSHA": "19f914584e25ad20b6d3264faef6ade7d1eba42d",
+    "run": 44255310891,
+    "attempt": 1,
+    "artifact": 14405899109,
+    "requiredTestOutcomes": {
+      "SoundPickerUITests/testLiveSoundPreviewRetainsTheGrooveAndSourceRevision": "passed",
+      "SoundPickerUITests/testPocketKitIsAnUndoableEditAndReopensWithTheSamePadSamples": "passed"
+    },
+    "assignedInstrumentGeneration": 2,
+    "elapsedSeconds": 206.68999754200001,
+    "images": [
+      {
+        "file": "pocket-kit.png",
+        "original": "BD56D0E2-AE20-4A0D-A6BF-49F90FD94E5D.png",
+        "owner": "SoundPickerUITests/testPocketKitIsAnUndoableEditAndReopensWithTheSamePadSamples",
+        "device": "iPhone 16 Pro Max",
+        "width": 1320,
+        "height": 2868,
+        "bytes": 219520,
+        "sha256": "7368a55ca46b887b7940c3b2089994b47e35f9f97e55730c2fe7ebc10c93a94f"
+      },
+      {
+        "file": "soundfont.png",
+        "original": "1F0C7EAE-33DE-4D8A-9132-B6399F202B09.png",
+        "owner": "SoundPickerUITests/testPocketKitIsAnUndoableEditAndReopensWithTheSamePadSamples",
+        "device": "iPhone 16 Pro Max",
+        "width": 1320,
+        "height": 2868,
+        "bytes": 227147,
+        "sha256": "0480ccd368ce67b0cd02894101622b4ab32be8a983b019ce1e1394316857140e"
+      }
+    ],
+    "fullAcceptance": false,
+    "physicalDevice": false
+  },
+  "samplerOnMacOS": {
+    "run": 44255310891,
+    "job": 134635486822,
+    "programCount": 136,
+    "zonesPerProgram": 37,
+    "exportPeak": {
+      "Piano 1": 0.13337465,
+      "Nylon Guitar": 0.13516727
+    },
+    "originalOneShots": 16
+  }
+}

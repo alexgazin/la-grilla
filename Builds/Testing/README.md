@@ -1,5 +1,17 @@
 # La Grilla для ручного тестирования
 
+**[Скачать IPA 28 для iPhone](https://github.com/alexgazin/la-grilla/actions/runs/44255310833/artifacts/14406207053)**. Из архива извлеките `LaGrilla-unsigned.ipa` и подпишите своей Personal Team. Пакет 1.0.0 (28), arm64, iOS 18+. Размер 3 954 385 байт, SHA-256 `e64b2a878d8c170f8514483eaa729b96a7a56bd4c96e3e43dc12076a95e0bcde`. [Проверка исходника и пакета](candidate28-samples-verification.json).
+
+### Что проверить в сборке 28
+
+- В микшере откройте «Звук» у гармонии или мелодии, загрузите `.sf2`, прослушайте и назначьте инструмент. Включите Play и экспортируйте WAV.
+- В Джеме откройте «Звук → Сэмплы пэдов», загрузите Pocket Kit и сыграйте. Импортируйте короткий WAV или AIFF на один пэд. Проверьте запись на петлю, Undo/Redo и открытие проекта после перезапуска.
+- Экспортируйте `.grillapack`, откройте его копию в сборке 28 и сравните звук. Для слепка исполненного микса используйте WAV, для дальнейшего редактирования партий в DAW доступны stems и MIDI.
+
+[Конструктор и руководство по звуку](../../docs/SONG_FORM_AND_SOUND_BANKS.md) · [Протокол проверки физического iPhone](../../docs/release/DEVICE_ACCEPTANCE.md)
+
+### Предыдущая сборка 27
+
 **[Сборка 27 для iPhone](https://github.com/alexgazin/la-grilla/actions/runs/44248325062/artifacts/14403425905)**. Из ZIP извлеките `LaGrilla-unsigned.ipa` и подпишите своей Personal Team. Файл: 3 863 194 байта, SHA-256 `c85ae78fbcfea98f9d2ec1de0fda65352e1d46854070b7914b116e133ec1e163`. [Исходник и проверка пакета](candidate27-song-form-verification.json).
 
 Три сценария конструктора прошли на iPhone Simulator. Импорт и предпрослушивание SoundFont прошли проверку на macOS с настоящим банком. [Оригиналы скриншотов](../../Screenshots/SongForm27/README.md).

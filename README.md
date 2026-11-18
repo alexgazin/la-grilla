@@ -11,32 +11,35 @@
   iOS 18+ · SwiftUI · нативный звук · RU / EN · без аккаунта
 </p>
 
-<p align="center"><a href="#экраны-сборки-23">Экраны</a> · <a href="#возможности-сборки-23">Возможности</a> · <a href="#попробовать-на-iphone">На iPhone</a> · <a href="docs/release/CURRENT.md">Текущий статус</a> · <a href="ROADMAP.md">Роадмап</a></p>
+<p align="center"><a href="#экраны">Экраны</a> · <a href="#возможности">Возможности</a> · <a href="#попробовать-на-iphone">На iPhone</a> · <a href="docs/release/CURRENT.md">Текущий статус</a> · <a href="ROADMAP.md">Роадмап</a></p>
 
 
-**Nocturne 24 — предыдущая тестовая сборка.** Пять реальных ночных экранов сохранены в [Design26](Screenshots/Design26/README.md); их общий сценарий прошёл за 103.043 с. Нативный focused-прогон исходника 207fc2b: 9 PASS, Light превысил120 с на заключительных проверках, PadContact оборвался при запуске до UI. Gate не принят. Повторные запросы геометрии и неиспользуемые снимки в новом тесте удалены; все проверки и лимиты сохранены. Следующий полный inventory 75 — Pending.
+## Экраны
 
-## Форма песни и SoundFont в сборке 27
+### Форма песни
 
-«Форма песни» над сеткой показывает всю композицию. Перемещайте карточки за ручку, добавляйте секции нужной длины, дублируйте и удаляйте их. Assistant показывает исходную и предложенную форму перед применением. В меню «Звук» можно загрузить `.sf2` из «Файлов» и послушать программы банка.
+Откройте «Форму песни» над сеткой, чтобы увидеть пропорции куплетов, припевов и бриджей. Перемещайте карточки за ручку, добавляйте и дублируйте секции. «Помощник» показывает исходную и предложенную структуру перед применением.
 
 <table><tr><td><a href="Screenshots/SongForm27/song-form.png"><img src="Screenshots/SongForm27/song-form.png" width="220" alt="Монтажная лента после перестановки бриджа"></a></td><td><a href="Screenshots/SongForm27/assistant-form.png"><img src="Screenshots/SongForm27/assistant-form.png" width="220" alt="Исходная и предложенная форма песни в Assistant"></a></td></tr></table>
 
 [Оригиналы и нативная проверка](Screenshots/SongForm27/README.md) · [Применение и этапы звука](docs/SONG_FORM_AND_SOUND_BANKS.md)
 
-## Nocturne 24 — новые экраны
+### Звуковые банки и Pocket Kit
 
-Реальные экраны Night: пять PNG, owner PASS 103.043 с. Весь focused-прогон: 9 PASS / 2 FAIL; Light и запуск одного теста пэдов ещё не приняты. [Оригиналы и источник](Screenshots/Design26/README.md). Общий gate 75 и устройство остаются отдельной проверкой.
+Выберите программу SoundFont у мелодической дорожки и услышите тот же тембр в WAV и stems. В Джеме можно загрузить Pocket Kit из 16 сэмплов или назначить свой WAV/AIFF на любой пэд.
+
+<table><tr><td><a href="Screenshots/Sounds28/soundfont.png"><img src="Screenshots/Sounds28/soundfont.png" width="220" alt="Выбор Piano 1 из банка SoundFont"></a></td><td><a href="Screenshots/Sounds28/pocket-kit.png"><img src="Screenshots/Sounds28/pocket-kit.png" width="220" alt="Прослушивание сэмплов пэдов Pocket Kit"></a></td></tr></table>
+
+[Оригиналы и нативные тесты](Screenshots/Sounds28/README.md) · [Звуковые настройки](docs/SONG_FORM_AND_SOUND_BANKS.md)
+
+### Ночная тема
 
 <table><tr><td><a href="Screenshots/Design26/night-grid.png"><img src="Screenshots/Design26/night-grid.png" width="180" alt="Nocturne 24 grid"></a></td><td><a href="Screenshots/Design26/night-jam.png"><img src="Screenshots/Design26/night-jam.png" width="180" alt="Nocturne 24 jam"></a></td><td><a href="Screenshots/Design26/night-mixer.png"><img src="Screenshots/Design26/night-mixer.png" width="180" alt="Nocturne 24 mixer"></a></td></tr><tr><td><a href="Screenshots/Design26/night-piano.png"><img src="Screenshots/Design26/night-piano.png" width="180" alt="Nocturne 24 piano"></a></td><td><a href="Screenshots/Design26/night-sound.png"><img src="Screenshots/Design26/night-sound.png" width="180" alt="Nocturne 24 sound"></a></td></tr></table>
 
-[Диагностические кадры Light](Screenshots/Design26/Diagnostics/light-grid.png) · [IPA 24](https://github.com/alexgazin/la-grilla/actions/runs/44173635688/artifacts/14368802814)
+[Оригинальные экраны и их версии](Screenshots/Design26/README.md)
 
-**Предыдущая сборка 23 — тестовая альфа.** Последний полный прогон exact main `e22f487`: **70 PASS / 3 FAIL / 0 case allowance**, все 73 метода наблюдались, общего timeout нет. Четыре SDK-сборки прошли. Полная software-приёмка пока не пройдена; исторические результаты не суммируются.
-
-**[Архив IPA 23 · exact main e22f487](https://github.com/alexgazin/la-grilla/actions/runs/44156364284/artifacts/14361297972)** · [Установка](Builds/Testing/README.md) · [Роадмап](ROADMAP.md)
-
-Сочиняйте аккорды, записывайте бит и добавляйте мелодию в одну сетку. Сохраните редактируемый проект или заберите MIDI/WAV для продолжения работы в DAW.
+<details>
+<summary>История скриншотов сборки 23</summary>
 
 ## Экраны сборки 23
 
@@ -68,16 +71,18 @@
 
 Неизменённый оригинал source `8bc7866`: Pad-owner **PASS13.483s**, предшествующий LiveEditing полностью **PASS83.255s**, включая Stop/hold/timing/counter. Весь full73 остаётся **71 PASS / 2 FAIL / общий timeout**, без полной приёмки. [PNG, owner и provenance](Screenshots/Build23Pads/README.md).
 
-## Возможности сборки 23
+</details>
+
+## Возможности
 
 | Часть студии | Текущая реализация |
 | --- | --- |
-| **Grid и редакторы** | До 8 дорожек, 8 секций и 64 тактов. Перенос, копирование, изменение длины, pinch-to-zoom, piano roll, Undo/Redo. |
+| **Grid и редакторы** | До 8 дорожек, 8 секций и 64 тактов. Карта всей песни, перетаскивание секций, изменение длины клипов, pinch-to-zoom, piano roll, Undo/Redo. |
 | **Гармония** | 65 типов аккордов, свои интервальные формулы и voicing. A/B, стилизация, slash chords, буквенная запись, ступени и транспонирование. |
 | **Локальный SketchComposer** | Скетч из аккордов, ударных, баса и мелодии по стилю и seed. Проверка, прослушивание, Apply одной операцией и дальнейшее редактирование. |
 | **Jam и Perform** | Multi-touch пэды 4×4, шаги, квантование записи, overdub; запуск секций, фильтр/delay/repeat, запись и replay. Наклон для фильтра или Master включается вручную. |
 | **Помощник и голос** | RU/EN Commands; необязательный адаптер FoundationModels для музыкальных запросов на совместимом устройстве. Диктовка отдельно от монофонического Voice-to-MIDI beta с сохранением исходника и ручной коррекцией. |
-| **Микшер и MIDI** | Вертикальные фейдеры, pan, mute/solo, Master и выбор встроенного тембра; CoreMIDI input/output, CC Learn, Panic и интерфейс BLE MIDI. |
+| **Микшер и MIDI** | Вертикальные фейдеры, pan, mute/solo, Master, выбор встроенного тембра, назначение SoundFont и сэмплов пэдов. CoreMIDI input/output, CC Learn, Panic и интерфейс BLE MIDI. |
 | **Проекты и экспорт** | Автосохранение, восстановление и переносимый `.grillapack`; MIDI Type 1, WAV mixdown и выровненные stems, 44.1/48 kHz, 16/24 bit. |
 | **Интерфейс** | RU/EN, Light/Dark/System, Dynamic Type и VoiceOver. Статичный Launch Screen и анимация реальной загрузки без искусственной задержки. |
 
@@ -87,7 +92,7 @@
 
 - **Пэды:** звук запускается при начале контакта; два пальца работают независимо. Квантование привязывает запись к сетке.
 - **Ноты:** длина меняется прямо во время жеста; линия конца и подсказка помогают видеть результат над пальцем. Завершённый жест — одна операция Undo.
-- **Звуки:** кнопка «Звук» в Jam и Mixer открывает встроенные Classic/Warm/Bright с прослушиванием перед Apply.
+- **Звуки:** в микшере откройте «Звук» на мелодической дорожке, чтобы назначить инструмент из загруженного `.sf2`. В Джеме откройте «Звук → Сэмплы пэдов», чтобы выбрать Pocket Kit или назначить собственные WAV/AIFF. [Инструкция](docs/SONG_FORM_AND_SOUND_BANKS.md)
 - **Исполнение:** Replay и Reset доступны возле транспорта и фильтра, секции остаются под рукой при крупном тексте и в landscape. Наклоном можно управлять фильтром или громкостью микса проекта после ручного включения и калибровки.
 - **Редактирование:** полные настройки открываются из меню проекта, Preview/Apply аккорда закреплены у нижней границы редактора.
 - **Помощник:** у диктовки раздельные Start/Stop; поздний Stop после естественного окончания не начинает новую запись.
@@ -96,19 +101,15 @@
 
 ## Попробовать на iPhone
 
-**[Скачать La Grilla 1.0.0 (27)](https://github.com/alexgazin/la-grilla/actions/runs/44248325062/artifacts/14403425905)**. Из ZIP извлеките `LaGrilla-unsigned.ipa` и подпишите своим Apple ID через Sideloadly. Бесплатная Personal Team подходит. [Установка и проверка пакета](Builds/Testing/README.md).
+**[Скачать La Grilla 1.0.0 (28)](https://github.com/alexgazin/la-grilla/actions/runs/44255310833/artifacts/14406207053)**. Из ZIP извлеките `LaGrilla-unsigned.ipa` и подпишите своим Apple ID через Sideloadly. Бесплатная Personal Team подходит. [Установка и проверка пакета](Builds/Testing/README.md).
 
-Перед обновлением экспортируйте важные проекты в portable bundle. Сборка 27 читает схемы **1…11** и сохраняет **schema 11**; старые приложения не открывают сохранённую schema 11.
+Перед обновлением экспортируйте важные проекты в `.grillapack`. Сборка 28 открывает схемы 1…12 и сохраняет схему 12 с назначенными тембрами и сэмплами.
 
-## Следующие шаги
+## Подготовка к выпуску
 
-Закончить нативную проверку Nocturne 24: Night/Light, пэды и их onset, перемещение/длина нот и Undo, прослушивание/сохранение тембров, крупный текст и landscape. Затем сохранить реальные PNG с source/run, собрать новую IPA и пройти общий функциональный gate. [Подробный дизайн-контракт](DESIGN.md).
+Последовательность проверки включает полный регресс на iPhone Simulator, работу аудио и MIDI на физическом iPhone, перенос проекта и экспорт в DAW. Для TestFlight и App Store понадобятся подписанная сборка и доступ к App Store Connect.
 
-В исходнике `e22f487` пройдены 70 из 73 методов; остаются два Arrangement-сценария и выявленная гонка подготовки MIDI-теста. Для MIDI исправляется ожидание подтверждения seek до Play, без изменения проверок и production-аудио. Реальные аудиомаршруты, Voice-to-MIDI с человеком, FoundationModels на телефоне, MIDI-контроллеры и C8 остаются отдельной приёмкой перед beta/TestFlight/App Store.
-
-[Точный статус, ограничения и история failures](docs/release/CURRENT.md) · [Протокол устройства](docs/release/DEVICE_ACCEPTANCE.md) · [Роадмап](ROADMAP.md) · [План аудита](docs/review/2026-11-16/PLAN.md).
-
-Новое видео отменено по просьбе владельца. Исторические записи и кадры ниже сохраняют свои версии и источники.
+[Текущая сборка и результаты](docs/release/CURRENT.md) · [Протокол устройства](docs/release/DEVICE_ACCEPTANCE.md) · [Роадмап](ROADMAP.md) · [Дизайн](DESIGN.md)
 
 <details>
 <summary>Исходные экраны доработок 22: пэды, ноты и звук</summary>

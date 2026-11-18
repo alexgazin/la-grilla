@@ -1,0 +1,37 @@
+{
+  "repository": "alexgazin/la-grilla",
+  "sourceSHA": "19f914584e25ad20b6d3264faef6ade7d1eba42d",
+  "run": 44255310891,
+  "attempt": 1,
+  "artifact": 14405899109,
+  "requiredTestOutcomes": {
+    "SoundPickerUITests/testLiveSoundPreviewRetainsTheGrooveAndSourceRevision": "passed",
+    "SoundPickerUITests/testPocketKitIsAnUndoableEditAndReopensWithTheSamePadSamples": "passed"
+  },
+  "assignedInstrumentGeneration": 2,
+  "elapsedSeconds": 206.68999754200001,
+  "images": [
+    {
+      "file": "pocket-kit.png",
+      "original": "BD56D0E2-AE20-4A0D-A6BF-49F90FD94E5D.png",
+      "owner": "SoundPickerUITests/testPocketKitIsAnUndoableEditAndReopensWithTheSamePadSamples",
+      "device": "iPhone 16 Pro Max",
+      "width": 1320,
+      "height": 2868,
+      "bytes": 219520,
+      "sha256": "7368a55ca46b887b7940c3b2089994b47e35f9f97e55730c2fe7ebc10c93a94f"
+    },
+    {
+      "file": "soundfont.png",
+      "original": "1F0C7EAE-33DE-4D8A-9132-B6399F202B09.png",
+      "owner": "SoundPickerUITests/testPocketKitIsAnUndoableEditAndReopensWithTheSamePadSamples",
+      "device": "iPhone 16 Pro Max",
+      "width": 1320,
+      "height": 2868,
+      "bytes": 227147,
+      "sha256": "0480ccd368ce67b0cd02894101622b4ab32be8a983b019ce1e1394316857140e"
+    }
+  ],
+  "fullAcceptance": false,
+  "physicalDevice": false
+}

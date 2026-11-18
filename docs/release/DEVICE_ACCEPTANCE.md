@@ -1,5 +1,20 @@
 # Physical release acceptance record
 
+## Candidate 28 on a physical iPhone
+
+Use the [build 28 IPA and signing instructions](../../Builds/Testing/README.md). Record the signed build, device model, iOS version, audio route and evidence identifiers. Save a portable copy before upgrading projects. The build uses schema 12.
+
+| Workflow | Required device observation | Result |
+| --- | --- | --- |
+| Song Form while playing | Move two unequal-length sections with the card grip, switch playback to a new section, then undo. Confirm the groove continues and Assistant shows the new order. | Pending |
+| SoundFont on a track | Import a permitted SF2, preview piano and guitar, assign on Harmony and edit notes while playing. Record assignment duration, output peak, bar change, CPU and audible dropouts. | Pending |
+| Sample kit and one-shot | Load Pocket Kit, import a short WAV or AIFF on a pad and record a quantized loop. Compare the immediate hit, sequencer output, audition and loop playback on the speaker and a USB route. Record touch-to-audio measurements with the existing pad protocol. | Pending |
+| Reopen and publish audio | Undo and redo a sound change, force-quit and reopen, export WAV and aligned stems. Open a `.grillapack` copy on a second install and compare the sound even with only the portable project available. Verify the files in two DAWs. | Pending |
+
+Windows and Mac DAW checks can use the same files and signed iPhone build. Preserve each device and audio-route result with its own evidence. [Current software results](CURRENT.md)
+
+## Historical candidate 23
+
 **Downloadable app source: main `8bc7866c0da5ecf330deaafeaf107ac2b881ec79`, 1.0.0 (23), schema11. Formal physical acceptance: Pending. Last full run:73 observed / 71 PASS / 2 FAIL / 0 case allowance, with a global3600s supervisor timeout before xcresult finalization. Next coherent full73: Pending.** All four SDK/archive/compatibility jobs passed in [run44140208148/attempt1](https://github.com/alexgazin/la-grilla/actions/runs/44140208148/attempts/1); elapsed3621.266s, exit124/subprocess−15. The software gate failed. Two Arrangement observer corrections and finalization margin have no new runtime result yet. Previous82e4/7564/0cfd evidence stays source-bound. The owner has tried an installed app, but exact model/iOS/source/build have not been recorded. Feedback likes the night theme and chord/parallel-melody editing, while reporting uncertain pad onset, unclear resizing and hard-to-find sounds. That is defect feedback on an unidentified installed build, not acceptance of23. This environment has no connected physical iPhone, USB/BLE controller or two DAWs. All65 formal hardware result cells below remain **Pending**.
 
 Use the [package identities and signing instructions](../../Builds/Testing/README.md); [CURRENT](CURRENT.md) separates exact app/test sources and outcomes. Current manual download: fresh exact-main8bc original unsigned IPA, **3,693,136bytes**, SHA-256 `3836ee877d766d3fa5288997e3e76e3788b4a59a62ba83c689ca1efa8893e748`, [artifact14355166108 from run44140208148](https://github.com/alexgazin/la-grilla/actions/runs/44140208148/artifacts/14355166108). Source/receipt binding, ZIP/IPA CRC, all16 app files against the original app archive and matching dSYM passed independent static verification; [public receipt](../../Builds/Testing/candidate23-main-8bc7866-verification.json). Its hash differs from82e4/7564/db8. This is a separately verified manual-alpha package with an unaccepted native gate; tester signing and physical acceptance remain required. Historical82e4 keeps its own [artifact14346460625](https://github.com/alexgazin/la-grilla/actions/runs/44120318741/artifacts/14346460625), IPA3,693,136bytes/SHA-256 `93de06cf30a23acf186dd9a2427e98c2097136a0f53c671789cb8612662245a8`, SDK4/static PASS and full73 71/2/0 without global timeout. Candidate7564 retains its own [archive attempt2 artifact14342868829](https://github.com/alexgazin/la-grilla/actions/runs/44112860068/artifacts/14342868829), strict4 and SDK4 history. No result fills a physical field.
