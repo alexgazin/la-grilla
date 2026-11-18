@@ -38,6 +38,8 @@ private struct InstrumentKeyboard: View {
     @State private var task: Task<Void, Never>?
     @State private var error: String?
     @State private var take: KeyboardPhrase?
+    @State private var recordingLimit: TimeInterval = 0
+    @State private var finishTask: Task<Void, Never>?
     @State private var soundBanks = false
     @State private var surfaceID = UUID()
 
@@ -87,7 +89,11 @@ private struct InstrumentKeyboard: View {
                                 IconButton(symbol: take == nil ? "record.circle" : "stop.circle.fill",
                                            label: take == nil ? "Record phrase" : "Finish phrase", color: .record) {
                                     if take != nil { finishPhrase() }
-                                    else { take = KeyboardPhrase(patternID: clip.patternID, bpm: session.project.bpm) }
+                                    else if let pattern = session.project.patterns.first(where: { $0.id == clip.patternID }) {
+                                        take = KeyboardPhrase(patternID: clip.patternID, bpm: session.project.bpm)
+                                        let limit = Double(pattern.length) * 60 / (Double(ppq) * session.project.bpm)
+                                        recordingLimit = limit
+                                    }
                                 }.accessibilityIdentifier("keyboard.record")
                             }
                             IconButton(symbol: session.audio.playing ? "stop.fill" : "play.fill",
@@ -171,6 +177,14 @@ private struct InstrumentKeyboard: View {
         guard let index = session.project.tracks.firstIndex(where: { $0.id == track.id }) else { return }
         if down && !session.ensureAudio() { error = session.audio.error; return }
         if session.midi.playKey(pitch, down: down, track: track, index: index) {
+            if down, take != nil, finishTask == nil {
+                let limit = recordingLimit
+                finishTask = Task { @MainActor in
+                    do { try await Task.sleep(for: .seconds(limit)) }
+                    catch { return }
+                    finishPhrase()
+                }
+            }
             take?.receive(pitch, down: down)
         } else if down {
             error = NSLocalizedString("Keyboard input unavailable. Release the keys and try again.", comment: "Instrument input")
@@ -186,6 +200,8 @@ private struct InstrumentKeyboard: View {
     }
 
     private func finishPhrase() {
+        finishTask?.cancel()
+        finishTask = nil
         guard var phrase = take else { return }
         take = nil
         phrase.releaseHeld()
@@ -281,7 +297,6 @@ private final class KeybedView: UIView {
             key.accessibilityLabel = name
             key.accessibilityIdentifier = "keyboard.key." + String(pitch)
             key.accessibilityTraits.insert(.playsSound)
-            key.accessibilityRespondsToUserInteraction = true
             key.setTitle(name, for: .normal)
             key.titleLabel?.font = .monospacedSystemFont(ofSize: black ? 11 : 13, weight: .semibold)
             key.contentVerticalAlignment = .bottom

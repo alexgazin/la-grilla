@@ -15,6 +15,8 @@ struct PianoRollView: View {
     @State private var barWidth:CGFloat=240
     @State private var rollPosition = ScrollPosition(edge: .top)
     @State private var rollViewport = CGRect.zero
+    @State private var renderedWidth: CGFloat = 0
+    private static let measureZoom = ProcessInfo.processInfo.arguments.contains("--measure-piano-zoom")
     @State private var zoomAnchor: PianoZoomAnchor?
     @GestureState private var pinching = false
     @State private var lowPitch=60
@@ -134,10 +136,11 @@ struct PianoRollView: View {
             }
             .accessibilityIdentifier("notes.viewport")
             .scrollPosition($rollPosition)
-            .onScrollGeometryChange(for: CGRect.self) { geometry in
-                geometry.visibleRect
-            } action: { _, rect in
-                rollViewport = rect
+            .onScrollGeometryChange(for: RollGeometry.self) { geometry in
+                RollGeometry(viewport: geometry.visibleRect, contentWidth: geometry.contentSize.width)
+            } action: { _, geometry in
+                rollViewport = geometry.viewport
+                if Self.measureZoom { renderedWidth = geometry.contentWidth }
             }
             .scrollDisabled(noteDragging || pinching)
             .background(Color.panel)
@@ -190,13 +193,22 @@ struct PianoRollView: View {
             IconButton(symbol:"trash",label:"Delete note",color:.record){if let id=selected{change(p.id){$0.notes?.removeAll{$0.id==id}};selected=nil}}.disabled(note==nil)
             Spacer(minLength:0)
             if !dynamicType.isAccessibilitySize,let track {TrackSoundButton(session:session,trackID:track.id,compact:true).frame(width:80)}
-            Text("\(p.notes?.count ?? 0)").font(.caption.monospaced()).foregroundStyle(Color.muted).accessibilityIdentifier("notes.count")
+            let count = Text("\(p.notes?.count ?? 0)").font(.caption.monospaced())
+                .foregroundStyle(Color.muted).accessibilityIdentifier("notes.count")
+            if Self.measureZoom {
+                count.accessibilityValue(Text(verbatim: "\(renderedWidth),\(rollViewport.minY)"))
+            } else { count }
         }
     }
     func change(_ id:UUID,_ action:(inout Pattern)throws->Void){session.edit{p in if let i=p.patterns.firstIndex(where:{$0.id==id}){try action(&p.patterns[i])}}}
     func add(_ p:Pattern,tick:Int,pitch:Int){change(p.id){try NoteEditing.insert(NoteEvent(tick:tick,duration:snap*2,pitch:pitch),into:&$0,step:snap)};selected=session.project.patterns.first{$0.id==p.id}?.notes?.last?.id;preview(pitch)}
     func preview(_ pitch:Int){if session.ensureAudio(),let id=track?.id,let i=session.project.tracks.firstIndex(where:{$0.id==id}){session.audio.previewNote(pitch,track:i)}}
     func isBlack(_ pitch:Int)->Bool{[1,3,6,8,10].contains(pitch%12)}
+}
+
+private struct RollGeometry: Equatable {
+    let viewport: CGRect
+    let contentWidth: CGFloat
 }
 
 /// Keep the same pitch row and musical time under the initial pinch midpoint.

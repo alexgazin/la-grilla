@@ -5,10 +5,11 @@ import XCTest
 final class PianoTouchUITests:XCTestCase {
     override func setUp(){super.setUp();continueAfterFailure=false;executionTimeAllowance=120}
 
-    @MainActor private func openNoteRoll()->XCUIApplication {
+    @MainActor private func openNoteRoll(measureZoom: Bool = false)->XCUIApplication {
         XCUIDevice.shared.orientation = .portrait
         let app=XCUIApplication()
         app.launchArguments=["--uitesting","--device-output-startup","--project-store-id",UUID().uuidString,"--screen","grid","-AppleLanguages","(en)","-AppleLocale","en_US"]
+        if measureZoom { app.launchArguments.append("--measure-piano-zoom") }
         app.launch()
         XCTAssertTrue(app.buttons["notes.open"].waitForExistence(timeout:15))
         app.buttons["notes.open"].tap()
@@ -17,28 +18,32 @@ final class PianoTouchUITests:XCTestCase {
         return app
     }
 
-    @MainActor func testPinchChangesTimeScaleAndKeepsPitchRowsInPlace() {
-        let app = openNoteRoll()
+    @MainActor func testPinchChangesTimeScaleAndKeepsPitchRowsInPlace() throws {
+        let app = openNoteRoll(measureZoom: true)
         defer { app.terminate() }
         let viewport = app.scrollViews["notes.viewport"]
-        let canvas = app.descendants(matching: .any).matching(identifier: "notes.canvas").firstMatch
+        let reading = app.staticTexts["notes.count"]
+        func geometry() throws -> (width: Double, y: Double) {
+            let value = try XCTUnwrap(reading.value as? String)
+            let values = value.split(separator: ",").compactMap { Double($0) }
+            XCTAssertEqual(values.count, 2)
+            return (try XCTUnwrap(values.first), try XCTUnwrap(values.last))
+        }
         XCTAssertTrue(viewport.waitForExistence(timeout: 5))
-        let initialY = canvas.frame.minY
-        let touch = viewport.coordinate(withNormalizedOffset: CGVector(dx: 0.65, dy: 0.74))
-        touch.press(forDuration: 0.02, thenDragTo: touch.withOffset(CGVector(dx: 0, dy: -60)),
-                    withVelocity: 180, thenHoldForDuration: 0.3)
-        let before = canvas.frame
-        XCTAssertLessThan(before.minY, initialY - 8)
+        let initial = try geometry()
+        viewport.swipeUp(velocity: .fast)
+        let before = try geometry()
+        XCTAssertGreaterThan(before.y, initial.y + 8)
         viewport.pinch(withScale: 1.45, velocity: 1)
-        let enlarged = canvas.frame
+        let enlarged = try geometry()
         XCTAssertGreaterThan(enlarged.width, before.width + 10)
-        XCTAssertEqual(enlarged.minY, before.minY, accuracy: 2)
+        XCTAssertEqual(enlarged.y, before.y, accuracy: 2)
         viewport.pinch(withScale: 0.8, velocity: -1)
-        let reduced = canvas.frame
+        let reduced = try geometry()
         XCTAssertLessThan(reduced.width, enlarged.width - 10)
-        XCTAssertEqual(reduced.minY, before.minY, accuracy: 2)
-        viewport.swipeDown()
-        XCTAssertGreaterThan(canvas.frame.minY, reduced.minY + 8)
+        XCTAssertEqual(reduced.y, before.y, accuracy: 2)
+        viewport.swipeDown(velocity: .fast)
+        XCTAssertLessThan(try geometry().y, reduced.y - 8)
         app.buttons["notes.undo"].tap()
         XCTAssertEqual(app.staticTexts["notes.count"].label, "0")
     }
