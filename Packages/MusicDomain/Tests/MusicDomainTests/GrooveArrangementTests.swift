@@ -3,6 +3,20 @@ import Testing
 @testable import MusicDomain
 
 struct GrooveArrangementTests {
+    @Test func assistantRoutesTheReportedBilingualStyleRequest() throws {
+        let text = "Create jazz hip hop old school"
+        let brief = try #require(try TrackBrief.offlineCreationRequest(text))
+        #expect(brief.style == .hipHop && brief.hipHopFeel == .boomBap)
+        #expect(brief.chordText.contains("7"))
+        let project = try brief.makeProject(name: text)
+        #expect(Set(Compiler.notes(project).map(\.track)) == [0,1,2,3])
+        let explicit = try #require(try TrackBrief.offlineCreationRequest("Создай джазовый хип-хоп, 90 BPM, аккорды: Am F C G"))
+        #expect(explicit.tempo == 90 && explicit.chordText == "Am F C G")
+        #expect(try TrackBrief.offlineCreationRequest("Create a song form: 8 bars of jazz") == nil)
+        #expect(try TrackBrief.offlineCreationRequest("Change the verse to jazz") == nil)
+        #expect(throws: TrackBriefError.self) { try TrackBrief.offlineCreationRequest("Make a hip hop beat at 999 BPM") }
+    }
+
     @Test func russianAndEnglishPromptsCreateTheSameEditableForm() throws {
         let ru = try TrackBrief().suggesting("Бум-бэп, 8 тактов, 88 BPM, ре минор. Первые четыре — только бас и барабаны. Перед повтором полтакта тишины.")
         let en = try TrackBrief().suggesting("8 bars of boom bap at 88 BPM in D minor. First 4 bars only bass and drums. Half-bar break before the loop.")

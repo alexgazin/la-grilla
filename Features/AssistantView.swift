@@ -283,7 +283,20 @@ struct AssistantView:View {
             do{let p=try AssistantEngine.propose(input,project:snapshot,sectionID:scope,distribution:distribution);candidate=try p.candidate(for:snapshot);proposalSource=snapshot;proposal=p;usedUnavailableAIFallback=mode == .onDeviceAI && !ai.available;return}
             catch{if case AssistantError.ambiguous=error{self.error=error.localizedDescription;ambiguous=true;return};if mode == .commands{self.error=error.localizedDescription;return};if !(error is AssistantError){self.error=error.localizedDescription;return};if case AssistantError.unsupported=error{}else{self.error=error.localizedDescription;return}}
         }
-        guard ai.available else{error=ai.availabilityMessage;availabilityError=true;return}
+        guard ai.available else {
+            if mode == .automatic {
+                do {
+                    if let brief = try TrackBrief.offlineCreationRequest(input) {
+                        session.openTrackBuilder(idea: input, suggestion: brief)
+                        return
+                    }
+                } catch {
+                    self.error = error.localizedDescription
+                    return
+                }
+            }
+            error=ai.availabilityMessage;availabilityError=true;return
+        }
         let request=input,locale=aiLanguage,attempt=generationID
         generationTask=Task { @MainActor in
             do {

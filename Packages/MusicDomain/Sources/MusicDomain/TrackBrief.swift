@@ -117,6 +117,18 @@ public struct TrackBrief: Equatable, Sendable {
         return (result, matched)
     }
 
+    /// Only route requests for new music here. Project edits keep their normal review and Undo.
+    public static func offlineCreationRequest(_ prompt: String) throws -> Self? {
+        let text = prompt.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard text.count <= 2000,
+              text.range(of: #"^(?:create|make|generate|compose|создай|сделай|сгенерируй|сочини)\s+"#, options: .regularExpression) != nil,
+              text.range(of: #"^\S+\s+(?:(?:a|an|the|new|новый|новую)\s+)*(?:song form|section|chorus|verse|bridge|intro|track named|форму|секци[яию]|припев|куплет|бридж|вступление)\b"#, options: .regularExpression) == nil,
+              text.range(of: #"\b(?:beat|groove|song|track|instrumental|hip[ -]?hop|jazz|house|boom[ -]bap|бит|грув|трек|инструментал|хип[ -]?хоп|джаз|хаус|бум[ -]бэп)\b"#, options: .regularExpression) != nil
+        else { return nil }
+        do { return try Self().suggesting(prompt) }
+        catch TrackBriefError.unknownIdea { return nil }
+    }
+
     /// A local starting point for common RU/EN descriptions on phones without an available model.
     public func suggesting(_ prompt:String) throws -> Self {
         let text = prompt.lowercased()
@@ -153,6 +165,12 @@ public struct TrackBrief: Equatable, Sendable {
         }
         if let mode=group(#"\b(minor|major|минор|мажор)\b"#,in:text) {
             result.minor=["minor","минор"].contains(mode);result.chordText="";matched=true
+        }
+        if result.style == .hipHop && ["jazz","jazzy","джаз"].contains(where: text.contains) {
+            // Use a jazz turnaround in the requested key over the hip-hop beat.
+            var harmony = result
+            harmony.style = .jazz
+            result.chordText = harmony.suggestedChords
         }
         if let progression=group(#"(?:аккорды|chords)\s*[:=]\s*([^;\n.!?]+)"#,in:prompt) {
             let symbols=try AssistantEngine.chordTokens(progression)

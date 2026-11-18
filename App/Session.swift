@@ -447,7 +447,9 @@ import Observation
     }
     private(set) var trackIdea = ""
     private(set) var trackDraftName = ""
-    func openTrackBuilder(idea:String = "", name:String = "") {
+    private(set) var suggestedTrackBrief: TrackBrief?
+    func openTrackBuilder(idea:String = "", name:String = "", suggestion: TrackBrief? = nil) {
+        suggestedTrackBrief = suggestion
         endHarmonyPreview()
         trackIdea=idea
         trackDraftName=name

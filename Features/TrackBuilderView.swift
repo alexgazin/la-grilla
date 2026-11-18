@@ -19,6 +19,10 @@ struct TrackBuilderView: View {
 
     init(session:Session) {
         self.session=session
+        if let suggestion = session.suggestedTrackBrief {
+            _brief = State(initialValue: suggestion)
+            _feedback = State(initialValue: NSLocalizedString("Prepared with the offline generator. Listen before creating a new project.", comment: "Assistant handoff"))
+        }
         _idea=State(initialValue:session.trackIdea)
         _name=State(initialValue:session.trackDraftName)
     }

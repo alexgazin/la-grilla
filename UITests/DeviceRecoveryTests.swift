@@ -253,6 +253,21 @@ final class DeviceRecoveryTests: XCTestCase {
         XCTAssertEqual(symbol.value as? String, "C")
     }
 
+    @MainActor func testAutomaticOpensOfflineBuilderForJazzHipHopDescription() {
+        let app = launch(screen: "assistant")
+        XCTAssertTrue(app.buttons["assistant.use-commands"].waitForExistence(timeout: 8))
+        let input = app.textViews["assistant.input"]
+        input.tap()
+        input.typeText("Create jazz hip hop old school")
+        let review = app.buttons["assistant.generate"]
+        revealFully(review, in: app)
+        review.tap()
+        XCTAssertTrue(app.navigationBars["Build a track"].waitForExistence(timeout: 8))
+        let chords = app.textFields["builder.chords"]
+        for _ in 0..<6 where !chords.isHittable { app.swipeUp() }
+        XCTAssertEqual(chords.value as? String, "Em7b5 A7 Dm7 Dm7")
+    }
+
     @MainActor func testUnavailableAIFreeTextShowsReasonAndCommandsKeepsInput() {
         let app = launch(screen: "assistant")
         XCTAssertTrue(app.buttons["assistant.use-commands"].exists, "This case requires the Simulator's actual unavailable model")
