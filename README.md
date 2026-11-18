@@ -115,9 +115,9 @@
 
 ## Попробовать на iPhone
 
-**[Скачать La Grilla 1.0.0 (32)](https://github.com/alexgazin/la-grilla/actions/runs/44303173892/artifacts/14427263161)**. Из ZIP извлеките `LaGrilla-unsigned.ipa` и подпишите своим Apple ID через Sideloadly. Бесплатная Personal Team подходит. [Установка и проверка пакета](Builds/Testing/README.md).
+**[Скачать La Grilla 1.0.0 (33)](https://github.com/alexgazin/la-grilla/actions/runs/44309761379/artifacts/14431130364)**. Из ZIP извлеките `LaGrilla-unsigned.ipa` и подпишите своим Apple ID через Sideloadly. Бесплатная Personal Team подходит. [Установка и проверка пакета](Builds/Testing/README.md).
 
-Перед обновлением экспортируйте важные проекты в `.grillapack`. Сборка 32 открывает схемы 1…12 и сохраняет схему 12 с назначенными тембрами и сэмплами.
+Перед обновлением экспортируйте важные проекты в `.grillapack`. Сборка 33 открывает схемы 1…12 и сохраняет схему 12 с назначенными тембрами и сэмплами.
 
 ## Подготовка к выпуску
 

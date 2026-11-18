@@ -1,5 +1,9 @@
 # La Grilla для ручного тестирования
 
+**[Скачать IPA 33 для iPhone](https://github.com/alexgazin/la-grilla/actions/runs/44309761379/artifacts/14431130364)**. Шесть инструментов с иллюстрациями, мультитач-клавиатура и запись фраз. В ZIP лежит `LaGrilla-unsigned.ipa`, которую можно подписать через Personal Team. Пакет для iOS 18+ занимает 7 451 773 байта. SHA-256 `33a18a73d18aeab468652942baf2f053a2208ee670f3747ef0c0966e3121646e`. [Проверка архива](candidate33-verification.json) · [Инструкция по клавиатуре](../../docs/SONG_FORM_AND_SOUND_BANKS.md)
+
+### Сборка 32
+
 **[Скачать IPA 32 для iPhone](https://github.com/alexgazin/la-grilla/actions/runs/44303173892/artifacts/14427263161)**. В нотном редакторе два пальца меняют горизонтальный масштаб, один палец прокручивает сетку. Распакуйте ZIP и подпишите IPA своей Personal Team. Размер 7 205 154 байта, SHA-256 `fba236db930bb370e79aa6f77c8b20ec8df3101f084c21c9751019ff5d57ec66`. [Проверка пакета](candidate32-verification.json)
 
 ### Сборка 31
