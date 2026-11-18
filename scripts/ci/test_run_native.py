@@ -219,7 +219,7 @@ sys.exit(code)
     def test_parent_exit_does_not_leave_inherited_pipe_hanging(self):
         script = "import subprocess,sys;child=subprocess.Popen([sys.executable,'-c','import time;time.sleep(50)']);print('descendant='+str(child.pid))"
         result, state = self.invoke(script)
-        self.assertEqual(result.returncode, 0)
+        self.assertEqual(result.returncode, 0, (state, result.stdout[-500:], result.stderr[-500:]))
         self.assertTrue(state["descendantCleanupRequired"])
         self.assertLess(state["elapsedSeconds"], 3)
         self.assert_process_not_running(int(self.log.read_text().split("descendant=")[1].splitlines()[0]))

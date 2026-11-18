@@ -33,18 +33,19 @@ private struct InstrumentKeyboard: View {
     let clipID: UUID?
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var phase
+    @State private var selectedTrackID: UUID?
     @State private var root = 60
     @State private var loading: FactoryInstrument?
     @State private var task: Task<Void, Never>?
     @State private var error: String?
     @State private var take: KeyboardPhrase?
-    @State private var recordingLimit: TimeInterval = 0
+    @State private var recordingLength = 0
     @State private var finishTask: Task<Void, Never>?
     @State private var soundBanks = false
     @State private var surfaceID = UUID()
 
     private var track: Track? {
-        session.project.tracks.first { $0.id == trackID && $0.role != .drums }
+        session.project.tracks.first { $0.id == (selectedTrackID ?? trackID) && $0.role != .drums }
             ?? session.project.tracks.first { $0.role == .melody }
             ?? session.project.tracks.first { $0.role == .harmony }
     }
@@ -70,13 +71,14 @@ private struct InstrumentKeyboard: View {
                         }.scrollIndicators(.hidden).accessibilityIdentifier("keyboard.instruments")
                         if !compact {
                             HStack {
-                                Text(track.displayName).font(.caption).foregroundStyle(Color.muted)
+                                trackMenu(track, compact: false)
                                 Spacer()
                                 Text(TrackSoundNames.current(track)).font(.subheadline.weight(.semibold))
                                     .accessibilityIdentifier("keyboard.current-sound")
                             }.padding(.horizontal, 16)
                         }
                         HStack(spacing: 6) {
+                            if compact { trackMenu(track, compact: true) }
                             IconButton(symbol: "minus", label: "Octave down") { changeOctave(-12) }
                                 .disabled(root == 24)
                             Text(verbatim: MusicalNotation.noteName(root, keyRoot: session.project.keyRoot,
@@ -91,8 +93,7 @@ private struct InstrumentKeyboard: View {
                                     if take != nil { finishPhrase() }
                                     else if let pattern = session.project.patterns.first(where: { $0.id == clip.patternID }) {
                                         take = KeyboardPhrase(patternID: clip.patternID, bpm: session.project.bpm)
-                                        let limit = Double(pattern.length) * 60 / (Double(ppq) * session.project.bpm)
-                                        recordingLimit = limit
+                                        recordingLength = pattern.length
                                     }
                                 }.accessibilityIdentifier("keyboard.record")
                             }
@@ -104,11 +105,7 @@ private struct InstrumentKeyboard: View {
                         }
                         InstrumentKeybed(root: root, octaves: geometry.size.width >= 660 ? 2 : 1,
                                          keyRoot: session.project.keyRoot, minor: session.project.minor,
-                                         play: { pitch, down in key(pitch, down: down, track: track) },
-                                         audition: { pitch in
-                                             guard session.ensureAudio(), let index = session.project.tracks.firstIndex(where: { $0.id == track.id }) else { return }
-                                             session.audio.previewNote(pitch, track: index)
-                                         })
+                                         play: { pitch, down in key(pitch, down: down, track: track) })
                             .id(surfaceID).padding(.horizontal, 10).padding(.bottom, 10)
                     }.padding(.top, compact ? 0 : 8)
                 }
@@ -133,6 +130,32 @@ private struct InstrumentKeyboard: View {
         .onAppear { _ = session.ensureAudio() }
         .onChange(of: phase) { _, phase in if phase != .active { finishPhrase(); resetKeys() } }
         .onDisappear { task?.cancel(); finishPhrase(); session.midi.releaseKeyboard() }
+    }
+
+    private func trackMenu(_ active: Track, compact: Bool) -> some View {
+        Menu {
+            ForEach(session.project.tracks.filter { $0.role != .drums }) { option in
+                Button {
+                    resetKeys()
+                    selectedTrackID = option.id
+                } label: {
+                    if active.id == option.id { Label(option.displayName, systemImage: "checkmark") }
+                    else { Text(option.displayName) }
+                }
+            }
+            Button("Add melody", systemImage: "plus") {
+                resetKeys()
+                let count = session.project.tracks.count
+                session.addMelody()
+                if session.project.tracks.count > count { selectedTrackID = session.noteTrackID }
+            }.disabled(session.project.tracks.count >= 8)
+        } label: {
+            HStack(spacing: 6) {
+                if compact { Image(systemName: "music.note.list") } else { Text(active.displayName) }
+                Image(systemName: "chevron.down").font(.caption)
+            }.frame(minWidth: 44, minHeight: 44)
+        }.disabled(loading != nil || take != nil).accessibilityLabel("Track")
+            .accessibilityValue(active.displayName).accessibilityIdentifier("keyboard.track")
     }
 
     private func instrumentCard(_ instrument: FactoryInstrument, track: Track, compact: Bool) -> some View {
@@ -178,7 +201,14 @@ private struct InstrumentKeyboard: View {
         if down && !session.ensureAudio() { error = session.audio.error; return }
         if session.midi.playKey(pitch, down: down, track: track, index: index) {
             if down, take != nil, finishTask == nil {
-                let limit = recordingLimit
+                session.audio.refreshClock()
+                if let clip = sourceClip(track), recordingLength > 0 {
+                    let position = Int(session.audio.tick) - clip.start
+                    let played = session.audio.playing && (0..<clip.length).contains(position) ? position : 0
+                    take?.offset = (clip.offset + played) % recordingLength
+                }
+                let remaining = max(1, recordingLength - (take?.offset ?? 0))
+                let limit = Double(remaining) * 60 / (Double(ppq) * session.project.bpm)
                 finishTask = Task { @MainActor in
                     do { try await Task.sleep(for: .seconds(limit)) }
                     catch { return }
@@ -221,6 +251,7 @@ private struct InstrumentKeyboard: View {
 private struct KeyboardPhrase {
     let patternID: UUID
     let bpm: Double
+    var offset = 0
     private var start: TimeInterval?
     private var held = [Int: Int]()
     private(set) var notes = [NoteEvent]()
@@ -231,7 +262,7 @@ private struct KeyboardPhrase {
         let now = ProcessInfo.processInfo.systemUptime
         if start == nil && down { start = now }
         guard let start else { return }
-        let tick = Int(((now - start) * bpm * Double(ppq) / 60).rounded())
+        let tick = offset + Int(((now - start) * bpm * Double(ppq) / 60).rounded())
         if down { held[pitch] = tick }
         else if let onset = held.removeValue(forKey: pitch), notes.count < 4096 {
             notes.append(NoteEvent(tick: onset, duration: max(1, tick - onset), pitch: pitch))
@@ -249,13 +280,11 @@ private struct InstrumentKeybed: UIViewRepresentable {
     let keyRoot: Int
     let minor: Bool
     let play: (Int, Bool) -> Void
-    let audition: (Int) -> Void
 
     func makeUIView(context: Context) -> KeybedView { KeybedView() }
 
     func updateUIView(_ view: KeybedView, context: Context) {
         view.play = play
-        view.audition = audition
         view.configure(root: root, octaves: octaves, keyRoot: keyRoot, minor: minor)
     }
 
@@ -264,11 +293,12 @@ private struct InstrumentKeybed: UIViewRepresentable {
 
 private final class KeybedView: UIView {
     var play: ((Int, Bool) -> Void)?
-    var audition: ((Int) -> Void)?
     private var configuration: [Int] = []
     private var whiteKeys = [UIButton]()
     private var blackKeys = [(after: Int, button: UIButton)]()
     private var contactPitches = [ObjectIdentifier: Int]()
+    private var accessibleNotes = [Int: Task<Void, Never>]()
+    private var heldNotes: Set<Int> { Set(contactPitches.values).union(accessibleNotes.keys) }
     private let blackClasses: Set<Int> = [1, 3, 6, 8, 10]
 
     override init(frame: CGRect) {
@@ -303,7 +333,7 @@ private final class KeybedView: UIView {
             key.contentEdgeInsets = UIEdgeInsets(top: 0, left: 0, bottom: black ? 10 : 18, right: 0)
             key.layer.cornerRadius = black ? 5 : 7
             key.layer.maskedCorners = [.layerMinXMaxYCorner, .layerMaxXMaxYCorner]
-            key.addAction(UIAction { [weak self] _ in self?.audition?(pitch) }, for: .primaryActionTriggered)
+            key.addAction(UIAction { [weak self] _ in self?.activateKey(pitch) }, for: .primaryActionTriggered)
             if black { blackKeys.append((whiteKeys.count, key)) } else { whiteKeys.append(key) }
             style(key, held: false)
         }
@@ -340,13 +370,13 @@ private final class KeybedView: UIView {
     }
 
     private func update(_ touches: Set<UITouch>, releasing: Bool) {
-        let before = Set(contactPitches.values)
+        let before = heldNotes
         for touch in touches {
             let id = ObjectIdentifier(touch), point = touch.location(in: self)
             if releasing { contactPitches.removeValue(forKey: id) }
             else { contactPitches[id] = subviews.reversed().first { $0.frame.contains(point) }?.tag }
         }
-        let after = Set(contactPitches.values)
+        let after = heldNotes
         for pitch in before.subtracting(after) { change(pitch, held: false) }
         for pitch in after.subtracting(before) { change(pitch, held: true) }
     }
@@ -356,8 +386,23 @@ private final class KeybedView: UIView {
         if let key = viewWithTag(pitch) as? UIButton { style(key, held: held) }
     }
 
+    private func activateKey(_ pitch: Int) {
+        let alreadyHeld = heldNotes.contains(pitch)
+        accessibleNotes[pitch]?.cancel()
+        if !alreadyHeld { change(pitch, held: true) }
+        accessibleNotes[pitch] = Task { @MainActor [weak self] in
+            do { try await Task.sleep(for: .milliseconds(320)) }
+            catch { return }
+            guard let self else { return }
+            self.accessibleNotes.removeValue(forKey: pitch)
+            if !self.heldNotes.contains(pitch) { self.change(pitch, held: false) }
+        }
+    }
+
     func releaseAll() {
-        let pitches = Set(contactPitches.values)
+        let pitches = heldNotes
+        for task in accessibleNotes.values { task.cancel() }
+        accessibleNotes.removeAll()
         contactPitches.removeAll()
         for pitch in pitches { change(pitch, held: false) }
     }
