@@ -85,19 +85,25 @@ struct DrumSamplePicker: View {
                 Image(systemName: "speaker.wave.2").frame(width: 44, height: 44)
             }.buttonStyle(.plain).foregroundStyle(Color.drums)
                 .accessibilityLabel("Hear sound").accessibilityValue(name)
-            VStack(alignment: .leading, spacing: 3) {
-                Text(name).font(.headline).foregroundStyle(Color.studioText)
-                Group {
-                    if let sample { Text(sample.name) }
-                    else { Text("Built-in pad") }
-                }.font(.caption).foregroundStyle(Color.muted)
-                    .accessibilityIdentifier("pad-samples.name.\(pad)")
-            }
-            Spacer(minLength: 0)
-            Menu {
-                Button { libraryTarget = LibraryTarget(id: pad) } label: {
-                    Label("Choose from library", systemImage: "waveform")
+            Button { libraryTarget = LibraryTarget(id: pad) } label: {
+                HStack(spacing: 8) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(name).font(.headline).foregroundStyle(Color.studioText)
+                        (sample.map { Text($0.name) } ?? Text("Built-in pad"))
+                            .font(.caption).foregroundStyle(Color.muted)
+                    }
+                    Spacer(minLength: 0)
+                    Image(systemName: "chevron.right").font(.caption.weight(.semibold))
+                        .foregroundStyle(Color.muted).accessibilityHidden(true)
                 }
+                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                .contentShape(Rectangle())
+            }.buttonStyle(.plain)
+                .accessibilityLabel(name)
+                .accessibilityValue(sample.map { Text($0.name) } ?? Text("Built-in pad"))
+                .accessibilityHint("Choose from library")
+                .accessibilityIdentifier("pad-samples.library.\(pad)")
+            Menu {
                 Button { pendingPad = pad; showImporter = true } label: {
                     Label("Import sample", systemImage: "square.and.arrow.down")
                 }

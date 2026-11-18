@@ -132,7 +132,7 @@ final class SoundPickerUITests:XCTestCase {
         let pocket = app.buttons["pad-samples.pocket-kit"]
         XCTAssertTrue(pocket.waitForExistence(timeout: 5))
         pocket.tap()
-        let kick = app.staticTexts.matching(NSPredicate(format: "label == 'Pocket · Kick'")).firstMatch
+        let kick = app.buttons.matching(NSPredicate(format: "identifier == 'pad-samples.library.0' AND value == 'Pocket · Kick'")).firstMatch
         XCTAssertTrue(kick.waitForExistence(timeout: 15))
         let image = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         image.name = "Sound28-pocket-kit"; image.lifetime = .keepAlways; add(image)
@@ -234,14 +234,13 @@ final class SoundPickerUITests:XCTestCase {
         let sound = entry(app)
         XCTAssertTrue(sound.waitForExistence(timeout: 5)); sound.tap()
         app.buttons["sound.samples"].tap()
-        let options = app.buttons["pad-samples.options.0"]
-        XCTAssertTrue(options.waitForExistence(timeout: 5)); options.tap()
-        app.buttons["Choose from library"].tap()
+        let pad = app.buttons["pad-samples.library.0"]
+        XCTAssertTrue(pad.waitForExistence(timeout: 5)); pad.tap()
         XCTAssertTrue(app.navigationBars["Sample library"].waitForExistence(timeout: 5))
     }
 
     @MainActor private func assertAssignedSample(_ app: XCUIApplication) {
-        let predicate = NSPredicate(format: "identifier == 'pad-samples.name.0' AND label == 'Studio Click'")
-        XCTAssertTrue(app.staticTexts.matching(predicate).firstMatch.waitForExistence(timeout: 12))
+        let predicate = NSPredicate(format: "identifier == 'pad-samples.library.0' AND value == 'Studio Click'")
+        XCTAssertTrue(app.buttons.matching(predicate).firstMatch.waitForExistence(timeout: 12))
     }
 }
