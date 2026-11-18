@@ -1,0 +1,28 @@
+{
+  "sourceSHA": "78708115ea46eb149e9fc4550c54bd4b284f85f7",
+  "run": 44248325190,
+  "attempt": 1,
+  "artifact": 14402369149,
+  "requiredTestOutcomes": {
+    "ArrangementUITests/testSongFormAddsDragsAndUndoesWholeSection": "passed",
+    "AssistantCompositionTests/testFullSongReviewAppliesAsOneUndoOnCommandFallback": "passed",
+    "LiveEditingTests/testDuplicateMoveAndDeleteSectionDuringPlayback": "passed"
+  },
+  "images": [
+    {
+      "file": "song-form.png",
+      "owner": "ArrangementUITests/testSongFormAddsDragsAndUndoesWholeSection",
+      "original": "1D42E12D-A968-47B8-8D50-DBDC6A6B5E81.png",
+      "bytes": 161471,
+      "sha256": "13dac062bb264cb301217b33a4b719a7146a4cc0bb0de948ada7c302f9d74446"
+    },
+    {
+      "file": "assistant-form.png",
+      "owner": "AssistantCompositionTests/testFullSongReviewAppliesAsOneUndoOnCommandFallback",
+      "original": "FFAEE22B-A23C-41A1-A7B4-AE2A31F6DE90.png",
+      "bytes": 451394,
+      "sha256": "5d9359cbbbd62cf0541fa04b16161e5a6b560c41f9e5d81304d9af107aada8ce"
+    }
+  ],
+  "fullAcceptance": false
+}

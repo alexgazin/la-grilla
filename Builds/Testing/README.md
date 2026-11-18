@@ -1,5 +1,9 @@
 # La Grilla для ручного тестирования
 
+**[Сборка 27 для iPhone](https://github.com/alexgazin/la-grilla/actions/runs/44248325062/artifacts/14403425905)**. Из ZIP извлеките `LaGrilla-unsigned.ipa` и подпишите своей Personal Team. Файл: 3 863 194 байта, SHA-256 `c85ae78fbcfea98f9d2ec1de0fda65352e1d46854070b7914b116e133ec1e163`. [Исходник и проверка пакета](candidate27-song-form-verification.json).
+
+Три сценария конструктора прошли на iPhone Simulator. Импорт и предпрослушивание SoundFont прошли проверку на macOS с настоящим банком. [Оригиналы скриншотов](../../Screenshots/SongForm27/README.md).
+
 **[Сборка 26 для iPhone](https://github.com/alexgazin/la-grilla/actions/runs/44245693209/artifacts/14401667073)**. Из ZIP извлеките `LaGrilla-unsigned.ipa` и подпишите своей Personal Team. Файл: 3 853 310 байт, SHA-256 `77ee66ff3f4d1518884fbf43014bba50a4778b82f1af6bcbd92fcd80a393c3f7`. [Исходник, хэш и проверка пакета](candidate26-song-form-soundfont-verification.json).
 
 В сборке есть конструктор песни и импорт SoundFont для прослушивания. [Где открыть и что запланировано](../../docs/SONG_FORM_AND_SOUND_BANKS.md).

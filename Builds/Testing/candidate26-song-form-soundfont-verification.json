@@ -43,6 +43,14 @@
       "LiveEditingTests/testDuplicateMoveAndDeleteSectionDuringPlayback": "not-observed"
     },
     "firstAttemptIssue": "XCTest runner connection failed before executing any case",
-    "retry": "pending"
+    "retry": {
+      "attempt": 2,
+      "artifact": 14402337437,
+      "outcomes": {
+        "ArrangementUITests/testSongFormAddsDragsAndUndoesWholeSection": "failed",
+        "AssistantCompositionTests/testFullSongReviewAppliesAsOneUndoOnCommandFallback": "passed",
+        "LiveEditingTests/testDuplicateMoveAndDeleteSectionDuringPlayback": "passed"
+      }
+    }
   }
 }
