@@ -90,8 +90,10 @@ struct EqualizerView: View {
                     CGPoint(x:normalized*size.width,y:(18-min(18,max(-18,db)))/36*size.height)
                 }
                 var grid=Path()
-                for db in [-12.0,-6,0,6,12] {grid.move(to:point(0,db));grid.addLine(to:point(1,db))}
-                for f in [50.0,100,500,1000,5000,10000] {grid.move(to:point(x(f),-18));grid.addLine(to:point(x(f),18))}
+                let gainGrid:[Double]=[-12,-6,0,6,12]
+                let frequencyGrid:[Double]=[50,100,500,1000,5000,10000]
+                for db in gainGrid {grid.move(to:point(0,db));grid.addLine(to:point(1,db))}
+                for f in frequencyGrid {grid.move(to:point(x(f),-18));grid.addLine(to:point(x(f),18))}
                 context.stroke(grid,with:.color(.outline),lineWidth:0.6)
                 let snapshot=eq
                 let response=snapshot.response(at:(0...160).map{hz(Double($0)/160)},rate:session.audio.sampleRate)
