@@ -101,3 +101,37 @@ public struct TrackBrief: Equatable, Sendable {
         return result
     }
 }
+
+/// Editable musical starting points for the existing three rhythm engines.
+public struct GroovePreset: Identifiable, Sendable {
+    public let name:String
+    public let recipe:TrackBrief
+    public var id:String { name }
+    private init(_ name:String,_ style:SketchStyle,_ bpm:Int,_ root:Int,_ minor:Bool,_ length:Int,_ seed:UInt32,_ chords:String) {
+        self.name=name
+        var brief=TrackBrief()
+        brief.style=style; brief.tempo=bpm; brief.root=root; brief.minor=minor
+        brief.bars=length; brief.seed=seed; brief.chordText=chords
+        recipe=brief
+    }
+    public static let library:[GroovePreset]=[
+        .init("Classic house",.house,124,9,true,8,1,"Am F Dm E7"),
+        .init("Deep afterhours",.house,116,2,true,16,17,"Dm9 Gm7 Bbmaj7 A7"),
+        .init("Sunrise piano",.house,122,5,false,8,63,"Fmaj7 Am7 Bb C"),
+        .init("Warehouse drive",.house,132,5,true,8,104,"Fm Db Eb Cm"),
+        .init("Disco lift",.house,120,4,true,4,38,"Em7 A7 Dmaj7 B7"),
+        .init("Coastal chords",.house,112,7,false,16,29,"Gmaj7 Em7 Am7 D9"),
+        .init("Classic hip-hop",.hipHop,84,2,true,8,1,"Dm Bb Gm A7"),
+        .init("Dusty boom bap",.hipHop,92,5,true,8,73,"Fm7 Bbm7 Dbmaj7 C7"),
+        .init("Rain on tape",.hipHop,72,9,true,8,91,"Am9 Dm7 G7 Cmaj7"),
+        .init("Half-time pulse",.hipHop,70,3,true,4,55,"Ebm B Gb Db"),
+        .init("Soul loop",.hipHop,88,10,false,8,8,"Bbmaj7 Gm7 Cm7 F7"),
+        .init("Late train",.hipHop,97,11,true,16,84,"Bm7 Em9 Gmaj7 F#7"),
+        .init("Classic swing",.jazz,106,0,false,8,1,"Dm7 G7 Cmaj7 Am7"),
+        .init("Blue hour",.jazz,78,2,true,8,62,"Em7b5 A7 Dm9 Dm7"),
+        .init("Bebop turnaround",.jazz,166,5,false,8,31,"Fmaj7 D7 Gm7 C7"),
+        .init("Midnight quartet",.jazz,98,7,true,8,45,"Gm9 Cm7 Am7b5 D7"),
+        .init("Modal walk",.jazz,118,2,true,16,99,"Dm7 Dm9 Ebm7 Dm7"),
+        .init("Sunday trio",.jazz,134,3,false,16,27,"Ebmaj7 Cm7 Fm7 Bb9")
+    ]
+}

@@ -39,12 +39,23 @@ struct TrackBuilderView: View {
                     if let feedback { Text(feedback).font(.footnote).foregroundStyle(Color.muted) }
                 } header: { Text("Describe the track") }
                 Section {
-                    Picker("Groove preset",selection:presetBinding) {
-                        Text("Choose a preset").tag(Optional<SketchStyle>.none)
+                    Menu {
                         ForEach(SketchStyle.allCases,id:\.self) { style in
-                            Text(LocalizedStringKey(style.title)).tag(Optional(style))
+                            Menu(LocalizedStringKey(style.title)) {
+                                ForEach(GroovePreset.library.filter{$0.recipe.style==style}) { preset in
+                                    Button {
+                                        brief=preset.recipe; feedback=nil
+                                    } label: {
+                                        Text(LocalizedStringKey(preset.name)) + Text(verbatim:" · \(preset.recipe.tempo) BPM")
+                                    }
+                                }
+                            }
                         }
-                    }.pickerStyle(.menu)
+                    } label: {
+                        LabeledContent("Groove preset") {
+                            Text(LocalizedStringKey(GroovePreset.library.first{$0.recipe==brief}?.name ?? "Choose a preset"))
+                        }
+                    }.accessibilityIdentifier("builder.presets")
                     Picker("Rhythm",selection:$brief.style) {
                         ForEach(SketchStyle.allCases,id:\.self) { style in Text(LocalizedStringKey(style.title)).tag(style) }
                     }.pickerStyle(.segmented)
@@ -115,12 +126,6 @@ struct TrackBuilderView: View {
         .onDisappear { cancelInterpretation(); session.endHarmonyPreview() }
     }
 
-    private var presetBinding: Binding<SketchStyle?> {
-        Binding(get:{
-            var preset=brief; preset.usePreset(brief.style)
-            return preset == brief ? brief.style : nil
-        },set:{ if let style=$0 { brief.usePreset(style); feedback=nil } })
-    }
     private var trimmedIdea:String { idea.trimmingCharacters(in:.whitespacesAndNewlines) }
     private func invalidatePreview() {
         session.endHarmonyPreview(); preview=nil; problem=nil
