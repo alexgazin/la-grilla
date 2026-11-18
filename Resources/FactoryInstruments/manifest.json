@@ -1,0 +1,239 @@
+{
+  "sourceCommit": "514c926efecdb3c7812bf00eedf8e5c8d61dd681",
+  "piano": {
+    "source": "meta-piano",
+    "rate": 32000,
+    "zones": [
+      {
+        "pitch": 24,
+        "frames": 76800,
+        "source": "ogg/INSPiano_Vel02_C1_01.ogg",
+        "sha256": "3dd77b6692e463da7dc530ffb50c9d28c7335767657f76a91da7c7f3c03ff193"
+      },
+      {
+        "pitch": 28,
+        "frames": 76800,
+        "source": "ogg/INSPiano_Vel02_E1_01.ogg",
+        "sha256": "776511c71eb285eaa0f2048311ce96fff10f0a3c2b00630aaf1a1269bbc80f94"
+      },
+      {
+        "pitch": 32,
+        "frames": 76800,
+        "source": "ogg/INSPiano_Vel02_Gs1_01.ogg",
+        "sha256": "b6027103f40ad91b4787d89b8f8337ff72acc7d759d37fef59fd46aab9c61b55"
+      },
+      {
+        "pitch": 36,
+        "frames": 76800,
+        "source": "ogg/INSPiano_Vel02_C2_01.ogg",
+        "sha256": "cd461a8cbee403ae1f764b168df986b780bc7014c3fa60250862cd3c91042509"
+      },
+      {
+        "pitch": 40,
+        "frames": 76800,
+        "source": "ogg/INSPiano_Vel02_E2_01.ogg",
+        "sha256": "6b441279a2e6a8c1bfa0cd2c3b2707355fbbb7e3408588a781bd5b0813be7c35"
+      },
+      {
+        "pitch": 44,
+        "frames": 76800,
+        "source": "ogg/INSPiano_Vel02_Gs2_01.ogg",
+        "sha256": "f46e43abc563394af04a5392c9752bf43f594f269b6615fb3900ac89d9e76c9a"
+      },
+      {
+        "pitch": 48,
+        "frames": 76800,
+        "source": "ogg/INSPiano_Vel02_C3_01.ogg",
+        "sha256": "8587080a16be4c8760e85a68abb1a08e2e87044168e3419374de179b1dd9fe6c"
+      },
+      {
+        "pitch": 52,
+        "frames": 76800,
+        "source": "ogg/INSPiano_Vel02_E3_01.ogg",
+        "sha256": "e3cf5dc2b1eb042e7a97fb68be81b428914e7c070e0c7293b8626b6eb712b802"
+      },
+      {
+        "pitch": 56,
+        "frames": 76800,
+        "source": "ogg/INSPiano_Vel02_Gs3_01.ogg",
+        "sha256": "052bface6d2b3effd7de8c267cb6936026be5803d7a9b4a93c7959ba02488e93"
+      },
+      {
+        "pitch": 60,
+        "frames": 76800,
+        "source": "ogg/INSPiano_Vel02_C4_01.ogg",
+        "sha256": "363dafd1c915cb2ba205af685740d14e4c5e002b4870abf167e63297782a2a06"
+      },
+      {
+        "pitch": 64,
+        "frames": 76800,
+        "source": "ogg/INSPiano_Vel02_E4_01.ogg",
+        "sha256": "c8612214b47f60dae8aa22b604bc76025f8607facef232fb64e469fe0be1de45"
+      },
+      {
+        "pitch": 68,
+        "frames": 76800,
+        "source": "ogg/INSPiano_Vel02_Gs4_01.ogg",
+        "sha256": "7c3be9197cc9c6f8e29cbdba4c59abcf4d70a92824fa19028a919c08688c1be1"
+      },
+      {
+        "pitch": 72,
+        "frames": 76800,
+        "source": "ogg/INSPiano_Vel02_C5_01.ogg",
+        "sha256": "aade89fe74167e5b761b2c7216bbebd397fe849e7342776b5b2326624b095a72"
+      },
+      {
+        "pitch": 76,
+        "frames": 76800,
+        "source": "ogg/INSPiano_Vel02_E5_01.ogg",
+        "sha256": "8b5b8605579f6c4fc398036010eac79132e07c4d65b753b993f520f6c66c65ab"
+      },
+      {
+        "pitch": 80,
+        "frames": 76800,
+        "source": "ogg/INSPiano_Vel02_Gs5_01.ogg",
+        "sha256": "893dbf483b8cca61b5c57f7c50defc3362621c066c48a954012c75cf89eaddc8"
+      },
+      {
+        "pitch": 84,
+        "frames": 76800,
+        "source": "ogg/INSPiano_Vel02_C6_01.ogg",
+        "sha256": "79c08ebd1197c0c5a418158be251fcfe499ba7f3edd681c0e3b714c0afbf82fa"
+      },
+      {
+        "pitch": 88,
+        "frames": 76800,
+        "source": "ogg/INSPiano_Vel02_E6_01.ogg",
+        "sha256": "c4184250c2aeb33056901d78b7cd3405bf70262fbe37b0a750bfae4763f6213f"
+      },
+      {
+        "pitch": 92,
+        "frames": 76800,
+        "source": "ogg/INSPiano_Vel02_Gs6_01.ogg",
+        "sha256": "33e0356466befc60c5e485692b23b303eaed7ebd48b28dfa308c8622cc02417c"
+      },
+      {
+        "pitch": 96,
+        "frames": 76800,
+        "source": "ogg/INSPiano_Vel02_C7_01.ogg",
+        "sha256": "61670f34f83fb3754e9baebc6c1376f9a459133e6ff83ccfd16f5626c4f952af"
+      },
+      {
+        "pitch": 100,
+        "frames": 76800,
+        "source": "ogg/INSPiano_Vel02_E7_01.ogg",
+        "sha256": "7b143263658dd5168edcc08ab9ec8e938814d84e55d7a00dc907723f805bb8d9"
+      },
+      {
+        "pitch": 104,
+        "frames": 76800,
+        "source": "ogg/INSPiano_Vel02_Gs7_01.ogg",
+        "sha256": "3d57802d6543db0817590b2cc8b8b4bdc57583006406ae9660408a5788489449"
+      }
+    ],
+    "sha256": "8ad807133c238519cfd9de1e940ee34da55a19500ec38c09242e9b673aecbc5d"
+  },
+  "guitar": {
+    "source": "meta-nylon-guitar",
+    "rate": 32000,
+    "zones": [
+      {
+        "pitch": 40,
+        "frames": 64000,
+        "source": "ogg/INSGuitarNylon_StringLowE_Vel01Finger_E2_01.ogg",
+        "sha256": "145ce2503392ccf2d042e3f4cdbcebeec8acf45178850eae8ab1988e6fafb623"
+      },
+      {
+        "pitch": 43,
+        "frames": 64000,
+        "source": "ogg/INSGuitarNylon_StringLowE_Vel01Finger_G2_01.ogg",
+        "sha256": "ad7558174f93be08f3f99c56fdbbda1700156751357160ce623ac43ad7e7f088"
+      },
+      {
+        "pitch": 46,
+        "frames": 64000,
+        "source": "ogg/INSGuitarNylon_StringA_Vel01Finger_As2_01.ogg",
+        "sha256": "442e1614f2b580bde2fec203111c4d91fed2fdb142c48b9d842712dcb16e1db8"
+      },
+      {
+        "pitch": 49,
+        "frames": 64000,
+        "source": "ogg/INSGuitarNylon_StringA_Vel01Finger_Cs3_01.ogg",
+        "sha256": "4d200de2a8b9a39be75e0a94a70605a92dd8ff84b84909331479469d5faa3ebf"
+      },
+      {
+        "pitch": 52,
+        "frames": 64000,
+        "source": "ogg/INSGuitarNylon_StringD_Vel01Finger_E3_01.ogg",
+        "sha256": "bb708d759c86ead11a307da883e07aa81adb99b2f6c63dd9ee9f146529cf5c53"
+      },
+      {
+        "pitch": 55,
+        "frames": 64000,
+        "source": "ogg/INSGuitarNylon_StringG_Vel01Finger_G3_01.ogg",
+        "sha256": "f02c4b08753e037e03e7445414159ebe515401361fb2a85c185b90f554931d31"
+      },
+      {
+        "pitch": 58,
+        "frames": 64000,
+        "source": "ogg/INSGuitarNylon_StringG_Vel01Finger_As3_01.ogg",
+        "sha256": "9d3cd572dd2a51ce68531e9444bb3e5dfe613507462c22c56ff3050c3b7d13fc"
+      },
+      {
+        "pitch": 61,
+        "frames": 64000,
+        "source": "ogg/INSGuitarNylon_StringB_Vel01Finger_Cs4_01.ogg",
+        "sha256": "69ad3f2979339d6fe63e05cbb165880ab1b27048a7cc72a3d8dcebd53cfb09f4"
+      },
+      {
+        "pitch": 64,
+        "frames": 64000,
+        "source": "ogg/INSGuitarNylon_StringHighE_Vel01Finger_E4_01.ogg",
+        "sha256": "7743bd063c273a2e9e01252d74352ab86e0fc6d14a8206e9f53d5d2f98db0e65"
+      },
+      {
+        "pitch": 67,
+        "frames": 64000,
+        "source": "ogg/INSGuitarNylon_StringHighE_Vel01Finger_G4_01.ogg",
+        "sha256": "fb75da29d5b76d90f617a9f5ba5813e0bed4cac8c087741b6f78d5b586d20a30"
+      },
+      {
+        "pitch": 70,
+        "frames": 64000,
+        "source": "ogg/INSGuitarNylon_StringHighE_Vel01Finger_As4_01.ogg",
+        "sha256": "000a1e8514fb95d2728dc9400acd044e782f3f8c179121f2e2877af8b77a969f"
+      },
+      {
+        "pitch": 73,
+        "frames": 64000,
+        "source": "ogg/INSGuitarNylon_StringHighE_Vel01Finger_Cs5_01.ogg",
+        "sha256": "0e8bd6827f4c36381b1ed249b7ddab924a6fb77f3add10160093d922423726bd"
+      },
+      {
+        "pitch": 76,
+        "frames": 52312,
+        "source": "ogg/INSGuitarNylon_StringHighE_Vel01Finger_E5_01.ogg",
+        "sha256": "57f9c073cd1ee1365857151fb378c9fa452942eaf8a08de7d2a3a7beb12134a8"
+      },
+      {
+        "pitch": 79,
+        "frames": 58050,
+        "source": "ogg/INSGuitarNylon_StringHighE_Vel01Finger_G5_01.ogg",
+        "sha256": "4f258f3d279ba879bbf72e604965beae90a90be7fa7b2df6ae5f060836212ca7"
+      },
+      {
+        "pitch": 82,
+        "frames": 54873,
+        "source": "ogg/INSGuitarNylon_StringHighE_Vel01Finger_As5_01.ogg",
+        "sha256": "aefaf0a981bc9961db7116144bb4b4ffba82bca932e35dc30ae979a31e912305"
+      },
+      {
+        "pitch": 83,
+        "frames": 53678,
+        "source": "ogg/INSGuitarNylon_StringHighE_Vel01Finger_B5_01.ogg",
+        "sha256": "3c6a7deb256f9a54fad4e3967ba9d364415ffb6fd02f5717ec713b0ebcb2c558"
+      }
+    ],
+    "sha256": "4d3cefca03cc844ac81790463679aced1ea3c6917bd148b24843b168b3e86ed1"
+  }
+}

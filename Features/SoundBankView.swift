@@ -3,6 +3,18 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 struct SoundBankView: View {
+    private enum Choice: Equatable {
+        case included(FactoryInstrument)
+        case imported(SoundBankProgram)
+
+        var name: String {
+            switch self {
+            case .included(let instrument): instrument.displayName
+            case .imported(let program): program.name
+            }
+        }
+    }
+
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
     let session: Session
@@ -14,47 +26,59 @@ struct SoundBankView: View {
     @State private var bankID: UUID?
     @State private var showImporter = false
     @State private var importing = false
-    @State private var applying: SoundBankProgram?
+    @State private var applying = false
     @State private var applyTask: Task<Void, Never>?
-    @State private var selectedProgram: SoundBankProgram?
+    @State private var selection: Choice?
     @State private var error: String?
     @State private var auditionTask: Task<Void, Never>?
-    @State private var auditionProgram: SoundBankProgram?
+    @State private var auditionChoice: Choice?
     @State private var search = ""
     @State private var output: URL?
     @State private var player: AVAudioPlayer?
 
     private var bank: ImportedSoundBank? { banks.first { $0.id == bankID } }
-    private var matchingPrograms: [SoundBankProgram] {
-        let query = search.trimmingCharacters(in: .whitespacesAndNewlines)
-        let programs = bank?.programs ?? []
-        return query.isEmpty ? programs : programs.filter { $0.name.localizedStandardContains(query) }
+    private var query: String { search.trimmingCharacters(in: .whitespacesAndNewlines) }
+    private var matchingIncluded: [FactoryInstrument] {
+        FactoryInstrument.allCases.filter { matches($0.displayName) }
     }
+    private var matchingPrograms: [SoundBankProgram] {
+        (bank?.programs ?? []).filter { matches($0.name) }
+    }
+    private func matches(_ name: String) -> Bool { query.isEmpty || name.localizedStandardContains(query) }
 
     var body: some View {
         NavigationStack {
             List {
+                if !matchingIncluded.isEmpty {
+                    Section("Recorded instruments") {
+                        ForEach(matchingIncluded) { instrument in
+                            soundRow(.included(instrument), identifier: "sound-bank.included.\(instrument.id)")
+                        }
+                    }
+                }
                 Section {
                     Button { showImporter = true } label: { Label("Import SoundFont", systemImage: "square.and.arrow.down") }
-                        .disabled(importing || applying != nil).accessibilityIdentifier("sound-bank.import")
+                        .disabled(importing || applying).accessibilityIdentifier("sound-bank.import")
                     if importing { ProgressView("Importing sound bank…") }
                     if !banks.isEmpty {
                         Picker("Sound bank", selection: $bankID) {
                             ForEach(banks) { item in Text(item.name).tag(Optional(item.id)) }
-                        }.disabled(applying != nil)
+                        }.disabled(applying)
                     }
                 } footer: {
                     Text("Import an .sf2 bank, audition a sound, then use it on this track.")
                 }
-                if let bank {
+                if !matchingPrograms.isEmpty {
                     Section("Instruments") {
-                        if matchingPrograms.isEmpty {
-                            Text("No matching instruments").foregroundStyle(Color.muted)
-                        }
                         ForEach(matchingPrograms, id: \.self) { program in
-                            programRow(program, bank: bank)
+                            let detail = Text("Bank \(Int(program.bank)) · Program \(Int(program.program) + 1)")
+                            soundRow(.imported(program), detail: detail,
+                                     identifier: "sound-bank.program.\(program.bank).\(program.program)", assignable: program.bank != 128)
                         }
                     }
+                }
+                if matchingPrograms.isEmpty && matchingIncluded.isEmpty {
+                    Text("No matching instruments").foregroundStyle(Color.muted)
                 }
             }
             .scrollContentBackground(.hidden)
@@ -67,13 +91,13 @@ struct SoundBankView: View {
                 VStack(alignment: .leading, spacing: 10) {
                     if let error { Label(error, systemImage: "exclamationmark.circle").font(.caption).foregroundStyle(Color.record) }
                     Button {
-                        if let bank, let selectedProgram { apply(selectedProgram, bank: bank) }
+                        if let selection { apply(selection, bank: bank) }
                     } label: {
-                        if applying != nil { ProgressView("Preparing instrument…").frame(maxWidth: .infinity) }
+                        if applying { ProgressView("Preparing instrument…").frame(maxWidth: .infinity) }
                         else { Text("Use instrument").frame(maxWidth: .infinity) }
                     }
                     .buttonStyle(StudioActionStyle())
-                    .disabled(selectedProgram == nil || importing || applying != nil)
+                    .disabled(selection == nil || importing || applying)
                     .accessibilityIdentifier("sound-bank.apply")
                 }.padding(16).background(Color.ink)
             }
@@ -87,55 +111,64 @@ struct SoundBankView: View {
             case .failure(let failure): error = failure.localizedDescription
             }
         }
-        .onChange(of: bankID) { _, _ in stopAudition(); selectedProgram = nil }
+        .onChange(of: bankID) { _, _ in
+            stopAudition()
+            if case .imported = selection { selection = nil }
+        }
         .onChange(of: search) { _, _ in
-            if let selectedProgram, !matchingPrograms.contains(selectedProgram) { self.selectedProgram = nil }
+            if let selection, !matches(selection.name) { self.selection = nil }
         }
         .onChange(of: scenePhase) { _, phase in if phase != .active { stopAudition() } }
         .onDisappear { stopAudition(); applyTask?.cancel() }
     }
 
-    private func programRow(_ program: SoundBankProgram, bank: ImportedSoundBank) -> some View {
-        let active = auditionProgram == program
-        let selected = selectedProgram == program
+    private func soundRow(_ choice: Choice, detail: Text? = nil, identifier: String, assignable: Bool = true) -> some View {
+        let active = auditionChoice == choice
+        let selected = selection == choice
         return HStack(spacing: 8) {
-            Button { selectedProgram = program; error = nil } label: {
+            Button { selection = choice; error = nil } label: {
                 HStack(spacing: 12) {
                     Image(systemName: selected ? "checkmark.circle.fill" : "circle")
                         .foregroundStyle(selected ? Color.mint : Color.muted)
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(program.name).font(.headline).foregroundStyle(Color.studioText)
-                        Text("Bank \(Int(program.bank)) · Program \(Int(program.program) + 1)")
-                            .font(.caption.monospacedDigit()).foregroundStyle(Color.muted)
+                        Text(choice.name).font(.headline).foregroundStyle(Color.studioText)
+                        if let detail { detail.font(.caption.monospacedDigit()).foregroundStyle(Color.muted) }
                     }
                     Spacer(minLength: 0)
                 }.frame(minHeight: 44).contentShape(Rectangle())
             }.buttonStyle(.plain)
-                .disabled(program.bank == 128 || applying != nil)
+                .disabled(!assignable || applying)
                 .accessibilityAddTraits(selected ? [.isSelected] : [])
-                .accessibilityIdentifier("sound-bank.program.\(program.bank).\(program.program)")
+                .accessibilityIdentifier(identifier)
             Button {
-                if active { stopAudition() } else { audition(program, bank: bank) }
+                if active { stopAudition() } else { audition(choice, bank: bank) }
             } label: {
                 if active && player == nil { ProgressView() }
                 else { Image(systemName: active ? "stop.fill" : "speaker.wave.2").foregroundStyle(Color.mint) }
             }
             .buttonStyle(.plain)
             .frame(width: 44, height: 44)
-            .disabled(applying != nil)
+            .disabled(applying)
             .accessibilityLabel(active ? "Stop preview" : "Hear sound")
-            .accessibilityValue(program.name)
+            .accessibilityValue(choice.name)
         }
     }
 
-    private func apply(_ program: SoundBankProgram, bank: ImportedSoundBank) {
+    private func apply(_ choice: Choice, bank: ImportedSoundBank?) {
         stopAudition()
         error = nil
-        applying = program
+        applying = true
         applyTask = Task {
-            defer { applying = nil }
+            defer { applying = false }
             do {
-                let sound = try await SoundBankLibrary.shared.prepareInstrument(program, in: bank)
+                let sound: PreparedSound
+                switch choice {
+                case .included(let instrument):
+                    sound = try await SoundBankLibrary.shared.prepareFactoryInstrument(instrument)
+                case .imported(let program):
+                    guard let bank else { throw SoundBankError.invalid }
+                    sound = try await SoundBankLibrary.shared.prepareInstrument(program, in: bank)
+                }
                 try Task.checkCancellation()
                 try await session.assignSounds([(nil, sound)], trackID: trackID, projectID: projectID, revision: revision)
                 dismiss()
@@ -166,13 +199,20 @@ struct SoundBankView: View {
         }
     }
 
-    private func audition(_ program: SoundBankProgram, bank: ImportedSoundBank) {
+    private func audition(_ choice: Choice, bank: ImportedSoundBank?) {
         stopAudition()
         error = nil
-        auditionProgram = program
+        auditionChoice = choice
         auditionTask = Task {
             do {
-                let rendered = try await SoundBankLibrary.shared.audition(program, in: bank)
+                let rendered: URL
+                switch choice {
+                case .included(let instrument):
+                    rendered = try await SoundBankLibrary.shared.auditionFactoryInstrument(instrument)
+                case .imported(let program):
+                    guard let bank else { throw SoundBankError.invalid }
+                    rendered = try await SoundBankLibrary.shared.audition(program, in: bank)
+                }
                 guard !Task.isCancelled else {
                     try? FileManager.default.removeItem(at: rendered)
                     return
@@ -200,6 +240,6 @@ struct SoundBankView: View {
         player = nil
         if let output { try? FileManager.default.removeItem(at: output) }
         output = nil
-        auditionProgram = nil
+        auditionChoice = nil
     }
 }

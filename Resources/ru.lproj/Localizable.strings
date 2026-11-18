@@ -822,3 +822,6 @@
 "Remove from library" = "Удалить из библиотеки";
 "Tap a sample to use it on this pad. Your library is available in every project." = "Нажми на сэмпл, чтобы назначить его пэду. Библиотека доступна во всех проектах.";
 "The pad sample library is full. Remove a sample to make room." = "Библиотека заполнена. Удали сэмпл, чтобы освободить место.";
+"Acoustic piano" = "Акустическое пианино";
+"Nylon guitar" = "Нейлоновая гитара";
+"Recorded instruments" = "Живые инструменты";

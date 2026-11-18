@@ -210,6 +210,26 @@ final class SoundPickerUITests:XCTestCase {
         assertAssignedSample(another)
     }
 
+    @MainActor func testIncludedInstrumentCanBeAssignedWithoutImport() {
+        let app = launch(); defer { app.terminate() }
+        app.buttons["Mixer"].tap()
+        let harmony = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'sound.track.harmony.'")).firstMatch
+        XCTAssertTrue(harmony.waitForExistence(timeout: 5)); harmony.tap()
+        app.buttons["sound.banks"].tap()
+        let piano = app.buttons["sound-bank.included.piano"]
+        XCTAssertTrue(piano.waitForExistence(timeout: 8))
+        XCTAssertTrue(app.buttons["sound-bank.included.nylon-guitar"].exists)
+        piano.tap()
+        let shot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        shot.name = "Sound30-recorded-instruments"; shot.lifetime = .keepAlways; add(shot)
+        app.buttons["sound-bank.apply"].tap()
+        let label = app.navigationBars["Sound"].buttons["Cancel"]
+        let parent = NSPredicate(format: "hittable == true")
+        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: parent, object: label)], timeout: 15), .completed)
+        label.tap()
+        XCTAssertEqual(harmony.value as? String, "Acoustic piano")
+    }
+
     @MainActor private func openSampleLibrary(_ app: XCUIApplication) {
         let sound = entry(app)
         XCTAssertTrue(sound.waitForExistence(timeout: 5)); sound.tap()

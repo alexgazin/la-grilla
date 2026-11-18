@@ -1,7 +1,7 @@
 name: SoundFont and sample audio
 on:
   push:
-    branches: [main, feat/sample-instruments, feat/sound-library]
+    branches: [main, feat/sample-instruments, feat/sound-library, feat/factory-instruments]
   workflow_dispatch:
 permissions:
   contents: read
@@ -17,7 +17,7 @@ jobs:
           TEMP_BANK=$(mktemp -d)
           BANK=$(bash scripts/ci/fetch_test_sound_bank.sh "$TEMP_BANK")
           mkdir "$TEMP_BANK/Verify"
-          cp AudioRuntime/{SoundFontProgramTable,SoundBankLibrary,InstrumentPreparation,StarterDrumKit}.swift scripts/verify_sound_bank_preview.swift "$TEMP_BANK/Verify/"
+          cp AudioRuntime/{SoundFontProgramTable,SoundBankLibrary,InstrumentPreparation,StarterDrumKit,FactoryInstruments}.swift scripts/verify_sound_bank_preview.swift "$TEMP_BANK/Verify/"
           cat > "$TEMP_BANK/Package.swift" <<EOF
           // swift-tools-version: 6.0
           import PackageDescription
@@ -25,9 +25,9 @@ jobs:
               dependencies: [.package(name: "MusicDomain", path: "$GITHUB_WORKSPACE/Packages/MusicDomain")],
               targets: [.executableTarget(name: "Verify", dependencies: [.product(name: "MusicDomain", package: "MusicDomain")], path: "Verify")])
           EOF
-          xcrun swift run --package-path "$TEMP_BANK" Verify "$BANK"
+          xcrun swift run --package-path "$TEMP_BANK" Verify "$BANK" "$GITHUB_WORKSPACE/Resources/FactoryInstruments"
   ios-sound:
-    if: github.ref_name == 'feat/sample-instruments' || github.ref_name == 'feat/sound-library' || github.event_name == 'workflow_dispatch'
+    if: github.ref_name == 'feat/sample-instruments' || github.ref_name == 'feat/sound-library' || github.ref_name == 'feat/factory-instruments' || github.event_name == 'workflow_dispatch'
     runs-on: macos-26
     timeout-minutes: 35
     env:
@@ -69,7 +69,7 @@ jobs:
           TEST_RUNNER_GRILLA_TEST_SOUNDFONT: '1'
         run: |
           DEVICE=$(cat /tmp/grilla-simulator-id)
-          CASES=(ArrangementUITests/testPinchRetainsScrolledMusicalCenterWithoutEditingOrStopping SoundPickerUITests/testPocketKitIsAnUndoableEditAndReopensWithTheSamePadSamples SoundPickerUITests/testSavedPadSampleCanBeUsedInTwoProjects SoundPickerUITests/testLiveSoundPreviewRetainsTheGrooveAndSourceRevision)
+          CASES=(ArrangementUITests/testPinchRetainsScrolledMusicalCenterWithoutEditingOrStopping SoundPickerUITests/testIncludedInstrumentCanBeAssignedWithoutImport SoundPickerUITests/testPocketKitIsAnUndoableEditAndReopensWithTheSamePadSamples SoundPickerUITests/testSavedPadSampleCanBeUsedInTwoProjects SoundPickerUITests/testLiveSoundPreviewRetainsTheGrooveAndSourceRevision)
           REQUIRED=()
           SELECTED=()
           for CASE_ID in "${CASES[@]}"; do

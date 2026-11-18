@@ -5,7 +5,7 @@ import MusicDomain
 /// Runs only on Apple hosts and auditions a real external SoundFont, never a bundled fixture.
 @main struct VerifySoundBankPreview {
     static func main() async throws {
-        guard CommandLine.arguments.count == 2 else { throw SoundBankError.invalid }
+        guard CommandLine.arguments.count == 3 else { throw SoundBankError.invalid }
         let source = URL(fileURLWithPath: CommandLine.arguments[1])
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
         defer { try? FileManager.default.removeItem(at: root) }
@@ -52,6 +52,22 @@ import MusicDomain
         let kit = try await DrumSamplePreparation.shared.pocketKit()
         guard kit.count == 16, Set(kit.map { $0.sound.asset.sha256 }).count == 16 else { throw SampleError.invalid }
         print("16 distinct original one-shots verified. Exported PCM WAV files can be imported as drum samples.")
+
+        exported.removeAll()
+        let resources = URL(fileURLWithPath: CommandLine.arguments[2], isDirectory: true)
+        for instrument in FactoryInstrument.allCases {
+            let sound = try await library.prepareFactoryInstrument(instrument, directory: resources)
+            var samples = SampleLibrary()
+            samples.insert(try PreparedSampleBank(asset: sound.asset, data: sound.data))
+            project.tracks[0].instrumentSample = sound.asset
+            let output = root.appendingPathComponent(instrument.rawValue).appendingPathExtension("wav")
+            let result = try await OfflineRenderer.render(project, to: output, settings: settings,
+                                                          isolatedTrack: project.tracks[0].id, samples: samples)
+            guard result.peak > 0.001, !result.clipped else { throw SoundBankError.cannotRender }
+            exported.append(try Data(contentsOf: output))
+            print("Bundled \(instrument.displayName) generated \(result.frames) audible WAV frames, peak \(result.peak)")
+        }
+        guard exported[0] != exported[1] else { throw SoundBankError.cannotRender }
     }
 
     static func PCM(program: SoundBankProgram, bank: ImportedSoundBank, library: SoundBankLibrary) async throws -> [Float] {

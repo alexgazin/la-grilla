@@ -820,3 +820,6 @@
 "Remove from library" = "Remove from library";
 "Tap a sample to use it on this pad. Your library is available in every project." = "Tap a sample to use it on this pad. Your library is available in every project.";
 "The pad sample library is full. Remove a sample to make room." = "The pad sample library is full. Remove a sample to make room.";
+"Acoustic piano" = "Acoustic piano";
+"Nylon guitar" = "Nylon guitar";
+"Recorded instruments" = "Recorded instruments";
