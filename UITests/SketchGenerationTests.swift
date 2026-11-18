@@ -70,6 +70,35 @@ final class SketchGenerationTests:XCTestCase {
         keepScreenshot("Completion-generated-sketch-midi-share")
     }
 
+    @MainActor func testOfflineBuilderCreatesTwoSectionBeatFromExample() {
+        let app = launch()
+        let old = state(app.buttons["perform.transport"])
+        app.buttons["assistant.open"].tap()
+        let builder = app.buttons["Build a track"]
+        XCTAssertTrue(builder.waitForExistence(timeout: 8))
+        builder.tap()
+        let example = app.buttons["Try a boom-bap arrangement"]
+        XCTAssertTrue(example.waitForExistence(timeout: 8))
+        example.tap()
+        app.buttons["Suggest settings"].tap()
+        let feedback = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "Local suggestions")).firstMatch
+        XCTAssertTrue(feedback.waitForExistence(timeout: 8))
+        keepScreenshot("Groove37-offline-builder")
+        let save = app.buttons["builder.create"]
+        for _ in 0..<10 where !save.isHittable { app.swipeUp() }
+        XCTAssertTrue(save.isHittable)
+        save.tap()
+        let transport = app.buttons["perform.transport"]
+        XCTAssertTrue(transport.waitForExistence(timeout: 10))
+        wait(transport) {
+            let next = self.state(transport)
+            return !next.id.isEmpty && next.id != old.id
+        }
+        XCTAssertTrue(app.buttons.matching(NSPredicate(format:"label CONTAINS %@", "Intro")).firstMatch.exists)
+        XCTAssertTrue(app.buttons.matching(NSPredicate(format:"label CONTAINS %@", "Hook")).firstMatch.exists)
+        keepScreenshot("Groove37-editable-arrangement")
+    }
+
     @MainActor private func launch()->XCUIApplication {
         XCUIDevice.shared.orientation = .portrait
         let app=XCUIApplication()

@@ -1,5 +1,7 @@
 # La Grilla для ручного тестирования
 
+**[Скачать IPA 37 для iPhone](https://github.com/alexgazin/la-grilla/actions/runs/44375324030/artifacts/14461599286)**. Автономный генератор инструментальных аранжировок, раздельные вариации баса и ударных, вступление и пауза перед повтором. Из ZIP извлеките LaGrilla-unsigned.ipa и подпишите своим Apple ID через Sideloadly. SHA-256 файла IPA — `d28f3f92d41bbb8ed974743fb8f09c1d5cbfdb27f41b11872aeac8c1134fcc33`. [Проверка создания проекта на симуляторе](https://github.com/alexgazin/la-grilla/actions/runs/44376030143).
+
 **[Скачать IPA 36 для iPhone](https://github.com/alexgazin/la-grilla/actions/runs/44325351752/artifacts/14437696953)**. Четыре синтезированных саксофона, четырёхполосный эквалайзер на дорожках и мастере, 27 EQ-пресетов и 18 музыкальных заготовок. В ZIP лежит неподписанная IPA для Personal Team. [Проверка пакета и экспорта](candidate36-verification.json) · [Послушать тембры](../../Media/Audio/saxophone-voices.mp3)
 
 **[Скачать IPA 35 для iPhone](https://github.com/alexgazin/la-grilla/actions/runs/44319624212/artifacts/14433869024)**. Конструктор создаёт отдельный проект по описанию или по заданным параметрам. Из ZIP извлеките IPA и подпишите через Personal Team. Собраны Debug и Release для iPhone. [Проверка пакета и музыкального примера](candidate35-verification.json)
