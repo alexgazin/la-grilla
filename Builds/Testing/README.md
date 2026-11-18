@@ -1,5 +1,7 @@
 # La Grilla для ручного тестирования
 
+**[Скачать IPA 34 для iPhone](https://github.com/alexgazin/la-grilla/actions/runs/44316742468/artifacts/14433691380)**. Исправлена громкость экранных клавиш, добавлен выбор английского запроса при неподдерживаемом языке системной модели. В ZIP лежит неподписанная IPA для установки через Personal Team. Замерены шесть инструментов и штатный синтезатор, собраны Debug и Release для iPhone. Полный прогон отложен. [Проверка пакета и уровни звука](candidate34-verification.json)
+
 **[Скачать IPA 33 для iPhone](https://github.com/alexgazin/la-grilla/actions/runs/44309761379/artifacts/14431130364)**. Шесть инструментов с иллюстрациями, мультитач-клавиатура и запись фраз. В ZIP лежит `LaGrilla-unsigned.ipa`, которую можно подписать через Personal Team. Пакет для iOS 18+ занимает 7 451 773 байта. SHA-256 `33a18a73d18aeab468652942baf2f053a2208ee670f3747ef0c0966e3121646e`. [Проверка архива](candidate33-verification.json) · [Инструкция по клавиатуре](../../docs/SONG_FORM_AND_SOUND_BANKS.md)
 
 ### Сборка 32

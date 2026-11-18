@@ -1,0 +1,99 @@
+{
+  "artifact": 14433691380,
+  "run": 44316742468,
+  "source": "6141238f2cf3e6727eff7f58bdafcdfb0b3924f8",
+  "build": 34,
+  "version": "1.0.0",
+  "bytes": 7452462,
+  "sha256": "cb0012201c381d17b367344a2be2bd30f61457c3a15241b4cbce9c84ae4feb4f",
+  "entries": 20,
+  "binary": {
+    "architecture": "arm64",
+    "platform": "iOS",
+    "minimumOS": "18.0.0",
+    "sdk": "26.2.0",
+    "uuid": "6332E0AD-75C9-3F62-920C-151C6500B0EE",
+    "dsymUUIDMatches": true,
+    "foundationModelsLoadCommand": "LC_LOAD_WEAK_DYLIB",
+    "foundationModelsOrdinal": 15,
+    "foundationModelsWeakSymbols": 78,
+    "foundationModelsWeakChainedImports": 78,
+    "initializerSections": [],
+    "hasCodeSignatureCommand": false,
+    "runtimeValidation": "Static binary checks only; signed-device startup on iOS 18 still requires device QA."
+  },
+  "factoryPCM": {
+    "piano.lgpcm": {
+      "bytes": 3225864,
+      "sha256": "99ab675b5a3ba11a060a8e1c748d091dea9a57af6a45372a9b976d679634980c",
+      "zones": 21
+    },
+    "nylon-guitar.lgpcm": {
+      "bytes": 1974030,
+      "sha256": "a5a079fb6045f961c0788a98d3d2cf3fb7c220dcc0537b9fdffce8d455573c07",
+      "zones": 16
+    }
+  },
+  "physicalDevice": false,
+  "keyboardMeasurement": {
+    "note": 60,
+    "velocity": 96,
+    "sampleRate": 48000,
+    "milliseconds": 250,
+    "trackDB": -6,
+    "masterDB": -3,
+    "pan": 0,
+    "reference": "Ordinary MIDI input at the same gain as the previous screen keyboard. Stock synth, piano and nylon guitar baseline also rendered from build 33 sources.",
+    "levels": {
+      "synth": {
+        "referencePeakDBFS": -28.43,
+        "keyboardPeakDBFS": -16.39,
+        "referenceRMSDBFS": -33.07,
+        "keyboardRMSDBFS": -21.03
+      },
+      "piano": {
+        "referencePeakDBFS": -34.44,
+        "keyboardPeakDBFS": -15.96,
+        "referenceRMSDBFS": -41.24,
+        "keyboardRMSDBFS": -22.76
+      },
+      "guitar": {
+        "referencePeakDBFS": -43.04,
+        "keyboardPeakDBFS": -15.97,
+        "referenceRMSDBFS": -54.03,
+        "keyboardRMSDBFS": -26.97
+      },
+      "electric-piano": {
+        "referencePeakDBFS": -25.25,
+        "keyboardPeakDBFS": -15.96,
+        "referenceRMSDBFS": -29.09,
+        "keyboardRMSDBFS": -19.79
+      },
+      "marimba": {
+        "referencePeakDBFS": -24.28,
+        "keyboardPeakDBFS": -15.96,
+        "referenceRMSDBFS": -32.96,
+        "keyboardRMSDBFS": -24.64
+      },
+      "organ": {
+        "referencePeakDBFS": -27.25,
+        "keyboardPeakDBFS": -15.96,
+        "referenceRMSDBFS": -31.8,
+        "keyboardRMSDBFS": -20.5
+      },
+      "vibraphone": {
+        "referencePeakDBFS": -23.5,
+        "keyboardPeakDBFS": -15.96,
+        "referenceRMSDBFS": -31.14,
+        "keyboardRMSDBFS": -23.59
+      }
+    },
+    "additionalPitches": [
+      48,
+      76,
+      84
+    ],
+    "eightNoteChord": "All seven sounds below digital clipping on the default mix. Mute and note release checked."
+  },
+  "fullSuite": "Paused at user request. No full suite for build 34."
+}
