@@ -233,6 +233,34 @@ final class StudioTests: XCTestCase {
         XCTAssertFalse(app.buttons["format.stems"].exists);app.buttons["export.confirm"].tap()
         XCTAssertTrue(app.otherElements["ActivityListView"].waitForExistence(timeout:20) || app.buttons["Copy"].exists || app.staticTexts["Save to Files"].exists)
     }
+    @MainActor func testSavedPerformanceCreatesEditableSong() {
+        XCUIDevice.shared.orientation = .portrait
+        let app = XCUIApplication()
+        app.launchArguments = ["--uitesting", "--screen", "perform", "--project-store-id", UUID().uuidString,
+                               "-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
+        app.launch(); defer { app.terminate() }
+        let record = app.buttons["perform.record"]
+        XCTAssertTrue(record.waitForExistence(timeout: 15)); record.tap()
+        let recording = app.staticTexts.matching(NSPredicate(format: "identifier == 'perform.mode' AND label == 'RECORDING'")).firstMatch
+        XCTAssertTrue(recording.waitForExistence(timeout: 8))
+        app.buttons["perform.section.Chorus"].tap()
+        app.buttons["perform.play"].tap()
+        let created = app.buttons["perform.create-song"]
+        let scroll = app.scrollViews.firstMatch
+        for _ in 0..<5 {
+            if created.isHittable { break }
+            scroll.swipeUp()
+        }
+        XCTAssertTrue(created.isHittable)
+        created.tap()
+        let song = app.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS '· Live'")).firstMatch
+        XCTAssertTrue(song.waitForExistence(timeout: 15))
+        XCTAssertTrue(app.buttons["sections.open"].waitForExistence(timeout: 8))
+        let shot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        shot.name = "Release31-editable-live-song"; shot.lifetime = .keepAlways; add(shot)
+        app.buttons["Projects"].tap()
+        XCTAssertTrue(app.staticTexts["First light"].waitForExistence(timeout: 5))
+    }
     @MainActor func testNavigationKeepsTransportAlive() {
         let app=launch();app.buttons["Play"].tap();XCTAssertTrue(app.staticTexts["PLAYING"].waitForExistence(timeout:5))
         app.buttons["Jam"].tap();XCTAssertTrue(app.staticTexts["Pocket kit"].exists);XCTAssertTrue(app.staticTexts["PLAYING"].exists)

@@ -616,6 +616,31 @@ import Observation
         await refreshLibraryEntry(example.id,validated:true)
         return true
     }
+
+    func createFromPerformance(_ take: PerformanceTake) async -> Bool {
+        guard let token = beginProjectChange() else { return false }
+        defer { endProjectChange(token) }
+        var written: Project?
+        do {
+            let expected = try await prepareProjectChange(token, checkpoint: true)
+            guard project.performanceTake?.id == take.id else { throw ProjectChangeError.changed }
+            let derived = try await store.createFromPerformance(take, projectID: expected.id)
+            written = derived
+            try await projectChangeBoundary(token, expected: expected, stage: "candidate.saved")
+            let samples = try await store.loadSamples(for: derived)
+            try verifyProjectChange(token, expected: expected)
+            UserDefaults.standard.set(["bars": derived.length / barTicks, "enabled": false], forKey: generatedLoopKey(derived.id))
+            activateProject(derived, savedRevision: derived.revision, samples: samples)
+            tab = 0
+            await refreshLibraryEntry(derived.id, validated: true)
+            return true
+        } catch {
+            if let written { await retainUnopenedProject(written) }
+            else { message = error.localizedDescription }
+            return false
+        }
+    }
+
     func duplicateStored(_ id:UUID)async {
         do{
             let source:Project

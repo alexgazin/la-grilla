@@ -825,3 +825,7 @@
 "Acoustic piano" = "Акустическое пианино";
 "Nylon guitar" = "Нейлоновая гитара";
 "Recorded instruments" = "Живые инструменты";
+"%@ · Live" = "%@ · Лайв";
+"Creating editable song…" = "Создаём редактируемую песню…";
+"Create editable song" = "Создать редактируемую песню";
+"Creates a project from the played sections and parts. The exact live mix stays in the take." = "Из сыгранных секций и партий создаётся проект. Полный лайв-микс сохраняется в дубле.";

@@ -30,6 +30,51 @@ struct PerformanceTests {
         let midi=try PerformanceTimeline.midi(take);#expect(midi.prefix(4)==Data("MThd".utf8));#expect(midi.contains(0xb0))
         var invalid=take;invalid.events[1].frame=1;#expect(throws:MusicError.self){try invalid.validate()}
     }
+
+    @Test func liveTakeCreatesAnEditableCopyAndAutomationKeepsHeldNotesIntact() async throws {
+        var source = Project(name: "Concert", bars: 2)
+        source.sections = [Section(name: "Verse", length: barTicks), Section(name: "Chorus", start: barTicks, length: barTicks)]
+        source.patterns[0].chords = [ChordEvent(tick: 0, duration: barTicks, chord: Chord(root: 0)),
+                                     ChordEvent(tick: barTicks, duration: barTicks, chord: Chord(root: 7))]
+        try source.addMelody()
+        let samplePCM = SamplePCM(rate: 32_000, zones: [.init(pitch: 60, samples: [Int16](repeating: 3000, count: 128))])
+        let bytes = try samplePCM.encode(kind: .oneShot)
+        let oneShot = try SampleAsset(kind: .oneShot, name: "Rim", bytes: bytes)
+        source.tracks[1].padSamples = [5: oneShot]
+        let melody = NoteEvent(tick: 0, duration: 1, pitch: 74, velocity: 91)
+        let events = [
+            PerformanceEvent(frame: 0, kind: .section, sectionID: source.sections[1].id),
+            PerformanceEvent(frame: 12_000, kind: .pad, value: 102, track: 1, pad: 5),
+            PerformanceEvent(frame: 24_000, kind: .filter, value: -0.45),
+            PerformanceEvent(frame: 96_000, kind: .section, sectionID: source.sections[0].id),
+            PerformanceEvent(frame: 108_000, kind: .midiNoteOn, track: 2, note: melody, instrument: 3, midiKey: 0),
+            PerformanceEvent(frame: 132_000, kind: .midiNoteOff, track: 2, note: melody, instrument: 3, midiKey: 0)
+        ]
+        let take = PerformanceTake(source: source, sampleRate: 48_000, durationFrames: 156_000, events: events)
+        let notes = try PerformanceTimeline.backingNotes(take)
+        #expect(notes.contains { $0.track == 0 && $0.tick == 0 && $0.duration == barTicks })
+        #expect(!notes.contains { $0.track == 0 && $0.tick == 960 })
+
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let store = ProjectStore(root: folder)
+        var active = source
+        active.id = UUID()
+        active.tracks[1].padSamples = nil
+        active.performanceTake = take
+        _ = try await store.stageSample(bytes, asset: oneShot, projectID: active.id)
+        _ = try await store.save(active)
+        let result = try await store.createFromPerformance(take, projectID: active.id)
+        #expect(result.id != active.id && result.revision == 0)
+        #expect(result.length == 2 * barTicks && result.sections.map(\.name) == ["Chorus", "Verse"])
+        #expect(result.tracks[1].padSamples?[5] == oneShot && result.performanceTake == take)
+        let music = Compiler.notes(result)
+        #expect(music.contains { $0.pad == 5 && $0.tick == 480 && $0.velocity == 102 })
+        #expect(music.contains { $0.track == 2 && $0.pitch == 74 && $0.tick == 4320 && $0.duration == 960 })
+        #expect(try await store.load(active.id) == active)
+        #expect(try await store.load(result.id) == result)
+        #expect(try await store.loadSamples(for: result).assets == [oneShot])
+    }
     @Test func fullLengthTakeAllowsRoundedFractionalFrameLimit()throws {
         var p=Project.demo();p.bpm=123
         let frames=UInt64((Double(64*barTicks)/Double(ppq)*60/p.bpm*44100).rounded())

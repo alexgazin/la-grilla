@@ -823,3 +823,7 @@
 "Acoustic piano" = "Acoustic piano";
 "Nylon guitar" = "Nylon guitar";
 "Recorded instruments" = "Recorded instruments";
+"%@ · Live" = "%@ · Live";
+"Creating editable song…" = "Creating editable song…";
+"Create editable song" = "Create editable song";
+"Creates a project from the played sections and parts. The exact live mix stays in the take." = "Creates a project from the played sections and parts. The exact live mix stays in the take.";

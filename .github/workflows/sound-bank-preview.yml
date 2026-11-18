@@ -69,7 +69,7 @@ jobs:
           TEST_RUNNER_GRILLA_TEST_SOUNDFONT: '1'
         run: |
           DEVICE=$(cat /tmp/grilla-simulator-id)
-          CASES=(ArrangementUITests/testPinchRetainsScrolledMusicalCenterWithoutEditingOrStopping SoundPickerUITests/testIncludedInstrumentCanBeAssignedWithoutImport SoundPickerUITests/testPocketKitIsAnUndoableEditAndReopensWithTheSamePadSamples SoundPickerUITests/testSavedPadSampleCanBeUsedInTwoProjects SoundPickerUITests/testLiveSoundPreviewRetainsTheGrooveAndSourceRevision)
+          CASES=(ArrangementUITests/testPinchRetainsScrolledMusicalCenterWithoutEditingOrStopping SoundPickerUITests/testIncludedInstrumentCanBeAssignedWithoutImport SoundPickerUITests/testPocketKitIsAnUndoableEditAndReopensWithTheSamePadSamples SoundPickerUITests/testSavedPadSampleCanBeUsedInTwoProjects SoundPickerUITests/testLiveSoundPreviewRetainsTheGrooveAndSourceRevision StudioTests/testSavedPerformanceCreatesEditableSong)
           REQUIRED=()
           SELECTED=()
           for CASE_ID in "${CASES[@]}"; do

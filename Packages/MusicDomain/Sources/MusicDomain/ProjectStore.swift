@@ -303,4 +303,12 @@ public extension ProjectStore {
         }
         catch{try? FileManager.default.removeItem(at:folder);throw error}
     }
+
+    func createFromPerformance(_ take: PerformanceTake, projectID: UUID) throws -> Project {
+        var draft = try PerformanceTimeline.arrangement(take)
+        // Copies of a project may still contain a take whose frozen source has
+        // the original ID. The active package owns all of that take's assets.
+        draft.id = projectID
+        return try duplicate(draft, suffix: "")
+    }
 }

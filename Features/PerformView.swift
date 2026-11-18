@@ -10,6 +10,7 @@ struct PerformView:View {
     @Environment(\.verticalSizeClass) private var verticalSizeClass
     @State private var showMore=false
     @State private var showTilt=false
+    @State private var makingSong = false
     @State private var tilt=TiltFilterController()
     @State private var tiltOrientation=UIInterfaceOrientation.portrait
     @State private var tiltTarget=TiltTarget.filter
@@ -46,10 +47,10 @@ struct PerformView:View {
             }
             .navigationTitle("Perform").navigationBarTitleDisplayMode(.inline)
             .toolbar{ToolbarItem(placement:.cancellationAction){Button("Done"){tilt.stop();session.sheet=nil}.accessibilityIdentifier("perform.done")};ToolbarItem(placement:.primaryAction){Button("Panic"){tilt.stop();live.panic();session.pollPerformance()}.foregroundStyle(Color.record).accessibilityIdentifier("perform.panic")}}
-        }.presentationDetents([.large])
+        }.disabled(makingSong).presentationDetents([.large])
         // A downward effect/scroll gesture must not close a running set.
         // Done and Return to editing remain explicit navigation controls.
-        .interactiveDismissDisabled(live.playing || live.starting || live.recording || live.replaying)
+        .interactiveDismissDisabled(makingSong || live.playing || live.starting || live.recording || live.replaying)
         .background(PerformOrientationReader{next in
             if next != tiltOrientation,tilt.active{tilt.stop(notice:"Screen rotated. Enable tilt again to set a new neutral position.")}
             tiltOrientation=next
@@ -200,6 +201,22 @@ struct PerformView:View {
         HStack(spacing:8){
             Menu{Button("Export take WAV"){export(take,"wav")}.accessibilityIdentifier("perform.wav");Button("Export take MIDI"){export(take,"midi")}.accessibilityIdentifier("perform.midi")}label:{Label("Export",systemImage:"square.and.arrow.up").font(.subheadline.weight(.medium)).frame(minWidth:80,minHeight:48)}.disabled(live.recording).accessibilityIdentifier("perform.export")
         }
+        Button {
+            tilt.stop()
+            makingSong = true
+            Task {
+                _ = await session.createFromPerformance(take)
+                makingSong = false
+            }
+        } label: {
+            if makingSong { ProgressView("Creating editable song…") }
+            else { Label("Create editable song", systemImage: "rectangle.split.3x1") }
+        }
+        .buttonStyle(StudioActionStyle(prominent: false))
+        .disabled(makingSong || live.playing || live.recording || live.replaying || live.starting || live.stopping)
+        .accessibilityIdentifier("perform.create-song")
+        Text("Creates a project from the played sections and parts. The exact live mix stays in the take.")
+            .font(.caption).foregroundStyle(Color.muted)
     }.padding(14).modifier(StudioSurface())}
     private func export(_ take:PerformanceTake,_ format:String){tilt.stop();session.exportTake=take;session.exportPreset=format;session.sheet = .export}
 }
