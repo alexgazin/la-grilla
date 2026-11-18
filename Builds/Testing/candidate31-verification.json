@@ -51,5 +51,20 @@
     "exitCode": 124
   },
   "domainSwift": 207,
-  "fullAcceptance": false
+  "fullAcceptance": false,
+  "fullNative": {
+    "run": 44289170060,
+    "attempt": 1,
+    "source": "7711796f687070b92df64cf7a0c5d1674d636d66",
+    "artifact": 14424987452,
+    "artifactSHA256": "ddb2034108da54c12213e04318b49a1af8150da646aa575afa1523789f792f7c",
+    "scopeStatus": "full-functional-pass",
+    "expected": 80,
+    "passed": 80,
+    "exitCode": 0,
+    "timedOut": false,
+    "elapsedSeconds": 3366.082061375
+  },
+  "fullNativeAcceptance": true,
+  "screenProvenance": "../../Screenshots/Release31/provenance.json"
 }

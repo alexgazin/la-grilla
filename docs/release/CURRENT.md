@@ -1,6 +1,14 @@
-> **Сборка 31 / 1.0.0.** Встроенные записанные инструменты, поиск SoundFont, библиотека повторно используемых one-shot и редактируемая песня из исполнения. Исходник `7711796f`. Прошли 207 Swift-тестов, аудиоядро, iPhone Debug и Release. IPA сверена с оригинальным архивом, включая 20 файлов и два PCM-пакета. [Пакет и проверка](../../Builds/Testing/README.md) · [Интерфейс звука](../../Screenshots/InstrumentLibrary30/README.md)
->
-> **Нативная приёмка.** В целевом прогоне пять методов прошли, включая акустическое пианино, повторное использование сэмпла в двух проектах и создание песни из записанного лайва. Сценарий pinch не дошёл до первого зума после ожидания прокрутки линейки. Процесс достиг общего лимита при финализации. Единый прогон 80 сценариев на исходнике 31 продолжается. Физическое устройство и Store остаются отдельными этапами. [Целевой прогон](https://github.com/alexgazin/la-grilla/actions/runs/44289169811) · [Единый прогон](https://github.com/alexgazin/la-grilla/actions/runs/44289170060)
+# Текущая сборка и границы приёмки
+
+**Сборка 31 / 1.0.0.** Записанные пианино и гитара, поиск SoundFont, общая библиотека one-shot и редактируемая песня из исполнения. Прошли 207 Swift-тестов, 16 наборов тестов аудиоядра, сборки iPhone Debug и Release. В unsigned IPA сверены все 20 файлов с архивом Xcode. [Скачать IPA](https://github.com/alexgazin/la-grilla/actions/runs/44289170060/artifacts/14421860271) · [Проверка пакета](../../Builds/Testing/candidate31-verification.json)
+
+**Полная программная проверка.** На исходнике [`7711796f`](https://github.com/alexgazin/la-grilla/commit/7711796f687070b92df64cf7a0c5d1674d636d66) прошли **80 из 80** обязательных сценариев iPhone Simulator. Все три задания завершились успешно. Нативный запуск завершился с кодом 0 за 3 366 секунд. [Итоговый прогон](https://github.com/alexgazin/la-grilla/actions/runs/44289170060/attempts/1) · [Машиночитаемый отчёт](https://github.com/alexgazin/la-grilla/actions/runs/44289170060/artifacts/14424987452) · [Кадр новой песни](../../Screenshots/Release31/README.md)
+
+В предшествующей целевой проверке прошли пять сценариев. Тест зума остановился на ожидании прокрутки линейки до первого жеста, затем процесс достиг лимита при завершении. В итоговом прогоне с тем же исходником тест зума прошёл. [Целевой прогон](https://github.com/alexgazin/la-grilla/actions/runs/44289169811)
+
+Открыта проверка подписанной сборки на физическом iPhone, включая задержку пэдов, аудиомаршруты, микрофон, Apple Intelligence и MIDI-контроллеры. Перед публикацией нужно подтвердить импорт файлов в DAW и подготовить подписанную сборку для TestFlight. [Протокол устройства](DEVICE_ACCEPTANCE.md) · [Порядок выпуска](RELEASE.md)
+
+## История сборок
 
 > **Предыдущая сборка 28 / 1.0.0.** Назначение SoundFont на дорожки и WAV/stems с тем же тембром, Pocket Kit и импорт WAV/AIFF на пэды. `.grillapack` переносит PCM и читает проекты схем 1…12. Прошли 205 Swift-тестов, Apple Sampler с реальным банком и обе сборки для iPhone. Два целевых сценария Simulator подтвердили Pocket Kit, Undo/Redo, повторное открытие, назначение Piano 1 и непрерывное предпрослушивание. [Оригинальные PNG](../../Screenshots/Sounds28/README.md). [Скачать unsigned IPA](https://github.com/alexgazin/la-grilla/actions/runs/44255310833/artifacts/14406207053) · [Инструкция и проверка пакета](../../Builds/Testing/README.md) · [Общий прогон 77 сценариев](https://github.com/alexgazin/la-grilla/actions/runs/44255927433).
 
@@ -12,13 +20,13 @@
 
 > Актуализация 17 ноября 2026: последняя завершённая проверка main `e22f487`, run [44156364284](https://github.com/alexgazin/la-grilla/actions/runs/44156364284), attempt 1: **70 PASS / 3 FAIL / 0 case allowance**, 73 метода наблюдались, exit 65, 3274.719426 s, без общего timeout. SDK4 PASS. Полная приёмка не пройдена. Следующая сборка **24 / Nocturne** реализуется по [дизайн-контракту](../../DESIGN.md); её нативные результаты пока Pending. Ниже сохранён предыдущий подробный статус, включая исторические результаты.
 
-# Текущая сборка и границы приёмки
+## История проверки сборки 23
 
-**Последний полный exact main23/schema11 — [`8bc7866c0da5ecf330deaafeaf107ac2b881ec79`](https://github.com/alexgazin/la-grilla/commit/8bc7866c0da5ecf330deaafeaf107ac2b881ec79).** [Run44140208148/attempt1](https://github.com/alexgazin/la-grilla/actions/runs/44140208148/attempts/1): **все 73 наблюдались / 71 PASS / 2 FAIL / 0 case allowance**, затем общий3600s supervisor timeout, elapsed3621.266 s, exit124/subprocess−15; xcresult не финализирован. SDK4 PASS, свежая exact-source IPA независимо статически проверена и доступна для ручной альфы; software gate не принят. После двух исправлений Arrangement-наблюдения и запаса на завершение следующий единый full73 Pending. Hardware и Store открыты; результаты прежних82e4/7564/0cfd не складываются с этим прогоном.
+**Нативный прогон main23/schema11 — [`8bc7866c0da5ecf330deaafeaf107ac2b881ec79`](https://github.com/alexgazin/la-grilla/commit/8bc7866c0da5ecf330deaafeaf107ac2b881ec79).** [Run44140208148/attempt1](https://github.com/alexgazin/la-grilla/actions/runs/44140208148/attempts/1): **все 73 наблюдались / 71 PASS / 2 FAIL / 0 case allowance**, затем общий3600s supervisor timeout, elapsed3621.266 s, exit124/subprocess−15; xcresult не финализирован. SDK4 PASS, свежая exact-source IPA независимо статически проверена и доступна для ручной альфы; software gate не принят. После двух исправлений Arrangement-наблюдения и запаса на завершение следующий единый full73 Pending. Hardware и Store открыты; результаты прежних82e4/7564/0cfd не складываются с этим прогоном.
 
-## Скачать и проверить на телефоне
+## Исторические пакеты сборки 23
 
-**Свежая exact-main IPA23 / `8bc7866`:** [оригинальный ZIP](https://github.com/alexgazin/la-grilla/actions/runs/44140208148/artifacts/14355166108), `LaGrilla-unsigned.ipa` — **3 693 136 байт**, SHA-256 `3836ee877d766d3fa5288997e3e76e3788b4a59a62ba83c689ca1efa8893e748`. Новый artifact/source/receipt, ZIP/IPA CRC, все 16 app files против оригинального app-архива и matching dSYM независимо проверены. [Публичная проверка](../../Builds/Testing/candidate23-main-8bc7866-verification.json) · [Установка и metadata](../../Builds/Testing/README.md). SHA-256 отличается от82e4/7564/db8; это собственный исходный пакет, не переименованный файл. SDK4 и static PASS не принимают native gate с71/2/0 и общим timeout; это unsigned manual alpha.
+**Историческая IPA23 / `8bc7866`:** [оригинальный ZIP](https://github.com/alexgazin/la-grilla/actions/runs/44140208148/artifacts/14355166108), `LaGrilla-unsigned.ipa` — **3 693 136 байт**, SHA-256 `3836ee877d766d3fa5288997e3e76e3788b4a59a62ba83c689ca1efa8893e748`. Новый artifact/source/receipt, ZIP/IPA CRC, все 16 app files против оригинального app-архива и matching dSYM независимо проверены. [Публичная проверка](../../Builds/Testing/candidate23-main-8bc7866-verification.json) · [Установка и metadata](../../Builds/Testing/README.md). SHA-256 отличается от82e4/7564/db8; это собственный исходный пакет, не переименованный файл. SDK4 и static PASS не принимают native gate с71/2/0 и общим timeout; это unsigned manual alpha.
 
 **Историческая exact-main IPA23 / `82e4dfb`:** [оригинальный ZIP](https://github.com/alexgazin/la-grilla/actions/runs/44120318741/artifacts/14346460625), `LaGrilla-unsigned.ipa` — **3 693 136 байт**, SHA-256 `93de06cf30a23acf186dd9a2427e98c2097136a0f53c671789cb8612662245a8`. Её source/CRC/все 16 app files/app-архив/dSYM проверены отдельно; bytes совпадают с7564/db8. Полный run44120318741/attempt2 сохраняет71/2/0, exit65,3227.618s без общего timeout и старые KVC/Pad-startup FAIL. [Исходный receipt82e4](../../Builds/Testing/candidate23-main-82e4dfb-verification.json).
 
@@ -75,7 +83,7 @@
 
 Ночная тема сохранена. [Технический отчёт](../review/2026-11-17/TOUCH21.md) · [Оригинальные кадры22](../../Screenshots/Build22Touch/README.md) · [Дальнейшие этапы](../../ROADMAP.md).
 
-## Текущие доказательства
+## Исторические доказательства до сборки 24
 
 | Исходник и проверка | Фактический результат и предел |
 | --- | --- |
@@ -135,14 +143,12 @@ OS Launch Screen следует системной Light/Dark-теме; сохр
 
 Историческая запись20 не принята; новая запись отменена владельцем. [Capture `deeb701`, run43966102437](https://github.com/alexgazin/la-grilla/actions/runs/43966102437) завершился по35-минутному лимиту задания: **2 PASS / 1 allowance / 1 interrupted** из четырёх сценариев. Исходный MP4 не финализирован и не воспроизводится; наличие реального PCM не подтверждает звуковое покрытие всех сцен. Эта попытка сохранена как диагностика, без готового проморолика или подмены исторического видео15.
 
-## Что ещё требуется
+## Оставшаяся приёмка сборки 31
 
-1. Исполнить один новый полный73 после двух Arrangement-наблюдателей с одним свежим app.snapshot на poll и запаса на финализацию: прежние6 s/3pt/точная длина/120 s и все действия; command3900s/step70min/shared80min/job90min, остальные case budgets/600s/focused1500s сохранены. Результат Pending. Последний8bc остаётся71/2/0 с общим timeout; старый82e4 —71/2/0 с KVC/Pad-startup failures. SDK4, static IPA и отдельные прошедшие методы не принимают весь gate. [GRID23](../review/2026-11-17/GRID23.md).
-2. На установленной 23 повторить первый звук, два пальца, плотный ритм, drag/resize возле краёв, Preview/Apply/Undo звука и изменение тембра при лупе. Проверить Tilt Filter/Volume, нейтраль, ручное управление, фон и ориентации; измерить палец→выход на speaker/wired/Bluetooth.
-3. Повторить granted/denied dictation, capture/Stop/повтор, новые проекты/save/reopen/export. Настоящий человеческий напев и FoundationModels на eligible-устройстве с поддерживаемым языком принимаются отдельно от PCM и fixtures.
-4. Закрыть [C8](DEVICE_ACCEPTANCE.md):30мин latency/thermal/dropouts, маршруты, USB/BLE MIDI, две DAW и minimum-iOS18 installed launch. Затем — signed distribution, TestFlight и App Review по [процедуре](RELEASE.md).
-
-Hardware-поля остаются **Pending**. Отзыв владельца о ночной теме и удобстве аккордов/мелодии учтён; измерение задержки, реальные датчики и устранение всех прежних симптомов на его телефоне из Simulator не следуют.
+1. На установленной сборке проверить первый звук, два пальца, плотный ритм, перетаскивание и растягивание ноты возле края экрана. Измерить задержку пэдов и её разброс с динамиком, проводными наушниками и Bluetooth. Проверить калибровку наклона, прерывания и фон.
+2. Повторить диктовку и Voice-to-MIDI с разрешённым микрофоном и после отказа. Проверить командный режим и локальную модель на поддерживаемом iPhone. Оценить преобразование реального напева в ноты.
+3. Повторить перенос проекта между устройствами, подключение USB и BLE MIDI, импорт MIDI и WAV/stems в две DAW. Проверить запуск на iOS 18 и длительную музыкальную сессию. [Протокол устройства](DEVICE_ACCEPTANCE.md)
+4. После физической приёмки подготовить подписанную сборку, TestFlight и материалы для App Review. [Порядок выпуска](RELEASE.md)
 
 ## Независимые аудиты
 

@@ -1,0 +1,24 @@
+{
+  "version": "1.0.0",
+  "build": 31,
+  "source": "7711796f687070b92df64cf7a0c5d1674d636d66",
+  "nativeRun": 44289170060,
+  "attempt": 1,
+  "scopeArtifact": 14424987452,
+  "screenshotArtifact": 14425202180,
+  "device": "iPhone 16 Pro Max Simulator",
+  "appearance": "Night",
+  "screenshots": [
+    {
+      "file": "editable-live-song.png",
+      "test": "StudioTests/testSavedPerformanceCreatesEditableSong",
+      "testOutcome": "passed",
+      "originalAttachment": "93921CEF-34A6-4A74-A2D4-5A4D0E7DA11E.png",
+      "attachmentName": "Release31-editable-live-song_0_9CC7B5EE-EDA7-44CF-9A34-723FAB759FAE.png",
+      "bytes": 385329,
+      "sha256": "967cb377c659a15cea1fc1203f5354bb5d4530e2f01daf4fbac5f619449b0085",
+      "width": 1320,
+      "height": 2868
+    }
+  ]
+}

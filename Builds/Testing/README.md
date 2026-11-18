@@ -2,6 +2,8 @@
 
 **[Скачать IPA 31 для iPhone](https://github.com/alexgazin/la-grilla/actions/runs/44289170060/artifacts/14421860271)**. Распакуйте ZIP и подпишите `LaGrilla-unsigned.ipa` своей Personal Team на ноутбуке. Пакет 1.0.0 (31), arm64, iOS 18+. В нём есть записанное пианино и нейлоновая гитара. Размер 7 198 875 байт, SHA-256 `62007167db2acb797bf8cd7c94cf4f947ef05e66729acf3a7e579ed9e0a794a1`. [Проверка исходника и пакета](candidate31-verification.json)
 
+На исходнике пакета прошли сборки iPhone Debug и Release, все 80 нативных сценариев Simulator и 207 Swift-тестов. Установка и работа на физическом iPhone проверяются отдельно. [Итоговый прогон](https://github.com/alexgazin/la-grilla/actions/runs/44289170060/attempts/1) · [Кадр сборки 31](../../Screenshots/Release31/README.md)
+
 ### Сценарий для ручной проверки
 
 1. Откройте демо, включите Play и назначьте акустическое пианино или гитару в меню звуков дорожки.
