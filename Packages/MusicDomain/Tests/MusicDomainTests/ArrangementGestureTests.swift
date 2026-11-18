@@ -3,6 +3,36 @@ import Testing
 @testable import MusicDomain
 
 struct ArrangementGestureTests {
+    @Test func newSongSectionHasWritableClipsAndMovesWithoutChangingOriginalMusic() throws {
+        var project = Project.demo()
+        let previous = project
+        let originalNotes = Compiler.notes(previous)
+        var history = History()
+        try history.apply(&project) { try SectionEditing.append(name: " Bridge ", bars: 2, to: &$0) }
+        let bridge = try #require(project.sections.last)
+        #expect(bridge.name == "Bridge")
+        #expect(bridge.start == 4 * barTicks && bridge.length == 2 * barTicks)
+        #expect(project.tracks.filter { $0.role != .bass }.allSatisfy { track in
+            track.clips.contains { $0.start == bridge.start && $0.length == bridge.length }
+        })
+        #expect(Compiler.notes(project) == originalNotes)
+
+        let token = ArrangementDragPayload(project: project, sectionID: bridge.id)
+        try history.apply(&project) { try ClipEditing.reorderSection(token, to: previous.sections[0].id, in: &$0) }
+        #expect(project.sections.map(\.name) == ["Bridge", "Verse"])
+        #expect(Compiler.notes(project).map(\.tick) == originalNotes.map { $0.tick + 2 * barTicks })
+        history.undo(&project)
+        #expect(project.sections.map(\.id) == [previous.sections[0].id, bridge.id])
+        #expect(Compiler.notes(project) == originalNotes)
+    }
+
+    @Test func oversizedSongSectionLeavesProjectIntact() throws {
+        var project = Project.demo()
+        let previous = project
+        #expect(throws: MusicError.self) { try SectionEditing.append(name: "Bridge", bars: 61, to: &project) }
+        #expect(project == previous)
+    }
+
     private func melodySong() throws -> Project {
         var project=Project(name:"Arrangement",bars:4)
         try project.addMelody(name:"Lead");try project.addMelody(name:"Answer")

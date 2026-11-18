@@ -247,6 +247,26 @@ public enum ClipEditing {
 
 /// Section edits also support clips which cross section boundaries.
 public enum SectionEditing {
+    public static func append(name: String, bars: Int, to project: inout Project) throws {
+        try project.validate()
+        let title = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !title.isEmpty, title.count <= 120 else { throw MusicError.invalidProject }
+        guard (1...64).contains(bars), project.sections.count < 8,
+              bars <= 64 - project.length / barTicks else { throw MusicError.limit }
+
+        var candidate = project
+        let section = Section(name: title, start: project.length, length: bars * barTicks)
+        candidate.sections.append(section)
+        // Give the editors a writable clip immediately, including Jam's drum take.
+        for index in candidate.tracks.indices where candidate.tracks[index].role != .bass {
+            let pattern = Pattern(length: section.length)
+            candidate.patterns.append(pattern)
+            candidate.tracks[index].clips.append(Clip(patternID: pattern.id, start: section.start, length: section.length))
+        }
+        try ClipEditing.finish(&candidate)
+        project = candidate
+    }
+
     public static func duplicate(_ sectionID: UUID, name: String, in project: inout Project) throws {
         try project.validate()
         guard let index=project.sections.firstIndex(where:{$0.id==sectionID}) else { throw ClipEditingError.missing }

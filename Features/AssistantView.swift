@@ -209,9 +209,11 @@ struct AssistantView:View {
     }
     func formComparison(source:Project,candidate:Project)->some View {VStack(alignment:.leading,spacing:10){
         SmallHeading(text:"ORIGINAL FORM")
-        Text(source.sections.map{$0.name+" · "+String($0.length/barTicks)}.joined(separator:" → ")).font(.caption).foregroundStyle(Color.muted)
+        SongFormOverview(sections: source.sections)
+        SongFormLegend(sections: source.sections)
         SmallHeading(text:"PROPOSED FORM")
-        ForEach(candidate.sections){section in HStack{Text(section.name);Spacer();Text("\(section.length/barTicks) bars").font(.caption.monospaced())}.font(.subheadline).padding(.vertical,4)}
+        SongFormOverview(sections: candidate.sections)
+        SongFormLegend(sections: candidate.sections)
     }.padding(12).modifier(StudioSurface()).accessibilityIdentifier("assistant.form-review")}
     func summary(_ op:AssistantOperation,scope:UUID,source:Project,candidate:Project)->String {
         let scopeName=source.sections.first{$0.id==scope}?.name ?? ""

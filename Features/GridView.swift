@@ -204,7 +204,18 @@ struct GridView: View {
             IconButton(symbol:clipMode ? "pianokeys":"rectangle.3.group",label:clipMode ? "Edit chords":"Arrange clips",color:clipMode ? .mint:.muted){clipMode.toggle()}
                 .background(clipMode ? Color.mint.opacity(0.12):Color.clear,in:RoundedRectangle(cornerRadius:12,style:.continuous))
                 .accessibilityIdentifier("grid.mode.clips").accessibilityValue(LocalizedStringKey(clipMode ? "Clips":"Chords"))
-            IconButton(symbol:"ellipsis",label:"Edit song sections",color:.muted){session.presentEditor(.sections)}
+            Button { session.presentEditor(.sections) } label: {
+                ViewThatFits(in: .horizontal) {
+                    Label("Song form", systemImage: "rectangle.split.3x1")
+                        .font(.caption.weight(.semibold)).fixedSize(horizontal: true, vertical: false)
+                    Image(systemName: "rectangle.split.3x1")
+                }
+                .foregroundStyle(Color.mint)
+                .frame(minWidth: 44, minHeight: 44)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(StudioQuietButtonStyle())
+            .accessibilityLabel("Edit song sections")
                 .accessibilityIdentifier("sections.open")
         }.padding(.horizontal,16)
     }
@@ -233,7 +244,7 @@ struct GridView: View {
         }.buttonStyle(StudioQuietButtonStyle()).accessibilityIdentifier("grid.section.\(section.id)")
             .accessibilityAddTraits(selected ? .isSelected:[])
             .modifier(ArrangementDragSource(payload:editingLocked ? nil:ArrangementDragPayload(project:session.project,sectionID:section.id).encoded()))
-            .dropDestination(for:String.self){items,_ in dropSection(items,on:section.id)}
+            .dropDestination(for:String.self){items,_ in session.reorderSection(drop:items,onto:section.id)}
     }
     private var clipControls:some View {
         HStack(spacing:10) {
@@ -351,14 +362,6 @@ struct GridView: View {
             ArrangementDragDiagnostics.record("drop result applied=\(applied) revision=\(session.project.revision) clip=\(payload.objectID)")
             return applied
         } catch {ArrangementDragDiagnostics.record("drop rejected error=\(error.localizedDescription)");session.message=error.localizedDescription;return false}
-    }
-    private func dropSection(_ items:[String],on sectionID:UUID)->Bool {
-        guard !editingLocked,items.count==1 else{return false}
-        do {
-            let token=try ArrangementDragPayload.decode(items[0]);try token.validate(in:session.project,kind:.section)
-            if token.objectID==sectionID{return true}
-            var applied=false;session.edit{try ClipEditing.reorderSection(token,to:sectionID,in:&$0);applied=true};return applied
-        } catch {session.message=error.localizedDescription;return false}
     }
     private func openPendingClipEditor() {
         guard let choice=pendingClipEditor else{return};pendingClipEditor=nil
@@ -594,7 +597,7 @@ struct GridView: View {
 
 /// Keep the drag source and receiver on the same native Transferable contract.
 /// Locked clips retain tap/launch behavior without exporting an empty provider.
-private struct ArrangementDragSource:ViewModifier {
+struct ArrangementDragSource:ViewModifier {
     let payload:String?
     @ViewBuilder func body(content:Content)->some View {
         if let payload{content.draggable(payload)}else{content}

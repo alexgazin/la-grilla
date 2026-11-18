@@ -62,6 +62,40 @@ final class ArrangementUITests: XCTestCase {
         XCTAssertEqual(result,.completed,"Clip did not settle at x=\(x), length=\(length); actual frame=\(actualFrame), value=\(String(describing:observedClip?.value))")
     }
 
+    @MainActor func testSongFormAddsDragsAndUndoesWholeSection() {
+        let app = launch()
+        defer { app.terminate() }
+        app.buttons["sections.open"].tap()
+        XCTAssertTrue(app.navigationBars["Song sections"].waitForExistence(timeout: 5))
+        app.buttons["sections.add"].tap()
+        let name = app.textFields["sections.new-name"]
+        XCTAssertTrue(name.waitForExistence(timeout: 5))
+        name.tap()
+        name.typeText("Bridge")
+        app.buttons["sections.create"].tap()
+
+        let cards = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'sections.card.'"))
+        let bridge = cards.matching(NSPredicate(format: "label == 'Bridge'")).firstMatch
+        let verse = cards.matching(NSPredicate(format: "label == 'Verse'")).firstMatch
+        XCTAssertTrue(bridge.waitForExistence(timeout: 5))
+        XCTAssertEqual(bridge.value as? String, "Bars 5–8")
+        XCTAssertTrue(verse.isHittable)
+        XCTAssertTrue(bridge.isHittable)
+        // The second card may be partially visible on compact phones. Use its
+        // leading quarter, clear of both the screen edge and the separator.
+        drag(bridge.coordinate(withNormalizedOffset: CGVector(dx: 0.25, dy: 0.5)),
+             to: verse.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)))
+        wait(bridge, NSPredicate(format: "value == 'Bars 1–4'"))
+        XCTAssertEqual(verse.value as? String, "Bars 5–8")
+        let shot = XCTAttachment(data: XCUIScreen.main.screenshot().pngRepresentation, uniformTypeIdentifier: "public.png")
+        shot.name = "SongForm-reordered-sections"
+        shot.lifetime = .keepAlways
+        add(shot)
+        app.buttons["sections.undo"].tap()
+        wait(bridge, NSPredicate(format: "value == 'Bars 5–8'"))
+        XCTAssertEqual(verse.value as? String, "Bars 1–4")
+    }
+
     private struct TimelineObservation {
         let viewport:CGRect
         let third:CGRect

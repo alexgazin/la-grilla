@@ -457,6 +457,23 @@ import Observation
     func deleteMelody(_ id:UUID){finishTake();edit{try $0.deleteTrack(id)};noteTrackID=project.tracks.first{$0.role == .melody}?.id}
     func setLoop(bars: Int? = nil, enabled: Bool? = nil) {guard !recording && !armed else{message="Finish the take before changing the loop.";return};if let bars{loopBars=bars};if let enabled{loop=enabled};saveGeneratedLoopPreference();sync()}
     func select(_ section: MusicDomain.Section) {if performance.contextActive{performance.queueSection(section.id);return};guard !recording && !armed else{return};selectedSection=section.id;sync();if !audio.playing{audio.seek(section.start)}}
+    @discardableResult
+    func reorderSection(drop items: [String], onto targetID: UUID) -> Bool {
+        guard !performance.contextActive, !recording, !armed, items.count == 1 else { return false }
+        do {
+            let payload = try ArrangementDragPayload.decode(items[0])
+            try payload.validate(in: project, kind: .section)
+            if payload.objectID == targetID {
+                return project.sections.contains { $0.id == targetID }
+            }
+            let before = project.revision
+            edit { try ClipEditing.reorderSection(payload, to: targetID, in: &$0) }
+            return project.revision != before
+        } catch {
+            message = error.localizedDescription
+            return false
+        }
+    }
     func open(_ p: Project, force: Bool = false) async {
         if p.id==project.id{await openStored(p.id);return}
         guard let token=beginProjectChange()else{return}

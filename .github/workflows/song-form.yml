@@ -1,0 +1,58 @@
+name: Song form on iPhone Simulator
+on:
+  push:
+    branches: [feat/song-board]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: song-form-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  song-form:
+    runs-on: macos-26
+    timeout-minutes: 32
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build real app and UI tests
+        timeout-minutes: 12
+        run: |
+          set -o pipefail
+          python3 scripts/generate_project.py
+          git diff --exit-code -- LaGrilla.xcodeproj
+          xcodebuild -project LaGrilla.xcodeproj -scheme LaGrilla -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' ARCHS=arm64 ONLY_ACTIVE_ARCH=YES -configuration Debug -derivedDataPath DerivedData CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO build-for-testing | tee song-form-build.log
+      - name: Boot iPhone Simulator
+        timeout-minutes: 7
+        env:
+          GRILLA_CAPTURE_SCREENS: '0'
+        run: bash scripts/screenshots.sh
+      - name: Verify section drag, live section edits and Assistant form review
+        timeout-minutes: 10
+        run: |
+          DEVICE=$(cat /tmp/grilla-simulator-id)
+          CASES=(ArrangementUITests/testSongFormAddsDragsAndUndoesWholeSection LiveEditingTests/testDuplicateMoveAndDeleteSectionDuringPlayback AssistantCompositionTests/testFullSongReviewAppliesAsOneUndoOnCommandFallback)
+          REQUIRED=()
+          SELECTED=()
+          for CASE_ID in "${CASES[@]}"; do
+            REQUIRED+=(--require-test "$CASE_ID")
+            SELECTED+=("-only-testing:LaGrillaUITests/$CASE_ID")
+          done
+          python3 scripts/ci/run_native.py --timeout-seconds 510 --scope focused --label song-form "${REQUIRED[@]}" --log song-form-native.log --status song-form-process-status.json -- xcodebuild "${SELECTED[@]}" -parallel-testing-enabled NO -test-timeouts-enabled YES -maximum-test-execution-time-allowance 180 -project LaGrilla.xcodeproj -scheme LaGrilla -destination "platform=iOS Simulator,id=$DEVICE" -derivedDataPath DerivedData -resultBundlePath SongFormResults.xcresult ARCHS=arm64 ONLY_ACTIVE_ARCH=YES CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO test-without-building
+      - name: Export original attachments
+        if: always()
+        timeout-minutes: 2
+        run: |
+          if test -f SongFormResults.xcresult/Info.plist; then
+            xcrun xcresulttool export attachments --path SongFormResults.xcresult --output-path SongFormAttachments
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: song-form-native-verification
+          path: |
+            song-form-build.log
+            song-form-native.log
+            song-form-process-status.json
+            SongFormAttachments

@@ -286,17 +286,55 @@ struct SectionsView: View {
     @State private var actions:MusicDomain.Section?
     @State private var pendingRename:UUID?
     @State private var pendingDelete:UUID?
-    var body:some View {NavigationStack{List{
-        Section{ForEach(session.project.sections){section in
-            HStack {
-                VStack(alignment:.leading,spacing:5){Text(section.name);Text("Bars \(section.start/barTicks+1)–\((section.start+section.length)/barTicks)").font(.caption).foregroundStyle(.secondary)}
-                Spacer()
-                Button{actions=section}label:{Image(systemName:"ellipsis").frame(width:44,height:44)}
-                    .buttonStyle(.borderless).disabled(editingLocked).accessibilityLabel(section.name).accessibilityIdentifier("section.menu.\(section.id)")
+    @State private var adding = false
+    var body:some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    HStack {
+                        Text("Whole song").font(StudioTypography.title)
+                        Spacer()
+                        Text("\(session.project.length / barTicks) bars")
+                            .font(.caption.monospacedDigit()).foregroundStyle(Color.muted)
+                    }
+                    SongFormOverview(sections: session.project.sections, selectedID: session.selectedSection)
+                    SongFormLegend(sections: session.project.sections, actions: { actions = $0 }, editingLocked: editingLocked)
+                    SongFormLane(session: session, editingLocked: editingLocked)
+                    Text("Hold and drag a section to move it. Tap its menu for more actions.")
+                        .font(.caption).foregroundStyle(Color.muted)
+                    Button { adding = true } label: { Label("Add section", systemImage: "plus") }
+                        .buttonStyle(StudioActionStyle(prominent: false))
+                        .disabled(editingLocked || remainingBars == 0 || session.project.sections.count >= 8)
+                        .accessibilityIdentifier("sections.add")
+                    HStack(spacing: 4) {
+                        IconButton(symbol: "arrow.uturn.backward", label: "Undo") { session.undo() }
+                            .disabled(editingLocked || !session.history.canUndo)
+                            .accessibilityIdentifier("sections.undo")
+                        IconButton(symbol: "arrow.uturn.forward", label: "Redo") { session.redo() }
+                            .disabled(editingLocked || !session.history.canRedo)
+                            .accessibilityIdentifier("sections.redo")
+                        Spacer()
+                        Text(LocalizedStringKey(session.audio.playing ? "PLAYING" : "STOPPED"))
+                            .font(.caption.monospacedDigit()).foregroundStyle(Color.muted)
+                            .accessibilityIdentifier("section.playback-state")
+                    }
+                }
+                .padding(16)
             }
-        }}
-        Section{Text("Duplicated sections have independent chords and drums. Up to 8 sections and 64 bars.").font(.caption).foregroundStyle(.secondary);Text(LocalizedStringKey(session.audio.playing ? "PLAYING":"STOPPED")).font(.caption.monospaced()).foregroundStyle(Color.muted).accessibilityIdentifier("section.playback-state")}
-    }.navigationTitle("Song sections").toolbar{ToolbarItem(placement:.confirmationAction){Button("Done"){session.sheet=nil}}}}
+            .background(Color.ink)
+            .navigationTitle("Song sections")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { session.sheet = nil } } }
+        }
+        .sheet(isPresented: $adding) {
+            if remainingBars > 0 {
+                AddSongSection(maximumBars: remainingBars) { title, bars in
+                    let revision = session.project.revision
+                    session.edit { try SectionEditing.append(name: title, bars: bars, to: &$0) }
+                    return session.project.revision != revision
+                }
+            }
+        }
         .sheet(item:$actions,onDismiss:finishAction){section in actionList(section)}
         .alert("Rename section",isPresented:Binding(get:{editing != nil},set:{if !$0{editing=nil}})){
             TextField("Name",text:$name)
@@ -308,6 +346,7 @@ struct SectionsView: View {
             Button("Cancel",role:.cancel){deleting=nil}
         } message: {Text("The following sections move earlier. You can undo this change.")}
     }
+    private var remainingBars: Int { 64 - session.project.length / barTicks }
     private var editingLocked:Bool{session.performance.contextActive || session.recording || session.armed}
     private func actionList(_ section:MusicDomain.Section)->some View {NavigationStack{List{
         Button("Rename"){pendingRename=section.id;actions=nil}
@@ -328,6 +367,46 @@ struct SectionsView: View {
     func move(_ id:UUID,by delta:Int){
         guard let index=session.project.sections.firstIndex(where:{$0.id==id}),session.project.sections.indices.contains(index+delta)else{return}
         let token=ArrangementDragPayload(project:session.project,sectionID:id),target=session.project.sections[index+delta].id
-        session.edit{try ClipEditing.reorderSection(token,to:target,in:&$0)}
+        session.reorderSection(drop: [token.encoded()], onto: target)
+    }
+}
+
+private struct AddSongSection: View {
+    @Environment(\.dismiss) private var dismiss
+    let maximumBars: Int
+    let create: (String, Int) -> Bool
+    @State private var name = ""
+    @State private var bars = 1
+    @State private var failed = false
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                TextField("Name", text: $name).accessibilityIdentifier("sections.new-name")
+                Menu("Section templates") {
+                    Button("Verse") { name = NSLocalizedString("Verse", comment: "Section template") }
+                    Button("Chorus") { name = NSLocalizedString("Chorus", comment: "Section template") }
+                    Button("Bridge") { name = NSLocalizedString("Bridge", comment: "Section template") }
+                }
+                Stepper(value: $bars, in: 1...max(1, maximumBars)) {
+                    Text("\(bars) bars")
+                }
+                if failed { Text("Could not add this section.").foregroundStyle(Color.record) }
+            }
+            .navigationTitle("Add section")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Create") {
+                        if create(name, bars) { dismiss() } else { failed = true }
+                    }
+                    .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || name.count > 120)
+                    .accessibilityIdentifier("sections.create")
+                }
+            }
+        }
+        .tint(.mint)
+        .onAppear { bars = min(4, maximumBars) }
     }
 }

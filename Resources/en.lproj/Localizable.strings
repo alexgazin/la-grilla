@@ -772,3 +772,12 @@
 "Volume" = "Volume";
 "Master volume" = "Master volume";
 "Tilt gently to change the master volume." = "Tilt gently to change the master volume.";
+"Song form" = "Song form";
+"Section actions" = "Section actions";
+"Add section" = "Add section";
+"Section templates" = "Section templates";
+"Verse" = "Verse";
+"Chorus" = "Chorus";
+"Bridge" = "Bridge";
+"Could not add this section." = "Could not add this section.";
+"Hold and drag a section to move it. Tap its menu for more actions." = "Hold and drag a section to move it. Tap its menu for more actions.";

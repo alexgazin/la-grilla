@@ -774,3 +774,12 @@
 "Volume" = "Громкость";
 "Master volume" = "Общая громкость";
 "Tilt gently to change the master volume." = "Плавно наклоняй телефон, чтобы менять общую громкость.";
+"Song form" = "Форма песни";
+"Section actions" = "Действия с секцией";
+"Add section" = "Добавить секцию";
+"Section templates" = "Шаблоны секций";
+"Verse" = "Куплет";
+"Chorus" = "Припев";
+"Bridge" = "Бридж";
+"Could not add this section." = "Не удалось добавить секцию.";
+"Hold and drag a section to move it. Tap its menu for more actions." = "Удерживай и перетаскивай секцию, чтобы поменять порядок. Другие действия есть в её меню.";
