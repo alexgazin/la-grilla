@@ -1,0 +1,105 @@
+name: Build 36 outstanding native scenarios
+on:
+  push:
+    branches: [qa/build36-native-followup]
+  workflow_dispatch:
+permissions:
+  contents: read
+env:
+  DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
+jobs:
+  native:
+    runs-on: macos-26
+    timeout-minutes: 65
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [remaining, recheck]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build iOS app and tests
+        run: |
+          xcodebuild -project LaGrilla.xcodeproj -scheme LaGrilla -sdk iphonesimulator -configuration Debug -destination 'generic/platform=iOS Simulator' -derivedDataPath DerivedData ARCHS=arm64 ONLY_ACTIVE_ARCH=YES CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO build-for-testing
+      - name: Prepare audio
+        run: bash scripts/setup_ci_audio.sh
+      - name: Boot selected iPhone
+        env:
+          GRILLA_CAPTURE_SCREENS: '0'
+        run: bash scripts/screenshots.sh
+      - name: Prepare system drag service
+        continue-on-error: true
+        timeout-minutes: 2
+        run: python3 scripts/ci/prepare_simulator_drag_service.py --device "$(cat /tmp/grilla-simulator-id)" --output-dir DragDiagnostics --start-confirmed-system-app --start-confirmed-daemon
+      - name: Run selected cases with original time allowances
+        env:
+          GROUP: ${{ matrix.group }}
+          GRILLA_REQUIRE_MIC_INPUT: '1'
+          TEST_RUNNER_GRILLA_REQUIRE_MIC_INPUT: '1'
+        run: |
+          case "$GROUP" in
+            remaining) CASES=(
+              StudioTests/testFinitePerformanceWAVExportOffersShare
+              StudioTests/testHarmonyProposalPreviewApplyAndUndo
+              StudioTests/testLandscapeKeepsPadsAndTransportReachable
+              StudioTests/testLargeTypeMixerAndAccessibleNoteList
+              StudioTests/testMIDIExportOffersSystemShare
+              StudioTests/testNavigationKeepsTransportAlive
+              StudioTests/testPerformRecordingSurvivesNavigationAndReplays
+              StudioTests/testPianoRollNotesUndoAndTransport
+              StudioTests/testPortableExportOffersSystemShare
+              StudioTests/testRussianInterfaceAndLightAppearance
+              StudioTests/testSavedPerformanceCreatesEditableSong
+              StudioTests/testVirtualMIDILearnAndActualOutputDestination
+              StudioTests/testVoiceFixtureAnalyzePreviewApplyUndoAndPortableExport
+              StudioTests/testWAVExportOffersSystemShare
+              StudioTests/testWelcomeCanBeSkippedAndReopenedWithoutRepeatingOnLaunch
+              TranspositionUITests/testFlatsAndScaleDegreesPersistWithoutNotationChangingMusic
+              TranspositionUITests/testTransposePreviewCancelApplyLiveUndoRedoAndReopen
+              VoiceReviewUITests/testLiveMixEditRequiresExplicitReviewAndPreservesManualNotesAndSource
+            ) ;;
+            recheck) CASES=(
+              ArrangementUITests/testClipTapResizeNativeDragAndUndo
+              DesignPresentationTests/testNightSurfacesRemainReachableWithoutEditingMusic
+              DeviceRecoveryTests/testUnavailableAIReviewsLocalHarmonyAndAppliesUndo
+              FirstResultTests/testEmptyProjectGuidesFirstChordToRealOutputAndPersists
+              LiveEditingTests/testBassAndMelodyTrackEditsKeepPlaybackRunning
+              PianoTouchUITests/testPinchChangesTimeScaleAndKeepsPitchRowsInPlace
+            ) ;;
+          esac
+          required=()
+          filters=()
+          for test in "${CASES[@]}"; do
+            filters+=("-only-testing:LaGrillaUITests/$test")
+            required+=(--require-test "$test")
+          done
+          python3 scripts/ci/run_native.py --scope focused --label "$GROUP" --timeout-seconds 2640 --log uitests.log --status native-process-status.json "${required[@]}" -- xcodebuild "${filters[@]}" -parallel-testing-enabled NO -test-timeouts-enabled YES -maximum-test-execution-time-allowance 600 -project LaGrilla.xcodeproj -scheme LaGrilla -destination "platform=iOS Simulator,id=$(cat /tmp/grilla-simulator-id)" -derivedDataPath DerivedData -resultBundlePath NativeResults.xcresult ARCHS=arm64 ONLY_ACTIVE_ARCH=YES CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO test-without-building
+      - name: Preserve compact result and original log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: case-log-${{ matrix.group }}
+          path: |
+            native-process-status.json
+            uitests.log
+            ci-audio.log
+            DragDiagnostics
+  release-archive:
+    runs-on: macos-15-intel
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify current App Store toolchain
+        run: python3 scripts/release/assert_sdk.py
+      - name: Archive optimized iPhone binary and validate bundled resources
+        run: bash scripts/release/archive_unsigned.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: unsigned-release-archive
+          path: |
+            ReleaseArtifacts/LaGrilla-unsigned-archive.zip
+            ReleaseArtifacts/LaGrilla-unsigned.ipa
+            ReleaseArtifacts/LaGrilla-unsigned.json
+            ReleaseArtifacts/LaGrilla-unsigned.sha256
+            ReleaseArtifacts/*.log
+            ReleaseArtifacts/*-uuid.txt
