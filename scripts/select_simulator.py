@@ -11,8 +11,6 @@ else:
  sdk=tuple(map(int,subprocess.check_output(['xcrun','--sdk','iphonesimulator','--show-sdk-version'],text=True).strip().split('.')))
  candidates=[]
  inventory=query('list','runtimes')
- if path:=os.environ.get('GRILLA_SIMULATOR_RUNTIME_INVENTORY'):
-  Path(path).write_text(json.dumps(inventory))
  for item in inventory['runtimes']:
   if not item.get('isAvailable') or '.iOS-' not in item['identifier']:continue
   version=tuple(map(int,item['version'].split('.')))
@@ -20,5 +18,14 @@ else:
  assert candidates,'An installed iOS 26+ simulator runtime is required for release acceptance'
  runtime=max(candidates)[1]
 matches=[x['udid'] for x in devices.get(runtime,[]) if x['name']==a.name]
-if matches:print(matches[0])
-else:print(subprocess.check_output(['xcrun','simctl','create',a.name,a.type,runtime],text=True).strip())
+if matches:
+ device=matches[0]
+else:
+ device=subprocess.check_output(['xcrun','simctl','create',a.name,a.type,runtime],text=True).strip()
+if not a.same_runtime_as and (path:=os.environ.get('GRILLA_SIMULATOR_SELECTION_INVENTORY')):
+ # A newly created simulator is absent from the initial list. Observe it
+ # before boot so that the receipt always contains a real device row.
+ if not matches:
+  devices=query('list','devices','available')['devices']
+ Path(path).write_text(json.dumps({'runtimes':inventory,'devices':{'devices':devices}}))
+print(device)

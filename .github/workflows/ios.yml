@@ -116,7 +116,7 @@ jobs:
         timeout-minutes: 7
         env:
           GRILLA_CAPTURE_SCREENS: '0'
-          GRILLA_SIMULATOR_RUNTIME_INVENTORY: simulator-runtimes-at-selection.json
+          GRILLA_SIMULATOR_SELECTION_INVENTORY: simulator-inventory-at-selection.json
         run: bash scripts/screenshots.sh
       - name: Preserve actual Simulator preparation diagnostics
         if: always()
@@ -154,12 +154,13 @@ jobs:
           # Reuse the actual inventory used to select the runtime. Repeating
           # discovery after boot can time out while the host is under load.
           try:
-              runtimes=json.loads(pathlib.Path('simulator-runtimes-at-selection.json').read_text())
-              diagnostics['runtimeInventorySource']='simctl at device selection'
-          except (OSError,ValueError):
+              selection=json.loads(pathlib.Path('simulator-inventory-at-selection.json').read_text())
+              runtimes,devices=selection['runtimes'],selection['devices']
+              diagnostics['inventorySource']='simctl at device selection'
+          except (OSError,ValueError,KeyError):
               runtimes=query(['xcrun','simctl','list','runtimes','-j'])
-              diagnostics['runtimeInventorySource']='simctl after preparation'
-          devices=query(['xcrun','simctl','list','devices','available','-j'])
+              devices=query(['xcrun','simctl','list','devices','available','-j'])
+              diagnostics['inventorySource']='simctl after preparation'
           diagnostics.update(runtimeInventory=runtimes,deviceInventory=devices)
           try:target=pathlib.Path('/tmp/grilla-simulator-id').read_text().strip()
           except OSError as error:target=None;errors.append('Selected target file: '+str(error))
@@ -177,6 +178,7 @@ jobs:
               raise SystemExit('Preparation succeeded but its actual runtime/device evidence could not be verified.')
           PY
       - name: Attempt selected Simulator DragUI preparation (diagnostic only)
+        if: ${{ !cancelled() && steps.prepare_simulator.outcome == 'success' }}
         # Preserve the actual readiness receipt, including failure. Acceptance
         # still requires every functional case below to pass with exit zero.
         continue-on-error: true
