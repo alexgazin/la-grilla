@@ -15,6 +15,12 @@ struct PreparedSound: Sendable {
         self.data = data
         self.asset = try SampleAsset(kind: asset.kind, name: asset.name, bytes: data)
     }
+
+    init(name: String, instrumentData: Data) throws {
+        data = instrumentData
+        asset = try SampleAsset(kind: .instrument, name: name, bytes: instrumentData)
+        _ = try SamplePCM.decode(instrumentData, asset: asset)
+    }
 }
 
 extension SoundBankLibrary {
