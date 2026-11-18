@@ -41,7 +41,7 @@ struct PadSampleLibraryView: View {
                     Text(LocalizedStringKey(search.isEmpty ? "No saved samples" : "No matching samples"))
                         .foregroundStyle(Color.muted)
                 }
-                ForEach(filtered) { sample in row(sample) }
+                ForEach(filtered, id: \.id) { sample in row(sample) }
             }
             .scrollContentBackground(.hidden).background(Color.ink)
             .navigationTitle("Sample library").navigationBarTitleDisplayMode(.inline)
