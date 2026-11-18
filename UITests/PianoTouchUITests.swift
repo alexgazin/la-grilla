@@ -17,6 +17,32 @@ final class PianoTouchUITests:XCTestCase {
         return app
     }
 
+    @MainActor func testPinchChangesTimeScaleAndKeepsPitchRowsInPlace() {
+        let app = openNoteRoll()
+        defer { app.terminate() }
+        let viewport = app.scrollViews["notes.viewport"]
+        let canvas = app.descendants(matching: .any).matching(identifier: "notes.canvas").firstMatch
+        XCTAssertTrue(viewport.waitForExistence(timeout: 5))
+        let initialY = canvas.frame.minY
+        let touch = viewport.coordinate(withNormalizedOffset: CGVector(dx: 0.65, dy: 0.74))
+        touch.press(forDuration: 0.02, thenDragTo: touch.withOffset(CGVector(dx: 0, dy: -60)),
+                    withVelocity: 180, thenHoldForDuration: 0.3)
+        let before = canvas.frame
+        XCTAssertLessThan(before.minY, initialY - 8)
+        viewport.pinch(withScale: 1.45, velocity: 1)
+        let enlarged = canvas.frame
+        XCTAssertGreaterThan(enlarged.width, before.width + 10)
+        XCTAssertEqual(enlarged.minY, before.minY, accuracy: 2)
+        viewport.pinch(withScale: 0.8, velocity: -1)
+        let reduced = canvas.frame
+        XCTAssertLessThan(reduced.width, enlarged.width - 10)
+        XCTAssertEqual(reduced.minY, before.minY, accuracy: 2)
+        viewport.swipeDown()
+        XCTAssertGreaterThan(canvas.frame.minY, reduced.minY + 8)
+        app.buttons["notes.undo"].tap()
+        XCTAssertEqual(app.staticTexts["notes.count"].label, "0")
+    }
+
     @MainActor func testResizeHandleUsesGridAndCommitsOneUndoableEdit(){
         let app=openNoteRoll();defer{app.terminate()}
         let duration=app.staticTexts["notes.selection.duration"]

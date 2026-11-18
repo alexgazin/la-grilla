@@ -13,7 +13,10 @@ struct PianoRollView: View {
     @State private var clipboard:NoteEvent?
     @State private var snap=240
     @State private var barWidth:CGFloat=240
-    @State private var zoomBase:CGFloat=240
+    @State private var rollPosition = ScrollPosition(edge: .top)
+    @State private var rollViewport = CGRect.zero
+    @State private var zoomAnchor: PianoZoomAnchor?
+    @GestureState private var pinching = false
     @State private var lowPitch=60
     @State private var listMode=false
     @State private var renaming=false
@@ -122,7 +125,35 @@ struct PianoRollView: View {
                             .frame(width:CGFloat(p.length)/CGFloat(barTicks)*barWidth,height:576)
                     }
                 }
-            }.scrollDisabled(noteDragging).background(Color.panel).simultaneousGesture(MagnifyGesture().onChanged{v in barWidth=min(640,max(112,zoomBase*v.magnification))}.onEnded{_ in zoomBase=barWidth})
+                .background(PianoPanPolicy())
+            }
+            .accessibilityIdentifier("notes.viewport")
+            .scrollPosition($rollPosition)
+            .onScrollGeometryChange(for: CGRect.self) { geometry in
+                geometry.visibleRect
+            } action: { _, rect in
+                rollViewport = rect
+            }
+            .scrollDisabled(noteDragging || pinching)
+            .background(Color.panel)
+            .simultaneousGesture(
+                MagnifyGesture()
+                    .updating($pinching) { _, active, _ in active = true }
+                    .onChanged { value in
+                        guard rollViewport.width > 0 else { return }
+                        let anchor = zoomAnchor ?? PianoZoomAnchor(
+                            viewport: rollViewport, unitX: value.startAnchor.x, barWidth: barWidth)
+                        zoomAnchor = anchor
+                        let width = min(640, max(112, anchor.barWidth * value.magnification))
+                        barWidth = width
+                        rollPosition.scrollTo(point: anchor.offset(at: width))
+                    }
+                    .onEnded { _ in zoomAnchor = nil }
+            )
+            .onChange(of: pinching) { _, active in
+                if !active { zoomAnchor = nil }
+            }
+            .onDisappear { zoomAnchor = nil }
             Text("Tap to add · hold and drag to move · drag selected note end to resize").font(.caption2).foregroundStyle(Color.muted).padding(.horizontal,16).padding(.top,7)
         }.frame(maxHeight:.infinity)
     }
@@ -161,6 +192,65 @@ struct PianoRollView: View {
     func add(_ p:Pattern,tick:Int,pitch:Int){change(p.id){try NoteEditing.insert(NoteEvent(tick:tick,duration:snap*2,pitch:pitch),into:&$0,step:snap)};selected=session.project.patterns.first{$0.id==p.id}?.notes?.last?.id;preview(pitch)}
     func preview(_ pitch:Int){if session.ensureAudio(),let id=track?.id,let i=session.project.tracks.firstIndex(where:{$0.id==id}){session.audio.previewNote(pitch,track:i)}}
     func isBlack(_ pitch:Int)->Bool{[1,3,6,8,10].contains(pitch%12)}
+}
+
+/// Keep the same pitch row and musical time under the initial pinch midpoint.
+private struct PianoZoomAnchor {
+    let barWidth: CGFloat
+    let viewportX: CGFloat
+    let bar: CGFloat
+    let y: CGFloat
+
+    init(viewport: CGRect, unitX: CGFloat, barWidth: CGFloat) {
+        self.barWidth = barWidth
+        viewportX = unitX * viewport.width
+        bar = (viewport.minX + viewportX - 48) / barWidth
+        y = max(0, viewport.minY)
+    }
+
+    func offset(at width: CGFloat) -> CGPoint {
+        CGPoint(x: max(0, 48 + (bar < 0 ? bar * barWidth : bar * width) - viewportX), y: y)
+    }
+}
+
+/// Reserve two-finger input for pinch before SwiftUI recognizes magnification.
+/// A diagonal two-finger movement must not start an ordinary scroll meanwhile.
+private struct PianoPanPolicy: UIViewRepresentable {
+    final class Probe: UIView {
+        weak var scroll: UIScrollView?
+        private var originalTouchLimit = 0
+
+        override func didMoveToWindow() {
+            super.didMoveToWindow()
+            var ancestor = window == nil ? nil : superview
+            while let view = ancestor, !(view is UIScrollView) { ancestor = view.superview }
+            let next = ancestor as? UIScrollView
+            guard scroll !== next else { return }
+            detach()
+            if let next {
+                let pan = next.panGestureRecognizer
+                originalTouchLimit = pan.maximumNumberOfTouches
+                pan.maximumNumberOfTouches = 1
+                scroll = next
+            }
+        }
+
+        func detach() {
+            if let pan = scroll?.panGestureRecognizer, pan.maximumNumberOfTouches == 1 {
+                pan.maximumNumberOfTouches = originalTouchLimit
+            }
+            scroll = nil
+        }
+    }
+
+    func makeUIView(context: Context) -> Probe {
+        let probe = Probe()
+        probe.isUserInteractionEnabled = false
+        return probe
+    }
+
+    func updateUIView(_ uiView: Probe, context: Context) {}
+    static func dismantleUIView(_ uiView: Probe, coordinator: ()) { uiView.detach() }
 }
 
 private struct RollCanvas:View {

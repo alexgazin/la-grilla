@@ -189,6 +189,7 @@ jobs:
           GRILLA_INTEGRATION_ONLY: ${{ contains(github.event.head_commit.message, '[integration-only]') && '1' || '0' }}
           GRILLA_INPUT_DIAGNOSTIC: ${{ contains(github.event.head_commit.message, '[input-diagnostic]') && '1' || '0' }}
           TEST_RUNNER_GRILLA_INPUT_DIAGNOSTIC: ${{ contains(github.event.head_commit.message, '[input-diagnostic]') && '1' || '0' }}
+          GRILLA_PIANO_ZOOM: ${{ contains(github.event.head_commit.message, '[piano-zoom]') && '1' || '0' }}
           GRILLA_ASSISTANT23_ONLY: ${{ contains(github.event.head_commit.message, '[assistant23-only]') && '1' || '0' }}
           GRILLA_RU_RECAPTURE: ${{ contains(github.event.head_commit.message, '[ru-capture]') && '1' || '0' }}
           TEST_RUNNER_GRILLA_RU_RECAPTURE: ${{ contains(github.event.head_commit.message, '[ru-capture]') && '1' || '0' }}
@@ -211,6 +212,15 @@ jobs:
             FILTER=(-only-testing:LaGrillaUITests/AudioRuntimeContinuityTests/testAAOutputOnlyLaunchDoesNotRequestMicrophone -only-testing:LaGrillaUITests/AudioRuntimeContinuityTests/testSessionMicrophoneLeaseRetainsLiveEngineAndPCM -only-testing:LaGrillaUITests/AudioRuntimeContinuityTests/testProductionVoiceCaptureCAFAnalysisApplyStoreAndUndo -only-testing:LaGrillaUITests/AudioRuntimeContinuityTests/testDiagnosticOnlyFreshInputLifecycleControls)
             SCOPE=input-diagnostic
             INVENTORY=()
+          fi
+          if test "$GRILLA_PIANO_ZOOM" = 1; then
+            SCOPE=focused
+            GRILLA_NATIVE_TIMEOUT_SECONDS=600
+            GRILLA_NATIVE_LABEL=piano-gestures
+            FILTER=(-only-testing:LaGrillaUITests/PianoTouchUITests)
+            INVENTORY=(--require-test PianoTouchUITests/testPinchChangesTimeScaleAndKeepsPitchRowsInPlace
+                       --require-test PianoTouchUITests/testHoldAndMoveKeepsDurationAndCommitsOneUndoableEdit
+                       --require-test PianoTouchUITests/testResizeHandleUsesGridAndCommitsOneUndoableEdit)
           fi
           if test "$GRILLA_ASSISTANT23_ONLY" = 1; then
             GRILLA_ASSISTANT_CASES=(AIAvailabilityTests/testActualUnavailableModelLocallyReviewsJazzAppliesAndUndoesOnce AIAvailabilityTests/testActualUnavailableModelRecheckPreservesIndependentLanguagesInputAndProject AssistantCompositionTests/testIdleProposalEndsOnLanguageChangeWithoutEditing AuthorizedMicrophoneTests/testGrantedSpeechCallbackAndOutputOnlyAssistantRemainUsable)
