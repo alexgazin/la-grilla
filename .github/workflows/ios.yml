@@ -116,6 +116,7 @@ jobs:
         timeout-minutes: 7
         env:
           GRILLA_CAPTURE_SCREENS: '0'
+          GRILLA_SIMULATOR_RUNTIME_INVENTORY: simulator-runtimes-at-selection.json
         run: bash scripts/screenshots.sh
       - name: Preserve actual Simulator preparation diagnostics
         if: always()
@@ -150,7 +151,14 @@ jobs:
               except (OSError,ValueError) as error:
                   result['error']=str(error);errors.append(str(error));return None
               finally:diagnostics['commands'].append(result)
-          runtimes=query(['xcrun','simctl','list','runtimes','-j'])
+          # Reuse the actual inventory used to select the runtime. Repeating
+          # discovery after boot can time out while the host is under load.
+          try:
+              runtimes=json.loads(pathlib.Path('simulator-runtimes-at-selection.json').read_text())
+              diagnostics['runtimeInventorySource']='simctl at device selection'
+          except (OSError,ValueError):
+              runtimes=query(['xcrun','simctl','list','runtimes','-j'])
+              diagnostics['runtimeInventorySource']='simctl after preparation'
           devices=query(['xcrun','simctl','list','devices','available','-j'])
           diagnostics.update(runtimeInventory=runtimes,deviceInventory=devices)
           try:target=pathlib.Path('/tmp/grilla-simulator-id').read_text().strip()
@@ -178,6 +186,7 @@ jobs:
           python3 scripts/ci/prepare_simulator_drag_service.py --device "$GRILLA_DRAG_DEVICE" --output-dir SimulatorDragReadiness --start-confirmed-system-app --start-confirmed-daemon
       - name: Native user flows
         id: native_flows
+        if: ${{ !cancelled() && steps.prepare_simulator.outcome == 'success' }}
         # Independent runner-side bound also covers a blocked Python I/O call.
         # Full native execution/finalization has 65 minutes; focused subsets
         # retain 25 minutes. Per-case limits and bounded cleanup stay unchanged.
