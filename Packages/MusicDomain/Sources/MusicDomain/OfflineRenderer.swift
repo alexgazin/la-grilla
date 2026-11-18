@@ -57,8 +57,8 @@ public enum OfflineRenderer {
         let start=firstSection?.start ?? 0,end=firstSection.map{$0.start+$0.length} ?? range.count
         let submitted = try samples.withRoutes(for: project) { instruments, pads in
             notes.withUnsafeBufferPointer {
-                lg_submit_samples(kernel, $0.baseAddress, Int32($0.count), project.bpm, Int32(start), Int32(end),
-                                  performance == nil ? 0 : 1, Int32(clamping: project.revision), instruments, pads)
+                lg_submit_samples_eq(kernel, $0.baseAddress, Int32($0.count), project.bpm, Int32(start), Int32(end),
+                                  performance == nil ? 0 : 1, Int32(clamping: project.revision), instruments, pads,project.equalizerBands(includeMaster:isolatedTrack == nil))
             }
         }
         guard submitted != 0 else { throw ExportError.renderUnavailable }

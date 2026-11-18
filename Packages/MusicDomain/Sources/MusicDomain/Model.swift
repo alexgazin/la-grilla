@@ -221,6 +221,7 @@ public struct Clip: Codable, Equatable, Identifiable, Sendable {
     public init(patternID: UUID, start: Int, length: Int) { self.patternID = patternID; self.start = start; self.length = length }
 }
 public struct Track: Codable, Equatable, Identifiable, Sendable {
+    public var equalizer:StudioEQ?
     public var id: UUID = UUID(); public var role: TrackRole; public var name:String?; public var displayName:String{name ?? NSLocalizedString(role.rawValue.capitalized,comment:"Track role")}; public var gain: Double = -6; public var pan: Double = 0
     public var mute = false; public var solo = false; public var presetVersion = 2; public var clips: [Clip] = []
     public var instrumentSample: SampleAsset?
@@ -232,7 +233,7 @@ public struct Section: Codable, Equatable, Identifiable, Sendable {
     public init(name: String, start: Int = 0, length: Int) { self.name = name; self.start = start; self.length = length }
 }
 public struct Project: Codable, Equatable, Identifiable, Sendable {
-    public var id: UUID = UUID(); public static let currentSchemaVersion=12
+    public var id: UUID = UUID(); public static let currentSchemaVersion=13
     /// Portable, nonnegative revision IDs. Exhaustion requires a new project
     /// copy rather than wrapping an ID used by history, saving and playback.
     public static let maximumRevision=Int(Int32.max)
@@ -240,6 +241,7 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
     fileprivate var nextRevision:Int? {revision>=0 && revision<Self.maximumRevision ? revision+1:nil}
     public var name: String; public var bpm: Double = 120; public var keyRoot = 0; public var minor = false
     public var modified = Date(); public var tracks: [Track]; public var patterns: [Pattern]; public var sections: [Section]
+    public var masterEQ:StudioEQ?
     public var masterFX:MasterFX?;public var performanceTakes:[PerformanceTake]?
     public var performanceTake:PerformanceTake?{get{performanceTakes?.first}set{performanceTakes=newValue.map{[$0]}}}
     public var audioAssets:[AudioAssetRecord]?
@@ -278,6 +280,7 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
               Set(tracks.map(\.id)).count == tracks.count else { throw MusicError.invalidProject }
         guard (performanceTakes ?? []).count<=1 else{throw MusicError.limit}
         try midi?.validate(self)
+        try masterEQ?.validate()
         try masterFX?.validate();try performanceTake?.validate()
         if let take=performanceTake{guard (take.source.audioAssets ?? []).allSatisfy({asset in (audioAssets ?? []).contains(asset)})else{throw MusicError.invalidProject}}
         guard (audioAssets ?? []).count<=8 else{throw MusicError.tooDense}
@@ -317,6 +320,7 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
             for e in p.drums { guard e.tick >= 0, e.tick < p.length, (0..<16).contains(e.pad), (1...127).contains(e.velocity) else { throw MusicError.invalidProject } }
         }
         for t in tracks {
+            try t.equalizer?.validate()
             guard (t.name==nil || (!t.name!.isEmpty && t.name!.count<=40)), t.gain.isFinite, (-61...6).contains(t.gain), t.pan.isFinite, (-1...1).contains(t.pan), SoundPalette(rawValue:t.presetVersion) != nil else { throw MusicError.invalidProject }
             var end = 0
             for c in t.clips.sorted(by: {$0.start < $1.start}) {
@@ -459,6 +463,10 @@ public enum ProjectDocument {
         if p.schemaVersion==11 {
             guard p.tracks.allSatisfy({ $0.instrumentSample == nil && $0.padSamples == nil }) else { throw MusicError.invalidProject }
             p.schemaVersion=12
+        }
+        if p.schemaVersion==12 {
+            guard p.masterEQ==nil,p.tracks.allSatisfy({$0.equalizer==nil}) else {throw MusicError.invalidProject}
+            p.schemaVersion=13
         }
         if var take=p.performanceTake{take.source=try migrated(take.source);p.performanceTake=take}
         try p.validate();return p

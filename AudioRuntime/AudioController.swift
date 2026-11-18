@@ -519,7 +519,7 @@ private enum AudioRender {
         do {
             ok = try samples.withRoutes(for: p) { instruments, pads in
                 notes.withUnsafeBufferPointer { n in tracks.withUnsafeBufferPointer { t in
-                    lg_submit_project_samples(k,n.baseAddress,Int32(n.count),p.bpm,Int32(range.lowerBound),Int32(range.upperBound),loop ? 1:0,Int32(next),layoutToken(layout),t.baseAddress,Int32(t.count),Float(p.master),Float(fx.filter),Float(fx.delayWet),instruments,pads)
+                    lg_submit_project_eq(k,n.baseAddress,Int32(n.count),p.bpm,Int32(range.lowerBound),Int32(range.upperBound),loop ? 1:0,Int32(next),layoutToken(layout),t.baseAddress,Int32(t.count),Float(p.master),Float(fx.filter),Float(fx.delayWet),instruments,pads,p.equalizerBands())
                 }}
             }
         } catch { self.error = error.localizedDescription; return }
@@ -562,7 +562,7 @@ private enum AudioRender {
         guard let k=handle?.pointer,generation>0,p.id==submittedProject,trackLayout(p)==submittedLayout else{return false}
         let tracks=trackMix(p)
         let fx=p.masterFX ?? MasterFX()
-        let accepted=tracks.withUnsafeBufferPointer{lg_mix_snapshot_for_revision(k,$0.baseAddress,Int32($0.count),Float(p.master),Float(fx.filter),Float(fx.delayWet),Int32(generation))} != 0
+        let accepted=tracks.withUnsafeBufferPointer{lg_mix_revision_eq(k,$0.baseAddress,Int32($0.count),Float(p.master),Float(fx.filter),Float(fx.delayWet),Int32(generation),p.equalizerBands())} != 0
         if !accepted{error="Audio update could not be queued. Stop and retry."};return accepted
     }
     func play(countInBPM: Double? = nil) {

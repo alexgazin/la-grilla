@@ -2,6 +2,8 @@
 #include "PerformanceFX.hpp"
 #include "PerformanceRuntime.hpp"
 #include "MIDIHub.hpp"
+#include "Equalizer.hpp"
+#include <complex>
 #include <atomic>
 #include <cmath>
 #include <algorithm>
@@ -30,6 +32,7 @@ void replaceBanks(std::array<LGSampleBank*,N>& owned,LGSampleBank *const *banks)
 }
 }
 struct Snapshot {
+    EQDesk eq{};
     std::atomic<int> state{0}, revision{-1};
     std::array<LGNote,MaxNotes> notes{};
     int count=0,start=0,end=15360,trackCount=0;
@@ -48,7 +51,7 @@ struct Snapshot {
         return track>=0&&track<MaxTracks?sampleInstruments[track]:nullptr;
     }
 };
-struct MixSnapshot {std::atomic<int> state{0};std::atomic<uint64_t> revision{0};int musicRevision=-1;std::array<float,Buses> gain{},pan{};float filter=0,delay=0;};
+struct MixSnapshot {EQDesk eq{};std::atomic<int> state{0};std::atomic<uint64_t> revision{0};int musicRevision=-1;std::array<float,Buses> gain{},pan{};float filter=0,delay=0;};
 struct Voice { bool on=false; int pitch=0,track=0,pad=-1,instrument=0; double phase=0,age=0,duration=0; float velocity=0,level=0;int sourceKey=-1;bool keyDown=false;bool outputAllowed=true;int outputChannel=-1,outputPitch=0;uint32_t outputEpoch=0;uint64_t outputEndFrame=0;int presetVersion=1;double phaseStep=0,decayStep=1,decay=1;uint64_t ageFrames=0;float lastSample=0;double playbackRatio=1,attack=0.004,toneAlpha=1;float toneState=0;std::array<double,4> partials{};
     const LGSampleBank *sample=nullptr;
     LGSampleZone zone{};
@@ -277,6 +280,11 @@ struct LGKernel {
         if(control.kind==3){if(control.value==0){bool was=fx.repeating();fx.releaseRepeat();return was;}return fx.beginRepeat(int(control.value),s.bpm);}
         return false;
     }
+    std::array<EQChannel,10> eqChannels{};
+    void applyEQ(const EQDesk& desk,bool reset=false){
+        const int frames=std::max(1,int(sr*0.008));
+        for(int i=0;i<10;i++)eqChannels[i].set(desk[std::min(i,Master)],frames,reset);
+    }
     void adoptMix(){
         int chosen=-1;uint64_t best=mixSelection;const int musical=current<0?-1:slots[current].revision.load(std::memory_order_relaxed);
         for(int i=0;i<3;i++)if(mixSlots[i].state.load(std::memory_order_acquire)==2){
@@ -292,7 +300,7 @@ struct LGKernel {
         }
         if(chosen<0){return;}auto &slot=mixSlots[chosen];
         const auto revision=slot.revision.load(std::memory_order_relaxed);
-        if(revision>mixSelection){for(int t=0;t<Buses;t++){gains[t].store(slot.gain[t]);pans[t].store(slot.pan[t]);}filterTarget.store(slot.filter);delayTarget.store(slot.delay);mixSelection=revision;mixApplied=std::max(mixApplied,revision);mixPublished.store(mixApplied,std::memory_order_release);}
+        if(revision>mixSelection){applyEQ(slot.eq);for(int t=0;t<Buses;t++){gains[t].store(slot.gain[t]);pans[t].store(slot.pan[t]);}filterTarget.store(slot.filter);delayTarget.store(slot.delay);mixSelection=revision;mixApplied=std::max(mixApplied,revision);mixPublished.store(mixApplied,std::memory_order_release);}
         slot.state.store(0,std::memory_order_release);
     }
     void adopt(bool force,double tick){
@@ -324,6 +332,7 @@ struct LGKernel {
         // Its ordering floor is local to this music generation, while the
         // public publication high-water mark remains monotonic.
         current=chosen;auto&s=slots[current];mixSelection=0;
+        if(!s.hasProjectMix)applyEQ(s.eq);
         if(s.hasProjectMix){
             const bool changed=s.layoutToken!=trackLayoutToken||s.trackCount!=trackLayoutCount||s.trackKeys!=trackLayoutKeys;
             if(changed){
@@ -335,6 +344,7 @@ struct LGKernel {
                 fx.resetTrackHistory();performance.repeatTicks.store(0);
                 if(fade){layoutFadeLeft=oldLeft;layoutFadeRight=oldRight;layoutFadeTotal=std::max(1,int(std::ceil(sr*0.003)));layoutFadeRemaining=layoutFadeTotal;}
             }
+            applyEQ(s.eq,changed);
             for(int t=0;t<Buses;t++){gains[t].store(s.gain[t]);pans[t].store(s.pan[t]);if(changed){smooth[t]=s.gain[t];smoothPan[t]=s.pan[t];}}
             for(int t=0;t<MaxTracks;t++)presets[t].store(s.preset[t],std::memory_order_relaxed);
             filterTarget.store(s.filter);delayTarget.store(s.delay);mixSelection=s.mixSequence;mixApplied=std::max(mixApplied,s.mixSequence);mixPublished.store(mixApplied,std::memory_order_release);
@@ -362,7 +372,7 @@ static bool validMix(LGKernel*k,const LGTrackMix*tracks,int count,float masterDB
     return true;
 }
 static float mixGain(float db,int audible=1){return audible&&db> -61?std::pow(10.f,std::clamp(db,-60.f,6.f)/20):0;}
-static int submitSnapshot(LGKernel*k,const LGNote*notes,int count,double bpm,int start,int end,int loop,int rev,uint64_t layoutToken,const LGProjectTrack*tracks,int trackCount,float masterDB,float filter,float delay,bool project,LGSampleBank *const *instruments=nullptr,LGSampleBank *const *pads=nullptr){
+static int submitSnapshot(LGKernel*k,const LGNote*notes,int count,double bpm,int start,int end,int loop,int rev,uint64_t layoutToken,const LGProjectTrack*tracks,int trackCount,float masterDB,float filter,float delay,bool project,LGSampleBank *const *instruments=nullptr,LGSampleBank *const *pads=nullptr,const LGEQBand *eq=nullptr){
     if(!validNotes(k,notes,count,bpm,start,end)||(project&&(loop<0||loop>1)))return 0;
     if(project){
         if(rev<0||rev<k->applied.load(std::memory_order_acquire)||layoutToken==0||trackCount<0||trackCount>MaxTracks||(trackCount>0&&!tracks)||!validMix(k,nullptr,0,masterDB,filter,delay))return 0;
@@ -372,8 +382,9 @@ static int submitSnapshot(LGKernel*k,const LGNote*notes,int count,double bpm,int
         }
         for(int n=0;n<count;n++)if(notes[n].track>=trackCount)return 0;
     }
+    EQDesk desk{}; if(!eqPrepare(eq,k->sr,desk))return 0;
     for(auto&s:k->slots){int expected=0;if(!s.state.compare_exchange_strong(expected,1)){expected=2;if(!s.state.compare_exchange_strong(expected,1))continue;}
-        if(count>0){std::copy(notes,notes+count,s.notes.begin());}s.count=count;s.bpm=bpm;s.start=start;s.end=end;s.loop=loop;s.hasProjectMix=project;
+        if(count>0){std::copy(notes,notes+count,s.notes.begin());}s.count=count;s.bpm=bpm;s.start=start;s.end=end;s.loop=loop;s.hasProjectMix=project;s.eq=desk;
         replaceBanks(s.sampleInstruments,instruments);replaceBanks(s.samplePads,pads);
         if(project){
             s.gain.fill(0);s.pan.fill(0);s.preset.fill(1);s.trackKeys.fill(0);s.instruments.fill(0);s.midiChannels.fill(0);s.trackCount=trackCount;
@@ -384,8 +395,9 @@ static int submitSnapshot(LGKernel*k,const LGNote*notes,int count,double bpm,int
         s.revision.store(rev);s.state.store(2,std::memory_order_release);return 1;
     }return 0;
 }
-static int publishMix(LGKernel*k,const LGTrackMix*tracks,int count,float masterDB,float filter,float delay,int musicRevision){
+static int publishMix(LGKernel*k,const LGTrackMix*tracks,int count,float masterDB,float filter,float delay,int musicRevision,const LGEQBand *eq=nullptr){
     if(!validMix(k,tracks,count,masterDB,filter,delay))return 0;
+    EQDesk desk{}; if(!eqPrepare(eq,k->sr,desk))return 0;
     // Keep a pending generation's controls when a current-generation update
     // arrives: use empty storage before replacing an unconsumed transaction.
     for(int pass=0;pass<3;pass++)for(auto &slot:k->mixSlots){
@@ -393,13 +405,31 @@ static int publishMix(LGKernel*k,const LGTrackMix*tracks,int count,float masterD
         // the target here is safe; rendering only changes ownership flags.
         if(pass==1&&slot.musicRevision!=musicRevision)continue;
         int expected=pass==0?0:2;if(!slot.state.compare_exchange_strong(expected,1))continue;
-        slot.gain.fill(0);slot.pan.fill(0);
+        slot.eq=desk;slot.gain.fill(0);slot.pan.fill(0);
         for(int i=0;i<count;i++){slot.gain[i]=mixGain(tracks[i].gainDB,tracks[i].audible);slot.pan[i]=tracks[i].pan;}
         slot.gain[Master]=mixGain(masterDB);slot.filter=filter;slot.delay=delay;slot.musicRevision=musicRevision;
         slot.revision.store(k->mixSerial.fetch_add(1)+1);slot.state.store(2,std::memory_order_release);return 1;
     }return 0;
 }
 extern "C" {
+double lg_eq_response(const LGEQBand* b,double rate,double frequency){
+    if(!b||!(rate>=8000)||frequency<=0)return 0;
+    const auto z=std::polar(1.0,-2*Pi*frequency/rate);double db=0;
+    for(int i=0;i<4;i++){
+        const auto c=eqDesign(b[i],rate);
+        db+=20*std::log10(std::max(1e-10,std::abs((c.b0+c.b1*z+c.b2*z*z)/(1.+c.a1*z+c.a2*z*z))));
+    }
+    return db;
+}
+int lg_submit_project_eq(LGKernel*k,const LGNote*n,int count,double bpm,int start,int end,int loop,int rev,uint64_t token,const LGProjectTrack*t,int tc,float master,float filter,float delay,LGSampleBank *const *in,LGSampleBank *const *pads,const LGEQBand* eq){
+    return submitSnapshot(k,n,count,bpm,start,end,loop,rev,token,t,tc,master,filter,delay,true,in,pads,eq);
+}
+int lg_submit_samples_eq(LGKernel*k,const LGNote*n,int count,double bpm,int start,int end,int loop,int rev,LGSampleBank *const *in,LGSampleBank *const *pads,const LGEQBand* eq){
+    return submitSnapshot(k,n,count,bpm,start,end,loop,rev,0,nullptr,0,0,0,0,false,in,pads,eq);
+}
+int lg_mix_revision_eq(LGKernel*k,const LGTrackMix*t,int count,float master,float filter,float delay,int rev,const LGEQBand* eq){
+    return rev<0?0:publishMix(k,t,count,master,filter,delay,rev,eq);
+}
 LGSampleBank *lg_sample_create(int32_t rate,const LGSampleZone *zones,int32_t count,const int16_t *pcm,int32_t frames){
     if(rate<8000||rate>48000||count<1||count>128||frames<32||frames>3999000||!zones||!pcm)return nullptr;
     int previous=-1;
@@ -646,11 +676,12 @@ void lg_render_midi(LGKernel*k,LGMIDIHub*hub,uint64_t hostTime,double hostTicksP
         for(int t=0;t<MaxTracks;t++)buses[t]+=keyboardBus(keys[t]);
         k->fx.processBuses(buses,k->active);
         for(int t=0;t<MaxTracks;t++){
-            const float amp=buses[t]*k->smooth[t];
+            const float amp=k->eqChannels[t].process(buses[t])*k->smooth[t];
             if(k->panValue[t]!=k->smoothPan[t]){const float angle=(k->smoothPan[t]+1)*float(Pi/4);k->panLeft[t]=std::cos(angle);k->panRight[t]=std::sin(angle);k->panValue[t]=k->smoothPan[t];}
             left+=amp*k->panLeft[t];right+=amp*k->panRight[t];peak[t]=std::max(peak[t],std::abs(amp));
         }
         k->fx.process(left,right);
+        left=k->eqChannels[Master].process(left);right=k->eqChannels[Master+1].process(right);
         const float cue=buses[Master]*0.65f*0.7071067812f;left+=cue;right+=cue;
         left*=k->smooth[Master];right*=k->smooth[Master];peak[Master]=std::max(peak[Master],std::max(std::abs(left),std::abs(right)));
         if(k->layoutFadeRemaining>0){const float weight=float(k->layoutFadeRemaining)/float(k->layoutFadeTotal);left=left*(1-weight)+k->layoutFadeLeft*weight;right=right*(1-weight)+k->layoutFadeRight*weight;--k->layoutFadeRemaining;}

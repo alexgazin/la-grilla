@@ -42,6 +42,13 @@ int lg_submit_samples(LGKernel *k,const LGNote *notes,int count,double bpm,int s
 // IDs. Retain routing metadata for these generations until the next publication;
 // a concurrent audio handover cannot hide its generation from this bounded set.
 int lg_snapshot_generations(LGKernel *k,int32_t *revisions,int capacity);
+// 4 bands for each of 8 tracks followed by the master. 0 bypass, 1 peak,
+ // 2 low shelf, 3 high shelf, 4 high pass, 5 low pass.
+typedef struct {int32_t kind;float frequency,gainDB,q;} LGEQBand;
+int lg_submit_project_eq(LGKernel*,const LGNote*,int,double,int,int,int,int,uint64_t,const LGProjectTrack*,int,float,float,float,LGSampleBank *const *,LGSampleBank *const *,const LGEQBand*);
+int lg_submit_samples_eq(LGKernel*,const LGNote*,int,double,int,int,int,int,LGSampleBank *const *,LGSampleBank *const *,const LGEQBand*);
+int lg_mix_revision_eq(LGKernel*,const LGTrackMix*,int,float,float,float,int,const LGEQBand*);
+double lg_eq_response(const LGEQBand*,double rate,double frequency);
 void lg_countin(LGKernel *k, int frames);
 int lg_countremaining(LGKernel *k);
 void lg_play(LGKernel *k, int play);

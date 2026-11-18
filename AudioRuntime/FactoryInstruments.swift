@@ -7,6 +7,19 @@ enum FactoryInstrument: String, CaseIterable, Identifiable, Sendable {
 
     case electricPiano = "electric-piano"
     case marimba, vibraphone, organ
+    case altoSax = "alto-sax", tenorSax = "tenor-sax", sopranoSax = "soprano-sax", baritoneSax = "baritone-sax"
+
+    var artwork: String { saxVoice == nil ? "instrument-" + id : "instrument-sax" }
+
+    private var saxVoice: ReedVoice? {
+        switch self {
+        case .altoSax: ReedVoice(formant:1180,brightness:0.66,breath:0.024,vibrato:0.55,attack:0.038)
+        case .tenorSax: ReedVoice(formant:820,brightness:0.50,breath:0.052,vibrato:0.69,attack:0.060)
+        case .sopranoSax: ReedVoice(formant:1700,brightness:0.76,breath:0.017,vibrato:0.43,attack:0.028)
+        case .baritoneSax: ReedVoice(formant:610,brightness:0.57,breath:0.032,vibrato:0.34,attack:0.075)
+        default:nil
+        }
+    }
 
     var isRecorded: Bool { self == .piano || self == .nylonGuitar }
 
@@ -20,6 +33,10 @@ enum FactoryInstrument: String, CaseIterable, Identifiable, Sendable {
         case .marimba: "Marimba"
         case .vibraphone: "Vibraphone"
         case .organ: "Drawbar organ"
+        case .altoSax: "Alto sax"
+        case .tenorSax: "Tenor sax"
+        case .sopranoSax: "Soprano sax"
+        case .baritoneSax: "Baritone sax"
         }
     }
 
@@ -89,6 +106,10 @@ private extension FactoryInstrument {
             let cycles = Int(frequency.rounded())
             let periodFrames = Int((Double(rate * cycles) / frequency).rounded())
             let length = periodFrames * 2
+            let reed = saxVoice
+            let weights = reed?.weights(frequency:frequency,rate:rate) ?? []
+            var noise = UInt32(pitch + 1)
+            var previousNoise = 0.0
             var pcm = [Int16]()
             pcm.reserveCapacity(length)
             for frame in 0..<length {
@@ -106,15 +127,47 @@ private extension FactoryInstrument {
                     sample = exp(-1.6 * t) * (0.83 + 0.17 * cos(2 * .pi * 5.4 * t)) * metal
                 case .organ:
                     sample = 0.59 * sin(phase) + 0.27 * sin(2 * phase) + 0.14 * sin(3 * phase)
+                case .altoSax, .tenorSax, .sopranoSax, .baritoneSax:
+                    guard let reed else { throw SampleError.invalid }
+                    // Periodic vibrato and whole cycles give the sustain loop a matching reed phase.
+                    let vibrato = sin(2 * .pi * 5 * Double(frame) / Double(periodFrames))
+                    let angle = phase + reed.vibrato * vibrato * min(1,t*3)
+                    let c = 2 * cos(angle)
+                    var previous=0.0, harmonic=sin(angle), tone=0.0
+                    for weight in weights {
+                        tone += weight * harmonic
+                        (previous,harmonic)=(harmonic,c*harmonic-previous)
+                    }
+                    noise = noise &* 1664525 &+ 1013904223
+                    let white = Double(noise)/Double(UInt32.max) * 2 - 1
+                    let air = (white-previousNoise) * reed.breath * (0.4+exp(-22*t))
+                    previousNoise=white
+                    sample = (tone+air) * (1-exp(-t/reed.attack))
                 case .piano, .nylonGuitar:
                     throw SampleError.invalid
                 }
                 let attack = min(1, t * 350)
-                let tail = self == .organ ? 1 : min(1, Double(length - frame - 1) / 400)
+                let tail = self == .organ || reed != nil ? 1 : min(1, Double(length - frame - 1) / 400)
                 pcm.append(Int16(clamping: Int((sample * attack * tail * 9500).rounded())))
             }
-            return SamplePCM.Zone(pitch: pitch, samples: pcm, loopStart: self == .organ ? periodFrames : 0)
+            return SamplePCM.Zone(pitch: pitch, samples: pcm, loopStart: self == .organ || reed != nil ? periodFrames : 0)
         }
         return SamplePCM(rate: rate, zones: zones)
+    }
+}
+
+/// Band-limited reed excitation shaped by two bore resonances.
+private struct ReedVoice {
+    let formant:Double, brightness:Double, breath:Double, vibrato:Double, attack:Double
+    func weights(frequency:Double,rate:Int)->[Double] {
+        let count=max(1,min(16,Int(Double(rate)*0.45/frequency)))
+        let values=(1...count).map { n -> Double in
+            let f=Double(n)*frequency
+            let body=exp(-pow(log2(f/formant)/0.8,2))
+            let edge=exp(-pow(log2(f/(formant*2.5))/0.63,2))
+            return (0.52+1.5*body+brightness*edge)/pow(Double(n),1.46-brightness*0.5)
+        }
+        let norm=values.reduce(0,+)
+        return values.map{1.5*$0/norm}
     }
 }

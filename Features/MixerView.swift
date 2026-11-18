@@ -6,12 +6,14 @@ struct MixerView: View {
     @Environment(\.dynamicTypeSize) private var dynamicType
     @Environment(\.colorSchemeContrast) private var contrast
     @State private var activeFader: Int?
+    @State private var equalizer: EQDestination?
 
     var body: some View {
         Group {
             if dynamicType.isAccessibilitySize { accessibleMixer }
             else { standardMixer }
         }
+        .sheet(item:$equalizer) { EqualizerView(session:session,destination:$0) }
         .onDisappear { finishGesture() }
         .onChange(of: session.performance.replaying) { _, replaying in
             if replaying { finishGesture() }
@@ -21,7 +23,7 @@ struct MixerView: View {
     private var standardMixer: some View {
         GeometryReader { geometry in
             // Keep useful fader travel even when the landscape workspace scrolls.
-            let stripHeight = min(500, max(420, geometry.size.height - 88))
+            let stripHeight = min(500, max(464, geometry.size.height - 88))
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 16) {
                     deskHeading
@@ -117,6 +119,7 @@ struct MixerView: View {
                 .frame(height: 34)
             soundSlot(track: track, color: color)
                 .frame(height: 56)
+            eqButton(track)
             gainReadout(index: index, gain: gain, color: color)
                 .padding(.vertical, 4)
             fader(index: index, track: track, gain: gain, color: color)
@@ -169,6 +172,22 @@ struct MixerView: View {
             .frame(maxWidth: .infinity, minHeight: 48)
             .background(Color.ink.opacity(0.7), in: RoundedRectangle(cornerRadius: 10))
         }
+    }
+
+    private func eqButton(_ track:Track?)->some View {
+        Button {
+            finishGesture()
+            equalizer=track.map{.track($0.id)} ?? .master
+        } label:{
+            Label("EQ",systemImage:"slider.horizontal.3")
+                .font(.caption.weight(.semibold)).frame(maxWidth:.infinity,minHeight:44)
+        }
+        .buttonStyle(StudioQuietButtonStyle())
+        .foregroundStyle(Color.mint)
+        .disabled(session.performance.contextActive)
+        .accessibilityLabel("Parametric EQ")
+        .accessibilityValue(Text(track?.displayName ?? NSLocalizedString("Master",comment:"Mixer channel")))
+        .accessibilityIdentifier("mixer.eq."+(track?.id.uuidString ?? "master"))
     }
 
     private func gainReadout(index: Int, gain: Double, color: Color, largeType: Bool = false) -> some View {
@@ -301,6 +320,7 @@ struct MixerView: View {
             ForEach(Array(session.displayProject.tracks.enumerated()), id: \.element.id) { index, track in
                 SwiftUI.Section(track.displayName) {
                     TrackSoundButton(session: session, trackID: track.id)
+                    eqButton(track)
                     gainReadout(index: index, gain: track.gain, color: .track(track.role), largeType: true)
                     Slider(value: gainBinding(index), in: -61...6, step: 1,
                            onEditingChanged: { _ in session.mixerGesture = false })
@@ -321,6 +341,7 @@ struct MixerView: View {
                 .listRowBackground(Color.panel)
             }
             SwiftUI.Section("Master") {
+                eqButton(nil)
                 gainReadout(index: masterBus, gain: session.displayProject.master, color: .mint, largeType: true)
                 Slider(value: gainBinding(masterBus), in: -61...6, step: 1,
                        onEditingChanged: { _ in session.mixerGesture = false })
