@@ -5,6 +5,7 @@ import hashlib
 import json
 from pathlib import Path
 import re
+import struct
 import subprocess
 import sys
 import urllib.request
@@ -75,24 +76,19 @@ def prepare(collection, name, wanted, duration, output):
         zones.append(dict(pitch=midi, frames=len(values), source=path, sha256=digest))
 
     gain = min(4, 0.32 * 32767 / max(abs(value) for chunk in chunks for value in chunk))
-    stream = bytearray()
-    for chunk in chunks:
+    stream = bytearray(b"LGS1" + struct.pack("<II", RATE, len(chunks)))
+    for zone, chunk in zip(zones, chunks):
         for index, value in enumerate(chunk):
             # Gentle fade at the truncated end of a naturally decaying note.
             tail = min(1, (len(chunk) - index - 1) / 768)
             chunk[index] = round(value * gain * tail)
         if sys.byteorder != "little":
             chunk.byteswap()
+        stream.extend(struct.pack("<III", zone["pitch"], zone["frames"], 0))
         stream.extend(chunk.tobytes())
-    target = output / (name + ".caf")
-    subprocess.run([
-        "ffmpeg", "-v", "error", "-y", "-f", "s16le", "-ac", "1", "-ar", str(RATE), "-i", "pipe:0",
-        "-c:a", "alac", "-sample_fmt", "s16p", str(target)
-    ], input=stream, check=True)
-    decoded = subprocess.check_output(["ffmpeg", "-v", "error", "-i", str(target), "-f", "s16le", "pipe:1"])
-    if decoded != stream:
-        raise ValueError(f"CAF encoding changed PCM: {target}")
-    return dict(source=collection, rate=RATE, zones=zones, sha256=hashlib.sha256(target.read_bytes()).hexdigest())
+    target = output / (name + ".lgpcm")
+    target.write_bytes(stream)
+    return dict(source=collection, rate=RATE, zones=zones, sha256=hashlib.sha256(stream).hexdigest())
 
 
 def main():
@@ -102,7 +98,7 @@ def main():
     guitar = prepare("meta-nylon-guitar", "nylon-guitar", [*range(40, 83, 3), 83], 2.0, output)
     (output / "manifest.json").write_text(json.dumps(dict(sourceCommit=SOURCE_COMMIT, piano=piano, guitar=guitar), indent=2) + "\n")
     (output / "LICENSE-CC0.txt").write_bytes(fetch("meta-piano", "LICENSE"))
-    print(f"Piano {len(piano['zones'])} zones, nylon guitar {len(guitar['zones'])} zones; lossless CAF verified.")
+    print(f"Piano {len(piano['zones'])} PCM zones, nylon guitar {len(guitar['zones'])} PCM zones.")
 
 
 if __name__ == "__main__":

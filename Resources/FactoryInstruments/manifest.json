@@ -131,7 +131,7 @@
         "sha256": "3d57802d6543db0817590b2cc8b8b4bdc57583006406ae9660408a5788489449"
       }
     ],
-    "sha256": "8ad807133c238519cfd9de1e940ee34da55a19500ec38c09242e9b673aecbc5d"
+    "sha256": "99ab675b5a3ba11a060a8e1c748d091dea9a57af6a45372a9b976d679634980c"
   },
   "guitar": {
     "source": "meta-nylon-guitar",
@@ -234,6 +234,6 @@
         "sha256": "3c6a7deb256f9a54fad4e3967ba9d364415ffb6fd02f5717ec713b0ebcb2c558"
       }
     ],
-    "sha256": "4d3cefca03cc844ac81790463679aced1ea3c6917bd148b24843b168b3e86ed1"
+    "sha256": "a5a079fb6045f961c0788a98d3d2cf3fb7c220dcc0537b9fdffce8d455573c07"
   }
 }
