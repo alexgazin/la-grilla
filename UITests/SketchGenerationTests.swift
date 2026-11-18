@@ -81,7 +81,7 @@ final class SketchGenerationTests:XCTestCase {
         XCTAssertTrue(example.waitForExistence(timeout: 8))
         example.tap()
         app.buttons["Suggest settings"].tap()
-        let feedback = app.staticTexts.containing(NSPredicate(format: "label BEGINSWITH %@", "Local suggestions")).firstMatch
+        let feedback = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "Local suggestions")).firstMatch
         XCTAssertTrue(feedback.waitForExistence(timeout: 8))
         keepScreenshot("Groove37-offline-builder")
         let save = app.buttons["builder.create"]
@@ -94,8 +94,8 @@ final class SketchGenerationTests:XCTestCase {
             let next = self.state(transport)
             return !next.id.isEmpty && next.id != old.id
         }
-        XCTAssertTrue(app.buttons.containing(NSPredicate(format:"label CONTAINS %@", "Intro")).firstMatch.exists)
-        XCTAssertTrue(app.buttons.containing(NSPredicate(format:"label CONTAINS %@", "Hook")).firstMatch.exists)
+        XCTAssertTrue(app.buttons.matching(NSPredicate(format:"label CONTAINS %@", "Intro")).firstMatch.exists)
+        XCTAssertTrue(app.buttons.matching(NSPredicate(format:"label CONTAINS %@", "Hook")).firstMatch.exists)
         keepScreenshot("Groove37-editable-arrangement")
     }
 
