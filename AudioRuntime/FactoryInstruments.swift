@@ -12,16 +12,34 @@ enum FactoryInstrument: String, CaseIterable, Identifiable, Sendable {
 
     var id: String { rawValue }
 
-    var displayName: String {
+    private var nameKey: String {
         switch self {
-        case .electricPiano: NSLocalizedString("Electric piano", comment: "Keyboard instrument")
-        case .marimba: NSLocalizedString("Marimba", comment: "Mallet instrument")
-        case .vibraphone: NSLocalizedString("Vibraphone", comment: "Mallet instrument")
-        case .organ: NSLocalizedString("Drawbar organ", comment: "Keyboard instrument")
-        case .piano: NSLocalizedString("Acoustic piano", comment: "Recorded factory instrument")
-        case .nylonGuitar: NSLocalizedString("Nylon guitar", comment: "Recorded factory instrument")
+        case .piano: "Acoustic piano"
+        case .nylonGuitar: "Nylon guitar"
+        case .electricPiano: "Electric piano"
+        case .marimba: "Marimba"
+        case .vibraphone: "Vibraphone"
+        case .organ: "Drawbar organ"
         }
     }
+
+    var displayName: String { NSLocalizedString(nameKey, comment: "Studio instrument") }
+
+    private static let persistedNames: [Self: Set<String>] = {
+        let catalogs = ["en", "ru"].compactMap { language in
+            Bundle.main.path(forResource: language, ofType: "lproj").flatMap(Bundle.init(path:))
+        }
+        return Dictionary(uniqueKeysWithValues: allCases.map { instrument in
+            let names = catalogs.map { $0.localizedString(forKey: instrument.nameKey, value: nil, table: nil) }
+            return (instrument, Set(names + [instrument.nameKey]))
+        })
+    }()
+
+    func matches(name: String?) -> Bool {
+        guard let name else { return false }
+        return Self.persistedNames[self]?.contains(name) == true
+    }
+
 }
 
 extension SoundBankLibrary {

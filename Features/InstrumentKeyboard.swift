@@ -62,20 +62,23 @@ private struct InstrumentKeyboard: View {
                 let compact = geometry.size.height < 450
                 if let track {
                     VStack(alignment: .leading, spacing: compact ? 6 : 14) {
-                        ScrollView(.horizontal) {
-                            HStack(spacing: 9) {
-                                ForEach(FactoryInstrument.allCases) { instrument in
-                                    instrumentCard(instrument, track: track, compact: compact)
+                        ScrollViewReader { shelf in
+                            ScrollView(.horizontal) {
+                                HStack(spacing: 9) {
+                                    ForEach(FactoryInstrument.allCases) { instrument in
+                                        instrumentCard(instrument, track: track, compact: compact)
+                                            .id(instrument.id)
+                                    }
+                                }.padding(.horizontal, 14)
+                            }.scrollIndicators(.hidden).accessibilityIdentifier("keyboard.instruments")
+                                .onChange(of: track.instrumentSample, initial: true) { _, sample in
+                                    if let current = factorySound(sample?.name) {
+                                        shelf.scrollTo(current.id, anchor: .center)
+                                    }
                                 }
-                            }.padding(.horizontal, 14)
-                        }.scrollIndicators(.hidden).accessibilityIdentifier("keyboard.instruments")
+                        }
                         if !compact {
-                            HStack {
-                                trackMenu(track, compact: false)
-                                Spacer()
-                                Text(TrackSoundNames.current(track)).font(.subheadline.weight(.semibold))
-                                    .accessibilityIdentifier("keyboard.current-sound")
-                            }.padding(.horizontal, 16)
+                            instrumentPanel(track, height: min(170, max(88, geometry.size.height * 0.20)))
                         }
                         HStack(spacing: 6) {
                             if compact { trackMenu(track, compact: true) }
@@ -132,6 +135,40 @@ private struct InstrumentKeyboard: View {
         .onDisappear { task?.cancel(); finishPhrase(); session.midi.releaseKeyboard() }
     }
 
+    private func factorySound(_ name: String?) -> FactoryInstrument? {
+        FactoryInstrument.allCases.first { $0.matches(name: name) }
+    }
+
+    private func instrumentPanel(_ track: Track, height: CGFloat) -> some View {
+        let current = factorySound(track.instrumentSample?.name)
+        return HStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 4) {
+                trackMenu(track, compact: false)
+                Text(current?.displayName ?? TrackSoundNames.current(track))
+                    .font(.title2.weight(.semibold)).foregroundStyle(Color.studioText)
+                    .lineLimit(2).minimumScaleFactor(0.8)
+                    .accessibilityIdentifier("keyboard.current-sound")
+            }.padding(.leading, 14)
+            Spacer(minLength: 4)
+            if let current {
+                Image("instrument-" + current.id).resizable().scaledToFill()
+                    .frame(width: height * 1.2, height: height).clipped()
+                    .mask(LinearGradient(stops: [.init(color: .clear, location: 0),
+                                                 .init(color: .black, location: 0.22),
+                                                 .init(color: .black, location: 1)],
+                                         startPoint: .leading, endPoint: .trailing))
+                    .accessibilityHidden(true)
+            } else {
+                Image(systemName: "waveform").font(.system(size: 44, weight: .light))
+                    .foregroundStyle(Color.track(track.role)).padding(.trailing, 22).accessibilityHidden(true)
+            }
+        }.frame(maxWidth: .infinity).frame(height: height)
+            .background(Color.panel, in: RoundedRectangle(cornerRadius: 14))
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .overlay { RoundedRectangle(cornerRadius: 14).strokeBorder(Color.outline, lineWidth: 0.7) }
+            .padding(.horizontal, 14)
+    }
+
     private func trackMenu(_ active: Track, compact: Bool) -> some View {
         Menu {
             ForEach(session.project.tracks.filter { $0.role != .drums }) { option in
@@ -159,7 +196,7 @@ private struct InstrumentKeyboard: View {
     }
 
     private func instrumentCard(_ instrument: FactoryInstrument, track: Track, compact: Bool) -> some View {
-        let selected = track.instrumentSample?.name == instrument.displayName
+        let selected = instrument.matches(name: track.instrumentSample?.name)
         return Button { choose(instrument, track: track) } label: {
             HStack(spacing: 8) {
                 Image("instrument-" + instrument.id).resizable().scaledToFill()
@@ -179,7 +216,7 @@ private struct InstrumentKeyboard: View {
     }
 
     private func choose(_ instrument: FactoryInstrument, track: Track) {
-        guard track.instrumentSample?.name != instrument.displayName else { return }
+        guard !instrument.matches(name: track.instrumentSample?.name) else { return }
         resetKeys()
         let project = session.project.id, revision = session.project.revision
         loading = instrument
