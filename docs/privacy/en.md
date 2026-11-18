@@ -6,6 +6,8 @@ La Grilla does not collect, transmit or sell personal data. The app has no accou
 
 Projects, musical notes, controller mappings and voice recordings are stored in the app's local container. iOS device backups may include these files according to your Apple settings. Removing the app deletes its local container; separately exported files and backups follow the storage provider's rules. Delete a project in Projects to remove its local files. Portable project exports contain the original voice recordings saved with that project; choose whom you share them with.
 
+Imported SoundFont banks and pad samples are stored on your iPhone. Assigned sounds can be included when you export and share a portable project. Removing a sample from the shared library leaves project copies available to songs that use it.
+
 Microphone access starts only after you choose to record a melody or dictate a command. Melody recordings are analyzed on the device. Command dictation requires Apple's on-device speech recognition and is unavailable when the selected language's local recognition is unsupported. La Grilla does not fall back to server speech recognition. You can type commands without granting microphone or speech permissions. Manage permissions in iOS Settings.
 
 The optional generative Assistant uses Apple's on-device model on eligible iPhones with iOS 26 and Apple Intelligence. Your prompt and the musical context used for a proposal are processed locally. The app does not send them to a cloud AI service or developer server. If the model or selected language is unavailable, the local Commands mode remains available. Model availability and downloads are managed by iOS.

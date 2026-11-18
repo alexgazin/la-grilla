@@ -4,16 +4,19 @@ WRITE YOUR HARMONY
 Arrange chords into sections. Explore 65 chord types, custom interval formulas, voicings and reharmonization. Compare the original with a proposal, then apply the changes you choose.
 
 BUILD YOUR ARRANGEMENT
-Move, copy and resize clips with snap. Reorder sections with their music, zoom into the grid and edit individual clips. Keep the beat playing while you change the arrangement.
+See the whole song in a visual section map. Move verse, chorus and bridge cards by their handles. Zoom into the multitrack grid to copy, move or resize clips while the loop plays.
 
 FIND A RHYTHM
 Play 16 drum pads or use the step editor. Record with count-in, quantize, overdub and Undo. Add a bass line that follows your harmony.
+
+CHOOSE YOUR SOUND
+Play recorded acoustic piano and nylon guitar, or find and assign an instrument from an imported SoundFont bank. Load Pocket Kit or reuse your own WAV and AIFF samples across projects. WAV and stems retain your assigned sounds.
 
 SHAPE YOUR MELODY
 Edit notes, timing, length and velocity in the piano roll or note list. Record a single hummed melody over your beat and review its detected notes before applying them. Keep the original voice recording with the project.
 
 PERFORM YOUR SECTIONS
-Launch sections on the next bar, repeat a fragment, jump beats, and shape the sound with a master filter and delay. Record a finite performance take, replay it and export it.
+Launch sections on the next bar, repeat a fragment, jump beats, and shape the sound with a master filter and delay. Record a performance take and create a new editable song from the played sections and parts. Replay the take or export its live mix.
 
 CONNECT AND EXPORT
 Use compatible USB or Bluetooth MIDI controllers, choose a MIDI destination and map controller knobs. Export MIDI, stereo WAV, aligned stems or a portable project package. Share files through the iOS share sheet.
@@ -21,4 +24,4 @@ Use compatible USB or Bluetooth MIDI controllers, choose a MIDI destination and 
 WORK ON YOUR IPHONE
 Projects, recordings and music processing stay on your device. No account, ads or analytics SDK. The Assistant understands supported Russian and English commands for tempo, key, chord progressions, full song forms and jazz harmony. Optional on-device AI interprets free-form descriptions on eligible iPhones with iOS 26 and Apple Intelligence, when its model and selected language are supported. Commands remain available without that model. Optional dictation requires on-device speech recognition support for the selected language.
 
-Designed for iPhone, with light and dark appearances and English and Russian interfaces. Up to 8 tracks, 8 sections and 64 bars per song. Original instrument sounds are synthesized by the app. Voice conversion is monophonic and benefits from a quiet room and headphones; always review the result. MIDI exports contain musical events; external instruments determine their own sound.
+Designed for iPhone, with light and dark appearances and English and Russian interfaces. Up to 8 tracks, 8 sections and 64 bars per song. Voice conversion is monophonic and benefits from a quiet room and headphones; always review the result. MIDI exports contain musical events; external instruments determine their own sound.
