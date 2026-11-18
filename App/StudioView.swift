@@ -24,6 +24,7 @@ struct StudioView: View {
         .overlay{if AudioRuntimeQA.enabled{AudioRuntimeQAView(session:session)}}
         .sheet(item:$session.sheet,onDismiss:{if let url=session.exportedURL{session.shareURL=url;session.exportedURL=nil}}){sheet in Group{switch sheet {
         case .projects: ProjectsView(session:session)
+        case .trackBuilder: TrackBuilderView(session:session)
         case .newProject: NewProjectView(session:session)
         case .export: ExportView(session:session)
         case .settings: SettingsView(session:session)

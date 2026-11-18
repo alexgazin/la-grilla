@@ -47,6 +47,9 @@ struct NewProjectView: View {
         NavigationStack {
             Form {
                 Section("Starting point") {
+                    Button { session.openTrackBuilder(name:name) } label: {
+                        Label("Build a track",systemImage:"slider.horizontal.3")
+                    }
                     HStack {
                         templateButton(.empty,title:"Empty")
                         templateButton(.starter,title:"Starter groove")

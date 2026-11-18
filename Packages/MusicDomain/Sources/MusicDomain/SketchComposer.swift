@@ -36,13 +36,16 @@ public enum SketchComposer {
         project.patterns.allSatisfy{$0.chords.isEmpty && $0.drums.isEmpty && ($0.notes ?? []).isEmpty}
             && (project.audioAssets ?? []).isEmpty && (project.performanceTakes ?? []).isEmpty
     }
-    public static func compose(_ project:Project,plan:SketchPlan,scope:UUID)throws->Project {
+    public static func compose(_ project:Project,plan:SketchPlan,scope:UUID,chordCycle:[Chord] = [])throws->Project {
         try project.validate();try plan.validate()
         guard accepts(project)else{throw SketchError.requiresEmpty}
         guard let selected=project.sections.first(where:{$0.id==scope})else{throw AssistantError.unsafe}
         var random=Random(seed:plan.seed)
         let encoder=JSONEncoder();encoder.outputFormatting=[.sortedKeys]
-        let namespace=project.id.uuidString+"/"+String(project.revision)+"/"+String(decoding:try encoder.encode(plan),as:UTF8.self)
+        guard chordCycle.count <= plan.bars else { throw TrackBriefError.tooManyChords }
+        for chord in chordCycle { try chord.validate() }
+        var namespace=project.id.uuidString+"/"+String(project.revision)+"/"+String(decoding:try encoder.encode(plan),as:UTF8.self)
+        if !chordCycle.isEmpty { namespace += "/" + String(decoding:try encoder.encode(chordCycle),as:UTF8.self) }
         var identities=Identities(namespace:namespace)
         let progression=progression(plan,variation:random.pick(3))
         let length=plan.bars*barTicks
@@ -54,7 +57,11 @@ public enum SketchComposer {
             let root=(plan.root+component.0)%12
             let base=60+root
             // Explicit pitches avoid the legacy C/C-sharp register jump.
-            let chord=Chord(root:root,quality:component.1,voicedNotes:component.1.intervals.map{base+$0},rootBassPitch:36+root+project.bassOctave*12)
+            var chord=Chord(root:root,quality:component.1,voicedNotes:component.1.intervals.map{base+$0},rootBassPitch:36+root+project.bassOctave*12)
+            if !chordCycle.isEmpty {
+                chord = chordCycle[bar % chordCycle.count]
+                chord.rootBassPitch = 36 + (chord.slashBass ?? chord.root) + project.bassOctave * 12
+            }
             var event=ChordEvent(tick:bar*barTicks,chord:chord);event.id=try identities.next()
             harmony.chords.append(event)
             for hit in hits(plan.style,bar:bar,random:&random) {

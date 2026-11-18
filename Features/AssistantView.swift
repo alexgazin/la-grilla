@@ -39,6 +39,9 @@ struct AssistantView:View {
                     HStack{Text(session.section.name).fontWeight(.medium);Spacer();Text("\(session.section.length/barTicks) bars · \(Int(session.project.bpm)) BPM").font(.caption.monospaced()).foregroundStyle(Color.muted);CapsuleLabel(text:proposal != nil && generatedWithAI ? "ON-DEVICE AI":"LOCAL",color:.mint)}
                     Text(LocalizedStringKey(session.audio.playing ? "PLAYING":"STOPPED")).font(.caption.monospaced()).foregroundStyle(Color.muted)
                         .accessibilityValue(LocalizedStringKey(session.harmonyPreview ? "Preview":"Original")).accessibilityIdentifier("assistant.preview-state")
+                    Button { session.openTrackBuilder(idea:input) } label: {
+                        Label("Build a track",systemImage:"slider.horizontal.3")
+                    }.buttonStyle(.bordered).disabled(dictation.recording || dictation.requesting || dictation.finalizing || generationTask != nil)
                     TextEditor(text:$input).focused($focused).disabled(dictation.recording || dictation.requesting || dictation.finalizing).frame(height:110).scrollContentBackground(.hidden).padding(8).modifier(StudioSurface()).overlay(alignment:.topLeading){if input.isEmpty && !focused{Text("Try: Tempo 110").font(.subheadline).foregroundStyle(Color.muted).padding(16).allowsHitTesting(false).accessibilityHidden(true)}}.accessibilityLabel("Command").accessibilityIdentifier("assistant.input")
                         .onChange(of:input){_,value in
                             if value.count>2000{input=String(value.prefix(2000))}

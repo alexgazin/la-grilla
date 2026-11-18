@@ -72,7 +72,7 @@ import Observation
     @ObservationIgnored private var runtimeTraceSequence=0
     private let runtimeTraceStart=ProcessInfo.processInfo.systemUptime
     let store: ProjectStore
-    enum Sheet: String, Identifiable {case projects, newProject, export, settings, gettingStarted, bass, sections, notes, harmony, assistant, voice, perform, midiDevices; var id: String { rawValue }}
+    enum Sheet: String, Identifiable {case projects, newProject, trackBuilder, export, settings, gettingStarted, bass, sections, notes, harmony, assistant, voice, perform, midiDevices; var id: String { rawValue }}
     private static var qaProjectStoreID:UUID? {
         let arguments=ProcessInfo.processInfo.arguments
         guard arguments.contains("--uitesting"),let index=arguments.firstIndex(of:"--project-store-id"),arguments.indices.contains(index+1)else{return nil}
@@ -425,8 +425,16 @@ import Observation
         guard candidate.id==project.id,candidate.revision==project.revision,let section=candidate.sections.first(where:{$0.id==sectionID})else{message=AssistantError.stale.localizedDescription;return}
         if let rangeOverride{guard rangeOverride.lowerBound>=0,rangeOverride.upperBound<=candidate.length,!rangeOverride.isEmpty else{message=MusicError.invalidProject.localizedDescription;return}}
         do{try candidate.validate()}catch{message=error.localizedDescription;return}
+        auditionDraft(candidate, range:rangeOverride ?? (wholeSong ? 0..<candidate.length:section.start..<section.start+section.length), loop:loopOverride ?? true)
+    }
+    func previewNewTrack(_ candidate:Project) {
+        guard !performance.contextActive, candidate.id != project.id, ensureAudio() else { return }
+        finishTake()
+        auditionDraft(candidate, range:0..<candidate.length, loop:true)
+    }
+    private func auditionDraft(_ candidate:Project, range:Range<Int>, loop:Bool) {
         if !harmonyPreview{previewPosition=Int(audio.tick);previewPlaying=audio.playing;harmonyPreview=true}
-        audio.audition(candidate,range:rangeOverride ?? (wholeSong ? 0..<candidate.length:section.start..<section.start+section.length),loop:loopOverride ?? true);syncMIDI()
+        audio.audition(candidate,range:range,loop:loop);syncMIDI()
     }
     func endHarmonyPreview(){
         guard harmonyPreview else{return};restorePreviewTransport();sync()
@@ -436,6 +444,14 @@ import Observation
         // Any normal source sync replaces an audition. A preview started from
         // idle returns to its stopped position; a running song keeps its phase.
         if !previewPlaying{audio.stop();audio.seek(previewPosition)}
+    }
+    private(set) var trackIdea = ""
+    private(set) var trackDraftName = ""
+    func openTrackBuilder(idea:String = "", name:String = "") {
+        endHarmonyPreview()
+        trackIdea=idea
+        trackDraftName=name
+        sheet = .trackBuilder
     }
     func presentEditor(_ sheet:Sheet){if performance.contextActive{Task{await leavePerformance();self.sheet=sheet}}else{finishTake();self.sheet=sheet}}
     func openNotes(_ id:UUID?=nil,clipID:UUID?=nil){
@@ -582,10 +598,16 @@ import Observation
         UserDefaults.standard.set(p.id.uuidString,forKey:lastProjectKey)
     }
     @discardableResult func create(name: String,bpm: Double,root: Int,minor: Bool,bars: Int,template:ProjectTemplate = .empty) async -> Bool {
-        guard let token=beginProjectChange()else{return false}
-        defer{endProjectChange(token)}
-        let p:Project
-        do{p=try ProjectTemplates.make(name:name,bpm:bpm,root:root,minor:minor,bars:bars,template:template)}catch{message=error.localizedDescription;return false}
+        do {
+            let project = try ProjectTemplates.make(name:name,bpm:bpm,root:root,minor:minor,bars:bars,template:template)
+            return await saveNewProject(project)
+        } catch { message=error.localizedDescription; return false }
+    }
+
+    @discardableResult func saveNewProject(_ p: Project) async -> Bool {
+        guard let token = beginProjectChange() else { return false }
+        defer { endProjectChange(token) }
+        do { try p.validate() } catch { message=error.localizedDescription; return false }
         var written=false
         do {
             let expected=try await prepareProjectChange(token,checkpoint:true)
@@ -593,7 +615,7 @@ import Observation
             written=true
             try await projectChangeBoundary(token,expected:expected,stage:"candidate.saved")
             try verifyProjectChange(token,expected:expected)
-            loopBars=bars
+            loopBars=p.length/barTicks
             activateProject(p,savedRevision:revision)
         }catch{if written{await retainUnopenedProject(p)}else{message=error.localizedDescription};return false}
         await refreshLibraryEntry(p.id,validated:true)

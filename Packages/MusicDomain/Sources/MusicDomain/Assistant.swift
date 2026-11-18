@@ -83,7 +83,7 @@ public struct AssistantProposal:Codable,Identifiable,Sendable {
 }
 
 public enum AssistantEngine {
-    private static func chordTokens(_ value:String)throws->[String] {
+    static func chordTokens(_ value:String)throws->[String] {
         var tokens:[String]=[],token="",groups:[Character]=[]
         for char in value {
             if char=="{" || char=="("{guard groups.count<2 else{throw AssistantError.unsupported};groups.append(char)}
