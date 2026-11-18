@@ -1,5 +1,9 @@
 # La Grilla для ручного тестирования
 
+**[Сборка 26 для iPhone](https://github.com/alexgazin/la-grilla/actions/runs/44245693209/artifacts/14401667073)**. Из ZIP извлеките `LaGrilla-unsigned.ipa` и подпишите своей Personal Team. Файл: 3 853 310 байт, SHA-256 `77ee66ff3f4d1518884fbf43014bba50a4778b82f1af6bcbd92fcd80a393c3f7`. [Исходник, хэш и проверка пакета](candidate26-song-form-soundfont-verification.json).
+
+В сборке есть конструктор песни и импорт SoundFont для прослушивания. [Где открыть и что запланировано](../../docs/SONG_FORM_AND_SOUND_BANKS.md).
+
 **Nocturne 24 — новая тестовая сборка.** Пять реальных ночных экранов сохранены в [Design26](../../Screenshots/Design26/README.md); их общий сценарий прошёл за 103.043 с. Нативный focused-прогон исходника 207fc2b: 9 PASS, Light превысил120 с на заключительных проверках, PadContact оборвался при запуске до UI. Gate не принят. Повторные запросы геометрии и неиспользуемые снимки в новом тесте удалены; все проверки и лимиты сохранены. Следующий полный inventory 75 — Pending.
 
 **[Скачать IPA 24 Nocturne](https://github.com/alexgazin/la-grilla/actions/runs/44173635688/artifacts/14368802814)** · [Исходный package](candidate24-nocturne-207fc2b-original-package.json) · [Независимая проверка](candidate24-nocturne-207fc2b-verification.json) · [SHA-256](LaGrilla-1.0.0-24-nocturne-207fc2b-unsigned.sha256). Ниже сохранены исторические сборки23.

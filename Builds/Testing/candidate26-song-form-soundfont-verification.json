@@ -1,0 +1,48 @@
+{
+  "version": "1.0.0",
+  "build": 26,
+  "sourceSHA": "7f064a6f2070acc74ac9358005f4533dacdf04df",
+  "IPABytes": 3853310,
+  "IPASHA256": "77ee66ff3f4d1518884fbf43014bba50a4778b82f1af6bcbd92fcd80a393c3f7",
+  "workflowRun": 44245693209,
+  "artifactID": 14401667073,
+  "originalArchiveEntriesVerified": 16,
+  "binary": {
+    "architecture": "arm64",
+    "platform": "iOS",
+    "minimumOS": "18.0.0",
+    "sdk": "26.2.0",
+    "uuid": "4DFB4CB4-DEF5-33A4-ADE5-A2EE1259260B",
+    "dsymUUIDMatches": true,
+    "foundationModelsLoadCommand": "LC_LOAD_WEAK_DYLIB",
+    "foundationModelsOrdinal": 15,
+    "foundationModelsWeakSymbols": 78,
+    "foundationModelsWeakChainedImports": 78,
+    "initializerSections": [],
+    "hasCodeSignatureCommand": false,
+    "runtimeValidation": "Static binary checks only; signed-device startup on iOS 18 still requires device QA."
+  },
+  "nativeSoundFontTest": {
+    "run": 44245692955,
+    "result": "passed",
+    "platform": "macOS",
+    "bank": "TimGM6mb",
+    "persistedPrograms": 136,
+    "previews": [
+      "program 0 (piano)",
+      "program 24 (guitar)"
+    ]
+  },
+  "fullAcceptance": false,
+  "songFormSimulator": {
+    "sourceSHA": "6f64f8125d6c9eee4f3d96d60ea5ec3165890bee",
+    "run": 44244869998,
+    "firstAttempt": {
+      "ArrangementUITests/testSongFormAddsDragsAndUndoesWholeSection": "not-observed",
+      "AssistantCompositionTests/testFullSongReviewAppliesAsOneUndoOnCommandFallback": "not-observed",
+      "LiveEditingTests/testDuplicateMoveAndDeleteSectionDuringPlayback": "not-observed"
+    },
+    "firstAttemptIssue": "XCTest runner connection failed before executing any case",
+    "retry": "pending"
+  }
+}
