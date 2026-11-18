@@ -1,5 +1,8 @@
 # Текущая сборка и границы приёмки
 
+**Игровая клавиатура, сборка 33.** В Джеме и редакторе доступны шесть инструментов с иллюстрациями, мультитач, смена октавы, выбор дорожки и запись фразы в паттерн. В нотном редакторе зум по времени удерживает ряд нот. Все шесть инструментов дали разные WAV при проверке общим аудиодвижком. В каждый файл записано 384 000 кадров без клиппинга. [Инструкция](../SONG_FORM_AND_SOUND_BANKS.md) · [Проверка звуков](https://github.com/alexgazin/la-grilla/actions/runs/44307182435) · [Полная проверка кандидата](https://github.com/alexgazin/la-grilla/actions/runs/44308424172)
+
+
 **Сборка 31 / 1.0.0.** Записанные пианино и гитара, поиск SoundFont, общая библиотека one-shot и редактируемая песня из исполнения. Прошли 207 Swift-тестов, 16 наборов тестов аудиоядра, сборки iPhone Debug и Release. В unsigned IPA сверены все 20 файлов с архивом Xcode. [Скачать IPA](https://github.com/alexgazin/la-grilla/actions/runs/44289170060/artifacts/14421860271) · [Проверка пакета](../../Builds/Testing/candidate31-verification.json)
 
 **Полная программная проверка.** На исходнике [`7711796f`](https://github.com/alexgazin/la-grilla/commit/7711796f687070b92df64cf7a0c5d1674d636d66) прошли **80 из 80** обязательных сценариев iPhone Simulator. Все три задания завершились успешно. Нативный запуск завершился с кодом 0 за 3 366 секунд. [Итоговый прогон](https://github.com/alexgazin/la-grilla/actions/runs/44289170060/attempts/1) · [Машиночитаемый отчёт](https://github.com/alexgazin/la-grilla/actions/runs/44289170060/artifacts/14424987452) · [Кадр новой песни](../../Screenshots/Release31/README.md)
