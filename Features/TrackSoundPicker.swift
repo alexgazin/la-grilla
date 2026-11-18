@@ -81,6 +81,7 @@ struct TrackSoundPicker:View {
     @State private var previewing=false
     @State private var previewAlongsideTrack=false
     @State private var error:String?
+    @State private var showBanks = false
 
     init(session:Session,trackID:UUID){
         self.session=session;self.trackID=trackID
@@ -147,6 +148,15 @@ struct TrackSoundPicker:View {
                     }.padding(.top,2)
                 }else{ContentUnavailableView("Track unavailable",systemImage:"waveform")}
                 if !contextMatches{Text("The project changed. Close this picker and open it again.").font(.caption).foregroundStyle(Color.record)}
+                Button {
+                    stopPreview()
+                    showBanks = true
+                } label: {
+                    Label("Sound banks", systemImage: "pianokeys")
+                }
+                .buttonStyle(StudioActionStyle(prominent: false))
+                .disabled(!canChange)
+                .accessibilityIdentifier("sound.banks")
             }.padding(18)}.background(Color.ink)
                 .safeAreaInset(edge:.bottom){
                     Button{apply()}label:{Text("Apply sound").frame(maxWidth:.infinity)}
@@ -158,6 +168,7 @@ struct TrackSoundPicker:View {
                 .navigationTitle("Sound").navigationBarTitleDisplayMode(.inline)
                 .toolbar{ToolbarItem(placement:.cancellationAction){Button("Cancel"){stopPreview();dismiss()}}}
         }.presentationDetents([.large]).presentationDragIndicator(.visible).presentationBackground(Color.panel).tint(.mint)
+            .sheet(isPresented: $showBanks) { SoundBankView(session: session) }
             .onDisappear{stopPreview()}
             .onChange(of:session.project.id){_,_ in stopPreview()}
             .onChange(of:session.project.revision){_,_ in stopPreview()}

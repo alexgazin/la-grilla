@@ -781,3 +781,13 @@
 "Bridge" = "Bridge";
 "Could not add this section." = "Could not add this section.";
 "Hold and drag a section to move it. Tap its menu for more actions." = "Hold and drag a section to move it. Tap its menu for more actions.";
+"Import SoundFont" = "Import SoundFont";
+"Importing sound bank…" = "Importing sound bank…";
+"Sound bank" = "Sound bank";
+"Sound banks" = "Sound banks";
+"Instruments" = "Instruments";
+"Open an .sf2 file from Files and listen to its instruments. Bank previews leave the track sound unchanged." = "Open an .sf2 file from Files and listen to its instruments. Bank previews leave the track sound unchanged.";
+"Bank %lld · Program %lld" = "Bank %lld · Program %lld";
+"Choose a valid SoundFont bank with playable programs." = "Choose a valid SoundFont bank with playable programs.";
+"SoundFont banks must be 128 MB or smaller." = "SoundFont banks must be 128 MB or smaller.";
+"This instrument could not be played. Try a different program." = "This instrument could not be played. Try a different program.";

@@ -783,3 +783,13 @@
 "Bridge" = "Бридж";
 "Could not add this section." = "Не удалось добавить секцию.";
 "Hold and drag a section to move it. Tap its menu for more actions." = "Удерживай и перетаскивай секцию, чтобы поменять порядок. Другие действия есть в её меню.";
+"Import SoundFont" = "Загрузить SoundFont";
+"Importing sound bank…" = "Загружаем банк…";
+"Sound bank" = "Звуковой банк";
+"Sound banks" = "Звуковые банки";
+"Instruments" = "Инструменты";
+"Open an .sf2 file from Files and listen to its instruments. Bank previews leave the track sound unchanged." = "Открой файл .sf2 из приложения «Файлы» и послушай инструменты банка отдельно от дорожки.";
+"Bank %lld · Program %lld" = "Банк %lld · Программа %lld";
+"Choose a valid SoundFont bank with playable programs." = "Выбери корректный банк SoundFont с доступными инструментами.";
+"SoundFont banks must be 128 MB or smaller." = "Загружай банки SoundFont размером до 128 МБ.";
+"This instrument could not be played. Try a different program." = "Не удалось воспроизвести инструмент. Попробуй другую программу.";

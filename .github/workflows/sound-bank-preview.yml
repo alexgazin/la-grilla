@@ -1,0 +1,23 @@
+name: SoundFont import and sampler audition
+on:
+  push:
+    branches: [feat/sound-bank-preview]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  sampler:
+    runs-on: macos-15-intel
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify a real bank using Apple's sampler
+        shell: bash
+        run: |
+          TEMP_BANK=$(mktemp -d)
+          curl --fail --silent --show-error --max-time 120 --output "$TEMP_BANK/bank.deb" https://deb.debian.org/debian/pool/main/t/timgm6mb-soundfont/timgm6mb-soundfont_1.3-5_all.deb
+          ar -p "$TEMP_BANK/bank.deb" data.tar.xz | tar -xJf - -C "$TEMP_BANK" ./usr/share/sounds/sf2/TimGM6mb.sf2
+          BANK="$TEMP_BANK/usr/share/sounds/sf2/TimGM6mb.sf2"
+          printf '%s  %s\n' c5378b62028c920cb11e4803327983fee2f2cdff5dc89c708e39da417e51c854 "$BANK" | shasum -a 256 -c
+          xcrun swiftc -swift-version 6 AudioRuntime/SoundFontProgramTable.swift AudioRuntime/SoundBankLibrary.swift scripts/verify_sound_bank_preview.swift -o "$TEMP_BANK/verify"
+          "$TEMP_BANK/verify" "$BANK"

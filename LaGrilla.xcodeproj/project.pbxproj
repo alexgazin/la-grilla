@@ -237,6 +237,16 @@
 			"isa" = "PBXBuildFile";
 			"fileRef" = "075B12E141BDC8F1A4B29020";
 		};
+		"587E4C16DCAACEFF0C367127" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "Features/SoundBankView.swift";
+			"sourceTree" = "SOURCE_ROOT";
+		};
+		"8E398EDC12B09F6F2DC70BCE" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "587E4C16DCAACEFF0C367127";
+		};
 		"38C722B4D05AFF91C439E3F1" = {
 			"isa" = "PBXFileReference";
 			"lastKnownFileType" = "sourcecode.swift";
@@ -297,6 +307,7 @@
 				"805A362062A0D68F9C0DA85A",
 				"26B42B6B2054AA24D0B1C91C",
 				"075B12E141BDC8F1A4B29020",
+				"587E4C16DCAACEFF0C367127",
 				"38C722B4D05AFF91C439E3F1",
 				"C701DB7869EDEBFC7460AFA3",
 				"C41B90D3A63578C5ED3C79DD",
@@ -415,6 +426,26 @@
 			"isa" = "PBXBuildFile";
 			"fileRef" = "50EFCA92ED90918AC4CF9320";
 		};
+		"7B1209B6CBF9BE0C1C24E408" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "AudioRuntime/SoundBankLibrary.swift";
+			"sourceTree" = "SOURCE_ROOT";
+		};
+		"922FE8CD606260E7898968BB" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "7B1209B6CBF9BE0C1C24E408";
+		};
+		"FCE802C99BE9621BD8C0D31F" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "AudioRuntime/SoundFontProgramTable.swift";
+			"sourceTree" = "SOURCE_ROOT";
+		};
+		"B310408F8272167471099EAA" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "FCE802C99BE9621BD8C0D31F";
+		};
 		"FCCA5BA4314A84D66008C8AB" = {
 			"isa" = "PBXFileReference";
 			"lastKnownFileType" = "sourcecode.swift";
@@ -469,6 +500,8 @@
 				"B65D08933DE3CAC548D760AF",
 				"6540448D860C4E770FDD5487",
 				"50EFCA92ED90918AC4CF9320",
+				"7B1209B6CBF9BE0C1C24E408",
+				"FCE802C99BE9621BD8C0D31F",
 				"FCCA5BA4314A84D66008C8AB",
 				"4B45A4D93B9B6DC520F7D189",
 				"054DDA7442421BAE75E3379C",
@@ -828,7 +861,7 @@
 				"GENERATE_INFOPLIST_FILE" = "NO";
 				"INFOPLIST_FILE" = "App/Info.plist";
 				"MARKETING_VERSION" = "1.0.0";
-				"CURRENT_PROJECT_VERSION" = "25";
+				"CURRENT_PROJECT_VERSION" = "26";
 				"ASSETCATALOG_COMPILER_APPICON_NAME" = "AppIcon";
 				"INFOPLIST_KEY_CFBundleDisplayName" = "La Grilla";
 				"INFOPLIST_KEY_LSApplicationCategoryType" = "public.app-category.music";
@@ -862,7 +895,7 @@
 				"GENERATE_INFOPLIST_FILE" = "NO";
 				"INFOPLIST_FILE" = "App/Info.plist";
 				"MARKETING_VERSION" = "1.0.0";
-				"CURRENT_PROJECT_VERSION" = "25";
+				"CURRENT_PROJECT_VERSION" = "26";
 				"ASSETCATALOG_COMPILER_APPICON_NAME" = "AppIcon";
 				"INFOPLIST_KEY_CFBundleDisplayName" = "La Grilla";
 				"INFOPLIST_KEY_LSApplicationCategoryType" = "public.app-category.music";
@@ -909,6 +942,7 @@
 				"232CAC420194A5C143AD9586",
 				"D3EA09086F02091F16A56071",
 				"BEC76A10B1415D4A4468FA79",
+				"8E398EDC12B09F6F2DC70BCE",
 				"1E27F350D62F6DB039C6B1FE",
 				"ABFD51D0DA5B63B9FFC8E643",
 				"AEE88D23F86E314383453DE2",
@@ -924,6 +958,8 @@
 				"B062059690D8A73DE8E2C1A9",
 				"085E0A499ACE24D05C896413",
 				"5BE39AACE90005978AE10180",
+				"922FE8CD606260E7898968BB",
+				"B310408F8272167471099EAA",
 				"EA2DCBAE3DFAE771D2E6C742",
 				"36C43DC8876B244582747790",
 				"8EF2BE99443073CB04C654ED",
