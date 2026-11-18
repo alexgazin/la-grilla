@@ -11,6 +11,7 @@ struct TrackBuilderView: View {
     @State private var problem: String?
     @State private var preview: Project?
     @State private var ai = AIComposerController()
+    @AppStorage("studio.builder.interpretWithApple") private var interpretWithApple = false
     @State private var interpreting: Task<Void,Never>?
     @State private var saving = false
     @Environment(\.scenePhase) private var phase
@@ -32,6 +33,12 @@ struct TrackBuilderView: View {
                             if text.count > 2000 { idea=String(text.prefix(2000)) }
                             feedback=nil; problem=nil
                         }
+                    if trimmedIdea.isEmpty {
+                        Button("Try a boom-bap arrangement") {
+                            idea = NSLocalizedString("8 bars of boom bap at 88 BPM in D minor. First 4 bars only bass and drums. Half-bar break before the loop.", comment: "Instrumental prompt")
+                        }
+                    }
+                    Toggle("Use Apple Intelligence to interpret the description", isOn: $interpretWithApple)
                     Button(action:interpret) {
                         Label("Suggest settings",systemImage:"wand.and.stars")
                     }.disabled(trimmedIdea.isEmpty || interpreting != nil)
@@ -68,7 +75,10 @@ struct TrackBuilderView: View {
                         Text(verbatim:"BPM").font(.caption.monospaced()).foregroundStyle(Color.muted)
                         Stepper("Tempo",value:$brief.tempo,in:40...240).labelsHidden()
                     }
-                    Picker("Loop length",selection:$brief.bars) {
+                    Picker("Loop length",selection: Binding(get: { brief.bars }, set: { bars in
+                        brief.bars = bars
+                        brief.introBars = min(brief.introBars, bars - 1)
+                    })) {
                         ForEach([4,8,16],id:\.self) { bars in Text("\(bars) bars").tag(bars) }
                     }.pickerStyle(.segmented).accessibilityLabel("Loop length")
                 } header: { Text("Rhythm and tempo") }
@@ -88,6 +98,23 @@ struct TrackBuilderView: View {
                 } header: { Text("Harmony and chords") } footer: {
                     Text("One chord per bar. The sequence repeats. Leave it empty to generate harmony in the selected key.")
                 }
+                Section {
+                    if brief.style == .hipHop {
+                        Picker("Hip-hop feel", selection: $brief.hipHopFeel) {
+                            ForEach(HipHopFeel.allCases, id: \.self) { feel in Text(LocalizedStringKey(feel.rawValue)).tag(feel) }
+                        }.pickerStyle(.segmented)
+                    }
+                    Stepper(value: $brief.introBars, in: 0...(brief.bars-1)) {
+                        LabeledContent("Bass and drums intro", value: "\(brief.introBars) / \(brief.bars)")
+                    }
+                    Toggle("Half-bar break at the end", isOn: $brief.endBreak)
+                    Button { brief.drumVariation &+= 1 } label: {
+                        LabeledContent("Vary drums only", value: "#\(brief.drumVariation &+ 1)")
+                    }
+                    Button { brief.bassVariation &+= 1 } label: {
+                        LabeledContent("Vary bass only", value: "#\(brief.bassVariation &+ 1)")
+                    }
+                } header: { Text("Arrangement") }
                 Section {
                     TextField("Project name",text:$name).focused($editing)
                     Button { brief.seed &+= 1 } label: {
@@ -136,6 +163,12 @@ struct TrackBuilderView: View {
     private func interpret() {
         editing=false; problem=nil; feedback=nil
         let text=trimmedIdea
+        guard interpretWithApple else { suggestLocally(text); return }
+        if let local = try? brief.suggesting(text),
+           local.bassVariation != brief.bassVariation || local.drumVariation != brief.drumVariation {
+            suggestLocally(text)
+            return
+        }
         let locale=text.range(of:#"[А-Яа-яЁё]"#,options:.regularExpression) == nil ? "en-US":"ru-RU"
         ai.refresh(localeIdentifier:locale)
         if !ai.available { suggestLocally(text); return }

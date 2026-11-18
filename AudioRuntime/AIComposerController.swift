@@ -102,7 +102,8 @@ enum AIComposerFailure:Error,LocalizedError {
             result.root=value.tonic; result.minor=value.minor
             for symbol in value.chords { _ = try Chord.parse(symbol) }
             result.chordText=value.chords.joined(separator:" ")
-            return result
+            if result.introBars >= result.bars { result.introBars = 0 }
+            return try result.applyingForm(text)
         }
         #endif
         throw AIComposerFailure.unavailable

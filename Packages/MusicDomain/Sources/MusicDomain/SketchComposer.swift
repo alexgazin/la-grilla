@@ -47,21 +47,13 @@ public enum SketchComposer {
         var namespace=project.id.uuidString+"/"+String(project.revision)+"/"+String(decoding:try encoder.encode(plan),as:UTF8.self)
         if !chordCycle.isEmpty { namespace += "/" + String(decoding:try encoder.encode(chordCycle),as:UTF8.self) }
         var identities=Identities(namespace:namespace)
-        let progression=progression(plan,variation:random.pick(3))
+        let chords = chordSequence(plan, variation: random.pick(3), cycle: chordCycle, register: project.bassOctave)
         let length=plan.bars*barTicks
         var harmony=Pattern(length:length);harmony.id=try identities.next()
         var drums=Pattern(length:length);drums.id=try identities.next()
         var melody=Pattern(length:length);melody.id=try identities.next()
         for bar in 0..<plan.bars {
-            let component=progression[bar%progression.count]
-            let root=(plan.root+component.0)%12
-            let base=60+root
-            // Explicit pitches avoid the legacy C/C-sharp register jump.
-            var chord=Chord(root:root,quality:component.1,voicedNotes:component.1.intervals.map{base+$0},rootBassPitch:36+root+project.bassOctave*12)
-            if !chordCycle.isEmpty {
-                chord = chordCycle[bar % chordCycle.count]
-                chord.rootBassPitch = 36 + (chord.slashBass ?? chord.root) + project.bassOctave * 12
-            }
+            let chord = chords[bar]
             var event=ChordEvent(tick:bar*barTicks,chord:chord);event.id=try identities.next()
             harmony.chords.append(event)
             for hit in hits(plan.style,bar:bar,random:&random) {
@@ -107,6 +99,26 @@ public enum SketchComposer {
         try result.validate()
         return result
     }
+    static func chordSequence(_ plan: SketchPlan, cycle: [Chord], register: Int) -> [Chord] {
+        var random = Random(seed: plan.seed)
+        return chordSequence(plan, variation: random.pick(3), cycle: cycle, register: register)
+    }
+
+    private static func chordSequence(_ plan: SketchPlan, variation: Int, cycle: [Chord], register: Int) -> [Chord] {
+        let progression = progression(plan, variation: variation)
+        return (0..<plan.bars).map { bar in
+            if !cycle.isEmpty {
+                var chord = cycle[bar % cycle.count]
+                chord.rootBassPitch = 36 + (chord.slashBass ?? chord.root) + register * 12
+                return chord
+            }
+            let (offset, quality) = progression[bar % progression.count]
+            let root = (plan.root + offset) % 12
+            return Chord(root: root, quality: quality, voicedNotes: quality.intervals.map { 60 + root + $0 },
+                         rootBassPitch: 36 + root + register * 12)
+        }
+    }
+
     private static func progression(_ plan:SketchPlan,variation:Int)->[(Int,Quality)] {
         if plan.style == .jazz {
             let values:[(Int,Quality)]=plan.minor ? [(2,.m7b5),(7,.seventh),(0,.m7),(8,.maj7)]:[(2,.m7),(7,.seventh),(0,.maj7),(9,.m7)]

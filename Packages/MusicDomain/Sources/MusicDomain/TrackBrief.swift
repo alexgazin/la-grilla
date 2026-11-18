@@ -1,16 +1,22 @@
 import Foundation
 
 public enum TrackBriefError: Error, LocalizedError {
-    case unknownIdea, tooManyChords, invalidTempo, invalidLength, invalidChord(String)
+    case unknownIdea, tooManyChords, invalidTempo, invalidLength, invalidChord(String), invalidIntro
     public var errorDescription: String? {
         switch self {
         case .unknownIdea: NSLocalizedString("Try describing a rhythm or mood, or choose the settings below.", comment: "Track builder")
         case .tooManyChords: NSLocalizedString("Use at most one chord per bar.", comment: "Track builder")
         case .invalidTempo: NSLocalizedString("Enter a tempo from 40 to 240 BPM.", comment: "Track builder")
+        case .invalidIntro: NSLocalizedString("The intro must end before the last bar finishes.", comment: "Track builder")
         case .invalidLength: NSLocalizedString("Choose a length of 4, 8 or 16 bars.", comment: "Track builder")
         case .invalidChord(let symbol): String(format:NSLocalizedString("Check the chord %@.",comment:"Track builder"), symbol)
         }
     }
+}
+
+public enum HipHopFeel: String, CaseIterable, Sendable {
+    case boomBap = "Boom bap"
+    case westCoast = "West Coast"
 }
 
 public struct TrackBrief: Equatable, Sendable {
@@ -20,6 +26,11 @@ public struct TrackBrief: Equatable, Sendable {
     public var minor = false
     public var bars = 8
     public var chordText = ""
+    public var hipHopFeel: HipHopFeel = .boomBap
+    public var introBars = 0
+    public var endBreak = false
+    public var drumVariation: UInt32 = 0
+    public var bassVariation: UInt32 = 0
     public var seed: UInt32 = 1
     public init() {}
 
@@ -52,7 +63,58 @@ public struct TrackBrief: Equatable, Sendable {
         let plan = SketchPlan(style:style,bpm:Double(tempo),root:root,minor:minor,bars:bars,seed:seed)
         try plan.validate()
         let project = try ProjectTemplates.make(name:name,bpm:plan.bpm,root:root,minor:minor,bars:bars,template:.empty)
-        return try SketchComposer.compose(project,plan:plan,scope:project.sections[0].id,chordCycle:chords)
+        let progression = SketchComposer.chordSequence(plan, cycle: chords, register: project.bassOctave)
+        return try GrooveArrangement.make(from: project, chords: progression, brief: self)
+    }
+
+    private static let introPattern = #"\b(?:первые|first|intro(?:\s+of)?|интро)\s*[:—-]?\s*(\d+|один|два|две|четыре|восемь|one|two|four|eight)\b(?:[-\s]+(?:bars?\b|такт[а-я]*))?"#
+
+    /// Local form instructions override model guesses and work without Foundation Models.
+    public func applyingForm(_ prompt: String) throws -> Self {
+        try formSettings(prompt).brief
+    }
+
+    private func formSettings(_ prompt: String) throws -> (brief: Self, matched: Bool) {
+        var result = self
+        var matched = false
+        let text = prompt.lowercased()
+        if ["west coast","west-coast","g-funk","g funk","вест кост","вест-кост","джи-фанк"].contains(where:text.contains) {
+            result.style = .hipHop
+            result.hipHopFeel = .westCoast
+            matched = true
+        } else if ["boom bap","boom-bap","бум-бэп","бум бэп"].contains(where:text.contains) {
+            result.style = .hipHop
+            result.hipHopFeel = .boomBap
+            matched = true
+        }
+        if ["замени только ударные","измени только ударные","замени только барабаны","vary only the drums","change only the drums","new drum variation"].contains(where:text.contains) {
+            result.drumVariation &+= 1
+            matched = true
+        }
+        if ["замени только бас","измени только бас","vary only the bass","change only the bass","new bass variation"].contains(where:text.contains) {
+            result.bassVariation &+= 1
+            matched = true
+        }
+        let regex = try NSRegularExpression(pattern: Self.introPattern)
+        if let match = regex.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
+           let range = Range(match.range(at: 1), in: text) {
+            let words = ["один":1,"one":1,"два":2,"две":2,"two":2,"четыре":4,"four":4,"восемь":8,"eight":8]
+            let token = String(text[range])
+            if text.contains("интро") || text.contains("intro") ||
+                ((text.contains("бас") || text.contains("bass")) && ["барабан","ударн","бит","drum","beat"].contains(where:text.contains)) {
+                guard let count = Int(token) ?? words[token], count >= 0, count < bars else { throw TrackBriefError.invalidIntro }
+                result.introBars = count
+                matched = true
+            }
+        }
+        if ["без вступления","без интро","no intro"].contains(where:text.contains) { result.introBars = 0; matched = true }
+        if ["полтакта","половину такта","half a bar","half-bar","half bar"].contains(where:text.contains),
+           ["тишин","пауза","паузу","break","silence","rest","silent"].contains(where:text.contains) {
+            result.endBreak = true
+            matched = true
+        }
+        if ["без паузы","no break","no rest"].contains(where:text.contains) { result.endBreak = false; matched = true }
+        return (result, matched)
     }
 
     /// A local starting point for common RU/EN descriptions on phones without an available model.
@@ -65,7 +127,7 @@ public struct TrackBrief: Equatable, Sendable {
                   let range = Range(match.range(at:1),in:input) else { return nil }
             return String(input[range])
         }
-        let rhythms: [(SketchStyle,[String])] = [(.hipHop,["hip-hop","hip hop","хип-хоп","хип хоп","хипхоп","lo-fi","lofi","лофай","лоу-фай","boom bap","бум-бэп"]),(.jazz,["jazz","джаз","swing","свинг"]),(.house,["house","хаус","four on the floor","прямая бочка"])]
+        let rhythms: [(SketchStyle,[String])] = [(.hipHop,["hip-hop","hip hop","хип-хоп","хип хоп","хипхоп","lo-fi","lofi","лофай","лоу-фай","boom bap","boom-bap","бум-бэп","west coast","west-coast","g-funk","вест-кост","джи-фанк"]),(.jazz,["jazz","джаз","swing","свинг"]),(.house,["house","хаус","four on the floor","прямая бочка"])]
         if let style = rhythms.first(where:{ $0.1.contains(where:text.contains) })?.0 { result.usePreset(style); matched = true }
         let moods: [(words:[String],tempo:Int,minor:Bool)] = [
             (["ночн","night","тёмн","темн","dark","мрачн"],96,true),
@@ -78,7 +140,8 @@ public struct TrackBrief: Equatable, Sendable {
             guard let value=Int(token),(40...240).contains(value) else { throw TrackBriefError.invalidTempo }
             result.tempo=value; matched=true
         }
-        if let token = group(#"(\d+)\s*(?:bars?\b|такт)"#,in:text) {
+        let lengthText = text.replacingOccurrences(of: Self.introPattern, with: "", options: .regularExpression)
+        if let token = group(#"(\d+)[\s-]*(?:bars?\b|такт)"#,in:lengthText) {
             guard let value=Int(token),[4,8,16].contains(value) else { throw TrackBriefError.invalidLength }
             result.bars=value; matched=true
         }
@@ -97,8 +160,10 @@ public struct TrackBrief: Equatable, Sendable {
             guard symbols.count<=result.bars else { throw TrackBriefError.tooManyChords }
             result.chordText=progression;matched=true
         }
-        guard matched else { throw TrackBriefError.unknownIdea }
-        return result
+        if result.introBars >= result.bars { result.introBars = 0 }
+        let arranged = try result.formSettings(prompt)
+        guard matched || arranged.matched else { throw TrackBriefError.unknownIdea }
+        return arranged.brief
     }
 }
 

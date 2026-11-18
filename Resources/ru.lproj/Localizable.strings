@@ -933,3 +933,31 @@
 "Midnight quartet" = "Полночный квартет";
 "Modal walk" = "Модальная прогулка";
 "Sunday trio" = "Воскресное трио";
+
+"Intro" = "Вступление";
+
+"Hook" = "Припев";
+
+"Bass and drums intro" = "Вступление баса и ударных, такты";
+
+"Vary drums only" = "Новый вариант ударных";
+
+"Vary bass only" = "Новый вариант баса";
+
+"Half-bar break at the end" = "Пауза в полтакта перед повтором";
+
+"Try a boom-bap arrangement" = "Пример с бум-бэпом";
+
+"8 bars of boom bap at 88 BPM in D minor. First 4 bars only bass and drums. Half-bar break before the loop." = "Бум-бэп, 8 тактов, 88 BPM, ре минор. Первые четыре — только бас и барабаны. Перед повтором полтакта тишины.";
+
+"The intro must end before the last bar finishes." = "Оставь хотя бы один такт после вступления.";
+
+"Hip-hop feel" = "Грув хип-хопа";
+
+"Boom bap" = "Бум-бэп";
+
+"West Coast" = "West Coast";
+
+"Use Apple Intelligence to interpret the description" = "Разобрать описание через Apple Intelligence";
+
+"Arrangement" = "Аранжировка";
