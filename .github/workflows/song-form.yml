@@ -1,7 +1,7 @@
-name: Song form on iPhone Simulator
+name: Offline generator on iPhone Simulator
 on:
   push:
-    branches: [feat/song-board]
+    branches: [qa/offline-groove-37]
   workflow_dispatch:
 permissions:
   contents: read
@@ -28,11 +28,11 @@ jobs:
         env:
           GRILLA_CAPTURE_SCREENS: '0'
         run: bash scripts/screenshots.sh
-      - name: Verify section drag, live section edits and Assistant form review
+      - name: Create and open an instrumental arrangement from the offline prompt
         timeout-minutes: 10
         run: |
           DEVICE=$(cat /tmp/grilla-simulator-id)
-          CASES=(ArrangementUITests/testSongFormAddsDragsAndUndoesWholeSection LiveEditingTests/testDuplicateMoveAndDeleteSectionDuringPlayback AssistantCompositionTests/testFullSongReviewAppliesAsOneUndoOnCommandFallback)
+          CASES=(SketchGenerationTests/testOfflineBuilderCreatesTwoSectionBeatFromExample)
           REQUIRED=()
           SELECTED=()
           for CASE_ID in "${CASES[@]}"; do
@@ -50,7 +50,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: song-form-native-verification
+          name: groove37-native-verification
           path: |
             song-form-build.log
             song-form-native.log
