@@ -1,0 +1,54 @@
+{
+  "artifact": 14437696953,
+  "run": 44325351752,
+  "source": "d547c538abcfcf8889e7ac7ac747364524581c96",
+  "build": 36,
+  "version": "1.0.0",
+  "bytes": 7606989,
+  "sha256": "d0cc1aa7379fc5d23adac048dd4069f0dc63b5e8caefb9e8868b5af2730607cc",
+  "entries": 20,
+  "binary": {
+    "architecture": "arm64",
+    "platform": "iOS",
+    "minimumOS": "18.0.0",
+    "sdk": "26.2.0",
+    "uuid": "36786116-6DD4-300E-8A1C-FAAF0C88EC8D",
+    "dsymUUIDMatches": true,
+    "foundationModelsLoadCommand": "LC_LOAD_WEAK_DYLIB",
+    "foundationModelsOrdinal": 15,
+    "foundationModelsWeakSymbols": 78,
+    "foundationModelsWeakChainedImports": 78,
+    "initializerSections": [],
+    "hasCodeSignatureCommand": false,
+    "runtimeValidation": "Static binary checks only; signed-device startup on iOS 18 still requires device QA."
+  },
+  "factoryPCM": {
+    "piano.lgpcm": {
+      "bytes": 3225864,
+      "sha256": "99ab675b5a3ba11a060a8e1c748d091dea9a57af6a45372a9b976d679634980c",
+      "zones": 21
+    },
+    "nylon-guitar.lgpcm": {
+      "bytes": 1974030,
+      "sha256": "a5a079fb6045f961c0788a98d3d2cf3fb7c220dcc0537b9fdffce8d455573c07",
+      "zones": 16
+    }
+  },
+  "physicalDevice": false,
+  "projectSchema": 13,
+  "legacyMigration": "12 to 13, no EQ applied",
+  "soundChecks": [
+    "soprano-sax 92fa849883",
+    "alto-sax 3e9fbabcaf",
+    "tenor-sax c23228972c",
+    "baritone-sax 8b5e88e3dd",
+    "27 distinct EQ curves, track/master export, stem separation, bypass, v12 migration and v13 persistence passed."
+  ],
+  "liveEQ": [
+    "44100 Hz live track boost +6.01 dB, opposite master filter +0.00 dB",
+    "48000 Hz live track boost +6.00 dB, opposite master filter +0.00 dB",
+    "96000 Hz live track boost +6.00 dB, opposite master filter -0.00 dB"
+  ],
+  "grooves": "18 distinct named groove presets generated valid four-track arrangements.",
+  "fullSuite": "Paused by request. Physical iPhone listening and gesture checks pending."
+}
