@@ -58,7 +58,7 @@ struct GettingStartedView: View {
                         MeshGradient(width: 3, height: 3,
                                      points: [[0, 0], [0.5, 0], [1, 0], [0, 0.5], [0.55, 0.45], [1, 0.5], [0, 1], [0.5, 1], [1, 1]],
                                      colors: [.ink, .harmony, .ink, .drums, .ink, .bass, .ink, .mint, .ink])
-                            .opacity(0.22)
+                            .opacity(0.20)
                     }
                 }.ignoresSafeArea().accessibilityHidden(true)
             }
@@ -92,17 +92,8 @@ private struct IntroCard: View {
 }
 
 private struct IntroSurface: ViewModifier {
+    // Luz: content stays matte; glass is reserved for chrome.
     let reduceTransparency: Bool
     let increasedContrast: Bool
-    @ViewBuilder func body(content: Content) -> some View {
-        #if compiler(>=6.2)
-        if #available(iOS 26.0, *), !reduceTransparency, !increasedContrast {
-            content.glassEffect(.regular, in: RoundedRectangle(cornerRadius: Luz.Radius.sheet, style: .continuous))
-        } else {
-            content.modifier(StudioSurface())
-        }
-        #else
-        content.modifier(StudioSurface())
-        #endif
-    }
+    func body(content: Content) -> some View { content.modifier(StudioSurface()) }
 }

@@ -73,6 +73,8 @@ enum StudioTypography {
     static let value = Font.system(.body, design: .monospaced, weight: .medium)
     /// Pad names and big friendly numbers.
     static let pad = Font.system(.caption, design: .rounded, weight: .semibold)
+    /// Transport position, gain and other large numeric readouts.
+    static let readout = Font.system(.title2, design: .monospaced, weight: .medium)
     static let index = Font.system(.caption2, design: .monospaced, weight: .medium)
 }
 
@@ -87,6 +89,8 @@ struct IconButton: View {
     let symbol: String
     let label: LocalizedStringKey
     var color: Color = .primary
+    /// Luz toggle: when set, on = mint glyph on a 12 % mint circle, plus an accessibility value.
+    var isOn: Bool? = nil
     let action: () -> Void
 
     var body: some View {
@@ -94,12 +98,23 @@ struct IconButton: View {
             Image(systemName: symbol)
                 .font(StudioTypography.icon)
                 .symbolRenderingMode(.hierarchical)
-                .foregroundStyle(color)
+                .foregroundStyle(isOn == true ? Color.mint : color)
+                .contentTransition(.symbolEffect(.replace))
                 .frame(minWidth: StudioMetrics.hitTarget, minHeight: StudioMetrics.hitTarget)
+                .background { if isOn == true { Circle().fill(Color.mint.opacity(0.12)) } }
                 .contentShape(Rectangle())
         }
-        .buttonStyle(StudioQuietButtonStyle())
+        .buttonStyle(StudioQuietButtonStyle(radius: StudioMetrics.hitTarget / 2))
         .accessibilityLabel(label)
+        .modifier(ToggleAccessibilityValue(isOn: isOn))
+    }
+}
+
+/// Adds On/Off only to toggles, so callers' own accessibility values stay untouched.
+private struct ToggleAccessibilityValue: ViewModifier {
+    let isOn: Bool?
+    @ViewBuilder func body(content: Content) -> some View {
+        if let isOn { content.accessibilityValue(Text(LocalizedStringKey(isOn ? "On" : "Off"))) } else { content }
     }
 }
 
@@ -273,9 +288,9 @@ struct StudioSegments<Value: Equatable>: View {
             }
         }
         .padding(StudioMetrics.micro)
-        .background(Color.ink, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .background(Color.ink, in: RoundedRectangle(cornerRadius: Luz.Radius.card, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
+            RoundedRectangle(cornerRadius: Luz.Radius.card, style: .continuous)
                 .strokeBorder(Color.outline, lineWidth: 0.75)
                 .allowsHitTesting(false)
         }
@@ -299,7 +314,7 @@ struct StudioSegments<Value: Equatable>: View {
                 .background {
                     // The selected puck slides between segments.
                     if selected {
-                        RoundedRectangle(cornerRadius: StudioMetrics.controlRadius, style: .continuous).fill(Color.mint)
+                        RoundedRectangle(cornerRadius: Luz.Radius.cell, style: .continuous).fill(Color.mint)
                             .matchedGeometryEffect(id: "puck", in: puck)
                     }
                 }
@@ -313,12 +328,16 @@ struct StudioQuietButtonStyle: ButtonStyle {
     @Environment(\.isEnabled) private var enabled
     @Environment(\.isFocused) private var focused
     @Environment(\.colorSchemeContrast) private var contrast
+    /// The press plate follows the control's own corner radius; `plate: false`
+    /// leaves press feedback to the control (lit faces, transport keys).
+    var radius: CGFloat
+    var plate: Bool
 
-    init() {}
+    init(radius: CGFloat = Luz.Radius.cell, plate: Bool = true) { self.radius = radius; self.plate = plate }
 
     func makeBody(configuration: Configuration) -> some View {
-        let pressed = enabled && configuration.isPressed
-        let shape = RoundedRectangle(cornerRadius: StudioMetrics.controlRadius, style: .continuous)
+        let pressed = enabled && configuration.isPressed && plate
+        let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
         return configuration.label
             .contentShape(Rectangle())
             .background {
@@ -338,6 +357,7 @@ struct StudioQuietButtonStyle: ButtonStyle {
 private struct StudioNavigationPlate: View {
     @Environment(\.colorSchemeContrast) private var contrast
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    var solid = false
 
     private var shape: RoundedRectangle {
         RoundedRectangle(cornerRadius: StudioMetrics.navigationRadius, style: .continuous)
@@ -345,7 +365,7 @@ private struct StudioNavigationPlate: View {
 
     var body: some View {
         Group {
-            if reduceTransparency || contrast == .increased {
+            if solid || reduceTransparency || contrast == .increased {
                 shape.fill(Color.panel)
             } else {
                 shape.fill(.regularMaterial).overlay { shape.fill(Color.panel.opacity(0.72)) }
@@ -361,10 +381,20 @@ private struct StudioNavigationPlate: View {
 struct StudioNavigationSurface: ViewModifier {
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.colorSchemeContrast) private var contrast
+    /// Solid chrome where blur must not compete with real-time drawing (Jam).
+    var solid: Bool
 
-    init() {}
+    init(solid: Bool = false) { self.solid = solid }
 
     @ViewBuilder func body(content: Content) -> some View {
+        if solid {
+            content.background { StudioNavigationPlate(solid: true) }
+        } else {
+            glass(content)
+        }
+    }
+
+    @ViewBuilder private func glass(_ content: Content) -> some View {
         #if compiler(>=6.2)
         if #available(iOS 26.0, *), !reduceTransparency, contrast != .increased {
             content.glassEffect(.regular, in: RoundedRectangle(cornerRadius: StudioMetrics.navigationRadius, style: .continuous))

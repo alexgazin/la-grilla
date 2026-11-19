@@ -11,10 +11,12 @@ struct JamView: View {
     @State private var stepBar = 0
     @State private var velocity = 100.0
     @State private var pressed: Set<Int> = []
+    /// Luz: the last hit's velocity per pad scales its light.
+    @State private var padVelocity: [Int: Int] = [:]
     @AppStorage("jam.haptics") private var padHaptics = false
     @AppStorage("jam.lesson") private var lessonID = ""
     var body:some View{
-        Group{if verticalSize == .compact{compactJam}else{GeometryReader{geometry in ScrollView(.vertical){regularJam(compact:geometry.size.height<500)}}}}
+        Group{if verticalSize == .compact{compactJam}else{GeometryReader{geometry in ScrollView(.vertical){regularJam(compact:geometry.size.height<500)}.scrollDisabled(!pressed.isEmpty)}}}
             .onChange(of:drumPattern?.id){_,_ in stepBar=0}
             .onChange(of:drumPattern?.length){_,length in stepBar=min(stepBar,max(0,(length ?? barTicks)/barTicks-1))}
             .onChange(of:scenePhase){_,phase in if phase != .active{pressed=[]}}
@@ -58,7 +60,7 @@ struct JamView: View {
         Menu{ForEach(Quantize.allCases,id:\.rawValue){q in Button(LocalizedStringKey(q == .off ? "Off":q == .eighth ? "1/8":"1/16")){session.quantize=q}};QuantizeFeelMenu(session:session)}label:{HStack(spacing:6){Text("Q").foregroundStyle(Color.drums);Text(LocalizedStringKey(session.quantize == .off ? "Off":session.quantize == .eighth ? "1/8":"1/16")).monospacedDigit()}.modifier(JamUtilitySurface())}.disabled(session.performance.contextActive)
     }
     private var metronomeControl:some View{
-        IconButton(symbol:"metronome",label:"Metronome",color:session.metronome ? .mint:.muted){session.metronome.toggle();session.audio.metronome(session.metronome)}
+        IconButton(symbol:"metronome",label:"Metronome",color:.muted,isOn:session.metronome){session.metronome.toggle();session.audio.metronome(session.metronome)}
     }
     private var recordingOptions:some View{
         Menu{Toggle("Count-in",isOn:$session.countIn);Toggle("Overdub",isOn:$session.overdub);Toggle("Velocity from touch",isOn:$session.padVelocityFromTouch);Toggle("Haptics on hits",isOn:$padHaptics);Picker("Note repeat",selection:$session.noteRepeat){Text("Off").tag(NoteRepeat.Rate?.none);Text(verbatim:"1/8").tag(Optional(NoteRepeat.Rate.eighth));Text(verbatim:"1/16").tag(Optional(NoteRepeat.Rate.sixteenth));Text(verbatim:"1/32").tag(Optional(NoteRepeat.Rate.thirtySecond));Text(verbatim:"1/8T").tag(Optional(NoteRepeat.Rate.eighthTriplet));Text(verbatim:"1/16T").tag(Optional(NoteRepeat.Rate.sixteenthTriplet))};Picker("Lesson",selection:$lessonID){Text("No lesson").tag("");ForEach(DrumLesson.library){lesson in Text(LocalizedStringKey(lesson.title)).tag(lesson.id)}};Button("Keep the last 4 bars I played"){_ = session.keepRecentHits(bars:4)}.disabled(session.recording || session.armed)}label:{Image(systemName:"slider.horizontal.3").foregroundStyle(Color.muted).frame(width:44,height:44).background(Color.raised.opacity(0.45),in:RoundedRectangle(cornerRadius:StudioMetrics.controlRadius,style:.continuous))}.accessibilityLabel("Drum recording options").disabled(session.performance.contextActive)
@@ -116,16 +118,21 @@ struct JamView: View {
         GeometryReader{geo in
             let side=max(44,min((geo.size.width-24)/4,(geo.size.height-24)/4))
             LazyVGrid(columns:Array(repeating:GridItem(.flexible(),spacing:8),count:4),spacing:8){ForEach(0..<16,id:\.self){pad in
-                JamPadFace(pad:pad,isDown:pressed.contains(pad),compact:height<280)
+                JamPadFace(pad:pad,isDown:pressed.contains(pad),compact:height<280,intensity:Double(padVelocity[pad] ?? 100)/127)
                     .equatable()
                     .frame(maxWidth:.infinity,alignment:.leading).frame(height:side).contentShape(Rectangle())
                     .accessibilityHidden(true)
             }}.frame(maxHeight:.infinity,alignment:.center)
-                .overlay{PadTouchSurface(enabled:scenePhase == .active && !session.performance.replaying,trace:session.runtimeTraceEnabled,velocityFromTouch:session.padVelocityFromTouch,haptics:padHaptics,onHit:{pad,time,velocity in session.hit(pad,touchTime:time,velocity:velocity)},onHeld:{pressed=$0;session.padsHeld($0)})}
+                .overlay{PadTouchSurface(enabled:scenePhase == .active && !session.performance.replaying,trace:session.runtimeTraceEnabled,velocityFromTouch:session.padVelocityFromTouch,haptics:padHaptics,onHit:{pad,time,velocity in padVelocity[pad]=velocity ?? 100;return session.hit(pad,touchTime:time,velocity:velocity)},onHeld:{pressed=$0;session.padsHeld($0)})}
         }.frame(height:height)
     }
     private var focusedClip:Clip?{guard let id=session.drumClipID else{return nil};return session.displayProject.tracks.first{$0.role == .drums}?.clips.first{$0.id==id}}
     private var clipFocus:some View{HStack(spacing:8){Text("Editing this drum clip's source pattern. Repeats share these steps.").font(.caption).foregroundStyle(Color.muted);Spacer(minLength:0);Button("Whole section"){session.drumClipID=nil;session.sync()}.font(.caption).frame(minHeight:44)}.accessibilityIdentifier("jam.clip-focus")}
+    /// Song tick where the edited drum clip starts (its pattern's step 1).
+    var drumClipStart: Int {
+        guard let t=session.displayProject.tracks.first(where:{$0.role == .drums}),let c=focusedClip ?? t.clips.first(where:{$0.start<=session.section.start && $0.start+$0.length>session.section.start})else{return 0}
+        return c.start-c.offset
+    }
     var drumPattern: Pattern? {
         guard let t=session.displayProject.tracks.first(where:{$0.role == .drums}),let c=focusedClip ?? t.clips.first(where:{$0.start<=session.section.start && $0.start+$0.length>session.section.start})else{return nil}
         return session.displayProject.patterns.first(where:{$0.id==c.patternID})
@@ -138,7 +145,8 @@ struct JamView: View {
                 let exists=drumPattern?.drums.contains(where:{$0.pad==selectedPad && $0.tick==tick}) ?? false
                 Button{toggleStep(tick);Luz.Haptics.selection()}label:{VStack(spacing:9){Text(String(step+1)).font(StudioTypography.index);RoundedRectangle(cornerRadius:3).fill(exists ? Color.ink.opacity(0.55):Color.drums.opacity(0.35)).frame(height:26)}.foregroundStyle(exists ? Color.ink:Color.muted).padding(8).frame(height:61)
                     // Luz lit step: an active step glows in the drum colour; every fourth step marks the beat.
-                    .litInstrument(.drums,isDown:exists,radius:Luz.Radius.cell,intensity:step%4==0 ? 1:0.75)}.buttonStyle(StudioQuietButtonStyle()).accessibilityLabel("Step \(step+1)").accessibilityValue(LocalizedStringKey(exists ? "On":"Off")).accessibilityIdentifier("jam.step.\(step)")
+                    .litInstrument(.drums,isDown:exists,radius:Luz.Radius.cell,intensity:step%4==0 ? 1:0.75)
+                    .overlay{StepPlayhead(audio:session.audio,tick:tick,origin:drumClipStart,length:drumPattern?.length ?? barTicks)}}.buttonStyle(StudioQuietButtonStyle(plate:false)).accessibilityLabel("Step \(step+1)").accessibilityValue(LocalizedStringKey(exists ? "On":"Off")).accessibilityIdentifier("jam.step.\(step)")
             }}
             VStack(alignment:.leading,spacing:8){HStack{SmallHeading(text:"VELOCITY");Spacer();Text(String(Int(velocity))).font(.system(size:12,design:.monospaced)).foregroundStyle(Color.drums).monospacedDigit()};Slider(value:$velocity,in:1...127,step:1).tint(.drums);Button("Apply velocity to this bar"){guard let id=drumPattern?.id else{return};session.edit{p in if let i=p.patterns.firstIndex(where:{$0.id==id}){for n in p.patterns[i].drums.indices where p.patterns[i].drums[n].pad==selectedPad && p.patterns[i].drums[n].tick/barTicks==stepBar{p.patterns[i].drums[n].velocity=Int(velocity)}}}}.font(.caption).frame(minHeight:44)}
         }.padding(14).modifier(StudioSurface())
@@ -152,6 +160,7 @@ private struct JamPadFace:View,Equatable {
     let pad:Int
     let isDown:Bool
     let compact:Bool
+    var intensity:Double=1
     var body:some View {
         VStack(alignment:.leading,spacing:0){
             HStack(alignment:.top){
@@ -166,7 +175,7 @@ private struct JamPadFace:View,Equatable {
         .padding(compact ? 8:10)
         .frame(maxWidth:.infinity,maxHeight:.infinity,alignment:.leading)
         // Luz instrument: opaque, raised; lit from inside in the drum colour on contact.
-        .litInstrument(.drums,isDown:isDown,radius:compact ? Luz.Radius.cell:Luz.Radius.pad)
+        .litInstrument(.drums,isDown:isDown,radius:compact ? Luz.Radius.cell:Luz.Radius.pad,intensity:max(0.35,intensity))
     }
 }
 
@@ -218,5 +227,21 @@ private struct DrumLessonPanel: View {
                 .font(.caption.monospacedDigit()).foregroundStyle(score.accuracy >= 90 ? Color.mint : Color.muted)
                 .accessibilityIdentifier("jam.lesson.score")
         }.padding(12).modifier(StudioSurface())
+    }
+}
+
+/// Luz: a mint ring on the step that is playing. Only this tiny view reads the
+/// 30 Hz transport tick, so the step grid itself does not re-render.
+private struct StepPlayhead:View {
+    let audio:AudioController
+    let tick:Int
+    let origin:Int
+    let length:Int
+    var body:some View {
+        let position=length>0 ? ((Int(audio.tick)-origin)%length+length)%length:0
+        let playing=audio.playing && length>0 && position/240==tick/240
+        RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous).strokeBorder(Color.mint,lineWidth:1.5)
+            .opacity(playing ? 1:0).allowsHitTesting(false).accessibilityHidden(true)
+            .transaction{$0.animation=nil}
     }
 }

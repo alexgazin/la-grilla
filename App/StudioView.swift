@@ -64,10 +64,10 @@ struct StudioView: View {
         IconButton(symbol:"square.and.arrow.up",label:"Export"){session.finishTake();session.exportTake=nil;session.sheet = .export}.accessibilityIdentifier("export.open")
     }.padding(.horizontal,8).frame(minHeight:58).background(Color.panel)}
     private var compactSidebar:some View {VStack(spacing:4){
-        Button{session.togglePlay()}label:{Image(systemName:session.audio.playing ? "stop.fill":"play.fill").font(.title2).foregroundStyle(Color.ink).frame(width:72,height:48).background(Color.mint,in:RoundedRectangle(cornerRadius:StudioMetrics.controlRadius))}.accessibilityLabel(session.audio.playing ? "Stop":"Play")
+        Button{session.togglePlay()}label:{Image(systemName:session.audio.playing ? "stop.fill":"play.fill").font(.title2.weight(.semibold)).contentTransition(.symbolEffect(.replace))}.buttonStyle(TransportKeyStyle(isOn:session.audio.playing,diameter:52)).accessibilityLabel(session.audio.playing ? "Stop":"Play")
         HStack(spacing:0){IconButton(symbol:"backward.end.fill",label:"Return to start"){session.rewind()};IconButton(symbol:session.recording ? "stop.circle.fill":"record.circle",label:session.recording ? "Finish drum take":"Record drums",color:.record){session.record()}.disabled(session.performance.contextActive).opacity(session.performance.contextActive ? 0.35:1)}
         HStack(spacing:0){IconButton(symbol:"repeat",label:"Toggle loop",color:session.loop ? .mint:.muted){session.setLoop(enabled:!session.loop)}.disabled(session.performance.contextActive).opacity(session.performance.contextActive ? 0.35:1);Button{if session.performance.contextActive{session.sheet = .perform}}label:{Text(String(format:"%02d:%d",Int(session.audio.tick)/barTicks+1,Int(session.audio.tick)%barTicks/ppq+1)).font(.caption.monospaced()).frame(minWidth:44,minHeight:44)}.accessibilityIdentifier("perform.transport").accessibilityValue(Text(verbatim:session.runtimeTraceReport))}
-        tab("square.grid.3x3","Grid",0);tab("square.grid.2x2.fill","Jam",1);tab("slider.vertical.3","Mixer",2)
+        tab("square.grid.3x3","Grid",0);tab("square.grid.2x2","Jam",1);tab("slider.vertical.3","Mixer",2)
         Spacer(minLength:0)
     }.padding(.top,6).frame(width:104).background(Color.panel)}
     private var saveColor: Color {
@@ -117,11 +117,11 @@ struct StudioView: View {
         VStack(alignment:.leading,spacing:4){
             HStack(alignment:.center,spacing:8){
                 Text(String(format:"%02d : %d",Int(session.audio.tick)/barTicks+1,Int(session.audio.tick)%barTicks/ppq+1))
-                    .font(.system(size:23,weight:.medium,design:.monospaced)).tracking(-1).monospacedDigit()
+                    .font(StudioTypography.readout).tracking(-1).monospacedDigit()
                 HStack(spacing:2){
                     ForEach(0..<4,id:\.self){beat in
-                        Capsule().fill(session.audio.playing && Int(session.audio.tick)%barTicks/ppq == beat ? Color.mint:Color.outline)
-                            .frame(width:3,height:beat == 0 ? 12:8)
+                        Capsule().fill(session.audio.playing && Int(session.audio.tick)%barTicks/ppq == beat ? (session.armed || session.recording ? Color.record:Color.mint):Color.lifted)
+                            .frame(width:4,height:beat == 0 ? 14:10)
                     }
                 }.accessibilityHidden(true)
             }
@@ -136,22 +136,16 @@ struct StudioView: View {
                 .accessibilityValue(Text(verbatim:session.runtimeTraceReport))
             IconButton(symbol:"backward.end.fill",label:"Return to start",color:.muted){session.rewind()}
             Button{session.togglePlay()}label:{
-                // Luz: the play key morphs its symbol and glows while the song runs.
+                // Luz transport key: morphing symbol, press sink, gradient glow while playing.
                 Image(systemName:session.audio.playing ? "stop.fill":"play.fill")
-                    .font(.system(size:22,weight:.semibold)).foregroundStyle(Color.ink)
+                    .font(.title2.weight(.semibold))
                     .contentTransition(.symbolEffect(.replace))
-                    .offset(x:session.audio.playing ? 0:2).frame(width:58,height:58)
-                    .background(Color.mint,in:Circle())
-                    .overlay{Circle().strokeBorder(Color.studioText.opacity(0.15),lineWidth:1)}
-                    .shadow(color:Color.mint.opacity(session.audio.playing && contrast != .increased ? 0.55:0),radius:12)
-                    .animation(reduceMotion ? nil:Luz.Motion.snap,value:session.audio.playing)
-            }.buttonStyle(StudioQuietButtonStyle()).accessibilityLabel(LocalizedStringKey(session.audio.playing ? "Stop":"Play"))
+                    .offset(x:session.audio.playing ? 0:2)
+            }.buttonStyle(TransportKeyStyle(isOn:session.audio.playing)).accessibilityLabel(LocalizedStringKey(session.audio.playing ? "Stop":"Play"))
             IconButton(symbol:session.recording ? "stop.circle.fill":"record.circle",label:session.recording ? "Finish drum take":"Record drums",color:.record){session.tab=1;session.record()}
                 .background(session.recording || session.armed ? Color.record.opacity(0.16):Color.clear,in:Circle())
-                .shadow(color:Color.record.opacity(session.recording && contrast != .increased ? 0.5:0),radius:8)
                 .disabled(session.performance.contextActive).opacity(session.performance.contextActive ? 0.35:1)
-            IconButton(symbol:"repeat",label:"Toggle loop",color:session.loop ? .mint:.muted){session.setLoop(enabled:!session.loop)}
-                .background(session.loop ? Color.mint.opacity(0.12):Color.clear,in:Circle())
+            IconButton(symbol:"repeat",label:"Toggle loop",color:.muted,isOn:session.loop){session.setLoop(enabled:!session.loop)}
                 .disabled(session.performance.contextActive).opacity(session.performance.contextActive ? 0.35:1)
         }.padding(.horizontal,12).padding(.top,10).padding(.bottom,8)
     }
@@ -159,9 +153,9 @@ struct StudioView: View {
         VStack(spacing:0){
             transport
             Rectangle().fill(Color.outline.opacity(0.65)).frame(height:0.5).padding(.horizontal,12).accessibilityHidden(true)
-            HStack(spacing:4){tab("square.grid.3x3","Grid",0);tab("square.grid.2x2.fill","Jam",1);tab("slider.vertical.3","Mixer",2)}
+            HStack(spacing:4){tab("square.grid.3x3","Grid",0);tab("square.grid.2x2","Jam",1);tab("slider.vertical.3","Mixer",2)}
                 .padding(6)
-        }.modifier(StudioNavigationSurface()).padding(.horizontal,8).padding(.top,6).padding(.bottom,4)
+        }.modifier(StudioNavigationSurface(solid:session.tab == 1)).padding(.horizontal,8).padding(.top,6).padding(.bottom,4)
     }
     func tab(_ symbol:String,_ label:LocalizedStringKey,_ index:Int)->some View {
         let selected=session.tab == index
@@ -171,8 +165,9 @@ struct StudioView: View {
             Luz.Haptics.selection()
         }label:{
             HStack(spacing:7){
-                Image(systemName:symbol).font(.system(size:17,weight:.medium)).accessibilityHidden(true)
-                    .symbolEffect(.bounce,value:selected)
+                Image(systemName:symbol).font(StudioTypography.icon).accessibilityHidden(true)
+                    .symbolVariant(selected ? .fill:.none)
+                    .contentTransition(.symbolEffect(.replace))
                 Text(label).font(StudioTypography.label)
             }.foregroundStyle(selected ? Color.studioText:Color.muted)
                 .frame(maxWidth:.infinity,minHeight:44)

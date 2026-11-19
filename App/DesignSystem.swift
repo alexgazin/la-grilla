@@ -62,6 +62,17 @@ struct LitInstrument: ViewModifier {
         let high = contrast == .increased
         content
             .background {
+                // Halo outside the face: a precomputed gradient, never a blur (real-time rule).
+                if !high {
+                    RoundedRectangle(cornerRadius: radius + 8, style: .continuous)
+                        .fill(RadialGradient(colors: [color.opacity(0.45 * intensity), color.opacity(0)], center: .center, startRadius: 0, endRadius: 90))
+                        .padding(-8)
+                        .opacity(isDown ? 1 : 0)
+                        .animation(isDown || reduceMotion ? nil : Luz.Motion.glowDecay, value: isDown)
+                        .allowsHitTesting(false)
+                }
+            }
+            .background {
                 ZStack {
                     shape.fill(LinearGradient(colors: [Color.raised, Color.panel], startPoint: .top, endPoint: .bottom))
                     // The lit layer: solid track colour plus a centred bloom.
@@ -82,7 +93,6 @@ struct LitInstrument: ViewModifier {
                         .padding(.horizontal, radius * 0.8).padding(.top, 1).allowsHitTesting(false)
                 }
             }
-            .shadow(color: color.opacity(isDown && !high ? 0.45 * intensity : 0), radius: isDown ? 10 : 0)
             .scaleEffect(isDown && !reduceMotion ? 0.97 : 1)
             .transaction { if isDown { $0.animation = nil } }
     }
@@ -100,29 +110,84 @@ struct LuzEmptyState: View {
     let title: LocalizedStringKey
     var detail: LocalizedStringKey? = nil
     var action: (title: LocalizedStringKey, run: () -> Void)? = nil
+    var secondary: (title: LocalizedStringKey, run: () -> Void)? = nil
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorScheme) private var scheme
+    @ScaledMetric(relativeTo: .largeTitle) private var symbolSize: CGFloat = 40
 
     var body: some View {
-        VStack(spacing: 14) {
+        VStack(spacing: 12) {
             Image(systemName: symbol)
-                .font(.system(size: 40, weight: .medium))
+                .font(.system(size: symbolSize, weight: .medium))
                 .foregroundStyle(Color.mint)
                 .symbolRenderingMode(.hierarchical)
                 .accessibilityHidden(true)
-            Text(title).font(StudioTypography.title).multilineTextAlignment(.center)
+            Text(title).font(StudioTypography.title.width(.expanded)).multilineTextAlignment(.center)
             if let detail { Text(detail).font(.callout).foregroundStyle(Color.muted).multilineTextAlignment(.center) }
             if let action { Button(action.title, action: action.run).buttonStyle(StudioActionStyle()).frame(maxWidth: 280) }
+            if let secondary { Button(secondary.title, action: secondary.run).buttonStyle(StudioActionStyle(prominent: false)).frame(maxWidth: 280) }
         }
-        .padding(28)
+        .padding(24)
         .frame(maxWidth: .infinity)
         .background {
             if !reduceTransparency {
                 MeshGradient(width: 2, height: 2, points: [[0, 0], [1, 0], [0, 1], [1, 1]],
                              colors: [.mint, .drums, .harmony, .bass])
-                    .opacity(0.16)
+                    .opacity(scheme == .dark ? 0.20 : 0.12)
                     .clipShape(RoundedRectangle(cornerRadius: Luz.Radius.surface, style: .continuous))
                     .accessibilityHidden(true)
             }
         }
     }
+}
+
+/// A button that is played like an instrument: the lit face is its press state.
+struct LitButtonStyle: ButtonStyle {
+    let color: Color
+    var radius: CGFloat = Luz.Radius.cell
+    var isOn = false
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label.litInstrument(color, isDown: configuration.isPressed || isOn, radius: radius)
+    }
+}
+
+/// Circular transport key: sinks on press, glows (gradient, no blur) while on.
+struct TransportKeyStyle: ButtonStyle {
+    var color: Color = .mint
+    var isOn = false
+    var diameter: CGFloat = 58
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.colorSchemeContrast) private var contrast
+    func makeBody(configuration: Configuration) -> some View {
+        let pressed = configuration.isPressed
+        return configuration.label
+            .foregroundStyle(Color.ink)
+            .frame(width: diameter, height: diameter)
+            .background(color, in: Circle())
+            .overlay { Circle().strokeBorder(Color.studioText.opacity(contrast == .increased ? 0.6 : 0.15), lineWidth: 1) }
+            .background {
+                if contrast != .increased {
+                    Circle().fill(RadialGradient(colors: [color.opacity(0.5), color.opacity(0)], center: .center, startRadius: diameter * 0.3, endRadius: diameter * 0.85))
+                        .padding(-diameter * 0.3).opacity(isOn ? 1 : 0).allowsHitTesting(false)
+                }
+            }
+            .scaleEffect(pressed && !reduceMotion ? 0.97 : 1)
+            .animation(reduceMotion ? nil : pressed ? Luz.Motion.tap : Luz.Motion.release, value: pressed)
+            .animation(reduceMotion ? nil : Luz.Motion.snap, value: isOn)
+    }
+}
+
+/// System forms on the Luz ink background with mint tint and 52 pt rows.
+struct LuzForm: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .scrollContentBackground(.hidden)
+            .background(Color.ink)
+            .tint(.mint)
+            .environment(\.defaultMinListRowHeight, 52)
+    }
+}
+
+extension View {
+    func luzForm() -> some View { modifier(LuzForm()) }
 }
