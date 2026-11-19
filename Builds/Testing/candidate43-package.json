@@ -1,8 +1,8 @@
 {
   "file": "LaGrilla-unsigned.ipa",
-  "bytes": 8187934,
-  "sha256": "d8c2f7aa8139225ee8337984f7fa245551d314feddaac1b411698f579dd34524",
-  "sourceSHA": "ae53e4bb42bf0b652aa08abd90487d64f6ece2a0",
+  "bytes": 8188332,
+  "sha256": "d8ed552f6fd620bad2765fde9047a198bbb4289381429ec0de1e1f5e89b8acf2",
+  "sourceSHA": "c67abd7887126d7cc774ec2a736b99d69533efc8",
   "version": "1.0.0",
   "build": "43",
   "bundleID": "com.alexgazin.LaGrilla",
@@ -15,7 +15,7 @@
     "platform": "iOS",
     "minimumOS": "18.0.0",
     "sdk": "26.2.0",
-    "uuid": "42460145-7236-3124-9A3E-E5BFE44D2ADB",
+    "uuid": "8D6EDC1E-6104-33E2-8230-A6783E3276BD",
     "dsymUUIDMatches": null,
     "foundationModelsLoadCommand": "LC_LOAD_WEAK_DYLIB",
     "foundationModelsOrdinal": 15,
@@ -39,7 +39,7 @@
     {
       "path": "Payload/LaGrilla.app/Assets.car",
       "bytes": 1726184,
-      "sha256": "5ff1954b2f93b9f6f087d1775bf8154e6435e16e9fa00beb6fad7f00a215e7f0"
+      "sha256": "50e9e352d8212699ca36d9c547788806363b17fe6ac587ef06d42ce133d97c21"
     },
     {
       "path": "Payload/LaGrilla.app/FactoryInstruments/LICENSE-CC0.txt",
@@ -69,7 +69,7 @@
     {
       "path": "Payload/LaGrilla.app/LaGrilla",
       "bytes": 7760752,
-      "sha256": "dc65bd00c4d6675d3fd4a8425a3af832ab405bb9d75f79f3617c4c4cde0c7050"
+      "sha256": "1bd5723ef9a3d3ad433c97eecf38fd78abfcb8bc995f565c45496db959e54431"
     },
     {
       "path": "Payload/LaGrilla.app/LaunchScreen.storyboardc/Info.plist",
