@@ -72,6 +72,11 @@ jobs:
             CASE_LIMIT=360
             NATIVE_BUDGET=1020
           fi
+          if [[ "$GITHUB_REF_NAME" == "qa/producer-kit-library-43" ]]; then
+            CASES=(SoundPickerUITests/testDustyAndCoastAuditionWithoutEditingThenLoadDistinctPads SoundPickerUITests/testPocketKickTrimPreviewsAppliesUndoesAndPersists SoundPickerUITests/testSavedCustomKitRestoresAllPadAssignmentsInAnotherProject)
+            CASE_LIMIT=300
+            NATIVE_BUDGET=1110
+          fi
           REQUIRED=()
           SELECTED=()
           for CASE_ID in "${CASES[@]}"; do
