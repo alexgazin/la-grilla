@@ -231,6 +231,9 @@ public struct Track: Codable, Equatable, Identifiable, Sendable {
     public var instrumentSample: SampleAsset?
     public var padSamples: [Int: SampleAsset]?
     public var padEdits: [Int: PadSampleEditRecord]?
+    /// I39: a locked part is kept by generators, palettes and phrase edits.
+    /// Absent in older files (= unlocked); older apps ignore it.
+    public var locked: Bool?
     public init(role: TrackRole) { self.role = role }
 }
 public struct Section: Codable, Equatable, Identifiable, Sendable {
@@ -255,6 +258,8 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
     public var performanceTake:PerformanceTake?{get{performanceTakes?.first}set{performanceTakes=newValue.map{[$0]}}}
     public var audioAssets:[AudioAssetRecord]?
     public var midi:MIDISettings?
+    /// I41: the last phrase edits applied to this project (newest last, at most 32).
+    public var editLog:[String]?
     /// Legacy register for implicit root bass. To change it in an existing project,
     /// use MusicalEditing.setBassRegister: explicit rootBassPitch values are absolute
     /// and must be shifted atomically as well; raw field assignment does not do that.
@@ -288,6 +293,7 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
               patterns.count <= 64, Set(patterns.map(\.id)).count == patterns.count, Set(sections.map(\.id)).count == sections.count,
               Set(tracks.map(\.id)).count == tracks.count else { throw MusicError.invalidProject }
         guard (performanceTakes ?? []).count<=1 else{throw MusicError.limit}
+        if let log=editLog{guard log.count<=32,log.allSatisfy({$0.count<=300}) else{throw MusicError.invalidProject}}
         try midi?.validate(self)
         try masterEQ?.validate()
         try masterFX?.validate();try performanceTake?.validate()

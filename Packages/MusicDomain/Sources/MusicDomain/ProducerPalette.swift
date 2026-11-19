@@ -124,7 +124,7 @@ public enum PaletteEngine {
     /// instrument, imported or edited pad samples) are not replaced unless chosen.
     public static func defaultKept(_ project: Project) -> Set<UUID> {
         Set(project.tracks.filter { track in
-            track.instrumentSample != nil || !(track.padEdits ?? [:]).isEmpty
+            track.locked == true || track.instrumentSample != nil || !(track.padEdits ?? [:]).isEmpty
                 || (track.padSamples ?? [:]).values.contains { !isFactoryKitSound($0.name) }
         }.map(\.id))
     }

@@ -270,3 +270,51 @@ struct ReharmonizeByPhraseTests {
         }
     }
 }
+
+struct SongEditIdeasTests {
+    @Test func hereMeansTheSelectedSection() throws {
+        let p = try SongEditDemo.project()
+        let plan = SongEditParser.plan("Убери бочку здесь", project: p, selectedSectionID: p.sections[3].id)
+        #expect(plan.isApplicable && plan.operations.first?.bars == 10..<14 && plan.operations.first?.sectionID == p.sections[3].id)
+        let english = SongEditParser.plan("Remove the kick in this section", project: p, selectedSectionID: p.sections[1].id)
+        #expect(english.operations.first?.bars == 2..<6)
+    }
+
+    @Test func threeHookTakesAreChoicesWithDifferentNotes() throws {
+        let p = try SongEditDemo.project()
+        let plan = SongEditParser.plan("Добавь мелодию во второй припев, дай три варианта", project: p)
+        #expect(plan.choices.count == 3 && plan.choices.map(\.label).allSatisfy { $0.contains("Hook take") })
+        let takes = try (0..<3).map { try SongEditor.apply(plan.choosing($0), to: p) }
+        let melodies = takes.map { t in Compiler.notes(t).filter { $0.track == t.tracks.count - 1 }.map(\.pitch) }
+        #expect(Set(melodies.map { $0.description }).count >= 2)
+    }
+
+    @Test func lockedPartsAreKeptAndEditsAreLogged() throws {
+        var p = try SongEditDemo.project()
+        p.tracks[1].locked = true
+        let plan = SongEditParser.plan("Убери бочку в первых двух тактах", project: p)
+        #expect(plan.protectedTracks.contains(p.tracks[1].id) && plan.problems.contains { $0.reason == .contradiction })
+        p.tracks[1].locked = nil
+        let ok = SongEditParser.plan("Убери бочку в первых двух тактах", project: p)
+        let edited = try SongEditor.applyLogged(ok, to: p)
+        #expect(edited.editLog == ["Убери бочку в первых двух тактах"])
+        // Old files without the fields decode; new fields round-trip.
+        var locked = edited; locked.tracks[2].locked = true
+        let decoded = try ProjectDocument.decode(JSONEncoder().encode(locked))
+        #expect(decoded.tracks[2].locked == true && decoded.editLog == edited.editLog)
+        #expect(PaletteEngine.defaultKept(locked).contains(locked.tracks[2].id))
+    }
+
+    @Test func aVariantOfTheChorusIsInsertedAfterItAndCanBeResized() throws {
+        let p = try SongEditDemo.project()
+        let plan = SongEditParser.plan("Сделай ещё один вариант первого припева на 2 такта", project: p)
+        #expect(plan.isApplicable, "\(plan.problems) \(plan.choices.map(\.label))")
+        let edited = try SongEditor.apply(plan, to: p)
+        #expect(edited.sections.count == p.sections.count + 1)
+        #expect(edited.sections[3].length == 2 * barTicks && edited.sections[3].name.hasPrefix(p.sections[2].name))
+        let firstEnd = p.sections[2].start + p.sections[2].length
+        #expect(Compiler.notes(edited, range: 0..<firstEnd) == Compiler.notes(p, range: 0..<firstEnd))
+        let two = SongEditParser.plan("Duplicate the chorus", project: p)
+        #expect(two.choices.count == 2)
+    }
+}

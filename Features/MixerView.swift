@@ -145,7 +145,23 @@ struct MixerView: View {
         .frame(height: height)
     }
 
-    private func channelHeading(track: Track?, color: Color) -> some View {
+    @ViewBuilder private func channelHeading(track: Track?, color: Color) -> some View {
+        if let track {
+            // I39: the heading opens a menu to lock the part against generators and phrase edits.
+            Menu {
+                Button(track.locked == true ? "Unlock part" : "Lock part", systemImage: track.locked == true ? "lock.open" : "lock") {
+                    let id = track.id
+                    session.edit { p in if let i = p.tracks.firstIndex(where: { $0.id == id }) { p.tracks[i].locked = p.tracks[i].locked == true ? nil : true } }
+                }
+            } label: { headingLabel(track: track, color: color) }
+                .accessibilityIdentifier("mixer.track-menu.\(track.role.rawValue)")
+                .disabled(session.performance.contextActive)
+        } else {
+            headingLabel(track: nil, color: color)
+        }
+    }
+
+    private func headingLabel(track: Track?, color: Color) -> some View {
         HStack(spacing: 6) {
             Image(systemName: track.map { roleSymbol($0.role) } ?? "speaker.wave.2.fill")
                 .font(.system(size: 12, weight: .semibold))
@@ -156,6 +172,10 @@ struct MixerView: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
                 .frame(maxWidth: .infinity, alignment: .leading)
+            if track?.locked == true {
+                Image(systemName: "lock.fill").font(.system(size: 11, weight: .semibold)).foregroundStyle(Color.muted)
+                    .accessibilityLabel("Locked")
+            }
         }
         .overlay(alignment: .topLeading) {
             Capsule().fill(color).frame(width: 20, height: 2).offset(y: -5)

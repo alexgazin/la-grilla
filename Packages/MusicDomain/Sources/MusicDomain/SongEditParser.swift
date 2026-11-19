@@ -31,13 +31,19 @@ public enum SongEditParser {
         return .unknown
     }
 
-    public static func plan(_ text: String, project: Project) -> SongEditPlan {
+    public static func plan(_ text: String, project: Project, selectedSectionID: UUID? = nil) -> SongEditPlan {
         var plan = SongEditPlan(projectID: project.id, baseRevision: project.revision, text: text,
                                 protectedTracks: [], protectedPads: [], operations: [], problems: [], choices: [])
         let original = Array(text)
         let tokens = Self.tokens(text)
         let clauseList = Self.clauses(tokens)
-        let analysed = clauseList.map { analyse($0, project: project) }
+        var analysed = clauseList.map { analyse($0, project: project) }
+        // I42: "here" / "in this section" means the selected section.
+        if let selected = selectedSectionID, let section = project.sections.first(where: { $0.id == selected }) {
+            for i in analysed.indices where analysed[i].here && analysed[i].sectionKind == nil && analysed[i].sectionName == nil {
+                analysed[i].selectedSection = section.id
+            }
+        }
         func fragment(_ clause: [Token]) -> String {
             guard let first = clause.first, let last = clause.last else { return "" }
             let lower = first.offset, upper = last.offset + last.length
@@ -53,6 +59,8 @@ public enum SongEditParser {
                 else if !plan.protectedPads.contains(id) { plan.protectedPads.append(id) }
             }
         }
+        // I39: locked parts are always kept.
+        for track in project.tracks where track.locked == true && !plan.protectedTracks.contains(track.id) { plan.protectedTracks.append(track.id) }
         // 2. Operations in the established scope.
         for (clause, edit) in zip(clauseList, analysed) {
             guard edit.action != .keep || edit.kind != nil else { continue }
@@ -97,7 +105,7 @@ public enum SongEditParser {
 
     /// Whether the operation's part plays in its bars (fill and arpeggio create new material).
     static func sounds(_ op: SongEditOperation, in project: Project) -> Bool {
-        if [.fill, .arpeggiate, .hook, .stopBreak, .bassFromKick].contains(op.kind) { return true }
+        if [.fill, .arpeggiate, .hook, .stopBreak, .bassFromKick, .duplicateSection].contains(op.kind) { return true }
         guard let index = project.tracks.firstIndex(where: { $0.id == op.target.trackID }) else { return false }
         let range = op.bars.lowerBound * barTicks..<op.bars.upperBound * barTicks
         let pads = op.target.pads.map(Set.init)
@@ -239,6 +247,8 @@ public enum SongEditParser {
     enum Place: Equatable { case inside, before, after }
 
     struct Edit {
+        init() {}
+        init(copying other: Edit, variants: Bool) { self = other; self.variants = variants }
         var action: Action?
         var kind: SongEditOperation.Kind?
         var targets: [TargetSpec] = []
@@ -254,6 +264,10 @@ public enum SongEditParser {
         var everyOther = false
         var delayTicks: Int? = nil
         var percent: Int? = nil
+        var here = false
+        var selectedSection: UUID? = nil
+        var variants = false
+        var copyBars = 0
         var style: HarmonyStyle = .expressive
         var steps: Int = 1
         var delayMilliseconds: Double? = nil
@@ -326,6 +340,16 @@ public enum SongEditParser {
         else if edit.action == .remove { edit.kind = .remove }
         else if edit.action == nil, words.contains(where: { $0 == "без" || $0 == "without" }) { edit.action = .remove; edit.kind = .remove }
         if edit.kind != nil, edit.action == .keep { edit.action = .make }
+        edit.here = phrase(["здесь", "тут", "в этой секции", "в этом месте", "here", "this section", "in this part"])
+        edit.variants = words.contains { any($0, ["вариант", "версии", "версий", "options", "versions", "variants"]) } && edit.kind == .hook
+        if edit.kind == nil || edit.kind == .hook && !edit.variants, phrase(["ещё один", "еще один", "вариант", "копию", "дублир", "another", "duplicate", "copy of", "variation of"]),
+           words.contains(where: { w in Lexicon.sectionKinds.joined().contains { w.hasPrefix($0) } }) {
+            edit.kind = .duplicateSection
+            edit.copyBars = words.indices.compactMap { i -> Int? in
+                guard any(words[i], Lexicon.bar), i > 0, let n = Int(words[i - 1]) ?? cardinal(words[i - 1]), (1...16).contains(n) else { return nil }
+                return n
+            }.first ?? 0
+        }
         if edit.kind == .arpeggiate, phrase(["вместо аккорд", "instead of the chord", "instead of chord", "replace the chord", "замени аккорд"]) { edit.replacesChords = true }
         if edit.kind == .fill || edit.kind == .stopBreak {
             if words.contains(where: { any($0, ["коротк", "небольш", "маленьк", "short", "quick", "brief", "small"]) }) || phrase(["полтакта", "half bar", "half a bar", "half-bar"]) { edit.fillTicks = 2 * ppq }
@@ -524,6 +548,7 @@ public enum SongEditParser {
     enum Resolution { case operations([SongEditOperation]), choices([SongEditChoice]), problem(SongEditProblem.Reason) }
 
     static func sections(matching edit: Edit, project: Project) -> [Section]? {
+        if let selected = edit.selectedSection { return project.sections.filter { $0.id == selected } }
         if edit.sectionKind == ["#part"] { return project.sections }
         if let name = edit.sectionName { return project.sections.filter { normalize($0.name) == name } }
         guard let kind = edit.sectionKind else { return nil }
@@ -552,6 +577,8 @@ public enum SongEditParser {
         } else if kind == .fill {
             guard let drums = project.tracks.first(where: { $0.role == .drums }) else { return .problem(.missing) }
             targets = [SongEditTarget(trackID: drums.id)]
+        } else if kind == .duplicateSection {
+            targets = []
         } else if kind == .bassFromKick {
             guard let bass = project.tracks.first(where: { $0.role == .melody && isBassName($0.name) }) else {
                 return .problem(project.tracks.contains { $0.role == .bass } ? .derivedBass : .missing)
@@ -604,6 +631,16 @@ public enum SongEditParser {
         if kind == .fill || kind == .stopBreak { amount = edit.fillTicks }
         if kind == .swing { amount = edit.percent ?? 58 }
         if kind == .reharmonize { amount = HarmonyStyle.allCases.firstIndex(of: edit.style) ?? 2 }
+        if kind == .duplicateSection {
+            guard let candidates = sections(matching: edit, project: project), !candidates.isEmpty else { return .problem(.missing) }
+            guard project.sections.count < 8 else { return .problem(.missing) }
+            func op(_ s: Section) -> SongEditOperation {
+                SongEditOperation(kind: .duplicateSection, target: SongEditTarget(trackID: project.tracks[0].id), bars: (s.start / barTicks)..<((s.start + s.length) / barTicks), sectionID: s.id, amount: edit.copyBars)
+            }
+            if let o = edit.sectionOrdinal { let i = o == -1 ? candidates.count - 1 : o - 1; return candidates.indices.contains(i) ? .operations([op(candidates[i])]) : .problem(.missing) }
+            if candidates.count == 1 { return .operations([op(candidates[0])]) }
+            return .choices(candidates.prefix(6).map { SongEditChoice(label: label($0, project: project, place: .inside), sectionID: $0.id, operations: [op($0)]) })
+        }
         if kind == .scaleShift { amount = edit.steps }
         func make(_ bars: Range<Int>, section: UUID?) -> [SongEditOperation] {
             targets.map { SongEditOperation(kind: kind, target: $0, bars: bars, sectionID: section, everyOther: edit.everyOther, amount: amount, replacesChords: edit.replacesChords) }
@@ -619,6 +656,15 @@ public enum SongEditParser {
             return span
         }
         let song = 0..<totalBars
+        if kind == .hook && edit.variants {
+            let base = resolveOperations(kind: kind, edit: Edit(copying: edit, variants: false), project: project, protected: protected, protectedPads: protectedPads)
+            guard case .operations(let ops) = base, let first = ops.first else { return base }
+            // I49: three takes of the hook with different seeds, auditioned as choices.
+            return .choices((0..<3).map { v in
+                var o = first; o.amount = v
+                return SongEditChoice(label: String(format: NSLocalizedString("Hook take %@", comment: "Song edit choice"), ["A", "B", "C"][v]), sectionID: first.sectionID ?? project.sections[0].id, operations: [o])
+            })
+        }
         guard let candidates = sections(matching: edit, project: project) else {
             // No section named.
             if kind == .fill || kind == .stopBreak {

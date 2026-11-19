@@ -19,6 +19,16 @@ public enum SongEditor {
         return result
     }
 
+    /// Apply and record the phrase in the project's edit history (I41), in one change.
+    public static func applyLogged(_ plan: SongEditPlan, to project: Project) throws -> Project {
+        var result = try apply(plan, to: project)
+        var log = result.editLog ?? []
+        log.append(String(plan.text.trimmingCharacters(in: .whitespacesAndNewlines).prefix(300)))
+        result.editLog = Array(log.suffix(32))
+        try result.validate()
+        return result
+    }
+
     // MARK: Isolation
 
     /// Bar-aligned range around `requested` that no sustained note or chord of
@@ -77,6 +87,15 @@ public enum SongEditor {
         guard role != .bass else { throw SongEditError.notApplicable }
         let requested = op.bars.lowerBound * barTicks..<op.bars.upperBound * barTicks
         let range = isolationRange(project, track: index, requested: requested)
+        if op.kind == .duplicateSection {
+            // I32: a copy of the named occurrence right after it, optionally resized.
+            guard let section = project.sections.first(where: { $0.id == op.sectionID }) else { throw SongEditError.notApplicable }
+            try SectionEditing.duplicate(section.id, name: String((section.name + " 2").prefix(120)), in: &project)
+            if op.amount > 0, let index = project.sections.firstIndex(where: { $0.id == section.id }), index + 1 < project.sections.count {
+                project = try Arrangement.resized(project, sectionID: project.sections[index + 1].id, bars: op.amount)
+            }
+            return
+        }
         if op.kind == .reharmonize {
             // I46: HarmonyLab restyles whole section occurrences inside the range;
             // replacing a section's harmony splits a shared chord pattern first.
@@ -229,7 +248,7 @@ public enum SongEditor {
                 pattern.notes?.removeAll { window.contains($0.tick) }
                 pattern.notes?.append(contentsOf: line.filter { window.contains($0.tick) }.map { n in var x = n; x.duration = min(x.duration, window.upperBound - x.tick); return x })
             }
-        case .arpeggiate, .hook, .reharmonize:
+        case .arpeggiate, .hook, .reharmonize, .duplicateSection:
             break
         }
         pattern.drums.sort { ($0.tick, $0.pad) < ($1.tick, $1.pad) }
@@ -375,7 +394,7 @@ public enum SongEditor {
         let step = ppq / 2
         if op.kind == .hook {
             let local = source.map { chord -> ChordEvent in var c = chord; c.tick += requested.lowerBound - base; return c }
-            let hook = HookGenerator.hook(chords: local, start: requested.lowerBound - base, bars: op.bars.count, root: project.keyRoot, minor: project.minor, seed: UInt64(project.revision) &+ UInt64(op.bars.lowerBound))
+            let hook = HookGenerator.hook(chords: local, start: requested.lowerBound - base, bars: op.bars.count, root: project.keyRoot, minor: project.minor, seed: UInt64(project.revision) &+ UInt64(op.bars.lowerBound) &+ UInt64(op.amount) &* 7919)
             for window in windows {
                 pattern.notes?.removeAll { window.contains($0.tick) }
                 pattern.notes?.append(contentsOf: hook.filter { window.contains($0.tick) }.map { n in var x = n; x.duration = min(x.duration, window.upperBound - x.tick); return x })
@@ -417,6 +436,13 @@ public enum SongEditor {
 
     /// Every track that no operation targets must compile to the same notes.
     static func verifyUntouched(before: Project, after: Project, plan: SongEditPlan) throws {
+        if let copy = plan.operations.first(where: { $0.kind == .duplicateSection }), let section = before.sections.first(where: { $0.id == copy.sectionID }) {
+            // Structural edit: everything up to the copy plays exactly as before.
+            let end = section.start + section.length
+            guard Compiler.notes(before, range: 0..<end) == Compiler.notes(after, range: 0..<end),
+                  after.tracks.map(\.id) == before.tracks.map(\.id) else { throw SongEditError.protectedPartChanged }
+            return
+        }
         var targeted = Set(plan.operations.map(\.target.trackID))
         for op in plan.operations where (op.kind == .arpeggiate || op.kind == .hook) && op.replacesChords {
             if let harmony = before.tracks.first(where: { $0.role == .harmony }) { targeted.insert(harmony.id) }

@@ -1298,3 +1298,10 @@
 "Try a palette" = "Try a palette";
 "Boom bap, West Coast or atmospheric chillhop on your own part, at matched loudness." = "Boom bap, West Coast or atmospheric chillhop on your own part, at matched loudness.";
 "Find your balance in Mixer, then export MIDI, WAV, stems or AAC to your DAW." = "Find your balance in Mixer, then export MIDI, WAV, stems or AAC to your DAW.";
+"Lock part" = "Lock part";
+"Unlock part" = "Unlock part";
+"Locked" = "Locked";
+"RECENT EDITS" = "RECENT EDITS";
+"Add a copy of %@ after %@" = "Add a copy of %@ after %@";
+"%d bars" = "%d bars";
+"Hook take %@" = "Hook take %@";

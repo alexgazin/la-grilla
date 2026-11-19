@@ -24,7 +24,7 @@ public struct SongEditTarget: Codable, Equatable, Hashable, Sendable {
 
 public struct SongEditOperation: Codable, Equatable, Sendable {
     public enum Kind: String, Codable, CaseIterable, Sendable {
-        case remove, fill, denser, sparser, arpeggiate, delay, fadeIn, fadeOut, hook, stopBreak, humanize, swing, scaleShift, bassFromKick, reharmonize
+        case remove, fill, denser, sparser, arpeggiate, delay, fadeIn, fadeOut, hook, stopBreak, humanize, swing, scaleShift, bassFromKick, reharmonize, duplicateSection
     }
     public var kind: Kind
     public var target: SongEditTarget
@@ -146,6 +146,10 @@ public enum SongEditError: Error, LocalizedError, Equatable {
 extension SongEditOperation {
     /// Plain-language description shown before applying.
     public func summary(in project: Project) -> String {
+        if kind == .duplicateSection, let section = project.sections.first(where: { $0.id == sectionID }) {
+            let length = amount > 0 ? String(format: NSLocalizedString("%d bars", comment: "Song edit"), amount) : section.name
+            return String(format: NSLocalizedString("Add a copy of %@ after %@", comment: "Song edit operation"), length, section.name)
+        }
         let track = project.tracks.first { $0.id == target.trackID }
         var part = track?.displayName ?? "?"
         if let pads = target.pads, !pads.isEmpty, pads.count < 16 {
@@ -168,6 +172,7 @@ extension SongEditOperation {
         case .scaleShift: "Move %@ by scale steps in %@"
         case .bassFromKick: "Write %@ from the kick and chords in %@"
         case .reharmonize: "Restyle the chords on %@ in %@"
+        case .duplicateSection: "Add a copy of %@ after %@"
         case .delay: "Play %@ later in %@"
         case .fadeIn: "Fade %@ in over %@"
         case .fadeOut: "Fade %@ out over %@"

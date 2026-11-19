@@ -86,6 +86,16 @@ struct AssistantView:View {
                     }
                     if ambiguous {VStack(spacing:8){Button("Stretch chords evenly"){generate(.stretch)};Button("Repeat, one bar per chord"){generate(.repeatBars)}}.buttonStyle(.bordered).frame(maxWidth:.infinity)}
                     if let proposal,let candidate,let proposalSource{review(proposal,source:proposalSource,candidate:candidate)}
+                    if songEditPlan==nil,proposal==nil,let log=session.project.editLog,!log.isEmpty{
+                        // I41: recent phrase edits of this project; tap one to reuse it.
+                        VStack(alignment:.leading,spacing:6){
+                            SmallHeading(text:"RECENT EDITS")
+                            ForEach(Array(log.suffix(5).reversed().enumerated()),id:\.offset){_,text in
+                                Button{input=text}label:{Text(verbatim:text).font(.caption).lineLimit(2).frame(maxWidth:.infinity,minHeight:44,alignment:.leading)}
+                                    .buttonStyle(StudioQuietButtonStyle())
+                            }
+                        }.accessibilityIdentifier("assistant.recent-edits")
+                    }
                     if let songEditPlan,let songEditSource{
                         SongEditReview(session:session,plan:songEditPlan,source:songEditSource,candidate:songEditCandidate,
                                        choose:{reviewSongEdit(songEditPlan.choosing($0),source:songEditSource)},
@@ -302,7 +312,7 @@ struct AssistantView:View {
         // An edit of the open song works through local musical logic in every
         // mode, offline and without the system model.
         if !songRequest, SongEditParser.intent(input,project:snapshot) == .edit {
-            reviewSongEdit(SongEditParser.plan(input,project:snapshot),source:snapshot)
+            reviewSongEdit(SongEditParser.plan(input,project:snapshot,selectedSectionID:scope),source:snapshot)
             return
         }
         if songRequest && (mode != .onDeviceAI || !ai.available) {
@@ -385,7 +395,7 @@ struct AssistantView:View {
     private func applySongEdit(_ plan:SongEditPlan){
         guard session.project.id==plan.projectID,session.project.revision==plan.baseRevision else{self.error=SongEditError.stale.localizedDescription;return}
         session.endHarmonyPreview();session.finishTake();let revision=session.project.revision
-        session.edit{$0=try SongEditor.apply(plan,to:$0)}
+        session.edit{$0=try SongEditor.applyLogged(plan,to:$0)}
         guard session.project.revision>revision else{return}
         let firstBar=plan.operations.flatMap{$0.kind == .fill ? [$0.bars.upperBound-1]:$0.editedBars}.min() ?? 0
         if let section=session.project.sections.first(where:{$0.start<=firstBar*barTicks && $0.start+$0.length>firstBar*barTicks}){session.select(section)}
