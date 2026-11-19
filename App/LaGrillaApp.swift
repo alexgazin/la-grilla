@@ -16,6 +16,9 @@ import MusicDomain
                 session.sheet = .midiDevices;session.togglePlay()
                 if target=="midi-mapped"{session.midi.learning = .filter;try? await Task.sleep(for:.milliseconds(500));session.midi.sendFixture()}
             }
+            if target=="assistant-song-edit", let demo=try? SongEditDemo.project(name:NSLocalizedString("Two choruses",comment:"Song edit demo project")) {
+                await session.open(demo)
+            }
             if target.hasPrefix("perform") {
                 session.edit{p in try p.duplicateSection(p.sections[0].id,name:"Chorus")}
                 session.sheet = .perform

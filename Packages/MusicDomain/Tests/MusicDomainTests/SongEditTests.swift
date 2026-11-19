@@ -182,3 +182,22 @@ struct SongEditControlCommandTests {
         #expect(Set(en.protectedTracks) == Set(ru.protectedTracks))
     }
 }
+
+/// The on-screen walkthrough project behaves exactly as the UI test expects.
+struct SongEditDemoTests {
+    @Test func walkthroughProjectGivesTheReviewedPlanChoicesAndProblem() throws {
+        let p = try SongEditDemo.project()
+        for text in ["Бас и аккорды оставь. Убери бочку в первых двух тактах и добавь короткую сбивку перед первым припевом.",
+                     "Keep the bass and chords. Remove the kick in the first two bars and add a short fill before the first chorus."] {
+            let plan = SongEditParser.plan(text, project: p)
+            #expect(plan.isApplicable && plan.operations.count == 2, "\(plan.problems)")
+            #expect(Set(plan.affectedCells(in: p).map(\.trackID)) == [p.tracks[1].id])
+            let edited = try SongEditor.apply(plan, to: p)
+            #expect(!SongEditDiff(before: p, after: edited).isEmpty)
+        }
+        let choice = SongEditParser.plan("Add a fill before the chorus", project: p)
+        #expect(choice.choices.count == 2 && !choice.isApplicable && choice.choosing(1).isApplicable)
+        let unsupported = SongEditParser.plan("Add vocals to the second chorus", project: p)
+        #expect(!unsupported.isApplicable && unsupported.problems.first?.fragment.lowercased().contains("vocals") == true)
+    }
+}

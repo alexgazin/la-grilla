@@ -13,6 +13,10 @@ struct AssistantView:View {
     @State private var proposal:AssistantProposal?
     @State private var candidate:Project?
     @State private var proposalSource:Project?
+    // Build 45: an edit of the open project described in words.
+    @State private var songEditPlan:SongEditPlan?
+    @State private var songEditCandidate:Project?
+    @State private var songEditSource:Project?
     @State private var error:String?
     @State private var ambiguous=false
     @State private var previewB=false
@@ -51,7 +55,7 @@ struct AssistantView:View {
                         .onChange(of:input){_,value in
                             if value.count>2000{input=String(value.prefix(2000))}
                             if focused,!dictation.recording,!dictation.requesting,!dictation.finalizing{dictation.error=nil}
-                            if value != generatedInput{cancelGeneration();proposal=nil;candidate=nil;proposalSource=nil;usedUnavailableAIFallback=false}
+                            if value != generatedInput{cancelGeneration();proposal=nil;candidate=nil;proposalSource=nil;clearSongEdit();usedUnavailableAIFallback=false}
                             session.endHarmonyPreview()
                         }
                     dictationToolbar
@@ -80,6 +84,11 @@ struct AssistantView:View {
                     }
                     if ambiguous {VStack(spacing:8){Button("Stretch chords evenly"){generate(.stretch)};Button("Repeat, one bar per chord"){generate(.repeatBars)}}.buttonStyle(.bordered).frame(maxWidth:.infinity)}
                     if let proposal,let candidate,let proposalSource{review(proposal,source:proposalSource,candidate:candidate)}
+                    if let songEditPlan,let songEditSource{
+                        SongEditReview(session:session,plan:songEditPlan,source:songEditSource,candidate:songEditCandidate,
+                                       choose:{reviewSongEdit(songEditPlan.choosing($0),source:songEditSource)},
+                                       recalculate:{generate()},apply:{applySongEdit(songEditPlan)})
+                    }
                 }.padding(18)
             }.accessibilityIdentifier("assistant.review-scroll").scrollDismissesKeyboard(.interactively).background(Color.ink).navigationTitle("Assistant").navigationBarTitleDisplayMode(.inline)
                 .toolbar{ToolbarItem(placement:.cancellationAction){Button("Cancel"){closeEditor()}}}
@@ -93,7 +102,7 @@ struct AssistantView:View {
         .onChange(of:phase){_,p in if p == .background{cancelGeneration();dictation.cancel();restoreAudio()}else if p == .active{refreshAIStatus()}}
         .onReceive(NotificationCenter.default.publisher(for:AVAudioSession.interruptionNotification).receive(on:RunLoop.main)){_ in dictation.cancel();restoreAudio()}
         .onDisappear{cancelGeneration();dictation.cancel();restoreAudio();session.endHarmonyPreview()}
-        .onAppear{refreshAIStatus();if let i=ProcessInfo.processInfo.arguments.firstIndex(of:"--screen"),ProcessInfo.processInfo.arguments.count>i+1{let target=ProcessInfo.processInfo.arguments[i+1];if target=="assistant-proposal"{input="Tempo 110; Chorus 8 bars: Am F C G each 2 bars";generate()}else if target=="assistant-song-proposal"{input="Song: Tempo 108; Key D minor; Intro 4 bars: Dm Gm A Dm; Chorus 8 bars: Dm Gm C F each 2 bars";generate()}}}
+        .onAppear{refreshAIStatus();if let i=ProcessInfo.processInfo.arguments.firstIndex(of:"--screen"),ProcessInfo.processInfo.arguments.count>i+1{let target=ProcessInfo.processInfo.arguments[i+1];if target=="assistant-proposal"{input="Tempo 110; Chorus 8 bars: Am F C G each 2 bars";generate()}else if target=="assistant-song-edit"{input=Locale.preferredLanguages.first?.hasPrefix("ru")==true ? "Бас и аккорды оставь. Убери бочку в первых двух тактах и добавь короткую сбивку перед первым припевом.":"Keep the bass and chords. Remove the kick in the first two bars and add a short fill before the first chorus.";generate()}else if target=="assistant-song-proposal"{input="Song: Tempo 108; Key D minor; Intro 4 bars: Dm Gm A Dm; Chorus 8 bars: Dm Gm C F each 2 bars";generate()}}}
     }
     private func useProgressionExample(){
         let bars=session.section.length/barTicks
@@ -284,10 +293,16 @@ struct AssistantView:View {
         MusicalNotation.chordSymbol(chord,keyRoot:project.keyRoot,minor:project.minor,spelling:PitchSpelling(rawValue:pitchSpelling) ?? .automatic)
     }
     func generate(_ distribution:ChordDistribution?=nil){
-        cancelGeneration();focused=false;session.endHarmonyPreview();ambiguous=false;generatedInput=input;proposal=nil;candidate=nil;proposalSource=nil;error=nil;generatedWithAI=false;usedUnavailableAIFallback=false;availabilityError=false
+        cancelGeneration();focused=false;session.endHarmonyPreview();ambiguous=false;generatedInput=input;proposal=nil;candidate=nil;proposalSource=nil;clearSongEdit();error=nil;generatedWithAI=false;usedUnavailableAIFallback=false;availabilityError=false
         let snapshot=session.project,scope=session.section.id
         ai.refresh(localeIdentifier:aiLanguage)
         let songRequest = SongFormBrief.recognizes(input)
+        // An edit of the open song works through local musical logic in every
+        // mode, offline and without the system model.
+        if !songRequest, SongEditParser.intent(input,project:snapshot) == .edit {
+            reviewSongEdit(SongEditParser.plan(input,project:snapshot),source:snapshot)
+            return
+        }
         if songRequest && (mode != .onDeviceAI || !ai.available) {
             do {
                 let brief = try TrackBrief().suggesting(input)
@@ -348,7 +363,24 @@ struct AssistantView:View {
     }
     func cancelGeneration(){generationID+=1;generationTask?.cancel();generationTask=nil;timeoutTask?.cancel();timeoutTask=nil}
     private func resetReview(){
-        session.endHarmonyPreview();cancelGeneration();proposal=nil;candidate=nil;proposalSource=nil;usedUnavailableAIFallback=false;error=nil;availabilityError=false
+        session.endHarmonyPreview();cancelGeneration();proposal=nil;candidate=nil;proposalSource=nil;clearSongEdit();usedUnavailableAIFallback=false;error=nil;availabilityError=false
+    }
+    private func clearSongEdit(){songEditPlan=nil;songEditCandidate=nil;songEditSource=nil}
+    private func reviewSongEdit(_ plan:SongEditPlan,source:Project){
+        session.endHarmonyPreview()
+        songEditPlan=plan;songEditSource=source;songEditCandidate=nil
+        guard plan.isApplicable else{return}
+        do{songEditCandidate=try SongEditor.apply(plan,to:source)}
+        catch{self.error=error.localizedDescription;songEditPlan=nil;songEditSource=nil}
+    }
+    private func applySongEdit(_ plan:SongEditPlan){
+        guard session.project.id==plan.projectID,session.project.revision==plan.baseRevision else{self.error=SongEditError.stale.localizedDescription;return}
+        session.endHarmonyPreview();session.finishTake();let revision=session.project.revision
+        session.edit{$0=try SongEditor.apply(plan,to:$0)}
+        guard session.project.revision>revision else{return}
+        let firstBar=plan.operations.flatMap{$0.kind == .fill ? [$0.bars.upperBound-1]:$0.editedBars}.min() ?? 0
+        if let section=session.project.sections.first(where:{$0.start<=firstBar*barTicks && $0.start+$0.length>firstBar*barTicks}){session.select(section)}
+        closeEditor()
     }
     private func refreshAIStatus(){
         ai.refresh(localeIdentifier:aiLanguage)
