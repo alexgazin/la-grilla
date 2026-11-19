@@ -86,3 +86,31 @@ public struct MetronomeSettings: Codable, Equatable, Sendable {
         lg_metronome_config(kernel, Float(gainDB), accent ? 1 : 0, Int32(sound.rawValue)) != 0
     }
 }
+
+/// I36 · a master filter sweep over one section.
+public struct FilterSweep: Codable, Equatable, Sendable {
+    public var from: Double
+    public var to: Double
+    public init(from: Double, to: Double) { self.from = from; self.to = to }
+    public var isValid: Bool { from.isFinite && to.isFinite && (-1...1).contains(from) && (-1...1).contains(to) && from != to }
+    /// Ready-made sweeps offered in the section menu.
+    public static let openUp = FilterSweep(from: -0.8, to: 0), closeDown = FilterSweep(from: 0, to: -0.8)
+    public static let riseUp = FilterSweep(from: 0, to: 0.6), dropIn = FilterSweep(from: 0.6, to: 0)
+}
+
+public extension Project {
+    /// Filter ramps in kernel ticks, relative to `rangeStart` (exports rebase ticks to their range).
+    func filterRamps(rangeStart: Int = 0) -> [LGFilterRamp] {
+        sections.sorted { $0.start < $1.start }.compactMap { section in
+            guard let sweep = section.filterSweep, sweep.isValid else { return nil }
+            let start = section.start - rangeStart, end = section.start + section.length - rangeStart
+            guard end > 0 else { return nil }
+            return LGFilterRamp(start: Int32(max(0, start)), end: Int32(end), from: Float(sweep.from), to: Float(sweep.to))
+        }.prefix(32).map { $0 }
+    }
+    @discardableResult
+    func applyAutomation(to kernel: OpaquePointer, rangeStart: Int = 0) -> Bool {
+        let ramps = filterRamps(rangeStart: rangeStart)
+        return ramps.withUnsafeBufferPointer { lg_filter_automation(kernel, $0.baseAddress, Int32($0.count)) } != 0
+    }
+}

@@ -12,10 +12,10 @@ struct StudioDynamicsTests {
         return project
     }
 
-    private func render(_ project: Project) async throws -> (Data, RenderReceipt) {
+    private func render(_ project: Project, range: Range<Int> = 0..<barTicks) async throws -> (Data, RenderReceipt) {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".wav")
         defer { try? FileManager.default.removeItem(at: url) }
-        let receipt = try await OfflineRenderer.render(project, to: url, settings: WAVSettings(bitDepth: 16, tailSeconds: 0, dither: false), range: 0..<barTicks)
+        let receipt = try await OfflineRenderer.render(project, to: url, settings: WAVSettings(bitDepth: 16, tailSeconds: 0, dither: false), range: range)
         return (try Data(contentsOf: url), receipt)
     }
 
@@ -77,5 +77,37 @@ struct StudioDynamicsTests {
         #expect(decoded.sections[0].color == 2)
         project.sections[0].color = 4
         #expect(throws: MusicError.self) { try project.validate() }
+    }
+
+    @Test func sectionFilterSweepRendersAndRebasesToTheExportRange() async throws {
+        var project = Project(name: "Sweep", bars: 2)
+        project.sections = [Section(name: "A", start: 0, length: barTicks), Section(name: "B", start: barTicks, length: barTicks)]
+        project.patterns[1].drums = (0..<32).map { DrumEvent(tick: $0 * 240, pad: 2, velocity: 110) }
+        try project.validate()
+        let plain = try await render(project, range: 0..<project.length).0
+        var swept = project
+        swept.sections[1].filterSweep = .openUp
+        try swept.validate()
+        let ramps = swept.filterRamps(rangeStart: barTicks)
+        #expect(ramps.count == 1 && ramps[0].start == 0 && ramps[0].end == Int32(barTicks) && ramps[0].from == -0.8)
+        #expect(swept.filterRamps().first?.start == Int32(barTicks))
+        let (sweptAudio, _) = try await render(swept, range: 0..<swept.length)
+        // Exporting only bar 2 applies the same sweep from its first frame (rebased ramp).
+        let barTwo = samples(try await render(swept, range: barTicks..<swept.length).0)
+        let barTwoOpen = samples(try await render(project, range: barTicks..<project.length).0)
+        func level(_ x: [Int16], _ r: Range<Int>) -> Double { sqrt(x[r].reduce(0.0) { $0 + Double($1) * Double($1) } / Double(r.count)) }
+        let quarter = barTwo.count / 4
+        let early = level(barTwo, 0..<quarter) / level(barTwoOpen, 0..<quarter)
+        let late = level(barTwo, 3 * quarter..<barTwo.count) / level(barTwoOpen, 3 * quarter..<barTwo.count)
+        #expect(early < 0.3 && late > early * 2)
+        let differs = sweptAudio != plain
+        #expect(differs)
+        // Bar 1 (no sweep) is untouched.
+        let firstBarSame = sweptAudio.prefix(44 + 48000 * 2 * 2) == plain.prefix(44 + 48000 * 2 * 2)
+        #expect(firstBarSame)
+        swept.sections[1].filterSweep = FilterSweep(from: 0.2, to: 0.2)
+        #expect(throws: MusicError.self) { try swept.validate() }
+        let decoded = try JSONDecoder().decode(Project.self, from: JSONEncoder().encode(project))
+        #expect(decoded.sections[1].filterSweep == nil)
     }
 }

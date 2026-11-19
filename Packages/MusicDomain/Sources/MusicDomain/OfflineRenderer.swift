@@ -75,6 +75,7 @@ public enum OfflineRenderer {
         let fx=isolatedTrack==nil ? (project.masterFX ?? MasterFX()):MasterFX();lg_effects(kernel,Float(fx.filter),Float(fx.delayWet))
         lg_metronome(kernel, 0); lg_tail_on_end(kernel, settings.tailSeconds > 0 ? 1 : 0)
         guard project.applyDynamics(to: kernel, includeMaster: isolatedTrack == nil) else { throw ExportError.renderUnavailable }
+        if isolatedTrack == nil { guard project.applyAutomation(to: kernel, rangeStart: performance == nil ? range.lowerBound : 0) else { throw ExportError.renderUnavailable } }
         var left = [Float](repeating: 0, count: 4096), right = left
         // Settle the exact same DSP ramps before the first written sample.
         left.withUnsafeMutableBufferPointer { l in right.withUnsafeMutableBufferPointer { r in lg_render(kernel,l.baseAddress,r.baseAddress,Int32(min(4096,settings.sampleRate / 20))) } }

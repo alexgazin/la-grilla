@@ -41,6 +41,8 @@ void driveBass(LGKernel*k){std::array<LGTrackDynamics,2> d{none(),none()};d[1].d
 void crushBass(LGKernel*k){std::array<LGTrackDynamics,2> d{none(),none()};d[1].crushBits=4;assert(lg_dynamics(k,d.data(),2,0,-1));}
 void limitMaster(LGKernel*k){std::array<LGTrackDynamics,2> d{none(),none()};assert(lg_dynamics(k,d.data(),2,1,-1));assert(lg_limiter_latency(k)==72);}
 void sendHats(LGKernel*k){std::array<LGTrackDynamics,2> d{none(),none()};d[0].reverbSend=0.5f;assert(lg_dynamics(k,d.data(),2,0,-1));}
+void sweepOpen(LGKernel*k){LGFilterRamp ramp{0,3840*2,-0.9f,0.f};assert(lg_filter_automation(k,&ramp,1));}
+void noSweep(LGKernel*k){assert(lg_filter_automation(k,nullptr,0));}
 void quietClick(LGKernel*k){assert(lg_metronome_config(k,-12,1,0));}
 void flatClick(LGKernel*k){assert(lg_metronome_config(k,0,0,0));}
 }
@@ -126,6 +128,14 @@ int main(){
     assert(lr>0);                                                      // decorrelated stereo
     {LGTrackDynamics bad=none();bad.reverbSend=1.5f;auto*k=lg_create(rate);assert(!lg_dynamics(k,&bad,1,0,-1));lg_destroy(k);}
 
+    // I36 filter sweep: the low-pass opens across two bars; none = bit-identical.
+    std::vector<LGNote> hats16;for(int i=0;i<32;i++)hats16.push_back({i*240,120,40,110,0,2,1});
+    auto open16=run(hats16,frames,bpm,nullptr),none16=run(hats16,frames,bpm,noSweep),swept=run(hats16,frames,bpm,sweepOpen);
+    assert(open16.l==none16.l);
+    const double early=rms(swept.l,0,frames/4)/rms(open16.l,0,frames/4),late=rms(swept.l,frames*3/4,frames)/rms(open16.l,frames*3/4,frames);
+    assert(early<0.3&&late>0.5&&late>early*3);                         // still sweeping in the last quarter
+    {auto*k=lg_create(rate);LGFilterRamp bad[2]={{0,100,0,0.5f},{50,200,0,0}};assert(!lg_filter_automation(k,bad,2));bad[0].to=2;assert(!lg_filter_automation(k,bad,1));lg_destroy(k);}
+
     // I10 metronome: level and accent.
     std::vector<LGNote> silent={{0,1,60,1,1,-1,2}};
     auto clickNormal=run(silent,frameOf(1920,bpm),bpm,nullptr,-3,1),clickQuiet=run(silent,frameOf(1920,bpm),bpm,quietClick,-3,1),clickFlat=run(silent,frameOf(1920,bpm),bpm,flatClick,-3,1);
@@ -137,6 +147,6 @@ int main(){
     for(int i=0;i<1600;i++){accentDiff+=std::abs(clickNormal.l[size_t(i+8)]-clickNormal.l[size_t(q1+i+8)]);flatDiff+=std::abs(clickFlat.l[size_t(i+8)]-clickFlat.l[size_t(q1+i+8)]);}
     assert(accentDiff>1&&flatDiff<accentDiff*0.05);
 
-    std::printf("Studio dynamics: bypass bit-identical; send reverb return %.1f dB; choke leaves only the new pad; sidechain dip %.1f dB, recovery %.2f dB; drive crest %.2f -> %.2f; 4-bit bus %ld levels; limiter peak %.3f <= %.3f (no rail); click -12 dB = %.2f dB\n",
-        roomLevel,dip,recover,crestDry,crestDriven,long(distinct),peak(limited.l,0,frames),double(ceiling),db(ratio));
+    std::printf("Studio dynamics: bypass bit-identical; send reverb return %.1f dB; filter sweep %.2f -> %.2f of open level; choke leaves only the new pad; sidechain dip %.1f dB, recovery %.2f dB; drive crest %.2f -> %.2f; 4-bit bus %ld levels; limiter peak %.3f <= %.3f (no rail); click -12 dB = %.2f dB\n",
+        roomLevel,early,late,dip,recover,crestDry,crestDriven,long(distinct),peak(limited.l,0,frames),double(ceiling),db(ratio));
 }

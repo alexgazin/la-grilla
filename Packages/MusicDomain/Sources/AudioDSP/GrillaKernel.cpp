@@ -168,6 +168,25 @@ struct LGKernel {
     std::array<std::atomic<float>,MaxTracks> reverbSend{};SendReverb reverb;
     std::atomic<int> repeatPad{-1},repeatStep{240},repeatVelocity{100};std::atomic<uint32_t> repeatSerial{0};uint32_t repeatSeen=0;double repeatNextTick=-1,repeatFrames=0;
     std::atomic<uint64_t> bendIdentity{0};std::atomic<float> bendSemitones{0},bendModulation{0};double vibratoPhase=0;
+    std::array<std::atomic<int32_t>,32> rampStart{},rampEnd{};std::array<std::atomic<float>,32> rampFrom{},rampTo{};std::atomic<int> rampCount{0};
+    int rampCounter=0;bool rampApplied=false;float rampLast=0;
+    void automationTick(){
+        const int count=rampCount.load(std::memory_order_acquire);
+        if(count<=0&&!rampApplied)return;
+        if(++rampCounter<32)return;
+        rampCounter=0;
+        const double bpm=current>=0?slots[current].bpm:120;
+        float value=0;bool inside=false;
+        if(count>0&&active&&current>=0){
+            const double tick=position.load(std::memory_order_relaxed);
+            for(int i=0;i<count;i++){
+                const int s=rampStart[size_t(i)].load(std::memory_order_relaxed),e=rampEnd[size_t(i)].load(std::memory_order_relaxed);
+                if(tick>=s&&tick<e){const double t=(tick-s)/double(std::max(1,e-s));value=float(rampFrom[size_t(i)].load(std::memory_order_relaxed)+(rampTo[size_t(i)].load(std::memory_order_relaxed)-rampFrom[size_t(i)].load(std::memory_order_relaxed))*t);inside=true;break;}
+            }
+        }
+        if(inside){if(!rampApplied||std::abs(value-rampLast)>1e-4f){fx.prepare(value,delayTarget.load(),bpm);rampLast=value;rampApplied=true;}}
+        else if(rampApplied){fx.prepare(filterTarget.load(),delayTarget.load(),bpm);rampApplied=false;}
+    }
     std::atomic<int> clockOut{0};bool clockRunning=false;double clockNext=0;
     void clockEmit(int status,int a=0,int b=0){renderHub->outputEvent(outputState,hostNow,status,a,b);}
     void clockTick(){
@@ -633,6 +652,14 @@ void lg_pitch_bend(LGKernel*k,uint64_t identity,float semitones,float modulation
     k->bendSemitones.store(std::clamp(semitones,-12.f,12.f),std::memory_order_relaxed);
     k->bendModulation.store(std::clamp(modulation,0.f,1.f),std::memory_order_relaxed);
 }
+int lg_filter_automation(LGKernel*k,const LGFilterRamp*ramps,int count){
+    if(!k||count<0||count>32||(count>0&&!ramps))return 0;
+    int previous=-1;
+    for(int i=0;i<count;i++){const auto &r=ramps[i];if(r.start<0||r.end<=r.start||r.start<previous||!std::isfinite(r.from)||!std::isfinite(r.to)||r.from< -1||r.from>1||r.to< -1||r.to>1)return 0;previous=r.end;}
+    k->rampCount.store(0,std::memory_order_release);
+    for(int i=0;i<count;i++){k->rampStart[size_t(i)].store(ramps[i].start,std::memory_order_relaxed);k->rampEnd[size_t(i)].store(ramps[i].end,std::memory_order_relaxed);k->rampFrom[size_t(i)].store(ramps[i].from,std::memory_order_relaxed);k->rampTo[size_t(i)].store(ramps[i].to,std::memory_order_relaxed);}
+    k->rampCount.store(count,std::memory_order_release);return 1;
+}
 void lg_midi_clock_out(LGKernel*k,int enabled){if(k)k->clockOut.store(enabled?1:0,std::memory_order_relaxed);}
 int lg_pad_repeat(LGKernel*k,int pad,int step,int velocity){
     if(!k||pad< -1||pad>15)return 0;
@@ -820,7 +847,7 @@ void lg_render_midi(LGKernel*k,LGMIDIHub*hub,uint64_t hostTime,double hostTicksP
                 k->position.store(tick,std::memory_order_relaxed);k->previous=tick;k->elapsed++;
             }else k->position.store(tick);
         }
-        k->repeatTick();k->arpTick();k->clockTick();
+        k->repeatTick();k->arpTick();k->clockTick();k->automationTick();
         if(f==0){while(rd<wr){auto v=k->input[rd++%256];if(v.identity){v.track=k->identityTrack(v.identity);if(v.track>=0)v.instrument=k->slots[k->current].instruments[v.track];}else if(!v.preview)v.track=k->roleTrack(1,1);else if(v.track<0)v.track=k->roleTrack(0,0);if(v.track<0)continue;k->performance.emit(v.preview?9:8,v.track,float(v.velocity),v.value,v.instrument);k->trigger(v.preview?v.value:36,v.velocity,v.track,v.preview?-1:v.value,v.instrument,v.preview?0.65:1);}k->read.store(rd,std::memory_order_release);}
         // Boundary-time input belongs to the newly adopted layout. Applying it
         // before adoption would create an old-index voice and then clear it.

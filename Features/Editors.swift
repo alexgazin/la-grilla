@@ -366,6 +366,9 @@ struct SectionsView: View {
             Text("Automatic").tag(-1)
             ForEach(SongFormStyle.choices,id:\.index){choice in Label{Text(choice.name)}icon:{Image(systemName:"circle.fill").foregroundStyle(choice.color)}.tag(choice.index)}
         }.accessibilityIdentifier("section.color")
+        Picker("Filter sweep",selection:Binding(get:{sweepTag(section.filterSweep)},set:{tag in let id=section.id,value=sweep(tag);session.edit{p in if let i=p.sections.firstIndex(where:{$0.id==id}){p.sections[i].filterSweep=value}};actions=nil})){
+            Text("None").tag(0);Text("Open up").tag(1);Text("Close down").tag(2);Text("Rise").tag(3);Text("Drop in").tag(4)
+        }.accessibilityIdentifier("section.filter-sweep")
         Button("Move earlier"){move(section.id,by:-1);actions=nil}.disabled(session.project.sections.first?.id==section.id).accessibilityIdentifier("section.earlier")
         Button("Move later"){move(section.id,by:1);actions=nil}.disabled(session.project.sections.last?.id==section.id).accessibilityIdentifier("section.later")
         if session.project.sections.count>1{Button("Delete section",role:.destructive){pendingDelete=section.id;actions=nil}.accessibilityIdentifier("section.delete")}
@@ -373,6 +376,8 @@ struct SectionsView: View {
         .toolbar{ToolbarItem(placement:.cancellationAction){Button("Cancel"){actions=nil}}}}
         .presentationDetents([.medium,.large]).tint(.mint)
     }
+    private func sweep(_ tag:Int)->FilterSweep?{[nil,FilterSweep.openUp,.closeDown,.riseUp,.dropIn][max(0,min(4,tag))]}
+    private func sweepTag(_ value:FilterSweep?)->Int{[FilterSweep.openUp,.closeDown,.riseUp,.dropIn].firstIndex{$0==value}.map{$0+1} ?? 0}
     private func finishAction(){
         if let id=pendingRename,let section=session.project.sections.first(where:{$0.id==id}){name=section.name;editing=id}
         if let id=pendingDelete,session.project.sections.contains(where:{$0.id==id}){deleting=id}

@@ -245,6 +245,8 @@ public struct Section: Codable, Equatable, Identifiable, Sendable {
     public var id: UUID = UUID(); public var name: String; public var start: Int; public var length: Int
     /// I35: chosen colour (0 harmony, 1 drums, 2 bass, 3 mint). Nil = by name, as before.
     public var color: Int?
+    /// I36: master filter sweep across this section (from → to, −1 low-pass … 0 open … 1 high-pass).
+    public var filterSweep: FilterSweep?
     public init(name: String, start: Int = 0, length: Int) { self.name = name; self.start = start; self.length = length }
 }
 public struct Project: Codable, Equatable, Identifiable, Sendable {
@@ -302,7 +304,7 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
         guard (performanceTakes ?? []).count<=1 else{throw MusicError.limit}
         if let log=editLog{guard log.count<=32,log.allSatisfy({$0.count<=300}) else{throw MusicError.invalidProject}}
         for track in tracks{try track.dynamics?.validate()}
-        guard sections.allSatisfy({$0.color.map{(0...3).contains($0)} ?? true}) else{throw MusicError.invalidProject}
+        guard sections.allSatisfy({$0.color.map{(0...3).contains($0)} ?? true}),sections.allSatisfy({$0.filterSweep?.isValid ?? true}) else{throw MusicError.invalidProject}
         try midi?.validate(self)
         try masterEQ?.validate()
         try masterFX?.validate();try performanceTake?.validate()

@@ -525,7 +525,7 @@ private enum AudioRender {
             }
         } catch { self.error = error.localizedDescription; return false }
         guard ok != 0 else{error="Audio update could not be queued. Stop and retry.";return false}
-        p.applyDynamics(to: k)
+        p.applyDynamics(to: k); p.applyAutomation(to: k)
         lg_tail_on_end(k, !loop && p.hasComposedEnding == true ? 1 : 0)
         generation=next;sentRevisions[next]=p.revision;routing[next]=midiRouting(p)
         pruneRouting(k)
@@ -567,7 +567,7 @@ private enum AudioRender {
         let tracks=trackMix(p)
         let fx=p.masterFX ?? MasterFX()
         let accepted=tracks.withUnsafeBufferPointer{lg_mix_revision_eq(k,$0.baseAddress,Int32($0.count),Float(p.master),Float(fx.filter),Float(fx.delayWet),Int32(generation),p.equalizerBands())} != 0
-        if accepted{p.applyDynamics(to: k)}
+        if accepted{p.applyDynamics(to: k); p.applyAutomation(to: k)}
         if !accepted{error="Audio update could not be queued. Stop and retry."};return accepted
     }
     func play(countInBPM: Double? = nil) {
