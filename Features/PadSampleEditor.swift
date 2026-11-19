@@ -50,7 +50,7 @@ struct PadSampleEditor: View {
                             }
                         }
                         .padding(.horizontal, 14)
-                        .background(Color.panel, in: RoundedRectangle(cornerRadius: 16))
+                        .background(Color.panel, in: RoundedRectangle(cornerRadius: Luz.Radius.card))
                         if measuredEdit == edit, let gain = levels?.headroomGainDB {
                             Button("Leave 1 dB headroom") { adjust(.gain, to: gain, source: source) }
                                 .buttonStyle(.bordered).font(.subheadline)
@@ -355,8 +355,8 @@ private struct PadSampleWaveform: View {
                 handle("chevron.left", x: lastX, y: geometry.size.height - 15)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Color.panel, in: RoundedRectangle(cornerRadius: 16))
-            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .background(Color.panel, in: RoundedRectangle(cornerRadius: Luz.Radius.card))
+            .clipShape(RoundedRectangle(cornerRadius: Luz.Radius.card))
             .contentShape(Rectangle())
             .gesture(DragGesture(minimumDistance: 1).onChanged { gesture in
                 let target: SampleParameter

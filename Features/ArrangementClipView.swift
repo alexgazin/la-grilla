@@ -49,8 +49,8 @@ struct ArrangementClipFace: View {
                     .font(.system(size:11,design:.monospaced)).foregroundStyle(Color.muted).lineLimit(1)
             }
         }.padding(width<62 ? 3:9).frame(width:width,height:height,alignment:.topLeading)
-            .background(color.opacity(resizing ? 0.2:0.1),in:RoundedRectangle(cornerRadius:11,style:.continuous))
-            .overlay{RoundedRectangle(cornerRadius:11,style:.continuous).stroke(resizing ? Color.mint:color.opacity(0.4),lineWidth:resizing ? 2:1)}
+            .background(color.opacity(resizing ? 0.2:0.1),in:RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous))
+            .overlay{RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous).stroke(resizing ? Color.mint:color.opacity(0.4),lineWidth:resizing ? 2:1)}
             .contentShape(Rectangle())
     }
 }

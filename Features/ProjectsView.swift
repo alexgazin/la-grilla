@@ -22,7 +22,7 @@ struct ProjectsView: View {
     }
     var body: some View {NavigationStack{ScrollView{VStack(alignment:.leading,spacing:22){
         HStack{VStack(alignment:.leading,spacing:7){Text("Your next idea\nstarts here.").font(.system(size:30,weight:.medium));Text("A little studio. A world of possibilities.").font(.system(.caption)).foregroundStyle(Color.muted)};Spacer();Image(systemName:"square.grid.3x3").font(.system(size:42,weight:.ultraLight)).foregroundStyle(Color.mint)}.padding(.vertical,15)
-        Button{session.sheet = .newProject}label:{Label("New project",systemImage:"plus").font(.system(.body,weight:.semibold)).foregroundStyle(Color.ink).frame(maxWidth:.infinity,minHeight:52).background(Color.mint,in:RoundedRectangle(cornerRadius:12))}.buttonStyle(StudioQuietButtonStyle()).accessibilityIdentifier("project.new")
+        Button{session.sheet = .newProject}label:{Label("New project",systemImage:"plus").font(.system(.body,weight:.semibold)).foregroundStyle(Color.ink).frame(maxWidth:.infinity,minHeight:52).background(Color.mint,in:RoundedRectangle(cornerRadius:StudioMetrics.controlRadius))}.buttonStyle(StudioQuietButtonStyle()).accessibilityIdentifier("project.new")
         Button{showImport=true}label:{Label("Import project",systemImage:"square.and.arrow.down").font(.system(.subheadline,weight:.medium)).frame(maxWidth:.infinity,minHeight:44)}.buttonStyle(StudioQuietButtonStyle()).tint(.mint).accessibilityIdentifier("project.import")
         Button{guard !openingExample else{return};openingExample=true;Task{_ = await session.openExample();openingExample=false}}label:{Label("Open an example",systemImage:"music.note.list").frame(maxWidth:.infinity,minHeight:44)}.buttonStyle(StudioQuietButtonStyle()).tint(.mint).accessibilityIdentifier("project.example")
         if openingExample{ProgressView("Opening example…")}
@@ -119,7 +119,7 @@ struct NewProjectView: View {
         .interactiveDismissDisabled(creating)
     }
     private func templateButton(_ option:ProjectTemplate,title:LocalizedStringKey)->some View {
-        Button{template=option}label:{Text(title).frame(maxWidth:.infinity,minHeight:44).foregroundStyle(template==option ? Color.ink:Color.studioText).background(template==option ? Color.mint:Color.raised,in:RoundedRectangle(cornerRadius:10))}
+        Button{template=option}label:{Text(title).frame(maxWidth:.infinity,minHeight:44).foregroundStyle(template==option ? Color.ink:Color.studioText).background(template==option ? Color.mint:Color.raised,in:RoundedRectangle(cornerRadius:Luz.Radius.cell))}
             .buttonStyle(StudioQuietButtonStyle()).accessibilityIdentifier("project.template."+option.rawValue)
             .accessibilityAddTraits(template==option ? .isSelected:[])
     }

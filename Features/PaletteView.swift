@@ -90,11 +90,11 @@ struct PaletteView: View {
                 HStack(spacing: 10) {
                     Button { previewB = false; session.previewAssistant(session.project, wholeSong: false, sectionID: section.id, rangeOverride: range, loopOverride: true) } label: {
                         Text("A · Current").frame(maxWidth: .infinity, minHeight: 48)
-                            .background(session.harmonyPreview && !previewB ? Color.mint.opacity(0.2) : Color.raised, in: RoundedRectangle(cornerRadius: 10))
+                            .background(session.harmonyPreview && !previewB ? Color.mint.opacity(0.2) : Color.raised, in: RoundedRectangle(cornerRadius: Luz.Radius.cell))
                     }.accessibilityIdentifier("palettes.a")
                     Button { previewB = true; if let library { session.previewPalette(result.candidate, range: range, samples: library) } } label: {
                         Text("B · Palette").frame(maxWidth: .infinity, minHeight: 48)
-                            .background(session.harmonyPreview && previewB ? Color.mint.opacity(0.2) : Color.raised, in: RoundedRectangle(cornerRadius: 10))
+                            .background(session.harmonyPreview && previewB ? Color.mint.opacity(0.2) : Color.raised, in: RoundedRectangle(cornerRadius: Luz.Radius.cell))
                     }.accessibilityIdentifier("palettes.b")
                 }
                 if session.harmonyPreview { Button("Stop preview") { session.endHarmonyPreview() }.frame(minHeight: 44).accessibilityIdentifier("palettes.stop") }
@@ -183,8 +183,8 @@ private struct PaletteCard: View {
                 Text(LocalizedStringKey(style.brief)).font(.caption).foregroundStyle(Color.muted).multilineTextAlignment(.leading)
             }
             .padding(12).frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color.panel, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-            .overlay { RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(selected ? Color.mint : Color.outline, lineWidth: selected ? 2 : 1) }
+            .background(Color.panel, in: RoundedRectangle(cornerRadius: StudioMetrics.controlRadius, style: .continuous))
+            .overlay { RoundedRectangle(cornerRadius: StudioMetrics.controlRadius, style: .continuous).stroke(selected ? Color.mint : Color.outline, lineWidth: selected ? 2 : 1) }
         }
         .buttonStyle(.plain)
         .accessibilityAddTraits(selected ? .isSelected : [])

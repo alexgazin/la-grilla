@@ -212,7 +212,7 @@ struct GridView: View {
                 .font(.system(size:11,design:.monospaced)).foregroundStyle(Color.muted)
                 .modifier(GridZoomDiagnosticValue())
             IconButton(symbol:clipMode ? "pianokeys":"rectangle.3.group",label:clipMode ? "Edit chords":"Arrange clips",color:clipMode ? .mint:.muted){clipMode.toggle()}
-                .background(clipMode ? Color.mint.opacity(0.12):Color.clear,in:RoundedRectangle(cornerRadius:12,style:.continuous))
+                .background(clipMode ? Color.mint.opacity(0.12):Color.clear,in:RoundedRectangle(cornerRadius:StudioMetrics.controlRadius,style:.continuous))
                 .accessibilityIdentifier("grid.mode.clips").accessibilityValue(LocalizedStringKey(clipMode ? "Clips":"Chords"))
             Button { session.presentEditor(.sections) } label: {
                 ViewThatFits(in: .horizontal) {
@@ -249,8 +249,8 @@ struct GridView: View {
                     .font(.system(size:11,design:.monospaced)).opacity(selected ? 0.75:0.65)
             }.padding(.horizontal,12).frame(minHeight:44)
                 .foregroundStyle(selected ? Color.ink:Color.studioText)
-                .background(selected ? Color.mint:Color.panel,in:RoundedRectangle(cornerRadius:12,style:.continuous))
-                .overlay{RoundedRectangle(cornerRadius:12,style:.continuous).strokeBorder(selected ? Color.mint:Color.outline.opacity(0.65),lineWidth:0.75)}
+                .background(selected ? Color.mint:Color.panel,in:RoundedRectangle(cornerRadius:StudioMetrics.controlRadius,style:.continuous))
+                .overlay{RoundedRectangle(cornerRadius:StudioMetrics.controlRadius,style:.continuous).strokeBorder(selected ? Color.mint:Color.outline.opacity(0.65),lineWidth:0.75)}
         }.buttonStyle(StudioQuietButtonStyle()).accessibilityIdentifier("grid.section.\(section.id)")
             .accessibilityAddTraits(selected ? .isSelected:[])
             .modifier(ArrangementDragSource(payload:editingLocked ? nil:ArrangementDragPayload(project:session.project,sectionID:section.id).encoded()))
@@ -313,8 +313,8 @@ struct GridView: View {
         let isPlaying=session.audio.playing && session.audio.tick>=Double(clip.start) && session.audio.tick<Double(clip.start+clip.length)
         return ZStack(alignment:.bottomTrailing) {
             ArrangementClipFace(notes:notes,track:track,clip:clip,width:width,height:clipHeight,resizing:draft != nil)
-                .background(Color.panel,in:RoundedRectangle(cornerRadius:11,style:.continuous))
-                .overlay{RoundedRectangle(cornerRadius:11,style:.continuous).strokeBorder(Color.track(track.role).opacity(isPlaying && draft == nil ? 0.95:0),lineWidth:1.5)}
+                .background(Color.panel,in:RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous))
+                .overlay{RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous).strokeBorder(Color.track(track.role).opacity(isPlaying && draft == nil ? 0.95:0),lineWidth:1.5)}
                 .allowsHitTesting(false).accessibilityHidden(true)
             if let corner {
                 Image(systemName:"line.3.horizontal").font(.system(size:11,weight:.semibold)).rotationEffect(.degrees(90)).foregroundStyle(Color.track(track.role))
@@ -669,9 +669,9 @@ struct ChordTile: View {
             }
         }.padding(inset).frame(width:width,height:height,alignment:.topLeading)
             .background{
-                RoundedRectangle(cornerRadius:10,style:.continuous).fill(Color.panel)
+                RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous).fill(Color.panel)
                     .overlay{
-                        RoundedRectangle(cornerRadius:10,style:.continuous).fill(
+                        RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous).fill(
                             LinearGradient(colors:[Color.harmony.opacity(chord == nil ? 0.03:0.13),Color.harmony.opacity(chord == nil ? 0.01:0.04)],startPoint:.topLeading,endPoint:.bottomTrailing)
                         )
                     }
@@ -680,9 +680,9 @@ struct ChordTile: View {
                 RoundedRectangle(cornerRadius:1).fill(Color.harmony.opacity(chord == nil ? 0.25:0.8))
                     .frame(width:max(0,min(24,width-inset*2)),height:2).padding(.leading,inset).padding(.top,0.5)
             }
-            .overlay{RoundedRectangle(cornerRadius:10,style:.continuous).strokeBorder(Color.harmony.opacity(isPlaying ? 1:chord == nil ? 0.2:0.4),lineWidth:isPlaying ? 1.5:0.75)}
-            .overlay{if isPlaying && contrast != .increased{RoundedRectangle(cornerRadius:10,style:.continuous).fill(Color.harmony.opacity(0.14)).allowsHitTesting(false)}}
-            .clipShape(RoundedRectangle(cornerRadius:10,style:.continuous))
+            .overlay{RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous).strokeBorder(Color.harmony.opacity(isPlaying ? 1:chord == nil ? 0.2:0.4),lineWidth:isPlaying ? 1.5:0.75)}
+            .overlay{if isPlaying && contrast != .increased{RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous).fill(Color.harmony.opacity(0.14)).allowsHitTesting(false)}}
+            .clipShape(RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous))
             .shadow(color:Color.harmony.opacity(isPlaying && contrast != .increased ? 0.35:0),radius:8)
     }
 }

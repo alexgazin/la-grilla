@@ -58,7 +58,7 @@ struct ChordEditor: View {
     }
     // Keep the two frequent actions reachable while the chord catalog scrolls.
     private var chordActions:some View {
-        HStack{Button{preview()}label:{Label("Preview",systemImage:"speaker.wave.2").frame(maxWidth:.infinity,minHeight:48).background(Color.raised,in:RoundedRectangle(cornerRadius:10))}.accessibilityIdentifier("chord.preview");Button{apply()}label:{Text("Apply").fontWeight(.semibold).foregroundStyle(Color.ink).frame(maxWidth:.infinity,minHeight:48).background(Color.harmony,in:RoundedRectangle(cornerRadius:10))}.accessibilityIdentifier("chord.apply")}.buttonStyle(StudioQuietButtonStyle())
+        HStack{Button{preview()}label:{Label("Preview",systemImage:"speaker.wave.2").frame(maxWidth:.infinity,minHeight:48).background(Color.raised,in:RoundedRectangle(cornerRadius:Luz.Radius.cell))}.accessibilityIdentifier("chord.preview");Button{apply()}label:{Text("Apply").fontWeight(.semibold).foregroundStyle(Color.ink).frame(maxWidth:.infinity,minHeight:48).background(Color.harmony,in:RoundedRectangle(cornerRadius:Luz.Radius.cell))}.accessibilityIdentifier("chord.apply")}.buttonStyle(StudioQuietButtonStyle())
     }
     private var chordRootName:String {spelling == .automatic ? (chord.rootSpelling ?? pitchName(chord.root)):pitchName(chord.root)}
     private func pitchName(_ value:Int)->String{MusicalNotation.pitchClassName(value,keyRoot:session.project.keyRoot,minor:session.project.minor,spelling:spelling)}
@@ -509,7 +509,7 @@ private struct LatencyCalibrationRow: View {
             if running {
                 Button { tap() } label: {
                     Text("Tap on every click").frame(maxWidth: .infinity, minHeight: 88)
-                        .background(Color.mint.opacity(0.25), in: RoundedRectangle(cornerRadius: 14))
+                        .background(Color.mint.opacity(0.25), in: RoundedRectangle(cornerRadius: Luz.Radius.card))
                 }.buttonStyle(.plain).accessibilityIdentifier("settings.latency.tap")
                 Text(String(format: NSLocalizedString("%d taps", comment: "Latency calibration"), offsets.count)).font(.caption.monospacedDigit())
                 if let estimate {

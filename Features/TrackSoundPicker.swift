@@ -65,8 +65,8 @@ struct TrackSoundButton:View {
                 }.frame(maxWidth:.infinity,minHeight:compact ? 44:48,alignment:.leading)
                     .padding(.horizontal,compact ? 7:12)
                     .padding(.vertical,compact ? 0:4)
-                    .background(Color.panel,in:RoundedRectangle(cornerRadius:12,style:.continuous))
-                    .overlay{RoundedRectangle(cornerRadius:12,style:.continuous).stroke(Color.track(track.role).opacity(0.4),lineWidth:0.5)}
+                    .background(Color.panel,in:RoundedRectangle(cornerRadius:StudioMetrics.controlRadius,style:.continuous))
+                    .overlay{RoundedRectangle(cornerRadius:StudioMetrics.controlRadius,style:.continuous).stroke(Color.track(track.role).opacity(0.4),lineWidth:0.5)}
             }.buttonStyle(StudioQuietButtonStyle()).foregroundStyle(Color.track(track.role))
                 .disabled(locked)
                 .accessibilityLabel(String(format:NSLocalizedString("Sound for %@",comment:"Track sound"),track.displayName))
@@ -112,7 +112,7 @@ struct TrackSoundPicker:View {
                     HStack(alignment:.center,spacing:14){
                         Image(systemName:track.role == .drums ? "square.grid.2x2.fill":"pianokeys")
                             .font(.system(size:23,weight:.medium)).foregroundStyle(Color.track(track.role))
-                            .frame(width:52,height:52).background(Color.track(track.role).opacity(0.1),in:RoundedRectangle(cornerRadius:14,style:.continuous))
+                            .frame(width:52,height:52).background(Color.track(track.role).opacity(0.1),in:RoundedRectangle(cornerRadius:Luz.Radius.card,style:.continuous))
                         VStack(alignment:.leading,spacing:6){
                             Text(track.displayName).font(.title2.weight(.semibold)).foregroundStyle(Color.studioText)
                             Text(TrackSoundNames.current(track))
@@ -125,9 +125,9 @@ struct TrackSoundPicker:View {
                             paletteRow(palette,track:track)
                             if index<choices.count-1 {Rectangle().fill(Color.outline.opacity(0.6)).frame(height:0.5).padding(.leading,52)}
                         }
-                    }.background(Color.panel,in:RoundedRectangle(cornerRadius:16,style:.continuous))
-                        .clipShape(RoundedRectangle(cornerRadius:16,style:.continuous))
-                        .overlay{RoundedRectangle(cornerRadius:16,style:.continuous).stroke(Color.outline.opacity(0.75),lineWidth:0.5)}
+                    }.background(Color.panel,in:RoundedRectangle(cornerRadius:Luz.Radius.card,style:.continuous))
+                        .clipShape(RoundedRectangle(cornerRadius:Luz.Radius.card,style:.continuous))
+                        .overlay{RoundedRectangle(cornerRadius:Luz.Radius.card,style:.continuous).stroke(Color.outline.opacity(0.75),lineWidth:0.5)}
                     Text(LocalizedStringKey(previewAlongsideTrack || (!previewing && session.audio.playing) ? "Hear the sound with your track. Your notes stay unchanged.":"Preview plays a short example. Your notes stay unchanged."))
                         .font(.caption).foregroundStyle(Color.muted)
                     if previewAlongsideTrack || (!previewing && session.audio.playing){

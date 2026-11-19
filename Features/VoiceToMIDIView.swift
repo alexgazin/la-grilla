@@ -87,12 +87,12 @@ struct VoiceToMIDIView:View {
     }
     func draft(_ result:VoiceCaptureResult)->some View {
         VStack(alignment:.leading,spacing:16){
-            Canvas{context,size in for (i,amplitude) in result.analysis.waveform.enumerated(){let x=CGFloat(i)/CGFloat(max(1,result.analysis.waveform.count))*size.width,h=max(1,CGFloat(amplitude)*size.height);context.fill(Path(CGRect(x:x,y:(size.height-h)/2,width:2,height:h)),with:.color(.record.opacity(0.6)))}}.frame(height:64).background(Color.panel,in:RoundedRectangle(cornerRadius:10)).accessibilityLabel("Original voice waveform")
+            Canvas{context,size in for (i,amplitude) in result.analysis.waveform.enumerated(){let x=CGFloat(i)/CGFloat(max(1,result.analysis.waveform.count))*size.width,h=max(1,CGFloat(amplitude)*size.height);context.fill(Path(CGRect(x:x,y:(size.height-h)/2,width:2,height:h)),with:.color(.record.opacity(0.6)))}}.frame(height:64).background(Color.panel,in:RoundedRectangle(cornerRadius:Luz.Radius.cell)).accessibilityLabel("Original voice waveform")
             HStack{Text("\(notes.count) notes").font(.headline).accessibilityIdentifier("voice.note-count");Spacer();Text("\(notes.filter{($0.confidence ?? 1)<0.9}.count) uncertain").font(.caption).foregroundStyle(Color.harmony)}
             if notes.isEmpty{Text("No stable notes were found. Listen to the original or try a clearer phrase.").font(.callout).foregroundStyle(Color.harmony)}
             HStack(spacing:10){
-                Button{original()}label:{Label(LocalizedStringKey(capture.originalPlaying ? "Stop original":"Original voice"),systemImage:"waveform").frame(maxWidth:.infinity,minHeight:48).background(Color.raised,in:RoundedRectangle(cornerRadius:10))}.disabled(applying).accessibilityIdentifier("voice.original")
-                Button{instrument()}label:{Label("Instrument",systemImage:"pianokeys").frame(maxWidth:.infinity,minHeight:48).background(Color.raised,in:RoundedRectangle(cornerRadius:10))}.disabled(notes.isEmpty || applied || applying).accessibilityIdentifier("voice.instrument")
+                Button{original()}label:{Label(LocalizedStringKey(capture.originalPlaying ? "Stop original":"Original voice"),systemImage:"waveform").frame(maxWidth:.infinity,minHeight:48).background(Color.raised,in:RoundedRectangle(cornerRadius:Luz.Radius.cell))}.disabled(applying).accessibilityIdentifier("voice.original")
+                Button{instrument()}label:{Label("Instrument",systemImage:"pianokeys").frame(maxWidth:.infinity,minHeight:48).background(Color.raised,in:RoundedRectangle(cornerRadius:Luz.Radius.cell))}.disabled(notes.isEmpty || applied || applying).accessibilityIdentifier("voice.instrument")
             }.font(.subheadline)
             if session.harmonyPreview{Button("Stop preview"){session.endHarmonyPreview()}.frame(minHeight:44).accessibilityIdentifier("voice.stop-preview")}
             DisclosureGroup("Rhythm and scale"){
@@ -131,7 +131,7 @@ struct VoiceToMIDIView:View {
                 for beat in 0...sectionLength/ppq{let x=CGFloat(beat*ppq)/CGFloat(sectionLength)*size.width;var line=Path();line.move(to:CGPoint(x:x,y:0));line.addLine(to:CGPoint(x:x,y:size.height));context.stroke(line,with:.color(.raised),lineWidth:1)}
             }
             ForEach(notes){n in Button{selected=n.id}label:{RoundedRectangle(cornerRadius:3).fill((n.confidence ?? 1)<0.9 ? Color.harmony:Color.mint).opacity(selected==n.id ? 1:0.7).frame(width:max(8,CGFloat(n.duration)/CGFloat(sectionLength)*geo.size.width),height:max(8,geo.size.height/CGFloat(maximum-minimum+1)-3))}.buttonStyle(StudioQuietButtonStyle()).offset(x:CGFloat(n.tick)/CGFloat(sectionLength)*geo.size.width,y:CGFloat(maximum-n.pitch)/CGFloat(maximum-minimum+1)*geo.size.height).accessibilityLabel(noteName(n.pitch))}
-        }}.frame(height:150).background(Color.panel,in:RoundedRectangle(cornerRadius:10))
+        }}.frame(height:150).background(Color.panel,in:RoundedRectangle(cornerRadius:Luz.Radius.cell))
     }
     var eventEditor:some View {
         VStack(spacing:10){

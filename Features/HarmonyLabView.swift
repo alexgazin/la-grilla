@@ -28,7 +28,7 @@ struct HarmonyLabView:View {
                     }
                     if proposal==nil || showStyles {
                         LazyVGrid(columns:[GridItem(.flexible()),GridItem(.flexible())],spacing:6){ForEach(HarmonyStyle.allCases,id:\.self){value in
-                            Button{style=value;invalidate()}label:{HStack(spacing:6){Text(LocalizedStringKey(value.title)).font(.system(.subheadline,weight:.medium));Spacer(minLength:2);if style==value{Image(systemName:"checkmark").font(.caption.weight(.semibold))}}.padding(.horizontal,12).frame(maxWidth:.infinity,minHeight:44).foregroundStyle(style==value ? Color.ink:Color.studioText).background(style==value ? Color.harmony:Color.panel,in:RoundedRectangle(cornerRadius:12,style:.continuous))}.buttonStyle(StudioQuietButtonStyle())
+                            Button{style=value;invalidate()}label:{HStack(spacing:6){Text(LocalizedStringKey(value.title)).font(.system(.subheadline,weight:.medium));Spacer(minLength:2);if style==value{Image(systemName:"checkmark").font(.caption.weight(.semibold))}}.padding(.horizontal,12).frame(maxWidth:.infinity,minHeight:44).foregroundStyle(style==value ? Color.ink:Color.studioText).background(style==value ? Color.harmony:Color.panel,in:RoundedRectangle(cornerRadius:StudioMetrics.controlRadius,style:.continuous))}.buttonStyle(StudioQuietButtonStyle())
                         }}
                         Text(description(style)).font(.caption).foregroundStyle(Color.muted)
                     }else{

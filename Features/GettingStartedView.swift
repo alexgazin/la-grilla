@@ -97,7 +97,7 @@ private struct IntroSurface: ViewModifier {
     @ViewBuilder func body(content: Content) -> some View {
         #if compiler(>=6.2)
         if #available(iOS 26.0, *), !reduceTransparency, !increasedContrast {
-            content.glassEffect(.regular, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+            content.glassEffect(.regular, in: RoundedRectangle(cornerRadius: Luz.Radius.sheet, style: .continuous))
         } else {
             content.modifier(StudioSurface())
         }

@@ -54,7 +54,7 @@ struct MixerView: View {
             Button { session.endHarmonyPreview(); session.sheet = .palettes } label: {
                 Label("Palettes", systemImage: "paintpalette").font(.caption.weight(.semibold))
                     .frame(minHeight: 44).padding(.horizontal, 10)
-                    .background(Color.raised.opacity(0.55), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .background(Color.raised.opacity(0.55), in: RoundedRectangle(cornerRadius: StudioMetrics.controlRadius, style: .continuous))
             }.buttonStyle(StudioQuietButtonStyle()).accessibilityIdentifier("mixer.palettes")
                 .disabled(session.performance.contextActive)
             MixPresetMenu(session: session)
@@ -247,7 +247,7 @@ struct MixerView: View {
             }
             .foregroundStyle(Color.muted)
             .frame(maxWidth: .infinity, minHeight: 48)
-            .background(Color.ink.opacity(0.7), in: RoundedRectangle(cornerRadius: 10))
+            .background(Color.ink.opacity(0.7), in: RoundedRectangle(cornerRadius: Luz.Radius.cell))
         }
     }
 
@@ -577,7 +577,7 @@ private struct MixPresetMenu: View {
         } label: {
             Image(systemName: "dial.medium").font(.system(size: 17, weight: .medium))
                 .frame(width: 44, height: 44)
-                .background(Color.raised.opacity(0.55), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .background(Color.raised.opacity(0.55), in: RoundedRectangle(cornerRadius: StudioMetrics.controlRadius, style: .continuous))
         }
         .accessibilityLabel("Mix presets").accessibilityIdentifier("mixer.mix-presets")
         .disabled(session.performance.contextActive)
@@ -602,7 +602,7 @@ private struct MasterSpectrum: View {
         }
         .frame(height: 44)
         .padding(.horizontal, 4)
-        .background(Color.ink.opacity(0.7), in: RoundedRectangle(cornerRadius: 10))
+        .background(Color.ink.opacity(0.7), in: RoundedRectangle(cornerRadius: Luz.Radius.cell))
         .accessibilityElement()
         .accessibilityLabel("Master spectrum")
         .accessibilityIdentifier("mixer.spectrum")

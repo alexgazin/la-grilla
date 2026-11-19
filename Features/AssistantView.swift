@@ -202,7 +202,7 @@ struct AssistantView:View {
                     Text(verbatim:String(code.prefix(2)).uppercased()).font(.caption.weight(.semibold))
                         .frame(minWidth:44,minHeight:44)
                         .foregroundStyle(selection.wrappedValue==code ? Color.ink:Color.muted)
-                        .background(selection.wrappedValue==code ? Color.mint:Color.clear,in:RoundedRectangle(cornerRadius:11,style:.continuous))
+                        .background(selection.wrappedValue==code ? Color.mint:Color.clear,in:RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous))
                 }.buttonStyle(StudioQuietButtonStyle())
                     .accessibilityIdentifier(identifier+String(code.prefix(2)))
                     .accessibilityAddTraits(selection.wrappedValue==code ? .isSelected:[])
@@ -231,7 +231,7 @@ struct AssistantView:View {
             AssistantHarmonyReview(proposal:proposal,source:source,candidate:candidate)
             if !proposal.assumptions.isEmpty{SmallHeading(text:"ASSUMPTIONS");ForEach(proposal.assumptions,id:\.self){Text($0).font(.caption).foregroundStyle(Color.muted)}}
             ForEach(proposal.warnings,id:\.self){Label($0,systemImage:"exclamationmark.triangle").font(.caption).foregroundStyle(Color.harmony)}
-            HStack(spacing:10){Button{previewB=false;session.previewAssistant(source,wholeSong:proposal.changesWholeSong,sectionID:proposal.scopeSectionID)}label:{Text("A · Original").frame(maxWidth:.infinity,minHeight:48).background(session.harmonyPreview && !previewB ? Color.mint.opacity(0.2):Color.raised,in:RoundedRectangle(cornerRadius:10))}.accessibilityIdentifier("assistant.a");Button{previewB=true;session.previewAssistant(candidate,wholeSong:proposal.changesWholeSong,sectionID:proposal.scopeSectionID)}label:{Text("B · Proposal").frame(maxWidth:.infinity,minHeight:48).background(session.harmonyPreview && previewB ? Color.mint.opacity(0.2):Color.raised,in:RoundedRectangle(cornerRadius:10))}.accessibilityIdentifier("assistant.b")}
+            HStack(spacing:10){Button{previewB=false;session.previewAssistant(source,wholeSong:proposal.changesWholeSong,sectionID:proposal.scopeSectionID)}label:{Text("A · Original").frame(maxWidth:.infinity,minHeight:48).background(session.harmonyPreview && !previewB ? Color.mint.opacity(0.2):Color.raised,in:RoundedRectangle(cornerRadius:Luz.Radius.cell))}.accessibilityIdentifier("assistant.a");Button{previewB=true;session.previewAssistant(candidate,wholeSong:proposal.changesWholeSong,sectionID:proposal.scopeSectionID)}label:{Text("B · Proposal").frame(maxWidth:.infinity,minHeight:48).background(session.harmonyPreview && previewB ? Color.mint.opacity(0.2):Color.raised,in:RoundedRectangle(cornerRadius:Luz.Radius.cell))}.accessibilityIdentifier("assistant.b")}
             if session.harmonyPreview{Button("Stop preview"){session.endHarmonyPreview()}.frame(minHeight:44).accessibilityIdentifier("assistant.stop-preview")}
             Button{apply(proposal)}label:{Text("Apply proposal")}.buttonStyle(StudioActionStyle()).accessibilityIdentifier("assistant.apply")
             Text("One Undo restores the whole change.").font(.caption).foregroundStyle(Color.muted)

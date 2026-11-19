@@ -64,7 +64,7 @@ struct StudioView: View {
         IconButton(symbol:"square.and.arrow.up",label:"Export"){session.finishTake();session.exportTake=nil;session.sheet = .export}.accessibilityIdentifier("export.open")
     }.padding(.horizontal,8).frame(minHeight:58).background(Color.panel)}
     private var compactSidebar:some View {VStack(spacing:4){
-        Button{session.togglePlay()}label:{Image(systemName:session.audio.playing ? "stop.fill":"play.fill").font(.title2).foregroundStyle(Color.ink).frame(width:72,height:48).background(Color.mint,in:RoundedRectangle(cornerRadius:12))}.accessibilityLabel(session.audio.playing ? "Stop":"Play")
+        Button{session.togglePlay()}label:{Image(systemName:session.audio.playing ? "stop.fill":"play.fill").font(.title2).foregroundStyle(Color.ink).frame(width:72,height:48).background(Color.mint,in:RoundedRectangle(cornerRadius:StudioMetrics.controlRadius))}.accessibilityLabel(session.audio.playing ? "Stop":"Play")
         HStack(spacing:0){IconButton(symbol:"backward.end.fill",label:"Return to start"){session.rewind()};IconButton(symbol:session.recording ? "stop.circle.fill":"record.circle",label:session.recording ? "Finish drum take":"Record drums",color:.record){session.record()}.disabled(session.performance.contextActive).opacity(session.performance.contextActive ? 0.35:1)}
         HStack(spacing:0){IconButton(symbol:"repeat",label:"Toggle loop",color:session.loop ? .mint:.muted){session.setLoop(enabled:!session.loop)}.disabled(session.performance.contextActive).opacity(session.performance.contextActive ? 0.35:1);Button{if session.performance.contextActive{session.sheet = .perform}}label:{Text(String(format:"%02d:%d",Int(session.audio.tick)/barTicks+1,Int(session.audio.tick)%barTicks/ppq+1)).font(.caption.monospaced()).frame(minWidth:44,minHeight:44)}.accessibilityIdentifier("perform.transport").accessibilityValue(Text(verbatim:session.runtimeTraceReport))}
         tab("square.grid.3x3","Grid",0);tab("square.grid.2x2.fill","Jam",1);tab("slider.vertical.3","Mixer",2)
@@ -78,8 +78,8 @@ struct StudioView: View {
         HStack(spacing:8){
             Button{session.sheet = .projects}label:{
                 StudioMark().frame(width:44,height:44)
-                    .background(Color.panel,in:RoundedRectangle(cornerRadius:14))
-                    .overlay{RoundedRectangle(cornerRadius:14).strokeBorder(Color.outline.opacity(0.7),lineWidth:0.75)}
+                    .background(Color.panel,in:RoundedRectangle(cornerRadius:Luz.Radius.card))
+                    .overlay{RoundedRectangle(cornerRadius:Luz.Radius.card).strokeBorder(Color.outline.opacity(0.7),lineWidth:0.75)}
             }.buttonStyle(StudioQuietButtonStyle()).accessibilityLabel("Projects")
             VStack(alignment:.leading,spacing:0){
                 HStack(spacing:6){
@@ -102,9 +102,9 @@ struct StudioView: View {
                     .disabled(!session.history.canUndo || session.recording || session.armed).opacity(session.history.canUndo ? 1:0.3)
                 IconButton(symbol:"arrow.uturn.forward",label:"Redo"){session.redo()}
                     .disabled(!session.history.canRedo || session.recording || session.armed).opacity(session.history.canRedo ? 1:0.3)
-            }.background(Color.panel,in:RoundedRectangle(cornerRadius:14))
+            }.background(Color.panel,in:RoundedRectangle(cornerRadius:Luz.Radius.card))
             IconButton(symbol:"square.and.arrow.up",label:"Export"){session.finishTake();session.exportTake=nil;session.sheet = .export}
-                .background(Color.raised,in:RoundedRectangle(cornerRadius:14)).accessibilityIdentifier("export.open")
+                .background(Color.raised,in:RoundedRectangle(cornerRadius:Luz.Radius.card)).accessibilityIdentifier("export.open")
         }.padding(.horizontal,12).padding(.top,8).padding(.bottom,6)
     }
     private var transportStatus: LocalizedStringKey {

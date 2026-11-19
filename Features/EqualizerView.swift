@@ -77,7 +77,7 @@ struct EqualizerView: View {
                 Text(LocalizedStringKey(activePreset?.name ?? "Custom EQ"))
                 Spacer()
                 Image(systemName:"chevron.up.chevron.down")
-            }.padding(12).background(Color.panel,in:RoundedRectangle(cornerRadius:12))
+            }.padding(12).background(Color.panel,in:RoundedRectangle(cornerRadius:StudioMetrics.controlRadius))
         }.accessibilityLabel("EQ presets").accessibilityValue(LocalizedStringKey(activePreset?.name ?? "Custom EQ"))
     }
 
@@ -110,7 +110,7 @@ struct EqualizerView: View {
                     context.fill(Path(ellipseIn:CGRect(x:p.x-r,y:p.y-r,width:2*r,height:2*r)),with:.color(b.enabled && snapshot.enabled ? .harmony:.muted))
                 }
             }
-            .frame(height:154).background(Color.panel,in:RoundedRectangle(cornerRadius:10))
+            .frame(height:154).background(Color.panel,in:RoundedRectangle(cornerRadius:Luz.Radius.cell))
             .overlay { GeometryReader { proxy in
                 Color.clear.contentShape(Rectangle())
                     .gesture(DragGesture(minimumDistance:0).onChanged{ value in
@@ -161,7 +161,7 @@ struct EqualizerView: View {
                 control("Gain",value:String(format:"%+.1f dB",band.gain),binding:Binding(get:{band.gain},set:{ v in update(continuous:true){$0.bands[selected].gain=v} }),range:-18...18)
             }
             control("Q",value:String(format:"%.2f",band.q),binding:Binding(get:{log2(band.q)},set:{ v in update(continuous:true){$0.bands[selected].q=pow(2,v)} }),range:-2...3)
-        }.padding(14).background(Color.panel,in:RoundedRectangle(cornerRadius:14))
+        }.padding(14).background(Color.panel,in:RoundedRectangle(cornerRadius:Luz.Radius.card))
     }
     private func control(_ title:LocalizedStringKey,value:String,binding:Binding<Double>,range:ClosedRange<Double>)->some View {
         VStack(spacing:3) {

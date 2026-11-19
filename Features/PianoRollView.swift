@@ -508,8 +508,8 @@ private struct RollCanvas:View {
             Text("End \(position(note.tick+note.duration))").font(.system(.caption,design:.monospaced,weight:.semibold))
             Text("\(Double(note.duration)/Double(ppq),specifier:"%.2f") beats").font(.caption2.monospacedDigit()).foregroundStyle(Color.muted)
         }.foregroundStyle(Color.studioText).padding(.horizontal,12).padding(.vertical,8)
-            .background(Color.raised,in:RoundedRectangle(cornerRadius:10,style:.continuous))
-            .overlay{RoundedRectangle(cornerRadius:10,style:.continuous).stroke(Color.mint,lineWidth:1)}
+            .background(Color.raised,in:RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous))
+            .overlay{RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous).stroke(Color.mint,lineWidth:1)}
             .fixedSize().position(readoutPosition(note))
             .accessibilityIdentifier("notes.drag-preview")
     }
