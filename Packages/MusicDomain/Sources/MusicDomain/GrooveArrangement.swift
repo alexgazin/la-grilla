@@ -143,3 +143,75 @@ enum GrooveArrangement {
         }
     }
 }
+
+extension GrooveArrangement {
+    static func make(form: SongFormBrief, brief: TrackBrief, name: String) throws -> Project {
+        try form.validate()
+        var song = Project(name: name, bars: form.totalBars)
+        song.bpm = Double(brief.tempo)
+        song.keyRoot = brief.root
+        song.minor = brief.minor
+        song.sections.removeAll()
+        song.patterns.removeAll()
+        var bass = Track(role: .melody)
+        bass.name = NSLocalizedString("Bass", comment: "Editable instrumental bass line")
+        bass.presetVersion = SoundPalette.warm.rawValue
+        song.tracks = [Track(role: .harmony), Track(role: .drums), bass, Track(role: .melody)]
+        song.tracks[0].gain = -9
+        song.tracks[3].gain = -11
+
+        var patternsByPart: [[Pattern]] = []
+        for part in form.parts {
+            let cycle = try part.chords()
+            let length = part.bars * barTicks
+            var keys = Pattern(length: length), drums = Pattern(length: length)
+            var low = Pattern(length: length), lead = Pattern(length: length)
+            var previous: [Int] = []
+            for bar in 0..<part.bars {
+                let at = bar * barTicks
+                var chord = cycle[bar * cycle.count / part.bars]
+                chord.voicedNotes = try HarmonyLab.voicing(chord, previous: previous, low: 48, high: 82)
+                previous = chord.notes
+                keys.chords.append(ChordEvent(tick: at, duration: part.relaxed ? barTicks : 2*ppq, chord: chord))
+                let drumSeed = brief.seed &+ brief.drumVariation
+                for hit in percussion(style: brief.style, feel: brief.hipHopFeel, seed: drumSeed, bar: bar, lift: !part.relaxed) {
+                    if form.offbeatHats && [2,3,10].contains(hit.pad) { continue }
+                    if part.relaxed && hit.velocity < 64 { continue }
+                    drums.drums.append(DrumEvent(tick: at+hit.tick, pad: hit.pad, velocity: part.relaxed ? hit.velocity*2/3 : hit.velocity))
+                }
+                if form.offbeatHats {
+                    for beat in 0..<4 {
+                        drums.drums.append(DrumEvent(tick: at+beat*ppq+ppq/2, pad: 2, velocity: part.relaxed ? 57 : 82))
+                    }
+                }
+                let next = cycle[((bar+1) % part.bars) * cycle.count / part.bars]
+                if part.relaxed {
+                    low.notes?.append(NoteEvent(tick: at, duration: 2*ppq, pitch: 36+(chord.slashBass ?? chord.root), velocity: 74))
+                } else {
+                    low.notes?.append(contentsOf: bassLine(chord, next: next, style: brief.style, feel: brief.hipHopFeel,
+                                                         seed: brief.seed &+ brief.bassVariation, bar: bar, lift: true, end: barTicks, at: at))
+                }
+                let phrase = melody(chord, style: brief.style, seed: brief.seed, bar: bar, lift: !part.relaxed, end: barTicks, at: at)
+                lead.notes?.append(contentsOf: part.relaxed ? phrase.prefix(1).map {
+                    NoteEvent(tick: $0.tick, duration: ppq, pitch: $0.pitch, velocity: 60)
+                } : phrase)
+            }
+            drums.drums.sort { ($0.tick, $0.pad) < ($1.tick, $1.pad) }
+            let patterns = [keys, drums, low, lead]
+            patternsByPart.append(patterns)
+            song.patterns.append(contentsOf: patterns)
+        }
+        var tick = 0
+        for source in form.order {
+            let length = form.parts[source].bars * barTicks
+            let label = ["A","B","C"][source]
+            song.sections.append(Section(name: label, start: tick, length: length))
+            for (track, pattern) in patternsByPart[source].enumerated() {
+                song.tracks[track].clips.append(Clip(patternID: pattern.id, start: tick, length: length))
+            }
+            tick += length
+        }
+        try song.validate()
+        return song
+    }
+}

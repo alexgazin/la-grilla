@@ -94,7 +94,7 @@ import Observation
         UserDefaults.standard.set(["bars":loopBars,"enabled":loop],forKey:key)
     }
     func adoptGeneratedSketchLoop(bars:Int){
-        guard [4,8,16].contains(bars),!recording,!armed else{return}
+        guard (1...64).contains(bars),!recording,!armed else{return}
         UserDefaults.standard.set(["bars":bars,"enabled":true],forKey:generatedLoopKey(project.id))
         setLoop(bars:bars,enabled:true)
     }

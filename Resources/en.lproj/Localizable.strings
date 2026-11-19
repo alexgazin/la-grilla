@@ -961,3 +961,21 @@
 "Arrangement" = "Arrangement";
 
 "Prepared with the offline generator. Listen before creating a new project." = "Prepared with the offline generator. Listen before creating a new project.";
+
+"This section request includes instructions the offline arranger cannot play yet." = "This section request includes instructions the offline arranger cannot play yet.";
+
+"Give each part a bar count. The song can contain up to 64 bars in total." = "Give each part a bar count. The song can contain up to 64 bars in total.";
+
+"Enter a chord progression for each part, for example A, Bb, C, D." = "Enter a chord progression for each part, for example A, Bb, C, D.";
+
+"Describe the parts in order. A return must refer to an earlier part." = "Describe the parts in order. A return must refer to an earlier part.";
+
+"Try a workout arrangement" = "Try a workout arrangement";
+
+"Workout in D minor. Four on the floor, offbeat hats. Part A 8 bars chords A, Bb, C, D. Part B 16 bars chords D, E, F, G quieter. Return to part A." = "Workout in D minor. Four on the floor, offbeat hats. Part A 8 bars chords A, Bb, C, D. Part B 16 bars chords D, E, F, G quieter. Return to part A.";
+
+"Repeats the source part, including edits." = "Repeats the source part, including edits.";
+
+"Quieter part" = "Quieter part";
+
+"Tempo is a suggestion. Adjust it above." = "Tempo is a suggestion. Adjust it above.";

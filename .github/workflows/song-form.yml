@@ -1,7 +1,7 @@
 name: Song form on iPhone Simulator
 on:
   push:
-    branches: [feat/song-board]
+    branches: [feat/song-board, feat/song-brief-39]
   workflow_dispatch:
 permissions:
   contents: read
@@ -33,6 +33,7 @@ jobs:
         run: |
           DEVICE=$(cat /tmp/grilla-simulator-id)
           CASES=(ArrangementUITests/testSongFormAddsDragsAndUndoesWholeSection LiveEditingTests/testDuplicateMoveAndDeleteSectionDuringPlayback AssistantCompositionTests/testFullSongReviewAppliesAsOneUndoOnCommandFallback)
+          if [[ "$GITHUB_REF_NAME" == "feat/song-brief-39" ]]; then CASES=(SketchGenerationTests/testWorkoutFormReviewAndCreate); fi
           REQUIRED=()
           SELECTED=()
           for CASE_ID in "${CASES[@]}"; do

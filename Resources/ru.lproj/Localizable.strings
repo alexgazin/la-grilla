@@ -963,3 +963,21 @@
 "Arrangement" = "Аранжировка";
 
 "Prepared with the offline generator. Listen before creating a new project." = "Параметры подобрал автономный генератор. Послушай эскиз перед созданием нового проекта.";
+
+"This section request includes instructions the offline arranger cannot play yet." = "В описании секций есть пожелания, которые локальный аранжировщик пока не умеет озвучивать.";
+
+"Give each part a bar count. The song can contain up to 64 bars in total." = "Укажи длину каждой части в тактах. Максимальная длина всей композиции — 64 такта.";
+
+"Enter a chord progression for each part, for example A, Bb, C, D." = "Укажи последовательность аккордов для каждой части, например A, Bb, C, D.";
+
+"Describe the parts in order. A return must refer to an earlier part." = "Опиши части по порядку. Вернуться можно к одной из предыдущих частей.";
+
+"Try a workout arrangement" = "Пример трека для тренировки";
+
+"Workout in D minor. Four on the floor, offbeat hats. Part A 8 bars chords A, Bb, C, D. Part B 16 bars chords D, E, F, G quieter. Return to part A." = "Композиция для тренировки. Прямая бочка. Хайхэт в слабую долю. Ре минор. Первая часть 8 тактов аккорды A, Bb, C, D. Вторая часть 16 тактов аккорды D, E, F, G чуть спокойнее. Возвращаемся в первую часть.";
+
+"Repeats the source part, including edits." = "Повтор исходной части с учётом всех правок.";
+
+"Quieter part" = "Спокойнее";
+
+"Tempo is a suggestion. Adjust it above." = "Темп предложен приложением. Его можно изменить выше.";

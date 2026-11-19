@@ -275,6 +275,13 @@ struct AssistantView:View {
     func generate(_ distribution:ChordDistribution?=nil){
         cancelGeneration();focused=false;session.endHarmonyPreview();ambiguous=false;generatedInput=input;proposal=nil;candidate=nil;proposalSource=nil;error=nil;generatedWithAI=false;usedUnavailableAIFallback=false;availabilityError=false
         let snapshot=session.project,scope=session.section.id
+        if mode == .automatic, SongFormBrief.recognizes(input) {
+            do {
+                let brief = try TrackBrief().suggesting(input)
+                session.openTrackBuilder(idea: input, suggestion: brief)
+            } catch { self.error = error.localizedDescription }
+            return
+        }
         ai.refresh(localeIdentifier:aiLanguage)
         // A disabled/unavailable model must not block an understood command.
         // Keep the proposal explicitly LOCAL and explain the fallback; never

@@ -99,6 +99,33 @@ final class SketchGenerationTests:XCTestCase {
         keepScreenshot("Groove37-editable-arrangement")
     }
 
+    @MainActor func testWorkoutFormReviewAndCreate() {
+        let app = launch()
+        let transport = app.buttons["perform.transport"]
+        let old = state(transport)
+        app.buttons["assistant.open"].tap()
+        let builder = app.buttons["Build a track"]
+        XCTAssertTrue(builder.waitForExistence(timeout: 8))
+        builder.tap()
+        let example = app.buttons["Try a workout arrangement"]
+        XCTAssertTrue(example.waitForExistence(timeout: 8))
+        example.tap()
+        app.buttons["Suggest settings"].tap()
+        let repeatSource = app.staticTexts["Repeats the source part, including edits."]
+        for _ in 0..<10 where !repeatSource.isHittable { app.swipeUp() }
+        XCTAssertTrue(repeatSource.isHittable)
+        XCTAssertTrue(app.staticTexts["25–32"].exists)
+        keepScreenshot("SongForm39-workout-review")
+        let save = app.buttons["builder.create"]
+        for _ in 0..<10 where !save.isHittable { app.swipeUp() }
+        XCTAssertTrue(save.isHittable)
+        save.tap()
+        wait(transport, timeout: 12) {
+            self.state(transport).id != old.id && self.number("loopRangeCount", in: self.current(transport)) == 32*3840
+        }
+        keepScreenshot("SongForm39-workout-project")
+    }
+
     @MainActor private func launch()->XCUIApplication {
         XCUIDevice.shared.orientation = .portrait
         let app=XCUIApplication()

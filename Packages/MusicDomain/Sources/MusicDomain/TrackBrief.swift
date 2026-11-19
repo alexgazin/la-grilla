@@ -24,6 +24,7 @@ public struct TrackBrief: Equatable, Sendable {
     public var tempo = 120
     public var root = 0
     public var minor = false
+    public var songForm: SongFormBrief?
     public var bars = 8
     public var chordText = ""
     public var hipHopFeel: HipHopFeel = .boomBap
@@ -54,6 +55,7 @@ public struct TrackBrief: Equatable, Sendable {
 
     public func makeProject(name:String) throws -> Project {
         guard (40...240).contains(tempo) else { throw TrackBriefError.invalidTempo }
+        if let songForm { return try GrooveArrangement.make(form: songForm, brief: self, name: name) }
         let tokens = try AssistantEngine.chordTokens(chordText)
         guard tokens.count <= bars else { throw TrackBriefError.tooManyChords }
         let chords = try tokens.map { symbol -> Chord in
@@ -120,6 +122,7 @@ public struct TrackBrief: Equatable, Sendable {
     /// Only route requests for new music here. Project edits keep their normal review and Undo.
     public static func offlineCreationRequest(_ prompt: String) throws -> Self? {
         let text = prompt.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if SongFormBrief.recognizes(prompt) { return try Self().suggesting(prompt) }
         guard text.count <= 2000,
               text.range(of: #"^(?:create|make|generate|compose|создай|сделай|сгенерируй|сочини)\s+"#, options: .regularExpression) != nil,
               text.range(of: #"^\S+\s+(?:(?:a|an|the|new|новый|новую)\s+)*(?:song form|section|chorus|verse|bridge|intro|track named|форму|секци[яию]|припев|куплет|бридж|вступление)\b"#, options: .regularExpression) == nil,
@@ -132,7 +135,9 @@ public struct TrackBrief: Equatable, Sendable {
     /// A local starting point for common RU/EN descriptions on phones without an available model.
     public func suggesting(_ prompt:String) throws -> Self {
         let text = prompt.lowercased()
+        if SongFormBrief.recognizes(prompt) { return try SongFormBrief.parse(prompt, base: self) }
         var result = self, matched = false
+        result.songForm = nil
         func group(_ expression:String, in input:String) -> String? {
             guard let regex = try? NSRegularExpression(pattern:expression,options:.caseInsensitive),
                   let match = regex.firstMatch(in:input,range:NSRange(input.startIndex...,in:input)),
