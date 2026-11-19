@@ -163,6 +163,9 @@ private enum AudioRender {
     private var handle: KernelHandle?
     var tick: Double = 0; var playing = false; var appliedRevision = -1
     var meters: [Float] = Array(repeating:0,count:masterBus+1); var sampleRate: Double = 48000
+    /// Luz meters: the highest recent level per bus, held 1 s, then falling.
+    var peakHolds: [Float] = Array(repeating:0,count:masterBus+1)
+    @ObservationIgnored private var peakTimes = [TimeInterval](repeating:0,count:masterBus+1)
     var countRemaining = 0; var error: String?
     var overflows = 0
     @ObservationIgnored var onPoll:(()->Void)?
@@ -496,6 +499,13 @@ private enum AudioRender {
         guard let k = handle?.pointer else { return }
         clock = lg_clock(k); tick = lg_tick(k); playing = lg_playing(k) != 0; appliedRevision = sentRevisions[Int(lg_revision(k))] ?? -1; countRemaining = Int(lg_countremaining(k)); overflows = Int(lg_overflows(k))
         meters = (0...masterBus).map {lg_meter(k,Int32($0))}
+        let now = ProcessInfo.processInfo.systemUptime
+        var holds = peakHolds
+        for bus in holds.indices {
+            if meters[bus] >= holds[bus] { holds[bus] = meters[bus]; peakTimes[bus] = now }
+            else if now - peakTimes[bus] > 1 { holds[bus] = max(meters[bus], holds[bus] * 0.92) }
+        }
+        if holds != peakHolds { peakHolds = holds }
         if let onRuntimeTrace {
             let state="\(engine?.isRunning == true)/\(playing)/\(lg_revision(k))/\(generation)"
             if state != lastRuntimeTracePoll{lastRuntimeTracePoll=state;onRuntimeTrace("audio.poll.transition")}

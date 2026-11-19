@@ -153,20 +153,18 @@ private struct JamPadFace:View,Equatable {
     var body:some View {
         VStack(alignment:.leading,spacing:0){
             HStack(alignment:.top){
-                Text(String(format:"%02d",pad+1)).font(.system(size:11,weight:.medium,design:.monospaced)).foregroundStyle(isDown ? Color.ink.opacity(0.72):Color.muted)
+                Text(String(format:"%02d",pad+1)).font(StudioTypography.index).foregroundStyle(isDown ? Color.ink.opacity(0.72):Color.muted)
                 Spacer(minLength:0)
-                Capsule().fill(isDown ? Color.ink.opacity(0.65):Color.drums.opacity(0.65)).frame(width:compact ? 12:18,height:3).padding(.top,3)
+                // Rest-state accent: the pad's colour at 35 %, full when played.
+                Capsule().fill(isDown ? Color.ink.opacity(0.65):Color.drums.opacity(0.35)).frame(width:compact ? 12:18,height:3).padding(.top,3)
             }
             Spacer(minLength:4)
-            Text(LocalizedStringKey(Compiler.padNames[pad])).font(.system(size:11,weight:.semibold)).lineLimit(1).foregroundStyle(isDown ? Color.ink:Color.studioText)
+            Text(LocalizedStringKey(Compiler.padNames[pad])).font(StudioTypography.pad).lineLimit(1).minimumScaleFactor(0.85).foregroundStyle(isDown ? Color.ink:Color.studioText)
         }
         .padding(compact ? 8:10)
         .frame(maxWidth:.infinity,maxHeight:.infinity,alignment:.leading)
-        .background{RoundedRectangle(cornerRadius:14,style:.continuous).fill(LinearGradient(colors:[isDown ? Color.drums:Color.raised.opacity(0.65),isDown ? Color.drums:Color.panel],startPoint:.topLeading,endPoint:.bottomTrailing))}
-        .overlay{RoundedRectangle(cornerRadius:14,style:.continuous).strokeBorder(isDown ? Color.drums:Color.outline.opacity(0.8),lineWidth:isDown ? 1.4:0.7)}
-        .overlay(alignment:.top){Capsule().fill(Color.studioText.opacity(isDown ? 0.22:0.1)).frame(height:1).padding(.horizontal,11).padding(.top,1).allowsHitTesting(false)}
-        // Performance feedback is immediate even inside an animated parent update.
-        .transaction{$0.animation=nil}
+        // Luz instrument: opaque, raised; lit from inside in the drum colour on contact.
+        .litInstrument(.drums,isDown:isDown,radius:compact ? Luz.Radius.cell:Luz.Radius.pad)
     }
 }
 

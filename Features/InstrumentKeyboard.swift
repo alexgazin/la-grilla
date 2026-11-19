@@ -150,6 +150,7 @@ private struct InstrumentKeyboard: View {
                         InstrumentKeybed(root: root, octaves: KeyboardLayout.octaves(requested: octaveSetting, width: geometry.size.width - 20 - (bendStrips ? 92 : 0), size: KeyboardLayout.KeySize(rawValue: keySize) ?? .medium),
                                          keyRoot: session.project.keyRoot, minor: session.project.minor, scaleOnly: scaleOnly,
                                          gridColumns: isomorphic ? max(5, min(12, Int((geometry.size.width - 20 - (bendStrips ? 92 : 0)) / (KeyboardLayout.KeySize(rawValue: keySize) ?? .medium).minimumWidth / 1.2))) : 0,
+                                         color: Color.track(track.role),
                                          play: { pitch, down in key(pitch, down: down, track: track) })
                             .id(surfaceID)
                         }.padding(.horizontal, 10).padding(.bottom, 10)
@@ -449,12 +450,15 @@ private struct InstrumentKeybed: UIViewRepresentable {
     var scaleOnly = false
     /// I18: 0 = piano keys; otherwise an isomorphic grid with this many columns.
     var gridColumns = 0
+    /// Luz: held keys light up in the track's colour.
+    var color: Color = .mint
     let play: (Int, Bool) -> Void
 
     func makeUIView(context: Context) -> KeybedView { KeybedView() }
 
     func updateUIView(_ view: KeybedView, context: Context) {
         view.play = play
+        view.accent = UIColor(color)
         if gridColumns > 0 { view.configureGrid(base: root, columns: gridColumns, keyRoot: keyRoot, minor: minor) }
         else { view.configure(root: root, octaves: octaves, keyRoot: keyRoot, minor: minor, scaleOnly: scaleOnly) }
     }
@@ -464,6 +468,7 @@ private struct InstrumentKeybed: UIViewRepresentable {
 
 private final class KeybedView: UIView, MusicalTouchSurface {
     var play: ((Int, Bool) -> Void)?
+    var accent = UIColor(Color.mint)
     private var configuration: [Int] = []
     private var whiteKeys = [UIButton]()
     private var blackKeys = [(after: Int, button: UIButton)]()
@@ -541,7 +546,7 @@ private final class KeybedView: UIView, MusicalTouchSurface {
             key.titleLabel?.font = .monospacedSystemFont(ofSize: black ? 11 : 13, weight: .semibold)
             key.contentVerticalAlignment = .bottom
             key.contentEdgeInsets = UIEdgeInsets(top: 0, left: 0, bottom: black ? 10 : 18, right: 0)
-            key.layer.cornerRadius = black ? 5 : 7
+            key.layer.cornerRadius = black ? 5 : Luz.Radius.key
             key.layer.maskedCorners = [.layerMinXMaxYCorner, .layerMaxXMaxYCorner]
             key.addAction(UIAction { [weak self] _ in self?.activateKey(pitch) }, for: .primaryActionTriggered)
             if black { blackKeys.append((whiteKeys.count, key)) } else { whiteKeys.append(key) }
@@ -580,13 +585,28 @@ private final class KeybedView: UIView, MusicalTouchSurface {
             let root = (key.tag % 12 + 12) % 12 == gridKeyRoot
             key.layer.borderWidth = root ? 2 : 1
             key.layer.borderColor = (root ? UIColor(Color.mint) : UIColor.gray.withAlphaComponent(0.45)).cgColor
+            if held { key.backgroundColor = accent }
+            depth(key, held: held)
             return
         }
         let black = !flat && blackClasses.contains(key.tag % 12)
-        key.backgroundColor = UIColor(held ? Color.mint : (black ? .keyboardGraphite : .keyboardIvory))
+        key.backgroundColor = held ? accent : UIColor(black ? .keyboardGraphite : .keyboardIvory)
         key.setTitleColor(UIColor(held ? Color.ink : (black ? .keyboardIvory : .keyboardGraphite)), for: .normal)
         key.layer.borderWidth = black ? 1 : 0
         key.layer.borderColor = UIColor.gray.withAlphaComponent(0.45).cgColor
+        depth(key, held: held)
+    }
+
+    /// Luz depth press: a held key sinks a little and glows in the track colour.
+    /// Layer changes outside an animation block draw in the same frame.
+    private func depth(_ key: UIButton, held: Bool) {
+        let highContrast = traitCollection.accessibilityContrast == .high
+        key.layer.transform = held && !UIAccessibility.isReduceMotionEnabled ? CATransform3DTranslate(CATransform3DMakeScale(0.97, 0.985, 1), 0, 1.5, 0) : CATransform3DIdentity
+        key.layer.shadowColor = accent.cgColor
+        key.layer.shadowOpacity = held && !highContrast ? 0.55 : 0
+        key.layer.shadowRadius = held ? 8 : 0
+        key.layer.shadowOffset = .zero
+        key.layer.masksToBounds = false
     }
 
     // Touches stay on one multi-touch surface. Scanning topmost keys first

@@ -295,7 +295,7 @@ struct MixerView: View {
     }
 
     private func fader(index: Int, track: Track?, gain: Double, color: Color) -> some View {
-        MixerFaderFace(gain: gain, level: session.audio.meters[index], color: color,
+        MixerFaderFace(gain: gain, level: session.audio.meters[index], peak: session.audio.peakHolds[index], color: color,
                        active: activeFader == index, increasedContrast: contrast == .increased)
             .contentShape(Rectangle())
             .overlay {
@@ -309,9 +309,16 @@ struct MixerView: View {
                                 }
                                 let travel = max(1, geometry.size.height - 32)
                                 let position = min(1, max(0, (value.location.y - 16) / travel))
-                                setGain(index, Double(1 - position) * 67 - 61)
+                                var target = Double(1 - position) * 67 - 61
+                                // Luz detent: 0 dB catches the cap and ticks once.
+                                if abs(target) < 0.75 { target = 0 }
+                                if (target == 0) != (gain == 0) && target == 0 { Luz.Haptics.selection() }
+                                setGain(index, target)
                             }
                             .onEnded { _ in finishGesture() })
+                        .simultaneousGesture(TapGesture(count: 2).onEnded {
+                            finishGesture(); setGain(index, 0); finishGesture(); Luz.Haptics.selection()
+                        })
                 }
             }
             .accessibilityElement(children: .ignore)
@@ -364,16 +371,18 @@ struct MixerView: View {
 
     private func channelSwitch(title: LocalizedStringKey, active: Bool, color: Color,
                                action: @escaping () -> Void) -> some View {
-        Button(action: action) {
+        Button { action(); Luz.Haptics.selection() } label: {
+            // Luz lit toggle: a latching key that glows in the track colour when on.
             Text(title)
                 .font(.system(size: 13, weight: .semibold, design: .monospaced))
                 .foregroundStyle(active ? Color.ink : Color.muted)
                 .frame(maxWidth: .infinity, minHeight: 44)
-                .background(active ? color : Color.ink, in: RoundedRectangle(cornerRadius: 8))
+                .background(active ? color : Color.ink, in: RoundedRectangle(cornerRadius: Luz.Radius.cell, style: .continuous))
                 .overlay {
-                    RoundedRectangle(cornerRadius: 8)
+                    RoundedRectangle(cornerRadius: Luz.Radius.cell, style: .continuous)
                         .stroke(active ? color : Color.outline.opacity(contrast == .increased ? 1 : 0.75), lineWidth: 1)
                 }
+                .shadow(color: color.opacity(active && contrast != .increased ? 0.5 : 0), radius: 6)
         }
         .buttonStyle(StudioQuietButtonStyle())
         .accessibilityAddTraits(active ? .isSelected : [])
@@ -470,10 +479,12 @@ struct MixerView: View {
 private struct MixerFaderFace: View {
     let gain: Double
     let level: Float
+    var peak: Float = 0
     let color: Color
     let active: Bool
     let increasedContrast: Bool
     private let ticks: [Double] = [6, 0, -12, -24, -36, -48, -61]
+    private static let segments = 24
 
     var body: some View {
         GeometryReader { geometry in
@@ -511,38 +522,45 @@ private struct MixerFaderFace: View {
     }
 
     private var faderCap: some View {
-        RoundedRectangle(cornerRadius: 5, style: .continuous)
-            .fill(LinearGradient(colors: [Color.studioText, Color.studioText.opacity(0.72)],
-                                 startPoint: .top, endPoint: .bottom))
-            .frame(width: 38, height: 30)
+        // Luz fader: a fat capsule cap with a lit centre line in the track colour.
+        Capsule(style: .continuous)
+            .fill(LinearGradient(colors: [Color.lifted, Color.raised], startPoint: .top, endPoint: .bottom))
+            .frame(width: 40, height: 28)
             .overlay {
-                VStack(spacing: 3) {
-                    Rectangle().fill(Color.ink.opacity(0.3)).frame(width: 22, height: 1)
-                    Rectangle().fill(Color.ink).frame(width: 28, height: 2)
-                    Rectangle().fill(Color.ink.opacity(0.3)).frame(width: 22, height: 1)
-                }
+                Capsule().fill(color).frame(width: 26, height: active ? 3 : 2)
+                    .shadow(color: color.opacity(active && !increasedContrast ? 0.8 : 0), radius: 4)
             }
             .overlay {
-                RoundedRectangle(cornerRadius: 5, style: .continuous)
-                    .stroke(active ? color : Color.studioText.opacity(0.8), lineWidth: active ? 2 : 0.75)
+                Capsule(style: .continuous)
+                    .strokeBorder(active ? color : Color.outline.opacity(increasedContrast ? 1 : 0.9), lineWidth: active || increasedContrast ? 1.5 : 0.75)
             }
-            .shadow(color: .black.opacity(0.35), radius: 3, y: 3)
+            .overlay(alignment: .top) {
+                if !increasedContrast { Capsule().fill(Color.studioText.opacity(0.18)).frame(width: 24, height: 1).padding(.top, 2) }
+            }
+            .shadow(color: .black.opacity(active ? 0.45 : 0.3), radius: active ? 6 : 3, y: active ? 4 : 2)
+            .scaleEffect(active ? 1.06 : 1)
+            .animation(Luz.Motion.snap, value: active)
     }
 
+    /// LED segments with a held peak; colours change at -12 and -3 dBFS.
     private func engineMeter(height: CGFloat) -> some View {
-        ZStack(alignment: .bottom) {
-            Capsule().fill(Color.ink)
-            LinearGradient(stops: [.init(color: .record, location: 0),
-                                   .init(color: .harmony, location: 0.16),
-                                   .init(color: color, location: 0.4),
-                                   .init(color: color.opacity(0.75), location: 1)],
-                           startPoint: .top, endPoint: .bottom)
-                .mask(alignment: .bottom) {
-                    Rectangle().frame(height: height * CGFloat(min(1, max(0, level))))
-                }
+        let count = Self.segments
+        let lit = Int((CGFloat(min(1, max(0, level))) * CGFloat(count)).rounded(.up))
+        let held = min(count - 1, max(0, Int((CGFloat(min(1, max(0, peak))) * CGFloat(count)).rounded(.up)) - 1))
+        return VStack(spacing: 1.5) {
+            ForEach((0..<count).reversed(), id: \.self) { segment in
+                let fraction = Double(segment + 1) / Double(count)
+                let hue: Color = fraction > 0.92 ? .record : fraction > 0.75 ? .harmony : color
+                RoundedRectangle(cornerRadius: 1.5)
+                    .fill(segment < lit || (peak > 0.01 && segment == held) ? hue : Color.ink)
+                    .opacity(segment < lit || (peak > 0.01 && segment == held) ? 1 : (increasedContrast ? 1 : 0.8))
+            }
         }
-        .clipShape(Capsule())
+        .frame(height: height)
+        .padding(1.5)
+        .background(Color.ink, in: Capsule())
         .overlay { Capsule().stroke(Color.outline.opacity(increasedContrast ? 1 : 0.65), lineWidth: 0.75) }
+        .accessibilityHidden(true)
     }
 }
 

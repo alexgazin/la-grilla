@@ -321,6 +321,8 @@ private final class InputResources:@unchecked Sendable {
             // A2DP permits Bluetooth output only. HFP permits a headset input;
             // the session still chooses the real hardware route and its rate.
             try session.setCategory(.playAndRecord,mode:.measurement,options:[.defaultToSpeaker,.allowBluetooth,.allowBluetoothA2DP])
+            // Luz: keep interface haptics while the microphone records.
+            try? session.setAllowHapticsAndSystemSoundsDuringRecording(true)
             stage="activate-recording-session"
             try session.setActive(true)
             stage="inspect-recording-route"

@@ -15,6 +15,16 @@
 			"isa" = "PBXBuildFile";
 			"fileRef" = "2A75615F95238FEBBA7EA4F2";
 		};
+		"4B25EAF2511363FC25748C69" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "App/DesignSystem.swift";
+			"sourceTree" = "SOURCE_ROOT";
+		};
+		"46F26FACCB07A642D19775B6" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "4B25EAF2511363FC25748C69";
+		};
 		"93DF114FFA953E365D2E236E" = {
 			"isa" = "PBXFileReference";
 			"lastKnownFileType" = "sourcecode.swift";
@@ -69,6 +79,7 @@
 			"isa" = "PBXGroup";
 			"children" = (
 				"2A75615F95238FEBBA7EA4F2",
+				"4B25EAF2511363FC25748C69",
 				"93DF114FFA953E365D2E236E",
 				"9C6C088B976DFD6E7E517428",
 				"21BEF306719971278B8C3FBB",
@@ -1173,6 +1184,7 @@
 			"buildActionMask" = 2147483647;
 			"files" = (
 				"469B936F4918A75C4DBC701F",
+				"46F26FACCB07A642D19775B6",
 				"D9F5D983A6FBAFEDF6B3AB97",
 				"3A0F56D73EA42FEA200C2CB1",
 				"0587407DA031D1B414F3155D",

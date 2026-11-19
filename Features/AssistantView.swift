@@ -107,6 +107,7 @@ struct AssistantView:View {
         }.tint(.mint)
         .sheet(isPresented:$showExamples){AssistantExamplesView(language:language){text,requiresAI in input=text;if requiresAI{mode = .onDeviceAI}else if SongFormBrief.recognizes(text){mode = .automatic};showExamples=false}}
         .onChange(of:dictation.text){_,value in if !value.isEmpty{input=value}}
+        .onChange(of:error){_,value in if value != nil{Luz.Haptics.error()}}
         .onChange(of:mode){_,_ in resetReview();refreshAIStatus()}
         .onChange(of:language){_,_ in resetReview();refreshAIStatus()}
         .onChange(of:aiLanguage){_,_ in resetReview();refreshAIStatus()}

@@ -424,7 +424,7 @@ import Observation
     func togglePlay() {
         runtimeTrace("togglePlay.before");defer{runtimeTrace("togglePlay.after")}
         if performance.contextActive{if performance.playing || performance.starting{Task{await performance.stop();pollPerformance()}}else if performance.replaying,let take=performance.replayTake{replayPerformance(take)}else{startPerformance(record:false)};return}
-        if audio.playing {finishTake();audio.stop()}else if ensureAudio(){if audio.tick>=Double(loopRange.upperBound){audio.seek(loopRange.lowerBound)};audio.play()}
+        if audio.playing {finishTake();audio.stop();Luz.Haptics.transportStop()}else if ensureAudio(){if audio.tick>=Double(loopRange.upperBound){audio.seek(loopRange.lowerBound)};audio.play();Luz.Haptics.transportStart()}
     }
     func rewind() {if performance.contextActive{Task{await leavePerformance();rewind()};return};finishTake();audio.stop();audio.seek(loopRange.lowerBound)}
     func record() {
@@ -444,7 +444,7 @@ import Observation
             audio.seek(loopRange.lowerBound);audio.play(countInBPM:countIn ? project.bpm : nil)
             armClock=audio.clock+UInt64(countIn ? barFrames : 0)
         }
-        passClock=armClock;replaceNextPass = !overdub;armed=true;sync()
+        passClock=armClock;replaceNextPass = !overdub;armed=true;sync();Luz.Haptics.transportStart()
     }
     func pollRecording() {
         if let end = draftEndTick, harmonyPreview, !audio.playing, Int(audio.tick) == end {
@@ -961,7 +961,7 @@ import Observation
                     try? FileManager.default.removeItem(at:wav)
                 }
                 try Task.checkCancellation();guard generation==exportGeneration else{return}
-                exportProgress=1;exportInProgress=false;exportedFolder=folder;exportedURL=url;sheet=nil;exportTask=nil
+                exportProgress=1;exportInProgress=false;exportedFolder=folder;exportedURL=url;sheet=nil;exportTask=nil;if exportWarning==nil{Luz.Haptics.success()}else{Luz.Haptics.warning()}
             } catch {
                 try? FileManager.default.removeItem(at:folder)
                 if generation==exportGeneration{exportInProgress=false;exportTask=nil;if !(error is CancellationError){exportError=error.localizedDescription}}
@@ -982,7 +982,7 @@ import Observation
                 try FileManager.default.createDirectory(at:folder,withIntermediateDirectories:true)
                 try await store.portableBatch(ids,to:url)
                 try Task.checkCancellation();guard generation==exportGeneration else{return}
-                exportProgress=1;exportInProgress=false;exportedFolder=folder;exportedURL=url;sheet=nil;exportTask=nil
+                exportProgress=1;exportInProgress=false;exportedFolder=folder;exportedURL=url;sheet=nil;exportTask=nil;if exportWarning==nil{Luz.Haptics.success()}else{Luz.Haptics.warning()}
             } catch {
                 try? FileManager.default.removeItem(at:folder)
                 if generation==exportGeneration{exportInProgress=false;exportTask=nil;if !(error is CancellationError){message=error.localizedDescription}}

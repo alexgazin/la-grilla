@@ -78,6 +78,8 @@
 			</dict>
 		</dict>
 	</array>
+	<key>CADisableMinimumFrameDurationOnPhone</key>
+	<true/>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Record a spoken command or a short melody you choose to capture. Microphone access starts only when you tap Record or Dictate.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
