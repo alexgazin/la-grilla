@@ -58,6 +58,36 @@ final class PianoTouchUITests:XCTestCase {
         XCTAssertEqual(app.staticTexts["notes.count"].label, "0")
     }
 
+    @MainActor func testOriginalFastSwipeAndAnchoredPinch() throws {
+        let app = openNoteRoll(measureZoom: true)
+        defer { app.terminate() }
+        let viewport = app.scrollViews["notes.viewport"]
+        let reading = app.staticTexts["notes.count"]
+        func geometry() throws -> (width: Double, y: Double) {
+            let value = try XCTUnwrap(reading.value as? String)
+            let values = value.split(separator: ",").compactMap { Double($0) }
+            XCTAssertEqual(values.count, 2)
+            return (try XCTUnwrap(values.first), try XCTUnwrap(values.last))
+        }
+        XCTAssertTrue(viewport.waitForExistence(timeout: 5))
+        let initial = try geometry()
+        viewport.swipeUp(velocity: .fast)
+        let before = try geometry()
+        XCTAssertGreaterThan(before.y, initial.y + 8, "fast swipe, viewport \(viewport.frame), initial \(initial), after \(before)")
+        viewport.pinch(withScale: 1.45, velocity: 1)
+        let enlarged = try geometry()
+        XCTAssertGreaterThan(enlarged.width, before.width + 10)
+        XCTAssertEqual(enlarged.y, before.y, accuracy: 2)
+        viewport.pinch(withScale: 0.8, velocity: -1)
+        let reduced = try geometry()
+        XCTAssertLessThan(reduced.width, enlarged.width - 10)
+        XCTAssertEqual(reduced.y, before.y, accuracy: 2)
+        viewport.swipeDown(velocity: .fast)
+        XCTAssertLessThan(try geometry().y, reduced.y - 8)
+        app.buttons["notes.undo"].tap()
+        XCTAssertEqual(app.staticTexts["notes.count"].label, "0")
+    }
+
     @MainActor func testKeyboardSelectsInstrumentRecordsPhraseAndReturnsToNotes() {
         let app = openNoteRoll()
         defer { app.terminate() }

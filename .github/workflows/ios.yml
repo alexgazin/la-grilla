@@ -4,6 +4,7 @@ on:
     # Dedicated diagnostic and recording workflows build their own app/test
     # targets. Release candidates and main retain all three acceptance jobs.
     branches-ignore:
+      - qa/piano-pinch42-fast-pan
       - fix/piano-pinch-42
       - feat/native-gesture-diagnostic
       - feat/native-demo20

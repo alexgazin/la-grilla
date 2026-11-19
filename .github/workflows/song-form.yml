@@ -1,7 +1,7 @@
 name: Song form on iPhone Simulator
 on:
   push:
-    branches: [fix/piano-pinch-42, feat/song-board, feat/song-brief-39, feat/andrey-arranger-41, feat/andrey-score-42]
+    branches: [qa/piano-pinch42-fast-pan, fix/piano-pinch-42, feat/song-board, feat/song-brief-39, feat/andrey-arranger-41, feat/andrey-score-42]
   workflow_dispatch:
 permissions:
   contents: read
@@ -45,6 +45,7 @@ jobs:
           CASES=(ArrangementUITests/testSongFormAddsDragsAndUndoesWholeSection LiveEditingTests/testDuplicateMoveAndDeleteSectionDuringPlayback AssistantCompositionTests/testFullSongReviewAppliesAsOneUndoOnCommandFallback)
           if [[ "$GITHUB_REF_NAME" == "feat/song-brief-39" ]]; then CASES=(SketchGenerationTests/testWorkoutFormReviewAndCreate); fi
           if [[ "$GITHUB_REF_NAME" == "fix/piano-pinch-42" ]]; then CASES=(PianoTouchUITests/testPinchChangesTimeScaleAndKeepsPitchRowsInPlace PianoTouchUITests/testResizeHandleUsesGridAndCommitsOneUndoableEdit); fi
+          if [[ "$GITHUB_REF_NAME" == "qa/piano-pinch42-fast-pan" ]]; then CASES=(PianoTouchUITests/testOriginalFastSwipeAndAnchoredPinch PianoTouchUITests/testHoldAndMoveKeepsDurationAndCommitsOneUndoableEdit); fi
           CASE_LIMIT=180
           NATIVE_BUDGET=510
           if [[ "$GITHUB_REF_NAME" == "feat/andrey-arranger-41" ]]; then
