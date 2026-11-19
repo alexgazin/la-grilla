@@ -1258,3 +1258,10 @@
 "Search by name, tempo or key" = "Поиск по названию, темпу или тональности";
 "Notes of the key only" = "Только ноты тональности";
 "Sustain" = "Сустейн";
+"Haptics on hits" = "Вибрация на ударах";
+"Start a new beat" = "Начать новый бит";
+"Open my last project" = "Открыть последний проект";
+"Opens La Grilla in the track builder." = "Открывает La Grilla в конструкторе трека.";
+"Opens La Grilla with the project you worked on last." = "Открывает La Grilla с последним проектом.";
+"New beat" = "Новый бит";
+"Open last project" = "Последний проект";

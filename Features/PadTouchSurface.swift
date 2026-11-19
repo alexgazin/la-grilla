@@ -9,11 +9,12 @@ struct PadTouchSurface:UIViewRepresentable {
     let enabled:Bool
     let trace:Bool
     var velocityFromTouch=false
+    var haptics=false
     let onHit:(Int,TimeInterval,Int?)->Bool
     let onHeld:(Set<Int>)->Void
     func makeUIView(context:Context)->PadTouchView{PadTouchView()}
     func updateUIView(_ view:PadTouchView,context:Context){
-        view.onHit=onHit;view.onHeld=onHeld;view.trace=trace;view.velocityFromTouch=velocityFromTouch
+        view.onHit=onHit;view.onHeld=onHeld;view.trace=trace;view.velocityFromTouch=velocityFromTouch;view.haptics=haptics
         view.isUserInteractionEnabled=enabled
         if !enabled{view.cancelTouches(notify:false)}
     }
@@ -25,6 +26,9 @@ struct PadTouchSurface:UIViewRepresentable {
     var onHeld:((Set<Int>)->Void)?
     var trace=false
     var velocityFromTouch=false
+    /// I93: a light tap on accepted hits, after the sound is queued (never before it).
+    var haptics=false
+    private lazy var feedback=UIImpactFeedbackGenerator(style:.light)
     private var contacts:[ObjectIdentifier:Int]=[:]
     private var accepted=[Int](repeating:0,count:16)
     private var acceptedAt=[TimeInterval](repeating:0,count:16)
@@ -58,7 +62,7 @@ struct PadTouchSurface:UIViewRepresentable {
         contacts[id]=pad
         // Enqueue the sound before publishing visual/accessibility changes.
         let velocity=velocityFromTouch ? PadVelocity.fromTouch(force:Double(touch.force),maximumForce:Double(touch.maximumPossibleForce),radius:Double(touch.majorRadius)):nil
-        if onHit?(pad,touch.timestamp,velocity)==true{accepted[pad]+=1;acceptedAt[pad]=ProcessInfo.processInfo.systemUptime}
+        if onHit?(pad,touch.timestamp,velocity)==true{accepted[pad]+=1;acceptedAt[pad]=ProcessInfo.processInfo.systemUptime;if haptics{feedback.impactOccurred(intensity:CGFloat(velocity ?? 100)/127)}}
         publishHeld()
     }
     func end(_ touches:Set<UITouch>){for touch in touches{if let pad=contacts.removeValue(forKey:ObjectIdentifier(touch)){releasedAt[pad]=touch.timestamp}};publishHeld()}
