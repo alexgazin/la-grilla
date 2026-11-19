@@ -600,6 +600,17 @@ private struct NoteToolsMenu: View {
                 Button("Up an octave") { group { NoteSelection.shift(&$0, ids: $1, ticks: 0, semitones: 12) } }
                 Button("Down an octave") { group { NoteSelection.shift(&$0, ids: $1, ticks: 0, semitones: -12) } }
             }.accessibilityIdentifier("notes.tools.timing")
+            // I28: the phrase of this section, fitted to another section's chords.
+            if let index = session.project.tracks.firstIndex(where: { $0.id == session.noteTrackID && $0.role == .melody }) {
+                Menu("Copy phrase to section") {
+                    ForEach(session.project.sections.filter { $0.id != session.section.id }) { target in
+                        Button(target.name) {
+                            let source = session.section
+                            session.edit { try PhraseCopy.copy(track: index, from: source, to: target, in: &$0) }
+                        }
+                    }
+                }.accessibilityIdentifier("notes.tools.copy-phrase")
+            }
         } label: {
             Label(selected == nil ? "Tools · all notes" : "Tools · selected note", systemImage: "wand.and.stars")
                 .font(.caption.weight(.semibold)).frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)

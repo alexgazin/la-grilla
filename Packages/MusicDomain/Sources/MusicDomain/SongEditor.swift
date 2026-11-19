@@ -66,7 +66,7 @@ public enum SongEditor {
                 clips.append(right)
             }
         }
-        guard project.patterns.count < 64 else { throw MusicError.tooDense }
+        guard project.patterns.count < 128 else { throw MusicError.tooDense }
         project.patterns.append(material)
         var middle = Clip(patternID: material.id, start: range.lowerBound, length: range.count)
         if covering.count == 1, covering[0].start <= range.lowerBound, covering[0].start + covering[0].length >= range.upperBound {

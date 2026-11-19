@@ -182,3 +182,28 @@ struct VideoStoryboardTests {
         #expect(board.subtitle.hasPrefix("120 BPM"))
     }
 }
+
+struct PhraseCopyTests {
+    @Test func phraseFollowsTheTargetChordsAndLeavesTheSourceAlone() throws {
+        var p = Project(name: "Copy", bars: 2)
+        p.sections = [Section(name: "Verse", start: 0, length: barTicks), Section(name: "Chorus", start: barTicks, length: barTicks)]
+        p.patterns[0].length = 2 * barTicks
+        p.patterns[0].chords = [ChordEvent(tick: 0, chord: Chord(root: 0)), ChordEvent(tick: barTicks, chord: Chord(root: 9, quality: .minor))]
+        var melody = Pattern(length: 2 * barTicks)
+        melody.notes = [NoteEvent(tick: 0, duration: 480, pitch: 64, velocity: 90),      // E = third of C
+                        NoteEvent(tick: 960, duration: 480, pitch: 67, velocity: 90),    // G = fifth of C
+                        NoteEvent(tick: 1920, duration: 480, pitch: 62, velocity: 90)]   // D = passing
+        var track = Track(role: .melody); track.clips = [Clip(patternID: melody.id, start: 0, length: 2 * barTicks)]
+        p.patterns.append(melody); p.tracks.append(track)
+        try p.validate()
+        let before = Compiler.notes(p).filter { $0.track == 2 && $0.tick < barTicks }
+        let count = try PhraseCopy.copy(track: 2, from: p.sections[0], to: p.sections[1], in: &p)
+        #expect(count == 3)
+        let copied = Compiler.notes(p).filter { $0.track == 2 && $0.tick >= barTicks }.sorted { $0.tick < $1.tick }
+        // Third of C (E) → third of Am (C); fifth (G) → fifth (E); passing D moves with the root (−3) → B.
+        #expect(copied.map(\.pitch) == [60, 64, 59])
+        #expect(copied.map { $0.tick - barTicks } == [0, 960, 1920])
+        #expect(Compiler.notes(p).filter { $0.track == 2 && $0.tick < barTicks } == before)
+        #expect(throws: MusicError.self) { try PhraseCopy.copy(track: 0, from: p.sections[0], to: p.sections[1], in: &p) }
+    }
+}

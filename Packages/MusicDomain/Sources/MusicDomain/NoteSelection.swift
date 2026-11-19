@@ -76,3 +76,32 @@ public enum NoteSelection {
         min(max(0, tick), max(0, length - max(1, duration)))
     }
 }
+
+/// I28 · copy a melodic phrase from one section to another so that every note
+/// keeps its role in the chord sounding under it (chord tone stays the same
+/// chord tone; passing notes follow the root). Replaces the target section's
+/// notes on that track; one undoable edit.
+public enum PhraseCopy {
+    @discardableResult
+    public static func copy(track index: Int, from source: Section, to target: Section, in project: inout Project) throws -> Int {
+        guard project.tracks.indices.contains(index), project.tracks[index].role == .melody, source.id != target.id,
+              project.sections.contains(where: { $0.id == source.id }), project.sections.contains(where: { $0.id == target.id }) else { throw MusicError.invalidProject }
+        let material = Arrangement.materialize(project, track: project.tracks[index], section: source)
+        let notes = (material.notes ?? []).filter { $0.tick < target.length }
+        guard !notes.isEmpty else { throw MusicError.invalidProject }
+        let from = Arrangement.harmony(project, section: source), to = Arrangement.harmony(project, section: target)
+        func chord(_ events: [ChordEvent], at tick: Int) -> Chord? { events.last { $0.tick <= tick && tick < $0.tick + $0.duration }?.chord }
+        let adapted: [NoteEvent] = notes.map { note in
+            var n: NoteEvent
+            if let a = chord(from, at: note.tick), let b = chord(to, at: note.tick) { n = NoteTools.chordAwarePaste([note], from: a, to: b)[0] }
+            else { n = note; n.id = UUID() }
+            n.duration = max(1, min(n.duration, target.length - n.tick))
+            return n
+        }
+        let pattern = try SongEditor.isolate(&project, track: index, range: target.start..<(target.start + target.length))
+        project.patterns[pattern].notes = adapted
+        project.removeUnusedPatterns()
+        try project.validate()
+        return adapted.count
+    }
+}
