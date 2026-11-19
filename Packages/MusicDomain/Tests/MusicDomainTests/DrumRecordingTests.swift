@@ -59,3 +59,41 @@ struct DrumRecordingTests {
         var changed=p;changed.tracks[1].clips[1].patternID=p.patterns[0].id;#expect(throws:AssistantError.self){try draft.candidate(for:changed)}
     }
 }
+
+struct SingleAttackRecordingTests {
+    private func loop()throws->(Project,DrumRecordingDraft) {
+        var p=Project(name:"Overdub",bars:1)
+        p.patterns[1].drums=[DrumEvent(tick:0,pad:0,velocity:90),DrumEvent(tick:960,pad:1,velocity:100)]
+        try p.validate()
+        return (p,try DrumRecordingDraft(project:p,clipID:p.tracks[1].clips[0].id))
+    }
+    @Test func overdubOnASoundingStepKeepsOneAttackAndTheLouderVelocity()throws {
+        var (_,draft)=try loop()
+        let existing=draft.project.patterns.first{$0.id==draft.patternID}!.drums
+        try draft.commitPass([DrumEvent(tick:0,pad:0,velocity:120),DrumEvent(tick:0,pad:2,velocity:70)])
+        let drums=draft.project.patterns.first{$0.id==draft.patternID}!.drums
+        #expect(drums.filter{$0.tick==0 && $0.pad==0}.count==1)
+        #expect(drums.first{$0.tick==0 && $0.pad==0}?.id==existing.first{$0.tick==0 && $0.pad==0}?.id)
+        #expect(drums.first{$0.tick==0 && $0.pad==0}?.velocity==120)
+        #expect(drums.contains{$0.tick==0 && $0.pad==2})
+        #expect(drums.count==3)
+    }
+    @Test func twoTouchesQuantizedToOneStepGiveOneEventAndQuieterRepeatNeverLowersVelocity()throws {
+        var (_,draft)=try loop()
+        let a=Quantize.sixteenth.tick(1890,length:barTicks),b=Quantize.sixteenth.tick(1950,length:barTicks)
+        #expect(a==b)
+        try draft.commitPass([DrumEvent(tick:a,pad:3,velocity:80),DrumEvent(tick:b,pad:3,velocity:110)])
+        try draft.commitPass([DrumEvent(tick:a,pad:3,velocity:40)])
+        let hits=draft.project.patterns.first{$0.id==draft.patternID}!.drums.filter{$0.pad==3}
+        #expect(hits.count==1);#expect(hits.first?.velocity==110)
+        #expect(Compiler.notes(draft.project).filter{$0.pad==3}.count==1)
+    }
+    @Test func loopBoundaryWrapIsOneEventAtTheDownbeat()throws {
+        var (_,draft)=try loop()
+        // A hit 20 ticks before the loop end quantizes forward to the downbeat.
+        let wrapped=Quantize.sixteenth.tick(barTicks-20,length:barTicks)
+        #expect(wrapped==0)
+        try draft.commitPass([DrumEvent(tick:wrapped,pad:0,velocity:100)])
+        #expect(draft.project.patterns.first{$0.id==draft.patternID}!.drums.filter{$0.pad==0}.count==1)
+    }
+}

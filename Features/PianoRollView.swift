@@ -467,8 +467,15 @@ private struct RollCanvas:View {
         }.foregroundStyle(Color.studioText).padding(.horizontal,12).padding(.vertical,8)
             .background(Color.raised,in:RoundedRectangle(cornerRadius:10,style:.continuous))
             .overlay{RoundedRectangle(cornerRadius:10,style:.continuous).stroke(Color.mint,lineWidth:1)}
-            .fixedSize().position(x:min(max(64,endpoint(note)),max(64,contentWidth-64)),y:rect(note).minY>=70 ? rect(note).midY-60:rect(note).midY+64)
+            .fixedSize().position(readoutPosition(note))
             .accessibilityIdentifier("notes.drag-preview")
+    }
+    /// Above the finger when there is room, otherwise beside it: never under it.
+    private func readoutPosition(_ note:NoteEvent)->CGPoint {
+        let finger=gripCenter(note)
+        let center=NoteGesturePreview.readoutCenter(finger:.init(x:Double(finger.x),y:Double(finger.y)),noteMinY:Double(rect(note).minY),
+                                                    readoutWidth:128,readoutHeight:48,contentWidth:Double(contentWidth),contentHeight:576)
+        return CGPoint(x:center.x,y:center.y)
     }
     private func update(_ operation:Operation,translation:CGSize,note:NoteEvent?){
         guard !invalidated,let note else{return}
@@ -482,18 +489,10 @@ private struct RollCanvas:View {
         interaction?.preview=preview(current,translation:translation)
     }
     private func preview(_ interaction:Anchor,translation:CGSize)->NoteEvent {
-        guard barWidth.isFinite,barWidth>0,translation.width.isFinite,translation.height.isFinite else{return interaction.original}
-        let step=max(1,snap)
-        let rawSteps=Double(translation.width/barWidth)*Double(barTicks)/Double(step)
-        let steps=Int(min(Double(pattern.length/step+1),max(-Double(pattern.length/step+1),rawSteps)).rounded())
-        let pitchDelta=Int(min(127,max(-127,Double(translation.height/24))).rounded())
-        if steps==0 && (interaction.operation == .resize || pitchDelta==0){return interaction.original}
-        var temporary=Pattern(length:pattern.length,notes:[interaction.original])
-        switch interaction.operation {
-        case .resize:NoteEditing.resize(interaction.original.id,in:&temporary,duration:interaction.original.duration+steps*step,step:step)
-        case .move:NoteEditing.move(interaction.original.id,in:&temporary,tick:interaction.original.tick+steps*step,pitch:min(lowPitch+23,max(lowPitch,interaction.original.pitch-pitchDelta)),step:step)
-        }
-        return temporary.notes?.first ?? interaction.original
+        // Build 44: the same model function computes the drawn and the saved note.
+        NoteGesturePreview.preview(interaction.original,operation:interaction.operation == .resize ? .resize:.move,
+                                   patternLength:pattern.length,translationX:Double(translation.width),translationY:Double(translation.height),
+                                   barWidth:Double(barWidth),step:snap,visiblePitches:lowPitch...lowPitch+23)
     }
     private func finish(_ operation:Operation,translation:CGSize){
         defer{cancel()}

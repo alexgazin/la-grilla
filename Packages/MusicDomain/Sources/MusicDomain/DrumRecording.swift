@@ -30,9 +30,26 @@ public struct DrumRecordingDraft:Sendable {
         var candidate=project
         let before=candidate.patterns[index].drums
         if let absoluteRange{candidate.patterns[index].drums.removeAll{absoluteRange.contains(start+$0.tick)}}
-        candidate.patterns[index].drums.append(contentsOf:events);try candidate.validate()
+        candidate.patterns[index].drums.append(contentsOf:Self.singleAttacks(events,over:candidate.patterns[index].drums,velocities:&candidate.patterns[index].drums));try candidate.validate()
         let edited=before != candidate.patterns[index].drums
         project=candidate;changed = changed || edited;return edited
+    }
+    /// Build 44: one contact gives one audible attack. A recorded hit that lands
+    /// on a pad/tick already sounding in the pattern (overdub over the same
+    /// step) or on another hit of this pass (two fast touches quantized to one
+    /// step) does not stack a second identical voice; the louder velocity wins.
+    /// Pre-existing pattern events are never removed or re-identified.
+    static func singleAttacks(_ events:[DrumEvent],over existing:[DrumEvent],velocities pattern:inout [DrumEvent])->[DrumEvent] {
+        var positions:[Int:Int]=[:]
+        for (offset,event) in existing.enumerated() where positions[event.tick*16+event.pad]==nil {positions[event.tick*16+event.pad]=offset}
+        var added:[DrumEvent]=[],addedPositions:[Int:Int]=[:]
+        for event in events {
+            let key=event.tick*16+event.pad
+            if let offset=positions[key]{pattern[offset].velocity=max(pattern[offset].velocity,event.velocity)}
+            else if let offset=addedPositions[key]{added[offset].velocity=max(added[offset].velocity,event.velocity)}
+            else{addedPositions[key]=added.count;added.append(event)}
+        }
+        return added
     }
     /// Merge musical data only. Mixer/MIDI changes made while playing survive;
     /// a deleted/replaced source clip makes this draft stale instead of guessing.
