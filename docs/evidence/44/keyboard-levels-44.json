@@ -1,0 +1,6 @@
+[
+  {"timbre":"piano-synth","velocity":100,"liveSinglePeakDBFS":-28.83,"recordedSinglePeakDBFS":-28.83,"singleDeltaDB":0.00,"liveChordPeakDBFS":-17.53,"recordedChordPeakDBFS":-17.53,"chordDeltaDB":0.00,"chordWithKickPeakDBFS":-14.75,"liveSingleRMSDBFS":-33.48,"recordedSingleRMSDBFS":-33.48},
+  {"timbre":"soft-attack-warm","velocity":100,"liveSinglePeakDBFS":-29.34,"recordedSinglePeakDBFS":-29.34,"singleDeltaDB":0.00,"liveChordPeakDBFS":-17.93,"recordedChordPeakDBFS":-17.93,"chordDeltaDB":0.00,"chordWithKickPeakDBFS":-13.84,"liveSingleRMSDBFS":-33.26,"recordedSingleRMSDBFS":-33.26},
+  {"timbre":"bass","velocity":100,"liveSinglePeakDBFS":-28.86,"recordedSinglePeakDBFS":-28.86,"singleDeltaDB":0.00,"liveChordPeakDBFS":-17.74,"recordedChordPeakDBFS":-17.74,"chordDeltaDB":0.00,"chordWithKickPeakDBFS":-14.89,"liveSingleRMSDBFS":-34.68,"recordedSingleRMSDBFS":-34.68},
+  {"timbre":"imported-quiet-sample","velocity":100,"liveSinglePeakDBFS":-32.51,"recordedSinglePeakDBFS":-32.51,"singleDeltaDB":0.00,"liveChordPeakDBFS":-21.18,"recordedChordPeakDBFS":-21.18,"chordDeltaDB":0.00,"chordWithKickPeakDBFS":-15.96,"liveSingleRMSDBFS":-36.20,"recordedSingleRMSDBFS":-36.20}
+]

@@ -302,7 +302,7 @@ private struct KeyboardPhrase {
         let tick = offset + Int(((now - start) * bpm * Double(ppq) / 60).rounded())
         if down { held[pitch] = tick }
         else if let onset = held.removeValue(forKey: pitch), notes.count < 4096 {
-            notes.append(NoteEvent(tick: onset, duration: max(1, tick - onset), pitch: pitch))
+            notes.append(NoteEvent(tick: onset, duration: max(1, tick - onset), pitch: pitch, velocity: KeyboardPerformance.velocity))
         }
     }
 

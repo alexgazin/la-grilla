@@ -18,7 +18,6 @@ struct LGSampleBank {
     bool ringsOut;
     std::vector<int16_t> pcm;
     std::array<LGSampleZone,128> nearest{};
-    std::array<float,128> keyboardGain{};
 };
 namespace {
 template<size_t N>
@@ -57,7 +56,6 @@ struct Voice { bool on=false; int pitch=0,track=0,pad=-1,instrument=0; double ph
     const LGSampleBank *sample=nullptr;
     LGSampleZone zone{};
     double sampleCursor=0;
-    float keyboardGain=0;
 };
 
 static float sampleFrame(Voice& voice){
@@ -83,14 +81,10 @@ static float sampleFrame(Voice& voice){
     cursor+=voice.playbackRatio;
     return value;
 }
-// Keep a single key linear and reserve headroom for closely voiced chords.
-static float keyboardBus(float value){
-    constexpr float knee=0.75f, headroom=0.23f;
-    const float excess=std::abs(value)-knee;
-    if(excess<=0)return value;
-    return std::copysign(knee+headroom*excess/(headroom+excess),value);
-}
-struct Retirement {float sample=0;int track=0,remaining=0,total=1;float keyboardGain=0;};
+// Build 44: the built-in keybed has no listening gain of its own. A key played
+// live, the recorded note and the offline WAV share one gain structure:
+// velocity -> instrument -> track fader -> master.
+struct Retirement {float sample=0;int track=0,remaining=0,total=1;};
 struct Input { int value=0,velocity=100,track=0,instrument=0; bool preview=false;uint64_t identity=0; };
 struct OutputTimingMeter {
     static_assert(std::atomic<uint64_t>::is_always_lock_free&&std::atomic<uint32_t>::is_always_lock_free,"Output timing publication requires lock-free atomics");
@@ -193,7 +187,7 @@ struct LGKernel {
     void retire(const Voice &v){
         if(!v.on||(!v.sample&&v.presetVersion<2)||v.lastSample==0)return;
         auto *tail=&*std::min_element(retirements.begin(),retirements.end(),[](const auto &a,const auto &b){return std::abs(a.sample)*a.remaining/a.total<std::abs(b.sample)*b.remaining/b.total;});
-        const int count=std::max(1,int(std::ceil(sr*0.003)));*tail={v.lastSample,v.track,count,count,v.keyboardGain};
+        const int count=std::max(1,int(std::ceil(sr*0.003)));*tail={v.lastSample,v.track,count,count};
     }
     void silence(bool all=false){for(auto &v:voices)if(all||v.sourceKey<0){if(!all)retire(v);endOutput(v);v.on=false;}if(all){sustain.fill(false);for(auto &tail:retirements)tail.remaining=0;layoutFadeRemaining=0;}}
     Voice *trigger(int pitch,int velocity,int track,int pad,int instrument,double duration,bool output=true){
@@ -242,7 +236,7 @@ struct LGKernel {
         for(int channel=0;channel<16;channel++)sustain[source*16+channel]=false;
         if(capture)performance.emit(13,-1,0,0,source);
     }
-    void midiEvent(const LGMIDIEvent &e,bool capture=true,bool screenKeyboard=false){
+    void midiEvent(const LGMIDIEvent &e,bool capture=true){
         const int key=e.source*16+e.channel;
         if(e.status==9){
             if(e.instrument==1){
@@ -252,7 +246,6 @@ struct LGKernel {
             }
             for(auto &v:voices)if(v.on&&v.sourceKey==key&&v.pitch==e.a){endOutput(v);v.duration=std::min(v.duration,v.age+0.008);}
             auto *voice=trigger(e.a,e.b,e.track,-1,e.instrument,1e9,!capture);voice->sourceKey=key;voice->keyDown=true;
-            if(screenKeyboard)voice->keyboardGain=voice->sample?voice->sample->keyboardGain[e.a]:4.f;
             if(capture)performance.emit(10,e.track,float(e.b),e.a,key,e.instrument);
         }else if(e.status==8){
             if(e.instrument==1)return;
@@ -451,20 +444,10 @@ LGSampleBank *lg_sample_create_with_release(int32_t rate,const LGSampleZone *zon
         auto pcmCopy=std::vector<int16_t>(pcm,pcm+frames);
         auto *bank=new LGSampleBank;
         bank->rate=rate;bank->ringsOut=ringsOut!=0;bank->pcm=std::move(pcmCopy);
-        // Measure once on the loading thread. Very quiet/silent zones stay silent
-        // or quiet; an unrelated loud zone cannot mask the rest of the keyboard.
-        std::array<float,128> gains{};
-        for(int i=0;i<count;i++){
-            const auto &zone=zones[i];
-            int peak=0;
-            for(int j=0;j<zone.frames;j++)peak=std::max(peak,std::abs(int(pcm[zone.offset+j])));
-            gains[i]=peak<32?1.f:std::clamp(0.84f*32768.f/float(peak),1.f,64.f);
-        }
         int nearest=0;
         for(int pitch=0;pitch<128;pitch++){
             while(nearest+1<count&&std::abs(zones[nearest+1].pitch-pitch)<std::abs(zones[nearest].pitch-pitch))nearest++;
             bank->nearest[pitch]=zones[nearest];
-            bank->keyboardGain[pitch]=gains[nearest];
         }
         return bank;
     }catch(...){return nullptr;}
@@ -659,9 +642,9 @@ void lg_render_midi(LGKernel*k,LGMIDIHub*hub,uint64_t hostTime,double hostTicksP
         if(f==0){while(rd<wr){auto v=k->input[rd++%256];if(v.identity){v.track=k->identityTrack(v.identity);if(v.track>=0)v.instrument=k->slots[k->current].instruments[v.track];}else if(!v.preview)v.track=k->roleTrack(1,1);else if(v.track<0)v.track=k->roleTrack(0,0);if(v.track<0)continue;k->performance.emit(v.preview?9:8,v.track,float(v.velocity),v.value,v.instrument);k->trigger(v.preview?v.value:36,v.velocity,v.track,v.preview?-1:v.value,v.instrument,v.preview?0.65:1);}k->read.store(rd,std::memory_order_release);}
         // Boundary-time input belongs to the newly adopted layout. Applying it
         // before adoption would create an old-index voice and then clear it.
-        if(hub)hub->dueWithOrigin(hostTime+uint64_t(double(f)*hostPerSample),uint64_t(std::max(1.0,hostPerSample)),[&](const LGMIDIEvent &event,bool screenKeyboard){if(!k->performance.replaying())k->midiEvent(event,true,screenKeyboard);});
+        if(hub)hub->dueWithOrigin(hostTime+uint64_t(double(f)*hostPerSample),uint64_t(std::max(1.0,hostPerSample)),[&](const LGMIDIEvent &event,bool){if(!k->performance.replaying())k->midiEvent(event,true);});
         for(int t=0;t<Buses;t++){k->smooth[t]+=(gainTargets[t]-k->smooth[t])*ramp;k->smoothPan[t]+=(panTargets[t]-k->smoothPan[t])*ramp;}
-        float left=0,right=0;float buses[Buses]={},keys[Buses]={};
+        float left=0,right=0;float buses[Buses]={};
         for(auto&v:k->voices)if(v.on){
             float sample=0;const double remaining=v.duration-v.age;
             if(remaining<=0){k->endOutput(v);v.on=false;continue;}
@@ -669,7 +652,7 @@ void lg_render_midi(LGKernel*k,LGMIDIHub*hub,uint64_t hostTime,double hostTicksP
                 sample=sampleFrame(v)*v.velocity*float(std::min(1.,v.age/0.001)*std::min(1.,remaining/0.008));
                 v.age=double(++v.ageFrames)/k->sr;
                 v.lastSample=sample;v.level=std::abs(sample);
-                if(v.keyboardGain>0)keys[v.track]+=sample*v.keyboardGain;else buses[v.track]+=sample;
+                buses[v.track]+=sample;
                 continue;
             }
             if(v.pad>=0){const auto &bank=v.presetVersion>=2&&k->kitFrames!=LegacyKitFrames?k->kitV2:k->kit;int frame=v.presetVersion>=3?int(double(v.ageFrames)*v.playbackRatio):v.presetVersion>=2?int(v.ageFrames):int(v.age*k->sr);if(frame>=int(bank[v.pad].size())){k->endOutput(v);v.on=false;continue;}sample=bank[v.pad][frame];if(v.presetVersion>=3){v.toneState+=float(v.toneAlpha)*(sample-v.toneState);sample=v.presetVersion==3?v.toneState:float((sample+0.65*(sample-v.toneState))*0.85);}}
@@ -677,10 +660,9 @@ void lg_render_midi(LGKernel*k,LGMIDIHub*hub,uint64_t hostTime,double hostTicksP
             double envelope=std::min(1.,v.age/(v.presetVersion>=3?v.attack:0.004))*std::min(1.,remaining/0.008);if(v.pad<0)envelope*=v.presetVersion>=2?v.decay:std::exp(-v.age*(v.instrument==2?1.5:0.7));
             sample*=float(envelope)*v.velocity;v.level=std::abs(sample);if(v.presetVersion>=2){v.age=double(++v.ageFrames)/k->sr;v.decay*=v.decayStep;}else{v.age+=1/k->sr;}
             v.lastSample=sample;
-            if(v.keyboardGain>0)keys[v.track]+=sample*v.keyboardGain;else buses[v.track]+=sample;
+            buses[v.track]+=sample;
         }
-        for(auto &tail:k->retirements)if(tail.remaining>0){const float value=tail.sample*float(tail.remaining)/float(tail.total);if(tail.keyboardGain>0)keys[tail.track]+=value*tail.keyboardGain;else buses[tail.track]+=value;--tail.remaining;}
-        for(int t=0;t<MaxTracks;t++)buses[t]+=keyboardBus(keys[t]);
+        for(auto &tail:k->retirements)if(tail.remaining>0){const float value=tail.sample*float(tail.remaining)/float(tail.total);buses[tail.track]+=value;--tail.remaining;}
         k->fx.processBuses(buses,k->active);
         for(int t=0;t<MaxTracks;t++){
             const float amp=k->eqChannels[t].process(buses[t])*k->smooth[t];

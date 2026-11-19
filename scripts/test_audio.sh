@@ -6,7 +6,7 @@ GRILLA_AUDIO_TMP=$(mktemp -d "${TMPDIR:-/tmp}/la-grilla-audio.XXXXXX")
 trap 'rm -rf "$GRILLA_AUDIO_TMP"' EXIT
 GRILLA_AUDIO_CXX=${GRILLA_CXX_BIN:-c++}
 FLAGS=(-std=c++17 -O2 -Wall -Wextra -Werror -pthread -I Packages/MusicDomain/Sources/AudioDSP -I Packages/MusicDomain/Sources/AudioDSP/include)
-for TEST in kernel kernel_allocation_failure performance_control performance_fx midi_hub midi_kernel midi_output midi_layout repeat_freeze mix_snapshot live_snapshot output_timing input_buffer instrument_version sound_palette voice_retirement render_stress; do
+for TEST in kernel kernel_allocation_failure performance_control performance_fx midi_hub midi_kernel midi_output midi_layout repeat_freeze mix_snapshot live_snapshot output_timing input_buffer instrument_version sound_palette voice_retirement keyboard_level render_stress; do
   SOURCES=("Tests/${TEST}_test.cpp")
   case "$TEST" in
     performance_fx|repeat_freeze) ;;
