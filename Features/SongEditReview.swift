@@ -46,7 +46,7 @@ struct SongEditReview: View {
                 ForEach(Array(plan.choices.enumerated()), id: \.offset) { index, choice in
                     Button { choose(index) } label: {
                         Text(verbatim: choice.label).frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-                    }.buttonStyle(.bordered).accessibilityIdentifier("assistant.edit.choice.\(index)")
+                    }.buttonStyle(StudioActionStyle(prominent: false)).accessibilityIdentifier("assistant.edit.choice.\(index)")
                 }
             }
             if plan.isApplicable, let candidate {
@@ -55,7 +55,7 @@ struct SongEditReview: View {
                 if stale {
                     Label("The project changed after this plan was made.", systemImage: "exclamationmark.arrow.circlepath")
                         .font(.caption).foregroundStyle(Color.harmony)
-                    Button("Recalculate", action: recalculate).buttonStyle(.bordered).frame(minHeight: 44)
+                    Button("Recalculate", action: recalculate).buttonStyle(StudioActionStyle(prominent: false))
                         .accessibilityIdentifier("assistant.edit.recalculate")
                 } else {
                     HStack(spacing: 10) {

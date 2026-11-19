@@ -45,7 +45,7 @@ struct AssistantView:View {
                         .accessibilityValue(LocalizedStringKey(session.harmonyPreview ? "Preview":"Original")).accessibilityIdentifier("assistant.preview-state")
                     Button { session.openTrackBuilder(idea:input) } label: {
                         Label("Build a track",systemImage:"slider.horizontal.3")
-                    }.buttonStyle(.bordered).disabled(dictation.recording || dictation.requesting || dictation.finalizing || generationTask != nil)
+                    }.buttonStyle(StudioActionStyle(prominent:false)).disabled(dictation.recording || dictation.requesting || dictation.finalizing || generationTask != nil)
                     SongFormTemplateMenu{template in useTemplate(template)}
                         .disabled(dictation.recording || dictation.requesting || dictation.finalizing || generationTask != nil)
                     if session.project.arrangementRecipe != nil {
@@ -84,7 +84,7 @@ struct AssistantView:View {
                             Button("Try a chord progression"){useProgressionExample()}.frame(minHeight:44).accessibilityIdentifier("assistant.empty-harmony-example")
                         }
                     }
-                    if ambiguous {VStack(spacing:8){Button("Stretch chords evenly"){generate(.stretch)};Button("Repeat, one bar per chord"){generate(.repeatBars)}}.buttonStyle(.bordered).frame(maxWidth:.infinity)}
+                    if ambiguous {VStack(spacing:8){Button("Stretch chords evenly"){generate(.stretch)};Button("Repeat, one bar per chord"){generate(.repeatBars)}}.buttonStyle(StudioActionStyle(prominent:false)).frame(maxWidth:.infinity)}
                     if let proposal,let candidate,let proposalSource{review(proposal,source:proposalSource,candidate:candidate)}
                     if songEditPlan==nil,proposal==nil,let log=session.project.editLog,!log.isEmpty{
                         // I41: recent phrase edits of this project; tap one to reuse it.

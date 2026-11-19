@@ -53,7 +53,7 @@ struct PadSampleEditor: View {
                         .background(Color.panel, in: RoundedRectangle(cornerRadius: Luz.Radius.card))
                         if measuredEdit == edit, let gain = levels?.headroomGainDB {
                             Button("Leave 1 dB headroom") { adjust(.gain, to: gain, source: source) }
-                                .buttonStyle(.bordered).font(.subheadline)
+                                .buttonStyle(StudioActionStyle(color: .drums, prominent: false))
                                 .frame(minHeight: 44).disabled(applying)
                                 .accessibilityIdentifier("pad-editor.headroom")
                         }
@@ -90,7 +90,7 @@ struct PadSampleEditor: View {
                         Label(audition == nil ? "Hear edit" : "Stop preview", systemImage: audition == nil ? "play.fill" : "stop.fill")
                             .font(.headline).frame(maxWidth: .infinity, minHeight: 44)
                     }
-                    .buttonStyle(.borderedProminent).foregroundStyle(Color.ink).disabled(applying)
+                    .buttonStyle(StudioActionStyle(color: .drums)).disabled(applying)
                     .accessibilityValue(Text(verbatim: session.runtimeTraceEnabled ? previewTrace : ""))
                     .accessibilityIdentifier("pad-editor.preview")
                     .padding(.horizontal, 16).padding(.vertical, 8).background(Color.ink)

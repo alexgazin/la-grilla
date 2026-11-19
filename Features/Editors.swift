@@ -58,7 +58,7 @@ struct ChordEditor: View {
     }
     // Keep the two frequent actions reachable while the chord catalog scrolls.
     private var chordActions:some View {
-        HStack{Button{preview()}label:{Label("Preview",systemImage:"speaker.wave.2").frame(maxWidth:.infinity,minHeight:48).background(Color.raised,in:RoundedRectangle(cornerRadius:Luz.Radius.cell))}.accessibilityIdentifier("chord.preview");Button{apply()}label:{Text("Apply").fontWeight(.semibold).foregroundStyle(Color.ink).frame(maxWidth:.infinity,minHeight:48).background(Color.harmony,in:RoundedRectangle(cornerRadius:Luz.Radius.cell))}.accessibilityIdentifier("chord.apply")}.buttonStyle(StudioQuietButtonStyle())
+        HStack{Button{preview()}label:{Label("Preview",systemImage:"speaker.wave.2")}.buttonStyle(StudioActionStyle(color:.harmony,prominent:false)).accessibilityIdentifier("chord.preview");Button{apply();Luz.Haptics.success()}label:{Text("Apply")}.buttonStyle(StudioActionStyle(color:.harmony)).accessibilityIdentifier("chord.apply")}
     }
     private var chordRootName:String {spelling == .automatic ? (chord.rootSpelling ?? pitchName(chord.root)):pitchName(chord.root)}
     private func pitchName(_ value:Int)->String{MusicalNotation.pitchClassName(value,keyRoot:session.project.keyRoot,minor:session.project.minor,spelling:spelling)}
