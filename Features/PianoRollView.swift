@@ -52,10 +52,11 @@ struct PianoRollView: View {
                 if let clip,let pattern,clip.offset != 0 || clip.length != pattern.length{Text("Editing the source pattern updates every loop of this clip.").font(.caption).foregroundStyle(Color.muted).padding(.horizontal,16)}
                 if let pattern {
                     if listMode {eventList(pattern).frame(height:dynamicType.isAccessibilitySize ? 280:nil)} else {roll(pattern)}
-                    if let note {NoteInspector(session:session,patternID:pattern.id,note:note,snap:snap,spelling:spelling)}
+                    if let note {NoteInspector(session:session,patternID:pattern.id,note:note,snap:snap,spelling:spelling)
+                        .transition(.move(edge:.bottom).combined(with:.opacity))}
                     editBar(pattern).padding(.horizontal,16)
                     NoteToolsMenu(session:session,patternID:pattern.id,selected:selected).padding(.horizontal,16)
-                } else {ContentUnavailableView("Add a melody track",systemImage:"pianokeys",description:Text("Write a melody above your harmony."))}
+                } else {LuzEmptyState(symbol:"pianokeys",title:"Add a melody track",detail:"Write a melody above your harmony.").padding(.horizontal,16)}
                 HStack(spacing:4){IconButton(symbol:"arrow.uturn.backward",label:"Undo"){session.undo()}.disabled(!session.history.canUndo).accessibilityIdentifier("notes.undo");IconButton(symbol:"arrow.uturn.forward",label:"Redo"){session.redo()}.disabled(!session.history.canRedo).accessibilityIdentifier("notes.redo");Spacer();Text(LocalizedStringKey(session.audio.playing ? "PLAYING":"STOPPED")).font(.caption.monospaced()).foregroundStyle(Color.muted).accessibilityIdentifier("notes.status");IconButton(symbol:session.audio.playing ? "stop.fill":"play.fill",label:session.audio.playing ? "Stop":"Play",color:.mint){session.togglePlay()}.accessibilityIdentifier("notes.play")}.padding(.horizontal,12).overlay(alignment:.top){Rectangle().fill(Color.outline.opacity(0.5)).frame(height:0.5)}
             }.padding(.top,12).padding(.bottom,8).background(Color.ink).modifier(ScrollableForLargeType())
             .navigationTitle("Piano roll").navigationBarTitleDisplayMode(.inline)
