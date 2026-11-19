@@ -24,7 +24,7 @@ public struct SongEditTarget: Codable, Equatable, Hashable, Sendable {
 
 public struct SongEditOperation: Codable, Equatable, Sendable {
     public enum Kind: String, Codable, CaseIterable, Sendable {
-        case remove, fill, denser, sparser, arpeggiate, delay, fadeIn, fadeOut, hook
+        case remove, fill, denser, sparser, arpeggiate, delay, fadeIn, fadeOut, hook, stopBreak
     }
     public var kind: Kind
     public var target: SongEditTarget
@@ -106,7 +106,7 @@ public struct SongEditPlan: Equatable, Sendable {
         var cells: [SongEditCell] = []
         for op in operations {
             let ticks = op.bars.lowerBound * barTicks..<op.bars.upperBound * barTicks
-            let start = op.kind == .fill ? max(ticks.lowerBound, ticks.upperBound - op.amount) : ticks.lowerBound
+            let start = (op.kind == .fill || op.kind == .stopBreak) ? max(ticks.lowerBound, ticks.upperBound - op.amount) : ticks.lowerBound
             for section in project.sections where section.start < ticks.upperBound && section.start + section.length > start {
                 let cell = SongEditCell(trackID: op.target.trackID, sectionID: section.id)
                 if !cells.contains(cell) { cells.append(cell) }
@@ -162,6 +162,7 @@ extension SongEditOperation {
         case .sparser: "Make %@ sparser in %@"
         case .arpeggiate: "Arpeggiate the chords on %@ in %@"
         case .hook: "Write a melodic hook on %@ in %@"
+        case .stopBreak: "Stop %@ for the last beat of %@"
         case .delay: "Play %@ later in %@"
         case .fadeIn: "Fade %@ in over %@"
         case .fadeOut: "Fade %@ out over %@"

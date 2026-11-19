@@ -97,7 +97,7 @@ public enum SongEditParser {
 
     /// Whether the operation's part plays in its bars (fill and arpeggio create new material).
     static func sounds(_ op: SongEditOperation, in project: Project) -> Bool {
-        if op.kind == .fill || op.kind == .arpeggiate || op.kind == .hook { return true }
+        if op.kind == .fill || op.kind == .arpeggiate || op.kind == .hook || op.kind == .stopBreak { return true }
         guard let index = project.tracks.firstIndex(where: { $0.id == op.target.trackID }) else { return false }
         let range = op.bars.lowerBound * barTicks..<op.bars.upperBound * barTicks
         let pads = op.target.pads.map(Set.init)
@@ -115,7 +115,7 @@ public enum SongEditParser {
     static func changesDerivedBass(_ op: SongEditOperation, project: Project) -> Bool {
         guard project.tracks.contains(where: { $0.role == .bass }),
               project.tracks.first(where: { $0.id == op.target.trackID })?.role == .harmony else { return op.kind == .arpeggiate && op.replacesChords && project.tracks.contains { $0.role == .bass } }
-        return [.remove, .denser, .sparser, .delay].contains(op.kind)
+        return [.remove, .denser, .sparser, .delay, .stopBreak].contains(op.kind)
     }
 
     // MARK: Tokens
@@ -290,12 +290,14 @@ public enum SongEditParser {
         func phrase(_ list: [String]) -> Bool { list.contains { text.contains(" " + $0) } }
         // Operation kind.
         edit.fillNoun = words.contains { any($0, Lexicon.fill) }
+        let stopBreak = phrase(["стоп-брейк", "стоп брейк", "stop-break", "stop break", "стоп‑брейк"]) || words.contains("стоп-брейк") || words.contains("stop-break")
         let fadeWord = words.firstIndex { $0 == "fade" || $0 == "fades" || $0 == "fading" }
         let fadeOutWord = fadeWord.map { f in words[f...].contains("out") } ?? false
         let fadeInWord = fadeWord.map { f in words[(f + 1)...].contains("in") && !words[f...].contains("out") } ?? false
         if phrase(Lexicon.fadeOutPhrases) || fadeOutWord || words.contains(where: { any($0, Lexicon.fadeOut) }) { edit.kind = .fadeOut }
         else if phrase(Lexicon.fadeInPhrases) || fadeInWord || words.contains(where: { any($0, Lexicon.fadeIn) }) { edit.kind = .fadeIn }
         else if fadeWord != nil { edit.kind = .fadeOut }
+        else if stopBreak { edit.kind = .stopBreak; edit.fillTicks = ppq }
         else if edit.fillNoun { edit.kind = .fill }
         else if words.contains(where: { any($0, Lexicon.arpeggio) }) { edit.kind = .arpeggiate }
         else if (edit.action == .add || edit.action == .make) && words.contains(where: { any($0, ["мелоди", "хук", "мотив", "melody", "hook", "motif", "riff", "рифф", "лид", "lead", "topline"]) }) && !words.contains(where: { any($0, Lexicon.remove) }) { edit.kind = .hook }
@@ -306,7 +308,7 @@ public enum SongEditParser {
         else if edit.action == nil, words.contains(where: { $0 == "без" || $0 == "without" }) { edit.action = .remove; edit.kind = .remove }
         if edit.kind != nil, edit.action == .keep { edit.action = .make }
         if edit.kind == .arpeggiate, phrase(["вместо аккорд", "instead of the chord", "instead of chord", "replace the chord", "замени аккорд"]) { edit.replacesChords = true }
-        if edit.kind == .fill {
+        if edit.kind == .fill || edit.kind == .stopBreak {
             if words.contains(where: { any($0, ["коротк", "небольш", "маленьк", "short", "quick", "brief", "small"]) }) || phrase(["полтакта", "half bar", "half a bar", "half-bar"]) { edit.fillTicks = 2 * ppq }
             if words.contains(where: { any($0, ["длинн", "больш", "long", "big"]) }) || phrase(["целый такт", "на весь такт", "на такт", "full bar", "whole bar", "one bar", "один такт"]) { edit.fillTicks = barTicks }
             if phrase(["одну долю", "на долю", "one beat", "a beat", "single beat"]) { edit.fillTicks = ppq }
@@ -520,7 +522,13 @@ public enum SongEditParser {
     static func resolveOperations(kind: SongEditOperation.Kind, edit: Edit, project: Project, protected: [UUID], protectedPads: [SongEditTarget] = []) -> Resolution {
         let totalBars = project.length / barTicks
         var targets: [SongEditTarget]
-        if kind == .fill {
+        if kind == .stopBreak {
+            // Named parts, or everything that is not kept; a derived bass follows its chords.
+            let named = edit.targets.isEmpty ? [] : resolve(edit.targets, except: edit.exceptions, project: project, forEdit: true)
+            targets = (named.isEmpty ? project.tracks.filter { $0.role != .bass }.map { SongEditTarget(trackID: $0.id) } : named)
+                .filter { target in !protected.contains(target.trackID) && project.tracks.first(where: { $0.id == target.trackID })?.role != .bass }
+            guard !targets.isEmpty else { return .problem(.missing) }
+        } else if kind == .fill {
             guard let drums = project.tracks.first(where: { $0.role == .drums }) else { return .problem(.missing) }
             targets = [SongEditTarget(trackID: drums.id)]
         } else if kind == .hook {
@@ -567,7 +575,7 @@ public enum SongEditParser {
                 amount = max(1, Int((ms / 1000 * project.bpm * Double(ppq) / 60).rounded()))
             }
         }
-        if kind == .fill { amount = edit.fillTicks }
+        if kind == .fill || kind == .stopBreak { amount = edit.fillTicks }
         func make(_ bars: Range<Int>, section: UUID?) -> [SongEditOperation] {
             targets.map { SongEditOperation(kind: kind, target: $0, bars: bars, sectionID: section, everyOther: edit.everyOther, amount: amount, replacesChords: edit.replacesChords) }
         }
@@ -584,7 +592,7 @@ public enum SongEditParser {
         let song = 0..<totalBars
         guard let candidates = sections(matching: edit, project: project) else {
             // No section named.
-            if kind == .fill {
+            if kind == .fill || kind == .stopBreak {
                 if let r = edit.barRange { return r.upperBound <= totalBars ? .operations(make((r.upperBound - 1)..<r.upperBound, section: nil)) : .problem(.missing) }
                 if edit.lastBars != nil { return .operations(make((totalBars - 1)..<totalBars, section: nil)) }
                 let boundaries = project.sections.filter { $0.start > 0 }
@@ -600,7 +608,7 @@ public enum SongEditParser {
         guard !candidates.isEmpty else { return .problem(.missing) }
         func resolveSection(_ s: Section) -> Resolution {
             let span = (s.start / barTicks)..<((s.start + s.length) / barTicks)
-            if kind == .fill {
+            if kind == .fill || kind == .stopBreak {
                 switch edit.place {
                 case .before:
                     guard s.start > 0 else { return .problem(.noBarBefore) }
@@ -634,7 +642,7 @@ public enum SongEditParser {
         var choices: [SongEditChoice] = []
         for s in candidates.prefix(6) {
             if case .operations(let ops) = resolveSection(s) {
-                choices.append(SongEditChoice(label: label(s, project: project, place: kind == .fill ? (edit.place == .before ? .before : .after) : edit.place), sectionID: s.id, operations: ops))
+                choices.append(SongEditChoice(label: label(s, project: project, place: (kind == .fill || kind == .stopBreak) ? (edit.place == .before ? .before : .after) : edit.place), sectionID: s.id, operations: ops))
             }
         }
         guard !choices.isEmpty else { return .problem(.missing) }

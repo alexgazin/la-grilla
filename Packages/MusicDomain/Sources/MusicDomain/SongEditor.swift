@@ -158,6 +158,20 @@ public enum SongEditor {
             for i in pattern.chords.indices where whole.contains(pattern.chords[i].tick) {
                 pattern.chords[i].velocity = scaled(pattern.chords[i].velocity ?? 88, factor(pattern.chords[i].tick))
             }
+        case .stopBreak:
+            // Everything this track plays stops for the final beat(s) before the boundary.
+            let barEnd = op.bars.upperBound * barTicks - base
+            let window = (barEnd - max(ppq / 2, min(barTicks, op.amount)))..<barEnd
+            pattern.drums.removeAll { window.contains($0.tick) && (pads?.contains($0.pad) ?? true) }
+            pattern.notes?.removeAll { window.contains($0.tick) }
+            pattern.chords.removeAll { window.contains($0.tick) }
+            for i in pattern.chords.indices where pattern.chords[i].tick < window.lowerBound && pattern.chords[i].tick + pattern.chords[i].duration > window.lowerBound {
+                pattern.chords[i].duration = window.lowerBound - pattern.chords[i].tick
+            }
+            if var notes = pattern.notes {
+                for i in notes.indices where notes[i].tick < window.lowerBound && notes[i].tick + notes[i].duration > window.lowerBound { notes[i].duration = window.lowerBound - notes[i].tick }
+                pattern.notes = notes
+            }
         case .arpeggiate, .hook:
             break
         }

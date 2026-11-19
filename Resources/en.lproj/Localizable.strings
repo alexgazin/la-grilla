@@ -1228,3 +1228,4 @@
 "Break" = "Break";
 "Drift" = "Drift";
 "Fade" = "Fade";
+"Stop %@ for the last beat of %@" = "Stop %@ for the last beat of %@";

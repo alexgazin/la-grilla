@@ -89,7 +89,7 @@ struct SongEditReview: View {
     /// From the bar before the first change to one bar after the last, so a
     /// fill is heard together with the section boundary it leads into.
     private var window: Range<Int> {
-        let edited = plan.operations.flatMap { $0.kind == .fill ? [$0.bars.upperBound - 1] : $0.editedBars }
+        let edited = plan.operations.flatMap { ($0.kind == .fill || $0.kind == .stopBreak) ? [$0.bars.upperBound - 1] : $0.editedBars }
         let lower = max(0, (edited.min() ?? 0) - 1), upper = min(source.length / barTicks, (edited.max() ?? 0) + 2)
         return lower * barTicks..<max(lower + 1, upper) * barTicks
     }
@@ -130,6 +130,7 @@ struct SongEditReview: View {
         case .sparser: "circle.dotted"
         case .arpeggiate: "arrow.up.and.down.text.horizontal"
         case .hook: "music.quarternote.3"
+        case .stopBreak: "pause.circle"
         case .delay: "clock.arrow.circlepath"
         case .fadeIn: "speaker.wave.1"
         case .fadeOut: "speaker.slash"

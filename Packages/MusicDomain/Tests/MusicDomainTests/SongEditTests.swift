@@ -201,3 +201,24 @@ struct SongEditDemoTests {
         #expect(!unsupported.isApplicable && unsupported.problems.first?.fragment.lowercased().contains("vocals") == true)
     }
 }
+
+struct StopBreakTests {
+    @Test func stopBreakSilencesTheLastBeatBeforeTheChosenChorusOnly() throws {
+        let p = try SongEditDemo.project()
+        for text in ["Сделай стоп-брейк перед вторым припевом, бас оставь", "Add a stop break before the second chorus and keep the bass"] {
+            let plan = SongEditParser.plan(text, project: p)
+            #expect(plan.isApplicable, "\(text): \(plan.problems)")
+            #expect(plan.operations.allSatisfy { $0.kind == .stopBreak && $0.bars == 13..<14 && $0.amount == ppq })
+            let bass = p.tracks.first { $0.name == "Bass" }!.id
+            #expect(!plan.operations.contains { $0.target.trackID == bass })
+            let edited = try SongEditor.apply(plan, to: p)
+            let window = (14 * barTicks - ppq)..<(14 * barTicks)
+            let bassIndex = p.tracks.firstIndex { $0.id == bass }!
+            let inside = Compiler.notes(edited).filter { $0.tick < window.upperBound && $0.tick + $0.duration > window.lowerBound }
+            #expect(inside.allSatisfy { $0.track == bassIndex }, "\(inside.map(\.track))")
+            // The first chorus transition is untouched; the chorus itself starts as before.
+            #expect(Compiler.notes(edited, range: 0..<(13 * barTicks)) == Compiler.notes(p, range: 0..<(13 * barTicks)))
+            #expect(Compiler.notes(edited, range: (14 * barTicks)..<p.length) == Compiler.notes(p, range: (14 * barTicks)..<p.length))
+        }
+    }
+}
