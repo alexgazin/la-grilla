@@ -166,6 +166,15 @@ public enum TimeStretch {
     }
 }
 
+extension TimeStretch {
+    /// I54 · fit a loop played at `from` BPM to `to` BPM without changing its pitch.
+    public static func fit(_ samples: [Int16], rate: Int, from: Double, to: Double) -> [Int16] {
+        guard from.isFinite, to.isFinite, from > 0, to > 0, abs(from - to) > 0.01 else { return samples }
+        let stretched = wsola(samples.map { Float($0) / 32768 }, rate: rate, ratio: from / to)
+        return stretched.map { Int16(clamping: Int(($0 * 32767).rounded())) }
+    }
+}
+
 /// I94 · in-app latency measurement: the microphone records the output click;
 /// cross-correlation of the reference click with the recording gives the
 /// round-trip delay. Weak or ambiguous matches are rejected.

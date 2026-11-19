@@ -113,6 +113,9 @@ struct AudioAnalysisTests {
             #expect(abs(rms - 0.5 / 2.0.squareRoot()) < 0.05)
         }
         #expect(TimeStretch.wsola(tone, rate: rate, ratio: 1) == tone)
+        let pcm = tone.map { Int16($0 * 32767) }
+        #expect(TimeStretch.fit(pcm, rate: rate, from: 90, to: 120).count == Int((Double(rate) * 0.75).rounded()))
+        #expect(TimeStretch.fit(pcm, rate: rate, from: 100, to: 100) == pcm)
         #expect(TimeStretch.wsola([], rate: rate, ratio: 1.3).isEmpty)
     }
 

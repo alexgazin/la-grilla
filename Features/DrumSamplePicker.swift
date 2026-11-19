@@ -33,6 +33,7 @@ struct DrumSamplePicker: View {
     @State private var task: Task<Void, Never>?
     @State private var error: String?
     @State private var loopTempo: Double?
+    @State private var loopURL: URL?
 
     private var track: Track? {
         guard session.project.id == sourceID else { return nil }
@@ -70,6 +71,17 @@ struct DrumSamplePicker: View {
                             session.edit { $0.bpm = bpm }
                             self.loopTempo = nil
                         }.accessibilityIdentifier("pad-samples.loop-tempo")
+                        if let url = loopURL, (0.5...2).contains(loopTempo / session.project.bpm) {
+                            // I54: or keep the song tempo and stretch the loop to it.
+                            Button(String(format: NSLocalizedString("Fit the loop to %.0f BPM and slice again", comment: "Loop tempo"), session.project.bpm)) {
+                                let from = loopTempo, to = session.project.bpm
+                                self.loopTempo = nil
+                                prepare {
+                                    let slices = try await DrumSamplePreparation.shared.importSlices(url, fit: (from, to))
+                                    return slices.prefix(16).enumerated().map { (pad: Optional($0.offset), sound: $0.element) }
+                                }
+                            }.accessibilityIdentifier("pad-samples.loop-fit")
+                        }
                     }
                 } header: { Text("Factory kits") }
                 footer: { Text("Audition the same beat with each kit. Loading replaces the 16 pad sounds in one undoable edit.") }
@@ -109,7 +121,7 @@ struct DrumSamplePicker: View {
         .fileImporter(isPresented: $showSliceImporter, allowedContentTypes: [.wav, .aiff]) { result in
             switch result {
             case .success(let url):
-                loopTempo = nil
+                loopTempo = nil; loopURL = url
                 Task { loopTempo = try? await DrumSamplePreparation.shared.loopTempo(url) }
                 prepare {
                     let slices = try await DrumSamplePreparation.shared.importSlices(url)

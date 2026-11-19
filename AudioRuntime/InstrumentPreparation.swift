@@ -102,16 +102,18 @@ actor DrumSamplePreparation {
     }
 
     /// I53: one imported loop cut at its transients into up to 16 one-shots.
-    func importSlices(_ url: URL) throws -> [PreparedSound] {
+    /// `fit` stretches the loop from its tempo to the song's first (I54), keeping its pitch.
+    func importSlices(_ url: URL, fit: (from: Double, to: Double)? = nil) throws -> [PreparedSound] {
         let loop = try importSample(url)
         let pcm = try SamplePCM.decode(loop.data, asset: loop.asset)
         guard let zone = pcm.zones.first else { throw SampleError.invalid }
-        let slices = TransientSlicer.slices(zone.samples, rate: pcm.rate)
+        let samples = fit.map { TimeStretch.fit(zone.samples, rate: pcm.rate, from: $0.from, to: $0.to) } ?? zone.samples
+        let slices = TransientSlicer.slices(samples, rate: pcm.rate)
         guard !slices.isEmpty else { throw SampleError.invalid }
         let base = url.deletingPathExtension().lastPathComponent
         return try slices.enumerated().map { index, range in
             try Task.checkCancellation()
-            let shot = TransientSlicer.oneShot(zone.samples, range, rate: pcm.rate)
+            let shot = TransientSlicer.oneShot(samples, range, rate: pcm.rate)
             return try PreparedSound(name: String(base.prefix(40)) + " · \(index + 1)", kind: .oneShot,
                                      pcm: SamplePCM(rate: pcm.rate, zones: [.init(pitch: 60, samples: shot)]))
         }
