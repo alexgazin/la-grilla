@@ -228,3 +228,11 @@ struct DrumLessonTests {
         #expect(lesson.notation.count == 3 && lesson.notation[0].hasSuffix("●·······●·······"))
     }
 }
+
+struct HeardTickTests {
+    @Test func heardTickSubtractsTheRouteDelay() {
+        #expect(RouteLatencyCalibration.heardTick(1000, milliseconds: 120, bpm: 120) == 770)
+        #expect(RouteLatencyCalibration.heardTick(1000, milliseconds: 0, bpm: 120) == 1000)
+        #expect(RouteLatencyCalibration.heardTick(1000, milliseconds: .nan, bpm: 120) == 1000)
+    }
+}

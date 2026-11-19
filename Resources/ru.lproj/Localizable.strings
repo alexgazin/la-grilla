@@ -1283,3 +1283,11 @@
 "The project moves to Recently Deleted and can be restored for 30 days." = "Проект попадёт в «Недавно удалённые», его можно восстановить в течение 30 дней.";
 "Share the latest crash report" = "Поделиться последним отчётом о сбое";
 "Kept only on this iPhone. Contains system stack traces, never your music." = "Хранится только на этом iPhone. Содержит системные стеки вызовов, но не вашу музыку.";
+"Timing" = "Тайминг";
+"This output: %.0f ms recording compensation" = "Этот выход: компенсация записи %.0f мс";
+"Tap on every click" = "Нажимайте на каждый щелчок";
+"%d taps" = "Нажатий: %d";
+"Save %.0f ms for this output" = "Сохранить %.0f мс для этого выхода";
+"Calibrate recording timing" = "Калибровать тайминг записи";
+"Reset for this output" = "Сбросить для этого выхода";
+"Tap 8 or more clicks. Useful for Bluetooth headphones; the live sound is unchanged." = "Нажмите 8 щелчков или больше. Полезно для Bluetooth-наушников; живой звук не меняется.";

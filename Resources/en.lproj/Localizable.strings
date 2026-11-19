@@ -1281,3 +1281,11 @@
 "The project moves to Recently Deleted and can be restored for 30 days." = "The project moves to Recently Deleted and can be restored for 30 days.";
 "Share the latest crash report" = "Share the latest crash report";
 "Kept only on this iPhone. Contains system stack traces, never your music." = "Kept only on this iPhone. Contains system stack traces, never your music.";
+"Timing" = "Timing";
+"This output: %.0f ms recording compensation" = "This output: %.0f ms recording compensation";
+"Tap on every click" = "Tap on every click";
+"%d taps" = "%d taps";
+"Save %.0f ms for this output" = "Save %.0f ms for this output";
+"Calibrate recording timing" = "Calibrate recording timing";
+"Reset for this output" = "Reset for this output";
+"Tap 8 or more clicks. Useful for Bluetooth headphones; the live sound is unchanged." = "Tap 8 or more clicks. Useful for Bluetooth headphones; the live sound is unchanged.";

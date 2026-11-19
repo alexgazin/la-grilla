@@ -107,6 +107,7 @@ struct SettingsView: View {
         }
         Section("Transport"){Toggle("Loop",isOn:Binding(get:{session.loop},set:{session.setLoop(enabled:$0)}));Picker("Loop length",selection:Binding(get:{session.loopBars},set:{session.setLoop(bars:$0)})){ForEach(session.loopLengthOptions,id:\.self){n in Text("\(n) bars").tag(n)}}}
         Section("MIDI"){Button("MIDI devices"){session.sheet = .midiDevices}}
+        Section("Timing"){LatencyCalibrationRow(session:session)}
         audioSettings
         Section("About La Grilla"){
             Button("Getting started"){session.sheet = .gettingStarted}.accessibilityIdentifier("settings.help")
@@ -439,5 +440,55 @@ private struct TapTempoRow: View {
                 }.frame(minHeight: 44).disabled(session.recording || session.armed).accessibilityIdentifier("settings.tap-tempo.use")
             }
         }
+    }
+}
+
+/// I01: tap along with the metronome; the median offset becomes this route's
+/// recording compensation. The live sound is never delayed.
+private struct LatencyCalibrationRow: View {
+    @Bindable var session: Session
+    @State private var running = false
+    @State private var offsets: [Double] = []
+    private var estimate: RouteLatencyCalibration? { RouteLatencyCalibration.estimate(offsets) }
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if let saved = session.routeLatency[session.currentRouteKey] {
+                Text(String(format: NSLocalizedString("This output: %.0f ms recording compensation", comment: "Latency calibration"), saved)).font(.caption)
+            }
+            if running {
+                Button { tap() } label: {
+                    Text("Tap on every click").frame(maxWidth: .infinity, minHeight: 88)
+                        .background(Color.mint.opacity(0.25), in: RoundedRectangle(cornerRadius: 14))
+                }.buttonStyle(.plain).accessibilityIdentifier("settings.latency.tap")
+                Text(String(format: NSLocalizedString("%d taps", comment: "Latency calibration"), offsets.count)).font(.caption.monospacedDigit())
+                if let estimate {
+                    Button(String(format: NSLocalizedString("Save %.0f ms for this output", comment: "Latency calibration"), estimate.medianMilliseconds)) {
+                        session.saveRouteLatency(estimate.medianMilliseconds); stop()
+                    }.frame(minHeight: 44).accessibilityIdentifier("settings.latency.save")
+                }
+                Button("Stop") { stop() }.frame(minHeight: 44)
+            } else {
+                Button("Calibrate recording timing") { start() }.frame(minHeight: 44).accessibilityIdentifier("settings.latency.start")
+                if session.routeLatency[session.currentRouteKey] != nil { Button("Reset for this output") { session.saveRouteLatency(nil) }.frame(minHeight: 44) }
+            }
+            Text("Tap 8 or more clicks. Useful for Bluetooth headphones; the live sound is unchanged.").font(.caption).foregroundStyle(.secondary)
+        }
+    }
+    private func start() {
+        offsets = []; running = true
+        guard session.ensureAudio() else { running = false; return }
+        session.metronome = true; session.audio.metronome(true)
+        if !session.audio.playing { session.togglePlay() }
+    }
+    private func stop() {
+        running = false
+        if session.audio.playing { session.togglePlay() }
+    }
+    private func tap() {
+        session.audio.refreshClock()
+        let beat = Double(ppq)
+        var phase = session.audio.tick.truncatingRemainder(dividingBy: beat)
+        if phase > beat / 2 { phase -= beat }
+        offsets.append(phase / beat * 60 / session.project.bpm * 1000)
     }
 }

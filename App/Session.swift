@@ -28,6 +28,13 @@ import Observation
     @ObservationIgnored private var retroHits=PadRetroBuffer(capacity:1024)
     /// I04: take each hit's velocity from the touch (off: every hit is 100).
     var padVelocityFromTouch=false
+    /// I01/I02: measured click-to-tap offset per output route (ms), applied to recorded hits only.
+    var routeLatency:[String:Double]=(UserDefaults.standard.dictionary(forKey:"studio.routeLatency") as? [String:Double]) ?? [:]
+    var currentRouteKey:String{AVAudioSession.sharedInstance().currentRoute.outputs.first.map{$0.portType.rawValue} ?? "unknown"}
+    func saveRouteLatency(_ milliseconds:Double?){
+        routeLatency[currentRouteKey]=milliseconds
+        UserDefaults.standard.set(routeLatency,forKey:"studio.routeLatency")
+    }
     @ObservationIgnored private var pendingPadInputs:[PadRecordingInput]=[]
     @ObservationIgnored private var drumPass:DrumRecordingPass?
     /// Read-only inspection of events already drained from the contact queue.
@@ -447,7 +454,11 @@ import Observation
                 let passes=(input.clock-passClock)/frames
                 commitPass();passClock+=passes*frames
             }
-            guard let draft=drumDraft,let local=draft.localTick(input.tick),drumPass != nil else{continue}
+            // Recorded position follows what the musician heard on this route.
+            var heard=routeLatency[currentRouteKey].map{RouteLatencyCalibration.heardTick(input.tick,milliseconds:$0,bpm:project.bpm)} ?? input.tick
+            // Heard just before the loop restarted: it belongs at the loop's end.
+            if heard<loopRange.lowerBound,input.tick>=loopRange.lowerBound{heard+=loopRange.count}
+            guard let draft=drumDraft,let local=draft.localTick(heard) ?? draft.localTick(input.tick),drumPass != nil else{continue}
             let event=DrumEvent(tick:GrooveQuantizer(quantize,strength:quantizeStrength,swing:swing).tick(local,length:takeLength),pad:input.pad,velocity:input.velocity)
             do{
                 try drumPass?.append(event)

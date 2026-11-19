@@ -126,6 +126,12 @@ public struct RouteLatencyCalibration: Equatable, Sendable {
                                        accepted: kept.count, rejected: finite.count - kept.count)
     }
 
+    /// Transport tick the musician heard when touching at `tick` on a route that is `milliseconds` late.
+    public static func heardTick(_ tick: Int, milliseconds: Double, bpm: Double) -> Int {
+        guard milliseconds.isFinite, bpm.isFinite, bpm > 0 else { return tick }
+        return tick - Int((milliseconds / 1000 * bpm * Double(ppq) / 60).rounded())
+    }
+
     /// Recorded tick of a hit heard late by `milliseconds` on this route.
     public func compensated(tick: Int, bpm: Double, length: Int) -> Int {
         let ticks = Int((medianMilliseconds / 1000 * bpm * Double(ppq) / 60).rounded())
