@@ -120,16 +120,13 @@ struct EqualizerView: View {
                         if !dragging {
                             dragging=true;session.mixerGesture=false
                             let start=value.startLocation
-                            selected=eq.bands.indices.min { a,b in
-                                func distance(_ index:Int)->Double {
-                                    let v=eq.bands[index]
-                                    let dx=x(v.frequency)*width-Double(start.x)
-                                    let level:Double=v.filter.hasGain ? v.gain:0
-                                    let dy=(18-level)/36*height-Double(start.y)
-                                    return hypot(dx,dy)
-                                }
-                                return distance(a)<distance(b)
-                            } ?? selected
+                            let distances = eq.bands.map { band in
+                                let dx = x(band.frequency) * width - Double(start.x)
+                                let level = band.filter.hasGain ? band.gain : 0
+                                let dy = (18-level)/36 * height - Double(start.y)
+                                return hypot(dx,dy)
+                            }
+                            selected = distances.indices.min { distances[$0] < distances[$1] } ?? selected
                         }
                         guard abs(value.translation.width)+abs(value.translation.height)>2 else{return}
                         let index=selected
