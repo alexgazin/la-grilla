@@ -8,6 +8,7 @@ struct ProjectsView: View {
     @State private var openingExample=false
     @State private var deleting: UUID?;@State private var renameID: UUID?;@State private var name=""
     @State private var query=""
+    @State private var deleted:[ProjectStore.TrashedProject]=[]
     /// I74: match name, tempo or key ("90", "D minor", "ре минор").
     private var visibleEntries:[ProjectStore.SummaryEntry]{
         let text=query.trimmingCharacters(in:.whitespaces).lowercased()
@@ -34,13 +35,14 @@ struct ProjectsView: View {
             }else{VStack(alignment:.leading,spacing:8){Label("Project needs recovery",systemImage:"exclamationmark.triangle");Text(LocalizedStringKey(entry.error ?? "Could not read project")).font(.caption).foregroundStyle(Color.muted);Button("Retry"){Task{await session.openStored(entry.id)}};if entry.hasBackup{Button("Recover last working copy"){Task{await session.recover(entry.id)}}}}.padding()}
         }
         if session.entries.isEmpty{Text("Start with chords or a beat.").foregroundStyle(Color.muted)}
+        if !deleted.isEmpty{RecentlyDeletedList(items:deleted){id in Task{await session.restoreDeleted(id);deleted=await session.store.recentlyDeleted()}}}
     }.padding(22)}.background(Color.ink).navigationTitle("La Grilla").navigationBarTitleDisplayMode(.inline).toolbar{ToolbarItem(placement:.confirmationAction){Button("Done"){session.sheet=nil}}}}
     .disabled(openingExample).interactiveDismissDisabled(openingExample)
-    .task{await session.refreshLibrary();guard !Task.isCancelled else{return};await session.save()}
+    .task{await session.refreshLibrary();deleted=await session.store.recentlyDeleted();guard !Task.isCancelled else{return};await session.save()}
     .fileImporter(isPresented:$showImport,allowedContentTypes:[UTType(exportedAs:"com.alexgazin.grillapack",conformingTo:.zip),.zip,.midi],allowsMultipleSelection:false){result in
         switch result{case .success(let urls):if let url=urls.first{Task{await session.importProject(url)}};case .failure(let error):session.message=error.localizedDescription}
     }
-    .alert("Delete project?",isPresented:Binding(get:{deleting != nil},set:{if !$0{deleting=nil}})){Button("Delete",role:.destructive){if let id=deleting{Task{if id==session.project.id{await session.create(name:"Untitled",bpm:120,root:0,minor:false,bars:4)};if session.project.id != id{await session.delete(id)}}};deleting=nil};Button("Cancel",role:.cancel){deleting=nil}}message:{Text("This removes the project and its backup from this iPhone.")}
+    .alert("Delete project?",isPresented:Binding(get:{deleting != nil},set:{if !$0{deleting=nil}})){Button("Delete",role:.destructive){if let id=deleting{Task{if id==session.project.id{await session.create(name:"Untitled",bpm:120,root:0,minor:false,bars:4)};if session.project.id != id{await session.delete(id);deleted=await session.store.recentlyDeleted()}}};deleting=nil};Button("Cancel",role:.cancel){deleting=nil}}message:{Text("The project moves to Recently Deleted and can be restored for 30 days.")}
     .alert("Rename project",isPresented:Binding(get:{renameID != nil},set:{if !$0{renameID=nil}})){TextField("Name",text:$name);Button("Save"){if let id=renameID,let p=session.entries.first(where:{$0.id==id})?.summary,!name.isEmpty{let title=name;Task{if id==session.project.id{session.edit{$0.name=title};await session.save()}else{await session.renameStored(id,expectedRevision:p.revision,to:title)}}};renameID=nil};Button("Cancel",role:.cancel){renameID=nil}}
     }
 }
@@ -107,5 +109,27 @@ struct NewProjectView: View {
         Button{template=option}label:{Text(title).frame(maxWidth:.infinity,minHeight:44).foregroundStyle(template==option ? Color.ink:Color.studioText).background(template==option ? Color.mint:Color.raised,in:RoundedRectangle(cornerRadius:10))}
             .buttonStyle(StudioQuietButtonStyle()).accessibilityIdentifier("project.template."+option.rawValue)
             .accessibilityAddTraits(template==option ? .isSelected:[])
+    }
+}
+
+/// I73: projects deleted in the last 30 days, restorable with their sounds.
+private struct RecentlyDeletedList: View {
+    let items: [ProjectStore.TrashedProject]
+    let restore: (UUID) -> Void
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            SmallHeading(text: "RECENTLY DELETED")
+            Text("Kept for 30 days, then removed.").font(.caption).foregroundStyle(Color.muted)
+            ForEach(items) { item in
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(verbatim: item.name).font(.subheadline)
+                        Text(item.deletedAt, style: .relative).font(.caption2).foregroundStyle(Color.muted)
+                    }
+                    Spacer()
+                    Button("Restore") { restore(item.id) }.frame(minHeight: 44).accessibilityIdentifier("project.restore." + item.id.uuidString)
+                }
+            }
+        }
     }
 }

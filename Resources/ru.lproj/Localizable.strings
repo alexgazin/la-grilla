@@ -1277,3 +1277,7 @@
 "Trap hats" = "Трэп-хэты";
 "Half-time groove" = "Халф-тайм";
 "Record %d bars: %d%% · %d hit · %d missed · %d extra" = "Запишите тактов: %d — %d%% · попаданий %d · пропусков %d · лишних %d";
+"RECENTLY DELETED" = "НЕДАВНО УДАЛЁННЫЕ";
+"Kept for 30 days, then removed." = "Хранятся 30 дней, затем удаляются.";
+"Restore" = "Восстановить";
+"The project moves to Recently Deleted and can be restored for 30 days." = "Проект попадёт в «Недавно удалённые», его можно восстановить в течение 30 дней.";

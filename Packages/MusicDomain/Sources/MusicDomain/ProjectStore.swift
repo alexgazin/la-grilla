@@ -191,6 +191,54 @@ public actor ProjectStore {
         }.sorted { ($0.project?.modified ?? .distantPast) > ($1.project?.modified ?? .distantPast) }
     }
     public func delete(_ id: UUID) throws { try FileManager.default.removeItem(at: package(id)) }
+
+    // MARK: I73 · Recently deleted (30 days)
+
+    public struct TrashedProject: Sendable, Identifiable, Equatable {
+        public let id: UUID
+        public let name: String
+        public let deletedAt: Date
+    }
+    /// A sibling folder, so the project list (which reads only `root`) never sees it.
+    private var trashRoot: URL { root.deletingLastPathComponent().appendingPathComponent(root.lastPathComponent + "-RecentlyDeleted", isDirectory: true) }
+    private func trashed(_ id: UUID) -> URL { trashRoot.appendingPathComponent(id.uuidString).appendingPathExtension("grilla") }
+
+    /// Move a project with its samples and recordings out of the list; it can be restored for 30 days.
+    public func moveToTrash(_ id: UUID, now: Date = Date()) throws {
+        try FileManager.default.createDirectory(at: trashRoot, withIntermediateDirectories: true)
+        let destination = trashed(id)
+        if FileManager.default.fileExists(atPath: destination.path) { try FileManager.default.removeItem(at: destination) }
+        try FileManager.default.moveItem(at: package(id), to: destination)
+        try Data(ISO8601DateFormatter().string(from: now).utf8).write(to: destination.appendingPathComponent("deleted-at.txt"), options: .atomic)
+    }
+
+    public func recentlyDeleted() -> [TrashedProject] {
+        guard let urls = try? FileManager.default.contentsOfDirectory(at: trashRoot, includingPropertiesForKeys: nil) else { return [] }
+        return urls.filter { $0.pathExtension == "grilla" }.compactMap { url -> TrashedProject? in
+            guard let id = UUID(uuidString: url.deletingPathExtension().lastPathComponent),
+                  let stamp = try? String(contentsOf: url.appendingPathComponent("deleted-at.txt"), encoding: .utf8),
+                  let date = ISO8601DateFormatter().date(from: stamp.trimmingCharacters(in: .whitespacesAndNewlines)) else { return nil }
+            let name = (try? Data(contentsOf: url.appendingPathComponent("manifest.json"))).flatMap { try? ProjectDocument.decode($0).name } ?? NSLocalizedString("Untitled", comment: "Project name")
+            return TrashedProject(id: id, name: name, deletedAt: date)
+        }.sorted { $0.deletedAt > $1.deletedAt }
+    }
+
+    /// Put a trashed project back into the list; refuses to overwrite a live project.
+    public func restoreFromTrash(_ id: UUID) throws {
+        guard !FileManager.default.fileExists(atPath: package(id).path) else { throw MusicError.invalidProject }
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        try FileManager.default.moveItem(at: trashed(id), to: package(id))
+        try? FileManager.default.removeItem(at: package(id).appendingPathComponent("deleted-at.txt"))
+    }
+
+    /// Permanently remove projects deleted more than `days` ago. Returns how many.
+    @discardableResult public func purgeTrash(olderThan days: Int = 30, now: Date = Date()) -> Int {
+        var removed = 0
+        for item in recentlyDeleted() where now.timeIntervalSince(item.deletedAt) > Double(days) * 86_400 {
+            if (try? FileManager.default.removeItem(at: trashed(item.id))) != nil { removed += 1 }
+        }
+        return removed
+    }
 }
 
 public extension ProjectStore {

@@ -1275,3 +1275,7 @@
 "Trap hats" = "Trap hats";
 "Half-time groove" = "Half-time groove";
 "Record %d bars: %d%% · %d hit · %d missed · %d extra" = "Record %d bars: %d%% · %d hit · %d missed · %d extra";
+"RECENTLY DELETED" = "RECENTLY DELETED";
+"Kept for 30 days, then removed." = "Kept for 30 days, then removed.";
+"Restore" = "Restore";
+"The project moves to Recently Deleted and can be restored for 30 days." = "The project moves to Recently Deleted and can be restored for 30 days.";

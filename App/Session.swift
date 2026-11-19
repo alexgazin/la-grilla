@@ -160,6 +160,7 @@ import Observation
     func bootstrap() async {
         runtimeTrace("bootstrap.begin")
         defer{runtimeTrace("bootstrap.return")}
+        await store.purgeTrash()
         if let bootstrapTask {await bootstrapTask.value;return}
         let task=Task { @MainActor in
             do {
@@ -757,7 +758,9 @@ import Observation
         do{_ = try await store.rename(id,expectedRevision:expectedRevision,to:title);validated=true}catch{message=error.localizedDescription}
         await refreshLibraryEntry(id,validated:validated)
     }
-    func delete(_ id: UUID) async {do{try await store.delete(id);entries.removeAll{$0.id==id};libraryLoadFailures.removeValue(forKey:id);UserDefaults.standard.removeObject(forKey:generatedLoopKey(id))}catch{message=error.localizedDescription}}
+    /// I73: deleting moves the project to Recently Deleted for 30 days.
+    func delete(_ id: UUID) async {do{try await store.moveToTrash(id);entries.removeAll{$0.id==id};libraryLoadFailures.removeValue(forKey:id);UserDefaults.standard.removeObject(forKey:generatedLoopKey(id))}catch{message=error.localizedDescription}}
+    func restoreDeleted(_ id:UUID)async {do{try await store.restoreFromTrash(id);await refreshLibrary()}catch{message=error.localizedDescription}}
     func recover(_ id:UUID)async {
         guard let token=beginProjectChange()else{return}
         defer{endProjectChange(token)}

@@ -49,3 +49,23 @@ struct StemNormalizeTests {
         #expect(throws: ExportError.self) { try WAVSettings(normalizeStemsDBFS: 3).validate() }
     }
 }
+
+struct RecentlyDeletedTests {
+    @Test func deletedProjectsCanBeRestoredForThirtyDaysThenArePurged() async throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("trash-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let store = ProjectStore(root: folder.appendingPathComponent("Projects"))
+        let a = try SongEditDemo.project(name: "Keep me"), b = try SongEditDemo.project(name: "Old")
+        try await store.save(a); try await store.save(b)
+        try await store.moveToTrash(a.id)
+        try await store.moveToTrash(b.id, now: Date().addingTimeInterval(-31 * 86_400))
+        #expect(try await store.listSummaries().isEmpty)
+        #expect(await store.recentlyDeleted().map(\.name) == ["Keep me", "Old"])
+        #expect(await store.purgeTrash() == 1)
+        try await store.restoreFromTrash(a.id)
+        let restored = try await store.load(a.id)
+        #expect(Compiler.notes(restored) == Compiler.notes(a))
+        #expect(try await store.listSummaries().map(\.id) == [a.id])
+        #expect(await store.recentlyDeleted().isEmpty)
+    }
+}
