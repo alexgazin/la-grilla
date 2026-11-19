@@ -30,10 +30,20 @@ final class PianoTouchUITests:XCTestCase {
             return (try XCTUnwrap(values.first), try XCTUnwrap(values.last))
         }
         XCTAssertTrue(viewport.waitForExistence(timeout: 5))
+        func pan(from: CGFloat, to: CGFloat) {
+            // Use a visible, empty column, clear of the selected note and its grip.
+            // Lift after the finger stops so deceleration cannot carry into the pinch.
+            let visible = viewport.frame.intersection(app.frame)
+            let origin = app.coordinate(withNormalizedOffset: .zero)
+            let x = visible.minX + visible.width * 0.72
+            let start = origin.withOffset(CGVector(dx: x, dy: visible.minY + visible.height*from))
+            let end = origin.withOffset(CGVector(dx: x, dy: visible.minY + visible.height*to))
+            start.press(forDuration: 0.05, thenDragTo: end, withVelocity: .slow, thenHoldForDuration: 0.25)
+        }
         let initial = try geometry()
-        viewport.swipeUp(velocity: .fast)
+        pan(from: 0.75, to: 0.28)
         let before = try geometry()
-        XCTAssertGreaterThan(before.y, initial.y + 8)
+        XCTAssertGreaterThan(before.y, initial.y + 8, "viewport \(viewport.frame), initial \(initial), after pan \(before)")
         viewport.pinch(withScale: 1.45, velocity: 1)
         let enlarged = try geometry()
         XCTAssertGreaterThan(enlarged.width, before.width + 10)
@@ -42,7 +52,7 @@ final class PianoTouchUITests:XCTestCase {
         let reduced = try geometry()
         XCTAssertLessThan(reduced.width, enlarged.width - 10)
         XCTAssertEqual(reduced.y, before.y, accuracy: 2)
-        viewport.swipeDown(velocity: .fast)
+        pan(from: 0.28, to: 0.75)
         XCTAssertLessThan(try geometry().y, reduced.y - 8)
         app.buttons["notes.undo"].tap()
         XCTAssertEqual(app.staticTexts["notes.count"].label, "0")

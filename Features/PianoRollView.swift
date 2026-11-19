@@ -310,7 +310,7 @@ private struct RollCanvas:View {
     var body:some View {
         ZStack(alignment:.topLeading){
             drawing.contentShape(Rectangle()).accessibilityLabel("Piano roll. Use the note list to edit with VoiceOver.").accessibilityIdentifier("notes.canvas")
-                .gesture(LongPressGesture(minimumDuration:0.35).sequenced(before:DragGesture(minimumDistance:0,coordinateSpace:.named(canvasSpace)))
+                .simultaneousGesture(LongPressGesture(minimumDuration:0.35).sequenced(before:DragGesture(minimumDistance:0,coordinateSpace:.named(canvasSpace)))
                     .exclusively(before:SpatialTapGesture())
                     .updating($moving){value,state,_ in if case .first(.second(true,_))=value{state=true}}
                     .onChanged{value in
@@ -343,7 +343,9 @@ private struct RollCanvas:View {
             // Resetting GestureState can precede onEnded. Remove the visible
             // draft and release scrolling, but keep the immutable start anchor
             // for completion. A system cancellation never invokes onEnded.
-            if active{editingChanged(true)}else{interaction=nil;invalidated=false;editingChanged(false)}
+            // update() takes ownership only when the touch actually found a note.
+            // Holding blank canvas must still allow a one-finger pan.
+            if !active { interaction=nil; invalidated=false; editingChanged(false) }
         }
         .onChange(of:scenePhase){_,phase in if phase != .active{interaction=nil;gestureAnchor=nil;invalidated=touching;editingChanged(false)}}
         .onDisappear{cancel()}
