@@ -14,7 +14,7 @@ struct ExportView:View {
     @State private var normalizeStems=false
     private var take:PerformanceTake?{session.exportTake}
     private var project:Project{take?.source ?? session.project}
-    private var formats:[Session.ExportFormat]{take==nil ? Session.ExportFormat.allCases:[.wav,.midi]}
+    private var formats:[Session.ExportFormat]{take==nil ? Session.ExportFormat.allCases:[.wav,.aac,.midi]}
     private var range:Range<Int>{scope==1 ? session.section.start..<session.section.start+session.section.length : scope==2 ? (firstBar-1)*barTicks..<lastBar*barTicks : 0..<session.project.length}
     var body:some View {
         NavigationStack {
@@ -27,7 +27,7 @@ struct ExportView:View {
                     StudioSegments(title:"Range",selection:$scope,options:[(0,"Entire song"),(1,"Selected section"),(2,"Bars")]).disabled(session.exportInProgress)
                     if scope==2 {VStack{Stepper("From bar \(firstBar)",value:$firstBar,in:1...lastBar);Stepper("Through bar \(lastBar)",value:$lastBar,in:firstBar...max(1,session.project.length/barTicks))}.font(.system(.subheadline)).disabled(session.exportInProgress)}
                 }
-                if format == .wav || format == .stems {audioSettings}
+                if format == .wav || format == .stems || format == .aac {audioSettings}
                 if format == .stems {VStack(alignment:.leading,spacing:10){SmallHeading(text:"TRACKS");ForEach(project.tracks){t in Toggle(t.displayName,isOn:Binding(get:{tracks.contains(t.id)},set:{on in if on{tracks.insert(t.id)}else{tracks.remove(t.id)}})).tint(.mint)}}.disabled(session.exportInProgress)}
                 if let error=session.exportError {Text(LocalizedStringKey(error)).font(.system(.caption)).foregroundStyle(Color.record).accessibilityIdentifier("export.error")}
                 if format == .stems && tracks.isEmpty {Text("Select at least one track.").font(.caption).foregroundStyle(Color.muted)}
@@ -58,6 +58,7 @@ struct ExportView:View {
         case .wav:"A stereo audio file using the same instruments as playback. Your live transport keeps running during export."
         case .stems:"Aligned stereo WAV tracks include track gain, pan and EQ. Choose the stereo mix to include master effects and master gain."
         case .project:"A portable copy of the entire project, including notes, source recordings, sections and mixer settings. Import creates a separate project."
+        case .aac:"A compact AAC file (.m4a, 256 kbps) of the same stereo mix as WAV, ready for messages and sharing."
         }
     }
 }

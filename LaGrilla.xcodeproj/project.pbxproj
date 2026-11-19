@@ -459,6 +459,16 @@
 			"name" = "Features";
 			"sourceTree" = "<group>";
 		};
+		"DE6F9A88DE7C4DA450A5D96F" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "AudioRuntime/AACEncoder.swift";
+			"sourceTree" = "SOURCE_ROOT";
+		};
+		"0C5BB541A16B19C889E4BC12" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "DE6F9A88DE7C4DA450A5D96F";
+		};
 		"507C4EE5BE9C0A9C571F08EB" = {
 			"isa" = "PBXFileReference";
 			"lastKnownFileType" = "sourcecode.swift";
@@ -672,6 +682,7 @@
 		"23B7E063E34C2F873A615B1C" = {
 			"isa" = "PBXGroup";
 			"children" = (
+				"DE6F9A88DE7C4DA450A5D96F",
 				"507C4EE5BE9C0A9C571F08EB",
 				"55B6A9A0F0A957043461C53F",
 				"3720C91E813E22723DF88C25",
@@ -1168,6 +1179,7 @@
 				"ABFD51D0DA5B63B9FFC8E643",
 				"AEE88D23F86E314383453DE2",
 				"6F6E8C6658B354FED0C521EB",
+				"0C5BB541A16B19C889E4BC12",
 				"9BB2A975DCB11EB7B2D7307C",
 				"7589B598023E170057C43C61",
 				"FDAD59224EB1704CA3F65693",

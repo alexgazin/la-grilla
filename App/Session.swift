@@ -778,13 +778,13 @@ import Observation
         }catch{if let written{await retainUnopenedProject(written)}else{message=error.localizedDescription}}
     }
     enum ExportFormat:String,CaseIterable,Identifiable {
-        case midi,wav,stems,project
+        case midi,wav,stems,project,aac
         var id:String{rawValue}
-        var title:String{switch self{case .midi:"Standard MIDI";case .wav:"Stereo WAV";case .stems:"Aligned stems";case .project:"Portable project"}}
-        var fileExtension:String{switch self{case .midi:"mid";case .wav:"wav";case .stems:"zip";case .project:"grillapack"}}
+        var title:String{switch self{case .midi:"Standard MIDI";case .wav:"Stereo WAV";case .stems:"Aligned stems";case .project:"Portable project";case .aac:"AAC for sharing"}}
+        var fileExtension:String{switch self{case .midi:"mid";case .wav:"wav";case .stems:"zip";case .project:"grillapack";case .aac:"m4a"}}
     }
     func export(format:ExportFormat,settings:WAVSettings,range:Range<Int>,tracks:Set<UUID>,performance:PerformanceTake?=nil) {
-        if performance != nil && format != .midi && format != .wav{exportError="Choose WAV or MIDI for a performance.";return}
+        if performance != nil && format != .midi && format != .wav && format != .aac{exportError="Choose WAV or MIDI for a performance.";return}
         finishTake();cancelExport();exportGeneration+=1;let generation=exportGeneration
         let snapshot=performance?.source ?? project;let samples=audio.samples;exportInProgress=true;exportProgress=0;exportWarning=nil
         let folder=FileManager.default.temporaryDirectory.appendingPathComponent("GrillaExport-"+UUID().uuidString)
@@ -802,6 +802,12 @@ import Observation
                     let receipt:RenderReceipt;if let performance{receipt=try await OfflineRenderer.renderPerformance(performance,to:url,settings:settings,samples:samples,progress:progress)}else{receipt=try await OfflineRenderer.render(snapshot,to:url,settings:settings,range:range,samples:samples,progress:progress)}
                     if receipt.clipped{exportWarning="Clipping was detected. Lower track or master gain for a cleaner export."}
                 case .stems:_ = try await StemExporter.render(snapshot,to:url,settings:settings,range:range,selected:tracks,samples:samples,progress:progress)
+                case .aac:
+                    let wav=folder.appendingPathComponent("mix.wav")
+                    let receipt:RenderReceipt;if let performance{receipt=try await OfflineRenderer.renderPerformance(performance,to:wav,settings:settings,samples:samples,progress:progress)}else{receipt=try await OfflineRenderer.render(snapshot,to:wav,settings:settings,range:range,samples:samples,progress:progress)}
+                    if receipt.clipped{exportWarning="Clipping was detected. Lower track or master gain for a cleaner export."}
+                    try await Task.detached(priority:.userInitiated){try AACEncoder.encode(wav:wav,to:url)}.value
+                    try? FileManager.default.removeItem(at:wav)
                 }
                 try Task.checkCancellation();guard generation==exportGeneration else{return}
                 exportProgress=1;exportInProgress=false;exportedFolder=folder;exportedURL=url;sheet=nil;exportTask=nil

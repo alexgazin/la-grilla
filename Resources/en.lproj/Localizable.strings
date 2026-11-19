@@ -1264,3 +1264,5 @@
 "New beat" = "New beat";
 "Open last project" = "Open last project";
 "Slice a loop onto the pads" = "Slice a loop onto the pads";
+"AAC for sharing" = "AAC for sharing";
+"A compact AAC file (.m4a, 256 kbps) of the same stereo mix as WAV, ready for messages and sharing." = "A compact AAC file (.m4a, 256 kbps) of the same stereo mix as WAV, ready for messages and sharing.";

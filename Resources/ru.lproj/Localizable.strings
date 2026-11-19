@@ -1266,3 +1266,5 @@
 "New beat" = "Новый бит";
 "Open last project" = "Последний проект";
 "Slice a loop onto the pads" = "Нарезать луп на пэды";
+"AAC for sharing" = "AAC для отправки";
+"A compact AAC file (.m4a, 256 kbps) of the same stereo mix as WAV, ready for messages and sharing." = "Компактный AAC (.m4a, 256 кбит/с) того же стереомикса, что и WAV, — для мессенджеров и отправки.";
