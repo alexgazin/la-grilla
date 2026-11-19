@@ -360,6 +360,10 @@ struct SectionsView: View {
         Button("Rename"){pendingRename=section.id;actions=nil}
         Button("Duplicate"){session.edit{try SectionEditing.duplicate(section.id,name:section.name=="Verse" ? "Chorus":String((section.name+" copy").prefix(120)),in:&$0)};actions=nil}
             .disabled(session.project.sections.count>=8 || session.project.length+section.length>64*barTicks).accessibilityIdentifier("section.duplicate")
+        Picker("Colour",selection:Binding(get:{section.color ?? -1},set:{value in let id=section.id;session.edit{p in if let i=p.sections.firstIndex(where:{$0.id==id}){p.sections[i].color=value<0 ? nil:value}};actions=nil})){
+            Text("Automatic").tag(-1)
+            ForEach(SongFormStyle.choices,id:\.index){choice in Label{Text(choice.name)}icon:{Image(systemName:"circle.fill").foregroundStyle(choice.color)}.tag(choice.index)}
+        }.accessibilityIdentifier("section.color")
         Button("Move earlier"){move(section.id,by:-1);actions=nil}.disabled(session.project.sections.first?.id==section.id).accessibilityIdentifier("section.earlier")
         Button("Move later"){move(section.id,by:1);actions=nil}.disabled(session.project.sections.last?.id==section.id).accessibilityIdentifier("section.later")
         if session.project.sections.count>1{Button("Delete section",role:.destructive){pendingDelete=section.id;actions=nil}.accessibilityIdentifier("section.delete")}

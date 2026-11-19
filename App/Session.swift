@@ -416,6 +416,17 @@ import Observation
             return events.count
         }catch{message=error.localizedDescription;return 0}
     }
+    /// I8: while recording, the first tap discards what was played in the current
+    /// pass; with an empty pass it removes the previous committed pass. The loop
+    /// and the recording keep going.
+    var canUndoPass:Bool{recording && (!(drumPass?.events.isEmpty ?? true) || drumDraft?.canUndoPass == true)}
+    func undoPass() {
+        guard recording,var draft=drumDraft else{return}
+        drainPadRecordingInputs()
+        if drumPass?.events.isEmpty ?? true{guard draft.undoLastPass() else{return}}
+        do{drumDraft=draft;drumPass=try DrumRecordingPass(draft:draft,replacing:replaceNextPass ? loopRange:nil);rawHits=[];sync()}
+        catch{message=error.localizedDescription;drumPass=nil;rawHits=[]}
+    }
     func commitPass() {
         guard var draft=drumDraft else{return}
         do{

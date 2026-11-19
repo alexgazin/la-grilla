@@ -97,3 +97,32 @@ struct SingleAttackRecordingTests {
         #expect(draft.project.patterns.first{$0.id==draft.patternID}!.drums.filter{$0.pad==0}.count==1)
     }
 }
+
+struct DrumPassUndoTests {
+    private func drums(_ draft:DrumRecordingDraft)->[DrumEvent] {draft.project.patterns.first{$0.id==draft.patternID}?.drums ?? []}
+    @Test func undoLastPassRestoresEachPassInOrder()throws {
+        var p=Project(name:"Undo passes",bars:2)
+        p.patterns[1].drums=[DrumEvent(tick:0,pad:0),DrumEvent(tick:960,pad:1)]
+        try p.validate()
+        var draft=try DrumRecordingDraft(project:p,clipID:p.tracks[1].clips[0].id)
+        let original=drums(draft)
+        #expect(!draft.canUndoPass)
+        let nothing=draft.undoLastPass()
+        #expect(!nothing)
+        try draft.commitPass([DrumEvent(tick:240,pad:3)])
+        try draft.commitPass([])
+        let afterFirst=drums(draft)
+        let second=[DrumEvent(tick:480,pad:4),DrumEvent(tick:720,pad:5)]
+        try draft.commitPass(second,replacing:draft.start..<(draft.start+barTicks))
+        #expect(draft.canUndoPass)
+        let first=draft.undoLastPass()
+        #expect(first && drums(draft)==afterFirst)
+        let secondUndo=draft.undoLastPass()
+        #expect(secondUndo && drums(draft)==original)
+        let empty=draft.undoLastPass()
+        #expect(!empty)
+        try draft.project.validate()
+        let candidate=try draft.candidate(for:p)
+        #expect(Compiler.notes(candidate)==Compiler.notes(p))
+    }
+}

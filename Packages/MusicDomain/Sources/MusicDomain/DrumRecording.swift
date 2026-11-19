@@ -8,6 +8,9 @@ public struct DrumRecordingDraft:Sendable {
     public let sourcePatternID:UUID;public let patternID:UUID
     public let start:Int;public let length:Int
     public private(set) var changed=false
+    /// I8: the pattern's drums before each committed pass that changed it (newest last, at most 16).
+    private var passHistory:[[DrumEvent]]=[]
+    public var canUndoPass:Bool{!passHistory.isEmpty}
     public init(project:Project,clipID:UUID)throws {
         try project.validate()
         guard let track=project.tracks.first(where:{$0.role == .drums}),let clip=track.clips.first(where:{$0.id==clipID}),let trackIndex=project.tracks.firstIndex(where:{$0.id==track.id}),let clipIndex=track.clips.firstIndex(where:{$0.id==clipID})else{throw ClipEditingError.missing}
@@ -32,7 +35,15 @@ public struct DrumRecordingDraft:Sendable {
         if let absoluteRange{candidate.patterns[index].drums.removeAll{absoluteRange.contains(start+$0.tick)}}
         candidate.patterns[index].drums.append(contentsOf:Self.singleAttacks(events,over:candidate.patterns[index].drums,velocities:&candidate.patterns[index].drums));try candidate.validate()
         let edited=before != candidate.patterns[index].drums
+        if edited{passHistory.append(before);if passHistory.count>16{passHistory.removeFirst()}}
         project=candidate;changed = changed || edited;return edited
+    }
+    /// I8: remove the most recent committed pass without stopping the loop.
+    /// Returns false when there is nothing to undo.
+    @discardableResult public mutating func undoLastPass()->Bool {
+        guard let previous=passHistory.popLast(),let index=project.patterns.firstIndex(where:{$0.id==patternID})else{return false}
+        project.patterns[index].drums=previous
+        return true
     }
     /// Build 44: one contact gives one audible attack. A recorded hit that lands
     /// on a pad/tick already sounding in the pattern (overdub over the same

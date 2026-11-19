@@ -62,4 +62,15 @@ struct StudioDynamicsTests {
         #expect(slots[2] == 1 && slots[3] == 1 && slots[9] == 2 && slots[10] == 2 && slots[0] == 0)
         #expect(MetronomeSettings(gainDB: 40).gainDB == 6 && MetronomeSettings(gainDB: -.infinity).gainDB == 0)
     }
+
+    @Test func sectionColourIsOptionalAndBounded() throws {
+        var project = Project(name: "Colours", bars: 2)
+        #expect(project.sections[0].color == nil)
+        project.sections[0].color = 2
+        try project.validate()
+        let decoded = try JSONDecoder().decode(Project.self, from: JSONEncoder().encode(project))
+        #expect(decoded.sections[0].color == 2)
+        project.sections[0].color = 4
+        #expect(throws: MusicError.self) { try project.validate() }
+    }
 }
