@@ -56,6 +56,10 @@ void lg_play(LGKernel *k, int play);
 void lg_restart(LGKernel *k);
 void lg_seek(LGKernel *k, int tick);
 int lg_pad(LGKernel *k, int pad, int velocity);
+// I3 note repeat: while set, the pad retriggers on the transport grid every
+// stepTicks (120, 160, 240, 320 or 480) after the current tick; with the
+// transport stopped it free-runs at the current tempo. pad -1 stops.
+int lg_pad_repeat(LGKernel *k, int pad, int stepTicks, int velocity);
 void lg_preview(LGKernel *k, int pitch);
 void lg_note_preview(LGKernel *k, int pitch, int track, int instrument);
 // Resolve a stable LGProjectTrack identity after audio-boundary adoption.

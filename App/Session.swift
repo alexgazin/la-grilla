@@ -385,6 +385,7 @@ import Observation
                 endHarmonyPreview()
             }
         }
+        flushRepeatHits()
         drainPadRecordingInputs()
         syncMIDI();midi.poll(replaying:performance.replaying);pollPerformance()
         updateNowPlaying()
@@ -419,6 +420,45 @@ import Observation
             return events.count
         }catch{message=error.localizedDescription;return 0}
     }
+    /// I3: note repeat rate while a pad is held (nil = off), and the running hold.
+    var noteRepeat:NoteRepeat.Rate?=UserDefaults.standard.object(forKey:"jam.noteRepeat").flatMap{($0 as? Int).flatMap(NoteRepeat.Rate.init(rawValue:))}{didSet{UserDefaults.standard.set(noteRepeat?.rawValue,forKey:"jam.noteRepeat");if noteRepeat==nil{endRepeat()}}}
+    @ObservationIgnored private var lastPadVelocity=100
+    @ObservationIgnored private var repeatHold:(pad:Int,tick:Int,clock:UInt64,velocity:Int,step:Int,emitted:Int)?
+    /// Called with the set of held pads; the last pad pressed repeats.
+    func padsHeld(_ held:Set<Int>) {
+        if let hold=repeatHold,!held.contains(hold.pad){endRepeat()}
+        guard let rate=noteRepeat,repeatHold==nil,let pad=held.sorted().last,!performance.replaying,audio.isPrepared else{return}
+        audio.refreshClock()
+        let velocity=lastPadVelocity
+        guard audio.padRepeat(pad,step:rate.rawValue,velocity:velocity) else{return}
+        repeatHold=(pad,Int(audio.tick),audio.clock,velocity,rate.rawValue,Int(audio.tick))
+    }
+    private func endRepeat() {
+        guard repeatHold != nil else{return}
+        audio.padRepeat(nil);audio.refreshClock()
+        flushRepeatHits()
+        repeatHold=nil
+    }
+    /// The kernel fires on every grid tick after the press; the same ticks go to
+    /// the recording (or the retro buffer) as they pass, so passes stay in order.
+    private func flushRepeatHits() {
+        guard var hold=repeatHold,audio.playing,audio.clock>hold.clock else{return}
+        let framesPerTick=audio.sampleRate*60/(project.bpm*Double(ppq))
+        let now=hold.tick+Int(Double(audio.clock-hold.clock)/framesPerTick)
+        guard now>hold.emitted else{return}
+        let ticks=NoteRepeat.hits(from:hold.emitted+1,to:now+1,rate:NoteRepeat.Rate(rawValue:hold.step) ?? .sixteenth).prefix(512)
+        let span=max(1,loopRange.count)
+        for unwrapped in ticks {
+            var tick=unwrapped
+            if loop,tick>=loopRange.upperBound{tick=loopRange.lowerBound+(tick-loopRange.lowerBound)%span}
+            let clock=hold.clock+UInt64((Double(unwrapped-hold.tick)*framesPerTick).rounded())
+            if recording || armed{
+                guard pendingPadInputs.count<4096 else{break}
+                pendingPadInputs.append(PadRecordingInput(pad:hold.pad,tick:tick,clock:clock,velocity:hold.velocity))
+            }else{retroHits.append(.init(tick:tick,pad:hold.pad,velocity:hold.velocity,clock:clock))}
+        }
+        hold.emitted=now;repeatHold=hold
+    }
     /// I8: while recording, the first tap discards what was played in the current
     /// pass; with an empty pass it removes the previous committed pass. The loop
     /// and the recording keep going.
@@ -445,6 +485,7 @@ import Observation
         guard !backgrounded,!performance.replaying,(0..<16).contains(pad),audio.isPrepared || ensureAudio() else{return false}
         let strength=min(127,max(1,velocity ?? 100))
         guard audio.pad(pad,velocity:strength) else{return false}
+        lastPadVelocity=strength
         acceptedPadHits+=1
         if let touchTime,touchTime.isFinite{lastPadDispatchMilliseconds=max(0,(ProcessInfo.processInfo.systemUptime-touchTime)*1000)}
         if recording || armed {
@@ -481,6 +522,7 @@ import Observation
         }
     }
     func finishTake() {
+        flushRepeatHits()
         drainPadRecordingInputs()
         let hadTake=recording;armed=false;recording=false
         if hadTake{commitPass()}

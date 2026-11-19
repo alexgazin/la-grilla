@@ -163,6 +163,27 @@ struct LGKernel {
     std::array<std::array<std::atomic<int>,16>,MaxTracks> choke{};std::array<std::atomic<float>,MaxTracks> sidechainDepth{},drive{};std::array<std::atomic<int>,MaxTracks> crush{};
     std::atomic<int> limiterOn{0};std::atomic<float> limiterCeiling{0.891f};
     float scEnv=0;int scHold=0;
+    std::atomic<int> repeatPad{-1},repeatStep{240},repeatVelocity{100};std::atomic<uint32_t> repeatSerial{0};uint32_t repeatSeen=0;double repeatNextTick=-1,repeatFrames=0;
+    void repeatTick(){
+        const int pad=repeatPad.load(std::memory_order_acquire);
+        if(pad<0)return;
+        const uint32_t serial=repeatSerial.load(std::memory_order_acquire);
+        const int step=repeatStep.load(std::memory_order_relaxed);
+        bool fire=false;
+        if(active&&current>=0){
+            const double tick=position.load(std::memory_order_relaxed),half=0.5*ticksPerFrame();
+            if(serial!=repeatSeen||tick+step<repeatNextTick){repeatSeen=serial;repeatNextTick=std::floor((tick+half)/step+1)*step;}
+            if(tick>=repeatNextTick-half){fire=true;repeatNextTick+=step;}
+        }else{
+            const double bpm=current>=0?slots[current].bpm:120,frames=step/960.0*60/bpm*sr;
+            if(serial!=repeatSeen){repeatSeen=serial;repeatFrames=frames;}
+            if(--repeatFrames<=0){fire=true;repeatFrames+=frames;}
+        }
+        if(!fire)return;
+        const int track=roleTrack(1,1);if(track<0)return;
+        const int velocity=repeatVelocity.load(std::memory_order_relaxed);
+        performance.emit(8,track,float(velocity),pad,1);trigger(36,velocity,track,pad,1,1);
+    }
     static constexpr int LimiterMax=256;
     std::array<float,LimiterMax> limL{},limR{},limReq{},limGain{};int limPos=0,limLength=0;float limG1=1,limCoef=0;double limSum=0;bool limWasOn=false;
     void click(bool downbeat){
@@ -539,6 +560,13 @@ void lg_play(LGKernel*k,int play){k->command.store(play?1:-1,std::memory_order_r
 void lg_restart(LGKernel*k){k->command.store(2,std::memory_order_release);}
 void lg_seek(LGKernel*k,int tick){if(tick>=0)k->seek.store(std::min(245760,tick));}
 static int enqueue(LGKernel*k,Input value){unsigned w=k->write.load(std::memory_order_relaxed),r=k->read.load(std::memory_order_acquire);if(w-r>=256){k->overflow.fetch_add(1);return 0;}k->input[w%256]=value;k->write.store(w+1,std::memory_order_release);return 1;}
+int lg_pad_repeat(LGKernel*k,int pad,int step,int velocity){
+    if(!k||pad< -1||pad>15)return 0;
+    if(pad<0){k->repeatPad.store(-1,std::memory_order_release);return 1;}
+    if(step!=120&&step!=160&&step!=240&&step!=320&&step!=480)return 0;
+    k->repeatStep.store(step,std::memory_order_relaxed);k->repeatVelocity.store(std::clamp(velocity,1,127),std::memory_order_relaxed);
+    k->repeatSerial.fetch_add(1,std::memory_order_acq_rel);k->repeatPad.store(pad,std::memory_order_release);return 1;
+}
 int lg_pad(LGKernel*k,int pad,int velocity){if(pad<0||pad>15)return 0;return enqueue(k,{pad,std::clamp(velocity,1,127),1,1,false});}
 void lg_note_preview(LGKernel*k,int pitch,int track,int instrument){if(pitch>=0&&pitch<=127&&track>=0&&track<MaxTracks&&instrument>=0&&instrument<=3)enqueue(k,{pitch,95,track,instrument,true});}
 int lg_note_preview_track(LGKernel*k,int pitch,uint64_t identity){return k&&pitch>=0&&pitch<=127&&identity!=0?enqueue(k,{pitch,95,-1,0,true,identity}):0;}
@@ -717,6 +745,7 @@ void lg_render_midi(LGKernel*k,LGMIDIHub*hub,uint64_t hostTime,double hostTicksP
                 k->position.store(tick,std::memory_order_relaxed);k->previous=tick;k->elapsed++;
             }else k->position.store(tick);
         }
+        k->repeatTick();
         if(f==0){while(rd<wr){auto v=k->input[rd++%256];if(v.identity){v.track=k->identityTrack(v.identity);if(v.track>=0)v.instrument=k->slots[k->current].instruments[v.track];}else if(!v.preview)v.track=k->roleTrack(1,1);else if(v.track<0)v.track=k->roleTrack(0,0);if(v.track<0)continue;k->performance.emit(v.preview?9:8,v.track,float(v.velocity),v.value,v.instrument);k->trigger(v.preview?v.value:36,v.velocity,v.track,v.preview?-1:v.value,v.instrument,v.preview?0.65:1);}k->read.store(rd,std::memory_order_release);}
         // Boundary-time input belongs to the newly adopted layout. Applying it
         // before adoption would create an old-index voice and then clear it.

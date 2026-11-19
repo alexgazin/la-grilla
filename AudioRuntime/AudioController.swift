@@ -637,6 +637,11 @@ private enum AudioRender {
         return MetronomeSettings(gainDB: value.gainDB, accent: value.accent, sound: value.sound, countInOnly: value.countInOnly)
     }
     private var metronomeOn = false
+    /// I3: start (pad) or stop (nil) the kernel's note repeat.
+    @discardableResult func padRepeat(_ pad: Int?, step: Int = 240, velocity: Int = 100) -> Bool {
+        guard let k = handle?.pointer else { return false }
+        return lg_pad_repeat(k, Int32(pad ?? -1), Int32(step), Int32(velocity)) != 0
+    }
     func metronome(_ on: Bool) {metronomeOn=on;if let k = handle?.pointer {metronomeSettings.apply(to: k);lg_metronome(k,on && !metronomeSettings.countInOnly ? 1 : 0)}}
     func invalidateMusicSnapshot(){submittedNotes=nil}
     func reset() {
