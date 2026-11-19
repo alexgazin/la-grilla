@@ -1,7 +1,7 @@
 name: Song form on iPhone Simulator
 on:
   push:
-    branches: [feat/song-board, feat/song-brief-39, feat/andrey-arranger-41]
+    branches: [feat/song-board, feat/song-brief-39, feat/andrey-arranger-41, feat/andrey-score-42]
   workflow_dispatch:
 permissions:
   contents: read
@@ -10,10 +10,17 @@ concurrency:
   cancel-in-progress: true
 jobs:
   song-form:
+    strategy:
+      fail-fast: false
+      matrix:
+        journey: ${{ fromJSON(github.ref_name == 'feat/andrey-score-42' && '["workout","chillhop","ambient","score"]' || '["original"]') }}
     runs-on: macos-26
-    timeout-minutes: 48
+    timeout-minutes: 85
     env:
       DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
+      GRILLA_REQUIRE_MIC_INPUT: '1'
+      TEST_RUNNER_GRILLA_REQUIRE_MIC_INPUT: '1'
+      JOURNEY: ${{ matrix.journey }}
     steps:
       - uses: actions/checkout@v4
       - name: Build real app and UI tests
@@ -23,6 +30,9 @@ jobs:
           python3 scripts/generate_project.py
           git diff --exit-code -- LaGrilla.xcodeproj
           xcodebuild -project LaGrilla.xcodeproj -scheme LaGrilla -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' ARCHS=arm64 ONLY_ACTIVE_ARCH=YES -configuration Debug -derivedDataPath DerivedData CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO build-for-testing | tee song-form-build.log
+      - name: Configure the virtual microphone for full regression
+        if: github.ref_name == 'feat/andrey-score-42'
+        run: bash scripts/setup_ci_audio.sh
       - name: Boot iPhone Simulator
         timeout-minutes: 7
         env:
@@ -46,6 +56,16 @@ jobs:
             CASE_LIMIT=240
             NATIVE_BUDGET=1230
           fi
+          if [[ "$GITHUB_REF_NAME" == "feat/andrey-score-42" ]]; then
+            case "${{ matrix.journey }}" in
+              workout) CASES=(SketchGenerationTests/testAndreyWorkoutCreatesAndReopens SketchGenerationTests/testChangingReviewedTextRequiresNewInterpretation) ;;
+              chillhop) CASES=(SketchGenerationTests/testAndreyChillhopCreatesAndReopens) ;;
+              ambient) CASES=(SketchGenerationTests/testAndreyAmbientCreatesAndReopens) ;;
+              score) CASES=(SketchGenerationTests/testGraphicScoreNightABAuditionsAndFinishesSection SketchGenerationTests/testGraphicScoreLightMenuPlaysOneBarEnding) ;;
+            esac
+            CASE_LIMIT=360
+            NATIVE_BUDGET=1020
+          fi
           REQUIRED=()
           SELECTED=()
           for CASE_ID in "${CASES[@]}"; do
@@ -63,9 +83,76 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: song-form-native-verification
+          name: ${{ matrix.journey == 'original' && 'song-form-native-verification' || format('song-form-native-{0}',matrix.journey) }}
           path: |
             song-form-build.log
             song-form-native.log
             song-form-process-status.json
             SongFormAttachments
+      - name: Prepare native drag service
+        if: ${{ !cancelled() && github.ref_name == 'feat/andrey-score-42' }}
+        continue-on-error: true
+        timeout-minutes: 2
+        run: |
+          python3 scripts/ci/prepare_simulator_drag_service.py --device "$(cat /tmp/grilla-simulator-id)" --output-dir SimulatorDragReadiness --start-confirmed-system-app --start-confirmed-daemon
+      - name: Run the remaining functional tests in four disjoint subsets
+        if: ${{ !cancelled() && github.ref_name == 'feat/andrey-score-42' }}
+        run: |
+          python3 - <<'PY'
+          import os, pathlib, subprocess, sys
+          sys.path.insert(0, "scripts/ci")
+          from native_scope import functional_inventory
+          shard = ["workout","chillhop","ambient","score"].index(os.environ["JOURNEY"])
+          inventory = functional_inventory("UITests")
+          focus = ("SketchGenerationTests/testAndrey", "SketchGenerationTests/testGraphicScore", "SketchGenerationTests/testChangingReviewedTextRequiresNewInterpretation")
+          tests = [t for t in inventory if not t.startswith(focus)][shard::4]
+          device = pathlib.Path("/tmp/grilla-simulator-id").read_text().strip()
+          command = ["python3", "scripts/ci/run_native.py", "--scope", "focused", "--label", f"functional-{shard}", "--log", "native.log", "--status", "receipt.json", "--timeout-seconds", "2650"]
+          for test in tests:
+              command.extend(["--require-test", test])
+          command.extend(["--", "xcodebuild", "-project", "LaGrilla.xcodeproj", "-scheme", "LaGrilla", "-destination", f"platform=iOS Simulator,id={device}", "-derivedDataPath", "DerivedData", "-parallel-testing-enabled", "NO", "-test-timeouts-enabled", "YES", "-maximum-test-execution-time-allowance", "600", "-resultBundlePath", "Results.xcresult"])
+          command.extend(f"-only-testing:LaGrillaUITests/{test}" for test in tests)
+          command.extend(["ARCHS=arm64", "ONLY_ACTIVE_ARCH=YES", "CODE_SIGN_IDENTITY=-", "CODE_SIGNING_REQUIRED=NO", "test-without-building"])
+          subprocess.run(command, check=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        if: ${{ always() && github.ref_name == 'feat/andrey-score-42' }}
+        with:
+          name: functional-shard-${{ matrix.journey }}
+          path: |
+            receipt.json
+            native.log
+            song-form-process-status.json
+            song-form-native.log
+  coverage:
+    needs: song-form
+    if: github.ref_name == 'feat/andrey-score-42'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: functional-shard-*
+          path: results/
+      - name: Confirm every expected XCTest passed exactly once
+        run: |
+          python3 - <<'PY'
+          import collections, json, pathlib, sys
+          sys.path.insert(0, "scripts/ci")
+          from native_scope import functional_inventory, observed_outcomes
+          expected = functional_inventory("UITests")
+          counts = collections.Counter()
+          for journey in ("workout","chillhop","ambient","score"):
+              folder = pathlib.Path("results", f"functional-shard-{journey}")
+              receipt = json.loads((folder / "receipt.json").read_text())
+              assert receipt["exitCode"] == 0 and not receipt["timedOut"]
+              observed = observed_outcomes((folder / "native.log").read_text())
+              selected = json.loads((folder / "song-form-process-status.json").read_text())
+              assert selected["exitCode"] == 0 and not selected["timedOut"]
+              early = observed_outcomes((folder / "song-form-native.log").read_text())
+              assert all(v == "passed" for v in [*early.values(), *observed.values()]), journey
+              counts.update(early.keys())
+              counts.update(observed.keys())
+          assert sorted(counts) == expected and all(count == 1 for count in counts.values())
+          print(f"{len(expected)} different functional tests passed on iPhone Simulator")
+          PY

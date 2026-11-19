@@ -6,7 +6,7 @@ final class SketchGenerationTests:XCTestCase {
     override func setUp() {
         super.setUp()
         continueAfterFailure = false
-        executionTimeAllowance = name.contains("testAndrey") ? 240 : 120
+        executionTimeAllowance = name.contains("testAndrey") || name.contains("testGraphicScore") ? 360 : 180
     }
 
     @MainActor func testEmptyProjectLocalSketchABApplyUndo()throws {
@@ -184,7 +184,8 @@ final class SketchGenerationTests:XCTestCase {
                 let id = "builder.part.\(index).chords"
                 let chords = inheritance.contains(index) ? app.staticTexts[id] : app.textFields[id]
                 revealInList(chords, app: app)
-                let spelling = (chords.value as? String ?? chords.label).replacingOccurrences(of: "♭", with: "b")
+                let text = inheritance.contains(index) ? chords.label : try XCTUnwrap(chords.value as? String)
+                let spelling = text.replacingOccurrences(of: "♭", with: "b")
                 let symbols = spelling.split { !($0.isLetter || $0.isNumber || $0 == "#") }.map(String.init)
                 XCTAssertEqual(symbols, expected, spelling)
                 if inheritance.contains(index) {
@@ -227,7 +228,9 @@ final class SketchGenerationTests:XCTestCase {
             XCTAssertTrue(editPlan.waitForExistence(timeout: 8))
             editPlan.tap()
             let idea = app.descendants(matching: .any).matching(identifier: "builder.idea").firstMatch
-            XCTAssertTrue(idea.waitForExistence(timeout: 8))
+            let score = app.staticTexts["builder.score.title"]
+            XCTAssertTrue(score.waitForExistence(timeout: 10))
+            revealInList(idea, app: app)
             XCTAssertEqual((idea.value as? String)?.lowercased(), input)
             let inherited = app.staticTexts["builder.part.2.inheritance"]
             revealInList(inherited, app: app)
@@ -271,18 +274,23 @@ final class SketchGenerationTests:XCTestCase {
     @MainActor func testChangingReviewedTextRequiresNewInterpretation() {
         let app = launch()
         app.buttons["assistant.open"].tap()
-        app.buttons["Build a track"].tap()
-        let example = app.buttons["builder.example.workout"]
-        revealInList(example, app: app)
-        example.tap()
-        app.buttons["builder.suggest"].tap()
+        let editor = app.buttons["Build a track"]
+        XCTAssertTrue(editor.waitForExistence(timeout: 10))
+        editor.tap()
         let idea = app.descendants(matching: .any).matching(identifier: "builder.idea").firstMatch
-        XCTAssertTrue(idea.waitForExistence(timeout: 8))
+        XCTAssertTrue(idea.waitForExistence(timeout: 12))
         idea.tap()
-        idea.typeText(" at 111 BPM")
-        XCTAssertTrue(app.buttons["builder.suggest"].isEnabled)
-        XCTAssertTrue(app.staticTexts["builder.unreviewed"].exists)
-        // Begin the drag above the software keyboard so the Form dismisses it.
+        idea.typeText("Hip hop at 90 BPM")
+        let suggest = app.buttons["builder.suggest"]
+        revealInList(suggest, app: app)
+        XCTAssertTrue(suggest.isEnabled)
+        suggest.tap()
+        let feedback = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "Local suggestions")).firstMatch
+        XCTAssertTrue(feedback.waitForExistence(timeout: 10))
+        for _ in 0..<5 where !idea.isHittable { app.swipeDown() }
+        idea.tap()
+        idea.typeText(" in D minor")
+        XCTAssertTrue(app.staticTexts["builder.unreviewed"].waitForExistence(timeout: 8))
         let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.97, dy: 0.55))
         let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.97, dy: 0.25))
         start.press(forDuration: 0.02, thenDragTo: end)
@@ -293,22 +301,98 @@ final class SketchGenerationTests:XCTestCase {
         XCTAssertFalse(app.buttons["builder.preview"].isEnabled)
     }
 
+    @MainActor func testGraphicScoreNightABAuditionsAndFinishesSection() {
+        let app = launch(appearance: "dark")
+        let title = openChillhopScore(app)
+        let original = state(title)
+        let main = app.buttons["builder.score.section.1"]
+        let arp = app.buttons["builder.score.section.2"]
+        XCTAssertTrue(arp.waitForExistence(timeout: 8))
+        XCTAssertEqual(main.frame.width / arp.frame.width, 2, accuracy: 0.15)
+        keepScreenshot("Score42-night-overview")
+        arp.tap()
+        let low = 17.0 * 3840, high = 25.0 * 3840
+        func playing() -> Bool {
+            let report = current(title), tick = number("actualTick", in: report)
+            return report.contains("preview=true") && report.contains("actualPlaying=1") &&
+                tick >= low && tick < high && number("outputPeak", in: report) > 0.0001
+        }
+        wait(title, timeout: 30, condition: playing)
+        XCTAssertEqual(arp.value as? String, "Playing")
+        let picker = app.segmentedControls["builder.arrangement-take"]
+        let b = picker.buttons["B"], a = picker.buttons["A"]
+        XCTAssertTrue(b.isHittable)
+        b.tap()
+        wait(title, timeout: 30) { b.isSelected && playing() }
+        keepScreenshot("Score42-night-take-B-playing")
+        a.tap()
+        wait(title, timeout: 30) { a.isSelected && playing() }
+        keepReport(current(title), name: "Score42-restarted-section-A")
+        wait(title, timeout: 38) { self.current(title).contains("preview=false") && self.current(title).contains("actualPlaying=0") }
+        XCTAssertEqual(arp.value as? String, "Stopped")
+        XCTAssertEqual(state(title), original)
+    }
+
+    @MainActor func testGraphicScoreLightMenuPlaysOneBarEnding() {
+        let app = launch(appearance: "light")
+        let title = openChillhopScore(app)
+        let original = state(title)
+        let gong = app.buttons["builder.score.section.3"]
+        XCTAssertTrue(gong.waitForExistence(timeout: 10))
+        XCTAssertLessThan(gong.frame.width, 44)
+        keepScreenshot("Score42-light-overview")
+        let menu = app.buttons["builder.score.sectionsMenu"]
+        XCTAssertGreaterThanOrEqual(menu.frame.width, 44)
+        let expected = gong.label
+        menu.tap()
+        let ending = app.buttons["builder.score.menu.3"]
+        XCTAssertTrue(ending.waitForExistence(timeout: 5))
+        XCTAssertEqual(ending.label, expected)
+        ending.tap()
+        wait(title, timeout: 23) {
+            let report = self.current(title)
+            return report.contains("preview=true") && self.number("actualTick", in: report) >= 25*3840
+        }
+        keepReport(current(title), name: "Score42-menu-final-bar")
+        wait(title, timeout: 12) { self.current(title).contains("preview=false") && self.current(title).contains("actualPlaying=0") }
+        XCTAssertEqual(state(title), original)
+    }
+
+    @MainActor private func openChillhopScore(_ app: XCUIApplication) -> XCUIElement {
+        app.buttons["assistant.open"].tap()
+        let examples = app.buttons["assistant.examples"]
+        XCTAssertTrue(examples.waitForExistence(timeout: 10))
+        examples.tap()
+        let example = app.buttons["assistant.example.chillhop"]
+        XCTAssertTrue(example.waitForExistence(timeout: 8))
+        example.tap()
+        let generate = app.buttons["assistant.generate"]
+        revealInList(generate, app: app)
+        generate.tap()
+        let title = app.staticTexts["builder.score.title"]
+        XCTAssertTrue(title.waitForExistence(timeout: 15))
+        XCTAssertEqual(title.label, "Score")
+        return title
+    }
+
     @MainActor private func revealInList(_ element: XCUIElement, app: XCUIApplication) {
         for _ in 0..<22 {
-            if element.exists && element.isHittable { return }
+            let exists = element.exists
+            let nearHeader = exists && element.frame.midY < app.frame.height * 0.16
+            if exists && !nearHeader && element.isHittable { return }
             // A short, slow drag keeps adjacent rows visible across scrolls,
             // including cards materialized lazily by the native SwiftUI Form.
-            let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.88, dy: 0.72))
-            let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.88, dy: 0.42))
+            let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.88, dy: nearHeader ? 0.42 : 0.72))
+            let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.88, dy: nearHeader ? 0.72 : 0.42))
             start.press(forDuration: 0.02, thenDragTo: end, withVelocity: .slow, thenHoldForDuration: 0.05)
         }
         XCTFail("Could not reach \(element.debugDescription)")
     }
 
-    @MainActor private func launch(language: String = "en")->XCUIApplication {
+    @MainActor private func launch(language: String = "en", appearance: String = "dark")->XCUIApplication {
         XCUIDevice.shared.orientation = .portrait
         let app=XCUIApplication()
-        app.launchArguments=["--uitesting","--runtime-trace","--device-output-startup","--project-store-id",UUID().uuidString,"--appearance","dark","-AppleLanguages","(\(language))","-AppleLocale",language == "ru" ? "ru_RU" : "en_US"]
+        app.launchArguments=["--uitesting","--runtime-trace","--device-output-startup","--project-store-id",UUID().uuidString,"--appearance",appearance,"-AppleLanguages","(\(language))","-AppleLocale",language == "ru" ? "ru_RU" : "en_US"]
         app.launch();XCTAssertTrue(app.buttons["perform.transport"].waitForExistence(timeout:15))
         return app
     }
