@@ -164,3 +164,21 @@ struct SpectrumTests {
         #expect(scope.contains { $0 != 0 })
     }
 }
+
+struct VideoStoryboardTests {
+    @Test func layoutStaysInFrameAndPlayheadFollowsTheMusic() {
+        var project = Project.demo(); project.bpm = 120
+        let board = VideoStoryboard(project: project, range: 0..<project.length, seconds: 8 + 2, fps: 30)
+        #expect(board.frames == 300)
+        let m = VideoStoryboard.map
+        #expect(!board.blocks.isEmpty)
+        #expect(board.blocks.allSatisfy { $0.x >= m.x - 0.001 && $0.x + $0.width <= m.x + m.width + 0.001 && $0.y >= m.y && $0.y + $0.height <= m.y + m.height + 0.001 })
+        #expect(board.blocks.contains { $0.role == .drums } && board.blocks.contains { $0.role == .harmony })
+        // 4 bars at 120 BPM = 8 s of music: halfway at frame 120, end from frame 240 (tail holds).
+        #expect(abs(board.tick(frame: 120) - Double(project.length) / 2) < 1)
+        #expect(board.tick(frame: 240) == Double(project.length) && board.tick(frame: 299) == Double(project.length))
+        #expect(abs(board.playheadX(frame: 0) - m.x) < 0.001 && abs(board.playheadX(frame: 299) - (m.x + m.width)) < 0.001)
+        #expect(board.sections.count == project.sections.count && board.section(frame: 0) == 0)
+        #expect(board.subtitle.hasPrefix("120 BPM"))
+    }
+}

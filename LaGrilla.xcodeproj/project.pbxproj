@@ -680,6 +680,16 @@
 			"isa" = "PBXBuildFile";
 			"fileRef" = "4B45A4D93B9B6DC520F7D189";
 		};
+		"EAA1B97EEF1EAABF334C7611" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "AudioRuntime/VideoExporter.swift";
+			"sourceTree" = "SOURCE_ROOT";
+		};
+		"5C167FD690CED92C329B074D" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "EAA1B97EEF1EAABF334C7611";
+		};
 		"054DDA7442421BAE75E3379C" = {
 			"isa" = "PBXFileReference";
 			"lastKnownFileType" = "sourcecode.swift";
@@ -724,6 +734,7 @@
 				"E2F42575C1EEF818CCCC7FB8",
 				"FCCA5BA4314A84D66008C8AB",
 				"4B45A4D93B9B6DC520F7D189",
+				"EAA1B97EEF1EAABF334C7611",
 				"054DDA7442421BAE75E3379C",
 				"20A8B67F4A836EF62555CC80",
 			);
@@ -1223,6 +1234,7 @@
 				"8422CFD8908E7DB7E609385A",
 				"EA2DCBAE3DFAE771D2E6C742",
 				"36C43DC8876B244582747790",
+				"5C167FD690CED92C329B074D",
 				"8EF2BE99443073CB04C654ED",
 				"3D606F616C6A65168D2D0986",
 			);
