@@ -1,0 +1,116 @@
+{
+  "export": "chillhop",
+  "workstation": {
+    "created-with": "Ardour 8.12.0~ds-1",
+    "modified-with": "Ardour 8.12.0~ds-1"
+  },
+  "tempoBPM": 90.0,
+  "audio": [
+    {
+      "track": "Piano",
+      "frames": 3189900,
+      "channels": 2,
+      "pcmDifference": 0,
+      "sampleRate": 44100
+    },
+    {
+      "track": "Drums",
+      "frames": 3189900,
+      "channels": 2,
+      "pcmDifference": 0,
+      "sampleRate": 44100
+    },
+    {
+      "track": "Bass",
+      "frames": 3189900,
+      "channels": 2,
+      "pcmDifference": 0,
+      "sampleRate": 44100
+    },
+    {
+      "track": "Flute",
+      "frames": 3189900,
+      "channels": 2,
+      "pcmDifference": 0,
+      "sampleRate": 44100
+    },
+    {
+      "track": "Piano arpeggio",
+      "frames": 3189900,
+      "channels": 2,
+      "pcmDifference": 0,
+      "sampleRate": 44100
+    },
+    {
+      "track": "Gong",
+      "frames": 3189900,
+      "channels": 2,
+      "pcmDifference": 0,
+      "sampleRate": 44100
+    }
+  ],
+  "midi": [
+    {
+      "track": "Piano-1.mid",
+      "noteOns": 72,
+      "eventsEquivalent": true
+    },
+    {
+      "track": "Drums-1.mid",
+      "noteOns": 322,
+      "eventsEquivalent": true
+    },
+    {
+      "track": "Bass-1.mid",
+      "noteOns": 78,
+      "eventsEquivalent": true
+    },
+    {
+      "track": "Flute-1.mid",
+      "noteOns": 5,
+      "eventsEquivalent": true
+    },
+    {
+      "track": "Piano arpeggio-1.mid",
+      "noteOns": 64,
+      "eventsEquivalent": true
+    },
+    {
+      "track": "Gong-1.mid",
+      "noteOns": 1,
+      "eventsEquivalent": true
+    }
+  ],
+  "ardourReopenAndStereoRender": {
+    "sampleRate": 44100,
+    "channels": 2,
+    "frames": 3189900,
+    "peakDBFS": -11.61,
+    "rmsDBFS": -27.55
+  },
+  "inputMIDI": {
+    "path": "../../Arranger41/chillhop.mid",
+    "sha256": "72b6cf9555ac6e9ebd445aeb5a513c18faea7de6968ade1d29805dbb2e0917b8"
+  },
+  "sourceChecksums": {
+    "01-harmony.wav": "45ad8aff830219e550f3d8fce63c0cbc7c1e0803050ed0d91ec9add5b9357c38",
+    "02-drums.wav": "e4ee753e04c6c022116a0e9e239f4cd4a89af9118b4a2b64d7db43a15c6a770c",
+    "03-melody.wav": "105b75b8aaa4f6fe75b4ecfd685224acbcd9375d19861e99a6a67b33693f52b5",
+    "04-melody.wav": "3738473c6318ea4201a9984183453c9ced9f13b8f2580d5e713c73a70bb9b685",
+    "05-melody.wav": "77c89c191208e75e9d68866b92db6f0f588f739f8101a16aa94e8b9f45096fc5",
+    "06-melody.wav": "534d121ef1f73ab9efe659d55511d35d574c28de1012c9f52a3cab1f13711675",
+    "start90-export.wav": "1ee45eb45c499bf5b6870366b01c49d5520fbdc99599bea3b0cfefea51a350d1"
+  },
+  "tempoChecks": {
+    "midishImportedBPM": 90,
+    "midishImportedMeter": "4/4",
+    "ardourEmptySessionInitialBPM": 120,
+    "ardourAfterUseMidiTempo": 120,
+    "verifiedSessionBPMBeforeImport": 90
+  },
+  "sectionMarkers": {
+    "midiFile": 4,
+    "ardourLocationsOnImportExcludingSessionRange": 0
+  },
+  "noteOnCount": 542
+}

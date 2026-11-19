@@ -151,3 +151,6 @@ A chord event can carry a MIDI velocity from 1 to 127. An omitted velocity uses 
 
 
 Schema 15 preserves non-destructive drum-pad edits. An optional `tracks[].padEdits` dictionary maps each edited pad number to the original one-shot asset, its source frame count and rate, the edit parameters and the ID of the rendered one-shot in `padSamples`. Start is inclusive and end is exclusive, with trim and fades expressed in original sample frames and gain in dB. Project backups, portable bundles and frozen takes can reference the original and rendered PCM. Reopening the editor works from the original. Replacing a pad sound clears the recipe for that pad. Projects written by build 43 require a schema-15 reader. Older projects have no edit records until the user edits a pad.
+
+
+Personal drum kits use a separate version-1 library format. Each kit stores its display name, base drum preset, pad assignments, optional edit records and the PCM needed by those assignments. Audio blobs with the same hash are stored once inside a kit. Recalling it replaces the destination track’s pad sounds and base preset in a single edit, preserving the destination track’s identity, clips, levels and routing. The project keeps its own asset copies when the library entry is removed.
