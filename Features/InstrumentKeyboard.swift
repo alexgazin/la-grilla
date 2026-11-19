@@ -50,6 +50,10 @@ private struct InstrumentKeyboard: View {
     @AppStorage("keyboard.octaves") private var octaveSetting = 0       // I20: 0 automatic, 1…3
     @AppStorage("keyboard.keySize") private var keySize = 1              // I20: S/M/L
     @AppStorage("keyboard.grid") private var isomorphic = false          // I18
+    @AppStorage("keyboard.arpRate") private var arpRate = 0              // I15: 0 off, else step ticks
+    @AppStorage("keyboard.arpMode") private var arpMode = 0
+    @AppStorage("keyboard.arpOctaves") private var arpOctaves = 1
+    @State private var arpHeld: [Int] = []
     /// I30: step input writes an eighth note per key at a cursor that advances when all keys are up.
     @State private var stepCursor: Int?
     @State private var stepHeld: Set<Int> = []
@@ -159,6 +163,17 @@ private struct InstrumentKeyboard: View {
                         Picker("Key size", selection: Binding(get: { keySize }, set: { resetKeys(); keySize = $0 })) {
                             Text("Small").tag(0); Text("Medium").tag(1); Text("Large").tag(2)
                         }
+                        Picker("Arpeggiator", selection: Binding(get: { arpRate }, set: { resetKeys(); arpRate = $0 })) {
+                            Text("Off").tag(0); Text(verbatim: "1/8").tag(480); Text(verbatim: "1/16").tag(240); Text(verbatim: "1/16T").tag(160); Text(verbatim: "1/32").tag(120)
+                        }
+                        if arpRate > 0 {
+                            Picker("Arpeggio order", selection: Binding(get: { arpMode }, set: { resetKeys(); arpMode = $0 })) {
+                                Text("Up").tag(0); Text("Down").tag(1); Text("Up and down").tag(2); Text("As played").tag(3)
+                            }
+                            Picker("Arpeggio octaves", selection: Binding(get: { arpOctaves }, set: { resetKeys(); arpOctaves = $0 })) {
+                                Text(verbatim: "1").tag(1); Text(verbatim: "2").tag(2); Text(verbatim: "3").tag(3)
+                            }
+                        }
                     } label: {
                         Image(systemName: isomorphic ? "square.grid.4x3.fill" : "rectangle.split.3x1").foregroundStyle(isomorphic ? Color.mint : Color.muted).frame(minWidth: 44, minHeight: 44)
                     }.accessibilityLabel("Keyboard layout").accessibilityIdentifier("keyboard.layout")
@@ -178,7 +193,7 @@ private struct InstrumentKeyboard: View {
         }.tint(.mint)
         .onAppear { _ = session.ensureAudio() }
         .onChange(of: phase) { _, phase in if phase != .active { finishPhrase(); resetKeys() } }
-        .onDisappear { task?.cancel(); finishPhrase(); session.midi.releaseKeyboard() }
+        .onDisappear { task?.cancel(); finishPhrase(); session.midi.releaseKeyboard(); arpHeld = []; session.audio.arp(identity: 0, pitches: [], step: 240, mode: 0, octaves: 1) }
     }
 
     private func factorySound(_ name: String?) -> FactoryInstrument? {
@@ -282,6 +297,12 @@ private struct InstrumentKeyboard: View {
     private func key(_ pitch: Int, down: Bool, track: Track) {
         guard let index = session.project.tracks.firstIndex(where: { $0.id == track.id }) else { return }
         if down && !session.ensureAudio() { error = session.audio.error; return }
+        if arpRate > 0 {
+            // I15: held keys feed the kernel arpeggiator on the transport grid (live only).
+            if down { if !arpHeld.contains(pitch) { arpHeld.append(pitch) } } else { arpHeld.removeAll { $0 == pitch } }
+            session.audio.arp(identity: MIDIController.trackIdentity(track.id), pitches: arpHeld, step: arpRate, mode: arpMode, octaves: arpOctaves)
+            return
+        }
         if session.midi.playKey(pitch, down: down, track: track, index: index) {
             // The keybed connection can be created by this key; send the pedal state to it.
             if down && sustain { _ = session.midi.keyboardSustain(true) }
@@ -338,6 +359,7 @@ private struct InstrumentKeyboard: View {
 
     private func resetKeys() {
         if sustain { setSustain(false) }
+        if !arpHeld.isEmpty { arpHeld = []; session.audio.arp(identity: 0, pitches: [], step: 240, mode: 0, octaves: 1) }
         take?.releaseHeld()
         session.midi.releaseKeyboard()
         surfaceID = UUID()

@@ -184,6 +184,40 @@ struct LGKernel {
         if(tick+40<clockNext)clockNext=std::ceil(tick/40-1e-9)*40;     // loop restart
         if(tick>=clockNext-half){clockEmit(0xF8);clockNext+=40;}
     }
+    std::array<std::atomic<int>,16> arpPitches{};std::atomic<int> arpCount{0},arpStep{240},arpMode{0},arpOctaves{1},arpVelocity{100};std::atomic<uint64_t> arpIdentity{0};
+    std::atomic<uint32_t> arpSerial{0};uint32_t arpSeen=0;double arpNextTick=-1,arpFrames=0;int arpIndex=0;
+    void arpTick(){
+        const int count=std::min(16,arpCount.load(std::memory_order_acquire));
+        if(count<=0)return;
+        const uint32_t serial=arpSerial.load(std::memory_order_acquire);
+        const int step=arpStep.load(std::memory_order_relaxed);
+        bool fire=false;
+        const double bpm=current>=0?slots[current].bpm:120;
+        if(serial!=arpSeen){arpSeen=serial;arpIndex=0;fire=true;
+            if(active&&current>=0){const double tick=position.load(std::memory_order_relaxed);arpNextTick=std::floor((tick+0.5*ticksPerFrame())/step+1)*step;}
+            arpFrames=step/960.0*60/bpm*sr;
+        }else if(active&&current>=0){
+            const double tick=position.load(std::memory_order_relaxed),half=0.5*ticksPerFrame();
+            if(tick+step<arpNextTick)arpNextTick=std::floor((tick+half)/step+1)*step;
+            if(tick>=arpNextTick-half){fire=true;arpNextTick+=step;}
+        }else if(--arpFrames<=0){fire=true;arpFrames+=step/960.0*60/bpm*sr;}
+        if(!fire)return;
+        const int track=identityTrack(arpIdentity.load(std::memory_order_relaxed));
+        if(track<0)return;
+        std::array<int,48> sequence{};int length=0;
+        std::array<int,16> held{};for(int i=0;i<count;i++)held[size_t(i)]=arpPitches[size_t(i)].load(std::memory_order_relaxed);
+        const int mode=arpMode.load(std::memory_order_relaxed),octaves=std::clamp(arpOctaves.load(std::memory_order_relaxed),1,3);
+        if(mode!=3)std::sort(held.begin(),held.begin()+count);
+        for(int o=0;o<octaves;o++)for(int i=0;i<count;i++){const int p=held[size_t(i)]+12*o;if(p<=127)sequence[size_t(length++)]=p;}
+        if(length==0)return;
+        int position=arpIndex;
+        if(mode==1)position=length-1-(arpIndex%length);
+        else if(mode==2&&length>1){const int period=2*length-2;const int k=arpIndex%period;position=k<length?k:period-k;}
+        else position=arpIndex%length;
+        ++arpIndex;
+        const int pitch=sequence[size_t(std::clamp(position,0,length-1))];
+        trigger(pitch,arpVelocity.load(std::memory_order_relaxed),track,-1,slots[current].instruments[track],step*0.8/960.0*60/bpm);
+    }
     void repeatTick(){
         const int pad=repeatPad.load(std::memory_order_acquire);
         if(pad<0)return;
@@ -580,6 +614,18 @@ void lg_play(LGKernel*k,int play){k->command.store(play?1:-1,std::memory_order_r
 void lg_restart(LGKernel*k){k->command.store(2,std::memory_order_release);}
 void lg_seek(LGKernel*k,int tick){if(tick>=0)k->seek.store(std::min(245760,tick));}
 static int enqueue(LGKernel*k,Input value){unsigned w=k->write.load(std::memory_order_relaxed),r=k->read.load(std::memory_order_acquire);if(w-r>=256){k->overflow.fetch_add(1);return 0;}k->input[w%256]=value;k->write.store(w+1,std::memory_order_release);return 1;}
+int lg_arp(LGKernel*k,uint64_t identity,const int32_t*pitches,int count,int step,int mode,int octaves,int velocity){
+    if(!k||count<0||count>16||(count>0&&(!pitches||identity==0))||mode<0||mode>3||octaves<1||octaves>3)return 0;
+    if(count>0&&step!=120&&step!=160&&step!=240&&step!=320&&step!=480)return 0;
+    for(int i=0;i<count;i++)if(pitches[i]<0||pitches[i]>127)return 0;
+    if(count==0){k->arpCount.store(0,std::memory_order_release);return 1;}
+    const bool starting=k->arpCount.load(std::memory_order_acquire)==0;
+    for(int i=0;i<count;i++)k->arpPitches[size_t(i)].store(pitches[i],std::memory_order_relaxed);
+    k->arpStep.store(step,std::memory_order_relaxed);k->arpMode.store(mode,std::memory_order_relaxed);k->arpOctaves.store(octaves,std::memory_order_relaxed);
+    k->arpVelocity.store(std::clamp(velocity,1,127),std::memory_order_relaxed);k->arpIdentity.store(identity,std::memory_order_relaxed);
+    if(starting)k->arpSerial.fetch_add(1,std::memory_order_acq_rel);
+    k->arpCount.store(count,std::memory_order_release);return 1;
+}
 void lg_midi_clock_out(LGKernel*k,int enabled){if(k)k->clockOut.store(enabled?1:0,std::memory_order_relaxed);}
 int lg_pad_repeat(LGKernel*k,int pad,int step,int velocity){
     if(!k||pad< -1||pad>15)return 0;
@@ -767,7 +813,7 @@ void lg_render_midi(LGKernel*k,LGMIDIHub*hub,uint64_t hostTime,double hostTicksP
                 k->position.store(tick,std::memory_order_relaxed);k->previous=tick;k->elapsed++;
             }else k->position.store(tick);
         }
-        k->repeatTick();k->clockTick();
+        k->repeatTick();k->arpTick();k->clockTick();
         if(f==0){while(rd<wr){auto v=k->input[rd++%256];if(v.identity){v.track=k->identityTrack(v.identity);if(v.track>=0)v.instrument=k->slots[k->current].instruments[v.track];}else if(!v.preview)v.track=k->roleTrack(1,1);else if(v.track<0)v.track=k->roleTrack(0,0);if(v.track<0)continue;k->performance.emit(v.preview?9:8,v.track,float(v.velocity),v.value,v.instrument);k->trigger(v.preview?v.value:36,v.velocity,v.track,v.preview?-1:v.value,v.instrument,v.preview?0.65:1);}k->read.store(rd,std::memory_order_release);}
         // Boundary-time input belongs to the newly adopted layout. Applying it
         // before adoption would create an old-index voice and then clear it.

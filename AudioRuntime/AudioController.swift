@@ -637,6 +637,12 @@ private enum AudioRender {
         return MetronomeSettings(gainDB: value.gainDB, accent: value.accent, sound: value.sound, countInOnly: value.countInOnly)
     }
     private var metronomeOn = false
+    /// I15: live arpeggio of the held pitches on the track with `identity`; empty stops.
+    @discardableResult func arp(identity: UInt64, pitches: [Int], step: Int, mode: Int, octaves: Int, velocity: Int = 100) -> Bool {
+        guard let k = handle?.pointer else { return false }
+        let values = pitches.prefix(16).map { Int32($0) }
+        return values.withUnsafeBufferPointer { lg_arp(k, identity, $0.baseAddress, Int32($0.count), Int32(step), Int32(mode), Int32(octaves), Int32(velocity)) } != 0
+    }
     /// I82: MIDI clock and transport messages on the selected output.
     func midiClock(_ on: Bool) { if let k = handle?.pointer { lg_midi_clock_out(k, on ? 1 : 0) } }
     /// I63: the latest mono master samples for the spectrum view.

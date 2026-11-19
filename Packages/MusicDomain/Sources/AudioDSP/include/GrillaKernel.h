@@ -63,6 +63,12 @@ int lg_pad_repeat(LGKernel *k, int pad, int stepTicks, int velocity);
 // I82: send MIDI clock (24 PPQN) with Start/Continue (+ Song Position) and
 // Stop to the selected MIDI output, sample-timed with the transport.
 void lg_midi_clock_out(LGKernel *k, int enabled);
+// I15 live arpeggiator for the track with `identity`: up to 16 held pitches
+// (in the order played), stepTicks 120/160/240/320/480, mode 0 up, 1 down,
+// 2 up-down, 3 as played, over 1...3 octaves. The first note sounds at once;
+// later notes follow the transport grid (free-running when stopped). Updating
+// the held notes keeps the timing; count 0 stops.
+int lg_arp(LGKernel *k, uint64_t identity, const int32_t *pitches, int count, int stepTicks, int mode, int octaves, int velocity);
 void lg_preview(LGKernel *k, int pitch);
 void lg_note_preview(LGKernel *k, int pitch, int track, int instrument);
 // Resolve a stable LGProjectTrack identity after audio-boundary adoption.
