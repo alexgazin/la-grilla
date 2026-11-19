@@ -357,6 +357,12 @@ import Observation
     func mixerImmediate(_ change: (inout Project) throws -> Void) {
         mixerGesture=false; mixerEdit(change); mixerGesture=false
     }
+    /// I43: open the Assistant listening, scoped to the section at `tick`.
+    @ObservationIgnored var assistantListens=false
+    func editByVoice(at tick:Int) {
+        if let section=project.sections.first(where:{$0.start<=tick && tick<$0.start+$0.length}){select(section)}
+        assistantListens=true;sheet = .assistant
+    }
     /// I90: short confirmation shown over the studio.
     var toast:String?
     func showToast(_ text:String){toast=text;Task{@MainActor in try? await Task.sleep(for:.seconds(1.2));if toast==text{toast=nil}}}

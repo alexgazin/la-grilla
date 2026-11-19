@@ -549,6 +549,7 @@ struct GridView: View {
             }
         })
         .contextMenu {
+            Button("Change by voice",systemImage:"mic"){session.editByVoice(at:slice.timelineTick)}
             if let event {
                 Button("Delete chord",role:.destructive) {
                     session.edit { p in

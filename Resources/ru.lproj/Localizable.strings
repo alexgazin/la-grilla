@@ -1381,3 +1381,4 @@
 "Stop automatic backup" = "Отключить автоматические копии";
 "Choose a backup folder" = "Выбрать папку для копий";
 "Once a day, when you leave the app, projects changed since the last backup are saved as one zip in that folder." = "Раз в день, когда вы выходите из приложения, изменённые с прошлого раза проекты сохраняются одним zip‑архивом в эту папку.";
+"Change by voice" = "Изменить голосом";
