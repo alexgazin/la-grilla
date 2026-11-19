@@ -239,18 +239,20 @@ struct GridView: View {
     }
     private func sectionChip(_ section:MusicDomain.Section)->some View {
         let selected=session.section.id==section.id
-        return Button{session.select(section)}label:{
+        let tint=SongFormStyle.color(for:section)
+        return Button{if !selected{Luz.Haptics.selection()};withAnimation(Luz.Motion.snap){session.select(section)}}label:{
             HStack(spacing:8) {
-                RoundedRectangle(cornerRadius:1,style:.continuous).fill(selected ? Color.ink:Color.outline).frame(width:3,height:14)
+                // Luz: each section keeps its own colour; selection lifts the chip and outlines it.
+                RoundedRectangle(cornerRadius:1,style:.continuous).fill(tint.opacity(selected ? 1:0.5)).frame(width:3,height:14)
                     .accessibilityHidden(true)
                 Text(section.name).font(.system(.caption, weight: .semibold)).lineLimit(1)
                 Text("\(section.start/barTicks+1)–\((section.start+section.length)/barTicks)")
                     .font(.system(.caption2, design: .monospaced)).opacity(selected ? 0.75:0.65)
             }.padding(.horizontal,12).frame(minHeight:44)
-                .foregroundStyle(selected ? Color.ink:Color.studioText)
-                .background(selected ? Color.mint:Color.panel,in:RoundedRectangle(cornerRadius:StudioMetrics.controlRadius,style:.continuous))
-                .overlay{RoundedRectangle(cornerRadius:StudioMetrics.controlRadius,style:.continuous).strokeBorder(selected ? Color.mint:Color.outline.opacity(0.65),lineWidth:0.75)}
-        }.buttonStyle(StudioQuietButtonStyle()).accessibilityIdentifier("grid.section.\(section.id)")
+                .foregroundStyle(Color.studioText)
+                .background(selected ? Color.lifted:Color.panel,in:RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous))
+                .overlay{RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous).strokeBorder(selected ? tint:Color.outline.opacity(0.65),lineWidth:selected ? 1.5:0.75)}
+        }.buttonStyle(StudioQuietButtonStyle(radius:Luz.Radius.cell)).accessibilityIdentifier("grid.section.\(section.id)")
             .accessibilityAddTraits(selected ? .isSelected:[])
             .modifier(ArrangementDragSource(payload:editingLocked ? nil:ArrangementDragPayload(project:session.project,sectionID:section.id).encoded()))
             .dropDestination(for:String.self){items,_ in session.reorderSection(drop:items,onto:section.id)}
