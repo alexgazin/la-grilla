@@ -230,3 +230,237 @@ struct GridPlayhead: View {
         .accessibilityHidden(true)
     }
 }
+
+// MARK: - Shared Luz components
+
+/// A rotary control: vertical drag (100 pt = full range), detents with a tick,
+/// double-tap to reset, adjustable with VoiceOver. Bipolar knobs fill from the centre.
+struct LuzKnob: View {
+    let title: LocalizedStringKey
+    @Binding var value: Double
+    let range: ClosedRange<Double>
+    var defaultValue: Double
+    var detents: [Double] = []
+    var bipolar = false
+    var tint: Color = .mint
+    var step: Double? = nil
+    let format: (Double) -> String
+    var onEditingChanged: (Bool) -> Void = { _ in }
+    var identifier: String = ""
+    var size: CGFloat = 56
+    var showsTitle = true
+    @State private var origin: Double?
+    @Environment(\.isEnabled) private var enabled
+    @Environment(\.colorSchemeContrast) private var contrast
+
+    private var unit: Double { (value - range.lowerBound) / max(1e-9, range.upperBound - range.lowerBound) }
+
+    var body: some View {
+        VStack(spacing: showsTitle ? 6 : 2) {
+            Canvas { context, canvas in
+                let side = min(canvas.width, canvas.height)
+                let center = CGPoint(x: canvas.width / 2, y: canvas.height / 2)
+                let radius = side * 0.42
+                func arc(_ from: Double, _ to: Double) -> Path {
+                    var path = Path()
+                    path.addArc(center: center, radius: radius, startAngle: .degrees(from), endAngle: .degrees(to), clockwise: false)
+                    return path
+                }
+                // 270° sweep from 135° to 405°.
+                context.stroke(arc(135, 405), with: .color(.lifted), style: StrokeStyle(lineWidth: 4, lineCap: .round))
+                let start = bipolar ? 270.0 : 135.0, end = 135 + 270 * unit
+                if abs(end - start) > 0.5 { context.stroke(arc(min(start, end), max(start, end)), with: .color(tint), style: StrokeStyle(lineWidth: 4, lineCap: .round)) }
+                let disc = CGRect(x: center.x - radius * 0.72, y: center.y - radius * 0.72, width: radius * 1.44, height: radius * 1.44)
+                context.fill(Path(ellipseIn: disc), with: .linearGradient(Gradient(colors: [.lifted, .raised]), startPoint: CGPoint(x: disc.midX, y: disc.minY), endPoint: CGPoint(x: disc.midX, y: disc.maxY)))
+                context.stroke(Path(ellipseIn: disc), with: .color(.outline.opacity(contrast == .increased ? 1 : 0.8)), lineWidth: contrast == .increased ? 1.5 : 0.75)
+                let angle = (135 + 270 * unit) * Double.pi / 180
+                let dx = CGFloat(cos(angle)), dy = CGFloat(sin(angle))
+                var pointer = Path()
+                pointer.move(to: CGPoint(x: center.x + dx * radius * 0.35, y: center.y + dy * radius * 0.35))
+                pointer.addLine(to: CGPoint(x: center.x + dx * radius * 0.65, y: center.y + dy * radius * 0.65))
+                context.stroke(pointer, with: .color(tint), style: StrokeStyle(lineWidth: 3, lineCap: .round))
+            }
+            .frame(width: size, height: size)
+            .contentShape(Rectangle().inset(by: min(0, (size - 44) / 2)))
+            .gesture(DragGesture(minimumDistance: 0)
+                .onChanged { drag in
+                    guard enabled else { return }
+                    if origin == nil { origin = value; onEditingChanged(true) }
+                    let span = range.upperBound - range.lowerBound
+                    var next = min(range.upperBound, max(range.lowerBound, (origin ?? value) - Double(drag.translation.height) / 100 * span))
+                    if let step { next = (next / step).rounded() * step }
+                    if let detent = detents.first(where: { abs($0 - next) < span * 0.02 }) {
+                        if value != detent { Luz.Haptics.selection() }
+                        next = detent
+                    }
+                    if next != value { value = next }
+                }
+                .onEnded { _ in origin = nil; onEditingChanged(false) })
+            .simultaneousGesture(TapGesture(count: 2).onEnded {
+                guard enabled else { return }
+                value = defaultValue; Luz.Haptics.selection(); onEditingChanged(false)
+            })
+            if showsTitle { Text(title).font(StudioTypography.detail).foregroundStyle(Color.muted).lineLimit(1) }
+            Text(verbatim: format(value)).font(StudioTypography.index).foregroundStyle(Color.studioText).monospacedDigit().lineLimit(1).minimumScaleFactor(0.7)
+        }
+        .frame(minWidth: 64)
+        .opacity(enabled ? 1 : 0.42)
+        // Assistive technologies and UI tests see a standard slider.
+        .accessibilityRepresentation {
+            Slider(value: $value, in: range) { Text(title) } onEditingChanged: { onEditingChanged($0) }
+                .accessibilityValue(Text(verbatim: format(value)))
+                .accessibilityIdentifier(identifier)
+        }
+    }
+}
+
+/// A selectable card: panel fill, a mint stroke that fades in, a checkmark that
+/// morphs, and a tick on selection.
+struct SelectableTile<Accessory: View>: View {
+    let isSelected: Bool
+    var tint: Color = .mint
+    var symbol: String? = nil
+    let title: LocalizedStringKey
+    var detail: LocalizedStringKey? = nil
+    var busy = false
+    let action: () -> Void
+    @ViewBuilder var accessory: () -> Accessory
+    @Environment(\.colorSchemeContrast) private var contrast
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        Button { if !isSelected { Luz.Haptics.selection() }; action() } label: {
+            HStack(alignment: .top, spacing: 12) {
+                if let symbol {
+                    Image(systemName: symbol).font(StudioTypography.icon).foregroundStyle(tint).frame(width: 28).accessibilityHidden(true)
+                }
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(title).font(StudioTypography.action).foregroundStyle(Color.studioText).multilineTextAlignment(.leading)
+                    if let detail { Text(detail).font(.caption).foregroundStyle(Color.muted).multilineTextAlignment(.leading) }
+                    accessory()
+                }
+                Spacer(minLength: 0)
+                if busy { ProgressView().controlSize(.small) }
+                else {
+                    Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                        .foregroundStyle(isSelected ? tint : Color.outline)
+                        .contentTransition(.symbolEffect(.replace))
+                        .accessibilityHidden(true)
+                }
+            }
+            .padding(14)
+            .frame(maxWidth: .infinity, minHeight: 56, alignment: .leading)
+            .background(Color.panel, in: RoundedRectangle(cornerRadius: Luz.Radius.card, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: Luz.Radius.card, style: .continuous)
+                    .strokeBorder(isSelected ? tint : Color.outline.opacity(contrast == .increased ? 1 : 0.7), lineWidth: isSelected || contrast == .increased ? 1.5 : 0.75)
+            }
+            .animation(reduceMotion ? nil : Luz.Motion.snap, value: isSelected)
+        }
+        .buttonStyle(StudioQuietButtonStyle(radius: Luz.Radius.card))
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+}
+
+extension SelectableTile where Accessory == EmptyView {
+    init(isSelected: Bool, tint: Color = .mint, symbol: String? = nil, title: LocalizedStringKey, detail: LocalizedStringKey? = nil, busy: Bool = false, action: @escaping () -> Void) {
+        self.init(isSelected: isSelected, tint: tint, symbol: symbol, title: title, detail: detail, busy: busy, action: action, accessory: { EmptyView() })
+    }
+}
+
+/// Banners, statuses and cautions. Only danger and recording use coral; a caution
+/// is studio text with a triangle, so amber keeps meaning harmony.
+struct LuzNotice: View {
+    enum Kind { case info, caution, danger, recording }
+    let kind: Kind
+    var symbol: String? = nil
+    let text: LocalizedStringKey
+    var actions: [(title: LocalizedStringKey, run: () -> Void)] = []
+
+    private var accent: Color { kind == .danger || kind == .recording ? .record : kind == .info ? .mint : .studioText }
+    private var defaultSymbol: String {
+        switch kind { case .info: "info.circle"; case .caution: "exclamationmark.triangle"; case .danger: "xmark.octagon"; case .recording: "record.circle.fill" }
+    }
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            Image(systemName: symbol ?? defaultSymbol).foregroundStyle(accent).accessibilityHidden(true)
+            Text(text).font(.callout).foregroundStyle(Color.studioText).frame(maxWidth: .infinity, alignment: .leading)
+            ForEach(Array(actions.enumerated()), id: \.offset) { _, action in
+                Button(action.title, action: action.run).font(StudioTypography.action).foregroundStyle(Color.mint)
+                    .frame(minHeight: 44).buttonStyle(StudioQuietButtonStyle())
+            }
+        }
+        .padding(.horizontal, 12).padding(.vertical, 8)
+        .background(Color.panel, in: RoundedRectangle(cornerRadius: Luz.Radius.card, style: .continuous))
+        .overlay(alignment: .leading) { Capsule().fill(accent).frame(width: 3).padding(.vertical, 8) }
+        .overlay { RoundedRectangle(cornerRadius: Luz.Radius.card, style: .continuous).strokeBorder(Color.outline.opacity(0.7), lineWidth: 0.75) }
+        .accessibilityElement(children: .combine)
+    }
+}
+
+/// The utility capsule used for menus and small options.
+struct StudioPill: View {
+    var symbol: String? = nil
+    let title: LocalizedStringKey
+    var value: String? = nil
+    var tint: Color = .mint
+    var isOn = false
+    var chevron = false
+
+    var body: some View {
+        HStack(spacing: 6) {
+            if let symbol { Image(systemName: symbol).foregroundStyle(isOn ? Color.ink : tint).accessibilityHidden(true) }
+            Text(title)
+            if let value { Text(verbatim: value).monospacedDigit().foregroundStyle(isOn ? Color.ink.opacity(0.75) : Color.muted) }
+            if chevron { Image(systemName: "chevron.down").font(StudioTypography.index).accessibilityHidden(true) }
+        }
+        .font(StudioTypography.label)
+        .foregroundStyle(isOn ? Color.ink : Color.studioText)
+        .padding(.horizontal, 12)
+        .frame(minHeight: StudioMetrics.hitTarget)
+        .background(isOn ? tint : Color.raised, in: Capsule(style: .continuous))
+        .overlay { Capsule(style: .continuous).strokeBorder(isOn ? tint : Color.outline.opacity(0.8), lineWidth: 0.75) }
+        .contentShape(Capsule())
+    }
+}
+
+/// A/B audition: two sides, the playing side shows a live speaker, a stop button.
+struct ABCompare: View {
+    enum Side { case a, b }
+    let playing: Side?
+    var a: LocalizedStringKey = "A · Current"
+    let b: LocalizedStringKey
+    let audition: (Side) -> Void
+    let stop: () -> Void
+    var identifiers: (a: String, b: String, stop: String) = ("ab.a", "ab.b", "ab.stop")
+
+    var body: some View {
+        HStack(spacing: 8) {
+            side(.a, a, identifiers.a)
+            side(.b, b, identifiers.b)
+            if playing != nil {
+                Button { stop(); Luz.Haptics.selection() } label: { Image(systemName: "stop.fill").frame(width: 48, height: 48) }
+                    .buttonStyle(StudioQuietButtonStyle(radius: Luz.Radius.cell))
+                    .accessibilityLabel("Stop preview").accessibilityIdentifier(identifiers.stop)
+            }
+        }
+    }
+
+    private func side(_ which: Side, _ title: LocalizedStringKey, _ id: String) -> some View {
+        let on = playing == which
+        return Button { audition(which); Luz.Haptics.selection() } label: {
+            HStack(spacing: 6) {
+                if on { Image(systemName: "speaker.wave.2.fill").symbolEffect(.variableColor.iterative, isActive: on).accessibilityHidden(true) }
+                Text(title)
+            }
+            .font(StudioTypography.action)
+            .foregroundStyle(on ? Color.ink : Color.studioText)
+            .frame(maxWidth: .infinity, minHeight: 48)
+            .background(on ? Color.mint : Color.raised, in: RoundedRectangle(cornerRadius: Luz.Radius.cell, style: .continuous))
+        }
+        .buttonStyle(StudioQuietButtonStyle(radius: Luz.Radius.cell))
+        .accessibilityAddTraits(on ? .isSelected : [])
+        .accessibilityIdentifier(id)
+    }
+}

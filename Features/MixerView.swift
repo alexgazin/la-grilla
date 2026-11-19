@@ -137,7 +137,7 @@ struct MixerView: View {
             fader(index: index, track: track, gain: gain, color: color)
                 .padding(.vertical, 8)
             panSlot(index: index, track: track, color: color)
-                .frame(height: 70)
+                .frame(height: 84)
             if let track {
                 channelSwitches(index: index, track: track, color: color)
             } else {
@@ -341,12 +341,10 @@ struct MixerView: View {
                     .font(.system(.caption2, weight: .medium))
                     .foregroundStyle(Color.muted)
                     .accessibilityHidden(true)
-                Slider(value: panBinding(index), in: -1...1,
-                       onEditingChanged: { _ in session.mixerGesture = false })
-                    .tint(color)
-                    .frame(minHeight: 44)
-                    .accessibilityLabel("Pan \(track.displayName)")
-                    .accessibilityIdentifier("mixer.pan.\(index)")
+                // Luz: a bipolar knob with a centre detent and double-tap reset.
+                LuzKnob(title: "Pan", value: panBinding(index), range: -1...1, defaultValue: 0, detents: [0], bipolar: true, tint: color,
+                        format: { v in abs(v) < 0.01 ? "C" : v < 0 ? "L\(Int((-v * 50).rounded()))" : "R\(Int((v * 50).rounded()))" },
+                        onEditingChanged: { _ in session.mixerGesture = false }, identifier: "mixer.pan.\(index)", size: 44, showsTitle: false)
             }
         } else {
             Text("L  ·  R")
@@ -647,14 +645,18 @@ private struct SynthEditorView: View {
                             }.pickerStyle(.segmented)
                         }
                         Section("Filter") {
-                            knob("Cutoff", \.cutoff, 0...1, format: { String(format: "%.0f Hz", 80 * pow(200, $0)) })
-                            knob("Resonance", \.resonance, 0...0.9, format: { String(format: "%.0f%%", $0 / 0.9 * 100) })
+                            HStack {
+                                knob("Cutoff", \.cutoff, 0...1, default: 0.7, format: { String(format: "%.0f Hz", 80 * pow(200, $0)) })
+                                knob("Resonance", \.resonance, 0...0.9, default: 0.2, format: { String(format: "%.0f%%", $0 / 0.9 * 100) })
+                            }.frame(maxWidth: .infinity)
                         }
                         Section("Envelope") {
-                            knob("Attack", \.attack, 0.001...2, format: seconds)
-                            knob("Decay", \.decay, 0.01...3, format: seconds)
-                            knob("Sustain", \.sustain, 0...1, format: { String(format: "%.0f%%", $0 * 100) })
-                            knob("Release", \.release, 0.01...4, format: seconds)
+                            HStack {
+                                knob("Attack", \.attack, 0.001...2, default: 0.01, format: seconds)
+                                knob("Decay", \.decay, 0.01...3, default: 0.3, format: seconds)
+                                knob("Sustain", \.sustain, 0...1, default: 0.7, format: { String(format: "%.0f%%", $0 * 100) })
+                                knob("Release", \.release, 0.01...4, default: 0.3, format: seconds)
+                            }.frame(maxWidth: .infinity)
                         }
                     }
                 } else { Text("This track no longer exists.") }
@@ -669,15 +671,14 @@ private struct SynthEditorView: View {
 
     private func seconds(_ value: Double) -> String { value < 1 ? String(format: "%.0f ms", value * 1000) : String(format: "%.2f s", value) }
 
-    private func knob(_ title: LocalizedStringKey, _ key: WritableKeyPath<SynthPatch, Double>, _ range: ClosedRange<Double>, format: @escaping (Double) -> String) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            LabeledContent(title, value: format(patch[keyPath: key]))
-            Slider(value: Binding(get: { patch[keyPath: key] }, set: { value in
-                patch[keyPath: key] = value
-                if let index { session.audio.previewSynth(track: index, patch) }
-            }), in: range) { editing in if !editing { commit(patch) } }
-                .accessibilityLabel(title).accessibilityValue(Text(verbatim: format(patch[keyPath: key])))
-        }
+    private func knob(_ title: LocalizedStringKey, _ key: WritableKeyPath<SynthPatch, Double>, _ range: ClosedRange<Double>, default initial: Double, format: @escaping (Double) -> String) -> some View {
+        // Luz knob: heard while turning (preview), one Undo when released.
+        LuzKnob(title: title, value: Binding(get: { patch[keyPath: key] }, set: { value in
+            patch[keyPath: key] = value
+            if let index { session.audio.previewSynth(track: index, patch) }
+        }), range: range, defaultValue: initial, tint: Color.track(track?.role ?? .melody), format: format,
+                onEditingChanged: { editing in if !editing { commit(patch) } })
+            .frame(maxWidth: .infinity)
     }
 
     private func commit(_ value: SynthPatch?) {
