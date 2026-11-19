@@ -1,1 +1,3 @@
-Arrange the whole song on a visual section map. Choose recorded piano, nylon guitar or an imported SoundFont. Reuse pad samples across projects and make an editable song from a recorded live take. Export MIDI for editing in another DAW. Share WAV, stems and portable projects with the assigned sounds.
+Audition three drum kits on the same beat. Trim a sample on its waveform, shape the attack and tail, and set its gain. The editor shows clipping and can leave headroom with one tap. Save all 16 pads as a personal kit for another project. Your original samples remain available for the next edit.
+
+Describe an instrumental track, audition sections of its score and compare two performances. Edit the resulting parts and export MIDI, a stereo WAV or individual stems.

@@ -168,18 +168,10 @@ final class SoundPickerUITests:XCTestCase {
         let preview = app.buttons["pad-editor.preview"]
         let apply = app.buttons["pad-editor.apply"]
 
-        func openPadSounds() {
-            entry(app).tap()
-            app.buttons["sound.samples"].tap()
-        }
         func openKick() {
             XCTAssertTrue(edit.waitForExistence(timeout: 15))
             edit.tap()
             XCTAssertTrue(start.waitForExistence(timeout: 10))
-        }
-        func closePadSounds() {
-            app.navigationBars["Pad samples"].buttons["Done"].tap()
-            app.navigationBars["Sound"].buttons["Cancel"].tap()
         }
         func previewFrames() throws -> Int {
             preview.tap()
@@ -192,7 +184,7 @@ final class SoundPickerUITests:XCTestCase {
             return frames
         }
 
-        openPadSounds()
+        openPadSounds(app)
         app.buttons["pad-samples.pocket-kit"].tap()
         openKick()
         let original = start.label
@@ -204,30 +196,44 @@ final class SoundPickerUITests:XCTestCase {
         XCTAssertNotEqual(trimmed, original)
         let editedFrames = try previewFrames()
         XCTAssertLessThan(editedFrames, originalFrames, "The trimmed preview must submit a shorter buffer for playback")
+        app.sliders["Sample gain"].adjust(toNormalizedSliderPosition: 1)
+        let correction = app.buttons["pad-editor.headroom"]
+        XCTAssertTrue(correction.waitForExistence(timeout: 10))
+        let peak = app.descendants(matching: .any)["pad-editor.peak"]
+        let clippedPeak = peak.label
+        XCTAssertTrue(clippedPeak.contains("clipped frames"), clippedPeak)
+        correction.tap()
+        let corrected = NSPredicate(format: "identifier == 'pad-editor.peak' AND NOT (label CONTAINS 'clipped frames')")
+        let correctedPeak = app.descendants(matching: .any).matching(corrected).firstMatch
+        XCTAssertTrue(correctedPeak.waitForExistence(timeout: 10))
+        let correctedLevel = try XCTUnwrap(correctedPeak.label.split(separator: " ").dropFirst().first.flatMap { Double($0.replacingOccurrences(of: "−", with: "-")) })
+        XCTAssertEqual(correctedLevel, -1, accuracy: 0.11)
+        let savedGain = app.staticTexts["pad-editor.gain.value"].label
         let shot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         shot.name = "Sampler-pad-waveform-night"
         shot.lifetime = .keepAlways
         add(shot)
         apply.tap()
         XCTAssertTrue(edit.waitForExistence(timeout: 15))
-        closePadSounds()
+        closePadSounds(app)
 
         app.buttons["Undo"].tap()
-        openPadSounds()
+        openPadSounds(app)
         openKick()
         XCTAssertEqual(start.label, original, "One Undo restores the trim of the original Pocket Kick")
         app.buttons["pad-editor.cancel"].tap()
-        closePadSounds()
+        closePadSounds(app)
         app.buttons["Redo"].tap()
         let saved = app.descendants(matching: .any).matching(NSPredicate(format: "label == 'Saved on this iPhone'")).firstMatch
         XCTAssertTrue(saved.waitForExistence(timeout: 12))
         app.terminate()
         app.launch()
         XCTAssertTrue(app.buttons["perform.transport"].waitForExistence(timeout: 15))
-        openPadSounds()
+        openPadSounds(app)
         openKick()
         XCTAssertEqual(start.label, trimmed, "The assigned kick must reopen with the saved edit")
-        let receipt = XCTAttachment(string: "Pocket Kick: \(original) → \(trimmed). Playback: \(originalFrames) → \(editedFrames) frames. After relaunch: \(start.label).")
+        XCTAssertEqual(app.staticTexts["pad-editor.gain.value"].label, savedGain)
+        let receipt = XCTAttachment(string: "Pocket Kick: \(original) → \(trimmed). Playback: \(originalFrames) → \(editedFrames) frames. \(clippedPeak) → \(correctedLevel) dBFS. After relaunch: \(start.label).")
         receipt.name = "Sampler-pad-trim-playback"
         receipt.lifetime = .keepAlways
         add(receipt)
@@ -245,6 +251,11 @@ final class SoundPickerUITests:XCTestCase {
         for kit in ["Dusty", "Coast"] {
             let key = kit.lowercased()
             app.buttons[kit].tap()
+            let load = app.buttons["pad-samples.load-" + key]
+            for button in [preview, load] {
+                XCTAssertGreaterThanOrEqual(button.frame.width, 90, "Each action must show its text beside the icon")
+                XCTAssertGreaterThanOrEqual(button.frame.height, 44)
+            }
             let before = try XCTUnwrap(preview.value as? String)
             XCTAssertEqual(field("kit", in: before), key)
             XCTAssertEqual(try XCTUnwrap(field("duration", in: before).flatMap(Double.init)), 0)
@@ -258,7 +269,7 @@ final class SoundPickerUITests:XCTestCase {
             XCTAssertGreaterThan(try XCTUnwrap(field("duration", in: after).flatMap(Double.init)), 0)
             XCTAssertEqual(field("revision", in: after).flatMap(Int.init), revision, "Auditioning cannot edit the project")
             auditions.append(after)
-            app.buttons["pad-samples.load-" + key].tap()
+            load.tap()
             for (pad, name) in [(0, "Kick"), (1, "Snare")] {
                 let assigned = app.buttons.matching(NSPredicate(format: "identifier == %@ AND value == %@", "pad-samples.library.\(pad)", "\(kit) · \(name)")).firstMatch
                 XCTAssertTrue(assigned.waitForExistence(timeout: 15))
@@ -273,6 +284,85 @@ final class SoundPickerUITests:XCTestCase {
         receipt.name = "Sampler-factory-auditions"
         receipt.lifetime = .keepAlways
         add(receipt)
+    }
+
+    @MainActor func testSavedCustomKitRestoresAllPadAssignmentsInAnotherProject() throws {
+        executionTimeAllowance = 300
+        let app = launch(appearance: "dark")
+        defer { app.terminate() }
+        let kits = app.buttons["pad-samples.my-kits"]
+        let kickEditor = app.buttons["pad-samples.edit.0"]
+        let trim = app.staticTexts["pad-editor.start.value"]
+        let name = "After Hours"
+        let savedKit = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'pad-kits.load.' AND label == %@", name)).firstMatch
+
+        openPadSounds(app)
+        app.buttons["pad-samples.pocket-kit"].tap()
+        XCTAssertTrue(kickEditor.waitForExistence(timeout: 15))
+        kickEditor.tap()
+        app.buttons["pad-editor.start.plus"].tap()
+        let editedStart = trim.label
+        app.buttons["pad-editor.apply"].tap()
+        XCTAssertTrue(kits.waitForExistence(timeout: 15))
+        let source = try XCTUnwrap(kits.value as? String)
+        let sourceProject = try XCTUnwrap(field("project", in: source))
+        let assignment = try XCTUnwrap(field("pads", in: source))
+        XCTAssertEqual(assignment.split(separator: ",").count, 16)
+        kits.tap()
+        let names = app.textFields["pad-kits.name"]
+        names.tap()
+        names.typeText(name)
+        app.buttons["pad-kits.save"].tap()
+        XCTAssertTrue(savedKit.waitForExistence(timeout: 15))
+        XCTAssertTrue((savedKit.value as? String)?.contains("16/16") == true)
+        let shot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        shot.name = "Sampler-personal-kit-library-night"
+        shot.lifetime = .keepAlways
+        add(shot)
+        app.buttons["pad-kits.close"].tap()
+        XCTAssertEqual(kits.value as? String, source, "Saving a reusable kit must leave the source project unchanged")
+        closePadSounds(app)
+
+        app.buttons["Projects"].tap()
+        app.buttons["project.new"].tap()
+        app.buttons["project.create"].tap()
+        wait(app) { value in
+            guard let id = self.field("project", in: value) else { return false }
+            return id != sourceProject
+        }
+        openPadSounds(app)
+        let before = try XCTUnwrap(kits.value as? String)
+        let destination = try XCTUnwrap(field("project", in: before))
+        XCTAssertNotEqual(sourceProject, destination)
+        XCTAssertNotEqual(field("pads", in: before), assignment)
+        kits.tap()
+        XCTAssertTrue(savedKit.waitForExistence(timeout: 15))
+        savedKit.tap()
+        let restored = NSPredicate(format: "value CONTAINS %@", "pads=" + assignment)
+        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: restored, object: kits)], timeout: 20), .completed)
+        XCTAssertEqual(field("project", in: kits.value as? String ?? ""), destination)
+        kickEditor.tap()
+        XCTAssertTrue(trim.waitForExistence(timeout: 8))
+        XCTAssertEqual(trim.label, editedStart)
+        app.buttons["pad-editor.cancel"].tap()
+        closePadSounds(app)
+        app.buttons["Undo"].tap()
+        openPadSounds(app)
+        XCTAssertEqual(field("pads", in: kits.value as? String ?? ""), field("pads", in: before), "One Undo restores all 16 original assignments")
+        let receipt = XCTAttachment(string: "Source: \(source)\nDestination before recall: \(before)\nRestored 16 pads and a \(editedStart) kick trim. Reverted all assignments with Undo.")
+        receipt.name = "Sampler-personal-kit-recall"
+        receipt.lifetime = .keepAlways
+        add(receipt)
+    }
+
+    @MainActor private func openPadSounds(_ app: XCUIApplication) {
+        entry(app).tap()
+        app.buttons["sound.samples"].tap()
+    }
+
+    @MainActor private func closePadSounds(_ app: XCUIApplication) {
+        app.navigationBars["Pad samples"].buttons["Done"].tap()
+        app.navigationBars["Sound"].buttons["Cancel"].tap()
     }
 
     @MainActor private func verifySeededSoundFont(_ app: XCUIApplication) {

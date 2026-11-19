@@ -74,6 +74,7 @@ import Observation
     private var runtimeTraceEvents:[String]=[]
     @ObservationIgnored private var runtimeTraceSequence=0
     private let runtimeTraceStart=ProcessInfo.processInfo.systemUptime
+    let personalKits: PersonalKitStore
     let store: ProjectStore
     enum Sheet: String, Identifiable {case projects, newProject, trackBuilder, export, settings, gettingStarted, bass, sections, notes, harmony, assistant, voice, perform, midiDevices; var id: String { rawValue }}
     private static var qaProjectStoreID:UUID? {
@@ -120,6 +121,7 @@ import Observation
             let folder=Self.qaProjectStoreID.map{"StudioQA-"+$0.uuidString} ?? UUID().uuidString
             root=FileManager.default.temporaryDirectory.appendingPathComponent(folder,isDirectory:true)
         }else{root=FileManager.default.urls(for:.documentDirectory,in:.userDomainMask)[0].appendingPathComponent("Projects")}
+        personalKits = PersonalKitStore(root: root.appendingPathComponent("PersonalKits", isDirectory: true))
         store = ProjectStore(root: root)
         audio.onPoll={ [weak self] in self?.pollRecording() }
         if runtimeTraceEnabled{audio.onRuntimeTrace={ [weak self] event in self?.runtimeTrace(event) }}
@@ -880,6 +882,52 @@ import Observation
         sync()
         scheduleSave()
     }
+    func listPersonalKits() async throws -> [PersonalKitSummary] { try await personalKits.list() }
+
+    func deletePersonalKit(_ id: UUID) async throws { try await personalKits.delete(id) }
+
+    private func kitTrack(_ id: UUID, projectID: UUID, revision: Int) throws -> Int {
+        guard project.id == projectID, project.revision == revision, projectChangeToken == nil,
+              !recording, !armed, !performance.contextActive,
+              let index = project.tracks.firstIndex(where: { $0.id == id && $0.role == .drums }) else { throw SampleError.stale }
+        return index
+    }
+
+    func savePersonalKit(name: String, trackID: UUID, projectID: UUID, revision: Int) async throws -> PersonalKitSummary {
+        let index = try kitTrack(trackID, projectID: projectID, revision: revision)
+        let kit = try await store.capturePersonalKit(name: name, track: project.tracks[index], projectID: projectID)
+        try Task.checkCancellation()
+        _ = try kitTrack(trackID, projectID: projectID, revision: revision)
+        return try await personalKits.save(kit)
+    }
+
+    func loadPersonalKit(_ id: UUID, trackID: UUID, projectID: UUID, revision: Int) async throws {
+        let kit = try await personalKits.load(id)
+        _ = try kitTrack(trackID, projectID: projectID, revision: revision)
+        let retained = history.retainedSamples.union(project.referencedSamples)
+        let prepared = try await store.preparePersonalKit(kit, projectID: projectID, retaining: retained)
+        do {
+            try Task.checkCancellation()
+            let index = try kitTrack(trackID, projectID: projectID, revision: revision)
+            var candidate = project
+            try prepared.apply(to: &candidate.tracks[index])
+            guard candidate.tracks[index] != project.tracks[index] else { return }
+            try candidate.validate()
+            guard retained.union(candidate.referencedSamples).reduce(0, { $0 + $1.byteCount }) <= 128_000_000 else {
+                throw SampleError.limit
+            }
+            try withHistoryTransaction { history, project in try history.apply(&project) { $0 = candidate } }
+        } catch {
+            for asset in prepared.staged { await store.removeStagedSample(asset, projectID: projectID) }
+            throw error
+        }
+        for bank in prepared.banks { audio.samples.insert(bank) }
+        audio.samples.retainOnly(history.retainedSamples.union(project.referencedSamples))
+        mixerGesture = false
+        sync()
+        scheduleSave()
+    }
+
     func startPerformance(record:Bool){
         finishTake();guard ensureAudio()else{return};mixerGesture=false
         do{let id=project.sections.first(where:{$0.id==selectedSection})?.id ?? project.sections[0].id;try performance.begin(project,sectionID:id,record:record)}catch{performance.error=error.localizedDescription}

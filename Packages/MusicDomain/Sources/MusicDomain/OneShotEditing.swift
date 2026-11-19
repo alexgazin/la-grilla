@@ -162,6 +162,14 @@ public struct PadSampleEditRecord: Equatable, Codable, Sendable {
         self.renderedID = renderedID
     }
 
+    init(remapping record: Self, source: SampleAsset, renderedID: UUID) {
+        self.source = source
+        self.sourceFrameCount = record.sourceFrameCount
+        self.sourceRate = record.sourceRate
+        self.edit = record.edit
+        self.renderedID = renderedID
+    }
+
     func validate(rendered: SampleAsset?) throws {
         try edit.validate(frameCount: sourceFrameCount, sampleRate: sourceRate)
         guard let rendered, rendered.kind == .oneShot, source.kind == .oneShot, rendered.id == renderedID,

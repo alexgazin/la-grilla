@@ -7,6 +7,10 @@ struct DrumSamplePicker: View {
         let id: Int
     }
 
+    private struct KitTarget: Identifiable {
+        let id: Int // The revision captured when the library opens.
+    }
+
     private struct EditTarget: Identifiable {
         let id: UUID
         let pad: Int
@@ -23,6 +27,7 @@ struct DrumSamplePicker: View {
     @State private var showImporter = false
     @State private var libraryTarget: LibraryTarget?
     @State private var editTarget: EditTarget?
+    @State private var kitTarget: KitTarget?
     @State private var busy = false
     @State private var task: Task<Void, Never>?
     @State private var error: String?
@@ -34,6 +39,15 @@ struct DrumSamplePicker: View {
 
     private var editable: Bool {
         track != nil && !session.armed && !session.recording && !session.performance.contextActive && !busy
+    }
+
+    private var padSummary: String {
+        guard session.runtimeTraceEnabled, let track else { return "" }
+        // The recipe can have new asset UUIDs after import. Observe audible PCM.
+        let slots = Compiler.padNames.indices.map { pad in
+            track.padSamples?[pad].map { String($0.sha256.prefix(16)) } ?? "-"
+        }
+        return "project=\(session.project.id) revision=\(session.project.revision) pads=\(slots.joined(separator: ","))"
     }
 
     var body: some View {
@@ -59,7 +73,15 @@ struct DrumSamplePicker: View {
             }
             .scrollContentBackground(.hidden).background(Color.ink)
             .navigationTitle("Pad samples").navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("My kits") { kitTarget = KitTarget(id: session.project.revision) }
+                        .disabled(!editable)
+                        .accessibilityIdentifier("pad-samples.my-kits")
+                        .accessibilityValue(Text(verbatim: padSummary))
+                }
+                ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
+            }
         }
         .tint(.drums)
         .fileImporter(isPresented: $showImporter, allowedContentTypes: [.wav, .aiff]) { result in
@@ -82,6 +104,9 @@ struct DrumSamplePicker: View {
             PadSampleEditor(session: session, projectID: sourceID, trackID: trackID,
                             revision: target.revision, pad: target.pad,
                             sample: target.sample, record: target.record)
+        }
+        .sheet(item: $kitTarget) { target in
+            PersonalDrumKitsView(session: session, trackID: trackID, projectID: sourceID, revision: target.id)
         }
         .onDisappear { task?.cancel() }
     }

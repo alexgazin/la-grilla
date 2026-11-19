@@ -12,6 +12,7 @@ struct FactoryDrumKitPanel: View {
     @State private var error: String?
     @State private var lastAuditionSeconds: Double = 0
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -21,9 +22,10 @@ struct FactoryDrumKitPanel: View {
                 .font(.subheadline)
                 .foregroundStyle(Color.muted)
                 .fixedSize(horizontal: false, vertical: true)
-            ViewThatFits(in: .horizontal) {
-                HStack(spacing: 10) { controls }
-                VStack(alignment: .leading, spacing: 4) { controls }
+            if typeSize.isAccessibilitySize {
+                VStack(spacing: 8) { controls }
+            } else {
+                HStack(spacing: 8) { controls }
             }
             if let error {
                 Text(error).font(.caption).foregroundStyle(Color.record)
@@ -38,24 +40,34 @@ struct FactoryDrumKitPanel: View {
         Button {
             if preview == nil { playPreview() } else { stopPreview() }
         } label: {
-            Label(preview == nil ? "Audition beat" : "Stop preview",
-                  systemImage: preview == nil ? "play.fill" : "stop.fill")
-                .fixedSize(horizontal: true, vertical: false)
-                .frame(minHeight: 44)
+            actionLabel(preview == nil ? "Audition beat" : "Stop preview",
+                        symbol: preview == nil ? "play.fill" : "stop.fill", primary: false)
         }
-        .buttonStyle(.borderless)
+        .buttonStyle(.plain)
         .accessibilityIdentifier("pad-samples.preview-kit")
         .accessibilityValue(Text(verbatim: auditionValue))
         Button {
             stopPreview()
             load(kit)
         } label: {
-            Label(applyTitle, systemImage: "square.grid.4x3.fill")
-                .fixedSize(horizontal: true, vertical: false)
-                .frame(minHeight: 44)
+            actionLabel(applyTitle, symbol: "square.grid.3x3.fill", primary: true)
         }
-        .buttonStyle(.borderless)
+        .buttonStyle(.plain)
         .accessibilityIdentifier(kit == .pocket ? "pad-samples.pocket-kit" : "pad-samples.load-" + kit.rawValue)
+    }
+
+    private func actionLabel(_ title: LocalizedStringKey, symbol: String, primary: Bool) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: symbol).accessibilityHidden(true)
+            Text(title).fixedSize(horizontal: false, vertical: true)
+        }
+        .font(.subheadline.weight(.semibold))
+        .multilineTextAlignment(.center)
+        .foregroundStyle(primary ? Color.ink : Color.studioText)
+        .padding(.horizontal, 6)
+        .frame(maxWidth: .infinity, minHeight: 44)
+        .background(primary ? Color.mint : Color.ink, in: RoundedRectangle(cornerRadius: 12))
+        .contentShape(Rectangle())
     }
 
     private var auditionValue: String {
