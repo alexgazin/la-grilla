@@ -108,22 +108,11 @@ final class DesignPresentationTests: XCTestCase {
     }
 
     @MainActor private func sourceState(_ app: XCUIApplication) throws -> StudioState {
-        // Read trace and history flags from one accessibility tree at this navigation boundary.
-        let tree = try app.snapshot()
-        var nodes: [any XCUIElementSnapshot] = [tree]
-        var trace: String?, undo: Bool?, redo: Bool?
-        while let node = nodes.popLast() {
-            if node.elementType == .button {
-                if node.identifier == "perform.transport" { trace = node.value as? String }
-                if node.label == "Undo" { undo = node.isEnabled }
-                if node.label == "Redo" { redo = node.isEnabled }
-            }
-            nodes.append(contentsOf: node.children)
-        }
-        guard let trace, let undo, let redo else {
-            XCTFail("Missing transport or history buttons in the studio")
-            throw PresentationError.missingTrace
-        }
+        // XCUIElement.value returns the full multiline trace. A tree snapshot
+        // may contain only its abbreviated accessibility description.
+        let trace = app.buttons["perform.transport"].value as? String ?? ""
+        let undo = app.buttons["Undo"].isEnabled
+        let redo = app.buttons["Redo"].isEnabled
         let firstLine = trace.components(separatedBy: "\n").first ?? ""
         var result: [String: String] = [:]
         for token in firstLine.split(separator: " ") {
