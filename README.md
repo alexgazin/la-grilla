@@ -134,7 +134,7 @@
 
 ## Попробовать на iPhone
 
-**[Скачать La Grilla 1.0.0 (38)](https://github.com/alexgazin/la-grilla/actions/runs/44393273269/artifacts/14468754178)**. Из ZIP извлеките `LaGrilla-unsigned.ipa` и подпишите своим Apple ID через Sideloadly. Бесплатная Personal Team подходит. [Установка и проверка пакета](Builds/Testing/README.md).
+**[Скачать La Grilla 1.0.0 (38)](https://raw.githubusercontent.com/alexgazin/la-grilla/86df35639cdd20813d40987dea033c9bbc50c79f/Builds/Testing/LaGrilla-38-unsigned.ipa)**. Подпишите скачанный IPA своим Apple ID через Sideloadly. Бесплатная Personal Team подходит. [Установка и проверка пакета](Builds/Testing/README.md).
 
 Перед обновлением экспортируйте важные проекты в `.grillapack`. Сборка 38 открывает проекты схем 1…13. После сохранения проект использует схему 13, в которой записываются параметры эквалайзера.
 
