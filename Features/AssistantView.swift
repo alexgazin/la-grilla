@@ -219,8 +219,8 @@ struct AssistantView:View {
             }
             if proposal.operations.contains(where:{$0.type == .arrangeSong}){
                 Text("Creates form and chords. Existing drum and melody parts are reused; new parts are not generated.").font(.caption).foregroundStyle(Color.muted).accessibilityIdentifier("assistant.composition-scope")
-                if reusedPartsContainEmptySections(proposal,source:source,role:.drums){Label("Source sections without drum notes stay empty. Add a beat in Jam.",systemImage:"exclamationmark.triangle").font(.caption).foregroundStyle(Color.harmony).accessibilityIdentifier("assistant.empty-drums")}
-                if reusedPartsContainEmptySections(proposal,source:source,role:.melody){Label("Source sections without melody notes stay empty. Add notes or record a melody.",systemImage:"exclamationmark.triangle").font(.caption).foregroundStyle(Color.harmony).accessibilityIdentifier("assistant.empty-melody")}
+                if reusedPartsContainEmptySections(proposal,source:source,role:.drums){Label("Source sections without drum notes stay empty. Add a beat in Jam.",systemImage:"exclamationmark.triangle").font(.caption).foregroundStyle(Color.studioText).accessibilityIdentifier("assistant.empty-drums")}
+                if reusedPartsContainEmptySections(proposal,source:source,role:.melody){Label("Source sections without melody notes stay empty. Add notes or record a melody.",systemImage:"exclamationmark.triangle").font(.caption).foregroundStyle(Color.studioText).accessibilityIdentifier("assistant.empty-melody")}
                 formComparison(source:source,candidate:candidate)
             }
             if let plan=proposal.operations.first(where:{$0.type == .generateSketch})?.sketch{
@@ -230,7 +230,7 @@ struct AssistantView:View {
             ForEach(Array(proposal.operations.enumerated()),id:\.offset){_,op in Text(summary(op,scope:proposal.scopeSectionID,source:source,candidate:candidate)).padding(12).frame(maxWidth:.infinity,alignment:.leading).modifier(StudioSurface())}
             AssistantHarmonyReview(proposal:proposal,source:source,candidate:candidate)
             if !proposal.assumptions.isEmpty{SmallHeading(text:"ASSUMPTIONS");ForEach(proposal.assumptions,id:\.self){Text($0).font(.caption).foregroundStyle(Color.muted)}}
-            ForEach(proposal.warnings,id:\.self){Label($0,systemImage:"exclamationmark.triangle").font(.caption).foregroundStyle(Color.harmony)}
+            ForEach(proposal.warnings,id:\.self){Label($0,systemImage:"exclamationmark.triangle").font(.caption).foregroundStyle(Color.studioText)}
             HStack(spacing:10){Button{previewB=false;session.previewAssistant(source,wholeSong:proposal.changesWholeSong,sectionID:proposal.scopeSectionID)}label:{Text("A · Original").frame(maxWidth:.infinity,minHeight:48).background(session.harmonyPreview && !previewB ? Color.mint.opacity(0.2):Color.raised,in:RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous))}.accessibilityIdentifier("assistant.a");Button{previewB=true;session.previewAssistant(candidate,wholeSong:proposal.changesWholeSong,sectionID:proposal.scopeSectionID)}label:{Text("B · Proposal").frame(maxWidth:.infinity,minHeight:48).background(session.harmonyPreview && previewB ? Color.mint.opacity(0.2):Color.raised,in:RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous))}.accessibilityIdentifier("assistant.b")}
             if session.harmonyPreview{Button("Stop preview"){session.endHarmonyPreview()}.frame(minHeight:44).accessibilityIdentifier("assistant.stop-preview")}
             Button{apply(proposal)}label:{Text("Apply proposal")}.buttonStyle(StudioActionStyle()).accessibilityIdentifier("assistant.apply")

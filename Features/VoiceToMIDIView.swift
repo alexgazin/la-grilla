@@ -89,7 +89,7 @@ struct VoiceToMIDIView:View {
         VStack(alignment:.leading,spacing:16){
             Canvas{context,size in for (i,amplitude) in result.analysis.waveform.enumerated(){let x=CGFloat(i)/CGFloat(max(1,result.analysis.waveform.count))*size.width,h=max(1,CGFloat(amplitude)*size.height);context.fill(Path(CGRect(x:x,y:(size.height-h)/2,width:2,height:h)),with:.color(.record.opacity(0.6)))}}.frame(height:64).background(Color.panel,in:RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous)).accessibilityLabel("Original voice waveform")
             HStack{Text("\(notes.count) notes").font(.headline).accessibilityIdentifier("voice.note-count");Spacer();Text("\(notes.filter{($0.confidence ?? 1)<0.9}.count) uncertain").font(.caption).foregroundStyle(Color.harmony)}
-            if notes.isEmpty{Text("No stable notes were found. Listen to the original or try a clearer phrase.").font(.callout).foregroundStyle(Color.harmony)}
+            if notes.isEmpty{Text("No stable notes were found. Listen to the original or try a clearer phrase.").font(.callout).foregroundStyle(Color.studioText)}
             HStack(spacing:10){
                 Button{original()}label:{Label(LocalizedStringKey(capture.originalPlaying ? "Stop original":"Original voice"),systemImage:"waveform").frame(maxWidth:.infinity,minHeight:48).background(Color.raised,in:RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous))}.disabled(applying).accessibilityIdentifier("voice.original")
                 Button{instrument()}label:{Label("Instrument",systemImage:"pianokeys").frame(maxWidth:.infinity,minHeight:48).background(Color.raised,in:RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous))}.disabled(notes.isEmpty || applied || applying).accessibilityIdentifier("voice.instrument")
@@ -100,9 +100,9 @@ struct VoiceToMIDIView:View {
             }.disabled(draftLocked)
             if !notes.isEmpty{noteRoll.disabled(draftLocked);eventEditor}
             Picker("Destination",selection:$target){Text("New melody track").tag(nil as UUID?);ForEach(session.project.tracks.filter{$0.role == .melody}){t in Text(t.displayName).tag(Optional(t.id))}}.pickerStyle(.menu).disabled(draftLocked)
-            if target != nil{Text("Melody notes in the selected section will be replaced. Other sections stay as written.").font(.caption).foregroundStyle(Color.harmony)}
+            if target != nil{Text("Melody notes in the selected section will be replaced. Other sections stay as written.").font(.caption).foregroundStyle(Color.studioText)}
             if stale && !applied {
-                Text("The project changed. Review this melody against the current project before applying.").font(.callout).foregroundStyle(Color.harmony)
+                Text("The project changed. Review this melody against the current project before applying.").font(.callout).foregroundStyle(Color.studioText)
                 Button("Review against current project"){rebase()}.frame(minHeight:48).disabled(applying || capture.isCapturing || capture.state == .analyzing).accessibilityIdentifier("voice.rebase")
             }
             #if DEBUG
@@ -115,7 +115,7 @@ struct VoiceToMIDIView:View {
             }
             #endif
             if applied {
-                Text("Notes applied. Save needs attention.").font(.callout).foregroundStyle(Color.harmony)
+                Text("Notes applied. Save needs attention.").font(.callout).foregroundStyle(Color.studioText)
                 Button("Retry save"){Task{await session.save();if session.saveError==nil{dismiss()}else{error=session.saveError}}}.frame(minHeight:48)
             }else{
                 Button{apply()}label:{HStack{if applying{ProgressView()};Text("Apply melody")}}.buttonStyle(StudioActionStyle()).disabled(notes.isEmpty || stale || applying || capture.isCapturing || capture.state == .analyzing).accessibilityIdentifier("voice.apply")

@@ -54,7 +54,7 @@ struct SongEditReview: View {
                 diffSummary(candidate)
                 if stale {
                     Label("The project changed after this plan was made.", systemImage: "exclamationmark.arrow.circlepath")
-                        .font(.caption).foregroundStyle(Color.harmony)
+                        .font(.caption).foregroundStyle(Color.studioText)
                     Button("Recalculate", action: recalculate).buttonStyle(StudioActionStyle(prominent: false))
                         .accessibilityIdentifier("assistant.edit.recalculate")
                 } else {
@@ -103,7 +103,7 @@ struct SongEditReview: View {
         let rows: [String] = Self.differenceRows(source: source, candidate: candidate)
         return VStack(alignment: .leading, spacing: 4) {
             SmallHeading(text: "MIDI DIFFERENCE")
-            if rows.isEmpty { Text("No audible change.").font(.caption).foregroundStyle(Color.harmony) }
+            if rows.isEmpty { Text("No audible change.").font(.caption).foregroundStyle(Color.studioText) }
             ForEach(rows, id: \.self) { Text(verbatim: $0).font(.caption.monospaced()) }
         }.accessibilityElement(children: .combine).accessibilityIdentifier("assistant.edit.diff")
     }
