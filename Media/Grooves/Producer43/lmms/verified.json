@@ -1,0 +1,90 @@
+{
+  "workstation": "LMMS 1.2.2 (Debian Linux x86_64)",
+  "inputMIDI_SHA256": "72b6cf9555ac6e9ebd445aeb5a513c18faea7de6968ade1d29805dbb2e0917b8",
+  "savedMMP_SHA256": "5f904c0aec52fc00f332608d8ee6ec8f018c75130bc1727606ddde8fb96ed3af",
+  "importedTempoAtBeatZero": 89.999954,
+  "initialStoppedTempoField": 140.0,
+  "meterAtBeatZero": [
+    4,
+    4
+  ],
+  "projectTicksPerQuarter": 48,
+  "sourceTicksPerQuarter": 960,
+  "tracks": [
+    {
+      "name": "Piano",
+      "notes": 72,
+      "allPitchesMatched": true,
+      "maxStartErrorMs": 10.417,
+      "maxDurationErrorMs": 0.0,
+      "maxVelocityErrorInMIDIUnits": 0.37,
+      "GMBank": 0,
+      "GMProgram": 0
+    },
+    {
+      "name": "Drums",
+      "notes": 322,
+      "allPitchesMatched": true,
+      "maxStartErrorMs": 9.722,
+      "maxDurationErrorMs": 0.0,
+      "maxVelocityErrorInMIDIUnits": 0.625,
+      "GMBank": 128,
+      "GMProgram": 0
+    },
+    {
+      "name": "Bass",
+      "notes": 78,
+      "allPitchesMatched": true,
+      "maxStartErrorMs": 0.0,
+      "maxDurationErrorMs": 0.0,
+      "maxVelocityErrorInMIDIUnits": 0.465,
+      "GMBank": 0,
+      "GMProgram": 0
+    },
+    {
+      "name": "Flute",
+      "notes": 5,
+      "allPitchesMatched": true,
+      "maxStartErrorMs": 6.944,
+      "maxDurationErrorMs": 13.889,
+      "maxVelocityErrorInMIDIUnits": 0.53,
+      "GMBank": 0,
+      "GMProgram": 0
+    },
+    {
+      "name": "Piano arpeggio",
+      "notes": 64,
+      "allPitchesMatched": true,
+      "maxStartErrorMs": 10.417,
+      "maxDurationErrorMs": 6.944,
+      "maxVelocityErrorInMIDIUnits": 0.465,
+      "GMBank": 0,
+      "GMProgram": 0
+    },
+    {
+      "name": "Gong",
+      "notes": 1,
+      "allPitchesMatched": true,
+      "maxStartErrorMs": 0.0,
+      "maxDurationErrorMs": 0.0,
+      "maxVelocityErrorInMIDIUnits": 0.05,
+      "GMBank": 0,
+      "GMProgram": 0
+    }
+  ],
+  "noteCount": 542,
+  "perfectStartCount": 261,
+  "maxStartErrorMs": 10.417,
+  "maxDurationErrorMs": 13.889,
+  "sourceSectionMarkers": 4,
+  "LMMSUnhandledSectionMarkerEvents": 4,
+  "nativeRender": {
+    "localInstrument": "TimGM6mb.sf2",
+    "sampleRate": 44100,
+    "channels": 2,
+    "frames": 3210752,
+    "peakDBFS": -5.822,
+    "RMSdBFS": -25.65,
+    "sha256": "d5d7ea84769e75e9a2bc93001b81d91250e57529e525c792fd556753c43e96d8"
+  }
+}
