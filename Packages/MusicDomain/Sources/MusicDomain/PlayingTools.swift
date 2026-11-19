@@ -499,3 +499,51 @@ public enum TransientSlicer {
         }
     }
 }
+
+// MARK: I12 · Finger-drumming lessons
+
+public struct DrumLesson: Identifiable, Sendable, Equatable {
+    public let id: String
+    public let title: String
+    /// One bar per line: (pad, sixteenth steps 0…15).
+    public let hits: [(pad: Int, steps: [Int])]
+    public static func == (a: DrumLesson, b: DrumLesson) -> Bool { a.id == b.id }
+
+    public static let library: [DrumLesson] = [
+        DrumLesson(id: "four-floor", title: "Four on the floor", hits: [(0, [0, 4, 8, 12]), (2, [2, 6, 10, 14]), (4, [4, 12])]),
+        DrumLesson(id: "basic-rock", title: "Basic rock beat", hits: [(0, [0, 8]), (1, [4, 12]), (2, [0, 2, 4, 6, 8, 10, 12, 14])]),
+        DrumLesson(id: "boom-bap", title: "Boom bap", hits: [(0, [0, 7, 10]), (1, [4, 12]), (2, [0, 2, 4, 6, 8, 10, 12, 14])]),
+        DrumLesson(id: "trap-hats", title: "Trap hats", hits: [(0, [0, 11]), (1, [8]), (2, Array(0..<16))]),
+        DrumLesson(id: "half-time", title: "Half-time groove", hits: [(0, [0, 3, 10]), (1, [8]), (2, [0, 4, 8, 12])]),
+    ]
+
+    /// Expected events in one bar.
+    public var events: [DrumEvent] { hits.flatMap { h in h.steps.map { DrumEvent(tick: $0 * ppq / 4, pad: h.pad) } } }
+
+    public struct Score: Equatable, Sendable {
+        public var hit: Int, missed: Int, extra: Int
+        public var accuracy: Int { hit + missed + extra == 0 ? 0 : Int((Double(hit) / Double(hit + missed + extra) * 100).rounded()) }
+    }
+
+    /// Compare played hits (every bar of `bars`) with the lesson; a hit counts
+    /// within ±`tolerance` ticks of the expected step on the same pad.
+    public func score(_ played: [DrumEvent], bars: Int, tolerance: Int = ppq / 8) -> Score {
+        var expected: [DrumEvent] = []
+        for bar in 0..<max(1, bars) { expected += events.map { DrumEvent(tick: $0.tick + bar * barTicks, pad: $0.pad) } }
+        var remaining = played.filter { $0.tick < max(1, bars) * barTicks }
+        var hit = 0, missed = 0
+        for e in expected {
+            if let i = remaining.firstIndex(where: { $0.pad == e.pad && abs($0.tick - e.tick) <= tolerance }) { hit += 1; remaining.remove(at: i) }
+            else { missed += 1 }
+        }
+        return Score(hit: hit, missed: missed, extra: remaining.count)
+    }
+
+    /// A compact grid, e.g. "Kick  x . . . x . . ." per pad.
+    public var notation: [String] {
+        hits.map { h in
+            let name = NSLocalizedString(Compiler.padNames[h.pad], comment: "Pad name")
+            return name + ": " + (0..<16).map { h.steps.contains($0) ? "●" : "·" }.joined()
+        }
+    }
+}

@@ -211,3 +211,20 @@ struct TransientSlicerTests {
         #expect(TransientSlicer.slices([Int16](repeating: 0, count: 1000), rate: rate).isEmpty)
     }
 }
+
+struct DrumLessonTests {
+    @Test func lessonsScoreHitsMissesAndExtras() {
+        let lesson = DrumLesson.library.first { $0.id == "basic-rock" }!
+        #expect(lesson.score(lesson.events, bars: 1) == .init(hit: 12, missed: 0, extra: 0))
+        #expect(lesson.score(lesson.events, bars: 1).accuracy == 100)
+        // Slightly late but within tolerance, one hat missing, one extra crash.
+        var played = lesson.events.map { DrumEvent(tick: $0.tick + 60, pad: $0.pad) }
+        played.removeAll { $0.pad == 2 && $0.tick == 960 + 60 }
+        played.append(DrumEvent(tick: 0, pad: 9))
+        let score = lesson.score(played, bars: 1)
+        #expect(score == .init(hit: 11, missed: 1, extra: 1))
+        #expect(score.accuracy == 85)
+        #expect(Set(DrumLesson.library.map(\.id)).count == DrumLesson.library.count)
+        #expect(lesson.notation.count == 3 && lesson.notation[0].hasSuffix("●·······●·······"))
+    }
+}

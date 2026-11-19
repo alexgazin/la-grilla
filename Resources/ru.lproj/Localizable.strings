@@ -1268,3 +1268,12 @@
 "Slice a loop onto the pads" = "Нарезать луп на пэды";
 "AAC for sharing" = "AAC для отправки";
 "A compact AAC file (.m4a, 256 kbps) of the same stereo mix as WAV, ready for messages and sharing." = "Компактный AAC (.m4a, 256 кбит/с) того же стереомикса, что и WAV, — для мессенджеров и отправки.";
+"Lesson" = "Урок";
+"No lesson" = "Без урока";
+"LESSON" = "УРОК";
+"Close lesson" = "Закрыть урок";
+"Four on the floor" = "Прямая бочка";
+"Basic rock beat" = "Базовый рок-бит";
+"Trap hats" = "Трэп-хэты";
+"Half-time groove" = "Халф-тайм";
+"Record %d bars: %d%% · %d hit · %d missed · %d extra" = "Запишите тактов: %d — %d%% · попаданий %d · пропусков %d · лишних %d";

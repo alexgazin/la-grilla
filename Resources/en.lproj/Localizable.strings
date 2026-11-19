@@ -1266,3 +1266,12 @@
 "Slice a loop onto the pads" = "Slice a loop onto the pads";
 "AAC for sharing" = "AAC for sharing";
 "A compact AAC file (.m4a, 256 kbps) of the same stereo mix as WAV, ready for messages and sharing." = "A compact AAC file (.m4a, 256 kbps) of the same stereo mix as WAV, ready for messages and sharing.";
+"Lesson" = "Lesson";
+"No lesson" = "No lesson";
+"LESSON" = "LESSON";
+"Close lesson" = "Close lesson";
+"Four on the floor" = "Four on the floor";
+"Basic rock beat" = "Basic rock beat";
+"Trap hats" = "Trap hats";
+"Half-time groove" = "Half-time groove";
+"Record %d bars: %d%% · %d hit · %d missed · %d extra" = "Record %d bars: %d%% · %d hit · %d missed · %d extra";

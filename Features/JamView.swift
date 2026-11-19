@@ -12,6 +12,7 @@ struct JamView: View {
     @State private var velocity = 100.0
     @State private var pressed: Set<Int> = []
     @AppStorage("jam.haptics") private var padHaptics = false
+    @AppStorage("jam.lesson") private var lessonID = ""
     var body:some View{
         Group{if verticalSize == .compact{compactJam}else{GeometryReader{geometry in ScrollView(.vertical){regularJam(compact:geometry.size.height<500)}}}}
             .onChange(of:drumPattern?.id){_,_ in stepBar=0}
@@ -31,6 +32,7 @@ struct JamView: View {
             if steps {stepEditor.disabled(session.performance.contextActive)}else if dynamicType.isAccessibilitySize{accessiblePads}else{padGrid(height:(compact ? 264:312)-(compact && (session.recording || session.armed) ? 24:0)).disabled(session.performance.replaying).allowsHitTesting(!session.performance.replaying)}
             if !steps{Text("Touch to play · grid shapes the recording").font(.caption2).foregroundStyle(Color.muted).frame(maxWidth:.infinity,alignment:.leading)}
             if session.audio.wirelessOutput{Text("For tighter timing, use the speaker or wired headphones.").font(.caption2).foregroundStyle(Color.drums).frame(maxWidth:.infinity,alignment:.leading)}
+            if let lesson=DrumLesson.library.first(where:{$0.id==lessonID}){DrumLessonPanel(lesson:lesson,played:drumPattern?.drums ?? [],bars:min(4,max(1,(drumPattern?.length ?? barTicks)/barTicks))){lessonID=""}}
             recordingGuide
             Spacer(minLength:0)
         }.padding(.horizontal,18).padding(.bottom,16)
@@ -59,7 +61,7 @@ struct JamView: View {
         IconButton(symbol:"metronome",label:"Metronome",color:session.metronome ? .mint:.muted){session.metronome.toggle();session.audio.metronome(session.metronome)}
     }
     private var recordingOptions:some View{
-        Menu{Toggle("Count-in",isOn:$session.countIn);Toggle("Overdub",isOn:$session.overdub);Toggle("Velocity from touch",isOn:$session.padVelocityFromTouch);Toggle("Haptics on hits",isOn:$padHaptics);Button("Keep the last 4 bars I played"){_ = session.keepRecentHits(bars:4)}.disabled(session.recording || session.armed)}label:{Image(systemName:"slider.horizontal.3").foregroundStyle(Color.muted).frame(width:44,height:44).background(Color.raised.opacity(0.45),in:RoundedRectangle(cornerRadius:12,style:.continuous))}.accessibilityLabel("Drum recording options").disabled(session.performance.contextActive)
+        Menu{Toggle("Count-in",isOn:$session.countIn);Toggle("Overdub",isOn:$session.overdub);Toggle("Velocity from touch",isOn:$session.padVelocityFromTouch);Toggle("Haptics on hits",isOn:$padHaptics);Picker("Lesson",selection:$lessonID){Text("No lesson").tag("");ForEach(DrumLesson.library){lesson in Text(LocalizedStringKey(lesson.title)).tag(lesson.id)}};Button("Keep the last 4 bars I played"){_ = session.keepRecentHits(bars:4)}.disabled(session.recording || session.armed)}label:{Image(systemName:"slider.horizontal.3").foregroundStyle(Color.muted).frame(width:44,height:44).background(Color.raised.opacity(0.45),in:RoundedRectangle(cornerRadius:12,style:.continuous))}.accessibilityLabel("Drum recording options").disabled(session.performance.contextActive)
     }
     private var editorMode:some View {HStack(spacing:2){
         Button{steps=false}label:{Text("Pads").frame(maxWidth:.infinity,minHeight:44).foregroundStyle(!steps ? Color.ink:Color.muted).background(!steps ? Color.mint:Color.clear,in:RoundedRectangle(cornerRadius:10,style:.continuous))}.accessibilityAddTraits(!steps ? .isSelected:[])
@@ -193,5 +195,28 @@ private struct QuantizeFeelMenu: View {
             Text(verbatim: "62%").tag(0.62)
             Text("Triplet").tag(2.0 / 3.0)
         }
+    }
+}
+
+/// I12: the lesson's grid and the score of the current drum clip against it.
+private struct DrumLessonPanel: View {
+    let lesson: DrumLesson
+    let played: [DrumEvent]
+    let bars: Int
+    let close: () -> Void
+    var body: some View {
+        let score = lesson.score(played, bars: bars)
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                SmallHeading(text: "LESSON")
+                Text(LocalizedStringKey(lesson.title)).font(.caption.weight(.semibold))
+                Spacer(minLength: 0)
+                Button("Close lesson", action: close).font(.caption).frame(minHeight: 44)
+            }
+            ForEach(lesson.notation, id: \.self) { Text(verbatim: $0).font(.system(size: 12, design: .monospaced)).lineLimit(1).minimumScaleFactor(0.7) }
+            Text(String(format: NSLocalizedString("Record %d bars: %d%% · %d hit · %d missed · %d extra", comment: "Drum lesson score"), bars, score.accuracy, score.hit, score.missed, score.extra))
+                .font(.caption.monospacedDigit()).foregroundStyle(score.accuracy >= 90 ? Color.mint : Color.muted)
+                .accessibilityIdentifier("jam.lesson.score")
+        }.padding(12).modifier(StudioSurface())
     }
 }
