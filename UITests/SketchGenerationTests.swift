@@ -319,9 +319,8 @@ final class SketchGenerationTests:XCTestCase {
         }
         wait(title, timeout: 30, condition: playing)
         XCTAssertEqual(arp.value as? String, "Playing")
-        let picker = app.segmentedControls["builder.arrangement-take"]
-        let b = picker.buttons["B"], a = picker.buttons["A"]
-        XCTAssertTrue(b.isHittable)
+        let b = app.buttons["B"], a = app.buttons["A"]
+        XCTAssertTrue(b.isHittable && b.isEnabled)
         b.tap()
         wait(title, timeout: 30) { b.isSelected && playing() }
         keepScreenshot("Score42-night-take-B-playing")
@@ -348,13 +347,21 @@ final class SketchGenerationTests:XCTestCase {
         let ending = app.buttons["builder.score.menu.3"]
         XCTAssertTrue(ending.waitForExistence(timeout: 5))
         XCTAssertEqual(ending.label, expected)
+        XCTAssertGreaterThanOrEqual(ending.frame.height, 44)
         ending.tap()
-        wait(title, timeout: 23) {
-            let report = self.current(title)
-            return report.contains("preview=true") && self.number("actualTick", in: report) >= 25*3840
+        // A render-side one-bar audition may end before XCTest's next snapshot.
+        // Read the observations retained at actual transport start and completion.
+        wait(title, timeout: 25) {
+            (title.value as? String ?? "").contains("draft.preview-start range=96000..<99840")
         }
-        keepReport(current(title), name: "Score42-menu-final-bar")
-        wait(title, timeout: 12) { self.current(title).contains("preview=false") && self.current(title).contains("actualPlaying=0") }
+        wait(title, timeout: 20) {
+            guard let report = title.value as? String,
+                  let finished = report.split(separator: "\n").last(where: { $0.contains("draft.preview-finished end=99840") }) else { return false }
+            let observed = String(finished)
+            return self.number("actualTick", in: observed) == 99840 && observed.contains("actualPlaying=0") &&
+                self.current(title).contains("preview=false")
+        }
+        keepReport(title.value as? String ?? "", name: "Score42-menu-final-bar")
         XCTAssertEqual(state(title), original)
     }
 

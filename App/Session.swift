@@ -361,7 +361,10 @@ import Observation
             let elapsed = Double(audio.clock >= start ? audio.clock - start : 0) / audio.sampleRate
             // Let the gong and delay return decay after the musical endpoint.
             // A tap on Stop or another section still ends the audition immediately.
-            if elapsed >= 5 || (elapsed >= 2 && audio.meters[masterBus] < 0.0005) { endHarmonyPreview() }
+            if elapsed >= 5 || (elapsed >= 2 && audio.meters[masterBus] < 0.0005) {
+                if runtimeTraceEnabled { runtimeTrace("draft.preview-finished end=\(end)") }
+                endHarmonyPreview()
+            }
         }
         drainPadRecordingInputs()
         syncMIDI();midi.poll(replaying:performance.replaying);pollPerformance()
@@ -454,6 +457,7 @@ import Observation
         draftTailStart = nil
         draftEndTick = loops ? nil : bounds.upperBound
         harmonyPreview = true
+        if runtimeTraceEnabled { runtimeTrace("draft.preview-start range=\(bounds.lowerBound)..<\(bounds.upperBound)") }
         syncMIDI()
     }
     private func auditionDraft(_ candidate:Project, range:Range<Int>, loop:Bool) {
