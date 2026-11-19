@@ -480,7 +480,7 @@ private struct RollCanvas:View {
                     context.fill(Path(ellipseIn:CGRect(x:r.minX+2,y:r.midY-3,width:6,height:6)),with:.color(.harmony))
                 }
             }
-            if tick>=0 && tick<Double(pattern.length){let x=CGFloat(tick)/CGFloat(barTicks)*barWidth;var line=Path();line.move(to:CGPoint(x:x,y:0));line.addLine(to:CGPoint(x:x,y:size.height));context.stroke(line,with:.color(.record),lineWidth:1.5)}
+            if tick>=0 && tick<Double(pattern.length){let x=CGFloat(tick)/CGFloat(barTicks)*barWidth;var line=Path();line.move(to:CGPoint(x:x,y:0));line.addLine(to:CGPoint(x:x,y:size.height));context.stroke(line,with:.color(.mint),lineWidth:1.5)}
         }
     }
     private func resizeGrip(_ note:NoteEvent)->some View {

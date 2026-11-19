@@ -45,11 +45,11 @@ struct FilterKnob:View {
                     var pointer=Path();pointer.move(to:point(angle,center:center,radius:side*0.24));pointer.addLine(to:point(angle,center:center,radius:side*0.29))
                     context.stroke(pointer,with:.color(.mint),style:StrokeStyle(lineWidth:3,lineCap:.round))
                 }.accessibilityHidden(true)
-                Text(readout).font(.system(.body, design: .monospaced, weight: .semibold)).foregroundStyle(Color.studioText).accessibilityHidden(true)
+                Text(readout).font(StudioTypography.value.weight(.semibold)).minimumScaleFactor(0.7).lineLimit(1).foregroundStyle(Color.studioText).accessibilityHidden(true)
             }
             .contentShape(Rectangle())
             .highPriorityGesture(turn(center:center,side:side))
-            .simultaneousGesture(TapGesture(count:2).onEnded{if enabled{value=0}})
+            .simultaneousGesture(TapGesture(count:2).onEnded{if enabled{value=0;Luz.Haptics.selection()}})
             .scaleEffect(dragging && !reduceMotion ? 1.015:1)
             .animation(reduceMotion || dragging ? nil:.easeOut(duration:0.12),value:bounded)
         }
@@ -93,7 +93,10 @@ struct FilterKnob:View {
                 }
                 lastAngle=angle
             }
-            value=abs(rawValue)<0.02 ? 0:rawValue
+            let next=abs(rawValue)<0.02 ? 0:rawValue
+            // Luz detent: entering bypass ticks once.
+            if next==0 && value != 0{Luz.Haptics.selection()}
+            value=next
         }.onEnded{_ in dragging=false;lastAngle=nil}
     }
 

@@ -357,7 +357,8 @@ struct MixerView: View {
 
     private func channelSwitches(index: Int, track: Track, color: Color) -> some View {
         HStack(spacing: 6) {
-            channelSwitch(title: "M", active: track.mute, color: color) {
+            // Luz: mute reads as "off" (light on lifted), solo lights in the track colour.
+            channelSwitch(title: "M", active: track.mute, color: .studioText) {
                 session.mixerImmediate { $0.tracks[index].mute.toggle() }
             }
             .accessibilityLabel("Mute \(track.displayName)")

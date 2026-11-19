@@ -138,7 +138,7 @@ private struct InstrumentKeyboard: View {
                             Text(error).font(.caption).foregroundStyle(Color.record).padding(.horizontal)
                         }
                         if chordStrip {
-                            ChordStrip(keyRoot: session.project.keyRoot, minor: session.project.minor) { pitch, down in key(pitch, down: down, track: track) }
+                            ChordStrip(keyRoot: session.project.keyRoot, minor: session.project.minor, color: Color.track(track.role)) { pitch, down in key(pitch, down: down, track: track) }
                                 .padding(.horizontal, 10)
                         }
                         HStack(spacing: 8) {
@@ -673,6 +673,7 @@ private final class KeybedView: UIView, MusicalTouchSurface {
 private struct ChordStrip: View {
     let keyRoot: Int
     let minor: Bool
+    var color: Color = .mint
     let play: (Int, Bool) -> Void
     @State private var previous: [Int] = []
     @State private var held: [Int: [Int]] = [:]
@@ -681,9 +682,9 @@ private struct ChordStrip: View {
         HStack(spacing: 6) {
             ForEach(0..<7, id: \.self) { degree in
                 Text(verbatim: label(degree))
-                    .font(.caption.weight(.semibold)).frame(maxWidth: .infinity, minHeight: 48)
-                    .background(held[degree] != nil ? Color.mint : Color.raised, in: RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous))
+                    .font(StudioTypography.pad).frame(maxWidth: .infinity, minHeight: 48)
                     .foregroundStyle(held[degree] != nil ? Color.ink : Color.studioText)
+                    .litInstrument(color, isDown: held[degree] != nil, radius: Luz.Radius.cell)
                     .contentShape(Rectangle())
                     .gesture(DragGesture(minimumDistance: 0)
                         .onChanged { _ in press(degree) }
