@@ -22,7 +22,7 @@
 
 При положительном усилении проверьте индикатор пика. Если появились обрезанные отсчёты, кнопка запаса по уровню рассчитает усиление для пика около −1 dBFS. В «Моих наборах» можно сохранить все 16 пэдов, затем восстановить их в другом проекте, сохранив его темп, рисунок и микс. Один Undo возвращает предыдущие назначения.
 
-<p><a href="Screenshots/Producer43/factory-audition.png"><img src="Screenshots/Producer43/factory-audition.png" width="210" alt="Выбор Coast и предпрослушивание двух тактов до загрузки"></a> <a href="Screenshots/Producer43/personal-kits.png"><img src="Screenshots/Producer43/personal-kits.png" width="210" alt="Личная библиотека с сохранённым набором After Hours"></a></p>
+<p><a href="Screenshots/Producer43/factory-audition.png"><img src="Screenshots/Producer43/factory-audition.png" width="210" alt="Выбор Coast и предпрослушивание двух тактов до загрузки"></a> <a href="Screenshots/Producer43/pad-waveform.png"><img src="Screenshots/Producer43/pad-waveform.png" width="210" alt="Обрезанная бочка Pocket Kick, её форма волны и исправленный пик −1,1 dBFS"></a> <a href="Screenshots/Producer43/personal-kits.png"><img src="Screenshots/Producer43/personal-kits.png" width="210" alt="Личная библиотека с сохранённым набором After Hours"></a></p>
 
 [Послушать один ритм сначала на Dusty, затем на Coast](Media/Grooves/Producer43/dusty-then-coast.mp3)
 
