@@ -87,3 +87,9 @@ Research tools returned primary text and links; they did not provide inspectable
 The previous `e22f487` full run observed 73 methods: 70 passed, three failed, no case allowances and no global timeout. Its two Arrangement failures remain recorded; its MIDI fixture queued a seek and admitted edits before render acknowledged it. Build 24 settles that test's positioning while stopped and adds pre-cleanup diagnostics without changing MIDI assertions or production audio behavior. Historical failure evidence must not be relabeled as a pass.
 
 Screenshots must come from the actual app and name source/run/owner. No new custom video recording is authorized.
+
+## Generating and playing a song on one screen
+
+The track builder's overview should answer three questions before the musician presses Play. Which instruments enter, how long does each part last, and where can I touch to hear a transition? Horizontal space represents bars. Each visible lane represents a track that actually plays. Note attacks and sustained material are derived from the same compiled score used for playback. A rest stays empty. The overview uses the studio's existing track colors and follows the selected appearance.
+
+Auditioning a section leaves the current editing project intact. A and B are two playable performances of the reviewed form. They share the musician's tempo, harmony and section lengths. Returning to A restores its previous performance. Committing the selection creates an editable project with separate notes, beats and instrument assignments.

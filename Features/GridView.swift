@@ -152,6 +152,12 @@ struct GridView: View {
     private var emptyProjectGuide:some View {
         VStack(alignment:.leading,spacing:8){
             Text("No notes yet. Add a chord or play a beat to hear your idea.").font(.callout).foregroundStyle(Color.muted).accessibilityIdentifier("grid.empty-state")
+            Button {
+                session.openTrackBuilder()
+            } label: {
+                Label("New track from a description", systemImage: "music.note.list")
+                    .frame(maxWidth: .infinity, minHeight: 44)
+            }.buttonStyle(StudioActionStyle()).accessibilityIdentifier("grid.new-from-description")
             HStack(spacing:10){
                 Button{addFirstChord()}label:{Label("Add first chord",systemImage:"plus").frame(maxWidth:.infinity,minHeight:44)}.accessibilityIdentifier("grid.empty-chord")
                 Button{session.tab=1}label:{Label("Play a beat",systemImage:"square.grid.2x2.fill").frame(maxWidth:.infinity,minHeight:44)}.accessibilityIdentifier("grid.empty-jam")
@@ -442,6 +448,10 @@ struct GridView: View {
     @ViewBuilder private var tools:some View {
         if dynamicType.isAccessibilitySize {
             Menu("Studio tools"){
+                Button("New track from a description") { session.openTrackBuilder() }
+                if !showsRootBassLane {
+                    Button("+ Add root bass") { session.presentEditor(.bass) }.accessibilityIdentifier("bass.open")
+                }
                 Button("Harmony lab"){session.presentEditor(.harmony)};Button("Piano roll"){session.openNotes()};Button("Assistant"){session.presentEditor(.assistant)};Button("Voice to MIDI"){session.presentEditor(.voice)};Button("Perform"){session.sheet = .perform};Button("MIDI devices"){session.presentEditor(.midiDevices)}
                 Divider()
                 Button("Settings",systemImage:"gearshape"){session.presentEditor(.settings)}.accessibilityIdentifier("settings.open")
@@ -452,6 +462,7 @@ struct GridView: View {
                 Button{session.openNotes()}label:{Label("Notes",systemImage:"pianokeys").frame(maxWidth:.infinity,minHeight:44)}.accessibilityLabel("Open piano roll").accessibilityIdentifier("notes.open")
                 Button{session.presentEditor(.assistant)}label:{Label("Assistant",systemImage:"text.bubble").frame(maxWidth:.infinity,minHeight:44)}.accessibilityIdentifier("assistant.open")
                 Menu{
+                    Button("New track from a description", systemImage:"music.note.list") { session.openTrackBuilder() }
                     if !showsRootBassLane {
                         Button("+ Add root bass", systemImage:"waveform") { session.presentEditor(.bass) }.accessibilityIdentifier("bass.open")
                     }

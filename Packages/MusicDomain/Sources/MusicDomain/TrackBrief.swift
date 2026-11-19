@@ -36,6 +36,8 @@ public struct TrackBrief: Codable, Equatable, Sendable {
     public var drumVariation: UInt32 = 0
     public var bassVariation: UInt32 = 0
     public var seed: UInt32 = 1
+    /// Absent in older recipes, whose saved seed becomes their first take.
+    public internal(set) var auditionTake: ArrangementTake?
     public init() {}
 
     public mutating func usePreset(_ style: SketchStyle) {

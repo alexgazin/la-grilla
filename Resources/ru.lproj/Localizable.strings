@@ -1063,3 +1063,17 @@
 "This editable project includes the original description, arrangement plan, notes, instrument sounds and mix." = "В переносимый проект входят исходное описание, план аранжировки, ноты, тембры и микс.";
 
 "Review with the offline arranger" = "Разобрать автономным аранжировщиком";
+
+"New track from a description" = "Новый трек по описанию";
+
+"Compare performances" = "Сравнить исполнения";
+
+"The project will use the selected performance." = "В проект будет сохранено выбранное исполнение.";
+
+"Score" = "Партитура";
+
+"Preparing score…" = "Готовим партитуру…";
+
+"Playing" = "Играет";
+
+"Bars %lld–%lld. %@" = "Такты %lld–%lld. %@";

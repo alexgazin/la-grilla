@@ -1061,3 +1061,17 @@
 "This editable project includes the original description, arrangement plan, notes, instrument sounds and mix." = "This editable project includes the original description, arrangement plan, notes, instrument sounds and mix.";
 
 "Review with the offline arranger" = "Review with the offline arranger";
+
+"New track from a description" = "New track from a description";
+
+"Compare performances" = "Compare performances";
+
+"The project will use the selected performance." = "The project will use the selected performance.";
+
+"Score" = "Score";
+
+"Preparing score…" = "Preparing score…";
+
+"Playing" = "Playing";
+
+"Bars %lld–%lld. %@" = "Bars %lld–%lld. %@";

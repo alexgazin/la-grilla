@@ -12,6 +12,9 @@ struct TrackBuilderView: View {
     @State private var preview: PreparedTrackDraft?
     @State private var preparation: Task<Void,Never>?
     @State private var previewPart: Int?
+    @State private var preparingScope: PlaybackScope?
+    @State private var takeChange: TakeChange?
+    @State private var cachedTakes: [ArrangementTake: PreparedTrackDraft] = [:]
     @State private var acceptedIdea: String?
     @State private var history: [TrackBrief] = []
     @State private var programmaticChange: TrackBrief?
@@ -39,6 +42,17 @@ struct TrackBuilderView: View {
     var body: some View {
         NavigationStack {
             Form {
+                if brief.songForm != nil {
+                    Section {
+                        ArrangementScorePreview(brief: brief, session: session,
+                                                playingPart: session.harmonyPreview ? previewPart : nil,
+                                                canPreview: !unreviewedIdea && preparation == nil,
+                                                play: { listen(part: $0) })
+                            .listRowInsets(EdgeInsets()).listRowBackground(Color.panel)
+                        ArrangementTakePicker(selection: takeBinding)
+                            .disabled(unreviewedIdea || (preparation != nil && preparingScope == nil))
+                    }
+                }
                 Section {
                     TextField("A mellow late-night hip-hop beat",text:$idea,axis:.vertical)
                         .lineLimit(2...5).focused($editing).accessibilityIdentifier("builder.idea")
@@ -177,8 +191,10 @@ struct TrackBuilderView: View {
                 }
                 Section {
                     TextField("Project name",text:$name).focused($editing)
-                    Button { brief.seed &+= 1 } label: {
-                        HStack { Label("New variation",systemImage:"dice"); Spacer(); Text(verbatim:"#\(brief.seed)").monospacedDigit() }
+                    if brief.songForm == nil {
+                        Button { brief.seed &+= 1 } label: {
+                            HStack { Label("New variation",systemImage:"dice"); Spacer(); Text(verbatim:"#\(brief.seed)").monospacedDigit() }
+                        }
                     }
                     if let preview, brief.songForm == nil {
                         Text(verbatim:preview.project.patterns.flatMap(\.chords).map(\.chord.symbol).joined(separator:"  ·  "))
@@ -219,8 +235,19 @@ struct TrackBuilderView: View {
                 history.append(old)
                 if history.count > 32 { history.removeFirst() }
             }
+            let change = takeChange
+            takeChange=nil
             programmaticChange=nil
-            invalidatePreview()
+            if let change, change.brief == new {
+                preparation?.cancel(); preparation=nil; preparingScope=nil
+                preview = cachedTakes[ArrangementAudition.take(in: new)]
+                if let scope = change.resume {
+                    // Keep the audible take running until the new instruments are ready.
+                    listen(part: scope.part, restart: true)
+                }
+            } else {
+                invalidatePreview()
+            }
         }
         .onChange(of:name) { _,_ in invalidatePreview() }
         .onChange(of:phase) { _,new in if new == .background { cancelInterpretation(); invalidatePreview() } }
@@ -232,6 +259,28 @@ struct TrackBuilderView: View {
         let format = NSLocalizedString("%@ · arrangement copy", comment: "Generated project name")
         let name = String(format: format, String(session.project.name.prefix(90)))
         session.openTrackBuilder(idea: recipe.prompt, name: name, suggestion: recipe.brief, asCopy: true)
+    }
+
+    private struct PlaybackScope {
+        /// A nil index selects the entire draft.
+        let part: Int?
+    }
+    private struct TakeChange {
+        let brief: TrackBrief
+        let resume: PlaybackScope?
+    }
+    private var takeBinding: Binding<ArrangementTake> {
+        Binding(get: { ArrangementAudition.take(in: brief) }, set: { chosen in
+            let next = ArrangementAudition.select(chosen, in: brief)
+            guard next != brief else { return }
+            if let preview, takeChange == nil {
+                cachedTakes[ArrangementAudition.take(in: brief)] = preview
+            }
+            let resume = preparingScope ?? (session.harmonyPreview ? PlaybackScope(part: previewPart) : nil) ?? takeChange?.resume
+            takeChange = TakeChange(brief: next, resume: resume)
+            programmaticChange=next
+            brief=next
+        })
     }
 
     private var trimmedIdea:String { idea.trimmingCharacters(in:.whitespacesAndNewlines) }
@@ -261,7 +310,8 @@ struct TrackBuilderView: View {
     }
     private func invalidatePreview() {
         if !saving { preparation?.cancel(); preparation=nil }
-        previewPart=nil
+        cachedTakes.removeAll(); takeChange=nil
+        preparingScope=nil; previewPart=nil
         session.endHarmonyPreview(); preview=nil; problem=nil
     }
     private func cancelInterpretation() {
@@ -328,16 +378,21 @@ struct TrackBuilderView: View {
                 preview = ready
                 await action(ready)
             } catch {
-                if !Task.isCancelled { problem = error.localizedDescription }
+                if !Task.isCancelled {
+                    if preparingScope != nil { session.endHarmonyPreview(); previewPart=nil }
+                    problem = error.localizedDescription
+                }
             }
-            if !Task.isCancelled { preparation=nil }
+            if !Task.isCancelled { preparation=nil; preparingScope=nil }
         }
     }
-    private func listen(part: Int? = nil) {
+    private func listen(part: Int? = nil, restart: Bool = false) {
+        guard !unreviewedIdea, preparation == nil, !saving else { return }
         editing=false; problem=nil
-        if session.harmonyPreview && previewPart == part {
+        if !restart && session.harmonyPreview && previewPart == part {
             session.endHarmonyPreview(); previewPart=nil; return
         }
+        preparingScope=PlaybackScope(part: part)
         prepare { ready in
             let range = part.map { index in
                 let section = ready.project.sections[index]
