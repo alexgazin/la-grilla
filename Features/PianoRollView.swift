@@ -13,12 +13,9 @@ struct PianoRollView: View {
     @State private var clipboard:NoteEvent?
     @State private var snap=240
     @State private var barWidth:CGFloat=240
-    @State private var rollPosition = ScrollPosition(edge: .top)
     @State private var rollViewport = CGRect.zero
     @State private var renderedWidth: CGFloat = 0
     private static let measureZoom = ProcessInfo.processInfo.arguments.contains("--measure-piano-zoom")
-    @State private var zoomAnchor: PianoZoomAnchor?
-    @GestureState private var pinching = false
     @State private var lowPitch=60
     @State private var listMode=false
     @State private var renaming=false
@@ -113,7 +110,10 @@ struct PianoRollView: View {
     func roll(_ p:Pattern)->some View {
         VStack(spacing:0){
             HStack{Button{lowPitch=max(0,lowPitch-12)}label:{Label("Octave",systemImage:"minus").frame(minHeight:44)}.disabled(lowPitch==0);Spacer();Text("\(noteName(lowPitch)) – \(noteName(lowPitch+23))").font(.caption.monospaced()).foregroundStyle(Color.muted);Spacer();Button{lowPitch=min(104,lowPitch+12)}label:{Image(systemName:"plus").frame(width:44,height:44)}.disabled(lowPitch==104)}.padding(.horizontal,16)
-            ScrollView([.horizontal,.vertical]) {
+            PianoRollViewport(bars: CGFloat(p.length)/CGFloat(barTicks), barWidth: $barWidth,
+                              editing: noteDragging, measure: Self.measureZoom ? { width, visible in
+                renderedWidth = width; rollViewport = visible
+            } : nil) {
                 HStack(spacing:0){
                     VStack(spacing:0){Color.raised.frame(height:24);ForEach((lowPitch...lowPitch+23).reversed(),id:\.self){pitch in Button{preview(pitch)}label:{
                         Text(noteName(pitch)).font(.system(size:11,weight:pitch%12==0 ? .bold:.medium,design:.monospaced))
@@ -132,36 +132,8 @@ struct PianoRollView: View {
                             .frame(width:CGFloat(p.length)/CGFloat(barTicks)*barWidth,height:576)
                     }
                 }
-                .background(PianoPanPolicy())
             }
-            .accessibilityIdentifier("notes.viewport")
-            .scrollPosition($rollPosition)
-            .onScrollGeometryChange(for: RollGeometry.self) { geometry in
-                RollGeometry(viewport: geometry.visibleRect, contentWidth: geometry.contentSize.width)
-            } action: { _, geometry in
-                rollViewport = geometry.viewport
-                if Self.measureZoom { renderedWidth = geometry.contentWidth }
-            }
-            .scrollDisabled(noteDragging || pinching)
             .background(Color.panel)
-            .simultaneousGesture(
-                MagnifyGesture()
-                    .updating($pinching) { _, active, _ in active = true }
-                    .onChanged { value in
-                        guard rollViewport.width > 0 else { return }
-                        let anchor = zoomAnchor ?? PianoZoomAnchor(
-                            viewport: rollViewport, unitX: value.startAnchor.x, barWidth: barWidth)
-                        zoomAnchor = anchor
-                        let width = min(640, max(112, anchor.barWidth * value.magnification))
-                        barWidth = width
-                        rollPosition.scrollTo(point: anchor.offset(at: width))
-                    }
-                    .onEnded { _ in zoomAnchor = nil }
-            )
-            .onChange(of: pinching) { _, active in
-                if !active { zoomAnchor = nil }
-            }
-            .onDisappear { zoomAnchor = nil }
             Text("Tap to add · hold and drag to move · drag selected note end to resize").font(.caption2).foregroundStyle(Color.muted).padding(.horizontal,16).padding(.top,7)
         }.frame(maxHeight:.infinity)
     }
@@ -206,68 +178,155 @@ struct PianoRollView: View {
     func isBlack(_ pitch:Int)->Bool{[1,3,6,8,10].contains(pitch%12)}
 }
 
-private struct RollGeometry: Equatable {
-    let viewport: CGRect
-    let contentWidth: CGFloat
-}
+/// Pan belongs to the scroll view, while a pinch changes only musical time. The
+/// UIKit viewport owns its offset, so changing the hosted SwiftUI ruler width
+/// cannot reset the pitch rows or feed a second scroll-position transaction back.
+private struct PianoRollViewport<Content: View>: UIViewControllerRepresentable {
+    let bars: CGFloat
+    @Binding var barWidth: CGFloat
+    let editing: Bool
+    let measure: ((CGFloat, CGRect) -> Void)?
+    @ViewBuilder let content: () -> Content
 
-/// Keep the same pitch row and musical time under the initial pinch midpoint.
-private struct PianoZoomAnchor {
-    let barWidth: CGFloat
-    let viewportX: CGFloat
-    let bar: CGFloat
-    let y: CGFloat
-
-    init(viewport: CGRect, unitX: CGFloat, barWidth: CGFloat) {
-        self.barWidth = barWidth
-        viewportX = unitX * viewport.width
-        bar = (viewport.minX + viewportX - 48) / barWidth
-        y = max(0, viewport.minY)
+    func makeUIViewController(context: Context) -> Controller {
+        Controller(content: content())
     }
 
-    func offset(at width: CGFloat) -> CGPoint {
-        CGPoint(x: max(0, 48 + (bar < 0 ? bar * barWidth : bar * width) - viewportX), y: y)
+    func updateUIViewController(_ controller: Controller, context: Context) {
+        controller.update(content: content(), bars: bars, width: barWidth, editing: editing,
+                          setWidth: { barWidth = $0 }, measure: measure)
     }
-}
 
-/// Reserve two-finger input for pinch before SwiftUI recognizes magnification.
-/// A diagonal two-finger movement must not start an ordinary scroll meanwhile.
-private struct PianoPanPolicy: UIViewRepresentable {
-    final class Probe: UIView {
-        weak var scroll: UIScrollView?
-        private var originalTouchLimit = 0
+    final class Controller: UIViewController, UIScrollViewDelegate {
+        private let scroll = UIScrollView()
+        private let host: UIHostingController<Content>
+        private var width: CGFloat = 240
+        private var bars: CGFloat = 1
+        private var setWidth: ((CGFloat) -> Void)?
+        private var measure: ((CGFloat, CGRect) -> Void)?
+        private var lastMeasurement = CGRect.null
+        private var lastContentWidth: CGFloat = 0
+        private var anchor: (width: CGFloat, viewX: CGFloat, contentX: CGFloat, y: CGFloat)?
 
-        override func didMoveToWindow() {
-            super.didMoveToWindow()
-            var ancestor = window == nil ? nil : superview
-            while let view = ancestor, !(view is UIScrollView) { ancestor = view.superview }
-            let next = ancestor as? UIScrollView
-            guard scroll !== next else { return }
-            detach()
-            if let next {
-                let pan = next.panGestureRecognizer
-                originalTouchLimit = pan.maximumNumberOfTouches
-                pan.maximumNumberOfTouches = 1
-                scroll = next
-            }
+        init(content: Content) {
+            host = UIHostingController(rootView: content)
+            super.init(nibName: nil, bundle: nil)
+        }
+        @available(*, unavailable)
+        required init?(coder: NSCoder) { fatalError() }
+
+        override func loadView() {
+            view = scroll
+            scroll.accessibilityIdentifier = "notes.viewport"
+            scroll.contentInsetAdjustmentBehavior = .never
+            scroll.panGestureRecognizer.maximumNumberOfTouches = 1
+            scroll.delegate = self
+            let pinch = UIPinchGestureRecognizer(target: self, action: #selector(magnify(_:)))
+            scroll.addGestureRecognizer(pinch)
+            addChild(host)
+            host.view.backgroundColor = .clear
+            scroll.addSubview(host.view)
+            host.didMove(toParent: self)
         }
 
-        func detach() {
-            if let pan = scroll?.panGestureRecognizer, pan.maximumNumberOfTouches == 1 {
-                pan.maximumNumberOfTouches = originalTouchLimit
+        func update(content: Content, bars: CGFloat, width: CGFloat, editing: Bool,
+                    setWidth: @escaping (CGFloat) -> Void, measure: ((CGFloat, CGRect) -> Void)?) {
+            loadViewIfNeeded()
+            self.measure = measure
+            self.setWidth = setWidth
+            self.bars = bars
+            self.width = width
+            host.rootView = content
+            scroll.panGestureRecognizer.isEnabled = !editing
+            layoutCanvas()
+        }
+
+        override func viewDidLayoutSubviews() {
+            super.viewDidLayoutSubviews()
+            layoutCanvas()
+        }
+        private func layoutCanvas() {
+            let size = CGSize(width: 48+bars*width, height: 24+24*24)
+            if host.view.frame.size != size { host.view.frame = CGRect(origin: .zero, size: size) }
+            if scroll.contentSize != size { scroll.contentSize = size }
+            reportGeometry()
+        }
+        func scrollViewDidScroll(_ scrollView: UIScrollView) { reportGeometry() }
+        private func reportGeometry() {
+            guard let measure else { return }
+            let visible = scroll.bounds, contentWidth = scroll.contentSize.width
+            guard visible != lastMeasurement || contentWidth != lastContentWidth else { return }
+            lastMeasurement = visible; lastContentWidth = contentWidth
+            // Measurements are exposed to the on-device geometry regression only.
+            DispatchQueue.main.async { measure(contentWidth, visible) }
+        }
+        @objc private func magnify(_ gesture: UIPinchGestureRecognizer) {
+            if gesture.state == .began {
+                let contentX = gesture.location(in: scroll).x
+                anchor = (width, contentX-scroll.contentOffset.x, contentX, scroll.contentOffset.y)
+                if scroll.isDecelerating { scroll.setContentOffset(scroll.contentOffset, animated: false) }
             }
-            scroll = nil
+            if gesture.state == .began || gesture.state == .changed || gesture.state == .ended, let anchor {
+                let next = min(640, max(112, anchor.width*gesture.scale))
+                width = next
+                layoutCanvas()
+                let x = anchor.contentX <= 48 ? anchor.contentX : 48+(anchor.contentX-48)*next/anchor.width
+                let maxX = max(0, scroll.contentSize.width-scroll.bounds.width)
+                let maxY = max(0, scroll.contentSize.height-scroll.bounds.height)
+                scroll.setContentOffset(CGPoint(x: min(maxX, max(0, x-anchor.viewX)), y: min(maxY,max(0,anchor.y))), animated: false)
+                setWidth?(next)
+            }
+            if [.ended, .cancelled, .failed].contains(gesture.state) { anchor = nil }
         }
     }
+}
 
-    func makeUIView(context: Context) -> Probe {
-        let probe = Probe()
-        probe.isUserInteractionEnabled = false
-        return probe
+/// Only a hold beginning on a note may claim the move recognizer. In
+/// particular, the full-size drawing has no drag recognizer on empty canvas.
+private struct PianoCanvasInput: UIViewRepresentable {
+    let hitNote: (CGPoint) -> NoteEvent?
+    let tap: (CGPoint) -> Void
+    let drag: (NoteEvent, CGSize) -> Void
+    let end: (CGSize) -> Void
+    let cancel: () -> Void
+
+    final class Coordinator: NSObject, UIGestureRecognizerDelegate {
+        var input: PianoCanvasInput
+        var note: NoteEvent?
+        var start: CGPoint = .zero
+        init(_ input: PianoCanvasInput) { self.input = input }
+        func gestureRecognizer(_ recognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
+            guard recognizer is UILongPressGestureRecognizer else { return true }
+            start = touch.location(in: recognizer.view)
+            note = input.hitNote(start)
+            return note != nil
+        }
+        @objc func tapped(_ recognizer: UITapGestureRecognizer) { input.tap(recognizer.location(in: recognizer.view)) }
+        @objc func held(_ recognizer: UILongPressGestureRecognizer) {
+            let location = recognizer.location(in: recognizer.view)
+            let delta = CGSize(width: location.x-start.x, height: location.y-start.y)
+            switch recognizer.state {
+            case .began, .changed:
+                if let note { input.drag(note, delta) }
+            case .ended: input.end(delta); note = nil
+            case .cancelled, .failed: input.cancel(); note = nil
+            default: break
+            }
+        }
     }
-
-    func updateUIView(_ uiView: Probe, context: Context) {}
-    static func dismantleUIView(_ uiView: Probe, coordinator: ()) { uiView.detach() }
+    func makeCoordinator() -> Coordinator { Coordinator(self) }
+    func makeUIView(context: Context) -> UIView {
+        let view = UIView()
+        let delegate = context.coordinator
+        let hold = UILongPressGestureRecognizer(target: delegate, action: #selector(Coordinator.held(_:)))
+        hold.minimumPressDuration = 0.35; hold.delegate = delegate
+        let tap = UITapGestureRecognizer(target: delegate, action: #selector(Coordinator.tapped(_:)))
+        tap.require(toFail: hold)
+        view.addGestureRecognizer(hold)
+        view.addGestureRecognizer(tap)
+        return view
+    }
+    func updateUIView(_ view: UIView, context: Context) { context.coordinator.input = self }
 }
 
 private struct RollCanvas:View {
@@ -279,7 +338,6 @@ private struct RollCanvas:View {
     @State private var interaction:Interaction?
     @State private var gestureAnchor:Anchor?
     @State private var invalidated=false
-    @GestureState private var moving=false
     @GestureState private var resizing=false
     @Namespace private var canvasSpace
 
@@ -300,7 +358,7 @@ private struct RollCanvas:View {
     private var selectedNote:NoteEvent? {pattern.notes?.first{$0.id==selected}}
     private var displayedSelection:NoteEvent? {interaction?.preview ?? selectedNote}
     private var contentWidth:CGFloat {CGFloat(pattern.length)/CGFloat(barTicks)*barWidth}
-    private var touching:Bool {moving || resizing}
+    private var touching:Bool {gestureAnchor != nil || resizing}
     private func rect(_ n:NoteEvent)->CGRect {CGRect(x:CGFloat(n.tick)/CGFloat(barTicks)*barWidth,y:CGFloat(lowPitch+23-n.pitch)*24+2,width:max(4,CGFloat(n.duration)/CGFloat(barTicks)*barWidth-2),height:20)}
     private func hit(_ point:CGPoint)->NoteEvent? {(pattern.notes ?? []).filter{(lowPitch...lowPitch+23).contains($0.pitch)}.sorted{($0.id==selected ? 0:1)<($1.id==selected ? 0:1)}.first{rect($0).insetBy(dx:-8,dy:-2).contains(point)}}
     private func endpoint(_ note:NoteEvent)->CGFloat {CGFloat(note.tick+note.duration)/CGFloat(barTicks)*barWidth}
@@ -309,24 +367,17 @@ private struct RollCanvas:View {
 
     var body:some View {
         ZStack(alignment:.topLeading){
-            drawing.contentShape(Rectangle()).accessibilityLabel("Piano roll. Use the note list to edit with VoiceOver.").accessibilityIdentifier("notes.canvas")
-                .simultaneousGesture(LongPressGesture(minimumDuration:0.35).sequenced(before:DragGesture(minimumDistance:0,coordinateSpace:.named(canvasSpace)))
-                    .exclusively(before:SpatialTapGesture())
-                    .updating($moving){value,state,_ in if case .first(.second(true,_))=value{state=true}}
-                    .onChanged{value in
-                        if case .first(.second(true,let drag?))=value {
-                            update(.move,translation:drag.translation,note:hit(drag.startLocation))
-                        }
-                    }
-                    .onEnded{value in
-                        switch value {
-                        case .first(.second(true,let drag?)):finish(.move,translation:drag.translation)
-                        case .second(let tap):
-                            cancel()
-                            if let note=hit(tap.location){select(note.id)}else{insert(Int(tap.location.x/barWidth*CGFloat(barTicks)),min(127,max(0,lowPitch+23-Int(tap.location.y/24))))}
-                        default:cancel()
-                        }
-                    })
+            drawing.allowsHitTesting(false)
+            PianoCanvasInput(hitNote: hit, tap: { point in
+                if let note = hit(point) { select(note.id) }
+                else { insert(Int(point.x/barWidth*CGFloat(barTicks)), min(127,max(0,lowPitch+23-Int(point.y/24)))) }
+            }, drag: { note, translation in
+                update(.move, translation: translation, note: note)
+            }, end: { translation in
+                finish(.move, translation: translation)
+            }, cancel: cancel)
+            .accessibilityLabel("Piano roll. Use the note list to edit with VoiceOver.")
+            .accessibilityIdentifier("notes.canvas")
             if let note=displayedSelection,(lowPitch...lowPitch+23).contains(note.pitch) {
                 resizeGrip(note).position(gripCenter(note))
             }
@@ -339,7 +390,7 @@ private struct RollCanvas:View {
         .onChange(of:context){_,_ in
             if touching || gestureAnchor != nil{interaction=nil;gestureAnchor=nil;invalidated=touching;editingChanged(false)}
         }
-        .onChange(of:touching){_,active in
+        .onChange(of:resizing){_,active in
             // Resetting GestureState can precede onEnded. Remove the visible
             // draft and release scrolling, but keep the immutable start anchor
             // for completion. A system cancellation never invokes onEnded.
