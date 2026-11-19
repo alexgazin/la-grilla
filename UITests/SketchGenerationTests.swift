@@ -348,7 +348,13 @@ final class SketchGenerationTests:XCTestCase {
         let ending = app.buttons["builder.score.menu.3"]
         XCTAssertTrue(ending.waitForExistence(timeout: 5))
         XCTAssertEqual(ending.label, expected)
-        ending.tap()
+        // UIKit's transient context-menu item can expose its on-screen frame
+        // with an invalid XCUI activation point. Tap that measured row like a finger.
+        let row = ending.frame
+        XCTAssertTrue(app.frame.contains(row))
+        XCTAssertGreaterThanOrEqual(row.height, 40)
+        let origin = app.coordinate(withNormalizedOffset: .zero)
+        origin.withOffset(CGVector(dx: row.midX - app.frame.minX, dy: row.midY - app.frame.minY)).tap()
         wait(title, timeout: 23) {
             let report = self.current(title)
             return report.contains("preview=true") && self.number("actualTick", in: report) >= 25*3840
