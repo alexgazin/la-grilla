@@ -1248,3 +1248,7 @@
 "Velocity from touch" = "Velocity from touch";
 "Keep the last 4 bars I played" = "Keep the last 4 bars I played";
 "Play the pads while the loop runs, then keep what you played." = "Play the pads while the loop runs, then keep what you played.";
+"Humanize %@ in %@" = "Humanize %@ in %@";
+"Swing %@ in %@" = "Swing %@ in %@";
+"Move %@ by scale steps in %@" = "Move %@ by scale steps in %@";
+"Write %@ from the kick and chords in %@" = "Write %@ from the kick and chords in %@";

@@ -97,7 +97,7 @@ public enum SongEditParser {
 
     /// Whether the operation's part plays in its bars (fill and arpeggio create new material).
     static func sounds(_ op: SongEditOperation, in project: Project) -> Bool {
-        if op.kind == .fill || op.kind == .arpeggiate || op.kind == .hook || op.kind == .stopBreak { return true }
+        if [.fill, .arpeggiate, .hook, .stopBreak, .bassFromKick].contains(op.kind) { return true }
         guard let index = project.tracks.firstIndex(where: { $0.id == op.target.trackID }) else { return false }
         let range = op.bars.lowerBound * barTicks..<op.bars.upperBound * barTicks
         let pads = op.target.pads.map(Set.init)
@@ -213,7 +213,7 @@ public enum SongEditParser {
     /// more letters) when its prefix differs by one edit, keeping the first letter.
     static func matches(_ token: String, _ stem: String) -> Bool {
         if token.hasPrefix(stem) { return true }
-        guard stem.count >= 4, token.count >= stem.count - 1, token.first == stem.first else { return false }
+        guard stem.count >= 5, token.count >= stem.count - 1, token.first == stem.first else { return false }
         let a = Array(token.prefix(stem.count + 1)), b = Array(stem)
         // Edit distance between the stem and the best-matching prefix of the token.
         var previous = Array(0...b.count)
@@ -253,6 +253,8 @@ public enum SongEditParser {
         var barRange: ClosedRange<Int>? = nil // 1-based inclusive
         var everyOther = false
         var delayTicks: Int? = nil
+        var percent: Int? = nil
+        var steps: Int = 1
         var delayMilliseconds: Double? = nil
         var fillTicks = 2 * ppq
         var replacesChords = false
@@ -297,6 +299,19 @@ public enum SongEditParser {
         if phrase(Lexicon.fadeOutPhrases) || fadeOutWord || words.contains(where: { any($0, Lexicon.fadeOut) }) { edit.kind = .fadeOut }
         else if phrase(Lexicon.fadeInPhrases) || fadeInWord || words.contains(where: { any($0, Lexicon.fadeIn) }) { edit.kind = .fadeIn }
         else if fadeWord != nil { edit.kind = .fadeOut }
+        else if phrase(["бас по бочке", "бас за бочкой", "бас под бочку", "bass from the kick", "bass follow the kick", "bass follows the kick", "bass to the kick", "bass with the kick"]) { edit.kind = .bassFromKick; edit.targets = [.bass] }
+        else if words.contains(where: { any($0, ["очелове", "humaniz", "humanis", "живее", "loosen"]) }) { edit.kind = .humanize }
+        else if words.contains(where: { any($0, ["свинг", "swing", "шаффл", "shuffle"]) }) {
+            edit.kind = .swing
+            edit.percent = words.compactMap { w in Int(w.trimmingCharacters(in: CharacterSet(charactersIn: "%"))) }.first { (50...75).contains($0) }
+        }
+        else if words.contains(where: { any($0, ["транспон", "transpos", "ступен", "step", "steps", "октав", "octave"]) }) && words.contains(where: { any($0, ["вверх", "выше", "подним", "up", "higher", "raise", "вниз", "ниже", "опусти", "down", "lower"]) }) {
+            edit.kind = .scaleShift
+            let down = words.contains { any($0, ["вниз", "ниже", "опусти", "down", "lower"]) }
+            let octave = words.contains { any($0, ["октав", "octave"]) }
+            let count = words.compactMap { cardinal($0) }.first { $0 <= 7 } ?? 1
+            edit.steps = (octave ? 7 : count) * (down ? -1 : 1)
+        }
         else if stopBreak { edit.kind = .stopBreak; edit.fillTicks = ppq }
         else if edit.fillNoun { edit.kind = .fill }
         else if words.contains(where: { any($0, Lexicon.arpeggio) }) { edit.kind = .arpeggiate }
@@ -531,6 +546,11 @@ public enum SongEditParser {
         } else if kind == .fill {
             guard let drums = project.tracks.first(where: { $0.role == .drums }) else { return .problem(.missing) }
             targets = [SongEditTarget(trackID: drums.id)]
+        } else if kind == .bassFromKick {
+            guard let bass = project.tracks.first(where: { $0.role == .melody && isBassName($0.name) }) else {
+                return .problem(project.tracks.contains { $0.role == .bass } ? .derivedBass : .missing)
+            }
+            targets = [SongEditTarget(trackID: bass.id)]
         } else if kind == .hook {
             let named = resolve(edit.targets.filter { if case .track = $0 { return true } else { return false } }, except: [], project: project, forEdit: true)
             let melodyTarget = named.first { t in project.tracks.first { $0.id == t.trackID }?.role == .melody && !isBassName(project.tracks.first { $0.id == t.trackID }?.name) }
@@ -576,6 +596,8 @@ public enum SongEditParser {
             }
         }
         if kind == .fill || kind == .stopBreak { amount = edit.fillTicks }
+        if kind == .swing { amount = edit.percent ?? 58 }
+        if kind == .scaleShift { amount = edit.steps }
         func make(_ bars: Range<Int>, section: UUID?) -> [SongEditOperation] {
             targets.map { SongEditOperation(kind: kind, target: $0, bars: bars, sectionID: section, everyOther: edit.everyOther, amount: amount, replacesChords: edit.replacesChords) }
         }

@@ -222,3 +222,35 @@ struct StopBreakTests {
         }
     }
 }
+
+struct PlayingToolsByPhraseTests {
+    @Test func humanizeSwingScaleShiftAndBassFromKickByPhrase() throws {
+        let p = try SongEditDemo.project()
+        let cases: [(String, SongEditOperation.Kind)] = [
+            ("Очеловечь флейту в последнем припеве", .humanize), ("Humanize the hats in the first verse", .humanize),
+            ("Свинг 62% на хэтах во втором куплете", .swing), ("Add swing to the hats in the last chorus", .swing),
+            ("Подними флейту на две ступени в последнем припеве", .scaleShift), ("Move the flute down an octave in the last chorus", .scaleShift),
+            ("Сделай бас по бочке во втором куплете", .bassFromKick), ("Make the bass follow the kick in the first chorus", .bassFromKick),
+        ]
+        for (text, kind) in cases {
+            let plan = SongEditParser.plan(text, project: p)
+            #expect(plan.isApplicable, "\(text): \(plan.problems)")
+            #expect(plan.operations.first?.kind == kind, "\(text)")
+            let edited = try SongEditor.apply(plan, to: p)
+            let diff = SongEditDiff(before: p, after: edited)
+            #expect(!diff.isEmpty, "\(text) changed nothing")
+            let ticks = (diff.added + diff.removed).map(\.tick)
+            let bars = plan.operations.flatMap(\.editedBars)
+            #expect(ticks.allSatisfy { bars.contains($0 / barTicks) }, "\(text) changed outside its bars")
+        }
+        let swing = SongEditParser.plan("Свинг 62% на хэтах во втором куплете", project: p)
+        #expect(swing.operations.first?.amount == 62)
+        let octave = SongEditParser.plan("Move the flute down an octave in the last chorus", project: p)
+        #expect(octave.operations.first?.amount == -7)
+        let shifted = try SongEditor.apply(octave, to: p)
+        let flute = p.tracks.firstIndex { $0.name == "Flute" }!
+        let before = Compiler.notes(p).filter { $0.track == flute && $0.tick >= 14 * barTicks }.map(\.pitch)
+        let after = Compiler.notes(shifted).filter { $0.track == flute && $0.tick >= 14 * barTicks }.map(\.pitch)
+        #expect(zip(before, after).allSatisfy { $0.0 - $0.1 == 12 })
+    }
+}

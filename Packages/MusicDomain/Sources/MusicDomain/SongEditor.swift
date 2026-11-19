@@ -172,6 +172,52 @@ public enum SongEditor {
                 for i in notes.indices where notes[i].tick < window.lowerBound && notes[i].tick + notes[i].duration > window.lowerBound { notes[i].duration = window.lowerBound - notes[i].tick }
                 pattern.notes = notes
             }
+        case .humanize:
+            var state = UInt64(project.revision) &+ UInt64(op.bars.lowerBound) &+ 0x9E37
+            func jitter(_ amount: Int) -> Int { state ^= state << 13; state ^= state >> 7; state ^= state << 17; return Int(state % UInt64(2 * amount + 1)) - amount }
+            for window in windows {
+                let ids = Set((pattern.notes ?? []).filter { window.contains($0.tick) }.map(\.id))
+                pattern.notes = NoteTools.humanize(pattern.notes ?? [], ids: ids, timing: 15, velocity: 10, seed: state, length: pattern.length)
+                for i in pattern.drums.indices where selected(pattern.drums[i], window) {
+                    pattern.drums[i].tick = min(pattern.length - 1, max(0, pattern.drums[i].tick + jitter(8)))
+                    pattern.drums[i].velocity = min(127, max(1, pattern.drums[i].velocity + jitter(10)))
+                }
+            }
+        case .swing:
+            let amount = op.amount > 0 ? Double(op.amount) / 100 : 0.58
+            for window in windows {
+                // Swing the finest straight grid the part uses: sixteenths, or eighths.
+                let ticks = pattern.drums.filter { selected($0, window) }.map { $0.tick - window.lowerBound } + (pattern.notes ?? []).filter { window.contains($0.tick) }.map { $0.tick - window.lowerBound }
+                let grid = ticks.contains { $0 % (ppq / 2) == ppq / 4 } ? ppq / 4 : ppq / 2
+                let quantizer = GrooveQuantizer(grid: grid, strength: 1, swing: amount)
+                for i in pattern.drums.indices where selected(pattern.drums[i], window) {
+                    let local = pattern.drums[i].tick - window.lowerBound
+                    guard local % grid == 0 else { continue }
+                    pattern.drums[i].tick = window.lowerBound + quantizer.gridTick(step: local / grid)
+                }
+                if var notes = pattern.notes {
+                    for i in notes.indices where window.contains(notes[i].tick) && (notes[i].tick - window.lowerBound) % grid == 0 {
+                        let step = (notes[i].tick - window.lowerBound) / grid
+                        notes[i].tick = window.lowerBound + quantizer.gridTick(step: step)
+                        notes[i].duration = max(1, min(notes[i].duration, pattern.length - notes[i].tick))
+                    }
+                    pattern.notes = notes
+                }
+            }
+        case .scaleShift:
+            for window in windows {
+                let ids = Set((pattern.notes ?? []).filter { window.contains($0.tick) }.map(\.id))
+                pattern.notes = NoteTools.scaleTranspose(pattern.notes ?? [], ids: ids, steps: op.amount == 0 ? 1 : op.amount, root: project.keyRoot, minor: project.minor)
+            }
+        case .bassFromKick:
+            let kicks = Compiler.notes(project, range: requested).filter { $0.pad == 0 }.map { $0.tick + requested.lowerBound - base }
+            let chords = Arrangement.harmony(project, section: Section(name: "Bass", start: requested.lowerBound, length: requested.count))
+                .map { c -> ChordEvent in var x = c; x.tick += requested.lowerBound - base; return x }
+            let line = BassFromGroove.line(kicks: kicks, chords: chords, length: pattern.length)
+            for window in windows {
+                pattern.notes?.removeAll { window.contains($0.tick) }
+                pattern.notes?.append(contentsOf: line.filter { window.contains($0.tick) }.map { n in var x = n; x.duration = min(x.duration, window.upperBound - x.tick); return x })
+            }
         case .arpeggiate, .hook:
             break
         }

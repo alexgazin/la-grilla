@@ -1250,3 +1250,7 @@
 "Velocity from touch" = "Сила удара от касания";
 "Keep the last 4 bars I played" = "Сохранить 4 последних сыгранных такта";
 "Play the pads while the loop runs, then keep what you played." = "Сыграйте на пэдах, пока идёт луп, затем сохраните сыгранное.";
+"Humanize %@ in %@" = "Очеловечить: %@ · %@";
+"Swing %@ in %@" = "Свинг: %@ · %@";
+"Move %@ by scale steps in %@" = "Сдвиг по ступеням лада: %@ · %@";
+"Write %@ from the kick and chords in %@" = "Бас по бочке и аккордам: %@ · %@";
