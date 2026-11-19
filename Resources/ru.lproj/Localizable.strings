@@ -1256,3 +1256,5 @@
 "Write %@ from the kick and chords in %@" = "Бас по бочке и аккордам: %@ · %@";
 "Normalize each stem to −1 dBFS" = "Нормализовать каждый стем до −1 dBFS";
 "Search by name, tempo or key" = "Поиск по названию, темпу или тональности";
+"Notes of the key only" = "Только ноты тональности";
+"Sustain" = "Сустейн";

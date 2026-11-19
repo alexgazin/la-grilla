@@ -43,6 +43,9 @@ private struct InstrumentKeyboard: View {
     @State private var finishTask: Task<Void, Never>?
     @State private var soundBanks = false
     @State private var surfaceID = UUID()
+    /// I13: only the notes of the project key, as equal keys.
+    @AppStorage("keyboard.scaleOnly") private var scaleOnly = false
+    @State private var sustain = false
 
     private var track: Track? {
         session.project.tracks.first { $0.id == (selectedTrackID ?? trackID) && $0.role != .drums }
@@ -89,6 +92,13 @@ private struct InstrumentKeyboard: View {
                                 .font(.body.monospacedDigit()).accessibilityIdentifier("keyboard.octave")
                             IconButton(symbol: "plus", label: "Octave up") { changeOctave(12) }
                                 .disabled(root == 96)
+                            IconButton(symbol: scaleOnly ? "music.note.list" : "pianokeys", label: "Notes of the key only",
+                                       color: scaleOnly ? .mint : .muted) { resetKeys(); scaleOnly.toggle() }
+                                .accessibilityValue(LocalizedStringKey(scaleOnly ? "On" : "Off"))
+                                .accessibilityIdentifier("keyboard.scale-only")
+                            IconButton(symbol: "pedal.accelerator", label: "Sustain", color: sustain ? .mint : .muted) { setSustain(!sustain) }
+                                .accessibilityValue(LocalizedStringKey(sustain ? "On" : "Off"))
+                                .accessibilityIdentifier("keyboard.sustain")
                             Spacer()
                             if track.role == .melody, let clip = sourceClip(track) {
                                 IconButton(symbol: take == nil ? "record.circle" : "stop.circle.fill",
@@ -107,7 +117,7 @@ private struct InstrumentKeyboard: View {
                             Text(error).font(.caption).foregroundStyle(Color.record).padding(.horizontal)
                         }
                         InstrumentKeybed(root: root, octaves: geometry.size.width >= 660 ? 2 : 1,
-                                         keyRoot: session.project.keyRoot, minor: session.project.minor,
+                                         keyRoot: session.project.keyRoot, minor: session.project.minor, scaleOnly: scaleOnly,
                                          play: { pitch, down in key(pitch, down: down, track: track) })
                             .id(surfaceID).padding(.horizontal, 10).padding(.bottom, 10)
                     }.padding(.top, compact ? 0 : 8)
@@ -237,6 +247,8 @@ private struct InstrumentKeyboard: View {
         guard let index = session.project.tracks.firstIndex(where: { $0.id == track.id }) else { return }
         if down && !session.ensureAudio() { error = session.audio.error; return }
         if session.midi.playKey(pitch, down: down, track: track, index: index) {
+            // The keybed connection can be created by this key; send the pedal state to it.
+            if down && sustain { _ = session.midi.keyboardSustain(true) }
             if down, take != nil, finishTask == nil {
                 session.audio.refreshClock()
                 if let clip = sourceClip(track), recordingLength > 0 {
@@ -260,7 +272,14 @@ private struct InstrumentKeyboard: View {
 
     private func changeOctave(_ delta: Int) { resetKeys(); root += delta }
 
+    private func setSustain(_ on: Bool) {
+        sustain = on
+        _ = session.midi.keyboardSustain(on)
+        take?.setSustain(on)
+    }
+
     private func resetKeys() {
+        if sustain { setSustain(false) }
         take?.releaseHeld()
         session.midi.releaseKeyboard()
         surfaceID = UUID()
@@ -291,6 +310,9 @@ private struct KeyboardPhrase {
     var offset = 0
     private var start: TimeInterval?
     private var held = [Int: Int]()
+    private var sustained = false
+    /// Keys released while the pedal is down keep sounding until it is lifted.
+    private var pedalHeld = [Int: Int]()
     private(set) var notes = [NoteEvent]()
 
     init(patternID: UUID, bpm: Double) { self.patternID = patternID; self.bpm = bpm }
@@ -300,14 +322,32 @@ private struct KeyboardPhrase {
         if start == nil && down { start = now }
         guard let start else { return }
         let tick = offset + Int(((now - start) * bpm * Double(ppq) / 60).rounded())
-        if down { held[pitch] = tick }
-        else if let onset = held.removeValue(forKey: pitch), notes.count < 4096 {
+        if down {
+            // A key struck again under the pedal ends its sustained note first.
+            if let onset = pedalHeld.removeValue(forKey: pitch), notes.count < 4096 {
+                notes.append(NoteEvent(tick: onset, duration: max(1, tick - onset), pitch: pitch, velocity: KeyboardPerformance.velocity))
+            }
+            held[pitch] = tick
+        }
+        else if let onset = held.removeValue(forKey: pitch) {
+            if sustained { pedalHeld[pitch] = onset }
+            else if notes.count < 4096 { notes.append(NoteEvent(tick: onset, duration: max(1, tick - onset), pitch: pitch, velocity: KeyboardPerformance.velocity)) }
+        }
+    }
+
+    mutating func setSustain(_ on: Bool) {
+        sustained = on
+        guard !on, let start else { return }
+        let tick = offset + Int(((ProcessInfo.processInfo.systemUptime - start) * bpm * Double(ppq) / 60).rounded())
+        for (pitch, onset) in pedalHeld where notes.count < 4096 {
             notes.append(NoteEvent(tick: onset, duration: max(1, tick - onset), pitch: pitch, velocity: KeyboardPerformance.velocity))
         }
+        pedalHeld = [:]
     }
 
     mutating func releaseHeld() {
         for pitch in Array(held.keys) { receive(pitch, down: false) }
+        setSustain(false)
     }
 }
 
@@ -316,13 +356,14 @@ private struct InstrumentKeybed: UIViewRepresentable {
     let octaves: Int
     let keyRoot: Int
     let minor: Bool
+    var scaleOnly = false
     let play: (Int, Bool) -> Void
 
     func makeUIView(context: Context) -> KeybedView { KeybedView() }
 
     func updateUIView(_ view: KeybedView, context: Context) {
         view.play = play
-        view.configure(root: root, octaves: octaves, keyRoot: keyRoot, minor: minor)
+        view.configure(root: root, octaves: octaves, keyRoot: keyRoot, minor: minor, scaleOnly: scaleOnly)
     }
 
     static func dismantleUIView(_ view: KeybedView, coordinator: ()) { view.releaseAll() }
@@ -348,16 +389,20 @@ private final class KeybedView: UIView {
 
     required init?(coder: NSCoder) { return nil }
 
-    func configure(root: Int, octaves: Int, keyRoot: Int, minor: Bool) {
-        let next = [root, octaves, keyRoot, minor ? 1 : 0]
+    private var flat = false
+
+    func configure(root: Int, octaves: Int, keyRoot: Int, minor: Bool, scaleOnly: Bool = false) {
+        let next = [root, octaves, keyRoot, minor ? 1 : 0, scaleOnly ? 1 : 0]
         guard configuration != next else { return }
         releaseAll()
         configuration = next
         subviews.forEach { $0.removeFromSuperview() }
         whiteKeys = []
         blackKeys = []
-        for pitch in root...(root + octaves * 12) {
-            let black = blackClasses.contains(pitch % 12)
+        flat = scaleOnly
+        let pitches = scaleOnly ? ScaleKeyboard.pitches(root: keyRoot, minor: minor, low: root, high: root + octaves * 12) : Array(root...(root + octaves * 12))
+        for pitch in pitches {
+            let black = !scaleOnly && blackClasses.contains(pitch % 12)
             let key = UIButton(type: .custom)
             key.tag = pitch
             let name = MusicalNotation.noteName(pitch, keyRoot: keyRoot, minor: minor)
@@ -393,7 +438,7 @@ private final class KeybedView: UIView {
     }
 
     private func style(_ key: UIButton, held: Bool) {
-        let black = blackClasses.contains(key.tag % 12)
+        let black = !flat && blackClasses.contains(key.tag % 12)
         key.backgroundColor = UIColor(held ? Color.mint : (black ? .keyboardGraphite : .keyboardIvory))
         key.setTitleColor(UIColor(held ? Color.ink : (black ? .keyboardIvory : .keyboardGraphite)), for: .normal)
         key.layer.borderWidth = black ? 1 : 0

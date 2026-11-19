@@ -207,6 +207,14 @@ private enum MIDICallbacks {
         return accepted
     }
 
+    /// I17: the on-screen sustain pedal sends CC64 through the keybed's own
+    /// connection, so the kernel holds and releases notes as for a MIDI pedal.
+    @discardableResult func keyboardSustain(_ on: Bool) -> Bool {
+        guard let connection = keyboardConnection else { return false }
+        let bytes: [UInt8] = [0xb0, 64, on ? 127 : 0]
+        return bytes.withUnsafeBufferPointer { lg_midi_push(hub.pointer, connection.handle, mach_absolute_time(), $0.baseAddress, 3) != 0 }
+    }
+
     func releaseKeyboard() {
         guard let connection = keyboardConnection else { return }
         lg_midi_disconnect(hub.pointer, Int32(connection.slot))
