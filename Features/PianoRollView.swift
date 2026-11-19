@@ -565,6 +565,24 @@ private struct NoteToolsMenu: View {
             Button("Up one step in the key") { apply { notes, ids, _ in NoteTools.scaleTranspose(notes, ids: ids, steps: 1, root: session.project.keyRoot, minor: session.project.minor) } }
             Toggle("Show other parts", isOn: $showGhost)
             Button("Down one step in the key") { apply { notes, ids, _ in NoteTools.scaleTranspose(notes, ids: ids, steps: -1, root: session.project.keyRoot, minor: session.project.minor) } }
+            // I21 · I22: group edits keep the shape of the phrase; velocity stays 1–127.
+            Menu("Velocity") {
+                Button("Soft (60)") { group { NoteSelection.setVelocity(&$0, ids: $1, to: 60) } }
+                Button("Medium (90)") { group { NoteSelection.setVelocity(&$0, ids: $1, to: 90) } }
+                Button("Loud (118)") { group { NoteSelection.setVelocity(&$0, ids: $1, to: 118) } }
+                Button("Louder (+10)") { group { NoteSelection.offsetVelocity(&$0, ids: $1, by: 10) } }
+                Button("Softer (−10)") { group { NoteSelection.offsetVelocity(&$0, ids: $1, by: -10) } }
+                Button("Crescendo") { group { NoteSelection.ramp(&$0, ids: $1, from: 55, to: 115) } }
+                Button("Diminuendo") { group { NoteSelection.ramp(&$0, ids: $1, from: 115, to: 55) } }
+            }.accessibilityIdentifier("notes.tools.velocity")
+            Menu("Timing") {
+                Button("Twice as long") { group { NoteSelection.stretch(&$0, ids: $1, factor: 2) } }
+                Button("Half as long") { group { NoteSelection.stretch(&$0, ids: $1, factor: 0.5) } }
+                Button("Earlier by a 1/16") { group { NoteSelection.shift(&$0, ids: $1, ticks: -ppq / 4, semitones: 0) } }
+                Button("Later by a 1/16") { group { NoteSelection.shift(&$0, ids: $1, ticks: ppq / 4, semitones: 0) } }
+                Button("Up an octave") { group { NoteSelection.shift(&$0, ids: $1, ticks: 0, semitones: 12) } }
+                Button("Down an octave") { group { NoteSelection.shift(&$0, ids: $1, ticks: 0, semitones: -12) } }
+            }.accessibilityIdentifier("notes.tools.timing")
         } label: {
             Label(selected == nil ? "Tools · all notes" : "Tools · selected note", systemImage: "wand.and.stars")
                 .font(.caption.weight(.semibold)).frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
@@ -578,6 +596,15 @@ private struct NoteToolsMenu: View {
             let notes = project.patterns[index].notes ?? []
             let ids: Set<UUID> = target.map { Set([$0]) } ?? Set(notes.map(\.id))
             project.patterns[index].notes = transform(notes, ids, project.patterns[index].length)
+        }
+    }
+
+    private func group(_ change: @escaping (inout Pattern, Set<UUID>) -> Void) {
+        let id = patternID, target = selected
+        session.edit { project in
+            guard let index = project.patterns.firstIndex(where: { $0.id == id }) else { return }
+            let ids: Set<UUID> = target.map { Set([$0]) } ?? Set((project.patterns[index].notes ?? []).map(\.id))
+            change(&project.patterns[index], ids)
         }
     }
 }

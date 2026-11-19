@@ -57,6 +57,9 @@ struct PadSampleEditor: View {
                                 .frame(minHeight: 44).disabled(applying)
                                 .accessibilityIdentifier("pad-editor.headroom")
                         }
+                        // I52: cut the silence before and after the hit in one step.
+                        Button("Trim silence") { update(source.autoTrim()) }
+                            .font(.subheadline).disabled(applying).accessibilityIdentifier("pad-editor.trim-silence")
                         Button("Reset sample edits") { update(source.initialEdit) }
                             .font(.subheadline).disabled(edit == source.initialEdit || applying)
                     } else if failure == nil {

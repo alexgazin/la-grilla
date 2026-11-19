@@ -32,6 +32,7 @@ struct DrumSamplePicker: View {
     @State private var busy = false
     @State private var task: Task<Void, Never>?
     @State private var error: String?
+    @State private var loopTempo: Double?
 
     private var track: Track? {
         guard session.project.id == sourceID else { return nil }
@@ -63,6 +64,13 @@ struct DrumSamplePicker: View {
                     }
                     Button("Slice a loop onto the pads") { showSliceImporter = true }
                         .accessibilityIdentifier("pad-samples.slice-loop")
+                    if let loopTempo, abs(loopTempo - session.project.bpm) >= 0.05 {
+                        Button(String(format: NSLocalizedString("Use the loop tempo: %.1f BPM", comment: "Loop tempo"), loopTempo)) {
+                            let bpm = min(240, max(40, loopTempo))
+                            session.edit { $0.bpm = bpm }
+                            self.loopTempo = nil
+                        }.accessibilityIdentifier("pad-samples.loop-tempo")
+                    }
                 } header: { Text("Factory kits") }
                 footer: { Text("Audition the same beat with each kit. Loading replaces the 16 pad sounds in one undoable edit.") }
                     .disabled(!editable)
@@ -101,6 +109,8 @@ struct DrumSamplePicker: View {
         .fileImporter(isPresented: $showSliceImporter, allowedContentTypes: [.wav, .aiff]) { result in
             switch result {
             case .success(let url):
+                loopTempo = nil
+                Task { loopTempo = try? await DrumSamplePreparation.shared.loopTempo(url) }
                 prepare {
                     let slices = try await DrumSamplePreparation.shared.importSlices(url)
                     return slices.prefix(16).enumerated().map { (pad: Optional($0.offset), sound: $0.element) }

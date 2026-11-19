@@ -117,6 +117,14 @@ actor DrumSamplePreparation {
         }
     }
 
+    /// I76: the loop's tempo, offered after slicing so the song can follow it.
+    func loopTempo(_ url: URL) throws -> Double? {
+        let loop = try importSample(url)
+        let pcm = try SamplePCM.decode(loop.data, asset: loop.asset)
+        guard let zone = pcm.zones.first else { return nil }
+        return AudioTempoEstimator.estimate(zone.samples.map { Float($0) / 32768 }, rate: pcm.rate)?.bpm
+    }
+
     func importSample(_ url: URL) throws -> PreparedSound {
         let granted = url.startAccessingSecurityScopedResource()
         defer { if granted { url.stopAccessingSecurityScopedResource() } }

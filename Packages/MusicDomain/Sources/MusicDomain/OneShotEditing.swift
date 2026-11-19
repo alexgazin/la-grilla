@@ -49,7 +49,7 @@ public struct OneShotSource: Sendable {
     public let asset: SampleAsset
     public let sampleRate: Int
     public let waveform: [OneShotWaveformBin]
-    private let zone: SamplePCM.Zone
+    let zone: SamplePCM.Zone
 
     public var frameCount: Int { zone.samples.count }
     public var initialEdit: OneShotEdit { OneShotEdit(startFrame: 0, endFrame: frameCount) }
