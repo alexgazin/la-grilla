@@ -165,3 +165,25 @@ struct HookGeneratorTests {
         #expect(Compiler.notes(edited).filter { $0.track < p.tracks.count } == Compiler.notes(p))
     }
 }
+
+struct RetroAndVelocityTests {
+    @Test func recentHitsLandInTheClipQuantizedWithOneAttackPerStep() {
+        var buffer = PadRetroBuffer(capacity: 16)
+        buffer.append(.init(tick: 3830, pad: 0, velocity: 90, clock: 100))      // old: before the window
+        buffer.append(.init(tick: 3850, pad: 0, velocity: 80, clock: 2_000))    // clip starts at 3840
+        buffer.append(.init(tick: 3860, pad: 0, velocity: 110, clock: 2_010))   // same step, louder
+        buffer.append(.init(tick: 4090, pad: 2, velocity: 70, clock: 2_100))
+        buffer.append(.init(tick: 9000, pad: 1, velocity: 99, clock: 2_200))    // outside the clip
+        let events = buffer.events(since: 1_000, clipStart: barTicks, clipLength: barTicks, quantizer: GrooveQuantizer(.sixteenth))
+        #expect(events.map(\.tick) == [0, 240] && events.map(\.pad) == [0, 2] && events[0].velocity == 110)
+    }
+
+    @Test func touchVelocityFromForceOrRadiusAndCurves() {
+        #expect(PadVelocity.fromTouch(force: 0, maximumForce: 0, radius: 8) == 30)
+        #expect(PadVelocity.fromTouch(force: 0, maximumForce: 0, radius: 40) == 127)
+        #expect(PadVelocity.fromTouch(force: 4, maximumForce: 6.67, radius: 10) == 127)
+        let mid = PadVelocity.fromTouch(force: 0, maximumForce: 0, radius: 21)
+        #expect(PadVelocity.fromTouch(force: 0, maximumForce: 0, radius: 21, curve: .soft) > mid)
+        #expect(PadVelocity.fromTouch(force: 0, maximumForce: 0, radius: 21, curve: .hard) < mid)
+    }
+}

@@ -23,7 +23,11 @@ import Observation
     var passClock: UInt64 = 0; var replaceNextPass = false
     struct RawHit {let tick: Int;let sampleFrame: UInt64;let event: DrumEvent}
     var rawHits: [RawHit] = []
-    private struct PadRecordingInput {let pad:Int;let tick:Int;let clock:UInt64}
+    private struct PadRecordingInput {let pad:Int;let tick:Int;let clock:UInt64;var velocity:Int=100}
+    /// I09: recent live hits played without Record, kept for "Keep the last bars".
+    @ObservationIgnored private var retroHits=PadRetroBuffer(capacity:1024)
+    /// I04: take each hit's velocity from the touch (off: every hit is 100).
+    var padVelocityFromTouch=false
     @ObservationIgnored private var pendingPadInputs:[PadRecordingInput]=[]
     @ObservationIgnored private var drumPass:DrumRecordingPass?
     /// Read-only inspection of events already drained from the contact queue.
@@ -384,6 +388,26 @@ import Observation
             commitPass(); passClock += frames
         }
     }
+    /// I09: put the hits played without Record during the last `bars` bars into
+    /// the current drum clip, quantized, as one undoable edit.
+    @discardableResult func keepRecentHits(bars:Int)->Int {
+        guard !recording,!armed,!performance.contextActive,let track=project.tracks.first(where:{$0.role == .drums}),
+              let clip=focusedDrumClip ?? track.clips.first(where:{$0.start<=section.start && $0.start+$0.length>section.start}) else{return 0}
+        audio.refreshClock()
+        let framesPerBar=UInt64((Double(barTicks)/Double(ppq)*60/project.bpm*audio.sampleRate).rounded())
+        let window=UInt64(max(1,bars))*framesPerBar
+        let since=audio.clock>window ? audio.clock-window:0
+        let events=retroHits.events(since:since,clipStart:clip.start,clipLength:clip.length,quantizer:GrooveQuantizer(quantize,strength:quantizeStrength,swing:swing))
+        guard !events.isEmpty else{message=NSLocalizedString("Play the pads while the loop runs, then keep what you played.",comment:"Keep recent hits");return 0}
+        do{
+            var draft=try DrumRecordingDraft(project:project,clipID:clip.id)
+            try draft.commitPass(events)
+            let candidate=try draft.candidate(for:project)
+            edit{$0=candidate}
+            retroHits=PadRetroBuffer(capacity:1024)
+            return events.count
+        }catch{message=error.localizedDescription;return 0}
+    }
     func commitPass() {
         guard var draft=drumDraft else{return}
         do{
@@ -395,15 +419,19 @@ import Observation
     }
     /// Keep the contact path bounded: enqueue sound, snapshot the transport and
     /// return. Recording bookkeeping is drained in order by the existing poll.
-    @discardableResult func hit(_ pad:Int,touchTime:TimeInterval?=nil)->Bool {
+    @discardableResult func hit(_ pad:Int,touchTime:TimeInterval?=nil,velocity:Int?=nil)->Bool {
         guard !backgrounded,!performance.replaying,(0..<16).contains(pad),audio.isPrepared || ensureAudio() else{return false}
-        guard audio.pad(pad) else{return false}
+        let strength=min(127,max(1,velocity ?? 100))
+        guard audio.pad(pad,velocity:strength) else{return false}
         acceptedPadHits+=1
         if let touchTime,touchTime.isFinite{lastPadDispatchMilliseconds=max(0,(ProcessInfo.processInfo.systemUptime-touchTime)*1000)}
         if recording || armed {
             audio.refreshClock()
             guard pendingPadInputs.count<4096 else{message=MusicError.tooDense.localizedDescription;return true}
-            pendingPadInputs.append(PadRecordingInput(pad:pad,tick:Int(audio.tick),clock:audio.clock))
+            pendingPadInputs.append(PadRecordingInput(pad:pad,tick:Int(audio.tick),clock:audio.clock,velocity:strength))
+        } else if audio.playing {
+            audio.refreshClock()
+            retroHits.append(.init(tick:Int(audio.tick),pad:pad,velocity:strength,clock:audio.clock))
         }
         return true
     }
@@ -419,7 +447,7 @@ import Observation
                 commitPass();passClock+=passes*frames
             }
             guard let draft=drumDraft,let local=draft.localTick(input.tick),drumPass != nil else{continue}
-            let event=DrumEvent(tick:GrooveQuantizer(quantize,strength:quantizeStrength,swing:swing).tick(local,length:takeLength),pad:input.pad)
+            let event=DrumEvent(tick:GrooveQuantizer(quantize,strength:quantizeStrength,swing:swing).tick(local,length:takeLength),pad:input.pad,velocity:input.velocity)
             do{
                 try drumPass?.append(event)
                 rawHits.append(RawHit(tick:local,sampleFrame:input.clock,event:event))

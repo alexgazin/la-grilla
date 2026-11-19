@@ -1245,3 +1245,6 @@
 "Load World Kit" = "Load World Kit";
 "Surprise me" = "Surprise me";
 "A new random kit, timbres and balance each time. Apply the one you like." = "A new random kit, timbres and balance each time. Apply the one you like.";
+"Velocity from touch" = "Velocity from touch";
+"Keep the last 4 bars I played" = "Keep the last 4 bars I played";
+"Play the pads while the loop runs, then keep what you played." = "Play the pads while the loop runs, then keep what you played.";

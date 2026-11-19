@@ -1247,3 +1247,6 @@
 "Load World Kit" = "Загрузить мировые ударные";
 "Surprise me" = "Сюрприз";
 "A new random kit, timbres and balance each time. Apply the one you like." = "Каждый раз новый случайный набор, тембры и баланс. Примените понравившийся.";
+"Velocity from touch" = "Сила удара от касания";
+"Keep the last 4 bars I played" = "Сохранить 4 последних сыгранных такта";
+"Play the pads while the loop runs, then keep what you played." = "Сыграйте на пэдах, пока идёт луп, затем сохраните сыгранное.";

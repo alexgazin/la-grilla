@@ -58,7 +58,7 @@ struct JamView: View {
         IconButton(symbol:"metronome",label:"Metronome",color:session.metronome ? .mint:.muted){session.metronome.toggle();session.audio.metronome(session.metronome)}
     }
     private var recordingOptions:some View{
-        Menu{Toggle("Count-in",isOn:$session.countIn);Toggle("Overdub",isOn:$session.overdub)}label:{Image(systemName:"slider.horizontal.3").foregroundStyle(Color.muted).frame(width:44,height:44).background(Color.raised.opacity(0.45),in:RoundedRectangle(cornerRadius:12,style:.continuous))}.accessibilityLabel("Drum recording options").disabled(session.performance.contextActive)
+        Menu{Toggle("Count-in",isOn:$session.countIn);Toggle("Overdub",isOn:$session.overdub);Toggle("Velocity from touch",isOn:$session.padVelocityFromTouch);Button("Keep the last 4 bars I played"){_ = session.keepRecentHits(bars:4)}.disabled(session.recording || session.armed)}label:{Image(systemName:"slider.horizontal.3").foregroundStyle(Color.muted).frame(width:44,height:44).background(Color.raised.opacity(0.45),in:RoundedRectangle(cornerRadius:12,style:.continuous))}.accessibilityLabel("Drum recording options").disabled(session.performance.contextActive)
     }
     private var editorMode:some View {HStack(spacing:2){
         Button{steps=false}label:{Text("Pads").frame(maxWidth:.infinity,minHeight:44).foregroundStyle(!steps ? Color.ink:Color.muted).background(!steps ? Color.mint:Color.clear,in:RoundedRectangle(cornerRadius:10,style:.continuous))}.accessibilityAddTraits(!steps ? .isSelected:[])
@@ -118,7 +118,7 @@ struct JamView: View {
                     .frame(maxWidth:.infinity,alignment:.leading).frame(height:side).contentShape(Rectangle())
                     .accessibilityHidden(true)
             }}.frame(maxHeight:.infinity,alignment:.center)
-                .overlay{PadTouchSurface(enabled:scenePhase == .active && !session.performance.replaying,trace:session.runtimeTraceEnabled,onHit:{pad,time in session.hit(pad,touchTime:time)},onHeld:{pressed=$0})}
+                .overlay{PadTouchSurface(enabled:scenePhase == .active && !session.performance.replaying,trace:session.runtimeTraceEnabled,velocityFromTouch:session.padVelocityFromTouch,onHit:{pad,time,velocity in session.hit(pad,touchTime:time,velocity:velocity)},onHeld:{pressed=$0})}
         }.frame(height:height)
     }
     private var focusedClip:Clip?{guard let id=session.drumClipID else{return nil};return session.displayProject.tracks.first{$0.role == .drums}?.clips.first{$0.id==id}}

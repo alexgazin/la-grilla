@@ -8,11 +8,12 @@ import MusicDomain
 struct PadTouchSurface:UIViewRepresentable {
     let enabled:Bool
     let trace:Bool
-    let onHit:(Int,TimeInterval)->Bool
+    var velocityFromTouch=false
+    let onHit:(Int,TimeInterval,Int?)->Bool
     let onHeld:(Set<Int>)->Void
     func makeUIView(context:Context)->PadTouchView{PadTouchView()}
     func updateUIView(_ view:PadTouchView,context:Context){
-        view.onHit=onHit;view.onHeld=onHeld;view.trace=trace
+        view.onHit=onHit;view.onHeld=onHeld;view.trace=trace;view.velocityFromTouch=velocityFromTouch
         view.isUserInteractionEnabled=enabled
         if !enabled{view.cancelTouches(notify:false)}
     }
@@ -20,9 +21,10 @@ struct PadTouchSurface:UIViewRepresentable {
 }
 
 @MainActor final class PadTouchView:UIView {
-    var onHit:((Int,TimeInterval)->Bool)?
+    var onHit:((Int,TimeInterval,Int?)->Bool)?
     var onHeld:((Set<Int>)->Void)?
     var trace=false
+    var velocityFromTouch=false
     private var contacts:[ObjectIdentifier:Int]=[:]
     private var accepted=[Int](repeating:0,count:16)
     private var acceptedAt=[TimeInterval](repeating:0,count:16)
@@ -55,7 +57,8 @@ struct PadTouchSurface:UIViewRepresentable {
         guard contacts[id]==nil,let pad=pad(at:touch.location(in:self))else{return}
         contacts[id]=pad
         // Enqueue the sound before publishing visual/accessibility changes.
-        if onHit?(pad,touch.timestamp)==true{accepted[pad]+=1;acceptedAt[pad]=ProcessInfo.processInfo.systemUptime}
+        let velocity=velocityFromTouch ? PadVelocity.fromTouch(force:Double(touch.force),maximumForce:Double(touch.maximumPossibleForce),radius:Double(touch.majorRadius)):nil
+        if onHit?(pad,touch.timestamp,velocity)==true{accepted[pad]+=1;acceptedAt[pad]=ProcessInfo.processInfo.systemUptime}
         publishHeld()
     }
     func end(_ touches:Set<UITouch>){for touch in touches{if let pad=contacts.removeValue(forKey:ObjectIdentifier(touch)){releasedAt[pad]=touch.timestamp}};publishHeld()}
@@ -75,7 +78,7 @@ struct PadTouchSurface:UIViewRepresentable {
     }
     func activate(_ pad:Int)->Bool{
         guard isUserInteractionEnabled,window != nil else{return false}
-        let result=onHit?(pad,ProcessInfo.processInfo.systemUptime) ?? false
+        let result=onHit?(pad,ProcessInfo.processInfo.systemUptime,nil) ?? false
         if result{accepted[pad]+=1};publishHeld();return result
     }
 }

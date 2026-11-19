@@ -162,7 +162,12 @@ public enum NoteRepeat {
 
 /// Fixed-capacity ring of the most recent live pad hits (played without Record).
 public struct PadRetroBuffer: Sendable {
-    public struct Hit: Equatable, Sendable { public var tick: Int; public var pad: Int; public var velocity: Int }
+    public struct Hit: Equatable, Sendable {
+        public var tick: Int; public var pad: Int; public var velocity: Int
+        /// Output sample clock of the hit; orders hits across loop wraps.
+        public var clock: UInt64
+        public init(tick: Int, pad: Int, velocity: Int, clock: UInt64 = 0) { self.tick = tick; self.pad = pad; self.velocity = velocity; self.clock = clock }
+    }
     public let capacity: Int
     private var storage: [Hit] = []
     private var next = 0
@@ -172,6 +177,19 @@ public struct PadRetroBuffer: Sendable {
         next = (next + 1) % capacity
     }
     public var hits: [Hit] { storage.count < capacity ? storage : Array(storage[next...] + storage[..<next]) }
+    /// Hits played since `clock` that fall inside a clip, at their transport
+    /// position in that clip, quantized, one attack per pad and step.
+    public func events(since clock: UInt64, clipStart: Int, clipLength: Int, quantizer: GrooveQuantizer) -> [DrumEvent] {
+        var best: [Int: DrumEvent] = [:]
+        for hit in hits where hit.clock >= clock {
+            let local = hit.tick - clipStart
+            guard local >= 0, local < clipLength else { continue }
+            let tick = quantizer.tick(local, length: clipLength), key = tick * 16 + hit.pad
+            if let existing = best[key], existing.velocity >= hit.velocity { continue }
+            best[key] = DrumEvent(tick: tick, pad: hit.pad, velocity: hit.velocity)
+        }
+        return best.values.sorted { ($0.tick, $0.pad) < ($1.tick, $1.pad) }
+    }
     /// The last `bars` bars before `now`, as drum events relative to the start of that window.
     public func lastBars(_ bars: Int, endingAt now: Int) -> [DrumEvent] {
         let length = max(1, bars) * barTicks, start = max(0, now - length)
@@ -421,5 +439,22 @@ extension Array {
             result.swapAt(i, Int(state % UInt64(i + 1)))
         }
         return result
+    }
+}
+
+// MARK: I04 · Velocity from the touch
+
+public enum PadVelocity {
+    public enum Curve: String, CaseIterable, Sendable { case soft, linear, hard
+        var exponent: Double { switch self { case .soft: 0.6; case .linear: 1; case .hard: 1.6 } }
+    }
+    /// Velocity 30…127 from 3D-touch force when the screen reports it, otherwise
+    /// from the contact radius (a firmer, flatter finger covers more glass).
+    public static func fromTouch(force: Double, maximumForce: Double, radius: Double, curve: Curve = .linear) -> Int {
+        var amount: Double
+        if maximumForce > 0, force > 0 { amount = min(1, force / (maximumForce * 0.6)) }
+        else { amount = min(1, max(0, (radius - 8) / 26)) }
+        amount = pow(amount, curve.exponent)
+        return Int((30 + 97 * amount).rounded())
     }
 }
