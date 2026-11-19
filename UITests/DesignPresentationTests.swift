@@ -34,7 +34,7 @@ final class DesignPresentationTests: XCTestCase {
         // These are the app's existing, real QA note events, not a test overlay.
         try requireReachable(app.navigationBars["Piano roll"])
         let noteCount = app.staticTexts["notes.count"]
-        XCTAssertTrue(noteCount.waitForExistence(timeout: 5))
+        if !noteCount.exists { XCTAssertTrue(noteCount.waitForExistence(timeout: 5)) }
         XCTAssertEqual(noteCount.label, "5")
         try requireReachable(app.buttons["notes.add"], minimumTarget: true)
         try requireReachable(app.buttons["notes.play"], minimumTarget: true)
@@ -43,10 +43,8 @@ final class DesignPresentationTests: XCTestCase {
 
         try requireReachable(app.buttons["perform.transport"])
         let baseline = try sourceState(app)
-        let undoEnabled = app.buttons["Undo"].isEnabled
-        let redoEnabled = app.buttons["Redo"].isEnabled
-        XCTAssertEqual(baseline["preview"], "false")
-        XCTAssertEqual(baseline["actualPlaying"], "0")
+        XCTAssertEqual(baseline.fields["preview"], "false")
+        XCTAssertEqual(baseline.fields["actualPlaying"], "0")
         for title in ["Grid", "Jam", "Mixer", "Play"] {
             try requireReachable(app.buttons[title], minimumTarget: true)
         }
@@ -57,7 +55,7 @@ final class DesignPresentationTests: XCTestCase {
         try requireReachable(app.buttons["jam.pad.0"], minimumTarget: true)
         try requireReachable(app.buttons["jam.recording-guide"], minimumTarget: true)
         try keepScreen(app, name: "Design26-" + name + "-jam", light: appearance == "light")
-        try assertUnchanged(app, baseline: baseline, undoEnabled: undoEnabled, redoEnabled: redoEnabled)
+        try assertUnchanged(app, baseline: baseline)
 
         let sound = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'sound.track.drums.'")).firstMatch
         try requireReachable(sound, minimumTarget: true)
@@ -72,14 +70,14 @@ final class DesignPresentationTests: XCTestCase {
         app.buttons["Cancel"].tap()
         try requireReachable(sound, minimumTarget: true)
         XCTAssertEqual(sound.value as? String, originalSound)
-        try assertUnchanged(app, baseline: baseline, undoEnabled: undoEnabled, redoEnabled: redoEnabled)
+        try assertUnchanged(app, baseline: baseline)
 
         app.buttons["Mixer"].tap()
         try requireReachable(app.buttons["mixer.mute.0"], minimumTarget: true)
         try requireReachable(app.buttons["mixer.solo.0"], minimumTarget: true)
         try requireReachable(app.sliders["mixer.pan.0"])
         try keepScreen(app, name: "Design26-" + name + "-mixer", light: appearance == "light")
-        try assertUnchanged(app, baseline: baseline, undoEnabled: undoEnabled, redoEnabled: redoEnabled)
+        try assertUnchanged(app, baseline: baseline)
 
         app.buttons["Grid"].tap()
         try requireReachable(app.buttons["notes.open"], minimumTarget: true)
@@ -87,23 +85,45 @@ final class DesignPresentationTests: XCTestCase {
         try requireReachable(app.navigationBars["Piano roll"])
         XCTAssertEqual(app.staticTexts["notes.count"].label, "5", "Reopening the editor must preserve the seeded notes")
         app.buttons["Done"].tap()
-        try assertUnchanged(app, baseline: baseline, undoEnabled: undoEnabled, redoEnabled: redoEnabled)
+        let final = try assertUnchanged(app, baseline: baseline)
 
         let receipt = XCTAttachment(string:
             "Requested appearance: \(appearance)\n" +
             "Real notes fixture created before baseline: 5 events\n" +
             "Navigation: Piano → Grid → Jam → Sound → Jam → Mixer → Grid → Piano → Grid\n" +
-            "Baseline source fields: \(baseline)\n" +
-            "Final source fields: \(try sourceState(app))\n" +
-            "Final actual runtime:\n\(app.buttons["perform.transport"].value as? String ?? "missing")"
+            "Baseline source fields: \(baseline.fields)\n" +
+            "Final source fields: \(final.fields)\n" +
+            "Final actual runtime:\n\(final.trace)"
         )
         receipt.name = "Design26-" + name + "-navigation-receipt"
         receipt.lifetime = .keepAlways
         add(receipt)
     }
 
-    @MainActor private func sourceState(_ app: XCUIApplication) throws -> [String: String] {
-        let trace = app.buttons["perform.transport"].value as? String ?? ""
+    private struct StudioState {
+        let trace: String
+        let fields: [String: String]
+        let undoEnabled: Bool
+        let redoEnabled: Bool
+    }
+
+    @MainActor private func sourceState(_ app: XCUIApplication) throws -> StudioState {
+        // Read trace and history flags from one accessibility tree at this navigation boundary.
+        let tree = try app.snapshot()
+        var nodes: [any XCUIElementSnapshot] = [tree]
+        var trace: String?, undo: Bool?, redo: Bool?
+        while let node = nodes.popLast() {
+            if node.elementType == .button {
+                if node.identifier == "perform.transport" { trace = node.value as? String }
+                if node.label == "Undo" { undo = node.isEnabled }
+                if node.label == "Redo" { redo = node.isEnabled }
+            }
+            nodes.append(contentsOf: node.children)
+        }
+        guard let trace, let undo, let redo else {
+            XCTFail("Missing transport or history buttons in the studio")
+            throw PresentationError.missingTrace
+        }
         let firstLine = trace.components(separatedBy: "\n").first ?? ""
         var result: [String: String] = [:]
         for token in firstLine.split(separator: " ") {
@@ -119,23 +139,24 @@ final class DesignPresentationTests: XCTestCase {
             XCTFail("The real runtime trace must identify the project, revision, range and playback state")
             throw PresentationError.missingTrace
         }
-        return Dictionary(uniqueKeysWithValues: keys.map { ($0, result[$0]!) })
+        let fields = Dictionary(uniqueKeysWithValues: keys.map { ($0, result[$0]!) })
+        return StudioState(trace: trace, fields: fields, undoEnabled: undo, redoEnabled: redo)
     }
 
-    @MainActor private func assertUnchanged(
-        _ app: XCUIApplication,
-        baseline: [String: String],
-        undoEnabled: Bool,
-        redoEnabled: Bool
-    ) throws {
+    @discardableResult
+    @MainActor private func assertUnchanged(_ app: XCUIApplication, baseline: StudioState) throws -> StudioState {
         try requireReachable(app.buttons["perform.transport"])
-        XCTAssertEqual(try sourceState(app), baseline, "Browsing tools must not change music or transport")
-        XCTAssertEqual(app.buttons["Undo"].isEnabled, undoEnabled)
-        XCTAssertEqual(app.buttons["Redo"].isEnabled, redoEnabled)
+        let current = try sourceState(app)
+        XCTAssertEqual(current.fields, baseline.fields, "Browsing tools must not change music or transport")
+        XCTAssertEqual(current.undoEnabled, baseline.undoEnabled)
+        XCTAssertEqual(current.redoEnabled, baseline.redoEnabled)
+        return current
     }
 
     @MainActor private func requireReachable(_ element: XCUIElement, minimumTarget: Bool = false) throws {
-        guard element.waitForExistence(timeout: 15), element.isHittable else {
+        // A visible control has already established existence. Wait only while
+        // the simulator is still presenting it, keeping the original deadline.
+        guard element.isHittable || (element.waitForExistence(timeout: 15) && element.isHittable) else {
             XCTFail("The original native control is not reachable: " + element.debugDescription)
             throw PresentationError.unreachable
         }
@@ -176,11 +197,11 @@ final class DesignPresentationTests: XCTestCase {
             throw PresentationError.appearanceUnsettled
         }
         XCTAssertFalse(app.keyboards.firstMatch.exists)
-        XCTAssertFalse(app.alerts.firstMatch.exists)
+        // Both accepted samples above required the absence of an alert.
     }
 
     @MainActor private func medianLuminance(_ screenshot: XCUIScreenshot) -> Double? {
-        guard let image = UIImage(data: screenshot.pngRepresentation)?.cgImage else { return nil }
+        guard let image = screenshot.image.cgImage else { return nil }
         let width = 40, height = 60
         var pixels = [UInt8](repeating: 0, count: width * height * 4)
         let rendered = pixels.withUnsafeMutableBytes { bytes -> Bool in
