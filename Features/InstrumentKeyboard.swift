@@ -46,6 +46,7 @@ private struct InstrumentKeyboard: View {
     /// I13: only the notes of the project key, as equal keys.
     @AppStorage("keyboard.scaleOnly") private var scaleOnly = false
     @State private var sustain = false
+    @AppStorage("keyboard.chordStrip") private var chordStrip = false
 
     private var track: Track? {
         session.project.tracks.first { $0.id == (selectedTrackID ?? trackID) && $0.role != .drums }
@@ -99,6 +100,9 @@ private struct InstrumentKeyboard: View {
                             IconButton(symbol: "pedal.accelerator", label: "Sustain", color: sustain ? .mint : .muted) { setSustain(!sustain) }
                                 .accessibilityValue(LocalizedStringKey(sustain ? "On" : "Off"))
                                 .accessibilityIdentifier("keyboard.sustain")
+                            IconButton(symbol: "music.quarternote.3", label: "One-finger chords", color: chordStrip ? .mint : .muted) { resetKeys(); chordStrip.toggle() }
+                                .accessibilityValue(LocalizedStringKey(chordStrip ? "On" : "Off"))
+                                .accessibilityIdentifier("keyboard.chord-strip")
                             Spacer()
                             if track.role == .melody, let clip = sourceClip(track) {
                                 IconButton(symbol: take == nil ? "record.circle" : "stop.circle.fill",
@@ -115,6 +119,10 @@ private struct InstrumentKeyboard: View {
                         }.padding(.horizontal, 14)
                         if let error {
                             Text(error).font(.caption).foregroundStyle(Color.record).padding(.horizontal)
+                        }
+                        if chordStrip {
+                            ChordStrip(keyRoot: session.project.keyRoot, minor: session.project.minor) { pitch, down in key(pitch, down: down, track: track) }
+                                .padding(.horizontal, 10)
                         }
                         InstrumentKeybed(root: root, octaves: geometry.size.width >= 660 ? 2 : 1,
                                          keyRoot: session.project.keyRoot, minor: session.project.minor, scaleOnly: scaleOnly,
@@ -493,4 +501,50 @@ private final class KeybedView: UIView {
     override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) { update(touches, releasing: false) }
     override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) { update(touches, releasing: true) }
     override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) { update(touches, releasing: true) }
+}
+
+/// I14: seven scale-degree buttons; each plays the diatonic chord voiced
+/// closest to the previous one, through the same keybed path (and recording).
+private struct ChordStrip: View {
+    let keyRoot: Int
+    let minor: Bool
+    let play: (Int, Bool) -> Void
+    @State private var previous: [Int] = []
+    @State private var held: [Int: [Int]] = [:]
+    private let numerals = ["I", "II", "III", "IV", "V", "VI", "VII"]
+    var body: some View {
+        HStack(spacing: 6) {
+            ForEach(0..<7, id: \.self) { degree in
+                Text(verbatim: label(degree))
+                    .font(.caption.weight(.semibold)).frame(maxWidth: .infinity, minHeight: 48)
+                    .background(held[degree] != nil ? Color.mint : Color.raised, in: RoundedRectangle(cornerRadius: 10))
+                    .foregroundStyle(held[degree] != nil ? Color.ink : Color.studioText)
+                    .contentShape(Rectangle())
+                    .gesture(DragGesture(minimumDistance: 0)
+                        .onChanged { _ in press(degree) }
+                        .onEnded { _ in release(degree) })
+                    .accessibilityLabel(Text(verbatim: label(degree))).accessibilityAddTraits(.isButton)
+                    .accessibilityAction { press(degree); release(degree) }
+                    .accessibilityIdentifier("keyboard.chord.\(degree)")
+            }
+        }
+        .onDisappear { for degree in Array(held.keys) { release(degree) } }
+    }
+    private func label(_ degree: Int) -> String {
+        let scale = NoteTools.scale(root: keyRoot, minor: minor)
+        let third = (scale[(degree + 2) % 7] - scale[degree] + 12) % 12
+        let numeral = numerals[degree]
+        return third == 3 ? numeral.lowercased() : numeral
+    }
+    private func press(_ degree: Int) {
+        guard held[degree] == nil else { return }
+        let chord = ScaleKeyboard.chord(degree: degree, root: keyRoot, minor: minor, previous: previous)
+        held[degree] = chord
+        previous = chord
+        for pitch in chord { play(pitch, true) }
+    }
+    private func release(_ degree: Int) {
+        guard let chord = held.removeValue(forKey: degree) else { return }
+        for pitch in chord { play(pitch, false) }
+    }
 }
