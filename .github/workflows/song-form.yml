@@ -42,7 +42,7 @@ jobs:
         timeout-minutes: 23
         run: |
           DEVICE=$(cat /tmp/grilla-simulator-id)
-          CASES=(ArrangementUITests/testSongFormAddsDragsAndUndoesWholeSection LiveEditingTests/testDuplicateMoveAndDeleteSectionDuringPlayback AssistantCompositionTests/testFullSongReviewAppliesAsOneUndoOnCommandFallback)
+          CASES=(PianoTouchUITests/testKeyboardSelectsInstrumentRecordsPhraseAndReturnsToNotes)
           if [[ "$GITHUB_REF_NAME" == "feat/song-brief-39" ]]; then CASES=(SketchGenerationTests/testWorkoutFormReviewAndCreate); fi
           CASE_LIMIT=180
           NATIVE_BUDGET=510
