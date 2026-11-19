@@ -40,6 +40,7 @@ struct PianoRollView: View {
                     if listMode {eventList(pattern).frame(height:dynamicType.isAccessibilitySize ? 280:nil)} else {roll(pattern)}
                     if let note {NoteInspector(session:session,patternID:pattern.id,note:note,snap:snap,spelling:spelling)}
                     editBar(pattern).padding(.horizontal,16)
+                    NoteToolsMenu(session:session,patternID:pattern.id,selected:selected).padding(.horizontal,16)
                 } else {ContentUnavailableView("Add a melody track",systemImage:"pianokeys",description:Text("Write a melody above your harmony."))}
                 HStack(spacing:4){IconButton(symbol:"arrow.uturn.backward",label:"Undo"){session.undo()}.disabled(!session.history.canUndo).accessibilityIdentifier("notes.undo");IconButton(symbol:"arrow.uturn.forward",label:"Redo"){session.redo()}.disabled(!session.history.canRedo).accessibilityIdentifier("notes.redo");Spacer();Text(LocalizedStringKey(session.audio.playing ? "PLAYING":"STOPPED")).font(.caption.monospaced()).foregroundStyle(Color.muted).accessibilityIdentifier("notes.status");IconButton(symbol:session.audio.playing ? "stop.fill":"play.fill",label:session.audio.playing ? "Stop":"Play",color:.mint){session.togglePlay()}.accessibilityIdentifier("notes.play")}.padding(.horizontal,12).overlay(alignment:.top){Rectangle().fill(Color.outline.opacity(0.5)).frame(height:0.5)}
             }.padding(.top,12).padding(.bottom,8).background(Color.ink).modifier(ScrollableForLargeType())
@@ -523,4 +524,33 @@ private struct NoteInspector:View {
     }
     func move(_ tick:Int){session.edit{p in if let i=p.patterns.firstIndex(where:{$0.id==patternID}){NoteEditing.move(note.id,in:&p.patterns[i],tick:tick,pitch:note.pitch,step:snap)}}}
     func resize(_ duration:Int){session.edit{p in if let i=p.patterns.firstIndex(where:{$0.id==patternID}){NoteEditing.resize(note.id,in:&p.patterns[i],duration:duration,step:snap)}}}
+}
+
+/// Waves 2–3 note tools: one undoable edit on the selected note or the whole pattern.
+private struct NoteToolsMenu: View {
+    @Bindable var session: Session
+    let patternID: UUID
+    let selected: UUID?
+    var body: some View {
+        Menu {
+            Button("Humanize timing and velocity") { apply { notes, ids, length in NoteTools.humanize(notes, ids: ids, timing: 18, velocity: 10, seed: UInt64(session.project.revision) &+ 1, length: length) } }
+            Button("Legato") { apply { notes, ids, length in NoteTools.legato(notes, ids: ids, length: length) } }
+            Button("Staccato") { apply { notes, ids, _ in NoteTools.staccato(notes, ids: ids) } }
+            Button("Up one step in the key") { apply { notes, ids, _ in NoteTools.scaleTranspose(notes, ids: ids, steps: 1, root: session.project.keyRoot, minor: session.project.minor) } }
+            Button("Down one step in the key") { apply { notes, ids, _ in NoteTools.scaleTranspose(notes, ids: ids, steps: -1, root: session.project.keyRoot, minor: session.project.minor) } }
+        } label: {
+            Label(selected == nil ? "Tools · all notes" : "Tools · selected note", systemImage: "wand.and.stars")
+                .font(.caption.weight(.semibold)).frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+        }.accessibilityIdentifier("notes.tools")
+    }
+
+    private func apply(_ transform: @escaping ([NoteEvent], Set<UUID>, Int) -> [NoteEvent]) {
+        let id = patternID, target = selected
+        session.edit { project in
+            guard let index = project.patterns.firstIndex(where: { $0.id == id }) else { return }
+            let notes = project.patterns[index].notes ?? []
+            let ids: Set<UUID> = target.map { Set([$0]) } ?? Set(notes.map(\.id))
+            project.patterns[index].notes = transform(notes, ids, project.patterns[index].length)
+        }
+    }
 }

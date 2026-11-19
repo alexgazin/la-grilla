@@ -1188,3 +1188,24 @@
 "Import the instrument again in Sounds, or choose a built-in sound for this track." = "Импортируйте инструмент заново в «Звуках» или выберите встроенный звук для этой дорожки.";
 "Load the factory kit again in Sounds." = "Загрузите заводской набор заново в «Звуках».";
 "Import the sample again on this pad, or load one of your saved kits." = "Импортируйте сэмпл на этот пэд заново или загрузите один из своих наборов.";
+
+/* Ideas waves 1–3 */
+"Strength" = "Сила";
+"Swing" = "Свинг";
+"Straight" = "Ровно";
+"Triplet" = "Триоль";
+"Tap tempo" = "Тап‑темп";
+"Use %.0f BPM" = "Взять %.0f BPM";
+"Humanize timing and velocity" = "Очеловечить время и силу";
+"Legato" = "Легато";
+"Staccato" = "Стаккато";
+"Up one step in the key" = "На ступень вверх в тональности";
+"Down one step in the key" = "На ступень вниз в тональности";
+"Tools · all notes" = "Инструменты · все ноты";
+"Tools · selected note" = "Инструменты · выбранная нота";
+"This file is not a Standard MIDI File." = "Это не стандартный MIDI-файл.";
+"Only MIDI format 0 and 1 files with musical time can be imported." = "Импортируются только MIDI-файлы формата 0 и 1 с музыкальным временем.";
+"This MIDI file contains no notes." = "В этом MIDI-файле нет нот.";
+"This MIDI file is damaged." = "Этот MIDI-файл повреждён.";
+"Imported" = "Импорт";
+"MIDI channel %d" = "MIDI-канал %d";

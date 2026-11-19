@@ -52,7 +52,7 @@ struct JamView: View {
         Menu{ForEach(session.loopLengthOptions,id:\.self){n in Button("\(n) bars"){session.setLoop(bars:n)}}}label:{HStack(spacing:6){Image(systemName:"repeat").foregroundStyle(Color.drums);Text("\(session.loopBars) bars").monospacedDigit();Image(systemName:"chevron.down").font(.system(size:11,weight:.semibold)).foregroundStyle(Color.muted)}.modifier(JamUtilitySurface())}.disabled(session.performance.contextActive)
     }
     private var quantizeControl:some View{
-        Menu{ForEach(Quantize.allCases,id:\.rawValue){q in Button(LocalizedStringKey(q == .off ? "Off":q == .eighth ? "1/8":"1/16")){session.quantize=q}}}label:{HStack(spacing:6){Text("Q").foregroundStyle(Color.drums);Text(LocalizedStringKey(session.quantize == .off ? "Off":session.quantize == .eighth ? "1/8":"1/16")).monospacedDigit()}.modifier(JamUtilitySurface())}.disabled(session.performance.contextActive)
+        Menu{ForEach(Quantize.allCases,id:\.rawValue){q in Button(LocalizedStringKey(q == .off ? "Off":q == .eighth ? "1/8":"1/16")){session.quantize=q}};QuantizeFeelMenu(session:session)}label:{HStack(spacing:6){Text("Q").foregroundStyle(Color.drums);Text(LocalizedStringKey(session.quantize == .off ? "Off":session.quantize == .eighth ? "1/8":"1/16")).monospacedDigit()}.modifier(JamUtilitySurface())}.disabled(session.performance.contextActive)
     }
     private var metronomeControl:some View{
         IconButton(symbol:"metronome",label:"Metronome",color:session.metronome ? .mint:.muted){session.metronome.toggle();session.audio.metronome(session.metronome)}
@@ -173,5 +173,24 @@ private struct JamUtilitySurface:ViewModifier {
             .frame(minHeight:44).padding(.horizontal,12)
             .background(Color.raised.opacity(0.45),in:RoundedRectangle(cornerRadius:12,style:.continuous))
             .overlay{RoundedRectangle(cornerRadius:12,style:.continuous).strokeBorder(Color.outline.opacity(0.6),lineWidth:0.6)}
+    }
+}
+
+/// I06/I07: quantize strength and swing for recorded hits; the live sound is never delayed.
+private struct QuantizeFeelMenu: View {
+    @Bindable var session: Session
+    var body: some View {
+        Picker("Strength", selection: $session.quantizeStrength) {
+            Text(verbatim: "100%").tag(1.0)
+            Text(verbatim: "75%").tag(0.75)
+            Text(verbatim: "50%").tag(0.5)
+        }
+        Picker("Swing", selection: $session.swing) {
+            Text("Straight").tag(0.5)
+            Text(verbatim: "54%").tag(0.54)
+            Text(verbatim: "58%").tag(0.58)
+            Text(verbatim: "62%").tag(0.62)
+            Text("Triplet").tag(2.0 / 3.0)
+        }
     }
 }

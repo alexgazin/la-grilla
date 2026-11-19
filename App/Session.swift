@@ -17,6 +17,8 @@ import Observation
     var displayProject:Project{performance.contextActive ? (performance.runtimeProject ?? project):(drumPlayback ?? project)}
     var selectedSection: UUID?{didSet{if selectedSection != oldValue{noteClipID=nil;drumClipID=nil}}}; var tab = 0; var loop = true; var loopBars = 4; var metronome = false
     var quantize: Quantize = .sixteenth; var overdub = true; var countIn = true
+    /// I06/I07: how far recorded hits move to the grid (1 = fully) and swing (0.5 = straight).
+    var quantizeStrength = 1.0; var swing = 0.5
     var recording = false; var armed = false; var armClock: UInt64 = 0
     var passClock: UInt64 = 0; var replaceNextPass = false
     struct RawHit {let tick: Int;let sampleFrame: UInt64;let event: DrumEvent}
@@ -417,7 +419,7 @@ import Observation
                 commitPass();passClock+=passes*frames
             }
             guard let draft=drumDraft,let local=draft.localTick(input.tick),drumPass != nil else{continue}
-            let event=DrumEvent(tick:quantize.tick(local,length:takeLength),pad:input.pad)
+            let event=DrumEvent(tick:GrooveQuantizer(quantize,strength:quantizeStrength,swing:swing).tick(local,length:takeLength),pad:input.pad)
             do{
                 try drumPass?.append(event)
                 rawHits.append(RawHit(tick:local,sampleFrame:input.clock,event:event))
@@ -797,6 +799,10 @@ import Observation
             let imported=try await Task.detached(priority:.userInitiated){
                 let handle=try FileHandle(forReadingFrom:url);defer{try? handle.close()}
                 let data=try handle.read(upToCount:128_000_001) ?? Data();guard data.count<=128_000_000 else{throw ExportError.archiveTooLarge}
+                // I75: a Standard MIDI File becomes a new editable project.
+                if ["mid","midi","smf"].contains(url.pathExtension.lowercased()) {
+                    return try MIDIFileImport.read(data,name:url.deletingPathExtension().lastPathComponent).bundle
+                }
                 return try PortableProject.decodeBundle(data)
             }.value
             try await projectChangeBoundary(token,expected:expected,stage:"import.decoded")

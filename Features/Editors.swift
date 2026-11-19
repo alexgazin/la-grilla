@@ -88,7 +88,7 @@ struct SettingsView: View {
             Button{if let url=URL(string:UIApplication.openSettingsURLString){UIApplication.shared.open(url)}}label:{Label("Language and permissions",systemImage:"arrow.up.forward.app")}.accessibilityIdentifier("settings.system")
             Text("Change this app’s language and permissions in iOS Settings. Available options depend on your device.").font(.caption).foregroundStyle(.secondary)
         }
-        Section("Project tempo"){Stepper(value:Binding(get:{session.project.bpm},set:{v in session.edit{$0.bpm=v}}),in:40...240,step:1){Text("\(Int(session.project.bpm)) BPM").monospacedDigit()}.disabled(session.recording || session.armed)}
+        Section("Project tempo"){Stepper(value:Binding(get:{session.project.bpm},set:{v in session.edit{$0.bpm=v}}),in:40...240,step:1){Text("\(Int(session.project.bpm)) BPM").monospacedDigit()}.disabled(session.recording || session.armed);TapTempoRow(session:session)}
         Section("Project key"){
             Picker("Root",selection:Binding(get:{session.project.keyRoot},set:{v in session.edit{$0.keyRoot=v}})){ForEach(0..<12,id:\.self){i in Text(MusicalNotation.pitchClassName(i,keyRoot:session.project.keyRoot,minor:session.project.minor,spelling:PitchSpelling(rawValue:spellingValue) ?? .automatic)).tag(i).accessibilityIdentifier("settings.key-option.\(i)")}}.pickerStyle(.navigationLink).accessibilityIdentifier("settings.key-root")
             Toggle("Minor",isOn:Binding(get:{session.project.minor},set:{v in session.edit{$0.minor=v}})).accessibilityIdentifier("settings.key-minor")
@@ -408,5 +408,30 @@ private struct AddSongSection: View {
         }
         .tint(.mint)
         .onAppear { bars = min(4, maximumBars) }
+    }
+}
+
+/// I11: tap four or more times; the median interval proposes a tempo.
+private struct TapTempoRow: View {
+    @Bindable var session: Session
+    @State private var taps: [TimeInterval] = []
+    private var estimate: Double? { TempoEstimator.fromTaps(taps) }
+    var body: some View {
+        HStack(spacing: 12) {
+            Button("Tap tempo") {
+                let now = ProcessInfo.processInfo.systemUptime
+                if let last = taps.last, now - last > 2 { taps = [] }
+                taps.append(now)
+                if taps.count > 12 { taps.removeFirst(taps.count - 12) }
+            }.frame(minHeight: 44).accessibilityIdentifier("settings.tap-tempo")
+            Spacer(minLength: 0)
+            if let estimate {
+                Button(String(format: NSLocalizedString("Use %.0f BPM", comment: "Tap tempo"), estimate)) {
+                    let value = estimate.rounded()
+                    session.edit { $0.bpm = value }
+                    taps = []
+                }.frame(minHeight: 44).disabled(session.recording || session.armed).accessibilityIdentifier("settings.tap-tempo.use")
+            }
+        }
     }
 }

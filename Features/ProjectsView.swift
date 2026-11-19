@@ -25,7 +25,7 @@ struct ProjectsView: View {
     }.padding(22)}.background(Color.ink).navigationTitle("La Grilla").navigationBarTitleDisplayMode(.inline).toolbar{ToolbarItem(placement:.confirmationAction){Button("Done"){session.sheet=nil}}}}
     .disabled(openingExample).interactiveDismissDisabled(openingExample)
     .task{await session.refreshLibrary();guard !Task.isCancelled else{return};await session.save()}
-    .fileImporter(isPresented:$showImport,allowedContentTypes:[UTType(exportedAs:"com.alexgazin.grillapack",conformingTo:.zip),.zip],allowsMultipleSelection:false){result in
+    .fileImporter(isPresented:$showImport,allowedContentTypes:[UTType(exportedAs:"com.alexgazin.grillapack",conformingTo:.zip),.zip,.midi],allowsMultipleSelection:false){result in
         switch result{case .success(let urls):if let url=urls.first{Task{await session.importProject(url)}};case .failure(let error):session.message=error.localizedDescription}
     }
     .alert("Delete project?",isPresented:Binding(get:{deleting != nil},set:{if !$0{deleting=nil}})){Button("Delete",role:.destructive){if let id=deleting{Task{if id==session.project.id{await session.create(name:"Untitled",bpm:120,root:0,minor:false,bars:4)};if session.project.id != id{await session.delete(id)}}};deleting=nil};Button("Cancel",role:.cancel){deleting=nil}}message:{Text("This removes the project and its backup from this iPhone.")}

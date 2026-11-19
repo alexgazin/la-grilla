@@ -1186,3 +1186,24 @@
 "Import the instrument again in Sounds, or choose a built-in sound for this track." = "Import the instrument again in Sounds, or choose a built-in sound for this track.";
 "Load the factory kit again in Sounds." = "Load the factory kit again in Sounds.";
 "Import the sample again on this pad, or load one of your saved kits." = "Import the sample again on this pad, or load one of your saved kits.";
+
+/* Ideas waves 1–3 */
+"Strength" = "Strength";
+"Swing" = "Swing";
+"Straight" = "Straight";
+"Triplet" = "Triplet";
+"Tap tempo" = "Tap tempo";
+"Use %.0f BPM" = "Use %.0f BPM";
+"Humanize timing and velocity" = "Humanize timing and velocity";
+"Legato" = "Legato";
+"Staccato" = "Staccato";
+"Up one step in the key" = "Up one step in the key";
+"Down one step in the key" = "Down one step in the key";
+"Tools · all notes" = "Tools · all notes";
+"Tools · selected note" = "Tools · selected note";
+"This file is not a Standard MIDI File." = "This file is not a Standard MIDI File.";
+"Only MIDI format 0 and 1 files with musical time can be imported." = "Only MIDI format 0 and 1 files with musical time can be imported.";
+"This MIDI file contains no notes." = "This MIDI file contains no notes.";
+"This MIDI file is damaged." = "This MIDI file is damaged.";
+"Imported" = "Imported";
+"MIDI channel %d" = "MIDI channel %d";
