@@ -110,7 +110,8 @@ int lg_metronome_config(LGKernel *k, float gainDB, int accent, int sound);
 // look-ahead limiter (ceiling -12...0 dBFS). All-zero tracks and a disabled
 // limiter leave the output bit-identical. Index order follows the project
 // tracks; values are adopted at the next sample. Returns 0 if invalid.
-typedef struct { int32_t choke[16]; float sidechainDB, drive; int32_t crushBits; } LGTrackDynamics;
+// reverbSend (0...1, I58) feeds a shared room reverb returned to the master.
+typedef struct { int32_t choke[16]; float sidechainDB, drive; int32_t crushBits; float reverbSend; } LGTrackDynamics;
 int lg_dynamics(LGKernel *k, const LGTrackDynamics *tracks, int count, int limiter, float ceilingDB);
 // Frames of look-ahead delay the limiter adds while enabled (0 when off).
 int lg_limiter_latency(LGKernel *k);

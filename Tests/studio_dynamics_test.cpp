@@ -40,6 +40,7 @@ void duckBass(LGKernel*k){std::array<LGTrackDynamics,2> d{none(),none()};d[1].si
 void driveBass(LGKernel*k){std::array<LGTrackDynamics,2> d{none(),none()};d[1].drive=1;assert(lg_dynamics(k,d.data(),2,0,-1));}
 void crushBass(LGKernel*k){std::array<LGTrackDynamics,2> d{none(),none()};d[1].crushBits=4;assert(lg_dynamics(k,d.data(),2,0,-1));}
 void limitMaster(LGKernel*k){std::array<LGTrackDynamics,2> d{none(),none()};assert(lg_dynamics(k,d.data(),2,1,-1));assert(lg_limiter_latency(k)==72);}
+void sendHats(LGKernel*k){std::array<LGTrackDynamics,2> d{none(),none()};d[0].reverbSend=0.5f;assert(lg_dynamics(k,d.data(),2,0,-1));}
 void quietClick(LGKernel*k){assert(lg_metronome_config(k,-12,1,0));}
 void flatClick(LGKernel*k){assert(lg_metronome_config(k,0,0,0));}
 }
@@ -113,6 +114,18 @@ int main(){
     for(int i=0;i<frames;i++){assert(std::abs(limited.l[size_t(i)])<=ceiling+1e-6f&&std::abs(limited.r[size_t(i)])<=ceiling+1e-6f);}
     assert(peak(limited.l,0,frames)>ceiling*0.9);
 
+    // I58 send reverb: a dry hit has silence after its decay; with a send the room keeps ringing.
+    std::vector<LGNote> hit={{0,120,40,120,0,2,1}};
+    auto dryHit=run(hit,frameOf(3840,bpm),bpm,nullptr),wetHit=run(hit,frameOf(3840,bpm),bpm,sendHats);
+    const int late0=int(rate*0.4),late1=int(rate*0.6);
+    std::vector<float> room(wetHit.l.size());for(size_t i=0;i<room.size();i++)room[i]=wetHit.l[i]-dryHit.l[i];
+    const double roomLevel=db(rms(room,2400,14400))-db(rms(dryHit.l,0,2400));
+    assert(roomLevel> -16&&roomLevel< -6);                             // a send of 0.5 returns about −11 dB
+    assert(rms(dryHit.l,late0,late1)<1e-6&&rms(wetHit.l,late0,late1)>1e-4);
+    double lr=0;for(int i=late0;i<late1;i++)lr+=std::abs(wetHit.l[size_t(i)]-wetHit.r[size_t(i)]);
+    assert(lr>0);                                                      // decorrelated stereo
+    {LGTrackDynamics bad=none();bad.reverbSend=1.5f;auto*k=lg_create(rate);assert(!lg_dynamics(k,&bad,1,0,-1));lg_destroy(k);}
+
     // I10 metronome: level and accent.
     std::vector<LGNote> silent={{0,1,60,1,1,-1,2}};
     auto clickNormal=run(silent,frameOf(1920,bpm),bpm,nullptr,-3,1),clickQuiet=run(silent,frameOf(1920,bpm),bpm,quietClick,-3,1),clickFlat=run(silent,frameOf(1920,bpm),bpm,flatClick,-3,1);
@@ -124,6 +137,6 @@ int main(){
     for(int i=0;i<1600;i++){accentDiff+=std::abs(clickNormal.l[size_t(i+8)]-clickNormal.l[size_t(q1+i+8)]);flatDiff+=std::abs(clickFlat.l[size_t(i+8)]-clickFlat.l[size_t(q1+i+8)]);}
     assert(accentDiff>1&&flatDiff<accentDiff*0.05);
 
-    std::printf("Studio dynamics: bypass bit-identical; choke leaves only the new pad; sidechain dip %.1f dB, recovery %.2f dB; drive crest %.2f -> %.2f; 4-bit bus %ld levels; limiter peak %.3f <= %.3f (no rail); click -12 dB = %.2f dB\n",
-        dip,recover,crestDry,crestDriven,long(distinct),peak(limited.l,0,frames),double(ceiling),db(ratio));
+    std::printf("Studio dynamics: bypass bit-identical; send reverb return %.1f dB; choke leaves only the new pad; sidechain dip %.1f dB, recovery %.2f dB; drive crest %.2f -> %.2f; 4-bit bus %ld levels; limiter peak %.3f <= %.3f (no rail); click -12 dB = %.2f dB\n",
+        roomLevel,dip,recover,crestDry,crestDriven,long(distinct),peak(limited.l,0,frames),double(ceiling),db(ratio));
 }

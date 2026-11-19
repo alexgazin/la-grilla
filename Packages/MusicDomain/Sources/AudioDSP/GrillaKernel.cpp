@@ -3,6 +3,7 @@
 #include "PerformanceRuntime.hpp"
 #include "MIDIHub.hpp"
 #include "Equalizer.hpp"
+#include "Reverb.hpp"
 #include <complex>
 #include <atomic>
 #include <cmath>
@@ -163,6 +164,7 @@ struct LGKernel {
     std::array<std::array<std::atomic<int>,16>,MaxTracks> choke{};std::array<std::atomic<float>,MaxTracks> sidechainDepth{},drive{};std::array<std::atomic<int>,MaxTracks> crush{};
     std::atomic<int> limiterOn{0};std::atomic<float> limiterCeiling{0.891f};
     float scEnv=0;int scHold=0;
+    std::array<std::atomic<float>,MaxTracks> reverbSend{};SendReverb reverb;
     std::atomic<int> repeatPad{-1},repeatStep{240},repeatVelocity{100};std::atomic<uint32_t> repeatSerial{0};uint32_t repeatSeen=0;double repeatNextTick=-1,repeatFrames=0;
     void repeatTick(){
         const int pad=repeatPad.load(std::memory_order_acquire);
@@ -235,7 +237,7 @@ struct LGKernel {
     std::array<std::atomic<float>,Buses> gains, pans, meters; std::array<float,Buses> smooth{}, smoothPan{};std::array<float,MaxTracks> panValue{},panLeft{},panRight{};
     bool active=false,pendingInitialPlay=false; double origin=0; uint64_t elapsed=0,rendered=0; double previous=-1; long long cycle=0; int cursor=0; int lastBeat=-1;
     uint64_t trackLayoutToken=0;std::array<uint64_t,MaxTracks> trackLayoutKeys{};int trackLayoutCount=0;float lastLeft=0,lastRight=0,layoutFadeLeft=0,layoutFadeRight=0;int layoutFadeRemaining=0,layoutFadeTotal=1;
-    explicit LGKernel(double rate):sr(rate),fx(rate),kitFrames(int(std::ceil(rate))) {
+    explicit LGKernel(double rate):sr(rate),fx(rate),kitFrames(int(std::ceil(rate))),reverb(rate) {
         panValue.fill(std::numeric_limits<float>::quiet_NaN());
         for(int i=0;i<Buses;i++){presets[i].store(1);gains[i].store(i==Master?0.708f:0.5f);pans[i].store(0);meters[i].store(0);smooth[i]=gains[i].load(); }
         auto generate=[&](std::array<std::vector<float>,16>&bank,int frames){
@@ -628,7 +630,7 @@ int lg_perform_warning(LGKernel*k){return k->performance.warning.load();}
 uint64_t lg_perform_clock(LGKernel*k){return k->performance.clock.load();}
 uint64_t lg_perform_duration(LGKernel*k){return k->performance.duration.load();}
 // The caller must stop/join its render engine before finalizing a paused kernel.
-void lg_perform_finalize_paused(LGKernel*k){k->performance.stop();k->performance.publish();k->active=false;k->pendingInitialPlay=false;k->playing.store(0);k->silence(true);k->fx.reset();}
+void lg_perform_finalize_paused(LGKernel*k){k->performance.stop();k->performance.publish();k->active=false;k->pendingInitialPlay=false;k->playing.store(0);k->silence(true);k->fx.reset();k->reverb.reset();}
 float lg_gain_target(LGKernel*k,int t){return t>=0&&t<Buses?k->gains[t].load():0;}
 float lg_pan_target(LGKernel*k,int t){return t>=0&&t<Buses?k->pans[t].load():0;}
 float lg_filter_target(LGKernel*k){return k->filterTarget.load();}
@@ -644,7 +646,7 @@ int lg_dynamics(LGKernel*k,const LGTrackDynamics*tracks,int count,int limiter,fl
     if(!k||count<0||count>MaxTracks||(count>0&&!tracks)||limiter<0||limiter>1||!std::isfinite(ceilingDB)||ceilingDB< -12||ceilingDB> -0.2f)return 0;
     for(int t=0;t<count;t++){
         const auto &d=tracks[t];
-        if(!std::isfinite(d.sidechainDB)||d.sidechainDB<0||d.sidechainDB>12||!std::isfinite(d.drive)||d.drive<0||d.drive>1||(d.crushBits!=0&&(d.crushBits<4||d.crushBits>16)))return 0;
+        if(!std::isfinite(d.sidechainDB)||d.sidechainDB<0||d.sidechainDB>12||!std::isfinite(d.reverbSend)||d.reverbSend<0||d.reverbSend>1||!std::isfinite(d.drive)||d.drive<0||d.drive>1||(d.crushBits!=0&&(d.crushBits<4||d.crushBits>16)))return 0;
         for(int pad=0;pad<16;pad++)if(d.choke[pad]<0||d.choke[pad]>8)return 0;
     }
     for(int t=0;t<MaxTracks;t++){
@@ -653,6 +655,7 @@ int lg_dynamics(LGKernel*k,const LGTrackDynamics*tracks,int count,int limiter,fl
         k->sidechainDepth[t].store(set?tracks[t].sidechainDB:0,std::memory_order_relaxed);
         k->drive[t].store(set?tracks[t].drive:0,std::memory_order_relaxed);
         k->crush[t].store(set?tracks[t].crushBits:0,std::memory_order_relaxed);
+        k->reverbSend[t].store(set?tracks[t].reverbSend:0,std::memory_order_relaxed);
     }
     k->limiterCeiling.store(std::pow(10.f,ceilingDB/20));k->limiterOn.store(limiter);return 1;
 }
@@ -673,7 +676,7 @@ void lg_render_midi(LGKernel*k,LGMIDIHub*hub,uint64_t hostTime,double hostTicksP
     // spin on the publisher. New commands/Panic replace that deferred intent.
     if(panic||cmd!=0)k->pendingInitialPlay=false;
     if(cmd==1&&k->current<0)k->pendingInitialPlay=true;
-    if(panic||cmd<0||cmd==2||cmd==3){k->performance.stop();k->active=false;k->counting=0;k->countRequest.store(0);k->countRemaining.store(0);k->fx.reset();k->silence(true);if(hub)hub->outputEvent(k->outputState,k->hostNow,0,0,0);k->read.store(k->write.load());}
+    if(panic||cmd<0||cmd==2||cmd==3){k->performance.stop();k->active=false;k->counting=0;k->countRequest.store(0);k->countRemaining.store(0);k->fx.reset();k->reverb.reset();k->silence(true);if(hub)hub->outputEvent(k->outputState,k->hostNow,0,0,0);k->read.store(k->write.load());}
     // An explicit seek is already a discontinuity, so use the newest complete
     // project before interpreting its range. This also handles seeking beyond
     // an old one-bar loop into a newly extended arrangement.
@@ -687,7 +690,7 @@ void lg_render_midi(LGKernel*k,LGMIDIHub*hub,uint64_t hostTime,double hostTicksP
     for(int t=0;t<Buses;t++){gainTargets[t]=k->gains[t].load();panTargets[t]=k->pans[t].load();}
     const float filter=k->filterTarget.load(),delay=k->delayTarget.load();
     k->fx.prepare(filter,delay,k->current<0?120:k->slots[k->current].bpm);
-    if(cmd==2||cmd==3)k->fx.reset();
+    if(cmd==2||cmd==3){k->fx.reset();k->reverb.reset();}
     if(cmd==3&&k->current>=0){
         k->slots[k->current].loop=true;
         k->performance.begin(k->performance.requestToken.load(),k->performance.requestEpoch.load(),k->performance.requestCapture.load()!=0,k->performance.requestLimit.load());
@@ -723,14 +726,14 @@ void lg_render_midi(LGKernel*k,LGMIDIHub*hub,uint64_t hostTime,double hostTicksP
                 else if(event.kind==10||event.kind==11){k->midiEvent({0,event.b/16,event.kind==10?9:8,event.b%16,event.a,int(event.value),event.track,event.token},false);}
                 else if(event.kind==12){k->midiEvent({0,event.b/16,11,event.b%16,64,event.value>0?127:0,0,0},false);}
                 else if(event.kind==13){k->midiClear(event.b,false);}
-                else if(event.kind==99){k->active=false;k->fx.releaseRepeat();if(k->tailOnEnd.load()){for(auto &voice:k->voices)if(voice.on&&voice.pad<0)voice.duration=std::min(voice.duration,voice.age+0.008);}else{k->silence(true);k->fx.reset();}}
+                else if(event.kind==99){k->active=false;k->fx.releaseRepeat();if(k->tailOnEnd.load()){for(auto &voice:k->voices)if(voice.on&&voice.pad<0)voice.duration=std::min(voice.duration,voice.age+0.008);}else{k->silence(true);k->fx.reset();k->reverb.reset();}}
             });
             if(!replay)k->performance.due(k->ticksPerFrame(),[&](PerformanceControl control){return k->performAction(control);});
         }
         if(k->counting>0){int beatFrames=int(k->sr*60/k->slots[k->current].bpm);if(k->counting%beatFrames==0)k->click(k->counting>beatFrames*3);k->counting--;k->countRemaining.store(k->counting);}
         else if(k->active&&k->current>=0){
             auto*s=&k->slots[k->current];double tp=k->ticksPerFrame();double raw=k->origin+k->elapsed*tp;double tick=raw-k->cycle*(s->end-s->start);bool looped=false;
-            if(tick>=s->end-0.5*tp){if(s->loop){k->cycle++;tick-=s->end-s->start;k->cursor=0;k->silence();while(k->cursor<s->count&&s->notes[k->cursor].tick<s->start)k->cursor++;k->lastBeat=-1;looped=true;}else{k->active=false;if(!k->tailOnEnd.load()){k->silence(true);k->fx.reset();}tick=s->end;}}
+            if(tick>=s->end-0.5*tp){if(s->loop){k->cycle++;tick-=s->end-s->start;k->cursor=0;k->silence();while(k->cursor<s->count&&s->notes[k->cursor].tick<s->start)k->cursor++;k->lastBeat=-1;looped=true;}else{k->active=false;if(!k->tailOnEnd.load()){k->silence(true);k->fx.reset();k->reverb.reset();}tick=s->end;}}
             int old=k->current;k->adopt(looped||!k->active,tick);if(k->current!=old){
                 s=&k->slots[k->current];tick=k->origin;tp=k->ticksPerFrame();
                 // Adoption can occur inside a render block. Refresh local mix
@@ -772,11 +775,14 @@ void lg_render_midi(LGKernel*k,LGMIDIHub*hub,uint64_t hostTime,double hostTicksP
         for(auto &tail:k->retirements)if(tail.remaining>0){const float value=tail.sample*float(tail.remaining)/float(tail.total);buses[tail.track]+=value;--tail.remaining;}
         k->dynamics(buses);
         k->fx.processBuses(buses,k->active);
+        float send=0;
         for(int t=0;t<MaxTracks;t++){
             const float amp=k->eqChannels[t].process(buses[t])*k->smooth[t];
             if(k->panValue[t]!=k->smoothPan[t]){const float angle=(k->smoothPan[t]+1)*float(Pi/4);k->panLeft[t]=std::cos(angle);k->panRight[t]=std::sin(angle);k->panValue[t]=k->smoothPan[t];}
             left+=amp*k->panLeft[t];right+=amp*k->panRight[t];peak[t]=std::max(peak[t],std::abs(amp));
+            send+=amp*k->reverbSend[t].load(std::memory_order_relaxed);
         }
+        if(k->reverb.active(send))k->reverb.process(send,left,right);
         k->fx.process(left,right);
         left=k->eqChannels[Master].process(left);right=k->eqChannels[Master+1].process(right);
         const float cue=buses[Master]*0.65f*0.7071067812f;left+=cue;right+=cue;

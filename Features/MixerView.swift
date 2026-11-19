@@ -185,6 +185,9 @@ struct MixerView: View {
                 ForEach([3.0, 6.0, 9.0, 12.0], id: \.self) { db in Text(String(format: NSLocalizedString("%.0f dB", comment: "Sidechain depth"), db)).tag(db) }
             }
         }
+        Picker("Reverb send", selection: Binding(get: { value.reverbSend }, set: { send in setDynamics(track.id) { $0.reverbSend = send } })) {
+            Text("Off").tag(0.0); Text("Small").tag(0.15); Text("Medium").tag(0.3); Text("Large").tag(0.5)
+        }
         Picker("Drive", selection: Binding(get: { value.drive }, set: { amount in setDynamics(track.id) { $0.drive = amount } })) {
             Text("Off").tag(0.0); Text("Light").tag(0.3); Text("Heavy").tag(0.7)
         }

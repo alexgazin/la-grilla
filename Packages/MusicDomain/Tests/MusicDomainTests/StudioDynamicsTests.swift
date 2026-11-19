@@ -56,7 +56,12 @@ struct StudioDynamicsTests {
             var broken = project; broken.tracks[0].dynamics = bad
             #expect(throws: MusicError.self) { try broken.validate() }
         }
-        #expect(TrackDynamics().isNeutral && !TrackDynamics.hatChoke.isNeutral)
+        #expect(TrackDynamics().isNeutral && !TrackDynamics.hatChoke.isNeutral && !TrackDynamics(reverbSend: 0.3).isNeutral)
+        // Dynamics saved before the reverb send existed still decode.
+        let older = try JSONDecoder().decode(TrackDynamics.self, from: Data(#"{"chokeGroups":[[2,3]],"sidechainDB":6,"drive":0,"crushBits":0}"#.utf8))
+        #expect(older.reverbSend == 0 && older.chokeGroups == [[2, 3]] && older.sidechainDB == 6)
+        var wet = project; wet.tracks[0].dynamics = TrackDynamics(reverbSend: 1.2)
+        #expect(throws: MusicError.self) { try wet.validate() }
         let kernel = TrackDynamics(chokeGroups: [[2, 3], [9, 10]]).kernel
         let slots = withUnsafeBytes(of: kernel.choke) { Array($0.bindMemory(to: Int32.self)) }
         #expect(slots[2] == 1 && slots[3] == 1 && slots[9] == 2 && slots[10] == 2 && slots[0] == 0)

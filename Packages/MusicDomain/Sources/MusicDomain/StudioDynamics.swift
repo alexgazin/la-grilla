@@ -14,18 +14,30 @@ public struct TrackDynamics: Codable, Equatable, Sendable {
     public var drive: Double
     /// 0 = off, else 4...16 bits.
     public var crushBits: Int
+    /// I58: send level 0...1 to the shared room reverb.
+    public var reverbSend: Double
 
-    public init(chokeGroups: [[Int]] = [], sidechainDB: Double = 0, drive: Double = 0, crushBits: Int = 0) {
-        self.chokeGroups = chokeGroups; self.sidechainDB = sidechainDB; self.drive = drive; self.crushBits = crushBits
+    public init(chokeGroups: [[Int]] = [], sidechainDB: Double = 0, drive: Double = 0, crushBits: Int = 0, reverbSend: Double = 0) {
+        self.chokeGroups = chokeGroups; self.sidechainDB = sidechainDB; self.drive = drive; self.crushBits = crushBits; self.reverbSend = reverbSend
     }
 
-    public var isNeutral: Bool { chokeGroups.isEmpty && sidechainDB == 0 && drive == 0 && crushBits == 0 }
+    private enum CodingKeys: String, CodingKey { case chokeGroups, sidechainDB, drive, crushBits, reverbSend }
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(chokeGroups: try c.decodeIfPresent([[Int]].self, forKey: .chokeGroups) ?? [],
+                  sidechainDB: try c.decodeIfPresent(Double.self, forKey: .sidechainDB) ?? 0,
+                  drive: try c.decodeIfPresent(Double.self, forKey: .drive) ?? 0,
+                  crushBits: try c.decodeIfPresent(Int.self, forKey: .crushBits) ?? 0,
+                  reverbSend: try c.decodeIfPresent(Double.self, forKey: .reverbSend) ?? 0)
+    }
+
+    public var isNeutral: Bool { chokeGroups.isEmpty && sidechainDB == 0 && drive == 0 && crushBits == 0 && reverbSend == 0 }
 
     public func validate() throws {
         let pads = chokeGroups.flatMap { $0 }
         guard chokeGroups.count <= 8, chokeGroups.allSatisfy({ (2...16).contains($0.count) }), pads.allSatisfy({ (0...15).contains($0) }),
               Set(pads).count == pads.count, sidechainDB.isFinite, (0...12).contains(sidechainDB), drive.isFinite, (0...1).contains(drive),
-              crushBits == 0 || (4...16).contains(crushBits) else { throw MusicError.invalidProject }
+              crushBits == 0 || (4...16).contains(crushBits), reverbSend.isFinite, (0...1).contains(reverbSend) else { throw MusicError.invalidProject }
     }
 
     var kernel: LGTrackDynamics {
@@ -34,7 +46,7 @@ public struct TrackDynamics: Codable, Equatable, Sendable {
             let slots = raw.bindMemory(to: Int32.self)
             for (group, pads) in chokeGroups.enumerated() { for pad in pads { slots[pad] = Int32(group + 1) } }
         }
-        value.sidechainDB = Float(sidechainDB); value.drive = Float(drive); value.crushBits = Int32(crushBits)
+        value.sidechainDB = Float(sidechainDB); value.drive = Float(drive); value.crushBits = Int32(crushBits); value.reverbSend = Float(reverbSend)
         return value
     }
 
