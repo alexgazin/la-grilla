@@ -1159,3 +1159,32 @@
 "%@ (bar %d)" = "%@ (такт %d)";
 "Resolve the highlighted part of the request before applying." = "Перед применением исправьте выделенную часть запроса.";
 "This change would alter a part you asked to keep." = "Это изменило бы партию, которую вы просили оставить.";
+
+/* Build 46: palettes */
+"Palettes" = "Палитры";
+"Three treatments of your own part." = "Три трактовки вашей партии.";
+"Compares %@ at the same tempo, notes and start. Levels are matched; the master stays yours." = "Сравнение секции «%@» в том же темпе, с теми же нотами и точкой старта. Уровни выровнены, мастер остаётся вашим.";
+"Matching levels on this section…" = "Выравниваю громкость на этой секции…";
+"KEEP MY SOUND ON" = "ОСТАВИТЬ МОЙ ЗВУК";
+"LEVEL" = "УРОВЕНЬ";
+"CHANGES" = "ИЗМЕНЕНИЯ";
+"Master delay: %.2f (the master level is unchanged)" = "Мастер‑задержка: %.2f (уровень мастера не меняется)";
+"The project changed. Compare again before applying." = "Проект изменился. Сравните ещё раз перед применением.";
+"A · Current" = "A · Сейчас";
+"B · Palette" = "B · Палитра";
+"Apply palette" = "Применить палитру";
+"One Undo restores the previous sounds." = "Одна отмена вернёт прежние звуки.";
+"Current %.1f LUFS · palette %.1f LUFS · difference %+.1f LU · peak %.1f dBFS" = "Сейчас %.1f LUFS · палитра %.1f LUFS · разница %+.1f LU · пик %.1f dBFS";
+"%@: %@ → %@, %.1f → %.1f dB" = "%@: %@ → %@, %.1f → %.1f дБ";
+"new drum kit" = "новый набор ударных";
+"Warm" = "Тёплый";
+"Bright" = "Яркий";
+"Classic" = "Классический";
+"Atmospheric chillhop" = "Атмосферный chillhop";
+"Short kick, dry snare, soft hats, dense bass and keys with a clear attack." = "Короткая бочка, сухой малый, мягкий хэт, плотный бас и клавиши с выраженной атакой.";
+"Deep kick, clear clap, brighter top, springy bass and room for the melody." = "Глубокая бочка, ясный хлопок, яркий верх, упругий бас и место для мелодии.";
+"Soft keys, short drums, round bass and an airy lead with a gentle delay." = "Мягкие клавиши, короткие ударные, округлый бас и воздушный лид с лёгкой задержкой.";
+"%@ is missing on %@" = "Нет звука «%@» на дорожке «%@»";
+"Import the instrument again in Sounds, or choose a built-in sound for this track." = "Импортируйте инструмент заново в «Звуках» или выберите встроенный звук для этой дорожки.";
+"Load the factory kit again in Sounds." = "Загрузите заводской набор заново в «Звуках».";
+"Import the sample again on this pad, or load one of your saved kits." = "Импортируйте сэмпл на этот пэд заново или загрузите один из своих наборов.";

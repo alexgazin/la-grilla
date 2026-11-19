@@ -48,6 +48,12 @@ struct MixerView: View {
                     .minimumScaleFactor(0.8)
             }
             Spacer(minLength: 0)
+            Button { session.endHarmonyPreview(); session.sheet = .palettes } label: {
+                Label("Palettes", systemImage: "paintpalette").font(.caption.weight(.semibold))
+                    .frame(minHeight: 44).padding(.horizontal, 10)
+                    .background(Color.raised.opacity(0.55), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            }.buttonStyle(StudioQuietButtonStyle()).accessibilityIdentifier("mixer.palettes")
+                .disabled(session.performance.contextActive)
             VStack(spacing: 5) {
                 Image(systemName: "headphones")
                     .font(.system(size: 18, weight: .medium))
@@ -317,6 +323,8 @@ struct MixerView: View {
 
     private var accessibleMixer: some View {
         Form {
+            Button("Palettes") { session.endHarmonyPreview(); session.sheet = .palettes }
+                .accessibilityIdentifier("mixer.palettes").disabled(session.performance.contextActive)
             ForEach(Array(session.displayProject.tracks.enumerated()), id: \.element.id) { index, track in
                 SwiftUI.Section(track.displayName) {
                     TrackSoundButton(session: session, trackID: track.id)

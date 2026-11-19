@@ -76,7 +76,7 @@ import Observation
     private let runtimeTraceStart=ProcessInfo.processInfo.systemUptime
     let personalKits: PersonalKitStore
     let store: ProjectStore
-    enum Sheet: String, Identifiable {case projects, newProject, trackBuilder, export, settings, gettingStarted, bass, sections, notes, harmony, assistant, voice, perform, midiDevices; var id: String { rawValue }}
+    enum Sheet: String, Identifiable {case projects, newProject, trackBuilder, export, settings, gettingStarted, bass, sections, notes, harmony, assistant, voice, perform, midiDevices, palettes; var id: String { rawValue }}
     private static var qaProjectStoreID:UUID? {
         let arguments=ProcessInfo.processInfo.arguments
         guard arguments.contains("--uitesting"),let index=arguments.firstIndex(of:"--project-store-id"),arguments.indices.contains(index+1)else{return nil}
@@ -882,6 +882,58 @@ import Observation
         sync()
         scheduleSave()
     }
+    // MARK: Build 46 palettes
+
+    /// The loaded sounds plus a palette's kit, for auditioning without staging anything.
+    func paletteLibrary(_ kit: [(pad: Int, asset: SampleAsset, data: Data)]) throws -> SampleLibrary {
+        try PaletteAudition.library(audio.samples, kit: kit)
+    }
+
+    /// Audition a palette candidate of the current revision. The project and
+    /// its Undo history stay unchanged; Stop preview or any edit ends it.
+    func previewPalette(_ candidate: Project, range: Range<Int>, samples: SampleLibrary) {
+        guard !performance.contextActive else { message = "Return to editing before changing the source project."; return }
+        finishTake()
+        guard ensureAudio() else { return }
+        guard candidate.id == project.id, candidate.revision == project.revision else { message = AssistantError.stale.localizedDescription; return }
+        guard range.lowerBound >= 0, range.upperBound <= candidate.length, !range.isEmpty else { message = MusicError.invalidProject.localizedDescription; return }
+        if !harmonyPreview { previewPosition = Int(audio.tick); previewPlaying = audio.playing; harmonyPreview = true }
+        audio.audition(candidate, range: range, loop: true, samples: samples)
+        syncMIDI()
+    }
+
+    /// Apply a palette candidate as one undoable change, staging its kit first.
+    func applyPalette(_ candidate: Project, kit: [(pad: Int, asset: SampleAsset, data: Data)], projectID: UUID, revision: Int) async throws {
+        func matches() -> Bool {
+            project.id == projectID && project.revision == revision && projectChangeToken == nil &&
+                !recording && !armed && !performance.contextActive
+        }
+        guard matches(), candidate.id == projectID, candidate.revision == revision else { throw SampleError.stale }
+        try candidate.validate()
+        endHarmonyPreview()
+        let needed = Set(candidate.referencedSamples).subtracting(project.referencedSamples).subtracting(history.retainedSamples)
+        let sounds = kit.filter { needed.contains($0.asset) }
+        var prepared: [PreparedSampleBank] = []
+        do {
+            for sound in sounds {
+                try Task.checkCancellation()
+                guard matches() else { throw SampleError.stale }
+                prepared.append(try await store.stageSample(sound.data, asset: sound.asset, projectID: projectID))
+            }
+            try Task.checkCancellation()
+            guard matches() else { throw SampleError.stale }
+            try withHistoryTransaction { history, project in try history.apply(&project) { $0 = candidate } }
+        } catch {
+            for bank in prepared { await store.removeStagedSample(bank.asset, projectID: projectID) }
+            throw error
+        }
+        for bank in prepared { audio.samples.insert(bank) }
+        audio.samples.retainOnly(history.retainedSamples.union(project.referencedSamples))
+        mixerGesture = false
+        sync()
+        scheduleSave()
+    }
+
     func listPersonalKits() async throws -> [PersonalKitSummary] { try await personalKits.list() }
 
     func deletePersonalKit(_ id: UUID) async throws { try await personalKits.delete(id) }

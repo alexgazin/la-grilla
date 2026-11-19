@@ -37,6 +37,7 @@ struct StudioView: View {
         case .voice: VoiceToMIDIView(session:session)
         case .perform: PerformView(session:session)
         case .midiDevices: MIDIDevicesView(session:session)
+        case .palettes: PaletteView(session:session)
         }}.modifier(StudioQATypeSize()).presentationDragIndicator(.visible).presentationBackground(Color.panel)}
         .sheet(isPresented:Binding(get:{session.shareURL != nil},set:{if !$0 {session.shareURL=nil}}),onDismiss:{session.finishSharing()}){if let url=session.shareURL{ShareView(url:url)}}
         .alert("La Grilla",isPresented:Binding(get:{session.message != nil},set:{if !$0{session.message=nil}})){Button("OK"){session.message=nil}}message:{Text(LocalizedStringKey(session.message ?? ""))}

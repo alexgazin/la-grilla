@@ -1157,3 +1157,32 @@
 "%@ (bar %d)" = "%@ (bar %d)";
 "Resolve the highlighted part of the request before applying." = "Resolve the highlighted part of the request before applying.";
 "This change would alter a part you asked to keep." = "This change would alter a part you asked to keep.";
+
+/* Build 46: palettes */
+"Palettes" = "Palettes";
+"Three treatments of your own part." = "Three treatments of your own part.";
+"Compares %@ at the same tempo, notes and start. Levels are matched; the master stays yours." = "Compares %@ at the same tempo, notes and start. Levels are matched; the master stays yours.";
+"Matching levels on this section…" = "Matching levels on this section…";
+"KEEP MY SOUND ON" = "KEEP MY SOUND ON";
+"LEVEL" = "LEVEL";
+"CHANGES" = "CHANGES";
+"Master delay: %.2f (the master level is unchanged)" = "Master delay: %.2f (the master level is unchanged)";
+"The project changed. Compare again before applying." = "The project changed. Compare again before applying.";
+"A · Current" = "A · Current";
+"B · Palette" = "B · Palette";
+"Apply palette" = "Apply palette";
+"One Undo restores the previous sounds." = "One Undo restores the previous sounds.";
+"Current %.1f LUFS · palette %.1f LUFS · difference %+.1f LU · peak %.1f dBFS" = "Current %.1f LUFS · palette %.1f LUFS · difference %+.1f LU · peak %.1f dBFS";
+"%@: %@ → %@, %.1f → %.1f dB" = "%@: %@ → %@, %.1f → %.1f dB";
+"new drum kit" = "new drum kit";
+"Warm" = "Warm";
+"Bright" = "Bright";
+"Classic" = "Classic";
+"Atmospheric chillhop" = "Atmospheric chillhop";
+"Short kick, dry snare, soft hats, dense bass and keys with a clear attack." = "Short kick, dry snare, soft hats, dense bass and keys with a clear attack.";
+"Deep kick, clear clap, brighter top, springy bass and room for the melody." = "Deep kick, clear clap, brighter top, springy bass and room for the melody.";
+"Soft keys, short drums, round bass and an airy lead with a gentle delay." = "Soft keys, short drums, round bass and an airy lead with a gentle delay.";
+"%@ is missing on %@" = "%@ is missing on %@";
+"Import the instrument again in Sounds, or choose a built-in sound for this track." = "Import the instrument again in Sounds, or choose a built-in sound for this track.";
+"Load the factory kit again in Sounds." = "Load the factory kit again in Sounds.";
+"Import the sample again on this pad, or load one of your saved kits." = "Import the sample again on this pad, or load one of your saved kits.";
