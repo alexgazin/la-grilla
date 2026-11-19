@@ -21,7 +21,7 @@ struct PadTouchSurface:UIViewRepresentable {
     static func dismantleUIView(_ view:PadTouchView,coordinator:()){view.cancelTouches(notify:false);view.onHit=nil;view.onHeld=nil}
 }
 
-@MainActor final class PadTouchView:UIView {
+@MainActor final class PadTouchView:UIView,MusicalTouchSurface {
     var onHit:((Int,TimeInterval,Int?)->Bool)?
     var onHeld:((Set<Int>)->Void)?
     var trace=false

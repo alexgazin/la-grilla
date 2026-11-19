@@ -300,6 +300,15 @@ import Observation
     func mixerImmediate(_ change: (inout Project) throws -> Void) {
         mixerGesture=false; mixerEdit(change); mixerGesture=false
     }
+    /// I90: short confirmation shown over the studio.
+    var toast:String?
+    func showToast(_ text:String){toast=text;Task{@MainActor in try? await Task.sleep(for:.seconds(1.2));if toast==text{toast=nil}}}
+    /// Undo or redo from a gesture; true when something changed.
+    func gestureUndo(_ forward:Bool)->Bool {
+        guard !recording,!armed,!performance.contextActive,forward ? history.canRedo:history.canUndo else{return false}
+        if forward{redo()}else{undo()}
+        showToast(forward ? "Redo":"Undo");return true
+    }
     func undo() {if performance.contextActive{Task{await leavePerformance();undo()};return};guard !recording && !armed else {return}; mixerGesture=false;withHistoryTransaction{h,p in h.undo(&p)};restoreGeneratedLoop();sync();scheduleSave()}
     func redo() {if performance.contextActive{Task{await leavePerformance();redo()};return};guard !recording && !armed else {return}; mixerGesture=false;withHistoryTransaction{h,p in h.redo(&p)};restoreGeneratedLoop();sync();scheduleSave()}
     func scheduleSave() {saveTask?.cancel();saveTask = Task {try? await Task.sleep(for:.milliseconds(700));guard !Task.isCancelled else{return};await save()} }

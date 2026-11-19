@@ -22,6 +22,9 @@ struct StudioView: View {
             }
         }.background(Color.ink).foregroundStyle(Color.studioText)
         .overlay{if AudioRuntimeQA.enabled{AudioRuntimeQAView(session:session)}}
+        .background{UndoGestureInstaller(undo:{session.gestureUndo(false)},redo:{session.gestureUndo(true)}).frame(width:0,height:0).accessibilityHidden(true)}
+        .overlay(alignment:.top){if let toast=session.toast{Label(LocalizedStringKey(toast),systemImage:toast=="Undo" ? "arrow.uturn.backward":"arrow.uturn.forward").font(.subheadline.weight(.semibold)).padding(.horizontal,16).padding(.vertical,10).background(Color.raised,in:Capsule()).padding(.top,8).transition(.move(edge:.top).combined(with:.opacity)).accessibilityAddTraits(.updatesFrequently).allowsHitTesting(false)}}
+        .animation(.easeOut(duration:0.2),value:session.toast)
         .sheet(item:$session.sheet,onDismiss:{if let url=session.exportedURL{session.shareURL=url;session.exportedURL=nil}}){sheet in Group{switch sheet {
         case .projects: ProjectsView(session:session)
         case .trackBuilder: TrackBuilderView(session:session)

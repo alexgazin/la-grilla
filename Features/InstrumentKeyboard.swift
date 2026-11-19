@@ -430,7 +430,7 @@ private struct InstrumentKeybed: UIViewRepresentable {
     static func dismantleUIView(_ view: KeybedView, coordinator: ()) { view.releaseAll() }
 }
 
-private final class KeybedView: UIView {
+private final class KeybedView: UIView, MusicalTouchSurface {
     var play: ((Int, Bool) -> Void)?
     private var configuration: [Int] = []
     private var whiteKeys = [UIButton]()

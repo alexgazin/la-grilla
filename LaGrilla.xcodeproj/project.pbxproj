@@ -408,6 +408,16 @@
 			"isa" = "PBXBuildFile";
 			"fileRef" = "C41B90D3A63578C5ED3C79DD";
 		};
+		"19ED15F6ED0A9F8DC0F86411" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "Features/UndoGestures.swift";
+			"sourceTree" = "SOURCE_ROOT";
+		};
+		"A2B709DF06638389ED6B407D" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "19ED15F6ED0A9F8DC0F86411";
+		};
 		"E39E52387FF1C18ECCD0A6A6" = {
 			"isa" = "PBXFileReference";
 			"lastKnownFileType" = "sourcecode.swift";
@@ -454,6 +464,7 @@
 				"F84EC5A2DCF954F5C7768B8E",
 				"C701DB7869EDEBFC7460AFA3",
 				"C41B90D3A63578C5ED3C79DD",
+				"19ED15F6ED0A9F8DC0F86411",
 				"E39E52387FF1C18ECCD0A6A6",
 			);
 			"name" = "Features";
@@ -1189,6 +1200,7 @@
 				"2B4A63312E4F0AFA46B12FC1",
 				"ABFD51D0DA5B63B9FFC8E643",
 				"AEE88D23F86E314383453DE2",
+				"A2B709DF06638389ED6B407D",
 				"6F6E8C6658B354FED0C521EB",
 				"0C5BB541A16B19C889E4BC12",
 				"9BB2A975DCB11EB7B2D7307C",
