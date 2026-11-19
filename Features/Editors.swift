@@ -1,6 +1,7 @@
 import SwiftUI
 import UIKit
 import MusicDomain
+import UniformTypeIdentifiers
 struct ChordEditor: View {
     @Bindable var session: Session; let selection: ChordSelection
     @AppStorage("studio.pitchSpelling") private var spellingValue = PitchSpelling.automatic.rawValue
@@ -110,6 +111,7 @@ struct SettingsView: View {
         Section("Timing"){LatencyCalibrationRow(session:session)}
         Section("Metronome"){MetronomeSettingsRows(audio:session.audio)}
         audioSettings
+        Section("Backup"){BackupRows(session:session)}
         Section("About La Grilla"){
             Button("Getting started"){session.sheet = .gettingStarted}.accessibilityIdentifier("settings.help")
             LabeledContent("Version",value:"\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "") (\(Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? ""))")
@@ -450,6 +452,26 @@ private struct TapTempoRow: View {
 
 /// I01: tap along with the metronome; the median offset becomes this route's
 /// recording compensation. The live sound is never delayed.
+/// I77: a Files folder (iCloud Drive or on this iPhone) gets a daily zip of changed projects.
+private struct BackupRows: View {
+    @Bindable var session: Session
+    @State private var choosing = false
+    var body: some View {
+        if let name = session.backupFolderName {
+            LabeledContent("Folder", value: name)
+            if let last = session.lastBackup { LabeledContent("Last backup", value: last.formatted(date: .abbreviated, time: .shortened)) }
+            Button("Back up now") { Task { await session.backupNow(force: true) } }.frame(minHeight: 44).accessibilityIdentifier("settings.backup.now")
+            Button("Stop automatic backup", role: .destructive) { session.stopBackup() }.frame(minHeight: 44)
+        } else {
+            Button("Choose a backup folder") { choosing = true }.frame(minHeight: 44).accessibilityIdentifier("settings.backup.choose")
+        }
+        Text("Once a day, when you leave the app, projects changed since the last backup are saved as one zip in that folder.").font(.caption).foregroundStyle(.secondary)
+            .fileImporter(isPresented: $choosing, allowedContentTypes: [.folder]) { result in
+                if case .success(let url) = result { session.chooseBackupFolder(url) }
+            }
+    }
+}
+
 /// I10: metronome level, accent, sound and count-in only.
 private struct MetronomeSettingsRows: View {
     @Bindable var audio: AudioController

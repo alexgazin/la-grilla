@@ -187,3 +187,21 @@ struct StyleProfileTests {
         #expect(tie?.keyRoot == 7 && tie?.minor == false && tie?.bpm == 91)
     }
 }
+
+struct BackupPlannerTests {
+    private func summary(_ age: Double) -> ProjectSummary {
+        ProjectSummary(id: UUID(), name: "S", bpm: 90, keyRoot: 0, minor: false, bars: 4, revision: 1, modified: Date(timeIntervalSince1970: 1_000_000 - age), schemaVersion: 15, trackCount: 2)
+    }
+    @Test func dailyAndOnlyChangedProjects() {
+        let now = Date(timeIntervalSince1970: 1_000_000)
+        #expect(BackupPlanner.due(last: nil, now: now))
+        #expect(!BackupPlanner.due(last: now.addingTimeInterval(-3600), now: now))
+        #expect(BackupPlanner.due(last: now.addingTimeInterval(-21 * 3600), now: now))
+        #expect(BackupPlanner.due(last: now.addingTimeInterval(3600), now: now))           // clock moved back
+        let old = summary(100_000), fresh = summary(10), newer = summary(5)
+        #expect(BackupPlanner.changed([old, fresh, newer], since: now.addingTimeInterval(-3600)) == [newer.id, fresh.id])
+        #expect(BackupPlanner.changed([old, fresh], since: nil).count == 2)
+        var calendar = Calendar(identifier: .gregorian); calendar.timeZone = TimeZone(identifier: "UTC")!
+        #expect(BackupPlanner.fileName(Date(timeIntervalSince1970: 0), calendar: calendar) == "La Grilla backup 1970-01-01.zip")
+    }
+}

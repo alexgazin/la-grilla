@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import UIKit
 import MusicDomain
 import AVFoundation
 import Observation
@@ -241,7 +242,63 @@ import Observation
         runtimeTrace("scene.\(phase).before");defer{runtimeTrace("scene.\(phase).after")}
         if phase == .active{backgrounded=false;if ready{_ = ensureAudio();syncMIDI()};return}
         finishTake();Task{await save()}
-        if phase == .background{backgrounded=true;stopMicrophone?();microphoneOwner=nil;stopMicrophone=nil;if harmonyPreview{endHarmonyPreview()};suspendIdleAudio()}
+        if phase == .background{backgrounded=true;stopMicrophone?();microphoneOwner=nil;stopMicrophone=nil;if harmonyPreview{endHarmonyPreview()};suspendIdleAudio();backupInBackground()}
+    }
+    // MARK: I77 · automatic backup to a Files folder
+    var backupFolderName:String?=UserDefaults.standard.string(forKey:"backup.folderName")
+    var lastBackup:Date?=UserDefaults.standard.object(forKey:"backup.last") as? Date
+    @ObservationIgnored private var backingUp=false
+    func chooseBackupFolder(_ url:URL) {
+        let access=url.startAccessingSecurityScopedResource();defer{if access{url.stopAccessingSecurityScopedResource()}}
+        do {
+            let bookmark=try url.bookmarkData(options:[],includingResourceValuesForKeys:nil,relativeTo:nil)
+            UserDefaults.standard.set(bookmark,forKey:"backup.folder");UserDefaults.standard.set(url.lastPathComponent,forKey:"backup.folderName")
+            backupFolderName=url.lastPathComponent
+            Task{await backupNow(force:true)}
+        }catch{message=error.localizedDescription}
+    }
+    func stopBackup() {
+        for key in ["backup.folder","backup.folderName","backup.last"]{UserDefaults.standard.removeObject(forKey:key)}
+        backupFolderName=nil;lastBackup=nil
+    }
+    private final class BackgroundTaskBox:@unchecked Sendable{var id=UIBackgroundTaskIdentifier.invalid}
+    private func backupInBackground() {
+        guard UserDefaults.standard.data(forKey:"backup.folder") != nil,BackupPlanner.due(last:lastBackup,now:Date()) else{return}
+        let box=BackgroundTaskBox()
+        box.id=UIApplication.shared.beginBackgroundTask(withName:"La Grilla backup"){UIApplication.shared.endBackgroundTask(box.id);box.id = .invalid}
+        Task{@MainActor in
+            await backupNow(force:false)
+            if box.id != .invalid{UIApplication.shared.endBackgroundTask(box.id);box.id = .invalid}
+        }
+    }
+    /// `force` backs up every project now; otherwise only projects changed since the last backup, once a day.
+    func backupNow(force:Bool) async {
+        guard !backingUp,let bookmark=UserDefaults.standard.data(forKey:"backup.folder") else{return}
+        guard force || BackupPlanner.due(last:lastBackup,now:Date()) else{return}
+        backingUp=true;defer{backingUp=false}
+        var stale=false
+        guard let folder=try? URL(resolvingBookmarkData:bookmark,options:[],relativeTo:nil,bookmarkDataIsStale:&stale) else{
+            if force{message=NSLocalizedString("The backup folder is no longer available. Choose it again in Settings.",comment:"Backup")};return
+        }
+        await save();await refreshLibrary()
+        let ids=BackupPlanner.changed(entries.compactMap(\.summary),since:force ? nil:lastBackup)
+        let now=Date()
+        guard !ids.isEmpty else{lastBackup=now;UserDefaults.standard.set(now,forKey:"backup.last");return}
+        let temporary=FileManager.default.temporaryDirectory.appendingPathComponent("backup-"+UUID().uuidString).appendingPathExtension("zip")
+        defer{try? FileManager.default.removeItem(at:temporary)}
+        do {
+            try await store.portableBatch(ids,to:temporary)
+            let access=folder.startAccessingSecurityScopedResource();defer{if access{folder.stopAccessingSecurityScopedResource()}}
+            let target=folder.appendingPathComponent(BackupPlanner.fileName(now))
+            var coordination:NSError?,failure:Error?
+            NSFileCoordinator().coordinate(writingItemAt:target,options:.forReplacing,error:&coordination){url in
+                do{if FileManager.default.fileExists(atPath:url.path){try FileManager.default.removeItem(at:url)};try FileManager.default.copyItem(at:temporary,to:url)}catch{failure=error}
+            }
+            if let error=coordination ?? failure{throw error}
+            if stale,let fresh=try? folder.bookmarkData(options:[],includingResourceValuesForKeys:nil,relativeTo:nil){UserDefaults.standard.set(fresh,forKey:"backup.folder")}
+            lastBackup=now;UserDefaults.standard.set(now,forKey:"backup.last")
+            if force{showToast(String(format:NSLocalizedString("Backed up %d projects",comment:"Backup"),ids.count))}
+        }catch{if force{message=error.localizedDescription}}
     }
     private func suspendIdleAudio(){
         guard backgrounded,!audio.playing,!performance.stopping else{return}

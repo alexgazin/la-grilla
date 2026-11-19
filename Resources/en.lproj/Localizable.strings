@@ -1370,3 +1370,12 @@
 "Master spectrum" = "Master spectrum";
 "Stage mode" = "Stage mode";
 "Leave stage mode" = "Leave stage mode";
+"The backup folder is no longer available. Choose it again in Settings." = "The backup folder is no longer available. Choose it again in Settings.";
+"Backed up %d projects" = "Backed up %d projects";
+"Backup" = "Backup";
+"Folder" = "Folder";
+"Last backup" = "Last backup";
+"Back up now" = "Back up now";
+"Stop automatic backup" = "Stop automatic backup";
+"Choose a backup folder" = "Choose a backup folder";
+"Once a day, when you leave the app, projects changed since the last backup are saved as one zip in that folder." = "Once a day, when you leave the app, projects changed since the last backup are saved as one zip in that folder.";

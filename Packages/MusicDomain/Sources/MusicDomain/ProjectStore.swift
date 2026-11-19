@@ -429,3 +429,20 @@ public struct StyleProfile: Equatable, Sendable {
         return StyleProfile(bpm: median.rounded(), keyRoot: key.keyRoot, minor: key.minor, bars: min(64, usualBars), projects: valid.count)
     }
 }
+
+/// I77 · automatic backup to a folder the musician chose in Files: at most
+/// once a day, only projects changed since the previous backup.
+public enum BackupPlanner {
+    public static let interval: TimeInterval = 20 * 3600
+    public static func due(last: Date?, now: Date) -> Bool {
+        guard let last else { return true }
+        return now.timeIntervalSince(last) >= interval || now < last
+    }
+    public static func changed(_ summaries: [ProjectSummary], since last: Date?) -> [UUID] {
+        summaries.filter { last == nil || $0.modified > last! }.sorted { $0.modified > $1.modified }.prefix(64).map(\.id)
+    }
+    public static func fileName(_ date: Date, calendar: Calendar = .current) -> String {
+        let c = calendar.dateComponents([.year, .month, .day], from: date)
+        return String(format: "La Grilla backup %04d-%02d-%02d.zip", c.year ?? 0, c.month ?? 0, c.day ?? 0)
+    }
+}
