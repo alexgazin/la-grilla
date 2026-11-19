@@ -1207,3 +1207,24 @@
 "This MIDI file is damaged." = "This MIDI file is damaged.";
 "Imported" = "Imported";
 "MIDI channel %d" = "MIDI channel %d";
+
+/* Ideas: hook, mix presets, form templates */
+"Write a melodic hook on %@ in %@" = "Write a melodic hook on %@ in %@";
+"Mix presets" = "Mix presets";
+"Phone speaker" = "Phone speaker";
+"Club" = "Club";
+"Background" = "Background";
+"Cuts sub-bass the speaker cannot play and brings the melody forward." = "Cuts sub-bass the speaker cannot play and brings the melody forward.";
+"Fuller low end and a softer top for large speakers." = "Fuller low end and a softer top for large speakers.";
+"Quieter lead and a smoother top for listening under speech." = "Quieter lead and a smoother top for listening under speech.";
+"Song form template" = "Song form template";
+"Pop: verse–chorus" = "Pop: verse–chorus";
+"Hip-hop: intro–verse–hook" = "Hip-hop: intro–verse–hook";
+"House: build and drop" = "House: build and drop";
+"Ambient: slow arc" = "Ambient: slow arc";
+"Outro" = "Outro";
+"Build" = "Build";
+"Drop" = "Drop";
+"Break" = "Break";
+"Drift" = "Drift";
+"Fade" = "Fade";

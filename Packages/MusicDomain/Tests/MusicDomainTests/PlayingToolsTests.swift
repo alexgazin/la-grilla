@@ -134,3 +134,34 @@ struct PlayingToolsTests {
         #expect(line.allSatisfy { $0.tick + $0.duration <= barTicks })
     }
 }
+
+struct HookGeneratorTests {
+    @Test func hookStaysInKeyLandsOnChordTonesAndIsDeterministic() throws {
+        let chords = try ["Am", "F", "C", "G"].enumerated().map { ChordEvent(tick: $0.offset * barTicks, chord: try Chord.parse($0.element)) }
+        let hook = HookGenerator.hook(chords: chords, start: 0, bars: 4, root: 9, minor: true, seed: 5)
+        let scale = Set(NoteTools.scale(root: 9, minor: true))
+        #expect(!hook.isEmpty && hook.allSatisfy { scale.contains($0.pitch % 12) && (64...84).contains($0.pitch) })
+        for note in hook where note.tick % (2 * ppq) == 0 {
+            let chord = chords.last { $0.tick <= note.tick }!.chord
+            #expect(Set(chord.effectiveIntervals.map { ($0 + chord.root) % 12 }).contains(note.pitch % 12))
+        }
+        #expect(hook.map(\.pitch) == HookGenerator.hook(chords: chords, start: 0, bars: 4, root: 9, minor: true, seed: 5).map(\.pitch))
+        #expect(hook.allSatisfy { $0.tick + $0.duration <= 4 * barTicks })
+    }
+
+    @Test func addAMelodyByPhraseCreatesAHookTrackOnlyInThatChorus() throws {
+        let p = try SongEditDemo.project()
+        let plan = SongEditParser.plan("Добавь мелодию во второй припев", project: p)
+        #expect(plan.isApplicable, "\(plan.problems)")
+        #expect(plan.operations.first?.kind == .hook && plan.operations.first?.bars == 14..<18)
+        let edited = try SongEditor.apply(plan, to: p)
+        #expect(edited.tracks.count == p.tracks.count + 1)
+        let hook = edited.tracks.last!
+        let index = edited.tracks.count - 1
+        let notes = Compiler.notes(edited).filter { $0.track == index }
+        #expect(!notes.isEmpty && notes.allSatisfy { (14 * barTicks..<18 * barTicks).contains($0.tick) })
+        #expect(hook.role == .melody)
+        // The original parts are untouched.
+        #expect(Compiler.notes(edited).filter { $0.track < p.tracks.count } == Compiler.notes(p))
+    }
+}

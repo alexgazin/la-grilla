@@ -97,7 +97,7 @@ public enum SongEditParser {
 
     /// Whether the operation's part plays in its bars (fill and arpeggio create new material).
     static func sounds(_ op: SongEditOperation, in project: Project) -> Bool {
-        if op.kind == .fill || op.kind == .arpeggiate { return true }
+        if op.kind == .fill || op.kind == .arpeggiate || op.kind == .hook { return true }
         guard let index = project.tracks.firstIndex(where: { $0.id == op.target.trackID }) else { return false }
         let range = op.bars.lowerBound * barTicks..<op.bars.upperBound * barTicks
         let pads = op.target.pads.map(Set.init)
@@ -298,6 +298,7 @@ public enum SongEditParser {
         else if fadeWord != nil { edit.kind = .fadeOut }
         else if edit.fillNoun { edit.kind = .fill }
         else if words.contains(where: { any($0, Lexicon.arpeggio) }) { edit.kind = .arpeggiate }
+        else if (edit.action == .add || edit.action == .make) && words.contains(where: { any($0, ["мелоди", "хук", "мотив", "melody", "hook", "motif", "riff", "рифф", "лид", "lead", "topline"]) }) && !words.contains(where: { any($0, Lexicon.remove) }) { edit.kind = .hook }
         else if words.contains(where: { any($0, Lexicon.delay) }) || phrase(["behind the beat", "laid back", "laid-back"]) { edit.kind = .delay }
         else if words.contains(where: { any($0, Lexicon.denser) }) { edit.kind = .denser }
         else if words.contains(where: { any($0, Lexicon.sparser) }) { edit.kind = .sparser }
@@ -522,6 +523,14 @@ public enum SongEditParser {
         if kind == .fill {
             guard let drums = project.tracks.first(where: { $0.role == .drums }) else { return .problem(.missing) }
             targets = [SongEditTarget(trackID: drums.id)]
+        } else if kind == .hook {
+            let named = resolve(edit.targets.filter { if case .track = $0 { return true } else { return false } }, except: [], project: project, forEdit: true)
+            let melodyTarget = named.first { t in project.tracks.first { $0.id == t.trackID }?.role == .melody && !isBassName(project.tracks.first { $0.id == t.trackID }?.name) }
+            if let melodyTarget { targets = [melodyTarget] }
+            else {
+                guard project.tracks.count < 8, let harmony = project.tracks.first(where: { $0.role == .harmony }) else { return .problem(.trackLimit) }
+                targets = [SongEditTarget(trackID: harmony.id)]
+            }
         } else if kind == .arpeggiate {
             let explicit = resolve(edit.targets, except: edit.exceptions, project: project, forEdit: true)
             let melodyTarget = explicit.first { t in project.tracks.first { $0.id == t.trackID }?.role == .melody }

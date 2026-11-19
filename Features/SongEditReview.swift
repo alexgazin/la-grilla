@@ -129,6 +129,7 @@ struct SongEditReview: View {
         case .denser: "plus.circle"
         case .sparser: "circle.dotted"
         case .arpeggiate: "arrow.up.and.down.text.horizontal"
+        case .hook: "music.quarternote.3"
         case .delay: "clock.arrow.circlepath"
         case .fadeIn: "speaker.wave.1"
         case .fadeOut: "speaker.slash"

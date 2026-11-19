@@ -77,7 +77,7 @@ public enum SongEditor {
         guard role != .bass else { throw SongEditError.notApplicable }
         let requested = op.bars.lowerBound * barTicks..<op.bars.upperBound * barTicks
         let range = isolationRange(project, track: index, requested: requested)
-        if op.kind == .arpeggiate {
+        if op.kind == .arpeggiate || op.kind == .hook {
             try arpeggiate(op, into: index, requested: requested, project: &project)
             return
         }
@@ -158,7 +158,7 @@ public enum SongEditor {
             for i in pattern.chords.indices where whole.contains(pattern.chords[i].tick) {
                 pattern.chords[i].velocity = scaled(pattern.chords[i].velocity ?? 88, factor(pattern.chords[i].tick))
             }
-        case .arpeggiate:
+        case .arpeggiate, .hook:
             break
         }
         pattern.drums.sort { ($0.tick, $0.pad) < ($1.tick, $1.pad) }
@@ -293,7 +293,7 @@ public enum SongEditor {
             target = index
         } else {
             guard project.tracks.count < 8 else { throw SongEditError.trackLimit }
-            try project.addMelody(name: NSLocalizedString("Arpeggio", comment: "Generated arpeggio track"))
+            try project.addMelody(name: op.kind == .hook ? NSLocalizedString("Hook", comment: "Generated hook track") : NSLocalizedString("Arpeggio", comment: "Generated arpeggio track"))
             target = project.tracks.count - 1
         }
         let range = isolationRange(project, track: target, requested: requested)
@@ -302,6 +302,17 @@ public enum SongEditor {
         let base = range.lowerBound
         let windows = op.editedBars.map { ($0 * barTicks - base)..<(($0 + 1) * barTicks - base) }
         let step = ppq / 2
+        if op.kind == .hook {
+            let local = source.map { chord -> ChordEvent in var c = chord; c.tick += requested.lowerBound - base; return c }
+            let hook = HookGenerator.hook(chords: local, start: requested.lowerBound - base, bars: op.bars.count, root: project.keyRoot, minor: project.minor, seed: UInt64(project.revision) &+ UInt64(op.bars.lowerBound))
+            for window in windows {
+                pattern.notes?.removeAll { window.contains($0.tick) }
+                pattern.notes?.append(contentsOf: hook.filter { window.contains($0.tick) }.map { n in var x = n; x.duration = min(x.duration, window.upperBound - x.tick); return x })
+            }
+            pattern.notes?.sort { ($0.tick, $0.pitch) < ($1.tick, $1.pitch) }
+            project.patterns[patternIndex] = pattern
+            return
+        }
         for window in windows {
             pattern.notes?.removeAll { window.contains($0.tick) }
             for chord in source {
@@ -336,7 +347,7 @@ public enum SongEditor {
     /// Every track that no operation targets must compile to the same notes.
     static func verifyUntouched(before: Project, after: Project, plan: SongEditPlan) throws {
         var targeted = Set(plan.operations.map(\.target.trackID))
-        for op in plan.operations where op.kind == .arpeggiate && op.replacesChords {
+        for op in plan.operations where (op.kind == .arpeggiate || op.kind == .hook) && op.replacesChords {
             if let harmony = before.tracks.first(where: { $0.role == .harmony }) { targeted.insert(harmony.id) }
         }
         let old = Compiler.notes(before), new = Compiler.notes(after)

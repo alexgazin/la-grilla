@@ -54,6 +54,7 @@ struct MixerView: View {
                     .background(Color.raised.opacity(0.55), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
             }.buttonStyle(StudioQuietButtonStyle()).accessibilityIdentifier("mixer.palettes")
                 .disabled(session.performance.contextActive)
+            MixPresetMenu(session: session)
             VStack(spacing: 5) {
                 Image(systemName: "headphones")
                     .font(.system(size: 18, weight: .medium))
@@ -472,5 +473,25 @@ private struct MixerFaderFace: View {
         }
         .clipShape(Capsule())
         .overlay { Capsule().stroke(Color.outline.opacity(increasedContrast ? 1 : 0.65), lineWidth: 0.75) }
+    }
+}
+
+/// I64: one undoable master EQ and lead balance for a listening situation.
+private struct MixPresetMenu: View {
+    @Bindable var session: Session
+    var body: some View {
+        Menu {
+            ForEach(MixPreset.allCases, id: \.self) { preset in
+                Button { session.edit { $0 = try preset.applied(to: $0) } } label: {
+                    Text(LocalizedStringKey(preset.title))
+                }
+            }
+        } label: {
+            Image(systemName: "dial.medium").font(.system(size: 17, weight: .medium))
+                .frame(width: 44, height: 44)
+                .background(Color.raised.opacity(0.55), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        }
+        .accessibilityLabel("Mix presets").accessibilityIdentifier("mixer.mix-presets")
+        .disabled(session.performance.contextActive)
     }
 }

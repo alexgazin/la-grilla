@@ -1209,3 +1209,24 @@
 "This MIDI file is damaged." = "Этот MIDI-файл повреждён.";
 "Imported" = "Импорт";
 "MIDI channel %d" = "MIDI-канал %d";
+
+/* Ideas: hook, mix presets, form templates */
+"Write a melodic hook on %@ in %@" = "Хук-мелодия: %@ · %@";
+"Mix presets" = "Пресеты сведения";
+"Phone speaker" = "Динамик телефона";
+"Club" = "Клуб";
+"Background" = "Фон";
+"Cuts sub-bass the speaker cannot play and brings the melody forward." = "Убирает саб-бас, который динамик не воспроизводит, и выводит мелодию вперёд.";
+"Fuller low end and a softer top for large speakers." = "Плотнее низ и мягче верх для больших колонок.";
+"Quieter lead and a smoother top for listening under speech." = "Тише лид и мягче верх для прослушивания под речь.";
+"Song form template" = "Шаблон формы песни";
+"Pop: verse–chorus" = "Поп: куплет–припев";
+"Hip-hop: intro–verse–hook" = "Хип-хоп: интро–куплет–хук";
+"House: build and drop" = "Хаус: подъём и дроп";
+"Ambient: slow arc" = "Эмбиент: медленная арка";
+"Outro" = "Аутро";
+"Build" = "Подъём";
+"Drop" = "Дроп";
+"Break" = "Брейк";
+"Drift" = "Дрейф";
+"Fade" = "Затухание";

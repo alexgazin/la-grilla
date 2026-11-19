@@ -370,3 +370,56 @@ public enum BassFromGroove {
         return notes
     }
 }
+
+// MARK: I45 · Melodic hook over existing chords
+
+public enum HookGenerator {
+    /// A one- or two-bar motif in the key, built on chord tones at strong beats
+    /// with scale steps between, then developed: repeated, sequenced to follow
+    /// the chords, and resolved on a chord tone at the end of the range.
+    public static func hook(chords: [ChordEvent], start: Int, bars: Int, root: Int, minor: Bool, seed: UInt64 = 1) -> [NoteEvent] {
+        guard bars > 0, !chords.isEmpty else { return [] }
+        let scale = Set(NoteTools.scale(root: root, minor: minor))
+        var state = seed | 1
+        func random(_ n: Int) -> Int { state ^= state << 13; state ^= state >> 7; state ^= state << 17; return Int(state % UInt64(max(1, n))) }
+        func chord(at tick: Int) -> Chord { (chords.last { $0.tick <= tick } ?? chords[0]).chord }
+        func nearestTone(_ pitch: Int, in tones: Set<Int>) -> Int {
+            (0...12).flatMap { [pitch + $0, pitch - $0] }.first { tones.contains((($0 % 12) + 12) % 12) } ?? pitch
+        }
+        // Rhythm of the motif (in eighths within one bar): strong-beat chord tones, passing steps.
+        let rhythms: [[(Int, Int)]] = [[(0, 2), (2, 1), (3, 1), (4, 3), (7, 1)], [(0, 1), (1, 1), (2, 2), (4, 2), (6, 2)], [(0, 3), (3, 1), (4, 1), (5, 1), (6, 2)]]
+        let rhythm = rhythms[random(rhythms.count)]
+        let contour = [0, 1, 2, -1, 1].shuffledDeterministic(seed: seed)
+        var notes: [NoteEvent] = []
+        let motifBars = bars >= 4 ? 2 : 1
+        for bar in 0..<bars {
+            let barStart = start + bar * barTicks
+            let current = chord(at: barStart)
+            let tones = Set(current.effectiveIntervals.map { ($0 + current.root) % 12 })
+            var pitch = nearestTone(72 + (bar / motifBars % 2 == 1 ? 2 : 0), in: tones)
+            let lastBar = bar == bars - 1
+            for (i, (eighth, length)) in rhythm.enumerated() {
+                let tick = barStart + eighth * ppq / 2
+                let strong = eighth % 4 == 0
+                if i > 0 { pitch += contour[i % contour.count] * 2 }
+                pitch = strong ? nearestTone(pitch, in: tones) : nearestTone(pitch, in: scale)
+                pitch = min(84, max(64, pitch))
+                if lastBar && i == rhythm.count - 1 { pitch = nearestTone(pitch, in: tones) }
+                notes.append(NoteEvent(tick: tick, duration: max(ppq / 4, length * ppq / 2 - 40), pitch: pitch, velocity: strong ? 100 : 86))
+            }
+        }
+        return notes
+    }
+}
+
+extension Array {
+    func shuffledDeterministic(seed: UInt64) -> [Element] {
+        var state = seed | 1, result = self
+        guard count > 1 else { return result }
+        for i in stride(from: count - 1, to: 0, by: -1) {
+            state ^= state << 13; state ^= state >> 7; state ^= state << 17
+            result.swapAt(i, Int(state % UInt64(i + 1)))
+        }
+        return result
+    }
+}

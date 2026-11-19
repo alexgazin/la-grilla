@@ -46,6 +46,8 @@ struct AssistantView:View {
                     Button { session.openTrackBuilder(idea:input) } label: {
                         Label("Build a track",systemImage:"slider.horizontal.3")
                     }.buttonStyle(.bordered).disabled(dictation.recording || dictation.requesting || dictation.finalizing || generationTask != nil)
+                    SongFormTemplateMenu{template in useTemplate(template)}
+                        .disabled(dictation.recording || dictation.requesting || dictation.finalizing || generationTask != nil)
                     if session.project.arrangementRecipe != nil {
                         Button("Edit saved arrangement as a copy") { TrackBuilderView.openSavedArrangement(in: session) }
                             .disabled(dictation.recording || dictation.requesting || dictation.finalizing || generationTask != nil)
@@ -365,6 +367,13 @@ struct AssistantView:View {
     private func resetReview(){
         session.endHarmonyPreview();cancelGeneration();proposal=nil;candidate=nil;proposalSource=nil;clearSongEdit();usedUnavailableAIFallback=false;error=nil;availabilityError=false
     }
+    /// I31: a whole-song form built from the current sections, reviewed before applying.
+    private func useTemplate(_ template:SongFormTemplate){
+        resetReview()
+        let snapshot=session.project
+        do{let p=try template.proposal(for:snapshot);candidate=try p.candidate(for:snapshot);proposalSource=snapshot;proposal=p}
+        catch{self.error=error.localizedDescription}
+    }
     private func clearSongEdit(){songEditPlan=nil;songEditCandidate=nil;songEditSource=nil}
     private func reviewSongEdit(_ plan:SongEditPlan,source:Project){
         session.endHarmonyPreview()
@@ -554,4 +563,17 @@ private struct AssistantExamplesView:View {
         Button{choose(language.hasPrefix("ru") ? "Создай форму: интро 4 такта, куплет 8 тактов и припев 8 тактов. Тональность Ре минор, темп 108. Используй Dm7 Gm7 A7 Dm7.":"Create a song form: 4-bar intro, 8-bar verse and 8-bar chorus in D minor at 108 BPM, using Dm7 Gm7 A7 Dm7.",true)}label:{Label("Create a complete song form",systemImage:"sparkles")}.accessibilityIdentifier("assistant.example.ai-song")
     }.environment(\.defaultMinListRowHeight,52).navigationTitle("Examples").navigationBarTitleDisplayMode(.inline).toolbar{ToolbarItem(placement:.cancellationAction){Button("Cancel"){dismiss()}}}}
     .presentationDetents([.large]).tint(.mint)}
+}
+
+private struct SongFormTemplateMenu: View {
+    let choose: (SongFormTemplate) -> Void
+    var body: some View {
+        Menu {
+            ForEach(SongFormTemplate.allCases, id: \.self) { template in
+                Button(LocalizedStringKey(template.title)) { choose(template) }
+            }
+        } label: {
+            Label("Song form template", systemImage: "rectangle.split.3x1").frame(minHeight: 44)
+        }.accessibilityIdentifier("assistant.form-template")
+    }
 }
