@@ -458,3 +458,44 @@ public enum PadVelocity {
         return Int((30 + 97 * amount).rounded())
     }
 }
+
+// MARK: I53 · Slice a loop into one-shots at its transients
+
+public enum TransientSlicer {
+    /// Frame ranges of up to `maximum` slices, each from an attack to the next
+    /// (at most `maxSeconds`), found with a rising block-peak envelope.
+    public static func slices(_ samples: [Int16], rate: Int, maximum: Int = 16, minimumGap: Double = 0.07, maxSeconds: Double = 2) -> [Range<Int>] {
+        guard rate > 0, samples.count >= 64 else { return [] }
+        let hop = max(16, rate / 1000)
+        let peak = samples.map { abs(Int($0)) }.max() ?? 0
+        guard peak > 0 else { return [] }
+        let blocks = stride(from: 0, to: samples.count - hop, by: hop).map { start in samples[start..<start + hop].map { abs(Int($0)) }.max() ?? 0 }
+        let level = Double(peak) * 0.12, back = max(1, Int(0.008 * Double(rate)) / hop)
+        let gap = Int(minimumGap * Double(rate))
+        var onsets: [Int] = []
+        for b in blocks.indices {
+            let earlier = b >= back ? blocks[(b - back)..<b].max() ?? 0 : 0
+            guard Double(blocks[b]) >= level, Double(blocks[b]) >= 2 * Double(earlier) else { continue }
+            let frame = max(0, b * hop - rate / 500)   // 2 ms before the attack
+            if let last = onsets.last, frame - last < gap { continue }
+            onsets.append(frame)
+            if onsets.count == maximum { break }
+        }
+        if onsets.isEmpty { onsets = [0] }
+        let limit = Int(maxSeconds * Double(rate))
+        return onsets.enumerated().map { i, start in
+            let next = i + 1 < onsets.count ? onsets[i + 1] : samples.count
+            return start..<min(next, start + limit, samples.count)
+        }.filter { $0.count >= 32 }
+    }
+
+    /// The slice as a one-shot: a 1 ms fade-in and a 3 ms fade-out avoid clicks.
+    public static func oneShot(_ samples: [Int16], _ range: Range<Int>, rate: Int) -> [Int16] {
+        let part = Array(samples[range])
+        let fadeIn = max(1, rate / 1000), fadeOut = max(1, rate * 3 / 1000)
+        return part.enumerated().map { i, v in
+            let g = min(1, Double(i) / Double(fadeIn), Double(part.count - 1 - i) / Double(fadeOut))
+            return Int16((Double(v) * max(0, g)).rounded())
+        }
+    }
+}

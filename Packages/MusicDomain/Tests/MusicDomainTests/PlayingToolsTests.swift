@@ -187,3 +187,27 @@ struct RetroAndVelocityTests {
         #expect(PadVelocity.fromTouch(force: 0, maximumForce: 0, radius: 21, curve: .hard) < mid)
     }
 }
+
+struct TransientSlicerTests {
+    @Test func aLoopWithEightHitsGivesEightClickFreeSlices() throws {
+        let rate = 32_000, step = rate / 4
+        var loop = [Int16](repeating: 0, count: step * 8 + 2000)
+        for hit in 0..<8 {
+            for i in 0..<3000 {
+                let v = 20_000 * exp(-Double(i) / 500) * sin(Double(i) * (0.2 + Double(hit) * 0.03))
+                loop[hit * step + 400 + i] &+= Int16(v)
+            }
+        }
+        let slices = TransientSlicer.slices(loop, rate: rate)
+        #expect(slices.count == 8)
+        for (i, slice) in slices.enumerated() {
+            #expect(abs(slice.lowerBound - (i * step + 400)) <= rate / 200, "slice \(i) starts at \(slice.lowerBound)")
+            let shot = TransientSlicer.oneShot(loop, slice, rate: rate)
+            #expect(shot.first == 0 && shot.last == 0 && shot.contains { abs(Int($0)) > 2048 })
+        }
+        // A sample can become a pad one-shot asset.
+        let pcm = SamplePCM(rate: rate, zones: [.init(pitch: 60, samples: TransientSlicer.oneShot(loop, slices[0], rate: rate))])
+        _ = try SampleAsset(kind: .oneShot, name: "slice", bytes: try pcm.encode(kind: .oneShot))
+        #expect(TransientSlicer.slices([Int16](repeating: 0, count: 1000), rate: rate).isEmpty)
+    }
+}

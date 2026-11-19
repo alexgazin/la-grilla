@@ -25,6 +25,7 @@ struct DrumSamplePicker: View {
     @Environment(\.dismiss) private var dismiss
     @State private var pendingPad: Int?
     @State private var showImporter = false
+    @State private var showSliceImporter = false
     @State private var libraryTarget: LibraryTarget?
     @State private var editTarget: EditTarget?
     @State private var kitTarget: KitTarget?
@@ -60,6 +61,8 @@ struct DrumSamplePicker: View {
                     if let pads = track?.padSamples, !pads.isEmpty {
                         Button("Restore built-in kit") { restore(pad: nil) }
                     }
+                    Button("Slice a loop onto the pads") { showSliceImporter = true }
+                        .accessibilityIdentifier("pad-samples.slice-loop")
                 } header: { Text("Factory kits") }
                 footer: { Text("Audition the same beat with each kit. Loading replaces the 16 pad sounds in one undoable edit.") }
                     .disabled(!editable)
@@ -91,6 +94,16 @@ struct DrumSamplePicker: View {
                 prepare {
                     let sound = try await DrumSamplePreparation.shared.importAndKeep(url)
                     return [(pendingPad, sound)]
+                }
+            case .failure(let failure): error = failure.localizedDescription
+            }
+        }
+        .fileImporter(isPresented: $showSliceImporter, allowedContentTypes: [.wav, .aiff]) { result in
+            switch result {
+            case .success(let url):
+                prepare {
+                    let slices = try await DrumSamplePreparation.shared.importSlices(url)
+                    return slices.prefix(16).enumerated().map { (pad: Optional($0.offset), sound: $0.element) }
                 }
             case .failure(let failure): error = failure.localizedDescription
             }

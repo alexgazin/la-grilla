@@ -101,6 +101,22 @@ actor DrumSamplePreparation {
         return sound
     }
 
+    /// I53: one imported loop cut at its transients into up to 16 one-shots.
+    func importSlices(_ url: URL) throws -> [PreparedSound] {
+        let loop = try importSample(url)
+        let pcm = try SamplePCM.decode(loop.data, asset: loop.asset)
+        guard let zone = pcm.zones.first else { throw SampleError.invalid }
+        let slices = TransientSlicer.slices(zone.samples, rate: pcm.rate)
+        guard !slices.isEmpty else { throw SampleError.invalid }
+        let base = url.deletingPathExtension().lastPathComponent
+        return try slices.enumerated().map { index, range in
+            try Task.checkCancellation()
+            let shot = TransientSlicer.oneShot(zone.samples, range, rate: pcm.rate)
+            return try PreparedSound(name: String(base.prefix(40)) + " · \(index + 1)", kind: .oneShot,
+                                     pcm: SamplePCM(rate: pcm.rate, zones: [.init(pitch: 60, samples: shot)]))
+        }
+    }
+
     func importSample(_ url: URL) throws -> PreparedSound {
         let granted = url.startAccessingSecurityScopedResource()
         defer { if granted { url.stopAccessingSecurityScopedResource() } }
