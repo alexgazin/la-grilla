@@ -18,6 +18,9 @@ Edit notes, timing, length and velocity in the piano roll or note list. Record a
 PERFORM YOUR SECTIONS
 Launch sections on the next bar, repeat a fragment, jump beats, and shape the sound with a master filter and delay. Record a performance take and create a new editable song from the played sections and parts. Replay the take or export its live mix.
 
+EDIT IN YOUR OWN WORDS
+Describe a change to the open song: “remove the kick in the first two bars”, “add a fill before the second chorus”, “make the hats busier in the last chorus”. The app shows the parts and bars affected, plays before and after from the same place and applies the edit in one step. Compare Boom bap, West Coast and Atmospheric chillhop palettes on your own part at matched loudness.
+
 CONNECT AND EXPORT
 Use compatible USB or Bluetooth MIDI controllers, choose a MIDI destination and map controller knobs. Export MIDI, stereo WAV, aligned stems or a portable project package. Share files through the iOS share sheet.
 

@@ -1,3 +1,5 @@
-Audition three drum kits on the same beat. Trim a sample on its waveform, shape the attack and tail, and set its gain. The editor shows clipping and can leave headroom with one tap. Save all 16 pads as a personal kit for another project. Your original samples remain available for the next edit.
+Edit a finished song in your own words. For example: “Keep the bass and chords. Remove the kick in the first two bars and add a short fill before the first chorus.” Before applying, you see which parts and bars will change and hear the original and the proposal from the same place. If the song has two choruses, the app asks which one you mean. The edit applies, and undoes, in one step. Everything runs on the device, without a network.
 
-Describe an instrumental track, audition sections of its score and compare two performances. Edit the resulting parts and export MIDI, a stereo WAV or individual stems.
+Compare three palettes on your own part: Boom bap, West Coast and Atmospheric chillhop. Levels are matched, your notes and master stay yours, and your own sounds are kept by default.
+
+The keyboard sounds as loud live as it does after recording and in WAV. When you lengthen a note, its end is shown above your finger. Recording over a hit that already sounds no longer doubles the attack. Recorded hits can use quantize strength and swing. Also new: tap tempo, note tools (humanize, legato, staccato, move by scale steps), MIDI file import, mix presets and song form templates.
