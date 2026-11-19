@@ -400,3 +400,32 @@ public extension ProjectStore {
         return try duplicate(draft, suffix: "")
     }
 }
+
+/// I50 · the musician's habits from their own saved projects, computed on the
+/// device only: median tempo, most used key and mode, usual length. Needs at
+/// least three projects; nothing leaves the iPhone.
+public struct StyleProfile: Equatable, Sendable {
+    public let bpm: Double
+    public let keyRoot: Int
+    public let minor: Bool
+    public let bars: Int
+    public let projects: Int
+
+    public static func from(_ summaries: [ProjectSummary], minimum: Int = 3) -> StyleProfile? {
+        let valid = summaries.filter { $0.bpm.isFinite && (40...240).contains($0.bpm) && (0..<12).contains($0.keyRoot) && $0.bars > 0 }
+        guard valid.count >= max(1, minimum) else { return nil }
+        let tempos = valid.map(\.bpm).sorted()
+        let middle = tempos.count / 2
+        let median = tempos.count.isMultiple(of: 2) ? (tempos[middle - 1] + tempos[middle]) / 2 : tempos[middle]
+        // Most frequent key; ties go to the most recently modified project.
+        let recent = valid.sorted { $0.modified > $1.modified }
+        var counts: [Int: Int] = [:]
+        for s in valid { counts[s.keyRoot * 2 + (s.minor ? 1 : 0), default: 0] += 1 }
+        let top = counts.values.max() ?? 0
+        let key = recent.first { counts[$0.keyRoot * 2 + ($0.minor ? 1 : 0)] == top }!
+        var bars: [Int: Int] = [:]
+        for s in valid { bars[s.bars, default: 0] += 1 }
+        let usualBars = bars.max { a, b in a.value == b.value ? a.key > b.key : a.value < b.value }!.key
+        return StyleProfile(bpm: median.rounded(), keyRoot: key.keyRoot, minor: key.minor, bars: min(64, usualBars), projects: valid.count)
+    }
+}

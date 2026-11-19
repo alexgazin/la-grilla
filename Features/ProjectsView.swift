@@ -76,6 +76,14 @@ struct NewProjectView: View {
                     Text(LocalizedStringKey(template == .empty ? "Start empty, then add chords or record a beat.":"Editable chords, drums and root bass in your chosen key. A local starting point, not AI generation."))
                         .font(.caption).foregroundStyle(.secondary)
                 }
+                if let usual=StyleProfile.from(session.entries.compactMap(\.summary)) {
+                    // I50: computed on this iPhone from your own projects.
+                    Section {
+                        Button{bpm=usual.bpm;root=usual.keyRoot;minor=usual.minor;bars=usual.bars}label:{
+                            Label(String(format:NSLocalizedString("Use my usual: %d BPM · %@ · %d bars",comment:"Style profile"),Int(usual.bpm),MusicalNotation.pitchClassName(usual.keyRoot,keyRoot:usual.keyRoot,minor:usual.minor,spelling:PitchSpelling(rawValue:spellingValue) ?? .automatic)+" "+NSLocalizedString(usual.minor ? "minor":"major",comment:"Key mode"),usual.bars),systemImage:"person.crop.circle.badge.checkmark")
+                        }.accessibilityIdentifier("project.usual")
+                    } footer: { Text(String(format:NSLocalizedString("From your %d projects on this iPhone.",comment:"Style profile"),usual.projects)) }
+                }
                 Section {
                     TextField("Project name", text: $name).accessibilityIdentifier("project.name")
                     Stepper("\(Int(bpm)) BPM", value: $bpm, in: 40...240).accessibilityIdentifier("project.tempo")

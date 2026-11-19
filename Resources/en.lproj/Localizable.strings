@@ -1358,3 +1358,5 @@
 "Large" = "Large";
 "Keyboard layout" = "Keyboard layout";
 "The part you are editing" = "The part you are editing";
+"Use my usual: %d BPM · %@ · %d bars" = "Use my usual: %d BPM · %@ · %d bars";
+"From your %d projects on this iPhone." = "From your %d projects on this iPhone.";

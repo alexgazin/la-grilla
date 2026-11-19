@@ -1360,3 +1360,5 @@
 "Large" = "Крупные";
 "Keyboard layout" = "Раскладка клавиатуры";
 "The part you are editing" = "Партия, которую вы редактируете";
+"Use my usual: %d BPM · %@ · %d bars" = "Как обычно: %d BPM · %@ · %d тактов";
+"From your %d projects on this iPhone." = "По вашим проектам на этом iPhone: %d.";

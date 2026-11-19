@@ -173,3 +173,17 @@ struct ProjectSummaryTests {
         #expect(legacy.allSatisfy { $0.project != nil && $0.error == nil })
     }
 }
+
+struct StyleProfileTests {
+    private func summary(_ bpm: Double, _ key: Int, _ minor: Bool, bars: Int = 8, age: Double) -> ProjectSummary {
+        ProjectSummary(id: UUID(), name: "S", bpm: bpm, keyRoot: key, minor: minor, bars: bars, revision: 1, modified: Date(timeIntervalSince1970: 1_000_000 - age), schemaVersion: 15, trackCount: 3)
+    }
+    @Test func usualTempoKeyAndLengthFromOwnProjects() {
+        #expect(StyleProfile.from([summary(90, 2, true, age: 1), summary(92, 2, true, age: 2)]) == nil)
+        let profile = StyleProfile.from([summary(90, 2, true, age: 3), summary(96, 2, true, bars: 4, age: 2), summary(140, 7, false, age: 1), summary(84, 9, true, age: 4)])
+        #expect(profile?.bpm == 93 && profile?.keyRoot == 2 && profile?.minor == true && profile?.bars == 8 && profile?.projects == 4)
+        // A tie goes to the most recently modified key.
+        let tie = StyleProfile.from([summary(90, 2, true, age: 3), summary(91, 7, false, age: 1), summary(92, 0, false, age: 2)])
+        #expect(tie?.keyRoot == 7 && tie?.minor == false && tie?.bpm == 91)
+    }
+}
