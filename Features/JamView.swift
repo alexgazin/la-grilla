@@ -54,7 +54,7 @@ struct JamView: View {
         }
     }
     private var loopControl:some View{
-        Menu{ForEach(session.loopLengthOptions,id:\.self){n in Button("\(n) bars"){session.setLoop(bars:n)}}}label:{HStack(spacing:6){Image(systemName:"repeat").foregroundStyle(Color.drums);Text("\(session.loopBars) bars").monospacedDigit();Image(systemName:"chevron.down").font(.system(size:11,weight:.semibold)).foregroundStyle(Color.muted)}.modifier(JamUtilitySurface())}.disabled(session.performance.contextActive)
+        Menu{ForEach(session.loopLengthOptions,id:\.self){n in Button("\(n) bars"){session.setLoop(bars:n)}}}label:{HStack(spacing:6){Image(systemName:"repeat").foregroundStyle(Color.drums);Text("\(session.loopBars) bars").monospacedDigit();Image(systemName:"chevron.down").font(.system(.caption2, weight: .semibold)).foregroundStyle(Color.muted)}.modifier(JamUtilitySurface())}.disabled(session.performance.contextActive)
     }
     private var quantizeControl:some View{
         Menu{ForEach(Quantize.allCases,id:\.rawValue){q in Button(LocalizedStringKey(q == .off ? "Off":q == .eighth ? "1/8":"1/16")){session.quantize=q}};QuantizeFeelMenu(session:session)}label:{HStack(spacing:6){Text("Q").foregroundStyle(Color.drums);Text(LocalizedStringKey(session.quantize == .off ? "Off":session.quantize == .eighth ? "1/8":"1/16")).monospacedDigit()}.modifier(JamUtilitySurface())}.disabled(session.performance.contextActive)
@@ -71,14 +71,14 @@ struct JamView: View {
     }.font(.caption.weight(.semibold)).buttonStyle(StudioQuietButtonStyle()).padding(3).frame(width:dynamicType.isAccessibilitySize ? 220:146).modifier(StudioSurface(color:.ink))}
     private var recordingStatus:some View{HStack(spacing:9){Image(systemName:session.armed ? "record.circle":"record.circle.fill").font(.caption);Text(LocalizedStringKey(session.armed ? "Count-in · get ready":"Recording drums · tap Record to finish")).font(.caption.weight(.medium));Spacer(minLength:0);if session.recording{Button{session.undoPass()}label:{Label("Undo pass",systemImage:"arrow.uturn.backward").font(.caption.weight(.semibold)).frame(minHeight:44)}.disabled(!session.canUndoPass).accessibilityIdentifier("jam.undo-pass")}}.foregroundStyle(Color.record).padding(10).background(Color.record.opacity(0.08),in:RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous))}
     private var recordingGuide:some View {VStack(alignment:.leading,spacing:0){
-        Button{showGuide.toggle()}label:{HStack(spacing:10){Image(systemName:session.overdub ? "square.stack.3d.up":"arrow.triangle.2.circlepath").font(.system(size:16,weight:.medium)).foregroundStyle(Color.drums).frame(width:28);SmallHeading(text:"RECORD MODE");Spacer(minLength:4);Text(LocalizedStringKey(session.overdub ? "Overdub":"Replace")).font(.caption.weight(.semibold)).foregroundStyle(Color.studioText);Image(systemName:showGuide ? "chevron.up":"chevron.down").font(.system(size:11,weight:.semibold)).foregroundStyle(Color.muted)}.frame(minHeight:52)}.buttonStyle(StudioQuietButtonStyle()).accessibilityLabel("Recording guide").accessibilityValue(LocalizedStringKey(showGuide ? "Expanded":"Collapsed")).accessibilityIdentifier("jam.recording-guide")
+        Button{showGuide.toggle()}label:{HStack(spacing:10){Image(systemName:session.overdub ? "square.stack.3d.up":"arrow.triangle.2.circlepath").font(.system(size:16,weight:.medium)).foregroundStyle(Color.drums).frame(width:28);SmallHeading(text:"RECORD MODE");Spacer(minLength:4);Text(LocalizedStringKey(session.overdub ? "Overdub":"Replace")).font(.caption.weight(.semibold)).foregroundStyle(Color.studioText);Image(systemName:showGuide ? "chevron.up":"chevron.down").font(.system(.caption2, weight: .semibold)).foregroundStyle(Color.muted)}.frame(minHeight:52)}.buttonStyle(StudioQuietButtonStyle()).accessibilityLabel("Recording guide").accessibilityValue(LocalizedStringKey(showGuide ? "Expanded":"Collapsed")).accessibilityIdentifier("jam.recording-guide")
         if showGuide{VStack(alignment:.leading,spacing:8){
             Text("Play something only you would.")
             Text(LocalizedStringKey(session.overdub ? "Build your beat, layer by layer.":"A new take. Your last one is undoable."))
             Toggle("Count-in",isOn:$session.countIn).frame(minHeight:44).disabled(session.performance.contextActive)
             Toggle("Overdub",isOn:$session.overdub).frame(minHeight:44).disabled(session.performance.contextActive)
         }.font(.caption).foregroundStyle(Color.muted).padding(.bottom,12)}
-    }.padding(.horizontal,12).modifier(StudioSurface()).overlay(alignment:.leading){RoundedRectangle(cornerRadius:2).fill(session.recording || session.armed ? Color.record:Color.drums.opacity(0.65)).frame(width:3).padding(.vertical,14).allowsHitTesting(false)}}
+    }.padding(.horizontal,12).modifier(StudioSurface()).overlay(alignment:.leading){RoundedRectangle(cornerRadius:2,style:.continuous).fill(session.recording || session.armed ? Color.record:Color.drums.opacity(0.65)).frame(width:3).padding(.vertical,14).allowsHitTesting(false)}}
     private var compactJam:some View {VStack(spacing:8){
         if dynamicType.isAccessibilitySize{
             HStack{Text("Pocket kit").font(.headline);Spacer();compactOptions}
@@ -139,12 +139,12 @@ struct JamView: View {
             LazyVGrid(columns:Array(repeating:GridItem(.flexible(),spacing:6),count:4),spacing:10){ForEach(0..<16,id:\.self){step in
                 let tick=stepBar*barTicks+step*240
                 let exists=drumPattern?.drums.contains(where:{$0.pad==selectedPad && $0.tick==tick}) ?? false
-                Button{toggleStep(tick);Luz.Haptics.selection()}label:{VStack(spacing:9){Text(String(step+1)).font(StudioTypography.index);RoundedRectangle(cornerRadius:3).fill(exists ? Color.ink.opacity(0.55):Color.drums.opacity(0.35)).frame(height:26)}.foregroundStyle(exists ? Color.ink:Color.muted).padding(8).frame(height:61)
+                Button{toggleStep(tick);Luz.Haptics.selection()}label:{VStack(spacing:9){Text(String(step+1)).font(StudioTypography.index);RoundedRectangle(cornerRadius:3,style:.continuous).fill(exists ? Color.ink.opacity(0.55):Color.drums.opacity(0.35)).frame(height:26)}.foregroundStyle(exists ? Color.ink:Color.muted).padding(8).frame(height:61)
                     // Luz lit step: an active step glows in the drum colour; every fourth step marks the beat.
                     .litInstrument(.drums,isDown:exists,radius:Luz.Radius.cell,intensity:step%4==0 ? 1:0.75)
                     .overlay{StepPlayhead(audio:session.audio,tick:tick,origin:drumClipStart,length:drumPattern?.length ?? barTicks)}}.buttonStyle(StudioQuietButtonStyle(plate:false)).accessibilityLabel("Step \(step+1)").accessibilityValue(LocalizedStringKey(exists ? "On":"Off")).accessibilityIdentifier("jam.step.\(step)")
             }}
-            VStack(alignment:.leading,spacing:8){HStack{SmallHeading(text:"VELOCITY");Spacer();Text(String(Int(velocity))).font(.system(size:12,design:.monospaced)).foregroundStyle(Color.drums).monospacedDigit()};Slider(value:$velocity,in:1...127,step:1).tint(.drums);Button("Apply velocity to this bar"){guard let id=drumPattern?.id else{return};session.edit{p in if let i=p.patterns.firstIndex(where:{$0.id==id}){for n in p.patterns[i].drums.indices where p.patterns[i].drums[n].pad==selectedPad && p.patterns[i].drums[n].tick/barTicks==stepBar{p.patterns[i].drums[n].velocity=Int(velocity)}}}}.font(.caption).frame(minHeight:44)}
+            VStack(alignment:.leading,spacing:8){HStack{SmallHeading(text:"VELOCITY");Spacer();Text(String(Int(velocity))).font(.system(.caption, design: .monospaced)).foregroundStyle(Color.drums).monospacedDigit()};Slider(value:$velocity,in:1...127,step:1).tint(.drums);Button("Apply velocity to this bar"){guard let id=drumPattern?.id else{return};session.edit{p in if let i=p.patterns.firstIndex(where:{$0.id==id}){for n in p.patterns[i].drums.indices where p.patterns[i].drums[n].pad==selectedPad && p.patterns[i].drums[n].tick/barTicks==stepBar{p.patterns[i].drums[n].velocity=Int(velocity)}}}}.font(.caption).frame(minHeight:44)}
         }.padding(14).modifier(StudioSurface())
     }
     func toggleStep(_ tick: Int){guard let pattern=drumPattern else{return};session.edit{p in guard let i=p.patterns.firstIndex(where:{$0.id==pattern.id})else{return};if p.patterns[i].drums.contains(where:{$0.pad==selectedPad && $0.tick==tick}){p.patterns[i].drums.removeAll(where:{$0.pad==selectedPad && $0.tick==tick})}else{p.patterns[i].drums.append(DrumEvent(tick:tick,pad:selectedPad,velocity:Int(velocity)))}}}
@@ -218,7 +218,7 @@ private struct DrumLessonPanel: View {
                 Spacer(minLength: 0)
                 Button("Close lesson", action: close).font(.caption).frame(minHeight: 44)
             }
-            ForEach(lesson.notation, id: \.self) { Text(verbatim: $0).font(.system(size: 12, design: .monospaced)).lineLimit(1).minimumScaleFactor(0.7) }
+            ForEach(lesson.notation, id: \.self) { Text(verbatim: $0).font(.system(.caption, design: .monospaced)).lineLimit(1).minimumScaleFactor(0.7) }
             Text(String(format: NSLocalizedString("Record %d bars: %d%% · %d hit · %d missed · %d extra", comment: "Drum lesson score"), bars, score.accuracy, score.hit, score.missed, score.extra))
                 .font(.caption.monospacedDigit()).foregroundStyle(score.accuracy >= 90 ? Color.mint : Color.muted)
                 .accessibilityIdentifier("jam.lesson.score")

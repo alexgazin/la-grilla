@@ -23,7 +23,7 @@ struct ChordEditor: View {
             HStack{TextField("Chord symbol",text:$text).focused($focusedField,equals:.symbol).textInputAutocapitalization(.never).autocorrectionDisabled().textFieldStyle(.roundedBorder).frame(minHeight:44).onSubmit{parse()}.accessibilityIdentifier("chord.symbol");Button{parse()}label:{Text("Set").frame(minWidth:44,minHeight:44).contentShape(Rectangle())}.accessibilityIdentifier("chord.set-symbol")}
             if let error{Text(LocalizedStringKey(error)).font(.caption).foregroundStyle(Color.record).accessibilityIdentifier("chord.error")}
             SmallHeading(text:"ROOT")
-            LazyVGrid(columns:Array(repeating:GridItem(.flexible()),count:6),spacing:8){ForEach(0..<12,id:\.self){root in Button{chord.root=root;chord.voicedNotes=nil;text=chord.symbol;error=nil}label:{Text(pitchName(root)).font(.system(.body,weight:.medium)).foregroundStyle(chord.root==root ? Color.ink:Color.harmony).frame(maxWidth:.infinity,minHeight:44).background(chord.root==root ? Color.harmony:Color.raised,in:RoundedRectangle(cornerRadius:8))}.buttonStyle(StudioQuietButtonStyle())}}
+            LazyVGrid(columns:Array(repeating:GridItem(.flexible()),count:6),spacing:8){ForEach(0..<12,id:\.self){root in Button{chord.root=root;chord.voicedNotes=nil;text=chord.symbol;error=nil}label:{Text(pitchName(root)).font(.system(.body,weight:.medium)).foregroundStyle(chord.root==root ? Color.ink:Color.harmony).frame(maxWidth:.infinity,minHeight:44).background(chord.root==root ? Color.harmony:Color.raised,in:RoundedRectangle(cornerRadius:8,style:.continuous))}.buttonStyle(StudioQuietButtonStyle())}}
             SmallHeading(text:"QUALITY")
             Toggle("Custom intervals",isOn:Binding(get:{chord.customIntervals != nil},set:{enabled in chord.customIntervals=enabled ? chord.quality.intervals:nil;if enabled{chord.quality = .major};chord.inversion=0;chord.voicedNotes=nil;formulaText=chord.effectiveIntervals.map(String.init).joined(separator:", ");text=chord.symbol;error=nil})).accessibilityIdentifier("chord.custom")
             if chord.customIntervals != nil {
@@ -32,7 +32,7 @@ struct ChordEditor: View {
                 Button("Set formula"){setFormula()}.frame(minHeight:44).accessibilityIdentifier("chord.set-formula")
             }else{
                 Picker("Chord family",selection:$family){ForEach(ChordFamily.allCases,id:\.self){value in Text(LocalizedStringKey(value.rawValue)).tag(value)}}.pickerStyle(.menu).frame(minHeight:44)
-                LazyVGrid(columns:Array(repeating:GridItem(.flexible()),count:4),spacing:8){ForEach(Quality.allCases.filter{$0.family==family},id:\.rawValue){q in Button{chord.quality=q;chord.inversion=0;chord.voicedNotes=nil;text=chord.symbol;error=nil}label:{Text(q.label).font(.system(.caption,weight:.medium)).foregroundStyle(chord.quality==q ? Color.ink:Color.harmony).frame(maxWidth:.infinity,minHeight:44).background(chord.quality==q ? Color.harmony:Color.raised,in:RoundedRectangle(cornerRadius:8))}.buttonStyle(StudioQuietButtonStyle())}}
+                LazyVGrid(columns:Array(repeating:GridItem(.flexible()),count:4),spacing:8){ForEach(Quality.allCases.filter{$0.family==family},id:\.rawValue){q in Button{chord.quality=q;chord.inversion=0;chord.voicedNotes=nil;text=chord.symbol;error=nil}label:{Text(q.label).font(.system(.caption,weight:.medium)).foregroundStyle(chord.quality==q ? Color.ink:Color.harmony).frame(maxWidth:.infinity,minHeight:44).background(chord.quality==q ? Color.harmony:Color.raised,in:RoundedRectangle(cornerRadius:8,style:.continuous))}.buttonStyle(StudioQuietButtonStyle())}}
             }
             HStack {
                 Text("Inversion")
@@ -509,7 +509,7 @@ private struct LatencyCalibrationRow: View {
             if running {
                 Button { tap() } label: {
                     Text("Tap on every click").frame(maxWidth: .infinity, minHeight: 88)
-                        .background(Color.mint.opacity(0.25), in: RoundedRectangle(cornerRadius: Luz.Radius.card))
+                        .background(Color.mint.opacity(0.25), in: RoundedRectangle(cornerRadius:Luz.Radius.card,style:.continuous))
                 }.buttonStyle(.plain).accessibilityIdentifier("settings.latency.tap")
                 Text(String(format: NSLocalizedString("%d taps", comment: "Latency calibration"), offsets.count)).font(.caption.monospacedDigit())
                 if let estimate {

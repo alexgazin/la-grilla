@@ -90,11 +90,11 @@ struct PianoRollView: View {
     private var trackControl:some View {
         Button{showTrackActions=true}label:{
             HStack(spacing:8){
-                Image(systemName:"pianokeys").font(.system(size:17,weight:.medium)).foregroundStyle(Color.mint)
+                Image(systemName:"pianokeys").font(.system(.body, weight: .medium)).foregroundStyle(Color.mint)
                 Text(track?.displayName ?? NSLocalizedString("Add melody",comment:"Track menu"))
                     .font(.subheadline.weight(.semibold)).foregroundStyle(Color.studioText)
                     .lineLimit(dynamicType.isAccessibilitySize ? nil:1).fixedSize(horizontal:false,vertical:dynamicType.isAccessibilitySize)
-                Image(systemName:"chevron.down").font(.system(size:11,weight:.semibold)).foregroundStyle(Color.muted)
+                Image(systemName:"chevron.down").font(.system(.caption2, weight: .semibold)).foregroundStyle(Color.muted)
             }.frame(minHeight:44)
         }.buttonStyle(StudioQuietButtonStyle()).accessibilityIdentifier("notes.tracks")
     }
@@ -484,7 +484,7 @@ private struct RollCanvas:View {
         }
     }
     private func resizeGrip(_ note:NoteEvent)->some View {
-        Image(systemName:"arrow.left.and.right").font(.system(size:12,weight:.bold)).foregroundStyle(Color.ink)
+        Image(systemName:"arrow.left.and.right").font(.system(.caption, weight: .bold)).foregroundStyle(Color.ink)
             .frame(width:28,height:28).background(Color.mint,in:Circle())
             .overlay{Circle().stroke(Color.studioText.opacity(0.7),lineWidth:1).frame(width:28,height:28)}
             .frame(width:44,height:44).contentShape(Rectangle())

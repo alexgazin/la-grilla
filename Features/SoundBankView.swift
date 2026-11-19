@@ -132,7 +132,7 @@ struct SoundBankView: View {
                         .foregroundStyle(selected ? Color.mint : Color.muted)
                     if case .included(let instrument) = choice {
                         Image(instrument.artwork).resizable().scaledToFill()
-                            .frame(width: 52, height: 52).clipShape(RoundedRectangle(cornerRadius: 9))
+                            .frame(width: 52, height: 52).clipShape(RoundedRectangle(cornerRadius:9,style:.continuous))
                             .accessibilityHidden(true)
                     }
                     VStack(alignment: .leading, spacing: 4) {

@@ -38,7 +38,7 @@ struct PerformView:View {
                 DisclosureGroup("Tilt control",isExpanded:$showTilt){tiltControl.padding(.top,10)}
                     .padding(14).modifier(StudioSurface()).accessibilityIdentifier("perform.tilt.options")
                 DisclosureGroup("More controls",isExpanded:$showMore){VStack(alignment:.leading,spacing:16){
-                    VStack(alignment:.leading,spacing:8){SmallHeading(text:"BEAT JUMP");HStack{ForEach([-4,-1,1,4],id:\.self){beats in Button(LocalizedStringKey(beats>0 ? "+\(beats)":"\(beats)")){live.jump(beats)}.frame(maxWidth:.infinity,minHeight:44).background(Color.raised,in:RoundedRectangle(cornerRadius:Luz.Radius.cell))}}}.disabled(!live.playing || live.replaying)
+                    VStack(alignment:.leading,spacing:8){SmallHeading(text:"BEAT JUMP");HStack{ForEach([-4,-1,1,4],id:\.self){beats in Button(LocalizedStringKey(beats>0 ? "+\(beats)":"\(beats)")){live.jump(beats)}.frame(maxWidth:.infinity,minHeight:44).background(Color.raised,in:RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous))}}}.disabled(!live.playing || live.replaying)
                     Text("Release returns to the source position that kept moving underneath.").font(.caption).foregroundStyle(Color.muted)
                     VStack(alignment:.leading,spacing:8){SmallHeading(text:"LIVE MIX");ForEach(Array(project.tracks.enumerated()),id:\.element.id){index,track in Toggle(track.displayName,isOn:Binding(get:{!session.displayProject.tracks[index].mute},set:{on in session.mixerImmediate{$0.tracks[index].mute = !on}})).tint(.mint)};Button("Save mixer & FX snapshot"){session.commitPerformanceMix();live.notice="Mixer and effects saved to the project."}.frame(minHeight:44).disabled(live.recording)}.disabled(!live.contextActive || live.replaying)
                     Text("Record starts again at the selected section. Up to 64 bars; a new take replaces the previous one with Undo.").font(.caption).foregroundStyle(Color.muted)
@@ -127,7 +127,7 @@ struct PerformView:View {
             // In a wide accessibility layout the remaining area scrolls.
             .frame(width:112,height:112)
             .frame(maxWidth:.infinity,alignment:dynamicType.isAccessibilitySize ? .leading:.center)
-        HStack{Text("LOW PASS");Spacer();Text("HIGH PASS")}.font(.system(size:11,design:.monospaced)).foregroundStyle(Color.muted).frame(minHeight:28,alignment:.bottom)
+        HStack{Text("LOW PASS");Spacer();Text("HIGH PASS")}.font(.system(.caption2, design: .monospaced)).foregroundStyle(Color.muted).frame(minHeight:28,alignment:.bottom)
         // Keep Reset with the dial when the heading scrolls under the bar.
         Button{tilt.stop();live.setEffects(filter:0)}label:{Label("Reset master filter",systemImage:"arrow.counterclockwise").font(.caption.weight(.medium)).frame(maxWidth:.infinity,minHeight:44)}
             .foregroundStyle(Color.mint).accessibilityIdentifier("perform.filter.reset")
@@ -200,7 +200,7 @@ struct PerformView:View {
         Text(String(format:"%.0f%%",live.fx.delayWet*100)).font(.system(.title3,design:.monospaced,weight:.medium)).frame(maxWidth:.infinity,minHeight:44,alignment:.leading)
         Spacer(minLength:0)
         Slider(value:Binding(get:{live.fx.delayWet},set:{live.setEffects(delay:$0)}),in:0...0.5).tint(.mint).frame(minHeight:44).accessibilityLabel("Delay wet")
-        Text("PING-PONG · ⅛").font(.system(size:11,design:.monospaced)).foregroundStyle(Color.muted).lineLimit(1).frame(minHeight:28,alignment:.bottom).accessibilityLabel("PING-PONG DELAY · ⅛ NOTE")
+        Text("PING-PONG · ⅛").font(.system(.caption2, design: .monospaced)).foregroundStyle(Color.muted).lineLimit(1).frame(minHeight:28,alignment:.bottom).accessibilityLabel("PING-PONG DELAY · ⅛ NOTE")
     }.padding(12).frame(maxWidth:.infinity,minHeight:240,alignment:.top).modifier(StudioSurface()).disabled(!live.contextActive || live.replaying)}
     private func savedTake(_ take:PerformanceTake)->some View {VStack(alignment:.leading,spacing:9){
         HStack{SmallHeading(text:"SAVED PERFORMANCE");Spacer();Text(String(format:"%.1f s",take.durationSeconds)).font(.caption.monospaced()).foregroundStyle(Color.muted)}

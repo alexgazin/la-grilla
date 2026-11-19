@@ -51,17 +51,17 @@ struct TrackSoundButton:View {
             Button{presented=true}label:{
                 HStack(spacing:10){
                     if !compact {
-                        Image(systemName:"waveform").font(.system(size:17,weight:.medium))
+                        Image(systemName:"waveform").font(.system(.body, weight: .medium))
                             .frame(width:32,height:32)
                             .background(Color.track(track.role).opacity(0.1),in:RoundedRectangle(cornerRadius:8,style:.continuous))
                     }
                     VStack(alignment:.leading,spacing:3){
-                        Text("Sound").font(compact ? .system(size:11,weight:.medium):.caption).foregroundStyle(Color.muted)
+                        Text("Sound").font(compact ? .system(.caption2, weight: .medium):.caption).foregroundStyle(Color.muted)
                         Text(TrackSoundNames.current(track))
-                            .font(compact ? .system(size:11,weight:.semibold):.subheadline.weight(.semibold))
+                            .font(compact ? .system(.caption2, weight: .semibold):.subheadline.weight(.semibold))
                             .lineLimit(2).fixedSize(horizontal:false,vertical:true)
                     }
-                    if !compact{Spacer(minLength:0);Image(systemName:"chevron.right").font(.system(size:11,weight:.semibold)).foregroundStyle(Color.muted)}
+                    if !compact{Spacer(minLength:0);Image(systemName:"chevron.right").font(.system(.caption2, weight: .semibold)).foregroundStyle(Color.muted)}
                 }.frame(maxWidth:.infinity,minHeight:compact ? 44:48,alignment:.leading)
                     .padding(.horizontal,compact ? 7:12)
                     .padding(.vertical,compact ? 0:4)
@@ -136,7 +136,7 @@ struct TrackSoundPicker:View {
                     VStack(alignment:.leading,spacing:10){
                         HStack(spacing:8){
                             Image(systemName:error != nil ? "exclamationmark.circle":sounding ? "speaker.wave.2.fill":"speaker")
-                                .font(.system(size:13,weight:.medium)).foregroundStyle(error != nil ? Color.record:Color.track(track.role)).frame(width:18)
+                                .font(.system(.footnote, weight: .medium)).foregroundStyle(error != nil ? Color.record:Color.track(track.role)).frame(width:18)
                             Text(LocalizedStringKey(error != nil ? "Preview":sounding ? "PLAYING":"Ready"))
                                 .font(.system(.caption,design:.monospaced,weight:.medium)).foregroundStyle(Color.muted)
                             Spacer(minLength:0)

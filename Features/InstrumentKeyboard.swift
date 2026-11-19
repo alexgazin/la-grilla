@@ -234,9 +234,9 @@ private struct InstrumentKeyboard: View {
                     .foregroundStyle(Color.track(track.role)).padding(.trailing, 22).accessibilityHidden(true)
             }
         }.frame(maxWidth: .infinity).frame(height: height)
-            .background(Color.panel, in: RoundedRectangle(cornerRadius: Luz.Radius.card))
-            .clipShape(RoundedRectangle(cornerRadius: Luz.Radius.card))
-            .overlay { RoundedRectangle(cornerRadius: Luz.Radius.card).strokeBorder(Color.outline, lineWidth: 0.7) }
+            .background(Color.panel, in: RoundedRectangle(cornerRadius:Luz.Radius.card,style:.continuous))
+            .clipShape(RoundedRectangle(cornerRadius:Luz.Radius.card,style:.continuous))
+            .overlay { RoundedRectangle(cornerRadius:Luz.Radius.card,style:.continuous).strokeBorder(Color.outline, lineWidth: 0.7) }
             .padding(.horizontal, 14)
     }
 
@@ -277,9 +277,9 @@ private struct InstrumentKeyboard: View {
                 if loading == instrument { ProgressView() }
                 else if selected { Image(systemName: "checkmark.circle.fill").foregroundStyle(Color.mint) }
             }.padding(.trailing, 10)
-                .background(Color.panel, in: RoundedRectangle(cornerRadius: StudioMetrics.controlRadius))
-                .clipShape(RoundedRectangle(cornerRadius: StudioMetrics.controlRadius))
-                .overlay { RoundedRectangle(cornerRadius: StudioMetrics.controlRadius).stroke(selected ? Color.mint : Color.outline, lineWidth: selected ? 2 : 1) }
+                .background(Color.panel, in: RoundedRectangle(cornerRadius:StudioMetrics.controlRadius,style:.continuous))
+                .clipShape(RoundedRectangle(cornerRadius:StudioMetrics.controlRadius,style:.continuous))
+                .overlay { RoundedRectangle(cornerRadius:StudioMetrics.controlRadius,style:.continuous).stroke(selected ? Color.mint : Color.outline, lineWidth: selected ? 2 : 1) }
         }.buttonStyle(.plain).accessibilityLabel(instrument.displayName)
             .accessibilityAddTraits(selected ? .isSelected : [])
             .accessibilityIdentifier("keyboard.instrument." + instrument.id)
@@ -682,7 +682,7 @@ private struct ChordStrip: View {
             ForEach(0..<7, id: \.self) { degree in
                 Text(verbatim: label(degree))
                     .font(.caption.weight(.semibold)).frame(maxWidth: .infinity, minHeight: 48)
-                    .background(held[degree] != nil ? Color.mint : Color.raised, in: RoundedRectangle(cornerRadius: Luz.Radius.cell))
+                    .background(held[degree] != nil ? Color.mint : Color.raised, in: RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous))
                     .foregroundStyle(held[degree] != nil ? Color.ink : Color.studioText)
                     .contentShape(Rectangle())
                     .gesture(DragGesture(minimumDistance: 0)

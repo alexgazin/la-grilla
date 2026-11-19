@@ -50,7 +50,7 @@ struct PadSampleEditor: View {
                             }
                         }
                         .padding(.horizontal, 14)
-                        .background(Color.panel, in: RoundedRectangle(cornerRadius: Luz.Radius.card))
+                        .background(Color.panel, in: RoundedRectangle(cornerRadius:Luz.Radius.card,style:.continuous))
                         if measuredEdit == edit, let gain = levels?.headroomGainDB {
                             Button("Leave 1 dB headroom") { adjust(.gain, to: gain, source: source) }
                                 .buttonStyle(StudioActionStyle(color: .drums, prominent: false))
@@ -355,8 +355,8 @@ private struct PadSampleWaveform: View {
                 handle("chevron.left", x: lastX, y: geometry.size.height - 15)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Color.panel, in: RoundedRectangle(cornerRadius: Luz.Radius.card))
-            .clipShape(RoundedRectangle(cornerRadius: Luz.Radius.card))
+            .background(Color.panel, in: RoundedRectangle(cornerRadius:Luz.Radius.card,style:.continuous))
+            .clipShape(RoundedRectangle(cornerRadius:Luz.Radius.card,style:.continuous))
             .contentShape(Rectangle())
             .gesture(DragGesture(minimumDistance: 1).onChanged { gesture in
                 let target: SampleParameter
@@ -378,9 +378,9 @@ private struct PadSampleWaveform: View {
     }
 
     private func handle(_ symbol: String, x: CGFloat, y: CGFloat) -> some View {
-        Image(systemName: symbol).font(.system(size: 11, weight: .bold))
+        Image(systemName: symbol).font(.system(.caption2, weight: .bold))
             .foregroundStyle(Color.ink)
-            .frame(width: 18, height: 20).background(Color.drums, in: RoundedRectangle(cornerRadius: 5))
+            .frame(width: 18, height: 20).background(Color.drums, in: RoundedRectangle(cornerRadius:5,style:.continuous))
             .position(x: x, y: y)
     }
 

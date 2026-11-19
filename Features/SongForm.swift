@@ -22,7 +22,7 @@ struct SongFormOverview: View {
                         .frame(width: geometry.size.width * CGFloat(section.length) / CGFloat(length))
                 }
             }
-            .clipShape(RoundedRectangle(cornerRadius: 5))
+            .clipShape(RoundedRectangle(cornerRadius:5,style:.continuous))
         }
         .frame(height: 12)
         .accessibilityHidden(true)
@@ -97,7 +97,7 @@ struct SongFormLegend: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
         .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
-        .background(Color.panel, in: RoundedRectangle(cornerRadius: StudioMetrics.controlRadius))
+        .background(Color.panel, in: RoundedRectangle(cornerRadius:StudioMetrics.controlRadius,style:.continuous))
         .contentShape(Rectangle())
     }
 }
@@ -159,9 +159,9 @@ struct SongFormLane: View {
             .padding(.horizontal, 8)
             .padding(.bottom, 10)
             .frame(maxWidth: .infinity, minHeight: typeSize.isAccessibilitySize ? 158 : 96, alignment: .topLeading)
-            .background(Color.panel, in: RoundedRectangle(cornerRadius: StudioMetrics.controlRadius))
+            .background(Color.panel, in: RoundedRectangle(cornerRadius:StudioMetrics.controlRadius,style:.continuous))
             .overlay {
-                RoundedRectangle(cornerRadius: StudioMetrics.controlRadius)
+                RoundedRectangle(cornerRadius:StudioMetrics.controlRadius,style:.continuous)
                     .strokeBorder(highlighted || moving ? Color.mint : Color.outline,
                                   lineWidth: highlighted || moving ? 2 : 1)
                     .allowsHitTesting(false)

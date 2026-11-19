@@ -78,8 +78,8 @@ struct StudioView: View {
         HStack(spacing:8){
             Button{session.sheet = .projects}label:{
                 StudioMark().frame(width:44,height:44)
-                    .background(Color.panel,in:RoundedRectangle(cornerRadius:Luz.Radius.card))
-                    .overlay{RoundedRectangle(cornerRadius:Luz.Radius.card).strokeBorder(Color.outline.opacity(0.7),lineWidth:0.75)}
+                    .background(Color.panel,in:RoundedRectangle(cornerRadius:Luz.Radius.card,style:.continuous))
+                    .overlay{RoundedRectangle(cornerRadius:Luz.Radius.card,style:.continuous).strokeBorder(Color.outline.opacity(0.7),lineWidth:0.75)}
             }.buttonStyle(StudioQuietButtonStyle()).accessibilityLabel("Projects")
             VStack(alignment:.leading,spacing:0){
                 HStack(spacing:6){
@@ -92,7 +92,7 @@ struct StudioView: View {
                         Text("\(Int(session.displayProject.bpm)) BPM").monospacedDigit().accessibilityIdentifier("studio.tempo")
                         Text("·").accessibilityHidden(true)
                         Text(displayedKeyName)
-                        Image(systemName:"chevron.down").font(.system(size:11,weight:.semibold)).accessibilityHidden(true)
+                        Image(systemName:"chevron.down").font(.system(.caption2, weight: .semibold)).accessibilityHidden(true)
                     }.font(StudioTypography.detail).foregroundStyle(Color.muted).lineLimit(1)
                         .frame(minHeight:44,alignment:.leading).contentShape(Rectangle())
                 }.buttonStyle(StudioQuietButtonStyle())
@@ -102,9 +102,9 @@ struct StudioView: View {
                     .disabled(!session.history.canUndo || session.recording || session.armed).opacity(session.history.canUndo ? 1:0.3)
                 IconButton(symbol:"arrow.uturn.forward",label:"Redo"){session.redo()}
                     .disabled(!session.history.canRedo || session.recording || session.armed).opacity(session.history.canRedo ? 1:0.3)
-            }.background(Color.panel,in:RoundedRectangle(cornerRadius:Luz.Radius.card))
+            }.background(Color.panel,in:RoundedRectangle(cornerRadius:Luz.Radius.card,style:.continuous))
             IconButton(symbol:"square.and.arrow.up",label:"Export"){session.finishTake();session.exportTake=nil;session.sheet = .export}
-                .background(Color.raised,in:RoundedRectangle(cornerRadius:Luz.Radius.card)).accessibilityIdentifier("export.open")
+                .background(Color.raised,in:RoundedRectangle(cornerRadius:Luz.Radius.card,style:.continuous)).accessibilityIdentifier("export.open")
         }.padding(.horizontal,12).padding(.top,8).padding(.bottom,6)
     }
     var transport: some View {

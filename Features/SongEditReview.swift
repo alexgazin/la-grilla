@@ -61,11 +61,11 @@ struct SongEditReview: View {
                     HStack(spacing: 10) {
                         Button { previewB = false; audition(source) } label: {
                             Text("A · Original").frame(maxWidth: .infinity, minHeight: 48)
-                                .background(session.harmonyPreview && !previewB ? Color.mint.opacity(0.2) : Color.raised, in: RoundedRectangle(cornerRadius: Luz.Radius.cell))
+                                .background(session.harmonyPreview && !previewB ? Color.mint.opacity(0.2) : Color.raised, in: RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous))
                         }.accessibilityIdentifier("assistant.a")
                         Button { previewB = true; audition(candidate) } label: {
                             Text("B · Proposal").frame(maxWidth: .infinity, minHeight: 48)
-                                .background(session.harmonyPreview && previewB ? Color.mint.opacity(0.2) : Color.raised, in: RoundedRectangle(cornerRadius: Luz.Radius.cell))
+                                .background(session.harmonyPreview && previewB ? Color.mint.opacity(0.2) : Color.raised, in: RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous))
                         }.accessibilityIdentifier("assistant.b")
                     }
                     Text(String(format: NSLocalizedString("Both versions play bars %d–%d at the same level.", comment: "Song edit audition"), window.lowerBound / barTicks + 1, window.upperBound / barTicks))
@@ -221,7 +221,7 @@ private struct ScoreCell: View {
     let highlighted: Bool
     let width: CGFloat
     var body: some View {
-        RoundedRectangle(cornerRadius: 3)
+        RoundedRectangle(cornerRadius:3,style:.continuous)
             .fill(highlighted ? Color.mint : Color.raised.opacity(0.6))
             .frame(width: width, height: 14)
     }

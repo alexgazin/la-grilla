@@ -75,7 +75,7 @@ struct FactoryDrumKitPanel: View {
         .foregroundStyle(primary ? Color.ink : Color.studioText)
         .padding(.horizontal, 6)
         .frame(maxWidth: .infinity, minHeight: 44)
-        .background(primary ? Color.mint : Color.ink, in: RoundedRectangle(cornerRadius: StudioMetrics.controlRadius))
+        .background(primary ? Color.mint : Color.ink, in: RoundedRectangle(cornerRadius:StudioMetrics.controlRadius,style:.continuous))
         .contentShape(Rectangle())
     }
 

@@ -45,7 +45,7 @@ struct FilterKnob:View {
                     var pointer=Path();pointer.move(to:point(angle,center:center,radius:side*0.24));pointer.addLine(to:point(angle,center:center,radius:side*0.29))
                     context.stroke(pointer,with:.color(.mint),style:StrokeStyle(lineWidth:3,lineCap:.round))
                 }.accessibilityHidden(true)
-                Text(readout).font(.system(size:17,weight:.semibold,design:.monospaced)).foregroundStyle(Color.studioText).accessibilityHidden(true)
+                Text(readout).font(.system(.body, design: .monospaced, weight: .semibold)).foregroundStyle(Color.studioText).accessibilityHidden(true)
             }
             .contentShape(Rectangle())
             .highPriorityGesture(turn(center:center,side:side))

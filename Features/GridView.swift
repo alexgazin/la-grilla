@@ -208,7 +208,7 @@ struct GridView: View {
             SmallHeading(text:"ARRANGEMENT").modifier(ArrangementDragTraceValue())
             Spacer()
             Text("\(session.displayProject.length/barTicks) bars")
-                .font(.system(size:11,design:.monospaced)).foregroundStyle(Color.muted)
+                .font(.system(.caption2, design: .monospaced)).foregroundStyle(Color.muted)
                 .modifier(GridZoomDiagnosticValue())
             IconButton(symbol:clipMode ? "pianokeys":"rectangle.3.group",label:clipMode ? "Edit chords":"Arrange clips",color:clipMode ? .mint:.muted){clipMode.toggle()}
                 .background(clipMode ? Color.mint.opacity(0.12):Color.clear,in:RoundedRectangle(cornerRadius:StudioMetrics.controlRadius,style:.continuous))
@@ -241,11 +241,11 @@ struct GridView: View {
         let selected=session.section.id==section.id
         return Button{session.select(section)}label:{
             HStack(spacing:8) {
-                RoundedRectangle(cornerRadius:1).fill(selected ? Color.ink:Color.outline).frame(width:3,height:14)
+                RoundedRectangle(cornerRadius:1,style:.continuous).fill(selected ? Color.ink:Color.outline).frame(width:3,height:14)
                     .accessibilityHidden(true)
-                Text(section.name).font(.system(size:12,weight:.semibold)).lineLimit(1)
+                Text(section.name).font(.system(.caption, weight: .semibold)).lineLimit(1)
                 Text("\(section.start/barTicks+1)–\((section.start+section.length)/barTicks)")
-                    .font(.system(size:11,design:.monospaced)).opacity(selected ? 0.75:0.65)
+                    .font(.system(.caption2, design: .monospaced)).opacity(selected ? 0.75:0.65)
             }.padding(.horizontal,12).frame(minHeight:44)
                 .foregroundStyle(selected ? Color.ink:Color.studioText)
                 .background(selected ? Color.mint:Color.panel,in:RoundedRectangle(cornerRadius:StudioMetrics.controlRadius,style:.continuous))
@@ -261,9 +261,9 @@ struct GridView: View {
                 Picker("Clip snap",selection:$clipSnap){Text("1 bar").tag(barTicks);Text("1 beat").tag(ppq);Text("1/16").tag(240)}
                 Toggle("Copy on drag",isOn:$copyOnDrag)
                 Button("Play whole song"){session.setLoop(enabled:false)}
-            } label: {Label(LocalizedStringKey(copyOnDrag ? "Copy clips":"Move clips"),systemImage:copyOnDrag ? "plus.rectangle.on.rectangle":"hand.draw").font(.system(size:11,weight:.medium)).frame(minHeight:44)}.accessibilityIdentifier("grid.clip.options")
+            } label: {Label(LocalizedStringKey(copyOnDrag ? "Copy clips":"Move clips"),systemImage:copyOnDrag ? "plus.rectangle.on.rectangle":"hand.draw").font(.system(.caption2, weight: .medium)).frame(minHeight:44)}.accessibilityIdentifier("grid.clip.options")
             Spacer(minLength:4)
-            Text(LocalizedStringKey(clipSnap==barTicks ? "1 bar":clipSnap==ppq ? "1 beat":"1/16")).font(.system(size:11,design:.monospaced)).foregroundStyle(Color.muted)
+            Text(LocalizedStringKey(clipSnap==barTicks ? "1 bar":clipSnap==ppq ? "1 beat":"1/16")).font(.system(.caption2, design: .monospaced)).foregroundStyle(Color.muted)
             IconButton(symbol:"list.bullet",label:"Clip list",color:.mint){showClipList=true}.accessibilityIdentifier("grid.clips.list")
         }.foregroundStyle(Color.mint)
     }
@@ -274,7 +274,7 @@ struct GridView: View {
             if let track=project.tracks.first(where:{$0.role == .harmony}) {clipLane(track,height:harmonyHeight,notes:notes)}
             if let track=project.tracks.first(where:{$0.role == .drums}) {clipLane(track,height:drumHeight,notes:notes)}
             if showsRootBassLane {
-            bassLane.overlay(alignment:.bottomLeading){Text("Root bass follows harmony").font(.system(size:11)).foregroundStyle(Color.muted).padding(8)}
+            bassLane.overlay(alignment:.bottomLeading){Text("Root bass follows harmony").font(.system(.caption2)).foregroundStyle(Color.muted).padding(8)}
                 .dropDestination(for:String.self){items,_ in
                     guard let track=project.tracks.first(where:{$0.role == .bass}) else{session.message=ClipEditingError.derivedBass.localizedDescription;return false}
                     return dropClip(items,on:track.id,at:.zero)
@@ -315,7 +315,7 @@ struct GridView: View {
                 .overlay{if draft == nil{PlayingHighlight(audio:session.audio,range:clip.start..<(clip.start+clip.length),color:Color.track(track.role),fill:false)}}
                 .allowsHitTesting(false).accessibilityHidden(true)
             if let corner {
-                Image(systemName:"line.3.horizontal").font(.system(size:11,weight:.semibold)).rotationEffect(.degrees(90)).foregroundStyle(Color.track(track.role))
+                Image(systemName:"line.3.horizontal").font(.system(.caption2, weight: .semibold)).rotationEffect(.degrees(90)).foregroundStyle(Color.track(track.role))
                     .frame(width:corner.width,height:corner.height)
                     .allowsHitTesting(false).accessibilityHidden(true)
             }
@@ -470,7 +470,7 @@ struct GridView: View {
                     Divider()
                     Button("Settings",systemImage:"gearshape"){session.presentEditor(.settings)}.accessibilityIdentifier("settings.open")
                 }label:{Image(systemName:"ellipsis.circle").frame(width:44,height:44)}.accessibilityLabel("More studio tools").accessibilityIdentifier("tools.more")
-            }.buttonStyle(StudioQuietButtonStyle()).font(.system(size:11,weight:.medium)).lineLimit(1).minimumScaleFactor(1).foregroundStyle(Color.mint).padding(.horizontal,4).modifier(StudioSurface())
+            }.buttonStyle(StudioQuietButtonStyle()).font(.system(.caption2, weight: .medium)).lineLimit(1).minimumScaleFactor(1).foregroundStyle(Color.mint).padding(.horizontal,4).modifier(StudioSurface())
         }
     }
     func trackLabel(_ role: TrackRole,height: CGFloat)->some View {
@@ -478,9 +478,9 @@ struct GridView: View {
         label:{
             VStack(alignment:.leading,spacing:10){
                 Image(systemName:role == .harmony ? "pianokeys":role == .drums ? "square.grid.2x2":"waveform")
-                    .font(.system(size:15,weight:.medium)).foregroundStyle(Color.track(role))
+                    .font(.system(.subheadline, weight: .medium)).foregroundStyle(Color.track(role))
                 Text(LocalizedStringKey(role == .harmony ? "HARM":role == .drums ? "DRUM":"BASS"))
-                    .font(.system(size:11,weight:.semibold)).foregroundStyle(Color.studioText)
+                    .font(.system(.caption2, weight: .semibold)).foregroundStyle(Color.studioText)
             }.frame(maxWidth:.infinity,maxHeight:.infinity,alignment:.leading)
                 .padding(.leading,12).frame(height:height)
                 .background(Color.ink)
@@ -490,7 +490,7 @@ struct GridView: View {
     }
     private func melodyTrackLabel(_ track:Track)->some View {
         Button{session.openNotes(track.id)}label:{
-            Text(track.displayName).font(.system(size:11,weight:.semibold)).lineLimit(2)
+            Text(track.displayName).font(.system(.caption2, weight: .semibold)).lineLimit(2)
                 .foregroundStyle(Color.mint).padding(8).frame(width:gutter,height:melodyHeight)
                 .background(Color.ink)
                 .overlay(alignment:.trailing){Rectangle().fill(Color.mint.opacity(0.6)).frame(width:2).padding(.vertical,12)}
@@ -503,7 +503,7 @@ struct GridView: View {
     var ruler: some View {
         HStack(spacing:0) {
             ForEach(0..<timelineBars,id:\.self) { bar in
-                Text(String(format:"%02d",bar+1)).font(.system(size:11,weight:.medium,design:.monospaced))
+                Text(String(format:"%02d",bar+1)).font(.system(.caption2, design: .monospaced, weight: .medium))
                     .foregroundStyle(bar<session.displayProject.length/barTicks ? Color.studioText:Color.muted.opacity(0.6)).frame(width:barWidth,alignment:.leading)
                     .overlay(alignment:.bottomLeading){Rectangle().fill(Color.outline).frame(width:1,height:5).offset(y:7)}
                     .accessibilityIdentifier("grid.bar.\(bar)")
@@ -582,7 +582,7 @@ struct GridView: View {
                     }
                 }
             } else {
-                Button("+ Add root bass"){session.presentEditor(.bass)}.font(.system(size:12)).foregroundStyle(Color.bass).padding(20)
+                Button("+ Add root bass"){session.presentEditor(.bass)}.font(.system(.caption)).foregroundStyle(Color.bass).padding(20)
             }
         }.frame(height:bassHeight).onTapGesture{session.presentEditor(.bass)}
     }
@@ -657,13 +657,13 @@ struct ChordTile: View {
                 HStack(spacing: spacing) {
                     ForEach(Array(notes.enumerated()),id:\.offset) { _,note in
                         let noteOffset: CGFloat = CGFloat(72 - note) / 4
-                        RoundedRectangle(cornerRadius:1).fill(Color.harmony.opacity(0.75))
+                        RoundedRectangle(cornerRadius:1,style:.continuous).fill(Color.harmony.opacity(0.75))
                             .frame(width: noteWidth, height: 3)
                             .offset(y: noteOffset)
                     }
                 }
                 if !showDegrees || height>=112{Text(chord.customIntervals == nil ? chord.quality.label:NSLocalizedString("Custom chord",comment:"Chord formula label"))
-                    .font(.system(size:11,weight:.medium)).lineLimit(1).foregroundStyle(Color.harmony)
+                    .font(.system(.caption2, weight: .medium)).lineLimit(1).foregroundStyle(Color.harmony)
                 }
             }
         }.padding(inset).frame(width:width,height:height,alignment:.topLeading)
@@ -676,7 +676,7 @@ struct ChordTile: View {
                     }
             }
             .overlay(alignment:.topLeading){
-                RoundedRectangle(cornerRadius:1).fill(Color.harmony.opacity(chord == nil ? 0.25:0.8))
+                RoundedRectangle(cornerRadius:1,style:.continuous).fill(Color.harmony.opacity(chord == nil ? 0.25:0.8))
                     .frame(width:max(0,min(24,width-inset*2)),height:2).padding(.leading,inset).padding(.top,0.5)
             }
             .overlay{RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous).strokeBorder(Color.harmony.opacity(chord == nil ? 0.2:0.4),lineWidth:0.75)}

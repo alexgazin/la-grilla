@@ -90,11 +90,11 @@ struct PaletteView: View {
                 HStack(spacing: 10) {
                     Button { previewB = false; session.previewAssistant(session.project, wholeSong: false, sectionID: section.id, rangeOverride: range, loopOverride: true) } label: {
                         Text("A · Current").frame(maxWidth: .infinity, minHeight: 48)
-                            .background(session.harmonyPreview && !previewB ? Color.mint.opacity(0.2) : Color.raised, in: RoundedRectangle(cornerRadius: Luz.Radius.cell))
+                            .background(session.harmonyPreview && !previewB ? Color.mint.opacity(0.2) : Color.raised, in: RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous))
                     }.accessibilityIdentifier("palettes.a")
                     Button { previewB = true; if let library { session.previewPalette(result.candidate, range: range, samples: library) } } label: {
                         Text("B · Palette").frame(maxWidth: .infinity, minHeight: 48)
-                            .background(session.harmonyPreview && previewB ? Color.mint.opacity(0.2) : Color.raised, in: RoundedRectangle(cornerRadius: Luz.Radius.cell))
+                            .background(session.harmonyPreview && previewB ? Color.mint.opacity(0.2) : Color.raised, in: RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous))
                     }.accessibilityIdentifier("palettes.b")
                 }
                 if session.harmonyPreview { Button("Stop preview") { session.endHarmonyPreview() }.frame(minHeight: 44).accessibilityIdentifier("palettes.stop") }

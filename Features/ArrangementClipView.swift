@@ -28,8 +28,8 @@ struct ArrangementClipFace: View {
         VStack(alignment:.leading,spacing:5) {
             if width>=62 {
                 HStack(spacing:5) {
-                    Image(systemName:track.role == .drums ? "square.grid.2x2":"pianokeys").font(.system(size:11))
-                    Text(track.displayName).font(.system(size:11,weight:.semibold)).lineLimit(1)
+                    Image(systemName:track.role == .drums ? "square.grid.2x2":"pianokeys").font(.system(.caption2))
+                    Text(track.displayName).font(.system(.caption2, weight: .semibold)).lineLimit(1)
                 }.foregroundStyle(color).padding(.trailing,10)
             }
             Canvas { context,size in
@@ -46,7 +46,7 @@ struct ArrangementClipFace: View {
             }.accessibilityHidden(true)
             if width>=110,height>=85 {
                 Text("\(MusicalPosition(tick:clip.start).description) → \(MusicalPosition(tick:clip.start+clip.length).description)")
-                    .font(.system(size:11,design:.monospaced)).foregroundStyle(Color.muted).lineLimit(1)
+                    .font(.system(.caption2, design: .monospaced)).foregroundStyle(Color.muted).lineLimit(1)
             }
         }.padding(width<62 ? 3:9).frame(width:width,height:height,alignment:.topLeading)
             .background(color.opacity(resizing ? 0.2:0.1),in:RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous))

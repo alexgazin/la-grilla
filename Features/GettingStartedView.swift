@@ -79,7 +79,7 @@ private struct IntroCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Image(systemName: symbol).font(.system(size: 34, weight: .medium)).foregroundStyle(color).accessibilityHidden(true)
+            Image(systemName: symbol).font(.system(.largeTitle, weight: .medium)).foregroundStyle(color).accessibilityHidden(true)
             Text(title).font(.title3.weight(.semibold))
             Text(detail).font(.callout).foregroundStyle(Color.muted).fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 0)

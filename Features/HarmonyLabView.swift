@@ -114,7 +114,7 @@ struct HarmonyLabView:View {
                     Text("\(change.tick/barTicks+1):\(change.tick%barTicks/ppq+1)").font(.system(.caption2,design:.monospaced)).foregroundStyle(Color.muted).frame(minWidth:24)
                     Text(chordName(change.before,in:proposal.candidate)).font(.system(.title3,weight:.semibold)).lineLimit(1).minimumScaleFactor(0.6).frame(maxWidth:.infinity,alignment:.leading)
                     Image(systemName:"arrow.right").font(.caption).foregroundStyle(Color.muted)
-                    VStack(alignment:.leading,spacing:4){Text(chordName(change.after,in:proposal.candidate)).font(.system(.title3,weight:.semibold)).foregroundStyle(Color.harmony).lineLimit(1).minimumScaleFactor(0.6);Text(MusicalNotation.chordNoteNames(change.after,keyRoot:proposal.candidate.keyRoot,minor:proposal.candidate.minor,spelling:spelling).joined(separator:" · ")).font(.system(size:11,design:.monospaced)).foregroundStyle(Color.muted).lineLimit(2)}.frame(maxWidth:.infinity,alignment:.leading)
+                    VStack(alignment:.leading,spacing:4){Text(chordName(change.after,in:proposal.candidate)).font(.system(.title3,weight:.semibold)).foregroundStyle(Color.harmony).lineLimit(1).minimumScaleFactor(0.6);Text(MusicalNotation.chordNoteNames(change.after,keyRoot:proposal.candidate.keyRoot,minor:proposal.candidate.minor,spelling:spelling).joined(separator:" · ")).font(.system(.caption2, design: .monospaced)).foregroundStyle(Color.muted).lineLimit(2)}.frame(maxWidth:.infinity,alignment:.leading)
                     if change.chromatic{Image(systemName:"circle.lefthalf.filled").accessibilityLabel("Contains chromatic notes").foregroundStyle(Color.harmony)}
                 }.padding(12).modifier(StudioSurface())
             }
