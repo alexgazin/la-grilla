@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import MusicDomain
 
 /// Luz design system: motion, haptics, radii and the shared instrument and
 /// empty-state components. Rules and sources: docs/DESIGN_SYSTEM_RU.md.
@@ -190,4 +191,42 @@ struct LuzForm: ViewModifier {
 
 extension View {
     func luzForm() -> some View { modifier(LuzForm()) }
+}
+
+/// Highlights a song range while the playhead is inside it. Only this small view
+/// observes the 30 Hz transport tick, so large screens do not re-render with it.
+struct PlayingHighlight: View {
+    let audio: AudioController
+    let range: Range<Int>
+    let color: Color
+    var radius: CGFloat = Luz.Radius.cell
+    var fill = true
+    @Environment(\.colorSchemeContrast) private var contrast
+    var body: some View {
+        let on = audio.playing && range.contains(Int(audio.tick))
+        let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
+        ZStack {
+            if fill && contrast != .increased { shape.fill(color.opacity(0.14)) }
+            shape.strokeBorder(color, lineWidth: 1.5)
+        }
+        .opacity(on ? 1 : 0)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+}
+
+/// The grid playhead line and marker, isolated from the grid body.
+struct GridPlayhead: View {
+    let audio: AudioController
+    let barWidth: CGFloat
+    let height: CGFloat
+    var body: some View {
+        let x = CGFloat(audio.tick) / CGFloat(barTicks) * barWidth
+        ZStack(alignment: .topLeading) {
+            Rectangle().fill(Color.mint).frame(width: 2, height: height).offset(x: x, y: 28)
+            Image(systemName: "triangle.fill").font(StudioTypography.index).rotationEffect(.degrees(180)).foregroundStyle(Color.mint).offset(x: x - 4, y: 18)
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
 }

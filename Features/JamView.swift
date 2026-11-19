@@ -28,7 +28,7 @@ struct JamView: View {
         VStack(spacing:14){
             jamHeading.padding(.top,12)
             if focusedClip != nil{clipFocus}
-            HStack(spacing:10){soundControl;InstrumentKeyboardButton(session: session, compact: true);beatIndicator}
+            HStack(spacing:10){soundControl;InstrumentKeyboardButton(session: session, compact: true);JamBeatIndicator(session:session)}
             recordingControls
             if session.recording || session.armed{recordingStatus}
             if steps {stepEditor.disabled(session.performance.contextActive)}else if dynamicType.isAccessibilitySize{accessiblePads}else{padGrid(height:(compact ? 264:312)-(compact && (session.recording || session.armed) ? 24:0)).disabled(session.performance.replaying).allowsHitTesting(!session.performance.replaying)}
@@ -104,10 +104,6 @@ struct JamView: View {
                 .background(Color.panel,in:RoundedRectangle(cornerRadius:Luz.Radius.card,style:.continuous))
                 .overlay{RoundedRectangle(cornerRadius:Luz.Radius.card,style:.continuous).strokeBorder(Color.drums.opacity(0.28),lineWidth:0.7).allowsHitTesting(false)}
         }
-    }
-    private var beatIndicator:some View{
-        let beat=session.armed && session.audio.countRemaining>0 ? max(0,4-Int(ceil(Double(session.audio.countRemaining)/session.audio.sampleRate*session.project.bpm/60))):Int(session.audio.tick/Double(ppq))%4
-        return VStack(alignment:.leading,spacing:9){Text("Beat").font(.caption2.weight(.medium)).foregroundStyle(Color.muted);HStack(spacing:5){ForEach(0..<4,id:\.self){index in RoundedRectangle(cornerRadius:2,style:.continuous).fill(session.audio.playing && index==beat ? (session.armed ? Color.record:Color.mint):Color.outline).frame(width:index==0 ? 17:11,height:4)}}}.padding(.horizontal,12).frame(minHeight:64).background(Color.panel,in:RoundedRectangle(cornerRadius:Luz.Radius.card,style:.continuous)).accessibilityElement(children:.ignore).accessibilityLabel("Beat").accessibilityValue(session.audio.playing ? String(beat+1):NSLocalizedString("Stopped",comment:"Transport"))
     }
     private var accessiblePads:some View {ScrollView{
         LazyVGrid(columns:[GridItem(.flexible()),GridItem(.flexible())],spacing:10){ForEach(0..<16,id:\.self){pad in
@@ -243,5 +239,14 @@ private struct StepPlayhead:View {
         RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous).strokeBorder(Color.mint,lineWidth:1.5)
             .opacity(playing ? 1:0).allowsHitTesting(false).accessibilityHidden(true)
             .transaction{$0.animation=nil}
+    }
+}
+
+/// Reads the transport tick in isolation from the rest of Jam.
+private struct JamBeatIndicator:View {
+    @Bindable var session:Session
+    var body:some View{
+        let beat=session.armed && session.audio.countRemaining>0 ? max(0,4-Int(ceil(Double(session.audio.countRemaining)/session.audio.sampleRate*session.project.bpm/60))):Int(session.audio.tick/Double(ppq))%4
+        return VStack(alignment:.leading,spacing:9){Text("Beat").font(.caption2.weight(.medium)).foregroundStyle(Color.muted);HStack(spacing:5){ForEach(0..<4,id:\.self){index in RoundedRectangle(cornerRadius:2,style:.continuous).fill(session.audio.playing && index==beat ? (session.armed ? Color.record:Color.mint):Color.outline).frame(width:index==0 ? 17:11,height:4)}}}.padding(.horizontal,12).frame(minHeight:64).background(Color.panel,in:RoundedRectangle(cornerRadius:Luz.Radius.card,style:.continuous)).accessibilityElement(children:.ignore).accessibilityLabel("Beat").accessibilityValue(session.audio.playing ? String(beat+1):NSLocalizedString("Stopped",comment:"Transport"))
     }
 }

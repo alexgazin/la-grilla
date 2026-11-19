@@ -66,7 +66,7 @@ struct StudioView: View {
     private var compactSidebar:some View {VStack(spacing:4){
         Button{session.togglePlay()}label:{Image(systemName:session.audio.playing ? "stop.fill":"play.fill").font(.title2.weight(.semibold)).contentTransition(.symbolEffect(.replace))}.buttonStyle(TransportKeyStyle(isOn:session.audio.playing,diameter:52)).accessibilityLabel(session.audio.playing ? "Stop":"Play")
         HStack(spacing:0){IconButton(symbol:"backward.end.fill",label:"Return to start"){session.rewind()};IconButton(symbol:session.recording ? "stop.circle.fill":"record.circle",label:session.recording ? "Finish drum take":"Record drums",color:.record){session.record()}.disabled(session.performance.contextActive).opacity(session.performance.contextActive ? 0.35:1)}
-        HStack(spacing:0){IconButton(symbol:"repeat",label:"Toggle loop",color:session.loop ? .mint:.muted){session.setLoop(enabled:!session.loop)}.disabled(session.performance.contextActive).opacity(session.performance.contextActive ? 0.35:1);Button{if session.performance.contextActive{session.sheet = .perform}}label:{Text(String(format:"%02d:%d",Int(session.audio.tick)/barTicks+1,Int(session.audio.tick)%barTicks/ppq+1)).font(.caption.monospaced()).frame(minWidth:44,minHeight:44)}.accessibilityIdentifier("perform.transport").accessibilityValue(Text(verbatim:session.runtimeTraceReport))}
+        HStack(spacing:0){IconButton(symbol:"repeat",label:"Toggle loop",color:session.loop ? .mint:.muted){session.setLoop(enabled:!session.loop)}.disabled(session.performance.contextActive).opacity(session.performance.contextActive ? 0.35:1);Button{if session.performance.contextActive{session.sheet = .perform}}label:{CompactPosition(audio:session.audio).frame(minWidth:44,minHeight:44)}.accessibilityIdentifier("perform.transport").accessibilityValue(Text(verbatim:session.runtimeTraceReport))}
         tab("square.grid.3x3","Grid",0);tab("square.grid.2x2","Jam",1);tab("slider.vertical.3","Mixer",2)
         Spacer(minLength:0)
     }.padding(.top,6).frame(width:104).background(Color.panel)}
@@ -107,31 +107,9 @@ struct StudioView: View {
                 .background(Color.raised,in:RoundedRectangle(cornerRadius:Luz.Radius.card)).accessibilityIdentifier("export.open")
         }.padding(.horizontal,12).padding(.top,8).padding(.bottom,6)
     }
-    private var transportStatus: LocalizedStringKey {
-        if session.performance.contextActive {
-            return session.performance.recording ? "REC · PERFORM":session.performance.replaying ? "TAKE REPLAY":"PERFORM"
-        }
-        return session.armed ? "COUNT IN":session.recording ? "REC · DRUMS":session.pending ? "PENDING · NEXT BAR":session.audio.playing ? "PLAYING":"STOPPED"
-    }
-    private var transportReadout: some View {
-        VStack(alignment:.leading,spacing:4){
-            HStack(alignment:.center,spacing:8){
-                Text(String(format:"%02d : %d",Int(session.audio.tick)/barTicks+1,Int(session.audio.tick)%barTicks/ppq+1))
-                    .font(StudioTypography.readout).tracking(-1).monospacedDigit()
-                HStack(spacing:2){
-                    ForEach(0..<4,id:\.self){beat in
-                        Capsule().fill(session.audio.playing && Int(session.audio.tick)%barTicks/ppq == beat ? (session.armed || session.recording ? Color.record:Color.mint):Color.lifted)
-                            .frame(width:4,height:beat == 0 ? 14:10)
-                    }
-                }.accessibilityHidden(true)
-            }
-            Text(transportStatus).font(StudioTypography.detail)
-                .foregroundStyle(session.recording || session.armed ? Color.record:Color.muted).lineLimit(1)
-        }.frame(maxWidth:.infinity,minHeight:52,alignment:.leading)
-    }
     var transport: some View {
         HStack(spacing:4){
-            Button{if session.performance.contextActive{session.sheet = .perform}}label:{transportReadout}
+            Button{if session.performance.contextActive{session.sheet = .perform}}label:{TransportReadout(session:session)}
                 .buttonStyle(StudioQuietButtonStyle()).accessibilityIdentifier("perform.transport")
                 .accessibilityValue(Text(verbatim:session.runtimeTraceReport))
             IconButton(symbol:"backward.end.fill",label:"Return to start",color:.muted){session.rewind()}
@@ -180,5 +158,40 @@ struct StudioView: View {
                     }
                 }
         }.buttonStyle(StudioQuietButtonStyle()).accessibilityAddTraits(selected ? .isSelected:[])
+    }
+}
+
+/// Only this view reads the 30 Hz transport tick, so the studio shell does not re-render with it.
+private struct TransportReadout: View {
+    @Bindable var session: Session
+    private var transportStatus: LocalizedStringKey {
+        if session.performance.contextActive {
+            return session.performance.recording ? "REC · PERFORM":session.performance.replaying ? "TAKE REPLAY":"PERFORM"
+        }
+        return session.armed ? "COUNT IN":session.recording ? "REC · DRUMS":session.pending ? "PENDING · NEXT BAR":session.audio.playing ? "PLAYING":"STOPPED"
+    }
+    var body: some View {
+        VStack(alignment:.leading,spacing:4){
+            HStack(alignment:.center,spacing:8){
+                Text(String(format:"%02d : %d",Int(session.audio.tick)/barTicks+1,Int(session.audio.tick)%barTicks/ppq+1))
+                    .font(StudioTypography.readout).tracking(-1).monospacedDigit()
+                HStack(spacing:2){
+                    ForEach(0..<4,id:\.self){beat in
+                        Capsule().fill(session.audio.playing && Int(session.audio.tick)%barTicks/ppq == beat ? (session.armed || session.recording ? Color.record:Color.mint):Color.lifted)
+                            .frame(width:4,height:beat == 0 ? 14:10)
+                    }
+                }.accessibilityHidden(true)
+            }
+            Text(transportStatus).font(StudioTypography.detail)
+                .foregroundStyle(session.recording || session.armed ? Color.record:Color.muted).lineLimit(1)
+        }.frame(maxWidth:.infinity,minHeight:52,alignment:.leading)
+    }
+}
+
+/// Bar:beat for the landscape sidebar, isolated from the shell body.
+private struct CompactPosition: View {
+    let audio: AudioController
+    var body: some View {
+        Text(String(format:"%02d:%d",Int(audio.tick)/barTicks+1,Int(audio.tick)%barTicks/ppq+1)).font(StudioTypography.index).monospacedDigit()
     }
 }

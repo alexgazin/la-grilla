@@ -120,8 +120,7 @@ struct GridView: View {
                             VStack(spacing:0){Color.ink.frame(height:28);trackLabel(.harmony,height:harmonyHeight);trackLabel(.drums,height:drumHeight);if showsRootBassLane { trackLabel(.bass,height:bassHeight) };ForEach(session.displayProject.tracks.filter{$0.role == .melody}){track in melodyTrackLabel(track)}}.frame(width:gutter)
                             ScrollView(.horizontal,showsIndicators:true){ZStack(alignment:.topLeading){
                                 timeline
-                                Rectangle().fill(Color.mint).frame(width:2,height:musicHeight).offset(x:CGFloat(session.audio.tick)/CGFloat(barTicks)*barWidth,y:28).allowsHitTesting(false)
-                                Image(systemName:"triangle.fill").font(.system(size:11)).rotationEffect(.degrees(180)).foregroundStyle(Color.mint).offset(x:CGFloat(session.audio.tick)/CGFloat(barTicks)*barWidth-4,y:18).allowsHitTesting(false)
+                                GridPlayhead(audio:session.audio,barWidth:barWidth,height:musicHeight)
                             }.frame(width:CGFloat(timelineBars)*barWidth)}
                                 .scrollPosition($timelinePosition)
                                 .onScrollGeometryChange(for:TimelineGeometry.self){geometry in
@@ -310,11 +309,10 @@ struct GridView: View {
         let width=max(4,CGFloat(visibleLength)/CGFloat(barTicks)*barWidth-6)
         let clipHeight=max(44,height-12)
         let corner=ArrangementClipTouchLayout.resizeCorner(in:CGRect(x:0,y:0,width:width,height:clipHeight))
-        let isPlaying=session.audio.playing && session.audio.tick>=Double(clip.start) && session.audio.tick<Double(clip.start+clip.length)
         return ZStack(alignment:.bottomTrailing) {
             ArrangementClipFace(notes:notes,track:track,clip:clip,width:width,height:clipHeight,resizing:draft != nil)
                 .background(Color.panel,in:RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous))
-                .overlay{RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous).strokeBorder(Color.track(track.role).opacity(isPlaying && draft == nil ? 0.95:0),lineWidth:1.5)}
+                .overlay{if draft == nil{PlayingHighlight(audio:session.audio,range:clip.start..<(clip.start+clip.length),color:Color.track(track.role),fill:false)}}
                 .allowsHitTesting(false).accessibilityHidden(true)
             if let corner {
                 Image(systemName:"line.3.horizontal").font(.system(size:11,weight:.semibold)).rotationEffect(.degrees(90)).foregroundStyle(Color.track(track.role))
@@ -537,7 +535,7 @@ struct GridView: View {
                 tick:tick,
                 chord:event?.chord ?? Chord(root:session.displayProject.keyRoot,quality:session.displayProject.minor ? .minor:.major),
                 duration:event?.duration ?? slice.duration)
-        } label: { ChordTile(chord:event?.chord,width:max(8,CGFloat(slice.duration)/CGFloat(barTicks)*barWidth-6),height:harmonyHeight-16,keyRoot:session.displayProject.keyRoot,minor:session.displayProject.minor,spelling:PitchSpelling(rawValue:pitchSpelling) ?? .automatic,showDegrees:showDegrees,isPlaying:session.audio.playing && (slice.timelineTick..<(slice.timelineTick+slice.duration)).contains(Int(session.audio.tick))) }
+        } label: { ChordTile(chord:event?.chord,width:max(8,CGFloat(slice.duration)/CGFloat(barTicks)*barWidth-6),height:harmonyHeight-16,keyRoot:session.displayProject.keyRoot,minor:session.displayProject.minor,spelling:PitchSpelling(rawValue:pitchSpelling) ?? .automatic,showDegrees:showDegrees,audio:session.audio,playRange:slice.timelineTick..<(slice.timelineTick+slice.duration)) }
         .buttonStyle(StudioQuietButtonStyle()).disabled(editingLocked).accessibilityIdentifier("grid.chord.\(slice.id)").offset(x:CGFloat(slice.timelineTick)/CGFloat(barTicks)*barWidth+3,y:8)
         .simultaneousGesture(LongPressGesture(minimumDuration:0.35).sequenced(before:DragGesture()).onEnded { value in
             if case .second(true,let drag?)=value,let event {
@@ -633,8 +631,9 @@ struct ChordTile: View {
     let minor:Bool
     let spelling:PitchSpelling
     let showDegrees:Bool
-    /// Luz: the chord under the playhead lights up in amber.
-    var isPlaying=false
+    /// Luz: the chord under the playhead lights up in amber (read in a tiny view).
+    var audio:AudioController?=nil
+    var playRange:Range<Int>?=nil
     @Environment(\.colorSchemeContrast) private var contrast
     private var inset:CGFloat{width<64 ? 8:12}
     private var symbol:String{chord.map{MusicalNotation.chordSymbol($0,keyRoot:keyRoot,minor:minor,spelling:spelling)} ?? "+"}
@@ -680,9 +679,8 @@ struct ChordTile: View {
                 RoundedRectangle(cornerRadius:1).fill(Color.harmony.opacity(chord == nil ? 0.25:0.8))
                     .frame(width:max(0,min(24,width-inset*2)),height:2).padding(.leading,inset).padding(.top,0.5)
             }
-            .overlay{RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous).strokeBorder(Color.harmony.opacity(isPlaying ? 1:chord == nil ? 0.2:0.4),lineWidth:isPlaying ? 1.5:0.75)}
-            .overlay{if isPlaying && contrast != .increased{RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous).fill(Color.harmony.opacity(0.14)).allowsHitTesting(false)}}
+            .overlay{RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous).strokeBorder(Color.harmony.opacity(chord == nil ? 0.2:0.4),lineWidth:0.75)}
+            .overlay{if let audio,let playRange{PlayingHighlight(audio:audio,range:playRange,color:.harmony)}}
             .clipShape(RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous))
-            .shadow(color:Color.harmony.opacity(isPlaying && contrast != .increased ? 0.35:0),radius:8)
     }
 }
