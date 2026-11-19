@@ -643,6 +643,8 @@ private enum AudioRender {
         let values = pitches.prefix(16).map { Int32($0) }
         return values.withUnsafeBufferPointer { lg_arp(k, identity, $0.baseAddress, Int32($0.count), Int32(step), Int32(mode), Int32(octaves), Int32(velocity)) } != 0
     }
+    /// I16: pitch bend (semitones) and modulation (0...1) for the track with `identity`.
+    func pitchBend(identity: UInt64, semitones: Float, modulation: Float) { if let k = handle?.pointer { lg_pitch_bend(k, identity, semitones, modulation) } }
     /// I82: MIDI clock and transport messages on the selected output.
     func midiClock(_ on: Bool) { if let k = handle?.pointer { lg_midi_clock_out(k, on ? 1 : 0) } }
     /// I63: the latest mono master samples for the spectrum view.

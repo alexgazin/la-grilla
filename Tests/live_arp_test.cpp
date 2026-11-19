@@ -5,6 +5,7 @@
 #include "GrillaKernel.h"
 #include <array>
 #include <cassert>
+#include <cmath>
 #include <cstdio>
 #include <vector>
 
@@ -57,5 +58,23 @@ int main(){
         auto order=run(k,h,time,12000*2+10);assert(order.size()==3&&order[0].pitch==64&&order[1].pitch==60&&order[2].pitch==67);
         lg_destroy(k);lg_midi_destroy(h);
     }
+    {   // I16 pitch bend: zero is bit-identical; +12 semitones doubles the pitch of the bent track only.
+        auto render=[](float semis,float mod,bool call){
+            auto*k=lg_create(48000);
+            std::array<LGProjectTrack,2> tracks{{{{-6,0,1},2,0,0,101},{{-6,0,1},2,3,2,202}}};
+            LGNote note{0,3840,57,100,1,-1,3};assert(lg_submit_project(k,&note,1,120,0,3840*2,0,1,1,tracks.data(),2,-3,0,0));
+            lg_seek(k,0);std::vector<float> l(48000),r(48000);lg_render(k,l.data(),r.data(),1);lg_play(k,1);
+            if(call)lg_pitch_bend(k,202,semis,mod);
+            for(int pos=0;pos<48000;pos+=512)lg_render(k,l.data()+pos,r.data()+pos,std::min(512,48000-pos));
+            lg_destroy(k);return l;
+        };
+        auto crossings=[](const std::vector<float>&v){int c=0;for(size_t i=9601;i<33600;i++)if(v[i-1]<0&&v[i]>=0)c++;return c;};
+        const auto plain=render(0,0,false),zero=render(0,0,true),octave=render(12,0,true),vibrato=render(0,1,true);
+        assert(plain==zero);
+        const double ratio=double(crossings(octave))/double(crossings(plain));
+        assert(std::abs(ratio-2)<0.05);
+        assert(vibrato!=plain&&std::abs(double(crossings(vibrato))/double(crossings(plain))-1)<0.03);
+    }
+    std::printf("Pitch bend: zero is bit-identical, +12 semitones doubles the pitch, vibrato keeps the centre pitch\n");
     std::printf("Live arpeggiator: immediate first note then exact grid steps; up over two octaves, down, up-down and as-played orders; held-note changes keep the timing; stop is silent\n");
 }

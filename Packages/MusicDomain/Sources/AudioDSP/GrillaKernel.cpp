@@ -59,7 +59,7 @@ struct Voice { bool on=false; int pitch=0,track=0,pad=-1,instrument=0; double ph
     double sampleCursor=0;
 };
 
-static float sampleFrame(Voice& voice){
+static float sampleFrame(Voice& voice,double bend=1){
     const auto &zone=voice.zone;
     constexpr int crossfade=256;
     auto &cursor=voice.sampleCursor;
@@ -79,7 +79,7 @@ static float sampleFrame(Voice& voice){
         const float weight=float(offset/crossfade);
         value=value*(1-weight)+read(zone.loopStart+offset)*weight;
     }
-    cursor+=voice.playbackRatio;
+    cursor+=voice.playbackRatio*bend;
     return value;
 }
 // Build 44: the built-in keybed has no listening gain of its own. A key played
@@ -167,6 +167,7 @@ struct LGKernel {
     static constexpr uint32_t ScopeSize=4096;std::array<float,ScopeSize> scope{};std::atomic<uint32_t> scopeWrite{0};
     std::array<std::atomic<float>,MaxTracks> reverbSend{};SendReverb reverb;
     std::atomic<int> repeatPad{-1},repeatStep{240},repeatVelocity{100};std::atomic<uint32_t> repeatSerial{0};uint32_t repeatSeen=0;double repeatNextTick=-1,repeatFrames=0;
+    std::atomic<uint64_t> bendIdentity{0};std::atomic<float> bendSemitones{0},bendModulation{0};double vibratoPhase=0;
     std::atomic<int> clockOut{0};bool clockRunning=false;double clockNext=0;
     void clockEmit(int status,int a=0,int b=0){renderHub->outputEvent(outputState,hostNow,status,a,b);}
     void clockTick(){
@@ -626,6 +627,12 @@ int lg_arp(LGKernel*k,uint64_t identity,const int32_t*pitches,int count,int step
     if(starting)k->arpSerial.fetch_add(1,std::memory_order_acq_rel);
     k->arpCount.store(count,std::memory_order_release);return 1;
 }
+void lg_pitch_bend(LGKernel*k,uint64_t identity,float semitones,float modulation){
+    if(!k||!std::isfinite(semitones)||!std::isfinite(modulation))return;
+    k->bendIdentity.store(identity,std::memory_order_relaxed);
+    k->bendSemitones.store(std::clamp(semitones,-12.f,12.f),std::memory_order_relaxed);
+    k->bendModulation.store(std::clamp(modulation,0.f,1.f),std::memory_order_relaxed);
+}
 void lg_midi_clock_out(LGKernel*k,int enabled){if(k)k->clockOut.store(enabled?1:0,std::memory_order_relaxed);}
 int lg_pad_repeat(LGKernel*k,int pad,int step,int velocity){
     if(!k||pad< -1||pad>15)return 0;
@@ -820,18 +827,24 @@ void lg_render_midi(LGKernel*k,LGMIDIHub*hub,uint64_t hostTime,double hostTicksP
         if(hub)hub->dueWithOrigin(hostTime+uint64_t(double(f)*hostPerSample),uint64_t(std::max(1.0,hostPerSample)),[&](const LGMIDIEvent &event,bool){if(!k->performance.replaying())k->midiEvent(event,true);});
         for(int t=0;t<Buses;t++){k->smooth[t]+=(gainTargets[t]-k->smooth[t])*ramp;k->smoothPan[t]+=(panTargets[t]-k->smoothPan[t])*ramp;}
         float left=0,right=0;float buses[Buses]={};
+        // I16: one bent track at a time (the keyboard's); others keep factor 1.
+        int bentTrack=-1;double bend=1;
+        {const float semis=k->bendSemitones.load(std::memory_order_relaxed),mod=k->bendModulation.load(std::memory_order_relaxed);
+         if(mod!=0){k->vibratoPhase+=5.5/k->sr;if(k->vibratoPhase>=1)k->vibratoPhase-=1;}
+         if(semis!=0||mod!=0){bentTrack=k->identityTrack(k->bendIdentity.load(std::memory_order_relaxed));bend=std::pow(2.0,(double(semis)+0.5*double(mod)*std::sin(2*Pi*k->vibratoPhase))/12);}}
         for(auto&v:k->voices)if(v.on){
+            const double voiceBend=v.track==bentTrack?bend:1.0;
             float sample=0;const double remaining=v.duration-v.age;
             if(remaining<=0){k->endOutput(v);v.on=false;continue;}
             if(v.sample){
-                sample=sampleFrame(v)*v.velocity*float(std::min(1.,v.age/0.001)*std::min(1.,remaining/0.008));
+                sample=sampleFrame(v,voiceBend)*v.velocity*float(std::min(1.,v.age/0.001)*std::min(1.,remaining/0.008));
                 v.age=double(++v.ageFrames)/k->sr;
                 v.lastSample=sample;v.level=std::abs(sample);
                 buses[v.track]+=sample;
                 continue;
             }
             if(v.pad>=0){const auto &bank=v.presetVersion>=2&&k->kitFrames!=LegacyKitFrames?k->kitV2:k->kit;int frame=v.presetVersion>=3?int(double(v.ageFrames)*v.playbackRatio):v.presetVersion>=2?int(v.ageFrames):int(v.age*k->sr);if(frame>=int(bank[v.pad].size())){k->endOutput(v);v.on=false;continue;}sample=bank[v.pad][frame];if(v.presetVersion>=3){v.toneState+=float(v.toneAlpha)*(sample-v.toneState);sample=v.presetVersion==3?v.toneState:float((sample+0.65*(sample-v.toneState))*0.85);}}
-            else {v.phase+=v.phaseStep;if(v.phase>=1)v.phase-=1;if(v.presetVersion<=2){sample=float((std::sin(2*Pi*v.phase)+(v.instrument==3?0.35:0.22)*std::sin(4*Pi*v.phase)+(v.instrument==3?0.12*std::sin(6*Pi*v.phase):0))*0.17);}else{const double sine=std::sin(2*Pi*v.phase),cosine=std::cos(2*Pi*v.phase),second=2*sine*cosine;sample=float((v.partials[0]*sine+v.partials[1]*second+v.partials[2]*sine*(3-4*sine*sine)+v.partials[3]*2*second*(1-2*sine*sine))*0.17);}}
+            else {v.phase+=v.phaseStep*voiceBend;if(v.phase>=1)v.phase-=1;if(v.presetVersion<=2){sample=float((std::sin(2*Pi*v.phase)+(v.instrument==3?0.35:0.22)*std::sin(4*Pi*v.phase)+(v.instrument==3?0.12*std::sin(6*Pi*v.phase):0))*0.17);}else{const double sine=std::sin(2*Pi*v.phase),cosine=std::cos(2*Pi*v.phase),second=2*sine*cosine;sample=float((v.partials[0]*sine+v.partials[1]*second+v.partials[2]*sine*(3-4*sine*sine)+v.partials[3]*2*second*(1-2*sine*sine))*0.17);}}
             double envelope=std::min(1.,v.age/(v.presetVersion>=3?v.attack:0.004))*std::min(1.,remaining/0.008);if(v.pad<0)envelope*=v.presetVersion>=2?v.decay:std::exp(-v.age*(v.instrument==2?1.5:0.7));
             sample*=float(envelope)*v.velocity;v.level=std::abs(sample);if(v.presetVersion>=2){v.age=double(++v.ageFrames)/k->sr;v.decay*=v.decayStep;}else{v.age+=1/k->sr;}
             v.lastSample=sample;

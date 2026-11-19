@@ -54,6 +54,7 @@ private struct InstrumentKeyboard: View {
     @AppStorage("keyboard.arpMode") private var arpMode = 0
     @AppStorage("keyboard.arpOctaves") private var arpOctaves = 1
     @State private var arpHeld: [Int] = []
+    @AppStorage("keyboard.bendStrips") private var bendStrips = false   // I16
     /// I30: step input writes an eighth note per key at a cursor that advances when all keys are up.
     @State private var stepCursor: Int?
     @State private var stepHeld: Set<Int> = []
@@ -140,11 +141,18 @@ private struct InstrumentKeyboard: View {
                             ChordStrip(keyRoot: session.project.keyRoot, minor: session.project.minor) { pitch, down in key(pitch, down: down, track: track) }
                                 .padding(.horizontal, 10)
                         }
-                        InstrumentKeybed(root: root, octaves: KeyboardLayout.octaves(requested: octaveSetting, width: geometry.size.width - 20, size: KeyboardLayout.KeySize(rawValue: keySize) ?? .medium),
+                        HStack(spacing: 8) {
+                        if bendStrips {
+                            BendStrips { semitones, modulation in
+                                session.audio.pitchBend(identity: MIDIController.trackIdentity(track.id), semitones: semitones, modulation: modulation)
+                            }
+                        }
+                        InstrumentKeybed(root: root, octaves: KeyboardLayout.octaves(requested: octaveSetting, width: geometry.size.width - 20 - (bendStrips ? 92 : 0), size: KeyboardLayout.KeySize(rawValue: keySize) ?? .medium),
                                          keyRoot: session.project.keyRoot, minor: session.project.minor, scaleOnly: scaleOnly,
-                                         gridColumns: isomorphic ? max(5, min(12, Int((geometry.size.width - 20) / (KeyboardLayout.KeySize(rawValue: keySize) ?? .medium).minimumWidth / 1.2))) : 0,
+                                         gridColumns: isomorphic ? max(5, min(12, Int((geometry.size.width - 20 - (bendStrips ? 92 : 0)) / (KeyboardLayout.KeySize(rawValue: keySize) ?? .medium).minimumWidth / 1.2))) : 0,
                                          play: { pitch, down in key(pitch, down: down, track: track) })
-                            .id(surfaceID).padding(.horizontal, 10).padding(.bottom, 10)
+                            .id(surfaceID)
+                        }.padding(.horizontal, 10).padding(.bottom, 10)
                     }.padding(.top, compact ? 0 : 8)
                 }
             }
@@ -163,6 +171,7 @@ private struct InstrumentKeyboard: View {
                         Picker("Key size", selection: Binding(get: { keySize }, set: { resetKeys(); keySize = $0 })) {
                             Text("Small").tag(0); Text("Medium").tag(1); Text("Large").tag(2)
                         }
+                        Toggle("Bend and modulation strips", isOn: Binding(get: { bendStrips }, set: { resetKeys(); bendStrips = $0 }))
                         Picker("Arpeggiator", selection: Binding(get: { arpRate }, set: { resetKeys(); arpRate = $0 })) {
                             Text("Off").tag(0); Text(verbatim: "1/8").tag(480); Text(verbatim: "1/16").tag(240); Text(verbatim: "1/16T").tag(160); Text(verbatim: "1/32").tag(120)
                         }
@@ -360,6 +369,7 @@ private struct InstrumentKeyboard: View {
     private func resetKeys() {
         if sustain { setSustain(false) }
         if !arpHeld.isEmpty { arpHeld = []; session.audio.arp(identity: 0, pitches: [], step: 240, mode: 0, octaves: 1) }
+        session.audio.pitchBend(identity: 0, semitones: 0, modulation: 0)
         take?.releaseHeld()
         session.midi.releaseKeyboard()
         surfaceID = UUID()
@@ -672,5 +682,48 @@ private struct ChordStrip: View {
     private func release(_ degree: Int) {
         guard let chord = held.removeValue(forKey: degree) else { return }
         for pitch in chord { play(pitch, false) }
+    }
+}
+
+/// I16: a spring-loaded pitch-bend strip (±2 semitones, back to centre on
+/// release) and a modulation strip (vibrato depth, stays where it is left).
+private struct BendStrips: View {
+    let apply: (Float, Float) -> Void
+    @State private var bend: Float = 0
+    @State private var modulation: Float = 0
+    var body: some View {
+        HStack(spacing: 6) {
+            strip(fill: (bend + 2) / 4, centre: true, label: "Pitch bend",
+                  value: String(format: "%+.1f", bend)) { fraction, ended in
+                bend = ended ? 0 : (fraction * 2 - 1) * 2
+            } adjust: { up in bend = min(2, max(-2, bend + (up ? 0.5 : -0.5))) }
+            strip(fill: modulation, centre: false, label: "Modulation",
+                  value: String(format: "%.0f%%", modulation * 100)) { fraction, ended in
+                if !ended { modulation = fraction }
+            } adjust: { up in modulation = min(1, max(0, modulation + (up ? 0.1 : -0.1))) }
+        }
+        .frame(width: 84)
+        .onChange(of: bend) { _, _ in apply(bend, modulation) }
+        .onChange(of: modulation) { _, _ in apply(bend, modulation) }
+    }
+
+    private func strip(fill: Float, centre: Bool, label: LocalizedStringKey, value: String,
+                       drag: @escaping (Float, Bool) -> Void, adjust: @escaping (Bool) -> Void) -> some View {
+        GeometryReader { geometry in
+            ZStack(alignment: .bottom) {
+                RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.raised)
+                RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.mint.opacity(0.55))
+                    .frame(height: max(6, geometry.size.height * CGFloat(fill)))
+                if centre { Rectangle().fill(Color.outline).frame(height: 1).offset(y: -geometry.size.height / 2) }
+            }
+            .contentShape(Rectangle())
+            .gesture(DragGesture(minimumDistance: 0)
+                .onChanged { g in drag(Float(max(0, min(1, 1 - g.location.y / max(1, geometry.size.height)))), false) }
+                .onEnded { g in drag(Float(max(0, min(1, 1 - g.location.y / max(1, geometry.size.height)))), true) })
+        }
+        .accessibilityElement()
+        .accessibilityLabel(label)
+        .accessibilityValue(Text(verbatim: value))
+        .accessibilityAdjustableAction { direction in adjust(direction == .increment) }
     }
 }

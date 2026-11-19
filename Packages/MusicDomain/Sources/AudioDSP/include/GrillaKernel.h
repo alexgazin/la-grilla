@@ -63,6 +63,10 @@ int lg_pad_repeat(LGKernel *k, int pad, int stepTicks, int velocity);
 // I82: send MIDI clock (24 PPQN) with Start/Continue (+ Song Position) and
 // Stop to the selected MIDI output, sample-timed with the transport.
 void lg_midi_clock_out(LGKernel *k, int enabled);
+// I16: live pitch bend (-12...+12 semitones) and modulation (0...1 = vibrato
+// up to ±0.5 semitone at 5.5 Hz) for the voices of the track with `identity`.
+// Zero for both leaves every voice bit-identical.
+void lg_pitch_bend(LGKernel *k, uint64_t identity, float semitones, float modulation);
 // I15 live arpeggiator for the track with `identity`: up to 16 held pitches
 // (in the order played), stepTicks 120/160/240/320/480, mode 0 up, 1 down,
 // 2 up-down, 3 as played, over 1...3 octaves. The first note sounds at once;
