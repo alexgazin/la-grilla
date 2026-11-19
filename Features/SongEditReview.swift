@@ -100,17 +100,26 @@ struct SongEditReview: View {
     }
 
     private func diffSummary(_ candidate: Project) -> some View {
-        let diff = SongEditDiff(before: source, after: candidate)
-        let rows = candidate.tracks.compactMap { track -> String? in
-            let (added, removed) = diff.events(on: track.id)
-            guard !added.isEmpty || !removed.isEmpty else { return nil }
-            return String(format: NSLocalizedString("%@: +%lld / −%lld notes", comment: "Song edit MIDI difference"), track.displayName, added.count, removed.count)
-        }
+        let rows: [String] = Self.differenceRows(source: source, candidate: candidate)
         return VStack(alignment: .leading, spacing: 4) {
             SmallHeading(text: "MIDI DIFFERENCE")
             if rows.isEmpty { Text("No audible change.").font(.caption).foregroundStyle(Color.harmony) }
             ForEach(rows, id: \.self) { Text(verbatim: $0).font(.caption.monospaced()) }
         }.accessibilityElement(children: .combine).accessibilityIdentifier("assistant.edit.diff")
+    }
+
+    static func differenceRows(source: Project, candidate: Project) -> [String] {
+        let diff = SongEditDiff(before: source, after: candidate)
+        let format = NSLocalizedString("%@: +%lld / −%lld notes", comment: "Song edit MIDI difference")
+        var rows: [String] = []
+        for track in candidate.tracks {
+            let events = diff.events(on: track.id)
+            let added: Int = events.added.count
+            let removed: Int = events.removed.count
+            if added == 0 && removed == 0 { continue }
+            rows.append(String(format: format, track.displayName, Int64(added), Int64(removed)))
+        }
+        return rows
     }
 
     private func icon(_ kind: SongEditOperation.Kind) -> String {
@@ -147,24 +156,10 @@ private struct ScoreCells: View {
         VStack(alignment: .leading, spacing: 4) {
             SmallHeading(text: "AFFECTED CELLS")
             ScrollView(.horizontal, showsIndicators: false) {
-                Grid(horizontalSpacing: 3, verticalSpacing: 3) {
-                    GridRow {
-                        Text(verbatim: "").frame(width: 64)
-                        ForEach(project.sections) { section in
-                            Text(verbatim: section.name).font(.caption2).foregroundStyle(Color.muted).lineLimit(1)
-                                .frame(width: max(28, CGFloat(section.length / barTicks) * 12))
-                        }
-                    }
+                VStack(alignment: .leading, spacing: 3) {
+                    ScoreHeaderRow(sections: project.sections)
                     ForEach(project.tracks) { track in
-                        GridRow {
-                            Text(verbatim: track.displayName).font(.caption2).lineLimit(1).frame(width: 64, alignment: .leading)
-                            ForEach(project.sections) { section in
-                                let hit = cells.contains(SongEditCell(trackID: track.id, sectionID: section.id))
-                                RoundedRectangle(cornerRadius: 3)
-                                    .fill(hit ? Color.mint : Color.raised.opacity(0.6))
-                                    .frame(width: max(28, CGFloat(section.length / barTicks) * 12), height: 14)
-                            }
-                        }
+                        ScoreTrackRow(name: track.displayName, trackID: track.id, sections: project.sections, cells: cells)
                     }
                 }
             }
@@ -179,5 +174,47 @@ private struct ScoreCells: View {
             let names = project.sections.filter { cells.contains(SongEditCell(trackID: track.id, sectionID: $0.id)) }.map(\.name)
             return names.isEmpty ? nil : "\(track.displayName): \(names.joined(separator: ", "))"
         }.joined(separator: "; ")
+    }
+}
+
+private func scoreCellWidth(_ section: MusicDomain.Section) -> CGFloat {
+    max(28, CGFloat(section.length / barTicks) * 12)
+}
+
+private struct ScoreHeaderRow: View {
+    let sections: [MusicDomain.Section]
+    var body: some View {
+        HStack(spacing: 3) {
+            Color.clear.frame(width: 64, height: 12)
+            ForEach(sections) { section in
+                Text(verbatim: section.name).font(.caption2).foregroundStyle(Color.muted).lineLimit(1)
+                    .frame(width: scoreCellWidth(section))
+            }
+        }
+    }
+}
+
+private struct ScoreTrackRow: View {
+    let name: String
+    let trackID: UUID
+    let sections: [MusicDomain.Section]
+    let cells: Set<SongEditCell>
+    var body: some View {
+        HStack(spacing: 3) {
+            Text(verbatim: name).font(.caption2).lineLimit(1).frame(width: 64, alignment: .leading)
+            ForEach(sections) { section in
+                ScoreCell(highlighted: cells.contains(SongEditCell(trackID: trackID, sectionID: section.id)), width: scoreCellWidth(section))
+            }
+        }
+    }
+}
+
+private struct ScoreCell: View {
+    let highlighted: Bool
+    let width: CGFloat
+    var body: some View {
+        RoundedRectangle(cornerRadius: 3)
+            .fill(highlighted ? Color.mint : Color.raised.opacity(0.6))
+            .frame(width: width, height: 14)
     }
 }

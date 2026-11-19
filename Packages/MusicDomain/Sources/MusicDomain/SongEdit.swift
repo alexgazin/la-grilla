@@ -125,6 +125,7 @@ public struct SongEditPlan: Equatable, Sendable {
 public struct SongEditCell: Equatable, Hashable, Sendable {
     public var trackID: UUID
     public var sectionID: UUID
+    public init(trackID: UUID, sectionID: UUID) { self.trackID = trackID; self.sectionID = sectionID }
 }
 
 public enum SongEditError: Error, LocalizedError, Equatable {
