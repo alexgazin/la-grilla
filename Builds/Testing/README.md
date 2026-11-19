@@ -1,6 +1,6 @@
 # La Grilla для ручного тестирования
 
-**[Скачать IPA 38 для iPhone](https://github.com/alexgazin/la-grilla/actions/runs/44393273269/artifacts/14468754178)**. В Automatic запрос «Create jazz hip hop old school» при недоступной системной модели открывает автономный конструктор с готовыми параметрами. Из ZIP извлеките IPA и подпишите своим Apple ID через Sideloadly. SHA-256 файла — `a513a7d9035b0eabe9450b6f4b3fb0c0aecd40b300d1e5abc22162719fedb9e8`.
+**[Скачать IPA 38 для iPhone](https://raw.githubusercontent.com/alexgazin/la-grilla/86df35639cdd20813d40987dea033c9bbc50c79f/Builds/Testing/LaGrilla-38-unsigned.ipa)**. В Automatic запрос «Create jazz hip hop old school» при недоступной системной модели открывает автономный конструктор с готовыми параметрами. Подпишите скачанный IPA своим Apple ID через Sideloadly. SHA-256 файла — `a513a7d9035b0eabe9450b6f4b3fb0c0aecd40b300d1e5abc22162719fedb9e8`.
 
 **[Скачать IPA 37 для iPhone](https://github.com/alexgazin/la-grilla/actions/runs/44375324030/artifacts/14461599286)**. Автономный генератор инструментальных аранжировок, раздельные вариации баса и ударных, вступление и пауза перед повтором. Из ZIP извлеките LaGrilla-unsigned.ipa и подпишите своим Apple ID через Sideloadly. SHA-256 файла IPA — `d28f3f92d41bbb8ed974743fb8f09c1d5cbfdb27f41b11872aeac8c1134fcc33`. [Проверка создания проекта на симуляторе](https://github.com/alexgazin/la-grilla/actions/runs/44376030143).
 
