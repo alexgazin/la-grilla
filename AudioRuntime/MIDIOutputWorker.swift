@@ -51,7 +51,8 @@ final class MIDIOutputWorker:@unchecked Sendable {
     }
     private func send(time:UInt64,status:Int32,a:Int32,b:Int32)->OSStatus {
         var list=MIDIPacketList();return withUnsafeMutablePointer(to:&list){pointer in
-            let packet=MIDIPacketListInit(pointer);let bytes=[UInt8(status),UInt8(a),UInt8(b)]
+            // I82: realtime messages (clock, start, continue, stop) are one byte.
+            let packet=MIDIPacketListInit(pointer);let bytes=status>=0xF8 ? [UInt8(status)]:[UInt8(status),UInt8(a),UInt8(b)]
             _ = bytes.withUnsafeBufferPointer{MIDIPacketListAdd(pointer,MemoryLayout<MIDIPacketList>.size,packet,time,$0.count,$0.baseAddress!)}
             return MIDISend(port,destination,pointer)
         }

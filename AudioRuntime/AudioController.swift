@@ -637,6 +637,8 @@ private enum AudioRender {
         return MetronomeSettings(gainDB: value.gainDB, accent: value.accent, sound: value.sound, countInOnly: value.countInOnly)
     }
     private var metronomeOn = false
+    /// I82: MIDI clock and transport messages on the selected output.
+    func midiClock(_ on: Bool) { if let k = handle?.pointer { lg_midi_clock_out(k, on ? 1 : 0) } }
     /// I63: the latest mono master samples for the spectrum view.
     func scope(_ count: Int) -> [Float] {
         guard let k = handle?.pointer else { return [] }

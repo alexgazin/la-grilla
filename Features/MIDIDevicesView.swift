@@ -30,6 +30,7 @@ struct MIDIDevicesView:View {
             }.disabled(!settings.enabled)
             SwiftUI.Section("MIDI output") {
                 Picker("Destination",selection:Binding(get:{settings.outputID.map(Int64.init) ?? Int64.min},set:{id in edit{$0.outputID=id==Int64.min ? nil:Int32(id)}})){Text("None").tag(Int64.min);ForEach(midi.destinations){endpoint in Text(endpoint.name).tag(Int64(endpoint.id))}}
+                if settings.outputID != nil{Toggle("Send MIDI clock",isOn:Binding(get:{settings.clockOut == true},set:{on in edit{$0.clockOut=on ? true:nil}})).accessibilityIdentifier("midi.clock-out")}
                 Text("Project notes and live pads are sent to this destination. Incoming MIDI is not forwarded. Harmony uses channel 1, bass 2, drums 10, melodies 3–8.").font(.caption).foregroundStyle(.secondary)
                 LabeledContent("Messages sent",value:String(midi.outputSent)).accessibilityIdentifier("midi.output-count")
                 if midi.isFixture{HStack{Text("Virtual output received notes");Spacer();Text(String(midi.fixtureReceivedNotes)).accessibilityIdentifier("midi.fixture-received")}}

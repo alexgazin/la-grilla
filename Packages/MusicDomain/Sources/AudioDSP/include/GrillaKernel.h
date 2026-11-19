@@ -60,6 +60,9 @@ int lg_pad(LGKernel *k, int pad, int velocity);
 // stepTicks (120, 160, 240, 320 or 480) after the current tick; with the
 // transport stopped it free-runs at the current tempo. pad -1 stops.
 int lg_pad_repeat(LGKernel *k, int pad, int stepTicks, int velocity);
+// I82: send MIDI clock (24 PPQN) with Start/Continue (+ Song Position) and
+// Stop to the selected MIDI output, sample-timed with the transport.
+void lg_midi_clock_out(LGKernel *k, int enabled);
 void lg_preview(LGKernel *k, int pitch);
 void lg_note_preview(LGKernel *k, int pitch, int track, int instrument);
 // Resolve a stable LGProjectTrack identity after audio-boundary adoption.

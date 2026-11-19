@@ -216,6 +216,7 @@ import Observation
         var settings=project.midi ?? MIDISettings()
         if settings.trackID==nil{settings.trackID=MIDISettings.automaticTrack(tracks,focused:noteTrackID)}
         midi.configure(settings,tracks:tracks)
+        audio.midiClock(settings.outputID != nil && settings.clockOut == true)
     }
     /// Share the real QA endpoint setup between launch and an explicit reconnect.
     /// A failed launch never creates an enabled project or a pretend mapping.

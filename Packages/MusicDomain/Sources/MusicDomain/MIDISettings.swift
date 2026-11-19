@@ -16,6 +16,8 @@ public struct MIDIMapping:Codable,Equatable,Identifiable,Sendable {
 public struct MIDISettings:Codable,Equatable,Sendable {
     public var enabled=false;public var inputIDs:[Int32]=[];public var outputID:Int32?
     public var channel:Int?;public var trackID:UUID?;public var mappings:[MIDIMapping]=[]
+    /// I82: send MIDI clock and transport to the output destination. Nil = off.
+    public var clockOut:Bool?
     public init(){}
     public func validate(_ project:Project)throws {
         guard inputIDs.count<=16,Set(inputIDs).count==inputIDs.count,mappings.count<=16,Set(mappings.map(\.id)).count==mappings.count,channel==nil || (0..<16).contains(channel!),trackID==nil || project.tracks.contains(where:{$0.id==trackID})else{throw MusicError.invalidProject}
