@@ -14,8 +14,8 @@ struct StudioView: View {
     @Environment(\.verticalSizeClass) private var verticalSize
     var body: some View {
         VStack(spacing:0){
-            if let error=session.audio.error {HStack{Image(systemName:"speaker.slash");Text(LocalizedStringKey(error)).font(.caption);Button("Retry"){_ = session.ensureAudio()}}.padding(12).background(Color.record.opacity(0.15))}
-            if let error=session.saveError {HStack{Text(LocalizedStringKey(error)).font(.caption);Button("Retry"){Task{await session.save()}};Button("Save copy"){Task{await session.saveCopy()}}}.padding(12).background(Color.record.opacity(0.15))}
+            if let error=session.audio.error {LuzNotice(kind:.danger,symbol:"speaker.slash",text:LocalizedStringKey(error),actions:[("Retry",{_ = session.ensureAudio()})]).padding(.horizontal,8).padding(.top,6)}
+            if let error=session.saveError {LuzNotice(kind:.danger,text:LocalizedStringKey(error),actions:[("Retry",{Task{await session.save()}}),("Save copy",{Task{await session.saveCopy()}})]).padding(.horizontal,8).padding(.top,6)}
             if verticalSize == .compact {
                 HStack(spacing:0){VStack(spacing:0){compactHeader;workspace.frame(maxWidth:.infinity,maxHeight:.infinity)};compactSidebar}
             }else{
@@ -26,8 +26,8 @@ struct StudioView: View {
         }.background(Color.ink).foregroundStyle(Color.studioText)
         .overlay{if AudioRuntimeQA.enabled{AudioRuntimeQAView(session:session)}}
         .background{UndoGestureInstaller(undo:{session.gestureUndo(false)},redo:{session.gestureUndo(true)}).frame(width:0,height:0).accessibilityHidden(true)}
-        .overlay(alignment:.top){if let toast=session.toast{Label(LocalizedStringKey(toast),systemImage:toast=="Undo" ? "arrow.uturn.backward":"arrow.uturn.forward").font(.subheadline.weight(.semibold)).padding(.horizontal,16).padding(.vertical,10).background(Color.raised,in:Capsule()).padding(.top,8).transition(.move(edge:.top).combined(with:.opacity)).accessibilityAddTraits(.updatesFrequently).allowsHitTesting(false)}}
-        .animation(.easeOut(duration:0.2),value:session.toast)
+        .overlay(alignment:.top){if let toast=session.toast{Label(LocalizedStringKey(toast),systemImage:toast=="Undo" ? "arrow.uturn.backward":toast=="Redo" ? "arrow.uturn.forward":"checkmark.circle").font(.subheadline.weight(.semibold)).padding(.horizontal,16).padding(.vertical,10).modifier(StudioNavigationSurface()).padding(.top,8).transition(reduceMotion ? .opacity:.move(edge:.top).combined(with:.opacity)).accessibilityAddTraits(.updatesFrequently).allowsHitTesting(false)}}
+        .animation(reduceMotion ? .easeOut(duration:0.15):Luz.Motion.morph,value:session.toast)
         .sheet(item:$session.sheet,onDismiss:{if let url=session.exportedURL{session.shareURL=url;session.exportedURL=nil}}){sheet in Group{switch sheet {
         case .projects: ProjectsView(session:session)
         case .trackBuilder: TrackBuilderView(session:session)
@@ -72,7 +72,7 @@ struct StudioView: View {
     }.padding(.top,6).frame(width:104).background(Color.panel)}
     private var saveColor: Color {
         if session.saveError != nil { return .record }
-        return session.saving || session.savedRevision != session.project.revision ? .harmony : .mint
+        return session.saving || session.savedRevision != session.project.revision ? .muted : .mint
     }
     var header: some View {
         HStack(spacing:8){
@@ -84,7 +84,10 @@ struct StudioView: View {
             VStack(alignment:.leading,spacing:0){
                 HStack(spacing:6){
                     Text(session.displayProject.name).font(StudioTypography.title).tracking(-0.5).lineLimit(1)
-                    Circle().fill(saveColor).frame(width:5,height:5)
+                    // Luz: a status symbol, not colour alone.
+                    Image(systemName:session.saveError != nil ? "exclamationmark.triangle.fill":session.saving || session.savedRevision != session.project.revision ? "circle.dotted":"checkmark.circle.fill")
+                        .font(StudioTypography.index).foregroundStyle(saveColor)
+                        .contentTransition(.symbolEffect(.replace))
                         .accessibilityLabel(LocalizedStringKey(session.saveError != nil ? "Save failed":session.saving ? "Saving…":session.savedRevision==session.project.revision ? "Saved on this iPhone":"Unsaved changes"))
                 }
                 Button{session.presentEditor(.settings)}label:{
