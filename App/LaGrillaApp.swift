@@ -9,6 +9,7 @@ import MusicDomain
         if ProcessInfo.processInfo.arguments.contains("--uitesting") && !ProcessInfo.processInfo.arguments.contains("--respect-appearance"){appearance=2}
         if let index=ProcessInfo.processInfo.arguments.firstIndex(of:"--appearance"),ProcessInfo.processInfo.arguments.count>index+1{appearance=ProcessInfo.processInfo.arguments[index+1]=="light" ? 1:2}
         await session.bootstrap()
+        if !ProcessInfo.processInfo.arguments.contains("--uitesting") { LocalDiagnostics.shared.start() }
         if LaunchRequest.take() == .newBeat { session.openTrackBuilder() }
         if let index=ProcessInfo.processInfo.arguments.firstIndex(of:"--screen"),ProcessInfo.processInfo.arguments.count>index+1 {
             let target=ProcessInfo.processInfo.arguments[index+1]

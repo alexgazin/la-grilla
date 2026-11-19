@@ -1281,3 +1281,5 @@
 "Kept for 30 days, then removed." = "Хранятся 30 дней, затем удаляются.";
 "Restore" = "Восстановить";
 "The project moves to Recently Deleted and can be restored for 30 days." = "Проект попадёт в «Недавно удалённые», его можно восстановить в течение 30 дней.";
+"Share the latest crash report" = "Поделиться последним отчётом о сбое";
+"Kept only on this iPhone. Contains system stack traces, never your music." = "Хранится только на этом iPhone. Содержит системные стеки вызовов, но не вашу музыку.";

@@ -1279,3 +1279,5 @@
 "Kept for 30 days, then removed." = "Kept for 30 days, then removed.";
 "Restore" = "Restore";
 "The project moves to Recently Deleted and can be restored for 30 days." = "The project moves to Recently Deleted and can be restored for 30 days.";
+"Share the latest crash report" = "Share the latest crash report";
+"Kept only on this iPhone. Contains system stack traces, never your music." = "Kept only on this iPhone. Contains system stack traces, never your music.";

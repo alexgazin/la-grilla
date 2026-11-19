@@ -134,6 +134,12 @@ struct SettingsView: View {
                 }.accessibilityIdentifier("settings.audio-diagnostics")
                 Text("Includes audio route types and error codes, never recordings.").font(.caption).foregroundStyle(.secondary)
             }
+            if let report=LocalDiagnostics.shared.latestReport {
+                ShareLink(item:report){
+                    Label("Share the latest crash report",systemImage:"ladybug").frame(minHeight:44)
+                }.accessibilityIdentifier("settings.crash-report")
+                Text("Kept only on this iPhone. Contains system stack traces, never your music.").font(.caption).foregroundStyle(.secondary)
+            }
         }
     }
     private var audioDiagnosticReport:String {
