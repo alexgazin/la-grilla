@@ -3,6 +3,12 @@ on:
   push:
     branches: [feat/song-board, feat/song-brief-39, feat/andrey-arranger-41, feat/andrey-score-42]
   workflow_dispatch:
+    inputs:
+      suite:
+        description: Select the iPhone Simulator checks to run
+        type: choice
+        options: [studio, song-form]
+        default: studio
 permissions:
   contents: read
 concurrency:
@@ -13,7 +19,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        journey: ${{ fromJSON(github.ref_name == 'feat/andrey-score-42' && '["workout","chillhop","ambient","score"]' || '["original"]') }}
+        journey: ${{ fromJSON(((github.event_name == 'push' && github.ref_name == 'feat/andrey-score-42') || inputs.suite == 'studio') && '["workout","chillhop","ambient","score"]' || '["original"]') }}
     runs-on: macos-26
     timeout-minutes: 85
     env:
@@ -31,7 +37,7 @@ jobs:
           git diff --exit-code -- LaGrilla.xcodeproj
           xcodebuild -project LaGrilla.xcodeproj -scheme LaGrilla -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' ARCHS=arm64 ONLY_ACTIVE_ARCH=YES -configuration Debug -derivedDataPath DerivedData CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO build-for-testing | tee song-form-build.log
       - name: Configure the virtual microphone for full regression
-        if: github.ref_name == 'feat/andrey-score-42'
+        if: matrix.journey != 'original'
         run: bash scripts/setup_ci_audio.sh
       - name: Boot iPhone Simulator
         timeout-minutes: 7
@@ -56,7 +62,7 @@ jobs:
             CASE_LIMIT=240
             NATIVE_BUDGET=1230
           fi
-          if [[ "$GITHUB_REF_NAME" == "feat/andrey-score-42" ]]; then
+          if [[ "$JOURNEY" != "original" ]]; then
             case "${{ matrix.journey }}" in
               workout) CASES=(SketchGenerationTests/testAndreyWorkoutCreatesAndReopens SketchGenerationTests/testChangingReviewedTextRequiresNewInterpretation) ;;
               chillhop) CASES=(SketchGenerationTests/testAndreyChillhopCreatesAndReopens) ;;
@@ -90,13 +96,13 @@ jobs:
             song-form-process-status.json
             SongFormAttachments
       - name: Prepare native drag service
-        if: ${{ !cancelled() && github.ref_name == 'feat/andrey-score-42' }}
+        if: ${{ !cancelled() && matrix.journey != 'original' }}
         continue-on-error: true
         timeout-minutes: 2
         run: |
           python3 scripts/ci/prepare_simulator_drag_service.py --device "$(cat /tmp/grilla-simulator-id)" --output-dir SimulatorDragReadiness --start-confirmed-system-app --start-confirmed-daemon
       - name: Run the remaining functional tests in four disjoint subsets
-        if: ${{ !cancelled() && github.ref_name == 'feat/andrey-score-42' }}
+        if: ${{ !cancelled() && matrix.journey != 'original' }}
         run: |
           python3 - <<'PY'
           import os, pathlib, subprocess, sys
@@ -116,7 +122,7 @@ jobs:
           subprocess.run(command, check=True)
           PY
       - uses: actions/upload-artifact@v4
-        if: ${{ always() && github.ref_name == 'feat/andrey-score-42' }}
+        if: ${{ always() && matrix.journey != 'original' }}
         with:
           name: functional-shard-${{ matrix.journey }}
           path: |
@@ -126,7 +132,7 @@ jobs:
             song-form-native.log
   coverage:
     needs: song-form
-    if: github.ref_name == 'feat/andrey-score-42'
+    if: (github.event_name == 'push' && github.ref_name == 'feat/andrey-score-42') || inputs.suite == 'studio'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
