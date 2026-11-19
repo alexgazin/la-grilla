@@ -1382,3 +1382,9 @@
 "Choose a backup folder" = "Выбрать папку для копий";
 "Once a day, when you leave the app, projects changed since the last backup are saved as one zip in that folder." = "Раз в день, когда вы выходите из приложения, изменённые с прошлого раза проекты сохраняются одним zip‑архивом в эту папку.";
 "Change by voice" = "Изменить голосом";
+"No note selected" = "Нота не выбрана";
+"Swipe up or down to move between notes. The Actions rotor moves the selected note." = "Смахните вверх или вниз, чтобы переходить между нотами. Ротор «Действия» двигает выбранную ноту.";
+"Move later by a step" = "Позже на шаг";
+"Move earlier by a step" = "Раньше на шаг";
+"Up a semitone" = "На полутон выше";
+"Down a semitone" = "На полутон ниже";

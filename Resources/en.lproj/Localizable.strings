@@ -1380,3 +1380,9 @@
 "Choose a backup folder" = "Choose a backup folder";
 "Once a day, when you leave the app, projects changed since the last backup are saved as one zip in that folder." = "Once a day, when you leave the app, projects changed since the last backup are saved as one zip in that folder.";
 "Change by voice" = "Change by voice";
+"No note selected" = "No note selected";
+"Swipe up or down to move between notes. The Actions rotor moves the selected note." = "Swipe up or down to move between notes. The Actions rotor moves the selected note.";
+"Move later by a step" = "Move later by a step";
+"Move earlier by a step" = "Move earlier by a step";
+"Up a semitone" = "Up a semitone";
+"Down a semitone" = "Down a semitone";

@@ -395,7 +395,24 @@ private struct RollCanvas:View {
             }, end: { translation in
                 finish(.move, translation: translation)
             }, cancel: cancel)
-            .accessibilityLabel("Piano roll. Use the note list to edit with VoiceOver.")
+            .accessibilityLabel("Piano roll")
+            .accessibilityValue(Text(verbatim:selectedNote.map{MusicalNotation.noteName($0.pitch,keyRoot:0,minor:false)+" · "+MusicalPosition(tick:$0.tick).description} ?? NSLocalizedString("No note selected",comment:"Piano roll")))
+            .accessibilityHint("Swipe up or down to move between notes. The Actions rotor moves the selected note.")
+            // I91: VoiceOver walks notes in time order and moves the selected one.
+            .accessibilityAdjustableAction{direction in
+                let ordered=(pattern.notes ?? []).sorted{($0.tick,$0.pitch)<($1.tick,$1.pitch)}
+                guard !ordered.isEmpty else{return}
+                let index=ordered.firstIndex{$0.id==selected}
+                switch direction{
+                case .increment:select(ordered[index.map{min(ordered.count-1,$0+1)} ?? 0].id)
+                case .decrement:select(ordered[index.map{max(0,$0-1)} ?? ordered.count-1].id)
+                @unknown default:break
+                }
+            }
+            .accessibilityAction(named:Text("Move later by a step")){if let note=selectedNote{move(note.id,note.tick+snap,note.pitch)}}
+            .accessibilityAction(named:Text("Move earlier by a step")){if let note=selectedNote{move(note.id,max(0,note.tick-snap),note.pitch)}}
+            .accessibilityAction(named:Text("Up a semitone")){if let note=selectedNote{move(note.id,note.tick,min(127,note.pitch+1))}}
+            .accessibilityAction(named:Text("Down a semitone")){if let note=selectedNote{move(note.id,note.tick,max(0,note.pitch-1))}}
             .accessibilityIdentifier("notes.canvas")
             if let note=displayedSelection,(lowPitch...lowPitch+23).contains(note.pitch) {
                 resizeGrip(note).position(gripCenter(note))
