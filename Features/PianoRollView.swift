@@ -31,6 +31,14 @@ struct PianoRollView: View {
     var sourceRecord:AudioAssetRecord?{guard let id=clip?.sourceAssetID else{return nil};return session.project.audioAssets?.first{$0.id==id}}
     var sourcePlayhead:Double{guard let clip,let pattern else{return -1};let position=session.audio.tick-Double(clip.start);guard position>=0,position<Double(clip.length)else{return -1};return (position+Double(clip.offset)).truncatingRemainder(dividingBy:Double(pattern.length))}
     var note:NoteEvent?{pattern?.notes?.first{$0.id==selected}}
+    @AppStorage("notes.ghost") private var showGhost = true
+    /// I26: the other melodic parts in the same bars, drawn faintly behind the notes.
+    func ghostNotes(for pattern:Pattern)->[NoteEvent]{
+        guard showGhost,let clip,clip.offset==0,clip.length==pattern.length,let index=session.project.tracks.firstIndex(where:{$0.id==track?.id}) else{return []}
+        return Compiler.notes(session.project,range:clip.start..<(clip.start+clip.length))
+            .filter{$0.pad<0 && $0.track != index && session.project.tracks[$0.track].role != .drums}
+            .prefix(2048).map{NoteEvent(tick:$0.tick,duration:$0.duration,pitch:$0.pitch,velocity:$0.velocity)}
+    }
     /// I29: chord tones under the pattern, when the clip plays its pattern once from the start.
     func chordTones(for pattern:Pattern)->[ChordSpan]{
         guard let clip,clip.offset==0,clip.length==pattern.length else{return []}
@@ -135,7 +143,7 @@ struct PianoRollView: View {
                                 .frame(width:barWidth,alignment:.leading)
                         }}.foregroundStyle(Color.muted).frame(height:24).background(Color.raised)
                             .overlay(alignment:.bottom){Rectangle().fill(Color.outline).frame(height:0.5)}
-                        RollCanvas(chordTones:chordTones(for:p),pattern:p,projectID:session.project.id,revision:session.project.revision,clipID:clip?.id,sectionID:session.section.id,selected:selected,lowPitch:lowPitch,barWidth:barWidth,snap:snap,tick:sourcePlayhead,editingChanged:{noteDragging=$0},select:{id in selected=id},insert:{tick,pitch in add(p,tick:tick,pitch:pitch)},move:{id,tick,pitch in change(p.id){NoteEditing.move(id,in:&$0,tick:tick,pitch:pitch,step:snap)}},resize:{id,duration in change(p.id){NoteEditing.resize(id,in:&$0,duration:duration,step:snap)}})
+                        RollCanvas(chordTones:chordTones(for:p),ghost:ghostNotes(for:p),pattern:p,projectID:session.project.id,revision:session.project.revision,clipID:clip?.id,sectionID:session.section.id,selected:selected,lowPitch:lowPitch,barWidth:barWidth,snap:snap,tick:sourcePlayhead,editingChanged:{noteDragging=$0},select:{id in selected=id},insert:{tick,pitch in add(p,tick:tick,pitch:pitch)},move:{id,tick,pitch in change(p.id){NoteEditing.move(id,in:&$0,tick:tick,pitch:pitch,step:snap)}},resize:{id,duration in change(p.id){NoteEditing.resize(id,in:&$0,duration:duration,step:snap)}})
                             .frame(width:CGFloat(p.length)/CGFloat(barTicks)*barWidth,height:576)
                     }
                 }
@@ -340,6 +348,7 @@ struct ChordSpan:Equatable {let range:Range<Int>;let tones:Set<Int>}
 
 private struct RollCanvas:View {
     var chordTones:[ChordSpan]=[]
+    var ghost:[NoteEvent]=[]
     let pattern:Pattern;let projectID:UUID;let revision:Int;let clipID:UUID?;let sectionID:UUID
     let selected:UUID?;let lowPitch:Int;let barWidth:CGFloat;let snap:Int;let tick:Double
     let editingChanged:(Bool)->Void
@@ -426,6 +435,9 @@ private struct RollCanvas:View {
                 var line=Path();line.move(to:CGPoint(x:x,y:0));line.addLine(to:CGPoint(x:x,y:size.height))
                 let color:Color=bar ? .muted.opacity(0.5):beat ? .outline:.raised
                 context.stroke(line,with:.color(color),lineWidth:bar ? 1:0.5)
+            }
+            for note in ghost where (lowPitch...lowPitch+23).contains(note.pitch) {
+                context.fill(Path(roundedRect:rect(note),cornerRadius:3),with:.color(.studioText.opacity(0.12)))
             }
             let drag=interaction
             for original in pattern.notes ?? [] {
@@ -542,6 +554,7 @@ private struct NoteInspector:View {
 /// Waves 2–3 note tools: one undoable edit on the selected note or the whole pattern.
 private struct NoteToolsMenu: View {
     @Bindable var session: Session
+    @AppStorage("notes.ghost") private var showGhost = true
     let patternID: UUID
     let selected: UUID?
     var body: some View {
@@ -550,6 +563,7 @@ private struct NoteToolsMenu: View {
             Button("Legato") { apply { notes, ids, length in NoteTools.legato(notes, ids: ids, length: length) } }
             Button("Staccato") { apply { notes, ids, _ in NoteTools.staccato(notes, ids: ids) } }
             Button("Up one step in the key") { apply { notes, ids, _ in NoteTools.scaleTranspose(notes, ids: ids, steps: 1, root: session.project.keyRoot, minor: session.project.minor) } }
+            Toggle("Show other parts", isOn: $showGhost)
             Button("Down one step in the key") { apply { notes, ids, _ in NoteTools.scaleTranspose(notes, ids: ids, steps: -1, root: session.project.keyRoot, minor: session.project.minor) } }
         } label: {
             Label(selected == nil ? "Tools · all notes" : "Tools · selected note", systemImage: "wand.and.stars")
