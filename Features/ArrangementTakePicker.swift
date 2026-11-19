@@ -7,12 +7,8 @@ struct ArrangementTakePicker: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Compare performances")
-            Picker("Compare performances", selection: $selection) {
-                ForEach(ArrangementTake.allCases, id: \.self) { take in
-                    Text(verbatim: take.rawValue).tag(take)
-                }
-            }
-            .pickerStyle(.segmented)
+            StudioSegments(title: "Compare performances", selection: $selection,
+                           options: ArrangementTake.allCases.map { ($0, LocalizedStringKey($0.rawValue)) })
             .accessibilityIdentifier("builder.arrangement-take")
             .accessibilityHint("The project will use the selected performance.")
         }

@@ -11,6 +11,7 @@ struct ArrangementScorePreview: View {
     @State private var chart: ArrangementOverview?
     @State private var renderedBrief: TrackBrief?
     @State private var error: String?
+    @State private var showSections = false
     @ScaledMetric(relativeTo: .caption) private var rowHeight: CGFloat = 25
     @ScaledMetric(relativeTo: .caption2) private var rulerHeight: CGFloat = 23
 
@@ -21,19 +22,40 @@ struct ArrangementScorePreview: View {
                 Spacer(minLength: 8)
                 if let chart {
                     Text("\(chart.bars) bars").font(.caption.monospacedDigit()).foregroundStyle(Color.muted)
-                    Menu {
-                        ForEach(chart.sections, id: \.index) { section in
-                            Button { play(section.index) } label: {
-                                Label(section.name, systemImage: playingPart == section.index ? "stop.fill" : "play.fill")
-                            }.accessibilityIdentifier("builder.score.menu.\(section.index)")
-                        }
-                    } label: {
-                        Image(systemName: "list.bullet").frame(width: 44, height: 44)
+                    Button { showSections.toggle() } label: {
+                        Image(systemName: showSections ? "chevron.up" : "list.bullet")
+                            .frame(width: 44, height: 44)
                     }
+                    .buttonStyle(StudioQuietButtonStyle())
                     .accessibilityLabel("Listen to section")
                     .accessibilityIdentifier("builder.score.sectionsMenu")
-                    .disabled(!canPreview || renderedBrief != brief)
                 }
+            }
+            if showSections, let chart {
+                VStack(spacing: 0) {
+                    ForEach(chart.sections, id: \.index) { section in
+                        Button {
+                            showSections = false
+                            play(section.index)
+                        } label: {
+                            HStack(spacing: 10) {
+                                Image(systemName: playingPart == section.index ? "stop.fill" : "play.fill")
+                                    .foregroundStyle(Color.mint)
+                                Text(verbatim: section.name)
+                                Spacer()
+                                Text(verbatim: "\(section.startBar + 1)–\(section.startBar + section.bars)")
+                                    .foregroundStyle(Color.muted).monospacedDigit()
+                            }
+                            .padding(.horizontal, 8)
+                            .frame(maxWidth: .infinity, minHeight: StudioMetrics.hitTarget, alignment: .leading)
+                        }
+                        .buttonStyle(StudioQuietButtonStyle())
+                        .accessibilityLabel(Text(verbatim: section.name))
+                        .accessibilityHint(sectionHint(section, tracks: chart.tracks))
+                        .accessibilityIdentifier("builder.score.menu.\(section.index)")
+                    }
+                }
+                .disabled(!canPreview || renderedBrief != brief)
             }
             if let chart {
                 HStack(spacing: 8) {
