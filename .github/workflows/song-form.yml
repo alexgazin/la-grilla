@@ -44,7 +44,7 @@ jobs:
           DEVICE=$(cat /tmp/grilla-simulator-id)
           CASES=(ArrangementUITests/testSongFormAddsDragsAndUndoesWholeSection LiveEditingTests/testDuplicateMoveAndDeleteSectionDuringPlayback AssistantCompositionTests/testFullSongReviewAppliesAsOneUndoOnCommandFallback)
           if [[ "$GITHUB_REF_NAME" == "feat/song-brief-39" ]]; then CASES=(SketchGenerationTests/testWorkoutFormReviewAndCreate); fi
-          if [[ "$GITHUB_REF_NAME" == "fix/piano-pinch-42" ]]; then CASES=(PianoTouchUITests/testPinchChangesTimeScaleAndKeepsPitchRowsInPlace PianoTouchUITests/testResizeHandleUsesGridAndCommitsOneUndoableEdit); fi
+          if [[ "$GITHUB_REF_NAME" == "fix/piano-pinch-42" ]]; then CASES=(PianoTouchUITests/testPinchChangesTimeScaleAndKeepsPitchRowsInPlace PianoTouchUITests/testResizeHandleUsesGridAndCommitsOneUndoableEdit PianoTouchUITests/testHoldAndMoveKeepsDurationAndCommitsOneUndoableEdit); fi
           CASE_LIMIT=180
           NATIVE_BUDGET=510
           if [[ "$GITHUB_REF_NAME" == "feat/andrey-arranger-41" ]]; then
