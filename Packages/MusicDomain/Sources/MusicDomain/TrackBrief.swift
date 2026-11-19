@@ -14,12 +14,12 @@ public enum TrackBriefError: Error, LocalizedError {
     }
 }
 
-public enum HipHopFeel: String, CaseIterable, Sendable {
+public enum HipHopFeel: String, Codable, CaseIterable, Sendable {
     case boomBap = "Boom bap"
     case westCoast = "West Coast"
 }
 
-public struct TrackBrief: Equatable, Sendable {
+public struct TrackBrief: Codable, Equatable, Sendable {
     public var style: SketchStyle = .house
     public var tempo = 120
     public var root = 0
@@ -56,9 +56,17 @@ public struct TrackBrief: Equatable, Sendable {
         return zip(offsets,suffixes).map { Chord.roots[(root+$0.0)%12]+$0.1 }.joined(separator:" ")
     }
 
-    public func makeProject(name:String) throws -> Project {
+    public func makeProject(name:String, sourcePrompt: String = "") throws -> Project {
         guard (40...240).contains(tempo) else { throw TrackBriefError.invalidTempo }
-        if let songForm { return try GrooveArrangement.make(form: songForm, brief: self, name: name) }
+        if let songForm {
+            guard (0..<12).contains(root) else { throw SketchError.invalidPlan }
+            let recipe = try ArrangementRecipe(brief: self, prompt: sourcePrompt)
+            var project = songForm.arrangement == .groove
+                ? try GrooveArrangement.make(form: songForm, brief: self, name: name)
+                : try ExpressiveArrangement.make(form: songForm, brief: self, name: name)
+            project.arrangementRecipe = recipe
+            return project
+        }
         let tokens = try AssistantEngine.chordTokens(chordText)
         guard tokens.count <= bars else { throw TrackBriefError.tooManyChords }
         let chords = try tokens.map { symbol -> Chord in
@@ -100,7 +108,10 @@ public struct TrackBrief: Equatable, Sendable {
             result.bassVariation &+= 1
             matched = true
         }
-        if text.range(of: #"(?:опаздывающ[а-я]*|запаздывающ[а-я]*)\s+(?:пианино|клавиши)|(?:laid[ -]back|late)\s+(?:piano|keys)|(?:piano|keys)\s+behind the beat"#, options: .regularExpression) != nil {
+        if SongFormBrief.straightKeysRequested(in: text) {
+            result.laidBackKeys = false
+            matched = true
+        } else if text.range(of: #"(?:опаздывающ[а-я]*|запаздывающ[а-я]*)\s+(?:пианино|клавиши)|(?:laid[ -]back|late)\s+(?:piano|keys)|(?:piano|keys)\s+behind the beat"#, options: .regularExpression) != nil {
             result.laidBackKeys = true
             matched = true
         }

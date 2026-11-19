@@ -38,7 +38,7 @@ public enum Arrangement {
             for cycle in stride(from:-c.offset,to:c.length,by:pattern.length){for e in pattern.chords{
                 let start=max(c.start,c.start+cycle+e.tick,section.start)
                 let end=min(c.start+c.length,c.start+cycle+e.tick+e.duration,section.start+section.length)
-                if end>start{events.append(ChordEvent(tick:start-section.start,duration:end-start,chord:e.chord))}
+                if end>start{events.append(ChordEvent(tick:start-section.start,duration:end-start,chord:e.chord,velocity:e.velocity))}
             }}
         }
         return events.sorted{$0.tick<$1.tick}

@@ -11,6 +11,7 @@ typedef struct {int32_t pitch,offset,frames,loopStart;} LGSampleZone;
 // Preparation and release are control-thread operations. Audio snapshots
 // retain independent references to immutable sample banks.
 LGSampleBank *lg_sample_create(int32_t rate,const LGSampleZone *zones,int32_t zoneCount,const int16_t *pcm,int32_t frameCount);
+LGSampleBank *lg_sample_create_with_release(int32_t rate,const LGSampleZone *zones,int32_t zoneCount,const int16_t *pcm,int32_t frameCount,int32_t ringsOut);
 void lg_sample_release(LGSampleBank *bank);
 int lg_sha256(const uint8_t *data, int32_t count, char *hex);
 typedef struct { int32_t tick, duration, pitch, velocity, track, pad, instrument; } LGNote;

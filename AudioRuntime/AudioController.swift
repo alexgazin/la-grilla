@@ -503,12 +503,12 @@ private enum AudioRender {
     }
     /// Read the audio clock at the touch, rather than using the last 30 Hz UI poll.
     func refreshClock(){guard let k=handle?.pointer else{return};clock=lg_clock(k);tick=lg_tick(k);playing=lg_playing(k) != 0;countRemaining=Int(lg_countremaining(k))}
-    func submit(_ p: Project, loop: Bool, range: Range<Int>) {
-        guard let k = handle?.pointer else { return }
+    @discardableResult func submit(_ p: Project, loop: Bool, range: Range<Int>, auditionSamples: SampleLibrary? = nil) -> Bool {
+        guard let k = handle?.pointer else { return false }
         let compiled=musicCompilationCache.notes(p),layout=trackLayout(p)
         if compiled==submittedNotes,p.bpm==submittedBPM,range==submittedRange,loop==submittedLoop,p.id==submittedProject,layout==submittedLayout {
             sentRevisions[generation]=p.revision;routing[generation]=midiRouting(p)
-            if Int(lg_revision(k))==generation{appliedRevision=p.revision};_ = mix(p);return
+            if Int(lg_revision(k))==generation{appliedRevision=p.revision};return mix(p)
         }
         let next=generation+1
         let notes = compiled.map { LGNote(tick: Int32($0.tick), duration: Int32($0.duration), pitch: Int32($0.pitch), velocity: Int32($0.velocity), track: Int32($0.track), pad: Int32($0.pad),instrument:Int32($0.instrument)) }
@@ -517,16 +517,18 @@ private enum AudioRender {
         let fx=p.masterFX ?? MasterFX()
         let ok: Int32
         do {
-            ok = try samples.withRoutes(for: p) { instruments, pads in
+            ok = try (auditionSamples ?? samples).withRoutes(for: p) { instruments, pads in
                 notes.withUnsafeBufferPointer { n in tracks.withUnsafeBufferPointer { t in
                     lg_submit_project_eq(k,n.baseAddress,Int32(n.count),p.bpm,Int32(range.lowerBound),Int32(range.upperBound),loop ? 1:0,Int32(next),layoutToken(layout),t.baseAddress,Int32(t.count),Float(p.master),Float(fx.filter),Float(fx.delayWet),instruments,pads,p.equalizerBands())
                 }}
             }
-        } catch { self.error = error.localizedDescription; return }
-        guard ok != 0 else{error="Audio update could not be queued. Stop and retry.";return}
+        } catch { self.error = error.localizedDescription; return false }
+        guard ok != 0 else{error="Audio update could not be queued. Stop and retry.";return false}
+        lg_tail_on_end(k, !loop && p.hasComposedEnding == true ? 1 : 0)
         generation=next;sentRevisions[next]=p.revision;routing[next]=midiRouting(p)
         pruneRouting(k)
         submittedNotes=compiled;submittedBPM=p.bpm;submittedRange=range;submittedLoop=loop;submittedProject=p.id;submittedLayout=layout
+        return true
     }
     private func pruneRouting(_ k:OpaquePointer){
         // Reading just the applied revision and keeping recent submissions can
@@ -570,10 +572,17 @@ private enum AudioRender {
         if let bpm = countInBPM {lg_countin(k,Int32((sampleRate*240/bpm).rounded()))}
         lg_play(k,1); playing = true
     }
-    func audition(_ p:Project,range:Range<Int>,tick:Int?=nil,loop:Bool=true){
-        refreshClock();let continuing=playing
-        submit(p,loop:loop,range:range)
-        if !continuing{seek(tick ?? range.lowerBound);if let k=handle?.pointer{lg_restart(k)};playing=true}
+    @discardableResult func audition(_ p: Project, range: Range<Int>, tick: Int? = nil, loop: Bool = true,
+                                     samples: SampleLibrary? = nil, restart: Bool = false) -> Bool {
+        refreshClock()
+        let continuing = playing
+        guard submit(p, loop: loop, range: range, auditionSamples: samples) else { return false }
+        if restart || !continuing { restartAt(tick ?? range.lowerBound) }
+        return true
+    }
+    func restartAt(_ tick: Int) {
+        seek(tick)
+        if let k = handle?.pointer { lg_restart(k); playing = true }
     }
     func stop() {if let k = handle?.pointer {lg_play(k,0)}; playing = false}
     func seek(_ tick: Int) {if let k = handle?.pointer {lg_seek(k,Int32(tick))}; self.tick = Double(tick)}

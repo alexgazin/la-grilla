@@ -21,7 +21,7 @@ public enum Compiler {
                         for chord in pattern.chords {
                             let local = cycle + chord.tick; let start = max(0, local); let end = min(clip.length, local + chord.duration)
                             guard end > start else { continue }
-                            for pitch in chord.chord.notes { result.append(CompiledNote(tick: clip.start + start, duration: end - start, pitch: pitch, velocity: 88, track: index)) }
+                            for pitch in chord.chord.notes { result.append(CompiledNote(tick: clip.start + start, duration: end - start, pitch: pitch, velocity: chord.velocity ?? 88, track: index)) }
                             if let bass = project.tracks.firstIndex(where: {$0.role == .bass}) {
                                 result.append(CompiledNote(tick: clip.start + start, duration: max(1, Int(Double(end-start) * project.bassGate)), pitch: bassPitch(for:chord.chord,register:project.bassOctave), velocity: 94, track: bass,instrument:2))
                             }

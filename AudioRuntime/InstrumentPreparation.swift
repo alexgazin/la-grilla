@@ -13,12 +13,12 @@ struct PreparedSound: Sendable {
 
     init(copying asset: SampleAsset, data: Data) throws {
         self.data = data
-        self.asset = try SampleAsset(kind: asset.kind, name: asset.name, bytes: data)
+        self.asset = try SampleAsset(kind: asset.kind, name: asset.name, bytes: data, ringsOut: asset.ringsOut == true)
     }
 
-    init(name: String, instrumentData: Data) throws {
+    init(name: String, instrumentData: Data, ringsOut: Bool = false) throws {
         data = instrumentData
-        asset = try SampleAsset(kind: .instrument, name: name, bytes: instrumentData)
+        asset = try SampleAsset(kind: .instrument, name: name, bytes: instrumentData, ringsOut: ringsOut)
         _ = try SamplePCM.decode(instrumentData, asset: asset)
     }
 }

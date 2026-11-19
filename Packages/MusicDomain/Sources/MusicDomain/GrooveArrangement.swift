@@ -68,7 +68,7 @@ enum GrooveArrangement {
         return song
     }
 
-    private static func percussion(style: SketchStyle, feel: HipHopFeel, seed: UInt32, bar: Int, lift: Bool) -> [DrumEvent] {
+    static func percussion(style: SketchStyle, feel: HipHopFeel, seed: UInt32, bar: Int, lift: Bool) -> [DrumEvent] {
         let variation = Int(seed % 4)
         let answer = bar % 2 == 1
         var hits: [DrumEvent] = []
@@ -101,7 +101,7 @@ enum GrooveArrangement {
         return hits.sorted { ($0.tick, $0.pad) < ($1.tick, $1.pad) }
     }
 
-    private static func bassLine(_ chord: Chord, next: Chord, style: SketchStyle, feel: HipHopFeel, seed: UInt32,
+    static func bassLine(_ chord: Chord, next: Chord, style: SketchStyle, feel: HipHopFeel, seed: UInt32,
                                  bar: Int, lift: Bool, end: Int, at: Int) -> [NoteEvent] {
         let root = 36 + (chord.slashBass ?? chord.root)
         let fifth = 36 + chord.root + (chord.effectiveIntervals.first(where: { (6...8).contains($0) }) ?? 7)

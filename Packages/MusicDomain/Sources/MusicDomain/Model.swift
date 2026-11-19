@@ -199,7 +199,11 @@ public struct Chord: Codable, Equatable, Sendable {
 }
 public struct ChordEvent: Codable, Equatable, Identifiable, Sendable {
     public var id: UUID = UUID(); public var tick: Int; public var duration: Int; public var chord: Chord
-    public init(tick: Int, duration: Int = barTicks, chord: Chord) { self.tick = tick; self.duration = duration; self.chord = chord }
+    /// Missing in projects saved before per-chord dynamics; the original attack is 88.
+    public var velocity: Int?
+    public init(tick: Int, duration: Int = barTicks, chord: Chord, velocity: Int? = nil) {
+        self.tick = tick; self.duration = duration; self.chord = chord; self.velocity = velocity
+    }
 }
 public struct DrumEvent: Codable, Equatable, Identifiable, Sendable {
     public var id: UUID = UUID(); public var tick: Int; public var pad: Int; public var velocity: Int
@@ -233,7 +237,7 @@ public struct Section: Codable, Equatable, Identifiable, Sendable {
     public init(name: String, start: Int = 0, length: Int) { self.name = name; self.start = start; self.length = length }
 }
 public struct Project: Codable, Equatable, Identifiable, Sendable {
-    public var id: UUID = UUID(); public static let currentSchemaVersion=13
+    public var id: UUID = UUID(); public static let currentSchemaVersion=14
     /// Portable, nonnegative revision IDs. Exhaustion requires a new project
     /// copy rather than wrapping an ID used by history, saving and playback.
     public static let maximumRevision=Int(Int32.max)
@@ -241,6 +245,10 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
     fileprivate var nextRevision:Int? {revision>=0 && revision<Self.maximumRevision ? revision+1:nil}
     public var name: String; public var bpm: Double = 120; public var keyRoot = 0; public var minor = false
     public var modified = Date(); public var tracks: [Track]; public var patterns: [Pattern]; public var sections: [Section]
+    /// A generated song with a composed ending opens in one-shot playback,
+    /// including on the first import on another device. Later loop choices are local.
+    public var hasComposedEnding: Bool?
+    public var arrangementRecipe: ArrangementRecipe?
     public var masterEQ:StudioEQ?
     public var masterFX:MasterFX?;public var performanceTakes:[PerformanceTake]?
     public var performanceTake:PerformanceTake?{get{performanceTakes?.first}set{performanceTakes=newValue.map{[$0]}}}
@@ -311,6 +319,7 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
             var end = 0
             for e in p.chords.sorted(by: {$0.tick < $1.tick}) {
                 guard e.tick >= end, e.tick < p.length, e.duration > 0, e.duration <= p.length, e.tick + e.duration <= p.length else { throw MusicError.invalidProject }
+                if let velocity=e.velocity, !(1...127).contains(velocity) { throw MusicError.invalidProject }
                 do{try e.chord.validate()}catch{throw MusicError.invalidProject}
                 end = e.tick + e.duration
             }
@@ -467,6 +476,12 @@ public enum ProjectDocument {
         if p.schemaVersion==12 {
             guard p.masterEQ==nil,p.tracks.allSatisfy({$0.equalizer==nil}) else {throw MusicError.invalidProject}
             p.schemaVersion=13
+        }
+        if p.schemaVersion==13 {
+            guard p.arrangementRecipe == nil, p.hasComposedEnding == nil, p.patterns.allSatisfy({ pattern in
+                pattern.chords.allSatisfy { $0.velocity == nil }
+            }) else { throw MusicError.invalidProject }
+            p.schemaVersion=14
         }
         if var take=p.performanceTake{take.source=try migrated(take.source);p.performanceTake=take}
         try p.validate();return p

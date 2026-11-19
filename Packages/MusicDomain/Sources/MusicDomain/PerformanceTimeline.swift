@@ -182,7 +182,7 @@ public enum PerformanceTimeline {
         chords.compactMap { event in
             let begin = max(event.tick, range.lowerBound), end = min(event.tick + event.duration, range.upperBound)
             guard end > begin else { return nil }
-            return ChordEvent(tick: begin - range.lowerBound + offset, duration: end - begin, chord: event.chord)
+            return ChordEvent(tick: begin - range.lowerBound + offset, duration: end - begin, chord: event.chord, velocity: event.velocity)
         }
     }
 

@@ -983,3 +983,83 @@
 "Tempo is a suggestion. Adjust it above." = "Темп предложен приложением. Его можно изменить выше.";
 
 "Lay the keys behind the beat" = "Клавиши чуть позади бита";
+
+"Review the description to update the arrangement." = "Разбери новое описание, чтобы обновить аранжировку.";
+
+"Suggested tempo" = "Темп предложен приложением";
+
+"Suggested length" = "Длина предложена приложением";
+
+"Suggested fade" = "Длительность затухания предложена приложением";
+
+"Preparing instruments…" = "Готовим инструменты…";
+
+"Undo plan edit" = "Отменить правку плана";
+
+"Creates a separate editable project." = "Создаёт отдельный проект, который можно редактировать.";
+
+"Chillhop with flute and piano" = "Чилхоп с флейтой и пианино";
+
+"Ambient meditation with bansuri" = "Эмбиент для медитации с бансури";
+
+"Long delay" = "Длинное эхо";
+
+"Listen to section" = "Послушать часть";
+
+"Chords from %@" = "Аккорды из части «%@»";
+
+"Fade over %lld bars" = "Затухание · тактов: %lld";
+
+"Flute intro" = "Вступление на флейте";
+
+"Main groove" = "Основной грув";
+
+"Arpeggio" = "Арпеджио";
+
+"Gong" = "Гонг";
+
+"Ambient intro" = "Эмбиент-вступление";
+
+"Bansuri solo" = "Соло бансури";
+
+"Closing keys" = "Финал с клавишами";
+
+"Bansuri" = "Бансури";
+
+"Flute" = "Флейта";
+
+"Synth flute" = "Синтезированная флейта";
+
+"Piano arpeggio" = "Арпеджио пианино";
+
+"Ambient pad" = "Атмосферный пэд";
+
+"Flute echo" = "Эхо флейты";
+
+"Piano echo" = "Эхо пианино";
+
+"Piano" = "Пианино";
+
+"Keys" = "Клавиши";
+
+"arrangement.example.chillhop.prompt" = "Песня в стиле chillhop. Около 90 бпм. Тональность ми натуральный минор. Вступление один такт флейта и сразу начинается бит, атмосферное слегка опаздывающее пианино.\nПервая часть аккорды: C, D, B, E\n16 тактов с развитием. Далее вторая часть арпеджио этих аккордов и завершаем ударом гонга";
+
+"arrangement.example.workout.prompt" = "Динамичная композиция для тренировки. Прямая бочка. Хайхэт в слабую долю. Тональность Ре минор.\nПервая часть 8 тактов аккорды по повышающей A, Bb, C, D\nВторая часть 16 тактов аккорды D, E, F, G чуть спокойнее для передышки. И опять возвращаемся в первую часть.";
+
+"arrangement.example.ambient.prompt" = "Песня для медитации. В стиле эмбиент. Длинные дилеи или подобные эффекты.\nОсновные 4 аккорда песни C, Bb, G, Ab .\nПервая часть 8 тактов как вступление, далее вторая часть добавляем соло на флейте Бансури. 8 тактов.\nТретья часть добавляем немного клавиш и далее потихоньку рассеиваем звук что бы закончить трек";
+
+"Aligned stereo WAV tracks include track gain, pan and EQ. Choose the stereo mix to include master effects and master gain." = "Стереодорожки WAV с общим началом сохраняют громкость, панораму и эквалайзер каждой дорожки. Для звука с мастер-эффектами и громкостью мастера выбери стереомикс.";
+
+"Suggested key" = "Тональность предложена приложением";
+
+"Edit saved arrangement as a copy" = "Изменить копию плана";
+
+"Create arrangement copy" = "Создать проект по копии плана";
+
+"This copy starts from the saved arrangement plan. Later edits to individual notes and mixer settings stay in the original project." = "Копия создаётся по сохранённому плану аранжировки. Последующие правки отдельных нот и настроек микшера сохраняются в исходном проекте.";
+
+"%@ · arrangement copy" = "%@ · копия аранжировки";
+
+"This editable project includes the original description, arrangement plan, notes, instrument sounds and mix." = "В переносимый проект входят исходное описание, план аранжировки, ноты, тембры и микс.";
+
+"Review with the offline arranger" = "Разобрать автономным аранжировщиком";

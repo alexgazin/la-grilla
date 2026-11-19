@@ -48,10 +48,13 @@ struct ExportView:View {
     }.font(.system(.subheadline)).padding(14).modifier(StudioSurface()).disabled(session.exportInProgress)}
     private var description:LocalizedStringKey {
         if take != nil{return format == .midi ? "A finite MIDI sequence with section order, repeated notes, volume, pan and FX controllers. MIDI instruments and effects depend on your music software.":"The recorded section order and automation, rendered with the same instruments and effects as replay. A tail is optional."}
+        if format == .project, project.arrangementRecipe != nil {
+            return "This editable project includes the original description, arrangement plan, notes, instrument sounds and mix."
+        }
         return switch format {
         case .midi:"For editing notes in your music software. Instrument sounds are not included in MIDI."
         case .wav:"A stereo audio file using the same instruments as playback. Your live transport keeps running during export."
-        case .stems:"Aligned stereo WAV files with a common start and tail. Track gain/pan and mute/solo are included; master gain is excluded."
+        case .stems:"Aligned stereo WAV tracks include track gain, pan and EQ. Choose the stereo mix to include master effects and master gain."
         case .project:"A portable copy of the entire project, including notes, source recordings, sections and mixer settings. Import creates a separate project."
         }
     }

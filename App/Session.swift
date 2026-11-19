@@ -56,6 +56,9 @@ import Observation
     var exportTask: Task<Void,Never>?
     var exportInProgress=false; var exportProgress=0.0; var exportWarning:String?; var exportError:String?
     private var exportGeneration=0; private var exportedFolder:URL?
+    @ObservationIgnored private var previewingNewTrack = false
+    @ObservationIgnored private var draftEndTick: Int?
+    @ObservationIgnored private var draftTailStart: UInt64?
     var harmonyPreview=false;private var previewPosition=0;private var previewPlaying=false
     var noteTrackID:UUID?{didSet{if noteTrackID != oldValue{noteClipID=nil}}}
     var noteClipID:UUID?;var drumClipID:UUID?
@@ -103,11 +106,10 @@ import Observation
     }
     private func initializeImportedListeningPreference(_ imported:Project){
         let key=generatedLoopKey(imported.id)
-        // Portable decode/installation assigns a new ID. Transport is local UI
-        // state; first playback loops the whole validated imported arrangement.
-        // A source document's existing listening preference is never replaced.
+        // A finite song keeps its composed ending on a fresh device. Later
+        // changes to loop mode and range belong to the imported document.
         guard UserDefaults.standard.dictionary(forKey:key)==nil else{return}
-        UserDefaults.standard.set(["bars":imported.length/barTicks,"enabled":true],forKey:key)
+        UserDefaults.standard.set(["bars":imported.length/barTicks,"enabled":imported.hasComposedEnding != true],forKey:key)
     }
     init() {
         let root:URL
@@ -353,6 +355,14 @@ import Observation
         passClock=armClock;replaceNextPass = !overdub;armed=true;sync()
     }
     func pollRecording() {
+        if let end = draftEndTick, harmonyPreview, !audio.playing, Int(audio.tick) == end {
+            if draftTailStart == nil { draftTailStart = audio.clock }
+            let start = draftTailStart ?? audio.clock
+            let elapsed = Double(audio.clock >= start ? audio.clock - start : 0) / audio.sampleRate
+            // Let the gong and delay return decay after the musical endpoint.
+            // A tap on Stop or another section still ends the audition immediately.
+            if elapsed >= 5 || (elapsed >= 2 && audio.meters[masterBus] < 0.0005) { endHarmonyPreview() }
+        }
         drainPadRecordingInputs()
         syncMIDI();midi.poll(replaying:performance.replaying);pollPerformance()
         updateNowPlaying()
@@ -427,10 +437,24 @@ import Observation
         do{try candidate.validate()}catch{message=error.localizedDescription;return}
         auditionDraft(candidate, range:rangeOverride ?? (wholeSong ? 0..<candidate.length:section.start..<section.start+section.length), loop:loopOverride ?? true)
     }
-    func previewNewTrack(_ candidate:Project) {
+    func previewNewTrack(_ draft: PreparedTrackDraft, range: Range<Int>? = nil) {
+        let candidate = draft.project
         guard !performance.contextActive, candidate.id != project.id, ensureAudio() else { return }
+        let bounds = range ?? 0..<candidate.length
+        guard !bounds.isEmpty, bounds.lowerBound >= 0, bounds.upperBound <= candidate.length else {
+            message = MusicError.invalidProject.localizedDescription
+            return
+        }
         finishTake()
-        auditionDraft(candidate, range:0..<candidate.length, loop:true)
+        let loops = draft.loops && range == nil
+        audio.refreshClock()
+        if !harmonyPreview { previewPosition = Int(audio.tick); previewPlaying = audio.playing }
+        guard audio.audition(candidate, range: bounds, loop: loops, samples: draft.samples, restart: true) else { return }
+        previewingNewTrack = true
+        draftTailStart = nil
+        draftEndTick = loops ? nil : bounds.upperBound
+        harmonyPreview = true
+        syncMIDI()
     }
     private func auditionDraft(_ candidate:Project, range:Range<Int>, loop:Bool) {
         if !harmonyPreview{previewPosition=Int(audio.tick);previewPlaying=audio.playing;harmonyPreview=true}
@@ -443,12 +467,20 @@ import Observation
         guard harmonyPreview else{return};harmonyPreview=false
         // Any normal source sync replaces an audition. A preview started from
         // idle returns to its stopped position; a running song keeps its phase.
-        if !previewPlaying{audio.stop();audio.seek(previewPosition)}
+        if previewingNewTrack && previewPlaying { audio.restartAt(previewPosition) }
+        else if !previewPlaying { audio.stop(); audio.seek(previewPosition) }
+        previewingNewTrack = false
+        draftEndTick = nil
+        draftTailStart = nil
     }
     private(set) var trackIdea = ""
     private(set) var trackDraftName = ""
     private(set) var suggestedTrackBrief: TrackBrief?
-    func openTrackBuilder(idea:String = "", name:String = "", suggestion: TrackBrief? = nil) {
+    private(set) var editingArrangementCopy = false
+    private(set) var trackSuggestionUsesApple = false
+    func openTrackBuilder(idea:String = "", name:String = "", suggestion: TrackBrief? = nil, asCopy: Bool = false, usesApple: Bool = false) {
+        trackSuggestionUsesApple = usesApple
+        editingArrangementCopy = asCopy
         suggestedTrackBrief = suggestion
         endHarmonyPreview()
         trackIdea=idea
@@ -606,19 +638,28 @@ import Observation
         } catch { message=error.localizedDescription; return false }
     }
 
-    @discardableResult func saveNewProject(_ p: Project) async -> Bool {
+    @discardableResult func saveGeneratedTrack(_ draft: PreparedTrackDraft) async -> Bool {
+        await saveNewProject(draft.project, preparedDraft: draft)
+    }
+    @discardableResult func saveNewProject(_ p: Project, preparedDraft: PreparedTrackDraft? = nil) async -> Bool {
         guard let token = beginProjectChange() else { return false }
         defer { endProjectChange(token) }
         do { try p.validate() } catch { message=error.localizedDescription; return false }
         var written=false
         do {
             let expected=try await prepareProjectChange(token,checkpoint:true)
-            let revision=try await store.save(p)
+            let revision: Int
+            if let preparedDraft {
+                revision = try await store.install(preparedDraft.bundle).revision
+            } else { revision = try await store.save(p) }
             written=true
             try await projectChangeBoundary(token,expected:expected,stage:"candidate.saved")
             try verifyProjectChange(token,expected:expected)
             loopBars=p.length/barTicks
-            activateProject(p,savedRevision:revision)
+            if let preparedDraft {
+                UserDefaults.standard.set(["bars": loopBars, "enabled": preparedDraft.loops], forKey: generatedLoopKey(p.id))
+            }
+            activateProject(p,savedRevision:revision,samples:preparedDraft?.samples ?? SampleLibrary())
         }catch{if written{await retainUnopenedProject(p)}else{message=error.localizedDescription};return false}
         await refreshLibraryEntry(p.id,validated:true)
         return true
@@ -1021,6 +1062,6 @@ import Observation
     func panicMIDI(){interrupt();_ = ensureAudio()}
     func interrupt(reason:String="unspecified") {
         runtimeTrace("interrupt.before reason=\(reason)");defer{runtimeTrace("interrupt.after reason=\(reason)")}
-        stopMicrophone?();microphoneOwner=nil;stopMicrophone=nil;if performance.contextActive{performance.finalizeBeforeReset();pollPerformance()};harmonyPreview=false;finishTake();midi.suspend();midi.retry();audio.reset();Task{await save()}
+        stopMicrophone?();microphoneOwner=nil;stopMicrophone=nil;if performance.contextActive{performance.finalizeBeforeReset();pollPerformance()};harmonyPreview=false;previewingNewTrack=false;draftEndTick=nil;finishTake();midi.suspend();midi.retry();audio.reset();Task{await save()}
     }
 }

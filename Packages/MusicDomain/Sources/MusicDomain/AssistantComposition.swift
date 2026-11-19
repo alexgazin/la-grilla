@@ -136,7 +136,7 @@ extension Arrangement {
                     for offset in stride(from:0,to:length,by:original.length){
                         for event in material.drums where offset+event.tick<length{pattern.drums.append(DrumEvent(tick:offset+event.tick,pad:event.pad,velocity:event.velocity))}
                         for event in material.notes ?? [] where offset+event.tick<length{pattern.notes?.append(NoteEvent(tick:offset+event.tick,duration:min(event.duration,length-offset-event.tick),pitch:event.pitch,velocity:event.velocity,confidence:event.confidence))}
-                        for event in material.chords where offset+event.tick<length{pattern.chords.append(ChordEvent(tick:offset+event.tick,duration:min(event.duration,length-offset-event.tick),chord:event.chord))}
+                        for event in material.chords where offset+event.tick<length{pattern.chords.append(ChordEvent(tick:offset+event.tick,duration:min(event.duration,length-offset-event.tick),chord:event.chord,velocity:event.velocity))}
                     }
                 }
                 result.patterns.append(pattern)

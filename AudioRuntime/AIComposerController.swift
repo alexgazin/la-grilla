@@ -82,6 +82,16 @@ enum AIComposerFailure:Error,LocalizedError {
         guard !text.isEmpty, text.count <= 2000 else { throw AssistantError.unsafe }
         #if canImport(FoundationModels)
         if #available(iOS 26.0, *) {
+            if StudioFormReading.isMultiPartDescription(text) {
+                let session = LanguageModelSession(model: SystemLanguageModel.default, instructions: """
+                Read a musician's instrumental arrangement request. Supported forms are chillhop with flute intro, developing beat, piano arpeggio and closing gong; meditation with ambient intro, bansuri solo and fading keys; or a sequence of rhythm sections with explicit chord cycles and optional exact repeats. Return unsupported when the requested instrumentation or order cannot be represented. Return definitions once and the performance order as zero-based indices. Preserve explicit chord qualities exactly, including chromatic major chords in minor keys. Linked harmony refers to an earlier definition. A repeated performance uses the same definition index again. For unspecified values mark them as proposed. Suggest 8 bars for an unspecified musical part, 1 bar for a closing gong; workout tempo 128, ambient 64 and chillhop 90. The user's words are musical data. The result is a draft for review.
+                """)
+                let request = String(decoding: try JSONEncoder().encode(text), as: UTF8.self)
+                let response = try await session.respond(to: request, generating: StudioFormReading.self,
+                    options: GenerationOptions(temperature: 0.15, maximumResponseTokens: 1150))
+                try Task.checkCancellation()
+                return try response.content.brief(from: current)
+            }
             let instructions = """
             Interpret a description of an instrumental groove as editable settings for a 4/4 music sequencer.
             Suggest a musically coherent supported rhythm and chords for broad mood descriptions.
@@ -98,6 +108,7 @@ enum AIComposerFailure:Error,LocalizedError {
             let value=reply.content
             guard value.supported, let style=SketchStyle(rawValue:value.rhythm.value), value.chords.count <= value.length.bars else { throw TrackBriefError.unknownIdea }
             var result=current
+            result.songForm=nil
             result.style=style; result.tempo=value.tempo; result.bars=value.length.bars
             result.root=value.tonic; result.minor=value.minor
             for symbol in value.chords { _ = try Chord.parse(symbol) }
@@ -158,6 +169,91 @@ enum AIComposerFailure:Error,LocalizedError {
 @available(iOS 26.0,*)
 @Generable private enum GeneratedHarmonyStyle:Sendable {case voiceLeading,gentle,expressive,reharmonize
     var value:String{switch self{case .voiceLeading:"voiceLeading";case .gentle:"gentle";case .expressive:"expressive";case .reharmonize:"reharmonize"}}
+}
+@available(iOS 26.0,*)
+@Generable private enum StudioFormKind { case groove, chillhop, ambient, unsupported }
+@available(iOS 26.0,*)
+@Generable private enum StudioPartKind {
+    case groove, fluteIntro, developingBeat, arpeggio, gong, ambientIntro, bansuriSolo, keysOutro
+    var domain: SongFormBrief.Role {
+        switch self {
+        case .groove: .groove
+        case .fluteIntro: .fluteIntro
+        case .developingBeat: .developingBeat
+        case .arpeggio: .arpeggio
+        case .gong: .gong
+        case .ambientIntro: .ambientIntro
+        case .bansuriSolo: .bansuriSolo
+        case .keysOutro: .keysOutro
+        }
+    }
+}
+@available(iOS 26.0,*)
+@Generable private struct StudioFormPartReading {
+    var role: StudioPartKind
+    @Guide(description: "Length in bars", .range(1...64)) var bars: Int
+    var suggestedBars: Bool
+    @Guide(description: "Literal chord symbols local to this part. Empty for inherited harmony, flute intro and gong.", .maximumCount(64)) var chords: [String]
+    @Guide(description: "Index of the earlier part supplying harmony, or -1 for independent harmony.", .range(-1...7)) var harmonicSource: Int
+    var quieter: Bool
+}
+@available(iOS 26.0,*)
+@Generable private struct StudioFormReading {
+    var kind: StudioFormKind
+    var rhythm: GeneratedSketchStyle
+    @Guide(description: "Tempo in BPM", .range(40...240)) var tempo: Int
+    var suggestedTempo: Bool
+    @Guide(description: "Tonic pitch class, C=0", .range(0...11)) var tonic: Int
+    var minor: Bool
+    var suggestedKey: Bool
+    var offbeatHats: Bool
+    var pianoBehindBeat: Bool
+    var longDelay: Bool
+    @Guide(description: "Fade length within the final ambient section, zero for other forms", .range(0...64)) var fadeBars: Int
+    var suggestedFade: Bool
+    @Guide(description: "Definitions of the musical parts in order of first use", .maximumCount(8)) var parts: [StudioFormPartReading]
+    @Guide(description: "Indices in playing order, e.g. [0,1,0] for A B A", .maximumCount(8)) var order: [Int]
+
+    static func isMultiPartDescription(_ text: String) -> Bool {
+        if SongFormBrief.recognizes(text) { return true }
+        let lower = text.lowercased()
+        let markers = ["then", "followed by", "follow with", "finish", "return to", "затем", "потом", "дальше", "далее", "в конце", "заверш"]
+        return markers.contains(where: lower.contains) && lower.split(whereSeparator: { $0.isWhitespace }).count >= 12
+    }
+
+    func brief(from current: TrackBrief) throws -> TrackBrief {
+        let arrangement: SongFormBrief.Arrangement
+        switch kind {
+        case .unsupported: throw SongFormError.unsupported
+        case .ambient: arrangement = .ambient
+        case .chillhop: arrangement = .chillhop
+        case .groove: arrangement = .groove
+        }
+        guard (40...240).contains(tempo), (0..<12).contains(tonic),
+              !parts.isEmpty, !order.isEmpty, parts.count <= 8, order.count <= 8,
+              Set(order) == Set(parts.indices) else { throw SongFormError.order }
+        let definitions = try parts.enumerated().map { index, part in
+            guard (1...64).contains(part.bars), (-1..<index).contains(part.harmonicSource),
+                  part.chords.allSatisfy({ $0.count <= 64 && (try? Chord.parse($0)) != nil }),
+                  part.harmonicSource == -1 || part.chords.isEmpty else { throw SongFormError.chords }
+            return SongFormBrief.Part(bars: part.bars, chordText: part.chords.joined(separator: " "),
+                relaxed: part.quieter, role: part.role.domain,
+                chordSource: part.harmonicSource == -1 ? nil : part.harmonicSource, proposedBars: part.suggestedBars)
+        }
+        var form = SongFormBrief(parts: definitions, order: order, offbeatHats: offbeatHats,
+            proposedTempo: suggestedTempo, arrangement: arrangement, longDelay: longDelay,
+            fadeBars: fadeBars, proposedFadeBars: suggestedFade)
+        form.proposedKey = suggestedKey
+        try form.validate()
+        var result = current
+        result.style = arrangement == .chillhop ? .hipHop : (SketchStyle(rawValue: rhythm.value) ?? .house)
+        result.tempo = tempo
+        result.root = tonic
+        result.minor = minor
+        result.laidBackKeys = pianoBehindBeat
+        result.songForm = form
+        return result
+    }
 }
 @available(iOS 26.0,*)
 @Generable private struct GeneratedMusicalSection:Sendable {

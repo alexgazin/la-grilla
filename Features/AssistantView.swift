@@ -42,6 +42,11 @@ struct AssistantView:View {
                     Button { session.openTrackBuilder(idea:input) } label: {
                         Label("Build a track",systemImage:"slider.horizontal.3")
                     }.buttonStyle(.bordered).disabled(dictation.recording || dictation.requesting || dictation.finalizing || generationTask != nil)
+                    if session.project.arrangementRecipe != nil {
+                        Button("Edit saved arrangement as a copy") { TrackBuilderView.openSavedArrangement(in: session) }
+                            .disabled(dictation.recording || dictation.requesting || dictation.finalizing || generationTask != nil)
+                            .accessibilityIdentifier("assistant.edit-saved-arrangement")
+                    }
                     TextEditor(text:$input).focused($focused).disabled(dictation.recording || dictation.requesting || dictation.finalizing).frame(height:110).scrollContentBackground(.hidden).padding(8).modifier(StudioSurface()).overlay(alignment:.topLeading){if input.isEmpty && !focused{Text("Try: Tempo 110").font(.subheadline).foregroundStyle(Color.muted).padding(16).allowsHitTesting(false).accessibilityHidden(true)}}.accessibilityLabel("Command").accessibilityIdentifier("assistant.input")
                         .onChange(of:input){_,value in
                             if value.count>2000{input=String(value.prefix(2000))}
@@ -62,6 +67,12 @@ struct AssistantView:View {
                     if generationTask != nil{HStack{ProgressView("Preparing proposal…");Spacer();Button("Cancel generation"){cancelGeneration()}.frame(minHeight:44)}}
                     if let error{
                         Text(LocalizedStringKey(error)).font(.callout).foregroundStyle(Color.record).accessibilityIdentifier("assistant.error")
+                        if mode == .onDeviceAI, SongFormBrief.recognizes(input) {
+                            Button("Review with the offline arranger") {
+                                do { session.openTrackBuilder(idea:input,suggestion:try TrackBrief().suggesting(input)) }
+                                catch { self.error=error.localizedDescription }
+                            }.accessibilityIdentifier("assistant.review-offline")
+                        }
                         if error==SketchError.requiresEmpty.localizedDescription{Button("Create an empty project"){session.endHarmonyPreview();session.sheet = .newProject}.frame(minHeight:44).accessibilityIdentifier("assistant.sketch.empty-project")}
                         if Arrangement.harmony(session.project,section:session.section).isEmpty{
                             Button("Try a chord progression"){useProgressionExample()}.frame(minHeight:44).accessibilityIdentifier("assistant.empty-harmony-example")
@@ -73,7 +84,7 @@ struct AssistantView:View {
             }.accessibilityIdentifier("assistant.review-scroll").scrollDismissesKeyboard(.interactively).background(Color.ink).navigationTitle("Assistant").navigationBarTitleDisplayMode(.inline)
                 .toolbar{ToolbarItem(placement:.cancellationAction){Button("Cancel"){closeEditor()}}}
         }.tint(.mint)
-        .sheet(isPresented:$showExamples){AssistantExamplesView(language:language){text,requiresAI in input=text;if requiresAI{mode = .onDeviceAI};showExamples=false}}
+        .sheet(isPresented:$showExamples){AssistantExamplesView(language:language){text,requiresAI in input=text;if requiresAI{mode = .onDeviceAI}else if SongFormBrief.recognizes(text){mode = .automatic};showExamples=false}}
         .onChange(of:dictation.text){_,value in if !value.isEmpty{input=value}}
         .onChange(of:mode){_,_ in resetReview();refreshAIStatus()}
         .onChange(of:language){_,_ in resetReview();refreshAIStatus()}
@@ -275,18 +286,22 @@ struct AssistantView:View {
     func generate(_ distribution:ChordDistribution?=nil){
         cancelGeneration();focused=false;session.endHarmonyPreview();ambiguous=false;generatedInput=input;proposal=nil;candidate=nil;proposalSource=nil;error=nil;generatedWithAI=false;usedUnavailableAIFallback=false;availabilityError=false
         let snapshot=session.project,scope=session.section.id
-        if mode == .automatic, SongFormBrief.recognizes(input) {
+        ai.refresh(localeIdentifier:aiLanguage)
+        let songRequest = SongFormBrief.recognizes(input)
+        if songRequest && (mode != .onDeviceAI || !ai.available) {
             do {
                 let brief = try TrackBrief().suggesting(input)
                 session.openTrackBuilder(idea: input, suggestion: brief)
-            } catch { self.error = error.localizedDescription }
-            return
+                return
+            } catch {
+                if mode == .commands || !ai.available { self.error = error.localizedDescription; return }
+                // Automatic can ask the system model to interpret unfamiliar section wording.
+            }
         }
-        ai.refresh(localeIdentifier:aiLanguage)
         // A disabled/unavailable model must not block an understood command.
         // Keep the proposal explicitly LOCAL and explain the fallback; never
         // describe the parser's result as a model-generated arrangement.
-        if mode != .onDeviceAI || !ai.available {
+        if !songRequest && (mode != .onDeviceAI || !ai.available) {
             do{let p=try AssistantEngine.propose(input,project:snapshot,sectionID:scope,distribution:distribution);candidate=try p.candidate(for:snapshot);proposalSource=snapshot;proposal=p;usedUnavailableAIFallback=mode == .onDeviceAI && !ai.available;return}
             catch{if case AssistantError.ambiguous=error{self.error=error.localizedDescription;ambiguous=true;return};if mode == .commands{self.error=error.localizedDescription;return};if !(error is AssistantError){self.error=error.localizedDescription;return};if case AssistantError.unsupported=error{}else{self.error=error.localizedDescription;return}}
         }
@@ -307,9 +322,16 @@ struct AssistantView:View {
         let request=input,locale=aiLanguage,attempt=generationID
         generationTask=Task { @MainActor in
             do {
-                let p=try await ai.propose(request,project:snapshot,sectionID:scope,localeIdentifier:locale)
-                guard !Task.isCancelled,generationID==attempt,input==request else{return}
-                candidate=try p.candidate(for:session.project);proposalSource=snapshot;proposal=p;generatedWithAI=true;error=nil
+                if songRequest {
+                    let brief=try await ai.interpretBrief(request,current:TrackBrief(),language:locale)
+                    try Task.checkCancellation()
+                    guard generationID==attempt,input==request else { return }
+                    session.openTrackBuilder(idea:request,suggestion:brief,usesApple:true)
+                } else {
+                    let p=try await ai.propose(request,project:snapshot,sectionID:scope,localeIdentifier:locale)
+                    guard !Task.isCancelled,generationID==attempt,input==request else{return}
+                    candidate=try p.candidate(for:session.project);proposalSource=snapshot;proposal=p;generatedWithAI=true;error=nil
+                }
             }catch{
                 guard generationID==attempt,!Task.isCancelled else{return}
                 if let failure=error as? AIComposerFailure,case .unavailable=failure{self.error=ai.availabilityMessage;availabilityError=true}
@@ -486,6 +508,10 @@ private struct AssistantExamplesView:View {
     let choose:(String,Bool)->Void
     @Environment(\.dismiss) private var dismiss
     var body:some View {NavigationStack{List{
+        ForEach(ArrangementExample.allCases) { example in
+            Button(LocalizedStringKey(example.title)) { choose(example.prompt(language:language),false) }
+                .accessibilityIdentifier("assistant.example."+example.rawValue)
+        }
         Button("Create an editable groove"){choose(language.hasPrefix("ru") ? "Создай хаус грув; 8 тактов; Вариант 42":"Create a house groove; 8 bars; Seed 42",false)}.accessibilityIdentifier("assistant.example.sketch")
         Button("Tempo 110"){choose("Tempo 110",false)}
         Button("Key D minor"){choose("Key D minor",false)}

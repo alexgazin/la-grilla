@@ -8,7 +8,7 @@ extension Arrangement {
             for cycle in stride(from:-c.offset,to:c.length,by:pattern.length){
                 for e in pattern.chords {
                     let start=max(c.start,c.start+cycle+e.tick,section.start),end=min(c.start+c.length,c.start+cycle+e.tick+e.duration,section.start+section.length)
-                    if end>start{result.chords.append(ChordEvent(tick:start-section.start,duration:end-start,chord:e.chord))}
+                    if end>start{result.chords.append(ChordEvent(tick:start-section.start,duration:end-start,chord:e.chord,velocity:e.velocity))}
                 }
                 for e in pattern.drums {let absolute=c.start+cycle+e.tick;if absolute>=c.start,absolute<c.start+c.length,absolute>=section.start,absolute<section.start+section.length{result.drums.append(DrumEvent(tick:absolute-section.start,pad:e.pad,velocity:e.velocity))}}
                 for e in pattern.notes ?? [] {

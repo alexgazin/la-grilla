@@ -19,3 +19,5 @@ The system share sheet and Files picker send or import files only at your reques
 Appearance settings are stored with UserDefaults. System uptime is used only to align audio and MIDI event times and measure elapsed intervals. These values are not sent off the device or used for fingerprinting.
 
 For privacy questions or deletion help, [open a support issue](https://github.com/alexgazin/la-grilla/issues). This policy will be updated before introducing a feature that changes data handling.
+
+When you create a track from a plan, the app stores its description and arrangement settings in the local project. An exported portable project includes that text.

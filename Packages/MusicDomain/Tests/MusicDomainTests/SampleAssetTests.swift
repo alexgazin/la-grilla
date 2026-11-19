@@ -78,6 +78,44 @@ struct SampleAssetTests {
         #expect(try Data(contentsOf: wav) != stem.data)
     }
 
+    @Test func gongReleaseSurvivesPortableInstallAndExtendsPastTheFinalBar() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let bytes = try ArrangerTimbre.gong.sampleData(factoryDirectory: nil)
+        let asset = try SampleAsset(kind: .instrument, name: "Gong", bytes: bytes, ringsOut: true)
+        var song = Project(name: "Gong ending", bars: 1)
+        song.bpm = 240
+        song.hasComposedEnding = true
+        let pattern = Pattern(length: barTicks, notes: [NoteEvent(tick: 0, duration: barTicks, pitch: 60, velocity: 100)])
+        var track = Track(role: .melody)
+        track.instrumentSample = asset
+        track.clips = [Clip(patternID: pattern.id, start: 0, length: barTicks)]
+        song.patterns.append(pattern)
+        song.tracks.append(track)
+        let imported = try PortableProject.decodeBundle(PortableProject.data(song, assets: [asset.relativePath: bytes]))
+        let store = ProjectStore(root: root.appendingPathComponent("Projects"))
+        let installed = try await store.install(imported)
+        let library = try await store.loadSamples(for: installed)
+        #expect(installed.hasComposedEnding == true && installed.tracks.last?.instrumentSample?.ringsOut == true)
+        let wav = root.appendingPathComponent("tail.wav")
+        let settings = WAVSettings(sampleRate: 44100, bitDepth: 16, tailSeconds: 0.5, dither: false)
+        let receipt = try await OfflineRenderer.render(installed, to: wav, settings: settings, samples: library)
+        #expect(receipt.frames == 66150 && !receipt.clipped)
+        let data = try Data(contentsOf: wav)
+        let peak = data.withUnsafeBytes { raw -> Int in
+            // Stereo PCM16, half a second after the only scored bar ends.
+            let start = 44 + 44100 * 4
+            var value = 0
+            for offset in stride(from: start, through: data.count-2, by: 2) {
+                let sample = Int16(littleEndian: raw.loadUnaligned(fromByteOffset: offset, as: Int16.self))
+                value = max(value, abs(Int(sample)))
+            }
+            return value
+        }
+        #expect(peak > 100)
+    }
+
     @Test func formatChecksumAndRoutesAreValidatedBeforePlayback() throws {
         let (asset, data) = try fixture(.oneShot)
         var buffer = Data([0, 0, 0]); buffer.append(data)

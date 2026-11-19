@@ -981,3 +981,83 @@
 "Tempo is a suggestion. Adjust it above." = "Tempo is a suggestion. Adjust it above.";
 
 "Lay the keys behind the beat" = "Lay the keys behind the beat";
+
+"Review the description to update the arrangement." = "Review the description to update the arrangement.";
+
+"Suggested tempo" = "Suggested tempo";
+
+"Suggested length" = "Suggested length";
+
+"Suggested fade" = "Suggested fade";
+
+"Preparing instruments…" = "Preparing instruments…";
+
+"Undo plan edit" = "Undo plan edit";
+
+"Creates a separate editable project." = "Creates a separate editable project.";
+
+"Chillhop with flute and piano" = "Chillhop with flute and piano";
+
+"Ambient meditation with bansuri" = "Ambient meditation with bansuri";
+
+"Long delay" = "Long delay";
+
+"Listen to section" = "Listen to section";
+
+"Chords from %@" = "Chords from %@";
+
+"Fade over %lld bars" = "Fade over %lld bars";
+
+"Flute intro" = "Flute intro";
+
+"Main groove" = "Main groove";
+
+"Arpeggio" = "Arpeggio";
+
+"Gong" = "Gong";
+
+"Ambient intro" = "Ambient intro";
+
+"Bansuri solo" = "Bansuri solo";
+
+"Closing keys" = "Closing keys";
+
+"Bansuri" = "Bansuri";
+
+"Flute" = "Flute";
+
+"Synth flute" = "Synth flute";
+
+"Piano arpeggio" = "Piano arpeggio";
+
+"Ambient pad" = "Ambient pad";
+
+"Flute echo" = "Flute echo";
+
+"Piano echo" = "Piano echo";
+
+"Piano" = "Piano";
+
+"Keys" = "Keys";
+
+"arrangement.example.chillhop.prompt" = "A chillhop song, around 90 BPM in E natural minor. One bar of flute for the intro, then the beat comes in with an atmospheric piano slightly behind the beat. First part: chords C, D, B, E for 16 bars with development. The second part is an arpeggio of those chords. Finish with a gong hit.";
+
+"arrangement.example.workout.prompt" = "A dynamic workout track. Four on the floor. Offbeat hi-hats. D minor. First part 8 bars, ascending chords A, Bb, C, D. Second part 16 bars, chords D, E, F, G, slightly calmer for recovery. Return to the first part.";
+
+"arrangement.example.ambient.prompt" = "An ambient meditation song with long delays. The four main chords are C, Bb, G, Ab. First part 8 bars as an introduction. In the second part add a bansuri flute solo for 8 bars. In the third part add sparse keys and gradually fade out to finish.";
+
+"Aligned stereo WAV tracks include track gain, pan and EQ. Choose the stereo mix to include master effects and master gain." = "Aligned stereo WAV tracks include track gain, pan and EQ. Choose the stereo mix to include master effects and master gain.";
+
+"Suggested key" = "Suggested key";
+
+"Edit saved arrangement as a copy" = "Edit saved arrangement as a copy";
+
+"Create arrangement copy" = "Create arrangement copy";
+
+"This copy starts from the saved arrangement plan. Later edits to individual notes and mixer settings stay in the original project." = "This copy starts from the saved arrangement plan. Later edits to individual notes and mixer settings stay in the original project.";
+
+"%@ · arrangement copy" = "%@ · arrangement copy";
+
+"This editable project includes the original description, arrangement plan, notes, instrument sounds and mix." = "This editable project includes the original description, arrangement plan, notes, instrument sounds and mix.";
+
+"Review with the offline arranger" = "Review with the offline arranger";

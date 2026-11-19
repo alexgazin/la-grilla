@@ -6,14 +6,16 @@ public struct SampleAsset: Codable, Equatable, Hashable, Sendable {
 
     public let id: UUID
     public let kind: Kind
+    public let ringsOut: Bool?
     public let name: String
     public let byteCount: Int
     public let sha256: String
     public var relativePath: String { "Samples/" + id.uuidString + ".lgpcm" }
 
-    public init(kind: Kind, name: String, bytes: Data, id: UUID = UUID()) throws {
+    public init(kind: Kind, name: String, bytes: Data, id: UUID = UUID(), ringsOut: Bool = false) throws {
         self.id = id
         self.kind = kind
+        self.ringsOut = ringsOut ? true : nil
         self.name = String(name.trimmingCharacters(in: .whitespacesAndNewlines).prefix(120))
         byteCount = bytes.count
         sha256 = try AssetIntegrity.sha256(bytes)
@@ -21,7 +23,7 @@ public struct SampleAsset: Codable, Equatable, Hashable, Sendable {
     }
 
     public func validate() throws {
-        guard !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, name.count <= 120,
+        guard (ringsOut != true || kind == .instrument), !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, name.count <= 120,
               !name.unicodeScalars.contains(where: CharacterSet.controlCharacters.contains),
               (20...8_000_000).contains(byteCount), sha256.utf8.count == 64,
               sha256.utf8.allSatisfy({ (48...57).contains($0) || (97...102).contains($0) }) else {
@@ -127,6 +129,7 @@ public struct SamplePCM: Sendable {
         guard index == data.count else { throw SampleError.invalid }
         let pcm = Self(rate: rate, zones: zones)
         try pcm.validate(kind: asset.kind)
+        if asset.ringsOut == true && pcm.zones.contains(where: { $0.loopStart != 0 }) { throw SampleError.invalid }
         return pcm
     }
 
@@ -165,8 +168,8 @@ public final class PreparedSampleBank: @unchecked Sendable {
         }
         let handle = zones.withUnsafeBufferPointer { table in
             frames.withUnsafeBufferPointer { samples in
-                lg_sample_create(Int32(pcm.rate), table.baseAddress, Int32(table.count),
-                                 samples.baseAddress, Int32(samples.count))
+                lg_sample_create_with_release(Int32(pcm.rate), table.baseAddress, Int32(table.count),
+                                              samples.baseAddress, Int32(samples.count), asset.ringsOut == true ? 1 : 0)
             }
         }
         guard let handle else { throw SampleError.invalid }

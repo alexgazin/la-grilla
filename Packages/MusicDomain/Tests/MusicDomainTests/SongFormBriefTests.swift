@@ -44,10 +44,8 @@ struct SongFormBriefTests {
         #expect(throws: TrackBriefError.self) { try TrackBrief().suggesting(text.replacingOccurrences(of: "D, Am", with: "D, nonsense")) }
     }
 
-    @Test func unsupportedInstrumentalFormsAreReported() {
-        for text in [
-            "Песня в стиле chillhop. Около 90 бпм. Тональность ми натуральный минор. Вступление один такт флейта и сразу начинается бит, атмосферное слегка опаздывающее пианино. Первая часть аккорды: C, D, B, E 16 тактов с развитием. Далее вторая часть арпеджио этих аккордов и завершаем ударом гонга",
-            "Песня для медитации. В стиле эмбиент. Длинные дилеи или подобные эффекты. Основные 4 аккорда песни C, Bb, G, Ab. Первая часть 8 тактов как вступление, далее вторая часть добавляем соло на флейте Бансури. 8 тактов. Третья часть добавляем немного клавиш и далее потихоньку рассеиваем звук что бы закончить трек"
-        ] { #expect(throws: SongFormError.self) { try TrackBrief.offlineCreationRequest(text) } }
+    @Test func unsupportedInstrumentalRequestKeepsCurrentProjectUntouched() {
+        let text = "Композиция для тренировки. Первая часть 8 тактов аккорды A, B. Вторая часть квартет флейт."
+        #expect(throws: SongFormError.self) { try TrackBrief.offlineCreationRequest(text) }
     }
 }

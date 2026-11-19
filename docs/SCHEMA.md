@@ -1,4 +1,4 @@
-# Project schema v8
+# Project schema v14
 
 A `.grilla` directory contains `manifest.json`, optional `backup.json`, and optional original recordings at `Assets/<UUID>.caf`. Foundation JSONEncoder/Decoder encode UUIDs as strings, dates as seconds since 2001-01-01, enums as their Swift raw strings, and ticks as integers. The canonical storage model and validator are [`Model.swift`](../Packages/MusicDomain/Sources/MusicDomain/Model.swift); assistant proposals have their own version numbers and [JSON contract](assistant-proposal.schema.json).
 
@@ -143,3 +143,8 @@ All migrations occur in a value copy. Source bytes remain unchanged until explic
 | 7 → 8 | Extended 65-quality chord catalog and optional custom interval formulas; existing chords, IDs, notes, clip positions and encoded preset versions remain unchanged. |
 
 The widened chord vocabulary and compact-voicing validation do not rewrite an existing stored voicing. Both live and offline compilation use its persisted pitches. Unknown future schema headers are preflighted in both outer documents and frozen sources; unsupported preset values are rejected during validation.
+
+
+### Arranged projects in schema 14
+
+A chord event can carry a MIDI velocity from 1 to 127. An omitted velocity uses the historical value of 88. Materializing or copying a passage preserves its written chord dynamics. A project can store the optional `hasComposedEnding` flag to identify a song that initially plays through its ending. Explicit local transport choices can still enable a loop. Migration from schemas 1–13 preserves the original score and transport defaults, including projects frozen inside a performance take. Use build 41 or later to open newly saved schema 14 projects.

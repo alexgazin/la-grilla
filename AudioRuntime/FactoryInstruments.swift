@@ -5,11 +5,12 @@ enum FactoryInstrument: String, CaseIterable, Identifiable, Sendable {
     case piano
     case nylonGuitar = "nylon-guitar"
 
+    case flute, bansuri, gong, ambientPad
     case electricPiano = "electric-piano"
     case marimba, vibraphone, organ
     case altoSax = "alto-sax", tenorSax = "tenor-sax", sopranoSax = "soprano-sax", baritoneSax = "baritone-sax"
 
-    var artwork: String { saxVoice == nil ? "instrument-" + id : "instrument-sax" }
+    var artwork: String { self == .ambientPad ? "instrument-ambient-pad" : (saxVoice == nil ? "instrument-" + id : "instrument-sax") }
 
     private var saxVoice: ReedVoice? {
         switch self {
@@ -29,6 +30,10 @@ enum FactoryInstrument: String, CaseIterable, Identifiable, Sendable {
         switch self {
         case .piano: "Acoustic piano"
         case .nylonGuitar: "Nylon guitar"
+        case .flute: "Synth flute"
+        case .bansuri: "Bansuri"
+        case .gong: "Gong"
+        case .ambientPad: "Ambient pad"
         case .electricPiano: "Electric piano"
         case .marimba: "Marimba"
         case .vibraphone: "Vibraphone"
@@ -60,21 +65,29 @@ enum FactoryInstrument: String, CaseIterable, Identifiable, Sendable {
 }
 
 extension SoundBankLibrary {
+    func prepareTrackDraft(brief: TrackBrief, name: String, sourcePrompt: String = "") throws -> PreparedTrackDraft {
+        let directory = Bundle.main.resourceURL?.appendingPathComponent("FactoryInstruments", isDirectory: true)
+        return try PreparedTrackDraft.make(brief: brief, name: name, factoryDirectory: directory, sourcePrompt: sourcePrompt)
+    }
+
     private struct FactoryManifest: Decodable {
         struct Instrument: Decodable { let sha256: String }
-        let piano: Instrument
         let guitar: Instrument
     }
 
     func prepareFactoryInstrument(_ instrument: FactoryInstrument, directory: URL? = nil) throws -> PreparedSound {
+        let factoryDirectory = directory ?? Bundle.main.resourceURL?.appendingPathComponent("FactoryInstruments", isDirectory: true)
+        if let timbre = ArrangerTimbre(rawValue: instrument.rawValue) {
+            return try PreparedSound(name: instrument.displayName, instrumentData: timbre.sampleData(factoryDirectory: factoryDirectory), ringsOut: timbre == .gong)
+        }
         if !instrument.isRecorded {
             return try PreparedSound(name: instrument.displayName, kind: .instrument, pcm: instrument.synthesize())
         }
-        guard let root = directory ?? Bundle.main.resourceURL?.appendingPathComponent("FactoryInstruments", isDirectory: true) else {
+        guard let root = factoryDirectory else {
             throw SampleError.unavailable
         }
         let manifest = try JSONDecoder().decode(FactoryManifest.self, from: Data(contentsOf: root.appendingPathComponent("manifest.json")))
-        let record = instrument == .piano ? manifest.piano : manifest.guitar
+        let record = manifest.guitar
         let url = root.appendingPathComponent(instrument.rawValue).appendingPathExtension("lgpcm")
         let data = try Data(contentsOf: url, options: .mappedIfSafe)
         let sound = try PreparedSound(name: instrument.displayName, instrumentData: data)
@@ -143,7 +156,7 @@ private extension FactoryInstrument {
                     let air = (white-previousNoise) * reed.breath * (0.4+exp(-22*t))
                     previousNoise=white
                     sample = (tone+air) * (1-exp(-t/reed.attack))
-                case .piano, .nylonGuitar:
+                case .piano, .nylonGuitar, .flute, .bansuri, .gong, .ambientPad:
                     throw SampleError.invalid
                 }
                 let attack = min(1, t * 350)

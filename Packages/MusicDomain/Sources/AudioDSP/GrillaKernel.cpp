@@ -15,6 +15,7 @@ constexpr double Pi=3.14159265358979323846;
 struct LGSampleBank {
     std::atomic<int> references{1};
     int rate;
+    bool ringsOut;
     std::vector<int16_t> pcm;
     std::array<LGSampleZone,128> nearest{};
     std::array<float,128> keyboardGain{};
@@ -228,7 +229,10 @@ struct LGKernel {
                 v->zone=v->sample->nearest[pad>=0?0:pitch];
                 v->playbackRatio=double(v->sample->rate)/sr;
                 if(pad>=0)v->duration=double(v->zone.frames)/v->sample->rate;
-                else v->playbackRatio*=std::exp2(double(pitch-v->zone.pitch)/12);
+                else {
+                    v->playbackRatio*=std::exp2(double(pitch-v->zone.pitch)/12);
+                    if(v->sample->ringsOut)v->duration=std::min(8.,double(v->zone.frames)/(sr*v->playbackRatio));
+                }
             }
         }
         startOutput(*v);return v;
@@ -431,11 +435,14 @@ int lg_mix_revision_eq(LGKernel*k,const LGTrackMix*t,int count,float master,floa
     return rev<0?0:publishMix(k,t,count,master,filter,delay,rev,eq);
 }
 LGSampleBank *lg_sample_create(int32_t rate,const LGSampleZone *zones,int32_t count,const int16_t *pcm,int32_t frames){
+    return lg_sample_create_with_release(rate,zones,count,pcm,frames,0);
+}
+LGSampleBank *lg_sample_create_with_release(int32_t rate,const LGSampleZone *zones,int32_t count,const int16_t *pcm,int32_t frames,int32_t ringsOut){
     if(rate<8000||rate>48000||count<1||count>128||frames<32||frames>3999000||!zones||!pcm)return nullptr;
     int previous=-1;
     for(int i=0;i<count;i++){
         const auto &zone=zones[i];
-        if(zone.pitch<=previous||zone.pitch>127||zone.offset<0||zone.frames<32||zone.frames>rate*8||
+        if((ringsOut && zone.loopStart!=0)||zone.pitch<=previous||zone.pitch>127||zone.offset<0||zone.frames<32||zone.frames>rate*8||
            zone.frames>frames||zone.offset>frames-zone.frames||zone.loopStart<0||
            (zone.loopStart&&(zone.frames<1025||zone.loopStart>zone.frames-1024)))return nullptr;
         previous=zone.pitch;
@@ -443,7 +450,7 @@ LGSampleBank *lg_sample_create(int32_t rate,const LGSampleZone *zones,int32_t co
     try{
         auto pcmCopy=std::vector<int16_t>(pcm,pcm+frames);
         auto *bank=new LGSampleBank;
-        bank->rate=rate;bank->pcm=std::move(pcmCopy);
+        bank->rate=rate;bank->ringsOut=ringsOut!=0;bank->pcm=std::move(pcmCopy);
         // Measure once on the loading thread. Very quiet/silent zones stay silent
         // or quiet; an unrelated loud zone cannot mask the rest of the keyboard.
         std::array<float,128> gains{};

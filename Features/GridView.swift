@@ -93,7 +93,11 @@ struct GridView: View {
     private var drumHeight:CGFloat{100*laneScale}
     private var bassHeight:CGFloat{92*laneScale}
     private var melodyHeight:CGFloat{64}
-    private var musicHeight:CGFloat{harmonyHeight+drumHeight+bassHeight+CGFloat(session.displayProject.tracks.filter{$0.role == .melody}.count)*melodyHeight}
+    private var showsRootBassLane: Bool {
+        let tracks = session.displayProject.tracks
+        return tracks.contains { $0.role == .bass } || !tracks.contains { $0.role == .melody }
+    }
+    private var musicHeight:CGFloat{harmonyHeight+drumHeight+(showsRootBassLane ? bassHeight : 0)+CGFloat(session.displayProject.tracks.filter{$0.role == .melody}.count)*melodyHeight}
     private var editingLocked:Bool{session.performance.contextActive || session.recording || session.armed || pinchReference != nil}
     private var hasMusicalEvents:Bool {
         session.displayProject.patterns.contains{!$0.chords.isEmpty || !$0.drums.isEmpty || !($0.notes ?? []).isEmpty}
@@ -113,7 +117,7 @@ struct GridView: View {
                         if !hasMusicalEvents{emptyProjectGuide.padding(.horizontal,16).padding(.bottom,14)}
                         if clipMode{clipControls.padding(.horizontal,16).padding(.bottom,8)}
                         HStack(spacing:0){
-                            VStack(spacing:0){Color.ink.frame(height:28);trackLabel(.harmony,height:harmonyHeight);trackLabel(.drums,height:drumHeight);trackLabel(.bass,height:bassHeight);ForEach(session.displayProject.tracks.filter{$0.role == .melody}){track in melodyTrackLabel(track)}}.frame(width:gutter)
+                            VStack(spacing:0){Color.ink.frame(height:28);trackLabel(.harmony,height:harmonyHeight);trackLabel(.drums,height:drumHeight);if showsRootBassLane { trackLabel(.bass,height:bassHeight) };ForEach(session.displayProject.tracks.filter{$0.role == .melody}){track in melodyTrackLabel(track)}}.frame(width:gutter)
                             ScrollView(.horizontal,showsIndicators:true){ZStack(alignment:.topLeading){
                                 timeline
                                 Rectangle().fill(Color.mint).frame(width:2,height:musicHeight).offset(x:CGFloat(session.audio.tick)/CGFloat(barTicks)*barWidth,y:28).allowsHitTesting(false)
@@ -264,11 +268,13 @@ struct GridView: View {
             ruler
             if let track=project.tracks.first(where:{$0.role == .harmony}) {clipLane(track,height:harmonyHeight,notes:notes)}
             if let track=project.tracks.first(where:{$0.role == .drums}) {clipLane(track,height:drumHeight,notes:notes)}
+            if showsRootBassLane {
             bassLane.overlay(alignment:.bottomLeading){Text("Root bass follows harmony").font(.system(size:11)).foregroundStyle(Color.muted).padding(8)}
                 .dropDestination(for:String.self){items,_ in
                     guard let track=project.tracks.first(where:{$0.role == .bass}) else{session.message=ClipEditingError.derivedBass.localizedDescription;return false}
                     return dropClip(items,on:track.id,at:.zero)
                 }
+            }
             ForEach(project.tracks.filter{$0.role == .melody}){track in clipLane(track,height:melodyHeight,notes:notes)}
         }
     }
@@ -446,6 +452,9 @@ struct GridView: View {
                 Button{session.openNotes()}label:{Label("Notes",systemImage:"pianokeys").frame(maxWidth:.infinity,minHeight:44)}.accessibilityLabel("Open piano roll").accessibilityIdentifier("notes.open")
                 Button{session.presentEditor(.assistant)}label:{Label("Assistant",systemImage:"text.bubble").frame(maxWidth:.infinity,minHeight:44)}.accessibilityIdentifier("assistant.open")
                 Menu{
+                    if !showsRootBassLane {
+                        Button("+ Add root bass", systemImage:"waveform") { session.presentEditor(.bass) }.accessibilityIdentifier("bass.open")
+                    }
                     Button("Voice",systemImage:"waveform.badge.mic"){session.presentEditor(.voice)}.accessibilityIdentifier("voice.open")
                     Button("Perform",systemImage:"waveform.path"){session.finishTake();session.sheet = .perform}.accessibilityIdentifier("perform.open")
                     Button("MIDI devices",systemImage:"pianokeys"){session.presentEditor(.midiDevices)}.accessibilityIdentifier("midi.open")
@@ -480,7 +489,7 @@ struct GridView: View {
         }.buttonStyle(StudioQuietButtonStyle())
     }
     @ViewBuilder var timeline: some View {
-        if clipMode{clipTimeline}else{VStack(spacing:0) { ruler; harmonyLane; drumLane; bassLane;ForEach(session.displayProject.tracks.filter{$0.role == .melody}){t in melodyLane(t)} }}
+        if clipMode{clipTimeline}else{VStack(spacing:0) { ruler; harmonyLane; drumLane; if showsRootBassLane { bassLane };ForEach(session.displayProject.tracks.filter{$0.role == .melody}){t in melodyLane(t)} }}
     }
     var ruler: some View {
         HStack(spacing:0) {
