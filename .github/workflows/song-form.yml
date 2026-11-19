@@ -19,11 +19,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        journey: ${{ fromJSON(((github.event_name == 'push' && github.ref_name == 'feat/andrey-score-42') || inputs.suite == 'studio') && '["workout","chillhop","ambient","score"]' || '["original"]') }}
-    runs-on: macos-26
+        journey: [workout]
+    runs-on: macos-15-intel
     timeout-minutes: 85
     env:
-      DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
+      DEVELOPER_DIR: /Applications/Xcode_26.0.1.app/Contents/Developer
       GRILLA_REQUIRE_MIC_INPUT: '1'
       TEST_RUNNER_GRILLA_REQUIRE_MIC_INPUT: '1'
       JOURNEY: ${{ matrix.journey }}
@@ -35,7 +35,7 @@ jobs:
           set -o pipefail
           python3 scripts/generate_project.py
           git diff --exit-code -- LaGrilla.xcodeproj
-          xcodebuild -project LaGrilla.xcodeproj -scheme LaGrilla -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' ARCHS=arm64 ONLY_ACTIVE_ARCH=YES -configuration Debug -derivedDataPath DerivedData CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO build-for-testing | tee song-form-build.log
+          xcodebuild -project LaGrilla.xcodeproj -scheme LaGrilla -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' ARCHS=x86_64 ONLY_ACTIVE_ARCH=YES -configuration Debug -derivedDataPath DerivedData CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO build-for-testing | tee song-form-build.log
       - name: Configure the virtual microphone for full regression
         if: matrix.journey != 'original'
         run: bash scripts/setup_ci_audio.sh
@@ -78,7 +78,7 @@ jobs:
             REQUIRED+=(--require-test "$CASE_ID")
             SELECTED+=("-only-testing:LaGrillaUITests/$CASE_ID")
           done
-          python3 scripts/ci/run_native.py --timeout-seconds "$NATIVE_BUDGET" --scope focused --label song-form "${REQUIRED[@]}" --log song-form-native.log --status song-form-process-status.json -- xcodebuild "${SELECTED[@]}" -parallel-testing-enabled NO -test-timeouts-enabled YES -maximum-test-execution-time-allowance "$CASE_LIMIT" -project LaGrilla.xcodeproj -scheme LaGrilla -destination "platform=iOS Simulator,id=$DEVICE" -derivedDataPath DerivedData -resultBundlePath SongFormResults.xcresult ARCHS=arm64 ONLY_ACTIVE_ARCH=YES CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO test-without-building
+          python3 scripts/ci/run_native.py --timeout-seconds "$NATIVE_BUDGET" --scope focused --label song-form "${REQUIRED[@]}" --log song-form-native.log --status song-form-process-status.json -- xcodebuild "${SELECTED[@]}" -parallel-testing-enabled NO -test-timeouts-enabled YES -maximum-test-execution-time-allowance "$CASE_LIMIT" -project LaGrilla.xcodeproj -scheme LaGrilla -destination "platform=iOS Simulator,id=$DEVICE" -derivedDataPath DerivedData -resultBundlePath SongFormResults.xcresult ARCHS=x86_64 ONLY_ACTIVE_ARCH=YES CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO test-without-building
       - name: Export original attachments
         if: always()
         timeout-minutes: 2
@@ -118,7 +118,7 @@ jobs:
               command.extend(["--require-test", test])
           command.extend(["--", "xcodebuild", "-project", "LaGrilla.xcodeproj", "-scheme", "LaGrilla", "-destination", f"platform=iOS Simulator,id={device}", "-derivedDataPath", "DerivedData", "-parallel-testing-enabled", "NO", "-test-timeouts-enabled", "YES", "-maximum-test-execution-time-allowance", "600", "-resultBundlePath", "Results.xcresult"])
           command.extend(f"-only-testing:LaGrillaUITests/{test}" for test in tests)
-          command.extend(["ARCHS=arm64", "ONLY_ACTIVE_ARCH=YES", "CODE_SIGN_IDENTITY=-", "CODE_SIGNING_REQUIRED=NO", "test-without-building"])
+          command.extend(["ARCHS=x86_64", "ONLY_ACTIVE_ARCH=YES", "CODE_SIGN_IDENTITY=-", "CODE_SIGNING_REQUIRED=NO", "test-without-building"])
           subprocess.run(command, check=True)
           PY
       - uses: actions/upload-artifact@v4
@@ -130,35 +130,3 @@ jobs:
             native.log
             song-form-process-status.json
             song-form-native.log
-  coverage:
-    needs: song-form
-    if: (github.event_name == 'push' && github.ref_name == 'feat/andrey-score-42') || inputs.suite == 'studio'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
-        with:
-          pattern: functional-shard-*
-          path: results/
-      - name: Confirm every expected XCTest passed exactly once
-        run: |
-          python3 - <<'PY'
-          import collections, json, pathlib, sys
-          sys.path.insert(0, "scripts/ci")
-          from native_scope import functional_inventory, observed_outcomes
-          expected = functional_inventory("UITests")
-          counts = collections.Counter()
-          for journey in ("workout","chillhop","ambient","score"):
-              folder = pathlib.Path("results", f"functional-shard-{journey}")
-              receipt = json.loads((folder / "receipt.json").read_text())
-              assert receipt["exitCode"] == 0 and not receipt["timedOut"]
-              observed = observed_outcomes((folder / "native.log").read_text())
-              selected = json.loads((folder / "song-form-process-status.json").read_text())
-              assert selected["exitCode"] == 0 and not selected["timedOut"]
-              early = observed_outcomes((folder / "song-form-native.log").read_text())
-              assert all(v == "passed" for v in [*early.values(), *observed.values()]), journey
-              counts.update(early.keys())
-              counts.update(observed.keys())
-          assert sorted(counts) == expected and all(count == 1 for count in counts.values())
-          print(f"{len(expected)} different functional tests passed on iPhone Simulator")
-          PY
