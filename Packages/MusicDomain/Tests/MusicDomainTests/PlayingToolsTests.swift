@@ -247,4 +247,15 @@ struct HeardTickTests {
         #expect(IsomorphicLayout.grid(rows: 2, columns: 2, base: 126)[1][1] == 127)
         #expect(IsomorphicLayout.inScale(62, root: 2, minor: true) && !IsomorphicLayout.inScale(63, root: 2, minor: false) && IsomorphicLayout.inScale(66, root: 2, minor: false))
     }
+
+    @Test func externalKeyboardFollowsTheMelodicPartBeingEdited() {
+        var project = Project(name: "Keys", bars: 1)
+        let harmony = project.tracks[0].id, drums = project.tracks[1].id
+        #expect(MIDISettings.automaticTrack(project.tracks, focused: nil) == harmony)
+        project.tracks.append(Track(role: .bass)); project.tracks.append(Track(role: .melody))
+        #expect(MIDISettings.automaticTrack(project.tracks, focused: nil) == project.tracks[3].id)
+        #expect(MIDISettings.automaticTrack(project.tracks, focused: project.tracks[2].id) == project.tracks[2].id)
+        #expect(MIDISettings.automaticTrack(project.tracks, focused: drums) == project.tracks[3].id)
+        #expect(MIDISettings.automaticTrack([], focused: nil) == nil)
+    }
 }

@@ -211,7 +211,10 @@ import Observation
         // Device consent and selection take effect at the touch, even while a
         // structural edit waits for its bar. Only UUID routing follows the
         // adopted layout; the hub resolves its current index at the boundary.
-        midi.configure(project.midi ?? MIDISettings(),tracks:audio.activeMIDIRouting?.tracks ?? project.tracks)
+        let tracks=audio.activeMIDIRouting?.tracks ?? project.tracks
+        var settings=project.midi ?? MIDISettings()
+        if settings.trackID==nil{settings.trackID=MIDISettings.automaticTrack(tracks,focused:noteTrackID)}
+        midi.configure(settings,tracks:tracks)
     }
     /// Share the real QA endpoint setup between launch and an explicit reconnect.
     /// A failed launch never creates an enabled project or a pretend mapping.

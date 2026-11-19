@@ -22,5 +22,12 @@ public struct MIDISettings:Codable,Equatable,Sendable {
         var keys=Set<String>()
         for mapping in mappings{try mapping.validate(project);guard keys.insert("\(mapping.sourceID):\(mapping.channel):\(mapping.controller)").inserted else{throw MusicError.invalidProject}}
     }
+    /// I19: with no chosen track, an external keyboard plays the part being
+    /// edited when it is melodic, else the first melody, bass or harmony track.
+    public static func automaticTrack(_ tracks:[Track],focused:UUID?)->UUID? {
+        if let focused,let track=tracks.first(where:{$0.id==focused}),track.role != .drums{return track.id}
+        for role in [TrackRole.melody,.bass,.harmony]{if let track=tracks.first(where:{$0.role==role}){return track.id}}
+        return tracks.first?.id
+    }
     public func mapping(sourceID:Int32,channel:Int,controller:Int)->MIDIMapping?{mappings.first{$0.sourceID==sourceID && $0.channel==channel && $0.controller==controller}}
 }
