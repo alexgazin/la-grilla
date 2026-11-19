@@ -290,7 +290,7 @@ struct GridView: View {
         return ZStack(alignment:.topLeading) {
             gridBackground(height:height).contentShape(Rectangle()).gesture(SpatialTapGesture().onEnded{value in
                 guard !editingLocked else{return}
-                let tick=max(0,min(64*barTicks-clipSnap,Int(value.location.x/barWidth*CGFloat(barTicks))/clipSnap*clipSnap))
+                let tick=max(0,min(songTickLimit-clipSnap,Int(value.location.x/barWidth*CGFloat(barTicks))/clipSnap*clipSnap))
                 session.edit{try ClipEditing.create(on:track.id,start:tick,length:barTicks,snap:clipSnap,in:&$0)}
             })
             if targetTrack==track.id {Rectangle().fill(Color.mint.opacity(0.09)).allowsHitTesting(false)}
@@ -349,7 +349,7 @@ struct GridView: View {
         // or ended callbacks from that old pan must not recreate its draft.
         guard var current=resizeDraft,current.payload.objectID==clipID else{return}
         let ticks=Double(current.originalLength)+Double(translation/barWidth)*Double(barTicks)
-        let bounded=max(Double(clipSnap),min(Double(64*barTicks-current.start),ticks))
+        let bounded=max(Double(clipSnap),min(Double(songTickLimit-current.start),ticks))
         current.length=(try? ClipEditing.snapped(Int(bounded),step:clipSnap)) ?? clip.length
         if state == .ended {
             resizeDraft=nil;guard current.length != current.originalLength else{return}
@@ -363,7 +363,7 @@ struct GridView: View {
             let payload=try ArrangementDragPayload.decode(items[0])
             guard payload.kind == .clip else{throw ClipEditingError.invalidDrag}
             let raw=Double((point.x-3)/barWidth)*Double(barTicks)-Double(payload.grabOffset)
-            let tick=max(0,min(64*barTicks,Int(raw)))
+            let tick=max(0,min(songTickLimit,Int(raw)))
             let copy=copyOnDrag,snap=clipSnap
             ArrangementDragDiagnostics.record("drop clip=\(payload.objectID) revision=\(payload.revision)/\(session.project.revision) point=\(point) grabOffset=\(payload.grabOffset) raw=\(raw) bounded=\(tick) snapped=\(String(describing:try? ClipEditing.snapped(tick,step:snap))) copy=\(copy)")
             if !copy,payload.sourceTrackID==trackID,let track=session.project.tracks.first(where:{$0.id==trackID}),let clip=track.clips.first(where:{$0.id==payload.objectID}),try ClipEditing.snapped(tick,step:snap)==clip.start{
@@ -430,7 +430,7 @@ struct GridView: View {
             let end=clip.start+clip.length
             if end>start{start=((end+clipSnap-1)/clipSnap)*clipSnap}
         }
-        return start+barTicks<=64*barTicks ? start:nil
+        return start+barTicks<=songTickLimit ? start:nil
     }
     private func addClip(on track:Track){
         guard !editingLocked,track.role != .bass else{return}

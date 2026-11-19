@@ -108,7 +108,7 @@
 "Rename section" = "Название секции";
 "Stop playback first" = "Сначала останови воспроизведение";
 "Stop the transport, then change the song structure." = "Останови транспорт, затем измени структуру песни.";
-"Duplicated sections have independent chords and drums. Up to 8 sections and 64 bars." = "Копии секций содержат независимые аккорды и барабаны. До 8 секций и 64 тактов.";
+"Duplicated sections have independent chords and drums. Up to 8 sections and 64 bars." = "Копии секций содержат независимые аккорды и барабаны. До 16 секций и 128 тактов.";
 "All instruments are ready. No downloads, no account, just your next idea." = "Все инструменты готовы. Без загрузок и регистрации — только твоя новая идея.";
 "Export" = "Экспорт";
 "Take your idea further." = "Продолжи работу над идеей.";
@@ -119,7 +119,7 @@
 "For editing notes in your music software. Instrument sounds are not included in MIDI." = "Для редактирования нот в музыкальной программе. Звуки инструментов не входят в MIDI.";
 "Unrecognized chord. Choose a chord from the list." = "Не распознали аккорд. Выбери его из списка.";
 "This project was made with a newer version. The original has been preserved." = "Проект создан в более новой версии. Исходный файл сохранён.";
-"A song can contain up to 8 sections and 64 bars." = "Песня может содержать до 8 секций и 64 тактов.";
+"A song can contain up to 8 sections and 64 bars." = "Песня может содержать до 16 секций и 128 тактов.";
 "This project has too many events." = "В проекте слишком много событий.";
 "The project contains invalid musical data." = "Проект содержит некорректные музыкальные данные.";
 
@@ -315,7 +315,7 @@
 "Play this project's instruments from a USB or Bluetooth MIDI controller. Mappings are saved with this project." = "Играй на инструментах проекта с USB- или Bluetooth MIDI-контроллера. Назначения сохраняются в этом проекте.";
 "Project notes and live pads are sent to this destination. Incoming MIDI is not forwarded. Harmony uses channel 1, bass 2, drums 10, melodies 3–8." = "Ноты проекта и живые удары пэдов отправляются на выбранное устройство. Входящий MIDI не перенаправляется. Гармония — канал 1, бас — 2, барабаны — 10, мелодии — 3–8.";
 "QA FIXTURE · SYNTHETIC SOURCE" = "ТЕСТОВЫЙ СИНТЕТИЧЕСКИЙ ИСТОЧНИК";
-"Record starts again at the selected section. Up to 64 bars; a new take replaces the previous one with Undo." = "Запись начинается заново с выбранной секции. До 64 тактов. Новая запись заменяет предыдущую; замена доступна в истории отмены.";
+"Record starts again at the selected section. Up to 64 bars; a new take replaces the previous one with Undo." = "Запись начинается заново с выбранной секции. До 128 тактов. Новая запись заменяет предыдущую; замена доступна в истории отмены.";
 "Refresh & reconnect" = "Обновить и подключить заново";
 "Release returns to the source position that kept moving underneath." = "После отпускания игра продолжится с позиции исходного транспорта, который не останавливался.";
 "Remove" = "Удалить";
@@ -363,7 +363,7 @@
 "Mixer and effects saved to the project." = "Микшер и эффекты сохранены в проекте.";
 "Play the selected fragment once before using beat repeat." = "Перед повтором фрагмент должен прозвучать хотя бы один раз.";
 "The automation limit was reached. The recorded part has been kept." = "Достигнут лимит автоматизации. Записанная часть сохранена.";
-"The 64-bar performance limit was reached." = "Достигнут лимит записи — 64 такта.";
+"The 64-bar performance limit was reached." = "Достигнут лимит записи — 128 тактов.";
 "The performance control queue is full. Try again." = "Очередь команд выступления заполнена. Попробуй ещё раз.";
 "Return to editing before changing the source project." = "Для изменения исходного проекта вернись к редактированию.";
 "Return to editing before recording a drum loop." = "Для записи барабанного лупа вернись к редактированию.";
@@ -532,7 +532,7 @@
 "Extensions" = "Расширения";
 "Harmony in every section will change. Rhythm and melody stay as written." = "Гармония изменится во всех секциях. Ритм и мелодия сохранятся.";
 "Jazz up this section" = "Поджазовать эту секцию";
-"Keep clips inside the 64-bar song limit." = "Размещай клипы в пределах 64 тактов песни.";
+"Keep clips inside the 64-bar song limit." = "Размещай клипы в пределах 128 тактов песни.";
 "Move clips" = "Перемещать клипы";
 "No microphone is available. Check the audio route and retry." = "Микрофон недоступен. Проверь аудиоподключение и повтори попытку.";
 "ON-DEVICE AI" = "ЛОКАЛЬНЫЙ ИИ";
@@ -966,7 +966,7 @@
 
 "This section request includes instructions the offline arranger cannot play yet." = "В описании секций есть пожелания, которые локальный аранжировщик пока не умеет озвучивать.";
 
-"Give each part a bar count. The song can contain up to 64 bars in total." = "Укажи длину каждой части в тактах. Максимальная длина всей композиции — 64 такта.";
+"Give each part a bar count. The song can contain up to 64 bars in total." = "Укажи длину каждой части в тактах. Максимальная длина всей композиции — 128 такта.";
 
 "Enter a chord progression for each part, for example A, Bb, C, D." = "Укажи последовательность аккордов для каждой части, например A, Bb, C, D.";
 

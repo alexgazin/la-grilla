@@ -633,7 +633,7 @@ public enum SongEditParser {
         if kind == .reharmonize { amount = HarmonyStyle.allCases.firstIndex(of: edit.style) ?? 2 }
         if kind == .duplicateSection {
             guard let candidates = sections(matching: edit, project: project), !candidates.isEmpty else { return .problem(.missing) }
-            guard project.sections.count < 8 else { return .problem(.missing) }
+            guard project.sections.count < maximumSections else { return .problem(.missing) }
             func op(_ s: Section) -> SongEditOperation {
                 SongEditOperation(kind: .duplicateSection, target: SongEditTarget(trackID: project.tracks[0].id), bars: (s.start / barTicks)..<((s.start + s.length) / barTicks), sectionID: s.id, amount: edit.copyBars)
             }

@@ -314,7 +314,7 @@ struct SectionsView: View {
                         .font(.caption).foregroundStyle(Color.muted)
                     Button { adding = true } label: { Label("Add section", systemImage: "plus") }
                         .buttonStyle(StudioActionStyle(prominent: false))
-                        .disabled(editingLocked || remainingBars == 0 || session.project.sections.count >= 8)
+                        .disabled(editingLocked || remainingBars == 0 || session.project.sections.count >= maximumSections)
                         .accessibilityIdentifier("sections.add")
                     HStack(spacing: 4) {
                         IconButton(symbol: "arrow.uturn.backward", label: "Undo") { session.undo() }
@@ -361,7 +361,7 @@ struct SectionsView: View {
     private func actionList(_ section:MusicDomain.Section)->some View {NavigationStack{List{
         Button("Rename"){pendingRename=section.id;actions=nil}
         Button("Duplicate"){session.edit{try SectionEditing.duplicate(section.id,name:section.name=="Verse" ? "Chorus":String((section.name+" copy").prefix(120)),in:&$0)};actions=nil}
-            .disabled(session.project.sections.count>=8 || session.project.length+section.length>64*barTicks).accessibilityIdentifier("section.duplicate")
+            .disabled(session.project.sections.count>=maximumSections || session.project.length+section.length>songTickLimit).accessibilityIdentifier("section.duplicate")
         Picker("Colour",selection:Binding(get:{section.color ?? -1},set:{value in let id=section.id;session.edit{p in if let i=p.sections.firstIndex(where:{$0.id==id}){p.sections[i].color=value<0 ? nil:value}};actions=nil})){
             Text("Automatic").tag(-1)
             ForEach(SongFormStyle.choices,id:\.index){choice in Label{Text(choice.name)}icon:{Image(systemName:"circle.fill").foregroundStyle(choice.color)}.tag(choice.index)}

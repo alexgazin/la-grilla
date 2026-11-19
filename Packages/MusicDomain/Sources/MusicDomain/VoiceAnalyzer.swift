@@ -90,7 +90,7 @@ public enum VoiceAnalyzer {
         return VoiceAnalysis(segments:segments,duration:duration,waveform:Array(waveform.prefix(256)),detector:detector)
     }
     public static func notes(_ analysis:VoiceAnalysis,bpm:Double,length:Int,quantize:Quantize = .off,scaleRoot:Int?=nil,minor:Bool=false,offset:Double=0)->[NoteEvent] {
-        guard bpm.isFinite,(40...240).contains(bpm),length>0,length<=64*barTicks,offset.isFinite,abs(offset)<=1 else{return []}
+        guard bpm.isFinite,(40...240).contains(bpm),length>0,length<=songTickLimit,offset.isFinite,abs(offset)<=1 else{return []}
         let ticksPerSecond=bpm/60*Double(ppq),scale=minor ? [0,2,3,5,7,8,10]:[0,2,4,5,7,9,11]
         let peak=max(0.001,analysis.segments.map(\.level).max() ?? 0.001)
         var result:[NoteEvent]=[]

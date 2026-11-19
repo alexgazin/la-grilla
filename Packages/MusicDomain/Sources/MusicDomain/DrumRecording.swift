@@ -29,7 +29,7 @@ public struct DrumRecordingDraft:Sendable {
     }
     @discardableResult public mutating func commitPass(_ events:[DrumEvent],replacing absoluteRange:Range<Int>?=nil)throws->Bool {
         guard events.count<=4096,events.allSatisfy({$0.tick>=0 && $0.tick<length}),let index=project.patterns.firstIndex(where:{$0.id==patternID})else{throw MusicError.invalidProject}
-        if let absoluteRange{guard absoluteRange.lowerBound>=0,absoluteRange.upperBound<=64*barTicks else{throw MusicError.invalidProject}}
+        if let absoluteRange{guard absoluteRange.lowerBound>=0,absoluteRange.upperBound<=songTickLimit else{throw MusicError.invalidProject}}
         var candidate=project
         let before=candidate.patterns[index].drums
         if let absoluteRange{candidate.patterns[index].drums.removeAll{absoluteRange.contains(start+$0.tick)}}

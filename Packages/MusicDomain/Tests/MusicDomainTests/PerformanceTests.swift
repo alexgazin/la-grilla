@@ -77,7 +77,7 @@ struct PerformanceTests {
     }
     @Test func fullLengthTakeAllowsRoundedFractionalFrameLimit()throws {
         var p=Project.demo();p.bpm=123
-        let frames=UInt64((Double(64*barTicks)/Double(ppq)*60/p.bpm*44100).rounded())
+        let frames=UInt64((Double(songTickLimit)/Double(ppq)*60/p.bpm*44100).rounded())
         var take=PerformanceTake(source:p,sampleRate:44100,durationFrames:frames,events:[PerformanceEvent(frame:0,kind:.section,sectionID:p.sections[0].id)])
         try take.validate();take.durationFrames+=1;#expect(throws:MusicError.self){try take.validate()}
     }

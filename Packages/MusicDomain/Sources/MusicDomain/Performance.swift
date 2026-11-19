@@ -42,7 +42,7 @@ public struct PerformanceTake:Codable,Equatable,Identifiable,Sendable {
     public func validate()throws {
         guard source.performanceTake==nil,source.revision==sourceRevision,seed==0x4c47524c,!name.isEmpty,name.count<=80,created.timeIntervalSinceReferenceDate.isFinite,sampleRate.isFinite,(8000...192000).contains(sampleRate),durationFrames>0,(1...16384).contains(events.count)else{throw MusicError.invalidProject}
         try source.validate()
-        guard durationFrames<=UInt64((Double(64*barTicks)/Double(ppq)*60/source.bpm*sampleRate).rounded()),events[0].frame==0,events[0].kind == .section,try JSONEncoder().encode(source).count<=2_000_000 else{throw MusicError.limit}
+        guard durationFrames<=UInt64((Double(songTickLimit)/Double(ppq)*60/source.bpm*sampleRate).rounded()),events[0].frame==0,events[0].kind == .section,try JSONEncoder().encode(source).count<=2_000_000 else{throw MusicError.limit}
         var previous:UInt64=0;var sameFrame=0
         for event in events{guard event.frame>=previous else{throw MusicError.invalidProject};sameFrame=event.frame==previous ? sameFrame+1:1;guard sameFrame<=512 else{throw MusicError.tooDense};try event.validate(source:source,duration:durationFrames)
             if event.kind == .repeatSize,event.value>0{guard Double(event.frame)/sampleRate*source.bpm/60*Double(ppq)+1>=event.value else{throw MusicError.invalidProject}}

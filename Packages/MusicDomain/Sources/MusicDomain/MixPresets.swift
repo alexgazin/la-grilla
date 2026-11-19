@@ -56,7 +56,7 @@ public enum SongFormTemplate: String, CaseIterable, Sendable {
         var parts: [AssistantSongSection] = []
         var total = 0
         for item in layout {
-            guard parts.count < 8, total + item.bars <= 64 else { break }
+            guard parts.count < maximumSections, total + item.bars <= maximumSongBars else { break }
             let source = project.sections[min(item.source, project.sections.count - 1)]
             let harmony = Arrangement.harmony(project, section: source)
             var chords: [Chord] = [], durations: [Int] = []

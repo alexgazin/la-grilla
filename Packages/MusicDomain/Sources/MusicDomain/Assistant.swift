@@ -132,7 +132,7 @@ public enum AssistantEngine {
             let part=AssistantSongSection(name:name,bars:bars,chords:chords,durations:durations,sourceSectionID:source.id)
             try part.validate(in:project);parts.append(part)
         }
-        guard !parts.isEmpty,parts.count<=8,parts.reduce(0,{$0+$1.bars})<=64 else{throw MusicError.limit}
+        guard !parts.isEmpty,parts.count<=maximumSections,parts.reduce(0,{$0+$1.bars})<=maximumSongBars else{throw MusicError.limit}
         operations.append(.init(.arrangeSong,sections:parts))
         let warning=NSLocalizedString("This proposal replaces the song form. Existing rhythm and melody repeat or trim from the displayed source sections. Original recordings and the previous version remain available through Undo.",comment:"Assistant review")
         let proposal=AssistantProposal(project:project,scope:selected.id,operations:operations,assumptions:assumptions,warnings:[warning])

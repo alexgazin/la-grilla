@@ -84,11 +84,11 @@ struct ArrangementClipInspector: View {
                     }
                     SwiftUI.Section {
                         Picker("Snap",selection:$grid){Text("1 bar").tag(barTicks);Text("1 beat").tag(ppq);Text("1/16").tag(240)}
-                        Stepper(value:Binding(get:{clip.start},set:{value in commit{try ClipEditing.move($0,to:selection.trackID,start:value,snap:grid,in:&$1)}}),in:0...max(0,64*barTicks-clip.length),step:grid){
+                        Stepper(value:Binding(get:{clip.start},set:{value in commit{try ClipEditing.move($0,to:selection.trackID,start:value,snap:grid,in:&$1)}}),in:0...max(0,songTickLimit-clip.length),step:grid){
                             LabeledContent("Start",value:MusicalPosition(tick:clip.start).description)
                         }.accessibilityIdentifier("clip.start").accessibilityValue(MusicalPosition(tick:clip.start).description)
                             .accessibilityHint(MusicalPosition(tick:clip.start).arrangementAccessibilityDescription)
-                        Stepper(value:Binding(get:{clip.length},set:{value in commit{try ClipEditing.resize($0,length:value,snap:grid,in:&$1)}}),in:grid...max(grid,64*barTicks-clip.start),step:grid){
+                        Stepper(value:Binding(get:{clip.length},set:{value in commit{try ClipEditing.resize($0,length:value,snap:grid,in:&$1)}}),in:grid...max(grid,songTickLimit-clip.start),step:grid){
                             LabeledContent("Length",value:String(format:NSLocalizedString("%.2f bars",comment:"Clip length"),Double(clip.length)/Double(barTicks)))
                         }.accessibilityIdentifier("clip.length").accessibilityValue(String(format:NSLocalizedString("%.2f bars",comment:"Clip length"),Double(clip.length)/Double(barTicks)))
                         Stepper(value:Binding(get:{clip.offset},set:{value in commit{try ClipEditing.setOffset($0,offset:value,snap:240,in:&$1)}}),in:0...max(0,pattern.length-240),step:240){

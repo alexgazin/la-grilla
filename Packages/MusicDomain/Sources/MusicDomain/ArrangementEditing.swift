@@ -24,7 +24,7 @@ extension Arrangement {
         try project.validate()
         guard (1...64).contains(bars),let index=project.sections.firstIndex(where:{$0.id==sectionID})else{throw MusicError.invalidProject}
         let section=project.sections[index],length=bars*barTicks,delta=length-section.length,end=section.start+section.length
-        guard project.length+delta<=64*barTicks else{throw MusicError.limit}
+        guard project.length+delta<=songTickLimit else{throw MusicError.limit}
         if delta==0{return project}
         var result=project
         for i in project.tracks.indices {

@@ -539,8 +539,8 @@ struct LGKernel {
     }
 };
 static bool validNotes(LGKernel*k,const LGNote*notes,int count,double bpm,int start,int end){
-    if(!k||(count>0&&!notes)||count<0||count>MaxNotes||!std::isfinite(bpm)||bpm<40||bpm>240||start<0||end<=start||end>245760)return false;
-    for(int n=0;n<count;n++)if(notes[n].tick<0||notes[n].duration<=0||notes[n].duration>245760||notes[n].tick>245760-notes[n].duration||notes[n].pitch<0||notes[n].pitch>127||notes[n].track<0||notes[n].track>=MaxTracks||notes[n].pad < -1||notes[n].pad>15||notes[n].instrument<0||notes[n].instrument>3||notes[n].velocity<1||notes[n].velocity>127)return false;
+    if(!k||(count>0&&!notes)||count<0||count>MaxNotes||!std::isfinite(bpm)||bpm<40||bpm>240||start<0||end<=start||end>491520)return false;
+    for(int n=0;n<count;n++)if(notes[n].tick<0||notes[n].duration<=0||notes[n].duration>491520||notes[n].tick>491520-notes[n].duration||notes[n].pitch<0||notes[n].pitch>127||notes[n].track<0||notes[n].track>=MaxTracks||notes[n].pad < -1||notes[n].pad>15||notes[n].instrument<0||notes[n].instrument>3||notes[n].velocity<1||notes[n].velocity>127)return false;
     return true;
 }
 static bool validMix(LGKernel*k,const LGTrackMix*tracks,int count,float masterDB,float filter,float delay){
@@ -660,7 +660,7 @@ void lg_countin(LGKernel*k,int frames){k->countRequest.store(frames);}
 int lg_countremaining(LGKernel*k){return k->countRemaining.load();}
 void lg_play(LGKernel*k,int play){k->command.store(play?1:-1,std::memory_order_release);}
 void lg_restart(LGKernel*k){k->command.store(2,std::memory_order_release);}
-void lg_seek(LGKernel*k,int tick){if(tick>=0)k->seek.store(std::min(245760,tick));}
+void lg_seek(LGKernel*k,int tick){if(tick>=0)k->seek.store(std::min(491520,tick));}
 static int enqueue(LGKernel*k,Input value){unsigned w=k->write.load(std::memory_order_relaxed),r=k->read.load(std::memory_order_acquire);if(w-r>=256){k->overflow.fetch_add(1);return 0;}k->input[w%256]=value;k->write.store(w+1,std::memory_order_release);return 1;}
 int lg_arp(LGKernel*k,uint64_t identity,const int32_t*pitches,int count,int step,int mode,int octaves,int velocity){
     if(!k||count<0||count>16||(count>0&&(!pitches||identity==0))||mode<0||mode>3||octaves<1||octaves>3)return 0;
@@ -730,7 +730,7 @@ int lg_perform_replay_submit(LGKernel*k,const LGPerformanceEvent*events,int coun
     for(int i=0;i<count;i++){
         const auto &e=events[i];if(e.frame<previous||e.frame>duration||!std::isfinite(e.value))return 0;
         sameFrame=e.frame==previous?sameFrame+1:1;if(sameFrame>512)return 0;previous=e.frame;
-        if(e.kind==1){if(e.token<1||e.token>8||e.a<0||e.b<=e.a||e.b>245760||e.a%3840||e.b%3840)return 0;}
+        if(e.kind==1){if(e.token<1||e.token>16||e.a<0||e.b<=e.a||e.b>491520||e.a%3840||e.b%3840)return 0;}
         else if(e.kind==2){if(e.value!=1&&e.value!=-1&&e.value!=4&&e.value!=-4)return 0;}
         else if(e.kind==3){if(e.value!=0&&e.value!=240&&e.value!=480&&e.value!=960&&e.value!=1920)return 0;}
         else if(e.kind==4){if(e.value < -1||e.value>1)return 0;}
@@ -748,7 +748,7 @@ int lg_perform_replay_submit(LGKernel*k,const LGPerformanceEvent*events,int coun
 }
 uint64_t lg_perform_queue(LGKernel*k,int kind,float value,int start,int end,int token){
     if(!std::isfinite(value))return 0;
-    if(kind==1){if(token<0||token>8||(token!=0&&(start<0||end<=start||end>245760||start%3840!=0||end%3840!=0)))return 0;}
+    if(kind==1){if(token<0||token>16||(token!=0&&(start<0||end<=start||end>491520||start%3840!=0||end%3840!=0)))return 0;}
     else if(kind==2){if(value!=1&&value!=-1&&value!=4&&value!=-4)return 0;}
     else if(kind==3){if(value!=0&&value!=240&&value!=480&&value!=960&&value!=1920)return 0;}
     else return 0;

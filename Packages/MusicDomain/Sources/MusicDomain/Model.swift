@@ -3,6 +3,10 @@ import Foundation
 public let ppq = 960
 public let barTicks = 3840
 public let masterBus = 8
+/// I38 · longest song (bars) and most sections; the kernel shares the tick limit.
+public let maximumSongBars = 128
+public let maximumSections = 16
+public let songTickLimit = maximumSongBars * barTicks
 public enum TrackRole: String, Codable, CaseIterable, Sendable { case harmony, drums, bass, melody
     public var instrument:Int {switch self{case .harmony:0;case .drums:1;case .bass:2;case .melody:3}}
 }
@@ -298,10 +302,10 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
     public func validate() throws {
         guard schemaVersion == Self.currentSchemaVersion else { throw MusicError.unsupportedSchema }
         guard (0...Self.maximumRevision).contains(revision),bpm.isFinite, (40...240).contains(bpm), (0..<12).contains(keyRoot), !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, name.count <= 120,
-              (1...8).contains(sections.count), (barTicks...64*barTicks).contains(length), tracks.count >= 2, tracks.count <= 8,
+              (1...maximumSections).contains(sections.count), (barTicks...songTickLimit).contains(length), tracks.count >= 2, tracks.count <= 8,
               bassGate.isFinite, (0.1...1).contains(bassGate), (-1...1).contains(bassOctave), master.isFinite, (-61...6).contains(master),
               tracks[0].role == .harmony, tracks[1].role == .drums, tracks.dropFirst(2).allSatisfy({$0.role == .bass || $0.role == .melody}), tracks.filter({$0.role == .bass}).count <= 1,
-              patterns.count <= 64, Set(patterns.map(\.id)).count == patterns.count, Set(sections.map(\.id)).count == sections.count,
+              patterns.count <= 128, Set(patterns.map(\.id)).count == patterns.count, Set(sections.map(\.id)).count == sections.count,
               Set(tracks.map(\.id)).count == tracks.count else { throw MusicError.invalidProject }
         guard (performanceTakes ?? []).count<=1 else{throw MusicError.limit}
         if let log=editLog{guard log.count<=32,log.allSatisfy({$0.count<=300}) else{throw MusicError.invalidProject}}
@@ -337,7 +341,7 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
         for p in patterns {ids += p.chords.map(\.id);ids += p.drums.map(\.id);ids += (p.notes ?? []).map(\.id)}
         guard Set(ids).count == ids.count else { throw MusicError.invalidProject }
         var end = 0
-        for s in sections { guard s.start == end, s.length > 0, s.length <= 64*barTicks, s.length % barTicks == 0, !s.name.isEmpty, s.name.count <= 120 else { throw MusicError.invalidProject }; end += s.length }
+        for s in sections { guard s.start == end, s.length > 0, s.length <= songTickLimit, s.length % barTicks == 0, !s.name.isEmpty, s.name.count <= 120 else { throw MusicError.invalidProject }; end += s.length }
         for p in patterns {
             guard p.length >= barTicks, p.length % barTicks == 0, p.length <= length, p.chords.count <= 256, p.drums.count <= 4096, (p.notes ?? []).count <= 4096 else { throw MusicError.invalidProject }
             var end = 0

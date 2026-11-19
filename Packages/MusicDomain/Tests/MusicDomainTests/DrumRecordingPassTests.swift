@@ -67,7 +67,7 @@ struct DrumRecordingPassTests {
             #expect(pass.events==[accepted])
         }
         #expect(throws:MusicError.self){try DrumRecordingPass(draft:recording,replacing:(-1)..<0)}
-        #expect(throws:MusicError.self){try DrumRecordingPass(draft:recording,replacing:0..<(64*barTicks+1))}
+        #expect(throws:MusicError.self){try DrumRecordingPass(draft:recording,replacing:0..<(songTickLimit+1))}
     }
 
     @Test func patternLimitIsCertifiedAndOverflowDoesNotAppend()throws {

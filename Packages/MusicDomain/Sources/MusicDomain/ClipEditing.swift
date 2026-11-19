@@ -27,7 +27,7 @@ public struct ArrangementDragPayload: Codable, Equatable, Sendable {
         guard text.utf8.count<=2048,text.hasPrefix(prefix),
               let data=Data(base64Encoded:String(text.dropFirst(prefix.count))),
               let value=try? JSONDecoder().decode(Self.self,from:data),
-              value.version==1,value.revision>=0,(0...64*barTicks).contains(value.grabOffset) else { throw ClipEditingError.invalidDrag }
+              value.version==1,value.revision>=0,(0...songTickLimit).contains(value.grabOffset) else { throw ClipEditingError.invalidDrag }
         return value
     }
     public func validate(in project: Project, kind: Kind) throws {
@@ -67,8 +67,8 @@ public enum ClipEditing {
     /// Expand loops and crop both ends. Empty source spans stay editable without
     /// drawing chord tiles beyond the clip or misidentifying a repeated event.
     public static func chordSlices(clip: Clip, pattern: Pattern) -> [ArrangementChordSlice] {
-        guard (barTicks...64*barTicks).contains(pattern.length),pattern.chords.count<=256,
-              clip.start>=0,clip.start<=64*barTicks,clip.length>0,clip.length<=64*barTicks-clip.start,
+        guard (barTicks...songTickLimit).contains(pattern.length),pattern.chords.count<=256,
+              clip.start>=0,clip.start<=songTickLimit,clip.length>0,clip.length<=songTickLimit-clip.start,
               clip.offset>=0,clip.offset<pattern.length,
               pattern.chords.allSatisfy({$0.tick>=0 && $0.tick<pattern.length && $0.duration>0 && $0.duration<=pattern.length-$0.tick}) else {return []}
         var source: [(ChordEvent?,Int,Int)]=[],cursor=0
@@ -99,7 +99,7 @@ public enum ClipEditing {
     }
     public static func snapped(_ value: Int, step: Int = barTicks) throws -> Int {
         guard (1...barTicks).contains(step) else { throw ClipEditingError.grid }
-        guard (0...64*barTicks).contains(value) else { throw ClipEditingError.bounds }
+        guard (0...songTickLimit).contains(value) else { throw ClipEditingError.bounds }
         return Int((Double(value)/Double(step)).rounded())*step
     }
     private static func source(_ payload: ArrangementDragPayload, in project: Project) throws -> (Int,Int) {
@@ -112,7 +112,7 @@ public enum ClipEditing {
         return (track,clip)
     }
     private static func extend(_ end: Int, allowed: Bool, project: inout Project) throws {
-        guard end>0,end<=64*barTicks else { throw ClipEditingError.bounds }
+        guard end>0,end<=songTickLimit else { throw ClipEditingError.bounds }
         if end<=project.length { return }
         guard allowed,!project.sections.isEmpty else { throw ClipEditingError.bounds }
         let newLength=((end+barTicks-1)/barTicks)*barTicks
@@ -166,7 +166,7 @@ public enum ClipEditing {
         guard project.tracks[sourceTrack].role==project.tracks[target].role else { throw ClipEditingError.incompatible }
         var clip=project.tracks[sourceTrack].clips[sourceClip]
         let tick=try snapped(start,step:snap)
-        guard clip.length<=64*barTicks-tick else { throw ClipEditingError.bounds }
+        guard clip.length<=songTickLimit-tick else { throw ClipEditingError.bounds }
         if !copy,sourceTrack==target,tick==clip.start { return }
         var candidate=project
         if copy {
@@ -182,7 +182,7 @@ public enum ClipEditing {
         try project.validate();let (track,index)=try source(payload,in:project)
         let duration=max(snap,try snapped(length,step:snap))
         let old=project.tracks[track].clips[index]
-        guard duration<=64*barTicks-old.start else { throw ClipEditingError.bounds }
+        guard duration<=songTickLimit-old.start else { throw ClipEditingError.bounds }
         if duration==old.length { return }
         var candidate=project;candidate.tracks[track].clips.remove(at:index)
         try extend(old.start+duration,allowed:extendingSong,project:&candidate)
@@ -207,7 +207,7 @@ public enum ClipEditing {
         guard let track=project.tracks.firstIndex(where:{$0.id==trackID}) else { throw ClipEditingError.missing }
         guard project.tracks[track].role != .bass else { throw ClipEditingError.derivedBass }
         let tick=try snapped(start,step:snap),duration=max(snap,try snapped(length,step:snap))
-        guard duration<=64*barTicks-tick else { throw ClipEditingError.bounds }
+        guard duration<=songTickLimit-tick else { throw ClipEditingError.bounds }
         var candidate=project;try extend(tick+duration,allowed:true,project:&candidate)
         try available(tick..<tick+duration,track:track,project:&candidate)
         let pattern=Pattern(length:max(barTicks,((duration+barTicks-1)/barTicks)*barTicks))
@@ -251,7 +251,7 @@ public enum SectionEditing {
         try project.validate()
         let title = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !title.isEmpty, title.count <= 120 else { throw MusicError.invalidProject }
-        guard (1...64).contains(bars), project.sections.count < 8,
+        guard (1...maximumSongBars).contains(bars), project.sections.count < maximumSections,
               bars <= 64 - project.length / barTicks else { throw MusicError.limit }
 
         var candidate = project
@@ -271,7 +271,7 @@ public enum SectionEditing {
         try project.validate()
         guard let index=project.sections.firstIndex(where:{$0.id==sectionID}) else { throw ClipEditingError.missing }
         let section=project.sections[index],insertion=section.start+section.length
-        guard project.sections.count<8,project.length<=64*barTicks-section.length else { throw MusicError.limit }
+        guard project.sections.count<maximumSections,project.length<=songTickLimit-section.length else { throw MusicError.limit }
         var candidate=project
         for track in project.tracks.indices {
             var output: [Clip]=[]

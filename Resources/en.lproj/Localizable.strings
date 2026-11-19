@@ -108,7 +108,7 @@
 "Rename section" = "Rename section";
 "Stop playback first" = "Stop playback first";
 "Stop the transport, then change the song structure." = "Stop the transport, then change the song structure.";
-"Duplicated sections have independent chords and drums. Up to 8 sections and 64 bars." = "Duplicated sections have independent chords and drums. Up to 8 sections and 64 bars.";
+"Duplicated sections have independent chords and drums. Up to 8 sections and 64 bars." = "Duplicated sections have independent chords and drums. Up to 16 sections and 128 bars.";
 "All instruments are ready. No downloads, no account, just your next idea." = "All instruments are ready. No downloads, no account, just your next idea.";
 "Export" = "Export";
 "Take your idea further." = "Take your idea further.";
@@ -119,7 +119,7 @@
 "For editing notes in your music software. Instrument sounds are not included in MIDI." = "For editing notes in your music software. Instrument sounds are not included in MIDI.";
 "Unrecognized chord. Choose a chord from the list." = "Unrecognized chord. Choose a chord from the list.";
 "This project was made with a newer version. The original has been preserved." = "This project was made with a newer version. The original has been preserved.";
-"A song can contain up to 8 sections and 64 bars." = "A song can contain up to 8 sections and 64 bars.";
+"A song can contain up to 8 sections and 64 bars." = "A song can contain up to 16 sections and 128 bars.";
 "This project has too many events." = "This project has too many events.";
 "The project contains invalid musical data." = "The project contains invalid musical data.";
 "Delete section" = "Delete section";
@@ -313,7 +313,7 @@
 "Play this project's instruments from a USB or Bluetooth MIDI controller. Mappings are saved with this project." = "Play this project's instruments from a USB or Bluetooth MIDI controller. Mappings are saved with this project.";
 "Project notes and live pads are sent to this destination. Incoming MIDI is not forwarded. Harmony uses channel 1, bass 2, drums 10, melodies 3–8." = "Project notes and live pads are sent to this destination. Incoming MIDI is not forwarded. Harmony uses channel 1, bass 2, drums 10, melodies 3–8.";
 "QA FIXTURE · SYNTHETIC SOURCE" = "QA FIXTURE · SYNTHETIC SOURCE";
-"Record starts again at the selected section. Up to 64 bars; a new take replaces the previous one with Undo." = "Record starts again at the selected section. Up to 64 bars; a new take replaces the previous one with Undo.";
+"Record starts again at the selected section. Up to 64 bars; a new take replaces the previous one with Undo." = "Record starts again at the selected section. Up to 128 bars; a new take replaces the previous one with Undo.";
 "Refresh & reconnect" = "Refresh & reconnect";
 "Release returns to the source position that kept moving underneath." = "Release returns to the source position that kept moving underneath.";
 "Remove" = "Remove";
@@ -361,7 +361,7 @@
 "Mixer and effects saved to the project." = "Mixer and effects saved to the project.";
 "Play the selected fragment once before using beat repeat." = "Play the selected fragment once before using beat repeat.";
 "The automation limit was reached. The recorded part has been kept." = "The automation limit was reached. The recorded part has been kept.";
-"The 64-bar performance limit was reached." = "The 64-bar performance limit was reached.";
+"The 64-bar performance limit was reached." = "The 128-bar performance limit was reached.";
 "The performance control queue is full. Try again." = "The performance control queue is full. Try again.";
 "Return to editing before changing the source project." = "Return to editing before changing the source project.";
 "Return to editing before recording a drum loop." = "Return to editing before recording a drum loop.";
@@ -530,7 +530,7 @@
 "Extensions" = "Extensions";
 "Harmony in every section will change. Rhythm and melody stay as written." = "Harmony in every section will change. Rhythm and melody stay as written.";
 "Jazz up this section" = "Jazz up this section";
-"Keep clips inside the 64-bar song limit." = "Keep clips inside the 64-bar song limit.";
+"Keep clips inside the 64-bar song limit." = "Keep clips inside the 128-bar song limit.";
 "Move clips" = "Move clips";
 "No microphone is available. Check the audio route and retry." = "No microphone is available. Check the audio route and retry.";
 "ON-DEVICE AI" = "ON-DEVICE AI";
@@ -964,7 +964,7 @@
 
 "This section request includes instructions the offline arranger cannot play yet." = "This section request includes instructions the offline arranger cannot play yet.";
 
-"Give each part a bar count. The song can contain up to 64 bars in total." = "Give each part a bar count. The song can contain up to 64 bars in total.";
+"Give each part a bar count. The song can contain up to 64 bars in total." = "Give each part a bar count. The song can contain up to 128 bars in total.";
 
 "Enter a chord progression for each part, for example A, Bb, C, D." = "Enter a chord progression for each part, for example A, Bb, C, D.";
 

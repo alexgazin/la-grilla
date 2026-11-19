@@ -49,8 +49,8 @@ private struct ProjectSummaryDocument: Decodable {
             let section = try sections.nestedContainer(keyedBy: SectionKeys.self)
             let start = try section.decode(Int.self, forKey: .start)
             let length = try section.decode(Int.self, forKey: .length)
-            guard start == end, length > 0, length <= 64 * barTicks,
-                  length % barTicks == 0, length <= 64 * barTicks - end else { throw MusicError.invalidProject }
+            guard start == end, length > 0, length <= songTickLimit,
+                  length % barTicks == 0, length <= songTickLimit - end else { throw MusicError.invalidProject }
             end += length
         }
         // A future frozen source must not appear compatible merely because the

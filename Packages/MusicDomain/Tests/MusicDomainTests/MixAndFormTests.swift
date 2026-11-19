@@ -69,3 +69,27 @@ struct RecentlyDeletedTests {
         #expect(await store.recentlyDeleted().isEmpty)
     }
 }
+
+struct LongSongTests {
+    @Test func songsUpTo128BarsAnd16SectionsValidateCompileAndPlay() async throws {
+        var project = Project(name: "Long", bars: maximumSongBars)
+        project.sections = (0..<maximumSections).map { Section(name: "Part \($0 + 1)", start: $0 * 8 * barTicks, length: 8 * barTicks) }
+        project.patterns[1].length = barTicks
+        project.patterns[1].drums = [DrumEvent(tick: 0, pad: 0), DrumEvent(tick: 1920, pad: 1)]
+        project.tracks[1].clips = [Clip(patternID: project.patterns[1].id, start: 0, length: songTickLimit)]
+        try project.validate()
+        let notes = Compiler.notes(project)
+        #expect(notes.count == maximumSongBars * 2 && notes.last!.tick == songTickLimit - 1920)
+        _ = try MIDIExporter.data(project, range: 0..<project.length)
+        // The last bar renders through the kernel.
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".wav")
+        defer { try? FileManager.default.removeItem(at: url) }
+        let receipt = try await OfflineRenderer.render(project, to: url, settings: WAVSettings(tailSeconds: 0), range: (songTickLimit - barTicks)..<songTickLimit)
+        #expect(receipt.peak > 0.01)
+        var tooLong = project; tooLong.sections[15].length += barTicks
+        #expect(throws: MusicError.self) { try tooLong.validate() }
+        var tooMany = project; tooMany.sections[15].length = 4 * barTicks
+        tooMany.sections.append(Section(name: "Extra", start: songTickLimit - 4 * barTicks, length: 4 * barTicks))
+        #expect(throws: MusicError.self) { try tooMany.validate() }
+    }
+}
