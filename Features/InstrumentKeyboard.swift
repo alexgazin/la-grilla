@@ -47,6 +47,9 @@ private struct InstrumentKeyboard: View {
     @AppStorage("keyboard.scaleOnly") private var scaleOnly = false
     @State private var sustain = false
     @AppStorage("keyboard.chordStrip") private var chordStrip = false
+    /// I30: step input writes an eighth note per key at a cursor that advances when all keys are up.
+    @State private var stepCursor: Int?
+    @State private var stepHeld: Set<Int> = []
 
     private var track: Track? {
         session.project.tracks.first { $0.id == (selectedTrackID ?? trackID) && $0.role != .drums }
@@ -103,6 +106,12 @@ private struct InstrumentKeyboard: View {
                             IconButton(symbol: "music.quarternote.3", label: "One-finger chords", color: chordStrip ? .mint : .muted) { resetKeys(); chordStrip.toggle() }
                                 .accessibilityValue(LocalizedStringKey(chordStrip ? "On" : "Off"))
                                 .accessibilityIdentifier("keyboard.chord-strip")
+                            if track.role == .melody {
+                                IconButton(symbol: "text.insert", label: "Step input", color: stepCursor != nil ? .mint : .muted) {
+                                    resetKeys(); stepCursor = stepCursor == nil ? 0 : nil; stepHeld = []
+                                }.accessibilityValue(Text(verbatim: stepCursor.map { MusicalPosition(tick: $0).description } ?? ""))
+                                    .accessibilityIdentifier("keyboard.step-input").disabled(take != nil)
+                            }
                             Spacer()
                             if track.role == .melody, let clip = sourceClip(track) {
                                 IconButton(symbol: take == nil ? "record.circle" : "stop.circle.fill",
@@ -257,6 +266,7 @@ private struct InstrumentKeyboard: View {
         if session.midi.playKey(pitch, down: down, track: track, index: index) {
             // The keybed connection can be created by this key; send the pedal state to it.
             if down && sustain { _ = session.midi.keyboardSustain(true) }
+            if stepCursor != nil { step(pitch, down: down, track: track) }
             if down, take != nil, finishTask == nil {
                 session.audio.refreshClock()
                 if let clip = sourceClip(track), recordingLength > 0 {
@@ -279,6 +289,27 @@ private struct InstrumentKeyboard: View {
     }
 
     private func changeOctave(_ delta: Int) { resetKeys(); root += delta }
+
+    private func step(_ pitch: Int, down: Bool, track: Track) {
+        guard var cursor = stepCursor, let clip = sourceClip(track) else { return }
+        let length = ppq / 2
+        if down {
+            stepHeld.insert(pitch)
+            let patternID = clip.patternID, at = cursor
+            session.edit { project in
+                guard let i = project.patterns.firstIndex(where: { $0.id == patternID }), at < project.patterns[i].length else { return }
+                let note = NoteEvent(tick: at, duration: min(length, project.patterns[i].length - at), pitch: pitch, velocity: KeyboardPerformance.velocity)
+                try NoteEditing.insert(note, into: &project.patterns[i], step: 1)
+            }
+        } else {
+            stepHeld.remove(pitch)
+            if stepHeld.isEmpty {
+                cursor += length
+                let patternLength = session.project.patterns.first { $0.id == clip.patternID }?.length ?? barTicks
+                stepCursor = cursor >= patternLength ? 0 : cursor
+            }
+        }
+    }
 
     private func setSustain(_ on: Bool) {
         sustain = on
