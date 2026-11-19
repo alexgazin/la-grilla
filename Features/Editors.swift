@@ -108,6 +108,7 @@ struct SettingsView: View {
         Section("Transport"){Toggle("Loop",isOn:Binding(get:{session.loop},set:{session.setLoop(enabled:$0)}));Picker("Loop length",selection:Binding(get:{session.loopBars},set:{session.setLoop(bars:$0)})){ForEach(session.loopLengthOptions,id:\.self){n in Text("\(n) bars").tag(n)}}}
         Section("MIDI"){Button("MIDI devices"){session.sheet = .midiDevices}}
         Section("Timing"){LatencyCalibrationRow(session:session)}
+        Section("Metronome"){MetronomeSettingsRows(audio:session.audio)}
         audioSettings
         Section("About La Grilla"){
             Button("Getting started"){session.sheet = .gettingStarted}.accessibilityIdentifier("settings.help")
@@ -445,6 +446,25 @@ private struct TapTempoRow: View {
 
 /// I01: tap along with the metronome; the median offset becomes this route's
 /// recording compensation. The live sound is never delayed.
+/// I10: metronome level, accent, sound and count-in only.
+private struct MetronomeSettingsRows: View {
+    @Bindable var audio: AudioController
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            LabeledContent("Level", value: String(format: NSLocalizedString("%+.0f dB", comment: "Metronome level"), audio.metronomeSettings.gainDB))
+            Slider(value: Binding(get: { audio.metronomeSettings.gainDB }, set: { audio.metronomeSettings.gainDB = ($0).rounded() }), in: -24...6, step: 1)
+                .accessibilityLabel("Metronome level").accessibilityIdentifier("settings.metronome.level")
+        }
+        Toggle("Accent the first beat", isOn: $audio.metronomeSettings.accent).accessibilityIdentifier("settings.metronome.accent")
+        Picker("Sound", selection: $audio.metronomeSettings.sound) {
+            Text("Beep").tag(MetronomeSettings.Sound.beep)
+            Text("High").tag(MetronomeSettings.Sound.high)
+            Text("Low").tag(MetronomeSettings.Sound.low)
+        }.accessibilityIdentifier("settings.metronome.sound")
+        Toggle("Only during the count-in", isOn: $audio.metronomeSettings.countInOnly).accessibilityIdentifier("settings.metronome.count-in-only")
+    }
+}
+
 private struct LatencyCalibrationRow: View {
     @Bindable var session: Session
     @State private var running = false

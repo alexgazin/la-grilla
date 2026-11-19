@@ -270,6 +270,7 @@ private enum AudioRender {
             stage="connect-source"
             e.attach(node);e.connect(node,to:e.mainMixerNode,format:format)
             try startOutputGraph(e,stage:&stage)
+            metronomeSettings.apply(to: h.pointer)
             handle=h;source=node;engine=e;submittedNotes=nil;pendingEngine=nil
             observeConfiguration(of:e)
             timer?.invalidate();timer=Timer.scheduledTimer(withTimeInterval:1/30,repeats:true){[weak self] _ in
@@ -524,6 +525,7 @@ private enum AudioRender {
             }
         } catch { self.error = error.localizedDescription; return false }
         guard ok != 0 else{error="Audio update could not be queued. Stop and retry.";return false}
+        p.applyDynamics(to: k)
         lg_tail_on_end(k, !loop && p.hasComposedEnding == true ? 1 : 0)
         generation=next;sentRevisions[next]=p.revision;routing[next]=midiRouting(p)
         pruneRouting(k)
@@ -565,6 +567,7 @@ private enum AudioRender {
         let tracks=trackMix(p)
         let fx=p.masterFX ?? MasterFX()
         let accepted=tracks.withUnsafeBufferPointer{lg_mix_revision_eq(k,$0.baseAddress,Int32($0.count),Float(p.master),Float(fx.filter),Float(fx.delayWet),Int32(generation),p.equalizerBands())} != 0
+        if accepted{p.applyDynamics(to: k)}
         if !accepted{error="Audio update could not be queued. Stop and retry."};return accepted
     }
     func play(countInBPM: Double? = nil) {
@@ -622,7 +625,19 @@ private enum AudioRender {
     func drainPerformance()->[LGPerformanceEvent]{guard let k=handle?.pointer else{return []};var result:[LGPerformanceEvent]=[];while true{let count=performanceBuffer.withUnsafeMutableBufferPointer{lg_perform_pop(k,$0.baseAddress,Int32($0.count))};if count==0{break};result.append(contentsOf:performanceBuffer.prefix(Int(count)))};return result}
     func effects(_ fx:MasterFX){if let k=handle?.pointer{lg_effects(k,Float(fx.filter),Float(fx.delayWet))}}
     func panic(){if let k=handle?.pointer{lg_panic(k)};playing=false}
-    func metronome(_ on: Bool) {if let k = handle?.pointer {lg_metronome(k,on ? 1 : 0)}}
+    /// I10: level, accent, sound and count-in-only, kept in UserDefaults.
+    var metronomeSettings = AudioController.storedMetronome {
+        didSet {
+            if let data = try? JSONEncoder().encode(metronomeSettings) { UserDefaults.standard.set(data, forKey: "metronome.settings") }
+            if let k = handle?.pointer { metronomeSettings.apply(to: k); lg_metronome(k, metronomeOn && !metronomeSettings.countInOnly ? 1 : 0) }
+        }
+    }
+    private static var storedMetronome: MetronomeSettings {
+        guard let data = UserDefaults.standard.data(forKey: "metronome.settings"), let value = try? JSONDecoder().decode(MetronomeSettings.self, from: data) else { return MetronomeSettings() }
+        return MetronomeSettings(gainDB: value.gainDB, accent: value.accent, sound: value.sound, countInOnly: value.countInOnly)
+    }
+    private var metronomeOn = false
+    func metronome(_ on: Bool) {metronomeOn=on;if let k = handle?.pointer {metronomeSettings.apply(to: k);lg_metronome(k,on && !metronomeSettings.countInOnly ? 1 : 0)}}
     func invalidateMusicSnapshot(){submittedNotes=nil}
     func reset() {
         musicCompilationCache.reset()

@@ -234,6 +234,8 @@ public struct Track: Codable, Equatable, Identifiable, Sendable {
     /// I39: a locked part is kept by generators, palettes and phrase edits.
     /// Absent in older files (= unlocked); older apps ignore it.
     public var locked: Bool?
+    /// I5 · I56 · I57: choke groups, sidechain and insert colour; nil = neutral.
+    public var dynamics: TrackDynamics?
     public init(role: TrackRole) { self.role = role }
 }
 public struct Section: Codable, Equatable, Identifiable, Sendable {
@@ -294,6 +296,7 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
               Set(tracks.map(\.id)).count == tracks.count else { throw MusicError.invalidProject }
         guard (performanceTakes ?? []).count<=1 else{throw MusicError.limit}
         if let log=editLog{guard log.count<=32,log.allSatisfy({$0.count<=300}) else{throw MusicError.invalidProject}}
+        for track in tracks{try track.dynamics?.validate()}
         try midi?.validate(self)
         try masterEQ?.validate()
         try masterFX?.validate();try performanceTake?.validate()

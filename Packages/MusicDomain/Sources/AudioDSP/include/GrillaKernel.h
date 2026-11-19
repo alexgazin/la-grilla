@@ -96,6 +96,20 @@ float lg_filter_target(LGKernel *k);
 float lg_delay_target(LGKernel *k);
 void lg_tail_on_end(LGKernel *k, int enabled);
 void lg_metronome(LGKernel *k, int enabled);
+// I10: metronome level (-24...+6 dB), downbeat accent (0/1) and sound
+// (0 beep, 1 high, 2 low). The defaults (0, 1, 0) are the original click.
+// Applies to the count-in too. Returns 0 for invalid values.
+int lg_metronome_config(LGKernel *k, float gainDB, int accent, int sound);
+// Ideas I5, I56, I57, I59: per-track choke groups (0 = none; pads in the same
+// group silence each other), sidechain ducking from the kick pad (0...12 dB),
+// saturation drive (0...1) and bit depth (0 off, else 4...16); a master
+// look-ahead limiter (ceiling -12...0 dBFS). All-zero tracks and a disabled
+// limiter leave the output bit-identical. Index order follows the project
+// tracks; values are adopted at the next sample. Returns 0 if invalid.
+typedef struct { int32_t choke[16]; float sidechainDB, drive; int32_t crushBits; } LGTrackDynamics;
+int lg_dynamics(LGKernel *k, const LGTrackDynamics *tracks, int count, int limiter, float ceilingDB);
+// Frames of look-ahead delay the limiter adds while enabled (0 when off).
+int lg_limiter_latency(LGKernel *k);
 void lg_render(LGKernel *k, float *left, float *right, int frames);
 void lg_render_midi(LGKernel *k,LGMIDIHub *hub,uint64_t hostTime,double hostTicksPerSecond,float *left,float *right,int frames);
 // Serialized control owner: request a fresh measurement, adopted by the next

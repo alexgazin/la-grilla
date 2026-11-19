@@ -2,7 +2,9 @@ import Foundation
 
 public struct MasterFX:Codable,Equatable,Sendable {
     public var filter:Double;public var delayWet:Double
-    public init(filter:Double=0,delayWet:Double=0){self.filter=filter;self.delayWet=delayWet}
+    /// I59: master look-ahead limiter at -1 dBFS. Nil/false = off (older files).
+    public var limiter:Bool?
+    public init(filter:Double=0,delayWet:Double=0,limiter:Bool?=nil){self.filter=filter;self.delayWet=delayWet;self.limiter=limiter}
     public func validate()throws{guard filter.isFinite,(-1...1).contains(filter),delayWet.isFinite,(0...0.5).contains(delayWet)else{throw MusicError.invalidProject}}
 }
 public struct PerformanceEvent:Codable,Equatable,Sendable {

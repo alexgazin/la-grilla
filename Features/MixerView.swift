@@ -153,11 +153,52 @@ struct MixerView: View {
                     let id = track.id
                     session.edit { p in if let i = p.tracks.firstIndex(where: { $0.id == id }) { p.tracks[i].locked = p.tracks[i].locked == true ? nil : true } }
                 }
+                dynamicsMenu(track)
             } label: { headingLabel(track: track, color: color) }
                 .accessibilityIdentifier("mixer.track-menu.\(track.role.rawValue)")
                 .disabled(session.performance.contextActive)
         } else {
-            headingLabel(track: nil, color: color)
+            // I59: a look-ahead limiter keeps the master under −1 dBFS (live and export).
+            Menu {
+                Toggle("Limiter at −1 dBFS", isOn: Binding(get: { session.project.masterFX?.limiter == true }, set: { on in
+                    session.edit { p in var fx = p.masterFX ?? MasterFX(); fx.limiter = on ? true : nil; p.masterFX = fx }
+                }))
+            } label: { headingLabel(track: nil, color: color) }
+                .accessibilityIdentifier("mixer.master-menu")
+                .disabled(session.performance.contextActive)
+        }
+    }
+
+    /// I5 · I56 · I57: per-part colour and dynamics, each one undoable edit.
+    @ViewBuilder private func dynamicsMenu(_ track: Track) -> some View {
+        let value = track.dynamics ?? TrackDynamics()
+        if track.role == .drums {
+            Toggle("Hats choke each other", isOn: Binding(get: { value.chokeGroups.contains([2, 3]) }, set: { on in
+                setDynamics(track.id) { d in d.chokeGroups.removeAll { $0 == [2, 3] }; if on { d.chokeGroups.append([2, 3]) } }
+            }))
+            Toggle("Crash and ride choke each other", isOn: Binding(get: { value.chokeGroups.contains([9, 10]) }, set: { on in
+                setDynamics(track.id) { d in d.chokeGroups.removeAll { $0 == [9, 10] }; if on { d.chokeGroups.append([9, 10]) } }
+            }))
+        } else {
+            Picker("Duck under the kick", selection: Binding(get: { value.sidechainDB }, set: { db in setDynamics(track.id) { $0.sidechainDB = db } })) {
+                Text("Off").tag(0.0)
+                ForEach([3.0, 6.0, 9.0, 12.0], id: \.self) { db in Text(String(format: NSLocalizedString("%.0f dB", comment: "Sidechain depth"), db)).tag(db) }
+            }
+        }
+        Picker("Drive", selection: Binding(get: { value.drive }, set: { amount in setDynamics(track.id) { $0.drive = amount } })) {
+            Text("Off").tag(0.0); Text("Light").tag(0.3); Text("Heavy").tag(0.7)
+        }
+        Picker("Bit depth", selection: Binding(get: { value.crushBits }, set: { bits in setDynamics(track.id) { $0.crushBits = bits } })) {
+            Text("Off").tag(0); Text("12-bit").tag(12); Text("8-bit").tag(8)
+        }
+    }
+
+    private func setDynamics(_ id: UUID, _ change: @escaping (inout TrackDynamics) -> Void) {
+        session.edit { p in
+            guard let i = p.tracks.firstIndex(where: { $0.id == id }) else { return }
+            var d = p.tracks[i].dynamics ?? TrackDynamics()
+            change(&d)
+            p.tracks[i].dynamics = d.isNeutral ? nil : d
         }
     }
 
