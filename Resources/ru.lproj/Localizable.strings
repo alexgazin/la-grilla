@@ -1295,3 +1295,8 @@
 "Restyle the chords on %@ in %@" = "Новый стиль аккордов: %@ · %@";
 "Show other parts" = "Показывать другие партии";
 "Step input" = "Пошаговый ввод";
+"Change it in your words" = "Измените словами";
+"Tell the Assistant “remove the kick in the first two bars”. Hear before and after, then apply with one Undo." = "Скажите ассистенту «убери бочку в первых двух тактах». Послушайте до и после и примените — отменяется одним действием.";
+"Try a palette" = "Попробуйте палитру";
+"Boom bap, West Coast or atmospheric chillhop on your own part, at matched loudness." = "Boom bap, West Coast или атмосферный chillhop на вашей партии при одинаковой громкости.";
+"Find your balance in Mixer, then export MIDI, WAV, stems or AAC to your DAW." = "Найдите баланс в микшере и экспортируйте MIDI, WAV, стемы или AAC в свою DAW.";
