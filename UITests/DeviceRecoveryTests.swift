@@ -208,46 +208,54 @@ final class DeviceRecoveryTests: XCTestCase {
         keepScreenshot("DeviceRecovery-injected-audio-failure-midi-share")
     }
 
-    @MainActor func testUnavailableAIReviewsLocalHarmonyAndAppliesUndo() {
-        let app = launch()
+    @MainActor func testUnavailableAIReviewsLocalHarmonyAndAppliesUndo() throws {
+        // This journey opens the chord editor twice after a real Apply and Undo.
+        // On a loaded Simulator the original two minutes expired during Apply.
+        executionTimeAllowance = 180
+        let app = launch(arguments: ["--device-output-startup"])
         let chord = firstChord(in: app)
-        XCTAssertTrue(chord.waitForExistence(timeout: 5))
-        let original = chord.label
-        XCTAssertFalse(app.buttons["Undo"].isEnabled)
+        XCTAssertTrue(chord.exists || chord.waitForExistence(timeout: 5))
+        let initial = try jazzPhase(app)
+        let original = try XCTUnwrap(initial.firstChord?.label)
+        XCTAssertEqual(initial.undo?.isEnabled, false)
         app.buttons["assistant.open"].tap()
         XCTAssertTrue(app.navigationBars["Assistant"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["assistant.use-commands"].exists, "This case requires the Simulator's actual unavailable model")
         app.buttons["On-device AI"].tap()
         chooseExample("assistant.example.jazzify", in: app)
         let generate = app.buttons["assistant.generate"]
-        revealFully(generate, in: app)
+        revealJazzControl(generate, identifier: "assistant.generate", in: app)
         generate.tap()
+
         let fallback = app.staticTexts["assistant.local-fallback"]
-        revealFully(fallback, in: app)
-        XCTAssertEqual(fallback.label, "Reviewed with Commands because on-device AI is unavailable.")
-        XCTAssertTrue(app.staticTexts["LOCAL"].exists)
-        XCTAssertFalse(app.staticTexts["ON-DEVICE AI"].exists)
+        revealJazzControl(fallback, identifier: "assistant.local-fallback", type: .staticText, in: app)
+        let reviewed = try jazzPhase(app)
+        XCTAssertEqual(reviewed.element("assistant.local-fallback", type: .staticText)?.label, "Reviewed with Commands because on-device AI is unavailable.")
+        XCTAssertTrue(reviewed.hasText("LOCAL"))
+        XCTAssertFalse(reviewed.hasText("ON-DEVICE AI"))
         let before = app.staticTexts["assistant.harmony.before.0.0"]
-        let after = app.staticTexts["assistant.harmony.after.0.0"]
-        revealFully(before, in: app)
-        XCTAssertEqual(before.label, "C")
-        XCTAssertEqual(after.label, "Cmaj9")
+        revealJazzControl(before, identifier: "assistant.harmony.before.0.0", type: .staticText, in: app)
+        let proposed = try jazzPhase(app)
+        XCTAssertEqual(proposed.element("assistant.harmony.before.0.0", type: .staticText)?.label, "C")
+        XCTAssertEqual(proposed.element("assistant.harmony.after.0.0", type: .staticText)?.label, "Cmaj9")
         keepScreenshot("DeviceRecovery-unavailable-ai-local-harmony-review")
         let apply = app.buttons["assistant.apply"]
-        revealFully(apply, in: app)
+        revealJazzControl(apply, identifier: "assistant.apply", in: app)
         apply.tap()
         wait(app.navigationBars["Assistant"]) { !app.navigationBars["Assistant"].exists }
-        wait(chord) { chord.exists && chord.isHittable }
-        XCTAssertTrue(app.buttons["Undo"].isEnabled)
+        wait(chord) { chord.isHittable }
+        let undo = app.buttons["Undo"]
+        XCTAssertTrue(undo.isEnabled)
         chord.tap()
         let symbol = app.textFields["chord.symbol"]
         XCTAssertTrue(symbol.waitForExistence(timeout: 5))
         XCTAssertEqual(symbol.value as? String, "Cmaj9")
         app.buttons["Cancel"].tap()
         wait(app.navigationBars["Edit chord"]) { !app.navigationBars["Edit chord"].exists }
-        app.buttons["Undo"].tap()
-        XCTAssertFalse(app.buttons["Undo"].isEnabled)
-        XCTAssertEqual(chord.label, original)
+        undo.tap()
+        let restored = try jazzPhase(app)
+        XCTAssertEqual(restored.undo?.isEnabled, false)
+        XCTAssertEqual(restored.firstChord?.label, original)
         chord.tap()
         XCTAssertTrue(symbol.waitForExistence(timeout: 5))
         XCTAssertEqual(symbol.value as? String, "C")

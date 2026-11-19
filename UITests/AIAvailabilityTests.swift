@@ -149,39 +149,6 @@ final class AIAvailabilityTests:XCTestCase {
                    name:"AuthorizedInput-ai-local-jazz-apply-undo-scope")
     }
 
-    /// One public hierarchy observation per UI phase. Only short labels and
-    /// geometry are read here; full runtime values still use transport.value.
-    @MainActor private struct JazzPhase {
-        let frame:CGRect
-        let elements:[any XCUIElementSnapshot]
-        func element(_ identifier:String,type:XCUIElement.ElementType)->(any XCUIElementSnapshot)?{
-            elements.first{$0.elementType==type && $0.identifier==identifier}
-        }
-        var firstChord:(any XCUIElementSnapshot)?{elements.first{$0.elementType == .button && $0.identifier.hasPrefix("grid.chord.")}}
-        var undo:(any XCUIElementSnapshot)?{elements.first{$0.elementType == .button && $0.label=="Undo"}}
-        func hasText(_ label:String)->Bool{elements.contains{$0.elementType == .staticText && $0.label==label}}
-    }
-
-    @MainActor private func jazzPhase(_ app:XCUIApplication)throws->JazzPhase {
-        let root=try app.snapshot()
-        var pending:[any XCUIElementSnapshot]=[root],elements:[any XCUIElementSnapshot]=[]
-        while let element=pending.popLast(){elements.append(element);pending.append(contentsOf:element.children.reversed())}
-        return JazzPhase(frame:root.frame,elements:elements)
-    }
-
-    @MainActor private func revealJazzControl(_ element:XCUIElement,identifier:String,type:XCUIElement.ElementType = .button,in app:XCUIApplication){
-        let scroll=app.scrollViews["assistant.review-scroll"]
-        for _ in 0..<8 {
-            guard let observed=try? jazzPhase(app)else{XCTFail("Actual Assistant hierarchy is unavailable");return}
-            let viewport=observed.element("assistant.review-scroll",type:.scrollView)?.frame.intersection(observed.frame) ?? .null
-            let frame=observed.element(identifier,type:type)?.frame ?? .null
-            if !frame.isNull,!frame.isEmpty,frame.minY>=viewport.minY+8,frame.maxY<=viewport.maxY-8,element.isHittable{return}
-            if !frame.isNull,frame.height>0,frame.minY<viewport.minY+8{scroll.swipeDown()}
-            else{scroll.swipeUp()}
-        }
-        XCTFail("The actual Assistant control was not fully visible: \(identifier)")
-    }
-
     @MainActor private func launch()->XCUIApplication {
         XCUIDevice.shared.orientation = .portrait
         let app=XCUIApplication()
@@ -271,5 +238,40 @@ final class AIAvailabilityTests:XCTestCase {
     private func keepReport(_ text:String,name:String){
         let attachment=XCTAttachment(string:text)
         attachment.name=name;attachment.lifetime = .keepAlways;add(attachment)
+    }
+}
+
+extension XCTestCase {
+    /// One public hierarchy observation per UI phase. Only short labels and
+    /// geometry are read here; full runtime values still use transport.value.
+    @MainActor struct JazzPhase {
+        let frame:CGRect
+        let elements:[any XCUIElementSnapshot]
+        func element(_ identifier:String,type:XCUIElement.ElementType)->(any XCUIElementSnapshot)?{
+            elements.first{$0.elementType==type && $0.identifier==identifier}
+        }
+        var firstChord:(any XCUIElementSnapshot)?{elements.first{$0.elementType == .button && $0.identifier.hasPrefix("grid.chord.")}}
+        var undo:(any XCUIElementSnapshot)?{elements.first{$0.elementType == .button && $0.label=="Undo"}}
+        func hasText(_ label:String)->Bool{elements.contains{$0.elementType == .staticText && $0.label==label}}
+    }
+
+    @MainActor func jazzPhase(_ app:XCUIApplication)throws->JazzPhase {
+        let root=try app.snapshot()
+        var pending:[any XCUIElementSnapshot]=[root],elements:[any XCUIElementSnapshot]=[]
+        while let element=pending.popLast(){elements.append(element);pending.append(contentsOf:element.children.reversed())}
+        return JazzPhase(frame:root.frame,elements:elements)
+    }
+
+    @MainActor func revealJazzControl(_ element:XCUIElement,identifier:String,type:XCUIElement.ElementType = .button,in app:XCUIApplication){
+        let scroll=app.scrollViews["assistant.review-scroll"]
+        for _ in 0..<8 {
+            guard let observed=try? jazzPhase(app)else{XCTFail("Actual Assistant hierarchy is unavailable");return}
+            let viewport=observed.element("assistant.review-scroll",type:.scrollView)?.frame.intersection(observed.frame) ?? .null
+            let frame=observed.element(identifier,type:type)?.frame ?? .null
+            if !frame.isNull,!frame.isEmpty,frame.minY>=viewport.minY+8,frame.maxY<=viewport.maxY-8,element.isHittable{return}
+            if !frame.isNull,frame.height>0,frame.minY<viewport.minY+8{scroll.swipeDown()}
+            else{scroll.swipeUp()}
+        }
+        XCTFail("The actual Assistant control was not fully visible: \(identifier)")
     }
 }
