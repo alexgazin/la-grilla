@@ -12,4 +12,4 @@
 
 [Клавиатура после выбора электропиано](keyboard-electric-piano.png) · [Проверка записи C5 и Undo](https://github.com/alexgazin/la-grilla/actions/runs/44540267008)
 
-[Прогон на симуляторе](https://github.com/alexgazin/la-grilla/actions/runs/44533585136) · [Скачать три проекта и послушать треки](../../Media/Grooves/Arranger41/README.md)
+[Исходная проверка проектов](https://github.com/alexgazin/la-grilla/actions/runs/44533585136) · [Кадры обновлённой партитуры](https://github.com/alexgazin/la-grilla/actions/runs/44540085117) · [Полная проверка сборки](https://github.com/alexgazin/la-grilla/actions/runs/44544811733) · [Скачать три проекта и послушать треки](../../Media/Grooves/Arranger41/README.md)
