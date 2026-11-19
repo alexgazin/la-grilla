@@ -196,12 +196,23 @@ final class SoundPickerUITests:XCTestCase {
         XCTAssertNotEqual(trimmed, original)
         let editedFrames = try previewFrames()
         XCTAssertLessThan(editedFrames, originalFrames, "The trimmed preview must submit a shorter buffer for playback")
-        app.sliders["Sample gain"].adjust(toNormalizedSliderPosition: 1)
+        // A normalized XCUI slider drag travels different distances on different
+        // simulator sizes. The musician's gain nudge is exactly half a dB.
+        let louder = app.buttons["pad-editor.gain.plus"]
+        for direction in ["minus", "plus"] {
+            let frame = app.buttons["pad-editor.gain." + direction].frame
+            XCTAssertGreaterThanOrEqual(frame.width, 44)
+            XCTAssertGreaterThanOrEqual(frame.height, 44)
+        }
+        for _ in 0..<10 { louder.tap() }
+        XCTAssertEqual(app.staticTexts["pad-editor.gain.value"].label, "5 dB")
         let correction = app.buttons["pad-editor.headroom"]
         XCTAssertTrue(correction.waitForExistence(timeout: 10))
         let peak = app.descendants(matching: .any)["pad-editor.peak"]
         let clippedPeak = peak.label
         XCTAssertTrue(clippedPeak.contains("clipped frames"), clippedPeak)
+        let clippedLevel = try XCTUnwrap(clippedPeak.split(separator: " ").dropFirst().first.flatMap { Double($0) })
+        XCTAssertGreaterThanOrEqual(clippedLevel, 1)
         correction.tap()
         let corrected = NSPredicate(format: "identifier == 'pad-editor.peak' AND NOT (label CONTAINS 'clipped frames')")
         let correctedPeak = app.descendants(matching: .any).matching(corrected).firstMatch
