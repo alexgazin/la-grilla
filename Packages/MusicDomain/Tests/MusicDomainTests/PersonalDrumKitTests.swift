@@ -153,7 +153,7 @@ struct PersonalDrumKitTests {
         #expect(record.source != track.padSamples?[1] && record.source == track.padSamples?[0])
         try record.validate(rendered: track.padSamples?[1])
         let retained = Set((track.padSamples ?? [:]).values).union([record.source])
-        let again = try await store.preparePersonalKit(kit, projectID: destination, retaining: retained)
+        let again = try await store.preparePersonalKit(kit, projectID: destination, retaining: retained, replacing: track)
         #expect(again.staged.isEmpty)
         let previous = track
         try again.apply(to: &track)

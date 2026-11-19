@@ -137,7 +137,8 @@ public extension ProjectStore {
         return try PersonalDrumKit(manifest: .init(version: 1, summary: summary, preset: track.presetVersion, pads: pads, edits: edits), blobs: blobs)
     }
 
-    func preparePersonalKit(_ kit: PersonalDrumKit, projectID: UUID, retaining: Set<SampleAsset>) throws -> PreparedPersonalKit {
+    func preparePersonalKit(_ kit: PersonalDrumKit, projectID: UUID, retaining: Set<SampleAsset>,
+                            replacing track: Track? = nil) throws -> PreparedPersonalKit {
         let m = kit.manifest
         var banks: [PreparedSampleBank] = [], staged: [SampleAsset] = []
         var mapped: [UUID: SampleAsset] = [:]
@@ -145,6 +146,15 @@ public extension ProjectStore {
         for record in m.edits.values {
             distinct[record.source.id, default: []].insert(record.renderedID)
             distinct[record.renderedID, default: []].insert(record.source.id)
+        }
+        var preferred: [UUID: SampleAsset] = [:]
+        for pad in 0..<16 {
+            if let original = m.pads[pad], let current = track?.padSamples?[pad], retaining.contains(current) {
+                preferred[original.id] = current
+            }
+            if let original = m.edits[pad]?.source, let current = track?.padEdits?[pad]?.source, retaining.contains(current) {
+                preferred[original.id] = current
+            }
         }
         let candidates = retaining.sorted { $0.id.uuidString < $1.id.uuidString }
         do {
@@ -155,13 +165,15 @@ public extension ProjectStore {
                 func matches(_ other: SampleAsset) -> Bool {
                     !excluded.contains(other.id) && other.kind == .oneShot && other.name == asset.name && other.sha256 == asset.sha256
                 }
-                if let exact = candidates.first(where: { $0.id == asset.id && matches($0) }) {
-                    bank = try storedSampleBank(exact, projectID: projectID)
-                } else if let existing = banks.first(where: { matches($0.asset) }) {
-                    mapped[asset.id] = existing.asset
-                    continue
-                } else if let existing = candidates.first(where: matches) {
-                    bank = try storedSampleBank(existing, projectID: projectID)
+                let current = preferred[asset.id].flatMap { matches($0) ? $0 : nil }
+                let reused = current ?? candidates.first(where: { $0.id == asset.id && matches($0) })
+                    ?? banks.first(where: { matches($0.asset) })?.asset ?? candidates.first(where: matches)
+                if let reused {
+                    if banks.contains(where: { $0.asset == reused }) {
+                        mapped[asset.id] = reused
+                        continue
+                    }
+                    bank = try storedSampleBank(reused, projectID: projectID)
                 } else {
                     guard let data = kit.blobs[asset.sha256] else { throw SampleError.invalid }
                     let fresh = try SampleAsset(kind: .oneShot, name: asset.name, bytes: data)

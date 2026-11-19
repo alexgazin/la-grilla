@@ -903,9 +903,9 @@ import Observation
 
     func loadPersonalKit(_ id: UUID, trackID: UUID, projectID: UUID, revision: Int) async throws {
         let kit = try await personalKits.load(id)
-        _ = try kitTrack(trackID, projectID: projectID, revision: revision)
+        let target = try kitTrack(trackID, projectID: projectID, revision: revision)
         let retained = history.retainedSamples.union(project.referencedSamples)
-        let prepared = try await store.preparePersonalKit(kit, projectID: projectID, retaining: retained)
+        let prepared = try await store.preparePersonalKit(kit, projectID: projectID, retaining: retained, replacing: project.tracks[target])
         do {
             try Task.checkCancellation()
             let index = try kitTrack(trackID, projectID: projectID, revision: revision)
