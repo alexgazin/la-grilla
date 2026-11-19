@@ -85,20 +85,17 @@ struct PaletteView: View {
                 Text(String(format: NSLocalizedString("Master delay: %.2f (the master level is unchanged)", comment: "Palettes"), delay)).font(.caption).foregroundStyle(Color.muted)
             }
             if stale {
-                Label("The project changed. Compare again before applying.", systemImage: "exclamationmark.arrow.circlepath").font(.caption).foregroundStyle(Color.harmony)
+                LuzNotice(kind: .caution, symbol: "exclamationmark.arrow.circlepath", text: "The project changed. Compare again before applying.")
             } else {
-                HStack(spacing: 10) {
-                    Button { previewB = false; session.previewAssistant(session.project, wholeSong: false, sectionID: section.id, rangeOverride: range, loopOverride: true) } label: {
-                        Text("A · Current").frame(maxWidth: .infinity, minHeight: 48)
-                            .background(session.harmonyPreview && !previewB ? Color.mint.opacity(0.2) : Color.raised, in: RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous))
-                    }.accessibilityIdentifier("palettes.a")
-                    Button { previewB = true; if let library { session.previewPalette(result.candidate, range: range, samples: library) } } label: {
-                        Text("B · Palette").frame(maxWidth: .infinity, minHeight: 48)
-                            .background(session.harmonyPreview && previewB ? Color.mint.opacity(0.2) : Color.raised, in: RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous))
-                    }.accessibilityIdentifier("palettes.b")
-                }
-                if session.harmonyPreview { Button("Stop preview") { session.endHarmonyPreview() }.frame(minHeight: 44).accessibilityIdentifier("palettes.stop") }
+                ABCompare(playing: session.harmonyPreview ? (previewB ? .b : .a) : nil, b: "B · Palette",
+                          audition: { side in
+                              if side == .a { previewB = false; session.previewAssistant(session.project, wholeSong: false, sectionID: section.id, rangeOverride: range, loopOverride: true) }
+                              else { previewB = true; if let library { session.previewPalette(result.candidate, range: range, samples: library) } }
+                          },
+                          stop: { session.endHarmonyPreview() },
+                          identifiers: ("palettes.a", "palettes.b", "palettes.stop"))
                 Button { apply(result) } label: { Text("Apply palette") }.buttonStyle(StudioActionStyle()).accessibilityIdentifier("palettes.apply")
+                    .padding(.top, 4)
                 Text("One Undo restores the previous sounds.").font(.caption).foregroundStyle(Color.muted)
             }
         }
@@ -198,7 +195,7 @@ private struct MissingSoundRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
             Label(String(format: NSLocalizedString("%@ is missing on %@", comment: "Missing sound"), item.name, track), systemImage: "exclamationmark.triangle")
-                .font(.caption.weight(.semibold)).foregroundStyle(Color.harmony)
+                .font(.caption.weight(.semibold)).foregroundStyle(Color.studioText)
             Text(verbatim: item.remedy).font(.caption).foregroundStyle(Color.muted)
         }
     }

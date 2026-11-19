@@ -19,9 +19,9 @@ struct ExportView:View {
     var body:some View {
         NavigationStack {
             ScrollView {VStack(alignment:.leading,spacing:18){
-                Text(LocalizedStringKey(take==nil ? "Take your idea further.":"Export your performance.")).font(.system(.title2,weight:.semibold)).tracking(-0.6)
+                Text(LocalizedStringKey(take==nil ? "Take your idea further.":"Export your performance.")).font(StudioTypography.title.width(.expanded)).tracking(-0.6)
                 LazyVGrid(columns:[GridItem(.flexible()),GridItem(.flexible())],spacing:10){ForEach(formats){option in
-                    Button{format=option}label:{Text(LocalizedStringKey(option.title)).font(.system(.subheadline,weight:.semibold)).frame(maxWidth:.infinity,minHeight:48).foregroundStyle(format==option ? Color.ink:Color.studioText).background(format==option ? Color.mint:Color.panel,in:RoundedRectangle(cornerRadius:Luz.Radius.card,style:.continuous))}.buttonStyle(StudioQuietButtonStyle()).accessibilityIdentifier("format."+option.rawValue)
+                    Button{if format != option{Luz.Haptics.selection()};withAnimation(Luz.Motion.snap){format=option}}label:{VStack(spacing:6){Image(systemName:symbol(option)).font(StudioTypography.icon).accessibilityHidden(true);Text(LocalizedStringKey(option.title)).font(StudioTypography.action).multilineTextAlignment(.center)}.frame(maxWidth:.infinity,minHeight:72).foregroundStyle(format==option ? Color.ink:Color.studioText).background(format==option ? Color.mint:Color.panel,in:RoundedRectangle(cornerRadius:Luz.Radius.card,style:.continuous))}.buttonStyle(StudioQuietButtonStyle(radius:Luz.Radius.card)).accessibilityIdentifier("format."+option.rawValue)
                 }}.disabled(session.exportInProgress)
                 if format != .project && take==nil {
                     StudioSegments(title:"Range",selection:$scope,options:[(0,"Entire song"),(1,"Selected section"),(2,"Bars")]).disabled(session.exportInProgress)
@@ -41,6 +41,9 @@ struct ExportView:View {
         }.presentationDetents([.large])
         .onAppear{if take != nil{tail=0};if let preset=session.exportPreset,let selected=Session.ExportFormat(rawValue:preset){format=selected;session.exportPreset=nil};lastBar=session.project.length/barTicks;tracks=Set(project.tracks.map(\.id))}
         .onDisappear{if session.exportInProgress{session.cancelExport()}}
+    }
+    private func symbol(_ format:Session.ExportFormat)->String {
+        switch format{case .midi:"pianokeys";case .wav:"waveform";case .stems:"square.stack.3d.up";case .project:"folder";case .aac:"music.note";case .video:"film"}
     }
     private var audioSettings:some View {VStack(alignment:.leading,spacing:14){
         HStack{Text("Sample rate");Spacer();Picker("Sample rate",selection:$sampleRate){Text("44.1 kHz").tag(44100);Text("48 kHz").tag(48000)}.pickerStyle(.menu)}
