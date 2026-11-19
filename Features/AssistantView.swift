@@ -146,7 +146,7 @@ struct AssistantView:View {
     }
     private var aiOptions:some View {
         VStack(alignment:.leading,spacing:0){
-            Button{showAIOptions.toggle()}label:{HStack{Text("AI language and setup");Spacer();Image(systemName:showAIOptions ? "chevron.up":"chevron.down").accessibilityHidden(true)}.frame(maxWidth:.infinity,minHeight:44).contentShape(Rectangle())}
+            Button{withAnimation(Luz.Motion.morph){showAIOptions.toggle()}}label:{HStack{Text("AI language and setup");Spacer();Image(systemName:"chevron.down").rotationEffect(.degrees(showAIOptions ? 180:0)).accessibilityHidden(true)}.frame(maxWidth:.infinity,minHeight:44).contentShape(Rectangle())}
                 .buttonStyle(StudioQuietButtonStyle()).accessibilityIdentifier("assistant.ai-options")
                 .accessibilityValue(LocalizedStringKey(showAIOptions ? "Expanded":"Collapsed"))
             if showAIOptions{VStack(alignment:.leading,spacing:10){

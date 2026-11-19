@@ -188,7 +188,7 @@ struct PianoRollView: View {
         }
     }
     func change(_ id:UUID,_ action:(inout Pattern)throws->Void){session.edit{p in if let i=p.patterns.firstIndex(where:{$0.id==id}){try action(&p.patterns[i])}}}
-    func add(_ p:Pattern,tick:Int,pitch:Int){change(p.id){try NoteEditing.insert(NoteEvent(tick:tick,duration:snap*2,pitch:pitch),into:&$0,step:snap)};selected=session.project.patterns.first{$0.id==p.id}?.notes?.last?.id;preview(pitch)}
+    func add(_ p:Pattern,tick:Int,pitch:Int){Luz.Haptics.selection();change(p.id){try NoteEditing.insert(NoteEvent(tick:tick,duration:snap*2,pitch:pitch),into:&$0,step:snap)};selected=session.project.patterns.first{$0.id==p.id}?.notes?.last?.id;preview(pitch)}
     func preview(_ pitch:Int){if session.ensureAudio(),let id=track?.id,let i=session.project.tracks.firstIndex(where:{$0.id==id}){session.audio.previewNote(pitch,track:i)}}
     func isBlack(_ pitch:Int)->Bool{[1,3,6,8,10].contains(pitch%12)}
 }
@@ -529,7 +529,10 @@ private struct RollCanvas:View {
         }
         guard let current=gestureAnchor,current.context==context,current.operation==operation,
               pattern.notes?.first(where:{$0.id==current.original.id})==current.original else{interaction=nil;gestureAnchor=nil;invalidated=true;editingChanged(false);return}
-        interaction?.preview=preview(current,translation:translation)
+        let next=preview(current,translation:translation)
+        // Luz: a tick each time the dragged note lands on a new step, pitch or length.
+        if let old=interaction?.preview,old.tick != next.tick || old.pitch != next.pitch || old.duration != next.duration{Luz.Haptics.selection()}
+        interaction?.preview=next
     }
     private func preview(_ interaction:Anchor,translation:CGSize)->NoteEvent {
         // Build 44: the same model function computes the drawn and the saved note.
