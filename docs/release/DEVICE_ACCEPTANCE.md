@@ -1,5 +1,18 @@
 # Physical release acceptance record
 
+## Build 43 on a physical iPhone
+
+Use the [current IPA and installation steps](../../Builds/Testing/README.md). Record the device, iOS version, audio route and build alongside each take. Portable projects from this build use schema 15.
+
+| Producer task | Evidence to collect on hardware | Status |
+| --- | --- | --- |
+| Play a four-bar beat | Compare live hits on the phone speaker, wired or USB output, then Bluetooth headphones. Record touch and acoustic output together. Report median and 95th-percentile onset latency and timing scatter for each route. Repeat with quantization on and compare the recorded notes. | Awaiting physical iPhone |
+| Choose and edit a kit by ear | Compare Dusty and Coast on the same two bars. Trim the kick, adjust gain, correct clipping, apply and undo. Save the kit, load it in a second project and reopen the waveform. Note missed touches, level jumps and any clicks at the trimmed edges. | Awaiting musician session |
+| Reopen the project and finish elsewhere | Reopen the portable project on a second phone, audition the edited pad and export aligned stems. Open them together with MIDI in the musician’s usual DAW and record any manual tempo or marker setup. | Ardour 8.12 verified independently. Second iPhone and a producer’s DAW pending. |
+| Keep a session through an interruption | During playback and during dictation, disconnect and reconnect the audio route. Lock and unlock the phone, then return from an interruption. Check the project, transport, microphone and actual sound. | Awaiting physical iPhone |
+
+[Reference audio and Ardour import results](../../Media/Grooves/Producer43/README.md)
+
 ## Candidate 31 on a physical iPhone
 
 Use the [build 31 IPA and signing instructions](../../Builds/Testing/README.md). Record the signed build, device model, iOS version, audio route and evidence identifiers. Save a portable copy before upgrading projects. The build uses schema 12.

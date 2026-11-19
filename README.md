@@ -22,6 +22,8 @@
 
 При положительном усилении проверьте индикатор пика. Если появились обрезанные отсчёты, кнопка запаса по уровню рассчитает усиление для пика около −1 dBFS. В «Моих наборах» можно сохранить все 16 пэдов, затем восстановить их в другом проекте, сохранив его темп, рисунок и микс. Один Undo возвращает предыдущие назначения.
 
+<p><a href="Screenshots/Producer43/factory-audition.png"><img src="Screenshots/Producer43/factory-audition.png" width="210" alt="Выбор Coast и предпрослушивание двух тактов до загрузки"></a> <a href="Screenshots/Producer43/personal-kits.png"><img src="Screenshots/Producer43/personal-kits.png" width="210" alt="Личная библиотека с сохранённым набором After Hours"></a></p>
+
 [Послушать один ритм сначала на Dusty, затем на Coast](Media/Grooves/Producer43/dusty-then-coast.mp3)
 
 ### Интерактивная партитура и сравнение исполнений
@@ -158,9 +160,9 @@
 
 ## Попробовать на iPhone
 
-**[Скачать La Grilla 1.0.0 (42)](https://raw.githubusercontent.com/alexgazin/la-grilla/f65bb5893f4a1f8d28806c0fd1f41cd967e98d8c/Builds/Testing/LaGrilla-42-unsigned.ipa)**. Подпишите скачанный IPA своим Apple ID через Sideloadly. Бесплатная Personal Team подходит. [Установка и проверка пакета](Builds/Testing/README.md).
+**[Скачать La Grilla 1.0.0 (43)](https://raw.githubusercontent.com/alexgazin/la-grilla/ff575035e7c568ef88e40cefc202d31a3029b35f/Builds/Testing/LaGrilla-43-unsigned.ipa)**. Подпишите скачанный IPA своим Apple ID через Sideloadly. Бесплатная Personal Team подходит. [Установка и проверка пакета](Builds/Testing/README.md).
 
-Перед обновлением экспортируйте важные проекты в `.grillapack`. Сборка 42 читает проекты схем 1…14. В схеме 14 сохраняются исходное описание, план аранжировки и выбранное исполнение, чтобы к ним можно было вернуться после закрытия приложения.
+Перед обновлением экспортируйте важные проекты в `.grillapack`. Сборка 43 читает проекты схем 1…15. После сохранения в схеме 15 проект хранит исходники отредактированных пэдов. Чтобы снова открыть такую копию, требуется сборка 43 или новее.
 
 ## Подготовка к выпуску
 
