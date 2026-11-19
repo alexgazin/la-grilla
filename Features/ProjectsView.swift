@@ -7,6 +7,17 @@ struct ProjectsView: View {
     @State private var showImport=false
     @State private var openingExample=false
     @State private var deleting: UUID?;@State private var renameID: UUID?;@State private var name=""
+    @State private var query=""
+    /// I74: match name, tempo or key ("90", "D minor", "ре минор").
+    private var visibleEntries:[ProjectStore.SummaryEntry]{
+        let text=query.trimmingCharacters(in:.whitespaces).lowercased()
+        guard !text.isEmpty else{return session.entries}
+        return session.entries.filter{entry in
+            guard let p=entry.summary else{return false}
+            let key=(Chord.roots[p.keyRoot]+" "+(p.minor ? "minor":"major")+" "+NSLocalizedString(p.minor ? "minor":"major",comment:"Key mode")).lowercased()
+            return p.name.lowercased().contains(text) || "\(Int(p.bpm))".hasPrefix(text) || key.contains(text) || MusicalNotation.pitchClassName(p.keyRoot,keyRoot:p.keyRoot,minor:p.minor,spelling:.automatic).lowercased()==text
+        }
+    }
     var body: some View {NavigationStack{ScrollView{VStack(alignment:.leading,spacing:22){
         HStack{VStack(alignment:.leading,spacing:7){Text("Your next idea\nstarts here.").font(.system(size:30,weight:.medium));Text("A little studio. A world of possibilities.").font(.system(.caption)).foregroundStyle(Color.muted)};Spacer();Image(systemName:"square.grid.3x3").font(.system(size:42,weight:.ultraLight)).foregroundStyle(Color.mint)}.padding(.vertical,15)
         Button{session.sheet = .newProject}label:{Label("New project",systemImage:"plus").font(.system(.body,weight:.semibold)).foregroundStyle(Color.ink).frame(maxWidth:.infinity,minHeight:52).background(Color.mint,in:RoundedRectangle(cornerRadius:12))}.buttonStyle(StudioQuietButtonStyle()).accessibilityIdentifier("project.new")
@@ -16,7 +27,8 @@ struct ProjectsView: View {
         Text("Opens a separate copy. Your current project is saved first.").font(.caption).foregroundStyle(Color.muted)
         if session.projectChangeQAEnabled{Button{Task{await session.runProjectChangeQA()}}label:{Text(verbatim:"Run project change checks").frame(minHeight:44)}.accessibilityIdentifier("project.change-probe")}
         HStack{SmallHeading(text:"ON THIS IPHONE");Spacer();Text("\(session.entries.count) projects").font(.system(.caption)).foregroundStyle(Color.muted)}
-        ForEach(session.entries){entry in
+        if session.entries.count>3{TextField("Search by name, tempo or key",text:$query).textFieldStyle(.roundedBorder).frame(minHeight:44).accessibilityIdentifier("project.search")}
+        ForEach(visibleEntries){entry in
             if let p=entry.summary {HStack(spacing:14){VStack(spacing:3){ForEach(0..<3){row in HStack(spacing:2){ForEach(0..<4){bar in RoundedRectangle(cornerRadius:1).fill((row==0 ? Color.harmony:row==1 ? Color.drums:Color.bass).opacity(row==2 && p.trackCount<3 ? 0.08:0.6)).frame(width:8,height:row==0 ? 12:4)}}}}.frame(width:48,height:48).background(Color.raised,in:RoundedRectangle(cornerRadius:7))
                 Button{Task{await session.openStored(entry.id)}}label:{VStack(alignment:.leading,spacing:6){Text(p.name).font(.system(.body,weight:.medium)).foregroundStyle(.primary);Text("\(Int(p.bpm)) BPM · \(MusicalNotation.pitchClassName(p.keyRoot,keyRoot:p.keyRoot,minor:p.minor,spelling:PitchSpelling(rawValue:spellingValue) ?? .automatic)+" "+NSLocalizedString(p.minor ? "minor":"major",comment:"Key mode")) · \(p.length/barTicks) bars").font(.system(.caption)).foregroundStyle(Color.muted);Text(p.modified,style:.relative).font(.system(.caption2)).foregroundStyle(Color.muted)}}.buttonStyle(StudioQuietButtonStyle()).accessibilityIdentifier("project.open."+entry.id.uuidString);Spacer();Menu{Button("Open"){Task{await session.openStored(entry.id)}};Button("Rename"){renameID=entry.id;name=p.name};Button("Duplicate"){Task{await session.duplicateStored(entry.id)}};Button("Delete",role:.destructive){deleting=entry.id}}label:{Image(systemName:"ellipsis").foregroundStyle(Color.muted).frame(width:44,height:44)}}.padding(.vertical,8).overlay(alignment:.bottom){Rectangle().fill(Color.raised).frame(height:1)}
             }else{VStack(alignment:.leading,spacing:8){Label("Project needs recovery",systemImage:"exclamationmark.triangle");Text(LocalizedStringKey(entry.error ?? "Could not read project")).font(.caption).foregroundStyle(Color.muted);Button("Retry"){Task{await session.openStored(entry.id)}};if entry.hasBackup{Button("Recover last working copy"){Task{await session.recover(entry.id)}}}}.padding()}

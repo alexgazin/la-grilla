@@ -6,11 +6,14 @@ public struct WAVSettings: Sendable, Equatable {
     public var bitDepth: Int
     public var tailSeconds: Double
     public var dither: Bool
-    public init(sampleRate: Int = 48000, bitDepth: Int = 24, tailSeconds: Double = 2, dither: Bool = true) {
-        self.sampleRate = sampleRate; self.bitDepth = bitDepth; self.tailSeconds = tailSeconds; self.dither = dither
+    /// I68: peak-normalize each stem to this level (dBFS); nil keeps the mix levels.
+    public var normalizeStemsDBFS: Double?
+    public init(sampleRate: Int = 48000, bitDepth: Int = 24, tailSeconds: Double = 2, dither: Bool = true, normalizeStemsDBFS: Double? = nil) {
+        self.sampleRate = sampleRate; self.bitDepth = bitDepth; self.tailSeconds = tailSeconds; self.dither = dither; self.normalizeStemsDBFS = normalizeStemsDBFS
     }
     public func validate() throws {
         guard [44100,48000].contains(sampleRate), [16,24].contains(bitDepth), tailSeconds.isFinite, (0...10).contains(tailSeconds) else { throw ExportError.invalidSettings }
+        if let target = normalizeStemsDBFS { guard target.isFinite, (-12...0).contains(target) else { throw ExportError.invalidSettings } }
     }
 }
 public enum ExportError: Error, LocalizedError {

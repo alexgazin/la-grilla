@@ -28,3 +28,24 @@ struct MixAndFormTests {
         }
     }
 }
+
+struct StemNormalizeTests {
+    @Test func normalizedStemsPeakAtTheTargetAndKeepTheirShape() async throws {
+        let p = try SongEditDemo.project()
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("norm-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let range = 0..<(2 * barTicks)
+        let plain = folder.appendingPathComponent("plain.wav"), loud = folder.appendingPathComponent("loud.wav")
+        _ = try await OfflineRenderer.render(p, to: plain, settings: WAVSettings(tailSeconds: 0, dither: false), range: range, isolatedTrack: p.tracks[1].id)
+        try FileManager.default.copyItem(at: plain, to: loud)
+        let gain = try WAVNormalizer.normalize(loud, targetDBFS: -1)
+        #expect(gain > 0)
+        let a = try LoudnessMeter.readWAV(plain).channels[0], b = try LoudnessMeter.readWAV(loud).channels[0]
+        let peak = b.map { abs($0) }.max()!
+        #expect(abs(20 * log10(Double(peak)) - -1) < 0.05)
+        let ratio = Float(pow(10, gain / 20))
+        #expect(zip(a, b).allSatisfy { abs($0 * ratio - $1) < 0.0005 })
+        #expect(throws: ExportError.self) { try WAVSettings(normalizeStemsDBFS: 3).validate() }
+    }
+}

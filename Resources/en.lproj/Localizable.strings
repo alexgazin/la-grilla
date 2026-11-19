@@ -1252,3 +1252,5 @@
 "Swing %@ in %@" = "Swing %@ in %@";
 "Move %@ by scale steps in %@" = "Move %@ by scale steps in %@";
 "Write %@ from the kick and chords in %@" = "Write %@ from the kick and chords in %@";
+"Normalize each stem to −1 dBFS" = "Normalize each stem to −1 dBFS";
+"Search by name, tempo or key" = "Search by name, tempo or key";

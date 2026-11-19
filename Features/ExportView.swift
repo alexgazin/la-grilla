@@ -11,6 +11,7 @@ struct ExportView:View {
     @State private var firstBar=1
     @State private var lastBar=4
     @State private var tracks:Set<UUID>=[]
+    @State private var normalizeStems=false
     private var take:PerformanceTake?{session.exportTake}
     private var project:Project{take?.source ?? session.project}
     private var formats:[Session.ExportFormat]{take==nil ? Session.ExportFormat.allCases:[.wav,.midi]}
@@ -33,7 +34,7 @@ struct ExportView:View {
                 Text(description).font(.system(.caption)).foregroundStyle(Color.muted).lineSpacing(4)
                 HStack{Text("\(project.tracks.count) tracks");Spacer();Text("\(Int(project.bpm)) BPM · 4/4")}.font(.system(.caption,design:.monospaced)).foregroundStyle(Color.muted)
                 if session.exportInProgress {VStack(alignment:.leading,spacing:8){ProgressView(value:session.exportProgress).tint(.mint);Text("\(Int(session.exportProgress*100))%").font(.system(.caption,design:.monospaced))}.accessibilityIdentifier("export.progress")}
-                Button{session.export(format:format,settings:WAVSettings(sampleRate:sampleRate,bitDepth:bits,tailSeconds:tail),range:range,tracks:tracks,performance:take)}label:{HStack{if session.exportInProgress{ProgressView()};Text(LocalizedStringKey(session.exportInProgress ? "Exporting…":format == .midi ? "Export MIDI":"Export"));Image(systemName:"arrow.up.right")}}.buttonStyle(StudioActionStyle()).accessibilityIdentifier("export.confirm").disabled(session.exportInProgress || (format == .stems && tracks.isEmpty))
+                Button{session.export(format:format,settings:WAVSettings(sampleRate:sampleRate,bitDepth:bits,tailSeconds:tail,normalizeStemsDBFS:format == .stems && normalizeStems ? -1:nil),range:range,tracks:tracks,performance:take)}label:{HStack{if session.exportInProgress{ProgressView()};Text(LocalizedStringKey(session.exportInProgress ? "Exporting…":format == .midi ? "Export MIDI":"Export"));Image(systemName:"arrow.up.right")}}.buttonStyle(StudioActionStyle()).accessibilityIdentifier("export.confirm").disabled(session.exportInProgress || (format == .stems && tracks.isEmpty))
             }.padding(18)}.background(Color.ink)
             .navigationTitle("Export").navigationBarTitleDisplayMode(.inline)
             .toolbar{ToolbarItem(placement:.cancellationAction){Button("Cancel"){session.cancelExport();session.sheet=nil}}}
@@ -45,6 +46,7 @@ struct ExportView:View {
         HStack{Text("Sample rate");Spacer();Picker("Sample rate",selection:$sampleRate){Text("44.1 kHz").tag(44100);Text("48 kHz").tag(48000)}.pickerStyle(.menu)}
         HStack{Text("Bit depth");Spacer();Picker("Bit depth",selection:$bits){Text("16 bit").tag(16);Text("24 bit").tag(24)}.pickerStyle(.menu)}
         HStack{Text("Tail");Spacer();Picker("Tail",selection:$tail){Text("0 s").tag(0.0);Text("1 s").tag(1.0);Text("2 s").tag(2.0);Text("5 s").tag(5.0);Text("10 s").tag(10.0)}.pickerStyle(.menu)}
+        if format == .stems {Toggle("Normalize each stem to −1 dBFS",isOn:$normalizeStems).tint(.mint).accessibilityIdentifier("export.normalize-stems")}
     }.font(.system(.subheadline)).padding(14).modifier(StudioSurface()).disabled(session.exportInProgress)}
     private var description:LocalizedStringKey {
         if take != nil{return format == .midi ? "A finite MIDI sequence with section order, repeated notes, volume, pan and FX controllers. MIDI instruments and effects depend on your music software.":"The recorded section order and automation, rendered with the same instruments and effects as replay. A tail is optional."}
