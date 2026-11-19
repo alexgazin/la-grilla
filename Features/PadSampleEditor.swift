@@ -208,7 +208,9 @@ struct PadSampleEditor: View {
 
     private func nudge(_ symbol: String, parameter: SampleParameter, enabled: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Image(systemName: symbol).font(.caption.weight(.semibold)).frame(width: 44, height: 44)
+            Image(systemName: symbol).font(.caption.weight(.semibold))
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain).foregroundStyle(Color.drums).disabled(!enabled)
         .accessibilityLabel(Text(parameter.title) + Text(verbatim: ", ") + Text(symbol == "plus" ? "Increase" : "Decrease"))
