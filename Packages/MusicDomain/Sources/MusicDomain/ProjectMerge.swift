@@ -65,8 +65,13 @@ public enum ProjectMerge {
             result.tracks[i].instrumentSample = nil; result.tracks[i].padSamples = nil; result.tracks[i].padEdits = nil
         }
         // Patterns no clip uses any more are dropped.
-        let used = Set(result.tracks.flatMap { $0.clips.map(\.patternID) })
-        result.patterns.removeAll { !used.contains($0.id) }
+        // Variant lists may point at patterns the other side removed.
+        let available = Set(result.patterns.map(\.id))
+        for t in result.tracks.indices { for c in result.tracks[t].clips.indices {
+            let kept = (result.tracks[t].clips[c].variants ?? []).filter { available.contains($0) && $0 != result.tracks[t].clips[c].patternID }
+            result.tracks[t].clips[c].variants = kept.isEmpty ? nil : Array(kept.prefix(3))
+        } }
+        result.removeUnusedPatterns()
         result.performanceTakes = mine.performanceTakes
         try result.validate()
         return (result, report)

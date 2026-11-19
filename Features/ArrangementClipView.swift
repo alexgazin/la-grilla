@@ -100,6 +100,23 @@ struct ArrangementClipInspector: View {
                     } footer: {
                         Text("Bar:beat:tick · 960 ticks per beat; zero ticks are omitted.")
                     }
+                    if clip.sourceAssetID==nil {
+                        // I34: A/B/C takes of this part; switching is one Undo.
+                        let options=ClipVariants.options(clip,in:session.project)
+                        SwiftUI.Section {
+                            if options.count>1 {
+                                Picker("Variant",selection:Binding(get:{clip.patternID},set:{id in let trackID=selection.trackID,clipID=clip.id;session.edit{try ClipVariants.select(id,track:trackID,clip:clipID,in:&$0)}})){
+                                    ForEach(Array(options.enumerated()),id:\.element){index,id in Text(verbatim:ClipVariants.label(index)).tag(id)}
+                                }.pickerStyle(.segmented).accessibilityIdentifier("clip.variant")
+                            }
+                            Button("New variant from this part"){let trackID=selection.trackID,clipID=clip.id;session.edit{try ClipVariants.add(track:trackID,clip:clipID,in:&$0)}}
+                                .frame(minHeight:44).disabled(options.count>=ClipVariants.maximum).accessibilityIdentifier("clip.variant-add")
+                            if options.count>1 {
+                                Button("Delete this variant",role:.destructive){let trackID=selection.trackID,clipID=clip.id;session.edit{try ClipVariants.removeCurrent(track:trackID,clip:clipID,in:&$0)}}
+                                    .frame(minHeight:44).accessibilityIdentifier("clip.variant-delete")
+                            }
+                        } header: { Text("Variants") } footer: { Text("Try another take of this part and switch back any time.") }
+                    }
                     SwiftUI.Section {
                         Button("Duplicate clip"){commit{try ClipEditing.copy($0,to:selection.trackID,start:clip.start+clip.length,snap:240,in:&$1)}}.frame(minHeight:44).accessibilityIdentifier("clip.duplicate")
                         Button("Delete clip",role:.destructive){commit{try ClipEditing.delete($0,in:&$1)};if self.clip==nil{dismiss()}}.frame(minHeight:44).accessibilityIdentifier("clip.delete")

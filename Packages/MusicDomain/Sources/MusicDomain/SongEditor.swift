@@ -12,8 +12,7 @@ public enum SongEditor {
         try project.validate()
         var result = project
         for operation in plan.operations { try apply(operation, to: &result) }
-        let used = Set(result.tracks.flatMap { $0.clips.map(\.patternID) })
-        result.patterns.removeAll { !used.contains($0.id) }
+        result.removeUnusedPatterns()
         try verifyUntouched(before: project, after: result, plan: plan)
         try result.validate()
         return result

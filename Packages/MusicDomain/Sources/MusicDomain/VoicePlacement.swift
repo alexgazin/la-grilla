@@ -22,7 +22,7 @@ extension Arrangement {
         let pattern=Pattern(length:section.length,notes:notes);result.patterns.append(pattern)
         var clip=Clip(patternID:pattern.id,start:section.start,length:section.length);clip.sourceAssetID=source.id;clips.append(clip)
         result.tracks[index].clips=clips.sorted{$0.start<$1.start}
-        let used=Set(result.tracks.flatMap{$0.clips.map(\.patternID)});result.patterns.removeAll{!used.contains($0.id)}
+        result.removeUnusedPatterns()
         try result.validate();return VoicePlacement(project:result,trackID:id)
     }
 }

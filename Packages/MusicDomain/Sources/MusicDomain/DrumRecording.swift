@@ -19,7 +19,7 @@ public struct DrumRecordingDraft:Sendable {
         material.length=max(barTicks,((clip.length+barTicks-1)/barTicks)*barTicks)
         var candidate=project;candidate.patterns.append(material)
         candidate.tracks[trackIndex].clips[clipIndex].patternID=material.id;candidate.tracks[trackIndex].clips[clipIndex].offset=0
-        let used=Set(candidate.tracks.flatMap{$0.clips.map(\.patternID)});candidate.patterns.removeAll{!used.contains($0.id)}
+        candidate.removeUnusedPatterns()
         try candidate.validate()
         self.project=candidate;projectID=project.id;trackID=track.id;self.clipID=clipID;sourcePatternID=clip.patternID;patternID=material.id;start=clip.start;length=clip.length
     }
@@ -67,7 +67,7 @@ public struct DrumRecordingDraft:Sendable {
     public func candidate(for current:Project)throws->Project {
         guard current.id==projectID,let track=current.tracks.firstIndex(where:{$0.id==trackID}),let clip=current.tracks[track].clips.firstIndex(where:{$0.id==clipID}),current.tracks[track].clips[clip].patternID==sourcePatternID,let material=project.patterns.first(where:{$0.id==patternID}),let draftClip=project.tracks.first(where:{$0.id==trackID})?.clips.first(where:{$0.id==clipID})else{throw AssistantError.stale}
         var result=current;result.patterns.append(material);result.tracks[track].clips[clip]=draftClip
-        let used=Set(result.tracks.flatMap{$0.clips.map(\.patternID)});result.patterns.removeAll{!used.contains($0.id)}
+        result.removeUnusedPatterns()
         try result.validate();return result
     }
 }

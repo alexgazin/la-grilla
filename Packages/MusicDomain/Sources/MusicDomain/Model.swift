@@ -222,6 +222,9 @@ public struct Pattern: Codable, Equatable, Identifiable, Sendable {
 }
 public struct Clip: Codable, Equatable, Identifiable, Sendable {
     public var id: UUID = UUID(); public var patternID: UUID;public var sourceAssetID:UUID?; public var start: Int; public var length: Int; public var offset: Int = 0
+    /// I34: alternative patterns for this clip (not including the current one),
+    /// one to three. Nil in older files.
+    public var variants: [UUID]?
     public init(patternID: UUID, start: Int, length: Int) { self.patternID = patternID; self.start = start; self.length = length }
 }
 public struct Track: Codable, Equatable, Identifiable, Sendable {
@@ -352,6 +355,7 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
             for c in t.clips.sorted(by: {$0.start < $1.start}) {
                 guard c.start >= end, c.start < length, c.length > 0, c.length <= length, c.start + c.length <= length, c.offset >= 0, let p = patterns.first(where: {$0.id == c.patternID}), c.offset < p.length else { throw MusicError.invalidProject }
                 if let asset=c.sourceAssetID{guard (audioAssets ?? []).contains(where:{$0.id==asset})else{throw MusicError.invalidProject}}
+                if let v=c.variants{guard (1...3).contains(v.count),Set(v).count==v.count,!v.contains(c.patternID),v.allSatisfy({id in patterns.contains{$0.id==id}})else{throw MusicError.invalidProject}}
                 end = c.start + c.length
             }
         }
@@ -377,7 +381,7 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
     }
     public mutating func deleteTrack(_ id:UUID)throws {
         guard let i=tracks.firstIndex(where:{$0.id==id}),i>=2 else{throw MusicError.invalidProject}
-        tracks.remove(at:i);let referenced=Set(tracks.flatMap{$0.clips.map(\.patternID)});patterns.removeAll{!referenced.contains($0.id)}
+        tracks.remove(at:i);removeUnusedPatterns()
         midi?.mappings.removeAll{$0.trackID==id};if midi?.trackID==id{midi?.trackID=nil}
     }
     public mutating func duplicateTrack(_ id:UUID)throws {

@@ -46,7 +46,7 @@ extension Arrangement {
         }
         result.sections[index].length=length
         for i in result.sections.indices where result.sections[i].start>=end{result.sections[i].start+=delta}
-        let used=Set(result.tracks.flatMap{$0.clips.map(\.patternID)});result.patterns.removeAll{!used.contains($0.id)}
+        result.removeUnusedPatterns()
         try result.validate();return result
     }
 }

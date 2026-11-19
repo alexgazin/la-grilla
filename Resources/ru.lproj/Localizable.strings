@@ -1362,3 +1362,8 @@
 "The part you are editing" = "Партия, которую вы редактируете";
 "Use my usual: %d BPM · %@ · %d bars" = "Как обычно: %d BPM · %@ · %d тактов";
 "From your %d projects on this iPhone." = "По вашим проектам на этом iPhone: %d.";
+"Variant" = "Вариант";
+"New variant from this part" = "Новый вариант из этой партии";
+"Delete this variant" = "Удалить этот вариант";
+"Variants" = "Варианты";
+"Try another take of this part and switch back any time." = "Попробуйте другой вариант партии и возвращайтесь к прежнему в любой момент.";

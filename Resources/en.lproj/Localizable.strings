@@ -1360,3 +1360,8 @@
 "The part you are editing" = "The part you are editing";
 "Use my usual: %d BPM · %@ · %d bars" = "Use my usual: %d BPM · %@ · %d bars";
 "From your %d projects on this iPhone." = "From your %d projects on this iPhone.";
+"Variant" = "Variant";
+"New variant from this part" = "New variant from this part";
+"Delete this variant" = "Delete this variant";
+"Variants" = "Variants";
+"Try another take of this part and switch back any time." = "Try another take of this part and switch back any time.";
