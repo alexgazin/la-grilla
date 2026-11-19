@@ -164,6 +164,7 @@ struct LGKernel {
     std::array<std::array<std::atomic<int>,16>,MaxTracks> choke{};std::array<std::atomic<float>,MaxTracks> sidechainDepth{},drive{};std::array<std::atomic<int>,MaxTracks> crush{};
     std::atomic<int> limiterOn{0};std::atomic<float> limiterCeiling{0.891f};
     float scEnv=0;int scHold=0;
+    static constexpr uint32_t ScopeSize=4096;std::array<float,ScopeSize> scope{};std::atomic<uint32_t> scopeWrite{0};
     std::array<std::atomic<float>,MaxTracks> reverbSend{};SendReverb reverb;
     std::atomic<int> repeatPad{-1},repeatStep{240},repeatVelocity{100};std::atomic<uint32_t> repeatSerial{0};uint32_t repeatSeen=0;double repeatNextTick=-1,repeatFrames=0;
     void repeatTick(){
@@ -790,7 +791,9 @@ void lg_render_midi(LGKernel*k,LGMIDIHub*hub,uint64_t hostTime,double hostTicksP
         if(k->layoutFadeRemaining>0){const float weight=float(k->layoutFadeRemaining)/float(k->layoutFadeTotal);left=left*(1-weight)+k->layoutFadeLeft*weight;right=right*(1-weight)+k->layoutFadeRight*weight;--k->layoutFadeRemaining;}
         if(k->limit(left,right))masterPeak=std::max(std::abs(left),std::abs(right));
         peak[Master]=std::max(peak[Master],masterPeak);
-        l[f]=std::clamp(left,-0.98f,0.98f);r[f]=std::clamp(right,-0.98f,0.98f);k->lastLeft=l[f];k->lastRight=r[f];k->rendered++;k->performance.advance(k->active);
+        l[f]=std::clamp(left,-0.98f,0.98f);r[f]=std::clamp(right,-0.98f,0.98f);k->lastLeft=l[f];k->lastRight=r[f];
+        {const uint32_t w=k->scopeWrite.load(std::memory_order_relaxed);k->scope[w%LGKernel::ScopeSize]=0.5f*(l[f]+r[f]);k->scopeWrite.store(w+1,std::memory_order_release);}
+        k->rendered++;k->performance.advance(k->active);
     }
     for(int t=0;t<Buses;t++)k->meters[t].store(std::max(peak[t],k->meters[t].load()*float(std::exp(-double(frames)/(k->sr*0.12)))));
     k->performance.publish();k->clock.store(k->rendered);k->playing.store(k->active?1:0);
@@ -798,6 +801,13 @@ void lg_render_midi(LGKernel*k,LGMIDIHub*hub,uint64_t hostTime,double hostTicksP
 double lg_tick(LGKernel*k){return k->position.load();}uint64_t lg_clock(LGKernel*k){return k->clock.load();}
 int lg_playing(LGKernel*k){return k->playing.load();}int lg_revision(LGKernel*k){return k->applied.load();}
 float lg_meter(LGKernel*k,int t){return t>=0&&t<Buses?k->meters[t].load():0;}
+int lg_scope_read(LGKernel*k,float*out,int count){
+    if(!k||!out||count<=0)return 0;
+    const int n=std::min<int>(count,int(LGKernel::ScopeSize));
+    const uint32_t end=k->scopeWrite.load(std::memory_order_acquire);
+    for(int i=0;i<n;i++)out[i]=k->scope[(end-uint32_t(n)+uint32_t(i))%LGKernel::ScopeSize];
+    return n;
+}
 int lg_overflows(LGKernel*k){return k->overflow.load();}
 void lg_render(LGKernel*k,float*l,float*r,int frames){lg_render_midi(k,nullptr,0,0,l,r,frames);}
 

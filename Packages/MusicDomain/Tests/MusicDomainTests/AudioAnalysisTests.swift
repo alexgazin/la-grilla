@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 @testable import MusicDomain
+import AudioDSP
 
 struct NoteSelectionTests {
     private func pattern() -> (Pattern, [UUID]) {
@@ -132,5 +133,34 @@ struct AudioAnalysisTests {
         let summary = LatencyAnalyzer.summary([20, 21, 19, 20.5, 22, 20, 300])
         #expect(summary?.count == 6 && abs(summary!.medianMS - 20.25) < 0.01 && summary!.p95MS < 22.01)
         #expect(LatencyAnalyzer.summary([]) == nil)
+    }
+}
+
+struct SpectrumTests {
+    @Test func aSineLightsItsBand() throws {
+        let rate = 48000.0
+        let tone = (0..<4096).map { Float(0.5 * sin(2 * Double.pi * 1000 * Double($0) / rate)) }
+        let bands = Spectrum.bands(tone, rate: rate)
+        #expect(bands.count == 24)
+        let loudest = bands.indices.max { bands[$0] < bands[$1] }!
+        let center = 30 * pow(16_000.0 / 30, (Double(loudest) + 0.5) / 24)
+        #expect(center > 700 && center < 1500)
+        #expect(abs(Double(bands[loudest]) - 20 * log10(0.5)) < 1.5)
+        #expect(bands.first! < -60 && bands.last! < -60)
+        #expect(Spectrum.bands([], rate: rate).allSatisfy { $0 == -90 })
+    }
+
+    @Test func kernelScopeReturnsTheRenderedMaster() throws {
+        let kernel = try #require(lg_create(48000))
+        defer { lg_destroy(kernel) }
+        var note = LGNote(tick: 0, duration: 960, pitch: 60, velocity: 110, track: 0, pad: -1, instrument: 0)
+        #expect(lg_submit(kernel, &note, 1, 120, 0, 3840, 0, 1) != 0)
+        lg_seek(kernel, 0); var a = [Float](repeating: 0, count: 512), b = a
+        lg_render(kernel, &a, &b, 1); lg_play(kernel, 1)
+        lg_render(kernel, &a, &b, 512)
+        var scope = [Float](repeating: 9, count: 256)
+        #expect(lg_scope_read(kernel, &scope, 256) == 256)
+        for i in 0..<256 { #expect(abs(scope[i] - 0.5 * (a[256 + i] + b[256 + i])) < 1e-6) }
+        #expect(scope.contains { $0 != 0 })
     }
 }

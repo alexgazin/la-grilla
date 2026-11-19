@@ -637,6 +637,13 @@ private enum AudioRender {
         return MetronomeSettings(gainDB: value.gainDB, accent: value.accent, sound: value.sound, countInOnly: value.countInOnly)
     }
     private var metronomeOn = false
+    /// I63: the latest mono master samples for the spectrum view.
+    func scope(_ count: Int) -> [Float] {
+        guard let k = handle?.pointer else { return [] }
+        var samples = [Float](repeating: 0, count: max(0, min(4096, count)))
+        let n = samples.withUnsafeMutableBufferPointer { lg_scope_read(k, $0.baseAddress, Int32($0.count)) }
+        return Array(samples.prefix(Int(n)))
+    }
     /// I3: start (pad) or stop (nil) the kernel's note repeat.
     @discardableResult func padRepeat(_ pad: Int?, step: Int = 240, velocity: Int = 100) -> Bool {
         guard let k = handle?.pointer else { return false }

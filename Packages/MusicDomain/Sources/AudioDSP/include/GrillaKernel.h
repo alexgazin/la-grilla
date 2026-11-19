@@ -133,6 +133,10 @@ uint64_t lg_clock(LGKernel *k);
 int lg_playing(LGKernel *k);
 int lg_revision(LGKernel *k);
 float lg_meter(LGKernel *k, int track);
+// I63: copy the latest `count` (<= 4096) mono master samples for a spectrum
+// view. Lock-free; a concurrent block may tear the copy, which only affects
+// the picture. Returns the number of samples written.
+int lg_scope_read(LGKernel *k, float *out, int count);
 int lg_overflows(LGKernel *k);
 #ifdef __cplusplus
 }

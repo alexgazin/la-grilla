@@ -28,6 +28,7 @@ struct MixerView: View {
                 VStack(alignment: .leading, spacing: 16) {
                     deskHeading
                     console(height: stripHeight)
+                    MasterSpectrum(audio: session.audio)
                     deskFootnote
                 }
                 .padding(.horizontal, 16)
@@ -557,5 +558,30 @@ private struct MixPresetMenu: View {
         }
         .accessibilityLabel("Mix presets").accessibilityIdentifier("mixer.mix-presets")
         .disabled(session.performance.contextActive)
+    }
+}
+
+/// I63: a live master spectrum (30 Hz–16 kHz, 24 bands), drawn while audio plays.
+private struct MasterSpectrum: View {
+    let audio: AudioController
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    var body: some View {
+        TimelineView(.animation(minimumInterval: reduceMotion ? 0.25 : 1.0 / 20, paused: !audio.playing)) { _ in
+            let bands = audio.playing ? Spectrum.bands(audio.scope(2048), rate: audio.sampleRate) : [Float](repeating: -90, count: 24)
+            Canvas { context, size in
+                let width = size.width / CGFloat(bands.count)
+                for (i, level) in bands.enumerated() {
+                    let height = max(1, CGFloat((level + 72) / 72) * size.height)
+                    let rect = CGRect(x: CGFloat(i) * width + 1, y: size.height - height, width: max(1, width - 2), height: height)
+                    context.fill(Path(roundedRect: rect, cornerRadius: 1.5), with: .color(level > -6 ? Color.record : Color.mint.opacity(0.8)))
+                }
+            }
+        }
+        .frame(height: 44)
+        .padding(.horizontal, 4)
+        .background(Color.ink.opacity(0.7), in: RoundedRectangle(cornerRadius: 10))
+        .accessibilityElement()
+        .accessibilityLabel("Master spectrum")
+        .accessibilityIdentifier("mixer.spectrum")
     }
 }
