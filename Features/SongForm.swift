@@ -29,7 +29,7 @@ struct SongFormOverview: View {
     }
 }
 
-enum SongFormStyle {
+@MainActor enum SongFormStyle {
     static let choices: [(index: Int, color: Color, name: LocalizedStringKey)] = [(0, .harmony, "Amber"), (1, .drums, "Coral"), (2, .bass, "Violet"), (3, .mint, "Mint")]
     static func color(for section: MusicDomain.Section) -> Color {
         if let chosen = section.color, let choice = choices.first(where: { $0.index == chosen }) { return choice.color }

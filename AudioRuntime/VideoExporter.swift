@@ -117,7 +117,7 @@ enum VideoExporter {
         let font = CTFontCreateUIFontForLanguage(weight > 0.2 ? .emphasizedSystem : .system, size, nil) ?? CTFontCreateWithName("Helvetica" as CFString, size, nil)
         let attributes: [NSAttributedString.Key: Any] = [NSAttributedString.Key(kCTFontAttributeName as String): font,
                                                          NSAttributedString.Key(kCTForegroundColorAttributeName as String): colour(hex)]
-        let line = CTLineCreateWithAttributedString(NSAttributedString(string: string, attributes: attributes))
+        let line = CTLineCreateWithAttributedString(NSAttributedString(string: string, attributes: attributes) as CFAttributedString)
         context.textPosition = CGPoint(x: x, y: Double(height) - y - Double(size))
         CTLineDraw(line, context)
     }
