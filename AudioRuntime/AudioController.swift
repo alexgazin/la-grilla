@@ -525,7 +525,7 @@ private enum AudioRender {
             }
         } catch { self.error = error.localizedDescription; return false }
         guard ok != 0 else{error="Audio update could not be queued. Stop and retry.";return false}
-        p.applyDynamics(to: k); p.applyAutomation(to: k)
+        p.applyDynamics(to: k); p.applyAutomation(to: k); p.applySynths(to: k)
         lg_tail_on_end(k, !loop && p.hasComposedEnding == true ? 1 : 0)
         generation=next;sentRevisions[next]=p.revision;routing[next]=midiRouting(p)
         pruneRouting(k)
@@ -567,7 +567,7 @@ private enum AudioRender {
         let tracks=trackMix(p)
         let fx=p.masterFX ?? MasterFX()
         let accepted=tracks.withUnsafeBufferPointer{lg_mix_revision_eq(k,$0.baseAddress,Int32($0.count),Float(p.master),Float(fx.filter),Float(fx.delayWet),Int32(generation),p.equalizerBands())} != 0
-        if accepted{p.applyDynamics(to: k); p.applyAutomation(to: k)}
+        if accepted{p.applyDynamics(to: k); p.applyAutomation(to: k); p.applySynths(to: k)}
         if !accepted{error="Audio update could not be queued. Stop and retry."};return accepted
     }
     func play(countInBPM: Double? = nil) {
@@ -645,6 +645,12 @@ private enum AudioRender {
     }
     /// I16: pitch bend (semitones) and modulation (0...1) for the track with `identity`.
     func pitchBend(identity: UInt64, semitones: Float, modulation: Float) { if let k = handle?.pointer { lg_pitch_bend(k, identity, semitones, modulation) } }
+    /// I55: hear a synth patch while its knobs move, before the edit is committed.
+    func previewSynth(track index: Int, _ patch: SynthPatch?) {
+        guard let k = handle?.pointer, (0..<masterBus).contains(index) else { return }
+        if let patch { var value = LGSynthPatch(wave: Int32(patch.wave.rawValue), cutoff: Float(patch.cutoff), resonance: Float(patch.resonance), attack: Float(patch.attack), decay: Float(patch.decay), sustain: Float(patch.sustain), release: Float(patch.release)); _ = lg_synth(k, Int32(index), &value) }
+        else { _ = lg_synth(k, Int32(index), nil) }
+    }
     /// I82: MIDI clock and transport messages on the selected output.
     func midiClock(_ on: Bool) { if let k = handle?.pointer { lg_midi_clock_out(k, on ? 1 : 0) } }
     /// I63: the latest mono master samples for the spectrum view.

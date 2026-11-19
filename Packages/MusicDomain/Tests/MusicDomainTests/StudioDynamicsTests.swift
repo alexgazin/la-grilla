@@ -110,4 +110,23 @@ struct StudioDynamicsTests {
         let decoded = try JSONDecoder().decode(Project.self, from: JSONEncoder().encode(project))
         #expect(decoded.sections[1].filterSweep == nil)
     }
+
+    @Test func synthPatchRendersValidatesAndRoundTrips() async throws {
+        var project = Project(name: "Synth", bars: 1)
+        project.patterns[0].chords = [ChordEvent(tick: 0, chord: Chord(root: 0))]
+        let plain = try await render(project).0
+        var synth = project
+        synth.tracks[0].synth = SynthPatch.presets[0].patch
+        try synth.validate()
+        let voiced = try await render(synth).0
+        let differs = voiced != plain
+        #expect(differs)
+        let decoded = try JSONDecoder().decode(Project.self, from: JSONEncoder().encode(synth))
+        #expect(decoded.tracks[0].synth == synth.tracks[0].synth)
+        var drums = project; drums.tracks[1].synth = SynthPatch()
+        #expect(throws: MusicError.self) { try drums.validate() }
+        var bad = project; bad.tracks[0].synth = SynthPatch(resonance: 0.95)
+        #expect(throws: MusicError.self) { try bad.validate() }
+        #expect(SynthPatch.presets.count == 4 && SynthPatch.presets.allSatisfy { (try? $0.patch.validate()) != nil })
+    }
 }

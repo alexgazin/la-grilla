@@ -3,6 +3,7 @@ import MusicDomain
 
 struct MixerView: View {
     @Bindable var session: Session
+    @State private var synthTrack: SynthTarget?
     @Environment(\.dynamicTypeSize) private var dynamicType
     @Environment(\.colorSchemeContrast) private var contrast
     @State private var activeFader: Int?
@@ -14,6 +15,7 @@ struct MixerView: View {
             else { standardMixer }
         }
         .sheet(item:$equalizer) { EqualizerView(session:session,destination:$0) }
+        .sheet(item:$synthTrack) { SynthEditorView(session: session, trackID: $0.id) }
         .onDisappear { finishGesture() }
         .onChange(of: session.performance.replaying) { _, replaying in
             if replaying { finishGesture() }
@@ -188,6 +190,9 @@ struct MixerView: View {
         }
         Picker("Reverb send", selection: Binding(get: { value.reverbSend }, set: { send in setDynamics(track.id) { $0.reverbSend = send } })) {
             Text("Off").tag(0.0); Text("Small").tag(0.15); Text("Medium").tag(0.3); Text("Large").tag(0.5)
+        }
+        if track.role != .drums {
+            Button("Synth…", systemImage: "waveform.path") { synthTrack = SynthTarget(id: track.id) }
         }
         Picker("Drive", selection: Binding(get: { value.drive }, set: { amount in setDynamics(track.id) { $0.drive = amount } })) {
             Text("Off").tag(0.0); Text("Light").tag(0.3); Text("Heavy").tag(0.7)
@@ -583,5 +588,77 @@ private struct MasterSpectrum: View {
         .accessibilityElement()
         .accessibilityLabel("Master spectrum")
         .accessibilityIdentifier("mixer.spectrum")
+    }
+}
+
+struct SynthTarget: Identifiable { let id: UUID }
+
+/// I55: knobs for a melodic track's synth voice. Moving a knob is heard at
+/// once; releasing it saves one undoable edit.
+private struct SynthEditorView: View {
+    @Bindable var session: Session
+    let trackID: UUID
+    @Environment(\.dismiss) private var dismiss
+    @State private var patch = SynthPatch()
+    private var index: Int? { session.project.tracks.firstIndex { $0.id == trackID } }
+    private var track: Track? { index.map { session.project.tracks[$0] } }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                if let track {
+                    Toggle("Use the synth", isOn: Binding(get: { track.synth != nil }, set: { on in commit(on ? patch : nil) }))
+                        .accessibilityIdentifier("synth.enabled")
+                    if track.instrumentSample != nil {
+                        Text("This track plays an imported instrument. Choose a built-in sound to hear the synth.").font(.caption).foregroundStyle(Color.muted)
+                    }
+                    if track.synth != nil {
+                        Section("Presets") {
+                            ForEach(SynthPatch.presets, id: \.name) { preset in
+                                Button(LocalizedStringKey(preset.name)) { patch = preset.patch; commit(patch) }.frame(minHeight: 44)
+                            }
+                        }
+                        Section("Oscillator") {
+                            Picker("Wave", selection: Binding(get: { patch.wave }, set: { patch.wave = $0; commit(patch) })) {
+                                Text("Saw").tag(SynthPatch.Wave.saw); Text("Square").tag(SynthPatch.Wave.square); Text("Triangle").tag(SynthPatch.Wave.triangle)
+                            }.pickerStyle(.segmented)
+                        }
+                        Section("Filter") {
+                            knob("Cutoff", \.cutoff, 0...1, format: { String(format: "%.0f Hz", 80 * pow(200, $0)) })
+                            knob("Resonance", \.resonance, 0...0.9, format: { String(format: "%.0f%%", $0 / 0.9 * 100) })
+                        }
+                        Section("Envelope") {
+                            knob("Attack", \.attack, 0.001...2, format: seconds)
+                            knob("Decay", \.decay, 0.01...3, format: seconds)
+                            knob("Sustain", \.sustain, 0...1, format: { String(format: "%.0f%%", $0 * 100) })
+                            knob("Release", \.release, 0.01...4, format: seconds)
+                        }
+                    }
+                } else { Text("This track no longer exists.") }
+            }
+            .navigationTitle(track?.displayName ?? "")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
+        }
+        .onAppear { if let synth = track?.synth { patch = synth } }
+        .onDisappear { if let index { session.audio.previewSynth(track: index, session.project.tracks[index].synth) } }
+    }
+
+    private func seconds(_ value: Double) -> String { value < 1 ? String(format: "%.0f ms", value * 1000) : String(format: "%.2f s", value) }
+
+    private func knob(_ title: LocalizedStringKey, _ key: WritableKeyPath<SynthPatch, Double>, _ range: ClosedRange<Double>, format: @escaping (Double) -> String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            LabeledContent(title, value: format(patch[keyPath: key]))
+            Slider(value: Binding(get: { patch[keyPath: key] }, set: { value in
+                patch[keyPath: key] = value
+                if let index { session.audio.previewSynth(track: index, patch) }
+            }), in: range) { editing in if !editing { commit(patch) } }
+                .accessibilityLabel(title).accessibilityValue(Text(verbatim: format(patch[keyPath: key])))
+        }
+    }
+
+    private func commit(_ value: SynthPatch?) {
+        let id = trackID
+        session.edit { p in if let i = p.tracks.firstIndex(where: { $0.id == id }) { p.tracks[i].synth = value } }
     }
 }

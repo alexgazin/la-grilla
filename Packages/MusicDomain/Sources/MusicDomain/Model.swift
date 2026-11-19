@@ -239,6 +239,8 @@ public struct Track: Codable, Equatable, Identifiable, Sendable {
     public var locked: Bool?
     /// I5 · I56 · I57: choke groups, sidechain and insert colour; nil = neutral.
     public var dynamics: TrackDynamics?
+    /// I55: synth voice for the built-in sound of a melodic track; nil = the palette preset.
+    public var synth: SynthPatch?
     public init(role: TrackRole) { self.role = role }
 }
 public struct Section: Codable, Equatable, Identifiable, Sendable {
@@ -303,7 +305,7 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
               Set(tracks.map(\.id)).count == tracks.count else { throw MusicError.invalidProject }
         guard (performanceTakes ?? []).count<=1 else{throw MusicError.limit}
         if let log=editLog{guard log.count<=32,log.allSatisfy({$0.count<=300}) else{throw MusicError.invalidProject}}
-        for track in tracks{try track.dynamics?.validate()}
+        for track in tracks{try track.dynamics?.validate();try track.synth?.validate();if track.synth != nil,track.role == .drums{throw MusicError.invalidProject}}
         guard sections.allSatisfy({$0.color.map{(0...3).contains($0)} ?? true}),sections.allSatisfy({$0.filterSweep?.isValid ?? true}) else{throw MusicError.invalidProject}
         try midi?.validate(self)
         try masterEQ?.validate()

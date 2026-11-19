@@ -114,3 +114,49 @@ public extension Project {
         return ramps.withUnsafeBufferPointer { lg_filter_automation(kernel, $0.baseAddress, Int32($0.count)) } != 0
     }
 }
+
+/// I55 · a simple subtractive synth for a melodic track's built-in voices.
+/// Imported instruments keep their samples. Nil on older tracks.
+public struct SynthPatch: Codable, Equatable, Sendable {
+    public enum Wave: Int, Codable, CaseIterable, Sendable { case saw, square, triangle }
+    public var wave: Wave
+    /// 0...1 → 80 Hz…16 kHz (logarithmic).
+    public var cutoff: Double
+    /// 0...0.9.
+    public var resonance: Double
+    public var attack: Double, decay: Double, sustain: Double, release: Double
+
+    public init(wave: Wave = .saw, cutoff: Double = 0.7, resonance: Double = 0.2, attack: Double = 0.01, decay: Double = 0.3, sustain: Double = 0.7, release: Double = 0.3) {
+        self.wave = wave; self.cutoff = cutoff; self.resonance = resonance; self.attack = attack; self.decay = decay; self.sustain = sustain; self.release = release
+    }
+
+    public func validate() throws {
+        let values = [cutoff, resonance, attack, decay, sustain, release]
+        guard values.allSatisfy(\.isFinite), (0...1).contains(cutoff), (0...0.9).contains(resonance), (0...4).contains(attack),
+              (0...6).contains(decay), (0...1).contains(sustain), (0...8).contains(release) else { throw MusicError.invalidProject }
+    }
+
+    var kernel: LGSynthPatch {
+        LGSynthPatch(wave: Int32(wave.rawValue), cutoff: Float(cutoff), resonance: Float(resonance), attack: Float(attack), decay: Float(decay), sustain: Float(sustain), release: Float(release))
+    }
+
+    public static let presets: [(name: String, patch: SynthPatch)] = [
+        ("Warm pad", SynthPatch(wave: .saw, cutoff: 0.55, resonance: 0.15, attack: 0.35, decay: 0.8, sustain: 0.75, release: 0.9)),
+        ("Pluck", SynthPatch(wave: .square, cutoff: 0.7, resonance: 0.35, attack: 0.002, decay: 0.25, sustain: 0.0, release: 0.15)),
+        ("Synth bass", SynthPatch(wave: .saw, cutoff: 0.4, resonance: 0.5, attack: 0.003, decay: 0.2, sustain: 0.6, release: 0.08)),
+        ("Soft lead", SynthPatch(wave: .triangle, cutoff: 0.85, resonance: 0.1, attack: 0.02, decay: 0.3, sustain: 0.8, release: 0.25)),
+    ]
+}
+
+public extension Project {
+    /// Applies every track's synth patch (or none) to the kernel.
+    func applySynths(to kernel: OpaquePointer) {
+        for (index, track) in tracks.prefix(masterBus).enumerated() {
+            if let patch = track.synth, track.role != .drums {
+                var value = patch.kernel
+                _ = lg_synth(kernel, Int32(index), &value)
+            } else { _ = lg_synth(kernel, Int32(index), nil) }
+        }
+        if tracks.count < masterBus { for index in tracks.count..<masterBus { _ = lg_synth(kernel, Int32(index), nil) } }
+    }
+}

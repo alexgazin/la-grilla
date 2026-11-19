@@ -57,7 +57,24 @@ struct Voice { bool on=false; int pitch=0,track=0,pad=-1,instrument=0; double ph
     const LGSampleBank *sample=nullptr;
     LGSampleZone zone{};
     double sampleCursor=0;
+    // I55 synth voice state.
+    bool synth=false;int wave=0;double svfA1=1,svfA2=0,svfA3=0,ic1=0,ic2=0;float lastEnv=0,releaseLevel=-1;double sA=0.005,sD=0.3,sS=0.7,sR=0.3,noteEnd=1e9;
 };
+// I55: band-limited oscillator (polyBLEP), TPT state-variable low-pass (stable at any cutoff), ADSR.
+static float synthFrame(Voice &v,double bend){
+    const double dt=v.phaseStep*bend;v.phase+=dt;if(v.phase>=1)v.phase-=1;
+    const auto blep=[dt](double t){if(t<dt){t/=dt;return t+t-t*t-1;}if(t>1-dt){t=(t-1)/dt;return t*t+t+t+1;}return 0.0;};
+    double osc;
+    if(v.wave==0)osc=2*v.phase-1-blep(v.phase);
+    else if(v.wave==1){double t=v.phase+0.5;if(t>=1)t-=1;osc=(v.phase<0.5?1.0:-1.0)+blep(v.phase)-blep(t);}
+    else osc=1-4*std::abs(v.phase-0.5);
+    const double v3=osc-v.ic2,v1=v.svfA1*v.ic1+v.svfA2*v3,v2=v.ic2+v.svfA2*v.ic1+v.svfA3*v3;
+    v.ic1=2*v1-v.ic1;v.ic2=2*v2-v.ic2;
+    double env;
+    if(v.age<v.noteEnd){env=v.age<v.sA?v.age/v.sA:v.sS+(1-v.sS)*std::exp(-5*(v.age-v.sA)/std::max(0.001,v.sD));v.lastEnv=float(env);}
+    else{if(v.releaseLevel<0)v.releaseLevel=v.lastEnv;env=v.releaseLevel*std::max(0.0,1-(v.age-v.noteEnd)/v.sR);}
+    return float(v2*env*0.22)*v.velocity;
+}
 
 static float sampleFrame(Voice& voice,double bend=1){
     const auto &zone=voice.zone;
@@ -187,6 +204,8 @@ struct LGKernel {
         if(inside){if(!rampApplied||std::abs(value-rampLast)>1e-4f){fx.prepare(value,delayTarget.load(),bpm);rampLast=value;rampApplied=true;}}
         else if(rampApplied){fx.prepare(filterTarget.load(),delayTarget.load(),bpm);rampApplied=false;}
     }
+    std::array<std::atomic<int>,MaxTracks> synthOn{},synthWave{};std::array<std::atomic<float>,MaxTracks> synthCutoff{},synthResonance{},synthAttack{},synthDecay{},synthSustain{},synthRelease{};
+    void releaseVoice(Voice &v){if(v.synth){v.noteEnd=std::min(v.noteEnd,v.age);v.duration=std::min(v.duration,v.age+v.sR);}else v.duration=std::min(v.duration,v.age+0.008);}
     std::atomic<int> clockOut{0};bool clockRunning=false;double clockNext=0;
     void clockEmit(int status,int a=0,int b=0){renderHub->outputEvent(outputState,hostNow,status,a,b);}
     void clockTick(){
@@ -381,6 +400,15 @@ struct LGKernel {
                 }
             }
         }
+        if(!v->sample&&pad<0&&track>=0&&track<MaxTracks&&synthOn[size_t(track)].load(std::memory_order_relaxed)){
+            v->synth=true;v->wave=synthWave[size_t(track)].load(std::memory_order_relaxed);
+            const double cutoff=80*std::pow(200.0,double(synthCutoff[size_t(track)].load(std::memory_order_relaxed)));
+            const double g=std::tan(Pi*std::min(cutoff,sr*0.45)/sr),damping=1.414-1.3*double(synthResonance[size_t(track)].load(std::memory_order_relaxed));
+            v->svfA1=1/(1+g*(g+damping));v->svfA2=g*v->svfA1;v->svfA3=g*v->svfA2;
+            v->sA=std::max(0.001,double(synthAttack[size_t(track)].load(std::memory_order_relaxed)));v->sD=double(synthDecay[size_t(track)].load(std::memory_order_relaxed));
+            v->sS=double(synthSustain[size_t(track)].load(std::memory_order_relaxed));v->sR=std::max(0.005,double(synthRelease[size_t(track)].load(std::memory_order_relaxed)));
+            v->noteEnd=duration;v->duration=duration+v->sR;
+        }
         startOutput(*v);return v;
     }
     void midiClear(int source,bool capture=true){
@@ -401,10 +429,10 @@ struct LGKernel {
             if(capture)performance.emit(10,e.track,float(e.b),e.a,key,e.instrument);
         }else if(e.status==8){
             if(e.instrument==1)return;
-            for(auto &v:voices)if(v.on&&v.sourceKey==key&&v.pitch==e.a){v.keyDown=false;if(!sustain[key]){endOutput(v);v.duration=std::min(v.duration,v.age+0.008);}}
+            for(auto &v:voices)if(v.on&&v.sourceKey==key&&v.pitch==e.a){v.keyDown=false;if(!sustain[key]){endOutput(v);releaseVoice(v);}}
             if(capture)performance.emit(11,e.track,0,e.a,key,e.instrument);
         }else if(e.status==11&&e.a==64){
-            sustain[key]=e.b>=64;if(!sustain[key])for(auto &v:voices)if(v.on&&v.sourceKey==key&&!v.keyDown){endOutput(v);v.duration=std::min(v.duration,v.age+0.008);}
+            sustain[key]=e.b>=64;if(!sustain[key])for(auto &v:voices)if(v.on&&v.sourceKey==key&&!v.keyDown){endOutput(v);releaseVoice(v);}
             if(capture)performance.emit(12,-1,sustain[key]?1.f:0.f,0,key);
         }else if(e.status==11&&(e.a==120||e.a==123)){midiClear(e.source,capture);}
     }
@@ -660,6 +688,17 @@ int lg_filter_automation(LGKernel*k,const LGFilterRamp*ramps,int count){
     for(int i=0;i<count;i++){k->rampStart[size_t(i)].store(ramps[i].start,std::memory_order_relaxed);k->rampEnd[size_t(i)].store(ramps[i].end,std::memory_order_relaxed);k->rampFrom[size_t(i)].store(ramps[i].from,std::memory_order_relaxed);k->rampTo[size_t(i)].store(ramps[i].to,std::memory_order_relaxed);}
     k->rampCount.store(count,std::memory_order_release);return 1;
 }
+int lg_synth(LGKernel*k,int track,const LGSynthPatch*p){
+    if(!k||track<0||track>=MaxTracks)return 0;
+    if(!p){k->synthOn[size_t(track)].store(0,std::memory_order_relaxed);return 1;}
+    const float values[]={p->cutoff,p->resonance,p->attack,p->decay,p->sustain,p->release};
+    for(float v:values)if(!std::isfinite(v))return 0;
+    if(p->wave<0||p->wave>2||p->cutoff<0||p->cutoff>1||p->resonance<0||p->resonance>0.9f||p->attack<0||p->attack>4||p->decay<0||p->decay>6||p->sustain<0||p->sustain>1||p->release<0||p->release>8)return 0;
+    const size_t t=size_t(track);
+    k->synthWave[t].store(p->wave,std::memory_order_relaxed);k->synthCutoff[t].store(p->cutoff,std::memory_order_relaxed);k->synthResonance[t].store(p->resonance,std::memory_order_relaxed);
+    k->synthAttack[t].store(p->attack,std::memory_order_relaxed);k->synthDecay[t].store(p->decay,std::memory_order_relaxed);k->synthSustain[t].store(p->sustain,std::memory_order_relaxed);k->synthRelease[t].store(p->release,std::memory_order_relaxed);
+    k->synthOn[t].store(1,std::memory_order_release);return 1;
+}
 void lg_midi_clock_out(LGKernel*k,int enabled){if(k)k->clockOut.store(enabled?1:0,std::memory_order_relaxed);}
 int lg_pad_repeat(LGKernel*k,int pad,int step,int velocity){
     if(!k||pad< -1||pad>15)return 0;
@@ -863,6 +902,13 @@ void lg_render_midi(LGKernel*k,LGMIDIHub*hub,uint64_t hostTime,double hostTicksP
             const double voiceBend=v.track==bentTrack?bend:1.0;
             float sample=0;const double remaining=v.duration-v.age;
             if(remaining<=0){k->endOutput(v);v.on=false;continue;}
+            if(v.synth){
+                sample=synthFrame(v,voiceBend)*float(std::min(1.,remaining/0.004));
+                v.age=double(++v.ageFrames)/k->sr;
+                v.lastSample=sample;v.level=std::abs(sample);
+                buses[v.track]+=sample;
+                continue;
+            }
             if(v.sample){
                 sample=sampleFrame(v,voiceBend)*v.velocity*float(std::min(1.,v.age/0.001)*std::min(1.,remaining/0.008));
                 v.age=double(++v.ageFrames)/k->sr;
