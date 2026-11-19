@@ -49,10 +49,10 @@ enum GrooveArrangement {
                 low.notes?.append(contentsOf: bassLine(chord, next: nextChord, style: brief.style, feel: brief.hipHopFeel, seed: bassSeed,
                                                        bar: bar, lift: part == 1, end: end, at: at))
                 if bar >= brief.introBars {
-                    let stab = brief.style == .house ? ppq / 2 : 0
+                    let stab = (brief.style == .house ? ppq / 2 : 0) + brief.keysOffset
                     keys.chords.append(ChordEvent(tick: at + stab, duration: min(end-stab, part == 1 ? 2*ppq : 3*ppq), chord: chord))
                     if part == 1 && end == barTicks {
-                        keys.chords.append(ChordEvent(tick: at + 5*ppq/2, duration: ppq, chord: chord))
+                        keys.chords.append(ChordEvent(tick: at + 5*ppq/2 + brief.keysOffset, duration: ppq, chord: chord))
                     }
                     tune.notes?.append(contentsOf: melody(chord, style: brief.style, seed: brief.seed,
                                                          bar: bar, lift: part == 1, end: end, at: at))
@@ -172,7 +172,7 @@ extension GrooveArrangement {
                 var chord = cycle[bar * cycle.count / part.bars]
                 chord.voicedNotes = try HarmonyLab.voicing(chord, previous: previous, low: 48, high: 82)
                 previous = chord.notes
-                keys.chords.append(ChordEvent(tick: at, duration: part.relaxed ? barTicks : 2*ppq, chord: chord))
+                keys.chords.append(ChordEvent(tick: at + brief.keysOffset, duration: min(barTicks - brief.keysOffset, part.relaxed ? barTicks : 2*ppq), chord: chord))
                 let drumSeed = brief.seed &+ brief.drumVariation
                 for hit in percussion(style: brief.style, feel: brief.hipHopFeel, seed: drumSeed, bar: bar, lift: !part.relaxed) {
                     if form.offbeatHats && [2,3,10].contains(hit.pad) { continue }

@@ -3,6 +3,22 @@ import Testing
 @testable import MusicDomain
 
 struct GrooveArrangementTests {
+    @Test func chillhopTimingMovesOnlyKeysAndSurvivesExport() throws {
+        let prompt = "Chillhop. Около 90 бпм. Тональность ми натуральный минор. Слегка опаздывающее пианино. Аккорды: C, D, B, E"
+        let brief = try TrackBrief().suggesting(prompt)
+        #expect(brief.tempo == 90 && brief.root == 4 && brief.minor && brief.style == .hipHop)
+        #expect(brief.laidBackKeys)
+        let project = try brief.makeProject(name: "Late keys")
+        var straight = brief
+        straight.laidBackKeys = false
+        let original = Compiler.notes(try straight.makeProject(name: "Straight keys"))
+        let restored = try PortableProject.decode(PortableProject.data(project), asCopy: false)
+        let actual = Compiler.notes(restored)
+        #expect(original.filter { $0.track != 0 } == actual.filter { $0.track != 0 })
+        #expect(actual.filter { $0.track == 0 }.map(\.tick) == original.filter { $0.track == 0 }.map { $0.tick + 35 })
+        #expect(try MIDIExporter.data(restored) == MIDIExporter.data(project))
+    }
+
     @Test func assistantRoutesTheReportedBilingualStyleRequest() throws {
         let text = "Create jazz hip hop old school"
         let brief = try #require(try TrackBrief.offlineCreationRequest(text))

@@ -30,6 +30,9 @@ public struct TrackBrief: Equatable, Sendable {
     public var hipHopFeel: HipHopFeel = .boomBap
     public var introBars = 0
     public var endBreak = false
+    public var laidBackKeys = false
+    // Convert a small, audible performance delay to score ticks at the final tempo.
+    var keysOffset: Int { laidBackKeys ? Int((0.024 * Double(tempo * ppq) / 60).rounded()) : 0 }
     public var drumVariation: UInt32 = 0
     public var bassVariation: UInt32 = 0
     public var seed: UInt32 = 1
@@ -97,6 +100,10 @@ public struct TrackBrief: Equatable, Sendable {
             result.bassVariation &+= 1
             matched = true
         }
+        if text.range(of: #"(?:опаздывающ[а-я]*|запаздывающ[а-я]*)\s+(?:пианино|клавиши)|(?:laid[ -]back|late)\s+(?:piano|keys)|(?:piano|keys)\s+behind the beat"#, options: .regularExpression) != nil {
+            result.laidBackKeys = true
+            matched = true
+        }
         let regex = try NSRegularExpression(pattern: Self.introPattern)
         if let match = regex.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
            let range = Range(match.range(at: 1), in: text) {
@@ -144,7 +151,7 @@ public struct TrackBrief: Equatable, Sendable {
                   let range = Range(match.range(at:1),in:input) else { return nil }
             return String(input[range])
         }
-        let rhythms: [(SketchStyle,[String])] = [(.hipHop,["hip-hop","hip hop","хип-хоп","хип хоп","хипхоп","lo-fi","lofi","лофай","лоу-фай","boom bap","boom-bap","бум-бэп","west coast","west-coast","g-funk","вест-кост","джи-фанк"]),(.jazz,["jazz","джаз","swing","свинг"]),(.house,["house","хаус","four on the floor","прямая бочка"])]
+        let rhythms: [(SketchStyle,[String])] = [(.hipHop,["chillhop","chill-hop","чиллхоп","чилл-хоп","hip-hop","hip hop","хип-хоп","хип хоп","хипхоп","lo-fi","lofi","лофай","лоу-фай","boom bap","boom-bap","бум-бэп","west coast","west-coast","g-funk","вест-кост","джи-фанк"]),(.jazz,["jazz","джаз","swing","свинг"]),(.house,["house","хаус","four on the floor","прямая бочка"])]
         if let style = rhythms.first(where:{ $0.1.contains(where:text.contains) })?.0 { result.usePreset(style); matched = true }
         let moods: [(words:[String],tempo:Int,minor:Bool)] = [
             (["ночн","night","тёмн","темн","dark","мрачн"],96,true),
@@ -162,7 +169,7 @@ public struct TrackBrief: Equatable, Sendable {
             guard let value=Int(token),[4,8,16].contains(value) else { throw TrackBriefError.invalidLength }
             result.bars=value; matched=true
         }
-        let keyPattern = #"(?:^|[\s,;:])([a-g](?:[#♯b♭])?|до|ре|ми|фа|соль|ля|си)[\s-]*(?:minor|major|минор|мажор)\b"#
+        let keyPattern = #"(?:^|[\s,;:])([a-g](?:[#♯b♭])?|до|ре|ми|фа|соль|ля|си)[\s-]*(?:(?:natural|натуральный)\s+)?(?:minor|major|минор|мажор)\b"#
         if let note=group(keyPattern,in:text) {
             let aliases=["до":"C","ре":"D","ми":"E","фа":"F","соль":"G","ля":"A","си":"B"]
             result.root=try Chord.parse(aliases[note] ?? note).root

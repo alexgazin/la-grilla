@@ -121,6 +121,7 @@ struct TrackBuilderView: View {
                             ForEach(HipHopFeel.allCases, id: \.self) { feel in Text(LocalizedStringKey(feel.rawValue)).tag(feel) }
                         }.pickerStyle(.segmented)
                     }
+                    Toggle("Lay the keys behind the beat", isOn: $brief.laidBackKeys)
                     if brief.songForm == nil {
                         Stepper(value: $brief.introBars, in: 0...(brief.bars-1)) {
                             LabeledContent("Bass and drums intro", value: "\(brief.introBars) / \(brief.bars)")
