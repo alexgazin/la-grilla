@@ -1229,3 +1229,17 @@
 "Drift" = "Drift";
 "Fade" = "Fade";
 "Stop %@ for the last beat of %@" = "Stop %@ for the last beat of %@";
+
+/* I51 kits */
+"More kits" = "More kits";
+"808 Trap" = "808 Trap";
+"Brushes" = "Brushes";
+"World" = "World";
+"Long 808 kick with a glide, tight snare and fast hats." = "Long 808 kick with a glide, tight snare and fast hats.";
+"Punchy kick, big clap and bright open hats." = "Punchy kick, big clap and bright open hats.";
+"Felt kick, brushed snare and a warm ride." = "Felt kick, brushed snare and a warm ride.";
+"Frame drum, congas, darbuka-style tek and bells." = "Frame drum, congas, darbuka-style tek and bells.";
+"Load 808 Trap Kit" = "Load 808 Trap Kit";
+"Load House Kit" = "Load House Kit";
+"Load Brushes Kit" = "Load Brushes Kit";
+"Load World Kit" = "Load World Kit";

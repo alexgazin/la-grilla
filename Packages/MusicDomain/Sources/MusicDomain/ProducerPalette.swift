@@ -100,7 +100,7 @@ public enum PaletteEngine {
 
     /// Names given by the factory kit loader ("Dusty · Kick").
     static func isFactoryKitSound(_ name: String) -> Bool {
-        let prefixes = ["Pocket · ", "Dusty · ", "Coast · ", NSLocalizedString("Pocket · %@", comment: "Pocket Kit sample").replacingOccurrences(of: "%@", with: "")]
+        let prefixes = ["Pocket · ", "Dusty · ", "Coast · ", "808 Trap · ", "House · ", "Brushes · ", "World · ", NSLocalizedString("Pocket · %@", comment: "Pocket Kit sample").replacingOccurrences(of: "%@", with: "")]
         return prefixes.contains { !$0.isEmpty && name.hasPrefix($0) }
     }
 
@@ -115,7 +115,10 @@ public enum PaletteEngine {
 
     /// The palette's drum kit as one-shot assets with their bytes, in pad order.
     public static func kit(_ palette: ProducerPalette) throws -> [(pad: Int, asset: SampleAsset, data: Data)] {
-        let prefix: String = switch palette.drumKit { case .pocket: "Pocket · "; case .dusty: "Dusty · "; case .coast: "Coast · " }
+        let prefix: String = switch palette.drumKit {
+        case .pocket: "Pocket · "; case .dusty: "Dusty · "; case .coast: "Coast · "
+        case .trap808: "808 Trap · "; case .house: "House · "; case .brushes: "Brushes · "; case .world: "World · "
+        }
         return try Compiler.padNames.indices.map { pad in
             let pcm = SamplePCM(rate: FactoryDrumKit.sampleRate, zones: [.init(pitch: 60, samples: try palette.drumKit.sample(pad: pad))])
             let data = try pcm.encode(kind: .oneShot)

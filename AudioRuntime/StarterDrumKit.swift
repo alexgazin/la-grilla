@@ -11,6 +11,10 @@ extension DrumSamplePreparation {
         case .pocket: NSLocalizedString("Pocket · %@", comment: "Pocket Kit sample")
         case .dusty: "Dusty · %@"
         case .coast: "Coast · %@"
+        case .trap808: "808 Trap · %@"
+        case .house: "House · %@"
+        case .brushes: "Brushes · %@"
+        case .world: "World · %@"
         }
         return try Compiler.padNames.indices.map { pad in
             let label = NSLocalizedString(Compiler.padNames[pad], comment: "Pad name")

@@ -18,6 +18,15 @@ struct FactoryDrumKitPanel: View {
         VStack(alignment: .leading, spacing: 10) {
             StudioSegments(title: "Factory kits", selection: $kit,
                            options: [(.pocket, "Pocket"), (.dusty, "Dusty"), (.coast, "Coast")])
+            Picker("More kits", selection: $kit) {
+                Text("Pocket").tag(FactoryDrumKit.pocket)
+                Text("Dusty").tag(FactoryDrumKit.dusty)
+                Text("Coast").tag(FactoryDrumKit.coast)
+                Text("808 Trap").tag(FactoryDrumKit.trap808)
+                Text("House").tag(FactoryDrumKit.house)
+                Text("Brushes").tag(FactoryDrumKit.brushes)
+                Text("World").tag(FactoryDrumKit.world)
+            }.pickerStyle(.menu).accessibilityIdentifier("pad-samples.more-kits")
             Text(description)
                 .font(.subheadline)
                 .foregroundStyle(Color.muted)
@@ -83,6 +92,10 @@ struct FactoryDrumKitPanel: View {
         case .pocket: "Balanced kick, crisp hats and short percussion."
         case .dusty: "Dry kick, grainy snare and softened cymbals."
         case .coast: "Deep kick, layered clap and metallic hats."
+        case .trap808: "Long 808 kick with a glide, tight snare and fast hats."
+        case .house: "Punchy kick, big clap and bright open hats."
+        case .brushes: "Felt kick, brushed snare and a warm ride."
+        case .world: "Frame drum, congas, darbuka-style tek and bells."
         }
     }
 
@@ -91,6 +104,10 @@ struct FactoryDrumKitPanel: View {
         case .pocket: "Load Pocket Kit"
         case .dusty: "Load Dusty Kit"
         case .coast: "Load Coast Kit"
+        case .trap808: "Load 808 Trap Kit"
+        case .house: "Load House Kit"
+        case .brushes: "Load Brushes Kit"
+        case .world: "Load World Kit"
         }
     }
 

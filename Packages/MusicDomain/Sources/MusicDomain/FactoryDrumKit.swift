@@ -4,6 +4,10 @@ import Foundation
 /// as profiles saved before selectable kits were introduced.
 public enum FactoryDrumKit: String, CaseIterable, Sendable {
     case pocket, dusty, coast
+    /// I51: further original on-device kits (build 47 wave 6).
+    case trap808, house, brushes, world
+    /// Kits with their own generator; the three original kits keep theirs bit-exact.
+    public static let original: [FactoryDrumKit] = [.pocket, .dusty, .coast]
 
     public static let sampleRate = 32_000
 
@@ -11,7 +15,8 @@ public enum FactoryDrumKit: String, CaseIterable, Sendable {
         guard Compiler.padNames.indices.contains(pad) else { throw SampleError.invalid }
         try Task.checkCancellation()
         if self == .pocket { return Self.pocketSample(pad) }
-        return try render(Self.kitVoices[pad], pad: pad)
+        if self == .dusty || self == .coast { return try render(Self.kitVoices[pad], pad: pad) }
+        return try renderStyled(pad: pad)
     }
 
     private struct Voice {
@@ -203,5 +208,133 @@ extension FactoryDrumKit {
         let pcm = mix.map { Int16(clamping: Int($0.rounded())).littleEndian }
         pcm.withUnsafeBytes { result.append(contentsOf: $0) }
         return result
+    }
+}
+
+// MARK: - I51 styled kits
+
+extension FactoryDrumKit {
+    private enum Hit { case boom, punch, felt, frame, snap, clap, brush, tek, hat, openHat, cymbal, ride, conga, shaker, bell, rim }
+    private struct StyledVoice { let hit: Hit; let pitch: Double; let length: Double; let gain: Double }
+    private struct Style { let drive: Double; let warmth: Double; let air: Double; let level: Double }
+
+    private var style: Style {
+        switch self {
+        case .trap808: Style(drive: 1.6, warmth: 0.55, air: 1.0, level: 15_500)
+        case .house: Style(drive: 1.4, warmth: 0.75, air: 1.0, level: 15_000)
+        case .brushes: Style(drive: 1.0, warmth: 0.35, air: 0.6, level: 16_500)
+        default: Style(drive: 1.15, warmth: 0.5, air: 0.8, level: 15_500)
+        }
+    }
+
+    // Pad order is the persisted MIDI-pad mapping (Kick, Snare, Closed hat, Open hat,
+    // Clap, Rim, Low/Mid/High tom, Crash, Ride, Tambourine, Cowbell, Clave, Shaker, Perc).
+    private var styledVoices: [StyledVoice] {
+        switch self {
+        case .trap808: [
+            .init(hit: .boom, pitch: 46, length: 1.3, gain: 1), .init(hit: .snap, pitch: 205, length: 0.26, gain: 0.85),
+            .init(hit: .hat, pitch: 8200, length: 0.06, gain: 0.42), .init(hit: .openHat, pitch: 7600, length: 0.42, gain: 0.4),
+            .init(hit: .clap, pitch: 1150, length: 0.3, gain: 0.8), .init(hit: .rim, pitch: 1700, length: 0.07, gain: 0.6),
+            .init(hit: .boom, pitch: 70, length: 0.7, gain: 0.8), .init(hit: .boom, pitch: 98, length: 0.6, gain: 0.75),
+            .init(hit: .boom, pitch: 131, length: 0.5, gain: 0.7), .init(hit: .cymbal, pitch: 5200, length: 1.5, gain: 0.5),
+            .init(hit: .ride, pitch: 6100, length: 1.0, gain: 0.42), .init(hit: .shaker, pitch: 9000, length: 0.18, gain: 0.4),
+            .init(hit: .bell, pitch: 540, length: 0.3, gain: 0.55), .init(hit: .tek, pitch: 2500, length: 0.06, gain: 0.55),
+            .init(hit: .shaker, pitch: 7000, length: 0.14, gain: 0.4), .init(hit: .snap, pitch: 330, length: 0.18, gain: 0.6)]
+        case .house: [
+            .init(hit: .punch, pitch: 52, length: 0.42, gain: 1), .init(hit: .snap, pitch: 190, length: 0.24, gain: 0.8),
+            .init(hit: .hat, pitch: 9400, length: 0.07, gain: 0.45), .init(hit: .openHat, pitch: 8800, length: 0.34, gain: 0.45),
+            .init(hit: .clap, pitch: 1050, length: 0.38, gain: 0.9), .init(hit: .rim, pitch: 1500, length: 0.06, gain: 0.6),
+            .init(hit: .punch, pitch: 90, length: 0.4, gain: 0.75), .init(hit: .punch, pitch: 120, length: 0.35, gain: 0.72),
+            .init(hit: .punch, pitch: 160, length: 0.3, gain: 0.7), .init(hit: .cymbal, pitch: 6000, length: 1.4, gain: 0.5),
+            .init(hit: .ride, pitch: 6800, length: 0.9, gain: 0.45), .init(hit: .shaker, pitch: 8000, length: 0.2, gain: 0.45),
+            .init(hit: .bell, pitch: 590, length: 0.25, gain: 0.55), .init(hit: .tek, pitch: 2300, length: 0.07, gain: 0.55),
+            .init(hit: .shaker, pitch: 6400, length: 0.16, gain: 0.45), .init(hit: .conga, pitch: 280, length: 0.25, gain: 0.6)]
+        case .brushes: [
+            .init(hit: .felt, pitch: 60, length: 0.4, gain: 0.95), .init(hit: .brush, pitch: 220, length: 0.42, gain: 0.85),
+            .init(hit: .brush, pitch: 5200, length: 0.12, gain: 0.45), .init(hit: .brush, pitch: 4800, length: 0.5, gain: 0.45),
+            .init(hit: .brush, pitch: 1400, length: 0.3, gain: 0.6), .init(hit: .rim, pitch: 1250, length: 0.08, gain: 0.55),
+            .init(hit: .felt, pitch: 95, length: 0.45, gain: 0.75), .init(hit: .felt, pitch: 125, length: 0.4, gain: 0.72),
+            .init(hit: .felt, pitch: 165, length: 0.35, gain: 0.7), .init(hit: .cymbal, pitch: 3800, length: 1.8, gain: 0.45),
+            .init(hit: .ride, pitch: 4300, length: 1.4, gain: 0.5), .init(hit: .shaker, pitch: 5200, length: 0.22, gain: 0.4),
+            .init(hit: .bell, pitch: 470, length: 0.3, gain: 0.5), .init(hit: .tek, pitch: 1900, length: 0.08, gain: 0.5),
+            .init(hit: .shaker, pitch: 4200, length: 0.2, gain: 0.4), .init(hit: .brush, pitch: 800, length: 0.25, gain: 0.5)]
+        default: [
+            .init(hit: .frame, pitch: 64, length: 0.55, gain: 1), .init(hit: .tek, pitch: 900, length: 0.16, gain: 0.85),
+            .init(hit: .shaker, pitch: 7200, length: 0.1, gain: 0.45), .init(hit: .shaker, pitch: 6400, length: 0.32, gain: 0.45),
+            .init(hit: .clap, pitch: 980, length: 0.32, gain: 0.75), .init(hit: .tek, pitch: 1600, length: 0.09, gain: 0.6),
+            .init(hit: .conga, pitch: 180, length: 0.4, gain: 0.8), .init(hit: .conga, pitch: 240, length: 0.35, gain: 0.78),
+            .init(hit: .conga, pitch: 320, length: 0.3, gain: 0.76), .init(hit: .bell, pitch: 1320, length: 1.4, gain: 0.45),
+            .init(hit: .bell, pitch: 880, length: 1.0, gain: 0.45), .init(hit: .shaker, pitch: 8600, length: 0.26, gain: 0.42),
+            .init(hit: .bell, pitch: 640, length: 0.35, gain: 0.55), .init(hit: .tek, pitch: 2700, length: 0.07, gain: 0.55),
+            .init(hit: .shaker, pitch: 5600, length: 0.2, gain: 0.45), .init(hit: .frame, pitch: 110, length: 0.3, gain: 0.7)]
+        }
+    }
+
+    private func renderStyled(pad: Int) throws -> [Int16] {
+        let voice = styledVoices[pad], style = self.style
+        let rate = Double(Self.sampleRate), count = Int(max(0.075, voice.length) * rate), turn = 2 * Double.pi
+        var seed = UInt32(pad + 101 + (Self.allCases.firstIndex(of: self) ?? 0) * 17) &* 2_654_435_761
+        var low = 0.0, band = 0.0, phase = 0.0, out = [Int16](), tone = 0.0
+        out.reserveCapacity(count)
+        for frame in 0..<count {
+            if frame.isMultiple(of: 4096) { try Task.checkCancellation() }
+            let t = Double(frame) / rate
+            seed = seed &* 1_664_525 &+ 1_013_904_223
+            let white = Double(seed >> 8) / 8_388_608 - 1
+            low += (white - low) * 0.06
+            band += (white - band) * (0.3 + 0.6 * style.air)
+            let hiss = white - band, body = band - low
+            let decay = exp(-t * 5.2 / voice.length)
+            var signal: Double
+            switch voice.hit {
+            case .boom:
+                // 808: sine with a fast downward glide and a long tail.
+                let f = voice.pitch * (1 + 1.6 * exp(-t * 34))
+                phase += turn * f / rate
+                signal = sin(phase) * exp(-t * 2.6 / voice.length) + body * 0.4 * exp(-t * 160)
+            case .punch:
+                let f = voice.pitch * (1 + 2.2 * exp(-t * 48))
+                phase += turn * f / rate
+                signal = sin(phase) * decay + (body * 0.8 + sin(turn * 3200 * t) * 0.25) * exp(-t * 220)
+            case .felt:
+                let f = voice.pitch * (1 + 0.5 * exp(-t * 30))
+                phase += turn * f / rate
+                signal = sin(phase) * decay * 0.9 + low * 2.2 * exp(-t * 60)
+            case .frame:
+                let f = voice.pitch * (1 + 0.8 * exp(-t * 40))
+                phase += turn * f / rate
+                signal = (sin(phase) + 0.3 * sin(phase * 2.3)) * decay + body * 0.6 * exp(-t * 90)
+            case .snap:
+                signal = sin(turn * voice.pitch * t) * 0.6 * exp(-t * 32) + (body * 1.6 + hiss * 1.4) * decay
+            case .clap:
+                let gap = 0.012, distance = t - floor(min(3, t / gap)) * gap
+                signal = body * 1.9 * exp(-distance * 230) + body * 0.9 * decay
+            case .brush:
+                // A swish: band noise with a slow attack.
+                let attack = min(1, t / 0.025)
+                signal = attack * decay * (body * 1.4 + hiss * 0.5 * style.air)
+            case .tek, .rim:
+                signal = (sin(turn * voice.pitch * t) + 0.5 * sin(turn * voice.pitch * 2.7 * t)) * exp(-t * 60) + body * 0.5 * exp(-t * 120)
+            case .hat, .openHat, .shaker:
+                let attack = voice.hit == .shaker ? min(1, t / 0.012) : 1
+                signal = attack * decay * (hiss * 7 + body * 0.6 + sin(turn * voice.pitch * t) * 0.08)
+            case .cymbal, .ride:
+                let ring = sin(turn * voice.pitch * t) + 0.7 * sin(turn * voice.pitch * 1.41 * t) + 0.4 * sin(turn * voice.pitch * 2.23 * t)
+                signal = (ring * (voice.hit == .ride ? 0.32 : 0.18) + hiss * 4.5) * decay
+            case .conga:
+                let f = voice.pitch * (1 + 0.25 * exp(-t * 50))
+                phase += turn * f / rate
+                signal = sin(phase) * decay + body * 0.5 * exp(-t * 140)
+            case .bell:
+                signal = (sin(turn * voice.pitch * t) + 0.6 * sin(turn * voice.pitch * 2.76 * t) + 0.3 * sin(turn * voice.pitch * 5.4 * t)) * decay * 0.7
+            }
+            // Metals keep their air; drums and tones get the kit's warmth.
+            let metallic = [.hat, .openHat, .shaker, .cymbal, .ride].contains(voice.hit)
+            tone += (signal - tone) * (1 - (metallic ? 0 : style.warmth) * 0.6)
+            let shaped = tanh(tone * style.drive)
+            let edge = min(1, Double(frame) / 9, Double(count - 1 - frame) / 120)
+            out.append(Int16((shaped * edge * voice.gain * style.level).rounded()))
+        }
+        return out
     }
 }

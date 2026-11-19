@@ -1231,3 +1231,17 @@
 "Drift" = "Дрейф";
 "Fade" = "Затухание";
 "Stop %@ for the last beat of %@" = "Стоп-брейк: %@ · последняя доля, %@";
+
+/* I51 kits */
+"More kits" = "Ещё наборы";
+"808 Trap" = "808 Trap";
+"Brushes" = "Щётки";
+"World" = "Мировые ударные";
+"Long 808 kick with a glide, tight snare and fast hats." = "Длинная бочка 808 с глиссандо, тугой малый и быстрые хэты.";
+"Punchy kick, big clap and bright open hats." = "Плотная бочка, большой хлопок и яркие открытые хэты.";
+"Felt kick, brushed snare and a warm ride." = "Войлочная бочка, щётки по малому и тёплый райд.";
+"Frame drum, congas, darbuka-style tek and bells." = "Рамочный барабан, конги, «тек» в духе дарбуки и колокольчики.";
+"Load 808 Trap Kit" = "Загрузить 808 Trap";
+"Load House Kit" = "Загрузить House";
+"Load Brushes Kit" = "Загрузить «Щётки»";
+"Load World Kit" = "Загрузить мировые ударные";
