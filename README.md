@@ -150,7 +150,7 @@
 
 ## Попробовать на iPhone
 
-**[Скачать La Grilla 1.0.0 (42)](https://raw.githubusercontent.com/alexgazin/la-grilla/15ee53741f97b655f3c2f84f215a0812b148775f/Builds/Testing/LaGrilla-42-unsigned.ipa)**. Подпишите скачанный IPA своим Apple ID через Sideloadly. Бесплатная Personal Team подходит. [Установка и проверка пакета](Builds/Testing/README.md).
+**[Скачать La Grilla 1.0.0 (42)](https://raw.githubusercontent.com/alexgazin/la-grilla/f65bb5893f4a1f8d28806c0fd1f41cd967e98d8c/Builds/Testing/LaGrilla-42-unsigned.ipa)**. Подпишите скачанный IPA своим Apple ID через Sideloadly. Бесплатная Personal Team подходит. [Установка и проверка пакета](Builds/Testing/README.md).
 
 Перед обновлением экспортируйте важные проекты в `.grillapack`. Сборка 42 читает проекты схем 1…14. В схеме 14 сохраняются исходное описание, план аранжировки и выбранное исполнение, чтобы к ним можно было вернуться после закрытия приложения.
 

@@ -1,8 +1,8 @@
 # Текущая сборка и границы приёмки
 
-**Сборка 42 для ручного тестирования.** [IPA 1.0.0 (42)](https://raw.githubusercontent.com/alexgazin/la-grilla/15ee53741f97b655f3c2f84f215a0812b148775f/Builds/Testing/LaGrilla-42-unsigned.ipa) · [Оригинальные снимки симулятора](../../Screenshots/Score42/README.md) · [Три переносимых проекта и аудио](../../Media/Grooves/Arranger41/README.md).
+**Сборка 42 для ручного тестирования.** [IPA 1.0.0 (42)](https://raw.githubusercontent.com/alexgazin/la-grilla/f65bb5893f4a1f8d28806c0fd1f41cd967e98d8c/Builds/Testing/LaGrilla-42-unsigned.ipa) · [Оригинальные снимки симулятора](../../Screenshots/Score42/README.md) · [Три переносимых проекта и аудио](../../Media/Grooves/Arranger41/README.md).
 
-Оригинальный Release-архив собран из `1106e40`. Проверены номер сборки, целостность ZIP, хеш каждого файла приложения и совпадение публичной загрузки с IPA из архива. Прошли 237 тестов Swift и 17 наборов аудиоядра. Приложение с партитурой собрано в Xcode 16.4 и 26.0.1. [Release-архив](https://github.com/alexgazin/la-grilla/actions/runs/44533585343) · [Совместимость SDK](https://github.com/alexgazin/la-grilla/actions/runs/44533369822).
+Оригинальный Release-архив собран из `9794215`. Проверены номер сборки, целостность ZIP, хеш каждого файла приложения и совпадение публичной загрузки с IPA из архива. Прошли 237 тестов Swift и 17 наборов аудиоядра. Предыдущая сборка партитуры прошла сборку в Xcode 16.4 и 26.0.1. [Release-архив](https://github.com/alexgazin/la-grilla/actions/runs/44544811876) · [Совместимость SDK](https://github.com/alexgazin/la-grilla/actions/runs/44533369822).
 
 На iPhone Simulator подтверждены создание трёх аранжировок, сохранение, перезапуск и ненулевой звук из сохранённого проекта. В ночной теме секция играет при переключении A/B и останавливается в своём конце. На физическом устройстве остаются проверка задержки, маршрутов микрофона и MIDI, доступности Apple Intelligence и музыкальное прослушивание. Для TestFlight требуется подписанный дистрибутив.
 
