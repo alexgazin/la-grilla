@@ -54,8 +54,26 @@ final class PianoTouchUITests:XCTestCase {
         app.buttons["keyboard.open"].tap()
         let electric = app.buttons["keyboard.instrument.electric-piano"]
         let shelf = app.scrollViews["keyboard.instruments"]
-        for _ in 0..<3 where !electric.isHittable { shelf.swipeLeft() }
-        XCTAssertTrue(electric.isHittable)
+        XCTAssertTrue(shelf.waitForExistence(timeout: 8))
+        // Asking XCTest for an activation point on an offscreen card can itself fail.
+        // Use the scroll viewport to bring the real card center into view first.
+        @MainActor func visibleCenter() -> Bool {
+            guard electric.exists else { return false }
+            let frame = electric.frame
+            let viewport = shelf.frame.intersection(app.frame).insetBy(dx: 4, dy: 4)
+            return !frame.isEmpty && viewport.contains(CGPoint(x: frame.midX, y: frame.midY))
+        }
+        for _ in 0..<12 {
+            if visibleCenter() { break }
+            let moveRight = electric.exists && !electric.frame.isEmpty && electric.frame.midX < shelf.frame.minX
+            let start = shelf.coordinate(withNormalizedOffset: CGVector(dx: moveRight ? 0.22 : 0.78, dy: 0.5))
+            let end = shelf.coordinate(withNormalizedOffset: CGVector(dx: moveRight ? 0.78 : 0.22, dy: 0.5))
+            start.press(forDuration: 0.04, thenDragTo: end, withVelocity: .slow, thenHoldForDuration: 0.08)
+        }
+        guard visibleCenter() else {
+            XCTFail("Electric piano did not become visible in the instrument shelf")
+            return
+        }
         electric.tap()
         let current = app.staticTexts["keyboard.current-sound"]
         let updated = NSPredicate(format: "label == %@", "Electric piano")
