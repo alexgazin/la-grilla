@@ -115,7 +115,7 @@ public enum SongEditParser {
     static func changesDerivedBass(_ op: SongEditOperation, project: Project) -> Bool {
         guard project.tracks.contains(where: { $0.role == .bass }),
               project.tracks.first(where: { $0.id == op.target.trackID })?.role == .harmony else { return op.kind == .arpeggiate && op.replacesChords && project.tracks.contains { $0.role == .bass } }
-        return [.remove, .denser, .sparser, .delay, .stopBreak].contains(op.kind)
+        return [.remove, .denser, .sparser, .delay, .stopBreak, .reharmonize].contains(op.kind)
     }
 
     // MARK: Tokens
@@ -254,6 +254,7 @@ public enum SongEditParser {
         var everyOther = false
         var delayTicks: Int? = nil
         var percent: Int? = nil
+        var style: HarmonyStyle = .expressive
         var steps: Int = 1
         var delayMilliseconds: Double? = nil
         var fillTicks = 2 * ppq
@@ -312,6 +313,9 @@ public enum SongEditParser {
             let count = words.compactMap { cardinal($0) }.first { $0 <= 7 } ?? 1
             edit.steps = (octave ? 7 : count) * (down ? -1 : 1)
         }
+        else if words.contains(where: { any($0, Lexicon.harmony) }), let style = Lexicon.harmonyStyles.first(where: { styles in words.contains { w in any(w, styles.1) } })?.0 {
+            edit.kind = .reharmonize; edit.style = style
+        }
         else if stopBreak { edit.kind = .stopBreak; edit.fillTicks = ppq }
         else if edit.fillNoun { edit.kind = .fill }
         else if words.contains(where: { any($0, Lexicon.arpeggio) }) { edit.kind = .arpeggiate }
@@ -363,7 +367,9 @@ public enum SongEditParser {
         for (i, w) in words.enumerated() {
             let previous = i > 0 ? words[i - 1] : "", before2 = i > 1 ? words[i - 2] : ""
             let next = i + 1 < words.count ? words[i + 1] : ""
-            if let kind = Lexicon.sectionKinds.first(where: { $0.contains { stem in matches(w, stem) } }) {
+            // "chords" is not "chorus": harmony words never name a section.
+            let harmonyWord = Lexicon.harmony.contains { w.hasPrefix($0) }
+            if !harmonyWord, let kind = Lexicon.sectionKinds.first(where: { $0.contains { stem in matches(w, stem) } }) {
                 // "fill" never names a section; "break" names one only with a section word.
                 edit.sectionKind = kind
                 if let n = ordinal(previous) ?? ordinal(next) { edit.sectionOrdinal = n }
@@ -372,7 +378,7 @@ public enum SongEditParser {
                 if preposition.contains(where: { ["перед", "before", "до", "into", "к"].contains($0) }) { edit.place = .before }
                 else if preposition.contains(where: { ["после", "after", "out"].contains($0) }) { edit.place = .after }
             }
-            if let project, edit.sectionKind == nil, edit.sectionName == nil,
+            if let project, !harmonyWord, edit.sectionKind == nil, edit.sectionName == nil,
                let section = project.sections.first(where: { s in let n = normalize(s.name); return n.count >= 3 && (n == w || (w.count >= 4 && matches(w, n))) }) {
                 edit.sectionName = normalize(section.name)
                 if let n = ordinal(previous) ?? ordinal(next) { edit.sectionOrdinal = n }
@@ -597,6 +603,7 @@ public enum SongEditParser {
         }
         if kind == .fill || kind == .stopBreak { amount = edit.fillTicks }
         if kind == .swing { amount = edit.percent ?? 58 }
+        if kind == .reharmonize { amount = HarmonyStyle.allCases.firstIndex(of: edit.style) ?? 2 }
         if kind == .scaleShift { amount = edit.steps }
         func make(_ bars: Range<Int>, section: UUID?) -> [SongEditOperation] {
             targets.map { SongEditOperation(kind: kind, target: $0, bars: bars, sectionID: section, everyOther: edit.everyOther, amount: amount, replacesChords: edit.replacesChords) }
@@ -699,6 +706,12 @@ enum Lexicon {
     static let drums = ["ударн", "барабан", "drum", "drums", "percussion"]
     static let bassWords = ["бас", "баса", "басу", "басом", "басе", "басы", "басов", "басовую", "басовая", "басовой", "bass", "basses"]
     static let harmony = ["аккорд", "гармон", "пэд", "chord", "chords", "harmony"]
+    static let harmonyStyles: [(HarmonyStyle, [String])] = [
+        (.expressive, ["джаз", "jazz", "богаче", "richer", "насыщенн", "сочнее", "color", "colour"]),
+        (.reharmonize, ["реармон", "reharmon", "замени", "substitut", "неожиданн", "surprising"]),
+        (.voiceLeading, ["голосовед", "voice-lead", "voice lead", "плавнее", "smoother"]),
+        (.gentle, ["мягче", "gentle", "gentler", "softer", "нежнее"]),
+    ]
     static let keys = ["пианин", "фортепиан", "рояль", "клавиш", "клавиш", "piano", "keys", "rhodes", "родес"]
     static let melody = ["мелоди", "лид", "соло", "флейт", "бансури", "melody", "melodies", "lead", "solo", "flute", "bansuri", "topline"]
     static let all = ["все", "всё", "всех", "всю", "весь", "всем", "everything", "all"]

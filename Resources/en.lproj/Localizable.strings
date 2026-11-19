@@ -1290,3 +1290,4 @@
 "Reset for this output" = "Reset for this output";
 "Tap 8 or more clicks. Useful for Bluetooth headphones; the live sound is unchanged." = "Tap 8 or more clicks. Useful for Bluetooth headphones; the live sound is unchanged.";
 "One-finger chords" = "One-finger chords";
+"Restyle the chords on %@ in %@" = "Restyle the chords on %@ in %@";

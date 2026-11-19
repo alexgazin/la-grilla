@@ -254,3 +254,19 @@ struct PlayingToolsByPhraseTests {
         #expect(zip(before, after).allSatisfy { $0.0 - $0.1 == 12 })
     }
 }
+
+struct ReharmonizeByPhraseTests {
+    @Test func restyleOneVerseOccurrenceAndKeepTheOther() throws {
+        let p = try SongEditDemo.project()
+        for text in ["Сделай аккорды джазовее во втором куплете", "Make the chords jazzier in the second verse"] {
+            let plan = SongEditParser.plan(text, project: p)
+            #expect(plan.isApplicable, "\(text): \(plan.problems)")
+            #expect(plan.operations.first?.kind == .reharmonize && plan.operations.first?.bars == 10..<14)
+            let edited = try SongEditor.apply(plan, to: p)
+            let second = p.sections[3], first = p.sections[1]
+            #expect(Arrangement.harmony(edited, section: second).map(\.chord) != Arrangement.harmony(p, section: second).map(\.chord))
+            #expect(Arrangement.harmony(edited, section: first).map(\.chord) == Arrangement.harmony(p, section: first).map(\.chord))
+            #expect(Compiler.notes(edited).filter { $0.pad >= 0 } == Compiler.notes(p).filter { $0.pad >= 0 })
+        }
+    }
+}

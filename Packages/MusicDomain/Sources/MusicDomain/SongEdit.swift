@@ -24,7 +24,7 @@ public struct SongEditTarget: Codable, Equatable, Hashable, Sendable {
 
 public struct SongEditOperation: Codable, Equatable, Sendable {
     public enum Kind: String, Codable, CaseIterable, Sendable {
-        case remove, fill, denser, sparser, arpeggiate, delay, fadeIn, fadeOut, hook, stopBreak, humanize, swing, scaleShift, bassFromKick
+        case remove, fill, denser, sparser, arpeggiate, delay, fadeIn, fadeOut, hook, stopBreak, humanize, swing, scaleShift, bassFromKick, reharmonize
     }
     public var kind: Kind
     public var target: SongEditTarget
@@ -167,6 +167,7 @@ extension SongEditOperation {
         case .swing: "Swing %@ in %@"
         case .scaleShift: "Move %@ by scale steps in %@"
         case .bassFromKick: "Write %@ from the kick and chords in %@"
+        case .reharmonize: "Restyle the chords on %@ in %@"
         case .delay: "Play %@ later in %@"
         case .fadeIn: "Fade %@ in over %@"
         case .fadeOut: "Fade %@ out over %@"

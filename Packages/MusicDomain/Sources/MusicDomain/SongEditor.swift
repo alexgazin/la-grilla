@@ -77,6 +77,17 @@ public enum SongEditor {
         guard role != .bass else { throw SongEditError.notApplicable }
         let requested = op.bars.lowerBound * barTicks..<op.bars.upperBound * barTicks
         let range = isolationRange(project, track: index, requested: requested)
+        if op.kind == .reharmonize {
+            // I46: HarmonyLab restyles whole section occurrences inside the range;
+            // replacing a section's harmony splits a shared chord pattern first.
+            let style = HarmonyStyle.allCases.indices.contains(op.amount) ? HarmonyStyle.allCases[op.amount] : .expressive
+            let inside = project.sections.filter { $0.start >= requested.lowerBound && $0.start + $0.length <= requested.upperBound }
+            guard !inside.isEmpty else { throw SongEditError.notApplicable }
+            for section in inside where !Arrangement.harmony(project, section: section).isEmpty {
+                project = try HarmonyLab.propose(project, sectionID: section.id, options: HarmonyOptions(style: style)).candidate
+            }
+            return
+        }
         if op.kind == .arpeggiate || op.kind == .hook {
             try arpeggiate(op, into: index, requested: requested, project: &project)
             return
@@ -218,7 +229,7 @@ public enum SongEditor {
                 pattern.notes?.removeAll { window.contains($0.tick) }
                 pattern.notes?.append(contentsOf: line.filter { window.contains($0.tick) }.map { n in var x = n; x.duration = min(x.duration, window.upperBound - x.tick); return x })
             }
-        case .arpeggiate, .hook:
+        case .arpeggiate, .hook, .reharmonize:
             break
         }
         pattern.drums.sort { ($0.tick, $0.pad) < ($1.tick, $1.pad) }

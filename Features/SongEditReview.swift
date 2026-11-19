@@ -135,6 +135,7 @@ struct SongEditReview: View {
         case .swing: "metronome"
         case .scaleShift: "arrow.up.arrow.down"
         case .bassFromKick: "waveform.path"
+        case .reharmonize: "pianokeys"
         case .delay: "clock.arrow.circlepath"
         case .fadeIn: "speaker.wave.1"
         case .fadeOut: "speaker.slash"
