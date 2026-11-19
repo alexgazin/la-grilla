@@ -17,6 +17,7 @@ struct PaletteView: View {
     @State private var task: Task<Void, Never>?
     @State private var previewB = false
     @State private var baseRevision = -1
+    @State private var palette: ProducerPalette?
 
     private var section: MusicDomain.Section { session.section }
     private var range: Range<Int> { section.start..<(section.start + section.length) }
@@ -80,7 +81,7 @@ struct PaletteView: View {
             ForEach(PaletteEngine.changes(from: session.project, to: result.candidate, keep: keep), id: \.trackID) { change in
                 Text(verbatim: changeText(change)).font(.caption).frame(maxWidth: .infinity, alignment: .leading)
             }
-            if let delay = ProducerPalette.make(selected ?? .boomBap).masterDelayWet {
+            if let delay = palette?.masterDelayWet {
                 Text(String(format: NSLocalizedString("Master delay: %.2f (the master level is unchanged)", comment: "Palettes"), delay)).font(.caption).foregroundStyle(Color.muted)
             }
             if stale {
@@ -133,12 +134,13 @@ struct PaletteView: View {
         baseRevision = source.revision
         task = Task { @MainActor in
             do {
-                let palette = ProducerPalette.make(style)
+                let palette = ProducerPalette.make(style, seed: style == .surprise ? UInt64.random(in: 1...UInt64.max) : 1)
                 let sounds = try PaletteEngine.kit(palette)
                 let matched = try await PaletteAudition.matched(source, palette: palette, keep: kept, kit: sounds, range: passage, samples: base)
                 try Task.checkCancellation()
                 guard selected == style, session.project.id == source.id, session.project.revision == source.revision else { loading = false; return }
                 kit = sounds
+                self.palette = palette
                 library = try session.paletteLibrary(sounds)
                 result = matched
             } catch is CancellationError {

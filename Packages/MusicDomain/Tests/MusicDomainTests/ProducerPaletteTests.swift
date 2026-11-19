@@ -121,3 +121,38 @@ struct ProducerPaletteTests {
 }
 
 private extension Project { func withID(_ id: UUID) -> Project { var p = self; p.id = id; return p } }
+
+struct SurprisePaletteTests {
+    @Test func surpriseIsSeededValidAndAppliesWithoutChangingNotes() throws {
+        let a = ProducerPalette.make(.surprise, seed: 42), b = ProducerPalette.make(.surprise, seed: 42)
+        #expect(a == b)
+        #expect((1...30).map { ProducerPalette.make(.surprise, seed: UInt64($0)) }.contains { $0 != a })
+        let p = try SongEditDemo.project()
+        for seed in 1...10 {
+            let palette = ProducerPalette.make(.surprise, seed: UInt64(seed))
+            #expect(Set(palette.voices.map(\.slot)) == Set(ProducerPalette.Slot.allCases))
+            let kit = Dictionary(uniqueKeysWithValues: try PaletteEngine.kit(palette).map { ($0.pad, $0.asset) })
+            let candidate = try PaletteEngine.candidate(p, palette: palette, keep: [], kit: kit)
+            #expect(Compiler.notes(candidate) == Compiler.notes(p))
+        }
+    }
+}
+
+/// I96 · Golden audio: the walkthrough chorus must keep its measured loudness
+/// in each palette (references from Media/Palettes46). Any DSP, palette or
+/// compiler change that moves the sound by more than 0.2 LU fails here.
+struct GoldenAudioTests {
+    @Test func walkthroughChorusLoudnessMatchesTheReferences() async throws {
+        let p = try SongEditDemo.project()
+        let chorus = p.sections[2], range = chorus.start..<(chorus.start + chorus.length)
+        let source = try await PaletteAudition.loudness(p, range: range, samples: SampleLibrary())
+        #expect(abs(source.integratedLUFS - -27.595) < 0.2, "source \(source.integratedLUFS)")
+        let references: [ProducerPalette.Style: Double] = [.boomBap: -27.637, .westCoast: -27.546, .atmosphericChillhop: -27.592]
+        for (style, reference) in references {
+            let palette = ProducerPalette.make(style)
+            let kit = try PaletteEngine.kit(palette)
+            let result = try await PaletteAudition.matched(p, palette: palette, keep: [], kit: kit, range: range, samples: SampleLibrary())
+            #expect(abs(result.palette.integratedLUFS - reference) < 0.2, "\(style): \(result.palette.integratedLUFS) vs \(reference)")
+        }
+    }
+}

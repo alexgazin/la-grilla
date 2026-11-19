@@ -13,14 +13,17 @@ import Foundation
 public struct ProducerPalette: Codable, Equatable, Sendable, Identifiable {
     public enum Style: String, Codable, CaseIterable, Sendable {
         case boomBap, westCoast, atmosphericChillhop
+        /// I60: a seeded random combination; Apply keeps the one you like.
+        case surprise
         public var title: String {
-            switch self { case .boomBap: "Boom bap"; case .westCoast: "West Coast"; case .atmosphericChillhop: "Atmospheric chillhop" }
+            switch self { case .boomBap: "Boom bap"; case .westCoast: "West Coast"; case .atmosphericChillhop: "Atmospheric chillhop"; case .surprise: "Surprise me" }
         }
         public var brief: String {
             switch self {
             case .boomBap: "Short kick, dry snare, soft hats, dense bass and keys with a clear attack."
             case .westCoast: "Deep kick, clear clap, brighter top, springy bass and room for the melody."
             case .atmosphericChillhop: "Soft keys, short drums, round bass and an airy lead with a gentle delay."
+            case .surprise: "A new random kit, timbres and balance each time. Apply the one you like."
             }
         }
     }
@@ -50,8 +53,20 @@ public struct ProducerPalette: Codable, Equatable, Sendable, Identifiable {
         var e = StudioEQ(); e.bands = [a, b, c, d]; return e
     }
 
-    public static func make(_ style: Style) -> ProducerPalette {
+    public static func make(_ style: Style, seed: UInt64 = 1) -> ProducerPalette {
         switch style {
+        case .surprise:
+            var state = seed | 1
+            func pick(_ n: Int) -> Int { state ^= state << 13; state ^= state >> 7; state ^= state << 17; return Int(state % UInt64(max(1, n))) }
+            let sources = [make(.boomBap), make(.westCoast), make(.atmosphericChillhop)]
+            let voices = Slot.allCases.map { slot -> Voice in
+                var voice = sources[pick(3)].voice(slot)!
+                voice.sound = SoundPalette.selectable[pick(3)].rawValue
+                if slot != .drums { voice.balanceDB += Double(pick(5) - 2) }
+                return voice
+            }
+            return ProducerPalette(style: .surprise, version: currentVersion, drumKit: FactoryDrumKit.allCases[pick(FactoryDrumKit.allCases.count)],
+                                   voices: voices, masterDelayWet: pick(3) == 0 ? 0.12 : nil)
         case .boomBap:
             return ProducerPalette(style: style, version: currentVersion, drumKit: .dusty, voices: [
                 Voice(slot: .drums, sound: SoundPalette.classic.rawValue, equalizer: eq(EQBand(.lowShelf, 80, 2), EQBand(.bell, 420, -1.5, 1), EQBand(.bell, 2500, 1.5, 1.2), EQBand(.highShelf, 9000, -2.5)), balanceDB: 0),
@@ -76,7 +91,8 @@ public struct ProducerPalette: Codable, Equatable, Sendable, Identifiable {
         }
     }
 
-    public static var all: [ProducerPalette] { Style.allCases.map(make) }
+    /// The three producer palettes (Surprise is generated on demand).
+    public static var all: [ProducerPalette] { [Style.boomBap, .westCoast, .atmosphericChillhop].map { make($0) } }
 }
 
 /// What applying a palette would change, shown before applying.

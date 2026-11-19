@@ -31,6 +31,12 @@ struct PianoRollView: View {
     var sourceRecord:AudioAssetRecord?{guard let id=clip?.sourceAssetID else{return nil};return session.project.audioAssets?.first{$0.id==id}}
     var sourcePlayhead:Double{guard let clip,let pattern else{return -1};let position=session.audio.tick-Double(clip.start);guard position>=0,position<Double(clip.length)else{return -1};return (position+Double(clip.offset)).truncatingRemainder(dividingBy:Double(pattern.length))}
     var note:NoteEvent?{pattern?.notes?.first{$0.id==selected}}
+    /// I29: chord tones under the pattern, when the clip plays its pattern once from the start.
+    func chordTones(for pattern:Pattern)->[ChordSpan]{
+        guard let clip,clip.offset==0,clip.length==pattern.length else{return []}
+        let harmony=Arrangement.harmony(session.project,section:MusicDomain.Section(name:"Notes",start:clip.start,length:clip.length))
+        return harmony.map{ChordSpan(range:$0.tick..<($0.tick+$0.duration),tones:Set($0.chord.notes.map{$0%12}))}
+    }
     var body:some View {
         NavigationStack {
             VStack(spacing:12){
@@ -129,7 +135,7 @@ struct PianoRollView: View {
                                 .frame(width:barWidth,alignment:.leading)
                         }}.foregroundStyle(Color.muted).frame(height:24).background(Color.raised)
                             .overlay(alignment:.bottom){Rectangle().fill(Color.outline).frame(height:0.5)}
-                        RollCanvas(pattern:p,projectID:session.project.id,revision:session.project.revision,clipID:clip?.id,sectionID:session.section.id,selected:selected,lowPitch:lowPitch,barWidth:barWidth,snap:snap,tick:sourcePlayhead,editingChanged:{noteDragging=$0},select:{id in selected=id},insert:{tick,pitch in add(p,tick:tick,pitch:pitch)},move:{id,tick,pitch in change(p.id){NoteEditing.move(id,in:&$0,tick:tick,pitch:pitch,step:snap)}},resize:{id,duration in change(p.id){NoteEditing.resize(id,in:&$0,duration:duration,step:snap)}})
+                        RollCanvas(chordTones:chordTones(for:p),pattern:p,projectID:session.project.id,revision:session.project.revision,clipID:clip?.id,sectionID:session.section.id,selected:selected,lowPitch:lowPitch,barWidth:barWidth,snap:snap,tick:sourcePlayhead,editingChanged:{noteDragging=$0},select:{id in selected=id},insert:{tick,pitch in add(p,tick:tick,pitch:pitch)},move:{id,tick,pitch in change(p.id){NoteEditing.move(id,in:&$0,tick:tick,pitch:pitch,step:snap)}},resize:{id,duration in change(p.id){NoteEditing.resize(id,in:&$0,duration:duration,step:snap)}})
                             .frame(width:CGFloat(p.length)/CGFloat(barTicks)*barWidth,height:576)
                     }
                 }
@@ -330,7 +336,10 @@ private struct PianoCanvasInput: UIViewRepresentable {
     func updateUIView(_ view: UIView, context: Context) { context.coordinator.input = self }
 }
 
+struct ChordSpan:Equatable {let range:Range<Int>;let tones:Set<Int>}
+
 private struct RollCanvas:View {
+    var chordTones:[ChordSpan]=[]
     let pattern:Pattern;let projectID:UUID;let revision:Int;let clipID:UUID?;let sectionID:UUID
     let selected:UUID?;let lowPitch:Int;let barWidth:CGFloat;let snap:Int;let tick:Double
     let editingChanged:(Bool)->Void
@@ -436,6 +445,10 @@ private struct RollCanvas:View {
                 }
                 if note.id==drag?.original.id {
                     context.stroke(Path(roundedRect:rect(original),cornerRadius:4),with:.color(.mint.opacity(0.35)),style:StrokeStyle(lineWidth:1,dash:[3,3]))
+                }
+                // I29: a note outside the chord sounding under it gets a harmony-coloured mark.
+                if let span=chordTones.first(where:{$0.range.contains(note.tick)}),!span.tones.contains(note.pitch%12) {
+                    context.fill(Path(ellipseIn:CGRect(x:r.minX+2,y:r.midY-3,width:6,height:6)),with:.color(.harmony))
                 }
             }
             if tick>=0 && tick<Double(pattern.length){let x=CGFloat(tick)/CGFloat(barTicks)*barWidth;var line=Path();line.move(to:CGPoint(x:x,y:0));line.addLine(to:CGPoint(x:x,y:size.height));context.stroke(line,with:.color(.record),lineWidth:1.5)}
