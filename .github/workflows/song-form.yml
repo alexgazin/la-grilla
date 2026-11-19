@@ -66,6 +66,11 @@ jobs:
             CASE_LIMIT=360
             NATIVE_BUDGET=1020
           fi
+          if [[ "$GITHUB_REF_NAME" == "qa/score-controls-42" ]]; then
+            CASES=(SketchGenerationTests/testGraphicScoreLightMenuPlaysOneBarEnding SketchGenerationTests/testGraphicScoreNightABAuditionsAndFinishesSection)
+            CASE_LIMIT=360
+            NATIVE_BUDGET=960
+          fi
           REQUIRED=()
           SELECTED=()
           for CASE_ID in "${CASES[@]}"; do
