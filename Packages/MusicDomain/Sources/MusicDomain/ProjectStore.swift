@@ -320,6 +320,23 @@ public extension ProjectStore {
         try AssetIntegrity.validate(Data(contentsOf:url),record:record);return url
     }
     func removeStagedAsset(_ record:AudioAssetRecord,projectID:UUID){try? FileManager.default.removeItem(at:package(projectID).appendingPathComponent(record.relativePath))}
+    /// I70: several projects (at most 64) as one zip of portable projects.
+    @discardableResult func portableBatch(_ ids:[UUID],to url:URL)throws->Int {
+        guard (1...64).contains(ids.count) else{throw ExportError.invalidSettings}
+        let folder=url.deletingLastPathComponent().appendingPathComponent("batch-"+UUID().uuidString,isDirectory:true)
+        try FileManager.default.createDirectory(at:folder,withIntermediateDirectories:true)
+        defer{try? FileManager.default.removeItem(at:folder)}
+        let projects=try ids.map{try load($0)}
+        let names=ProjectArchive.fileNames(projects.map(\.name),extension:"grillapack")
+        var files:[(name:String,url:URL)]=[]
+        for (project,name) in zip(projects,names) {
+            try Task.checkCancellation()
+            let file=folder.appendingPathComponent(name)
+            try portable(project,to:file);files.append((name,file))
+        }
+        try ProjectArchive.writeFiles(files,to:url)
+        return files.count
+    }
     func portable(_ project:Project,to url:URL)throws {
         let entries=try PortableProject.documentEntries(project)
         var files:[(name:String,url:URL)]=[]
@@ -331,6 +348,14 @@ public extension ProjectStore {
             files.append((asset.relativePath, try sampleURL(asset, projectID: project.id)))
         }
         try ProjectArchive.writeFiles(files,extras:entries,to:url)
+        // I78: remember what was shared, as the base for merging a co-author's copy.
+        if let data=try? JSONEncoder().encode(project){try? data.write(to:package(project.id).appendingPathComponent("shared-base.json"),options:.atomic)}
+    }
+    /// I78: the version last exported as a portable project, if any.
+    func sharedBase(_ id:UUID)->Project? {
+        guard let data=try? Data(contentsOf:package(id).appendingPathComponent("shared-base.json")),data.count<=8_000_000,
+              let project=try? JSONDecoder().decode(Project.self,from:data),(try? project.validate()) != nil else{return nil}
+        return project
     }
     func install(_ bundle:PortableProjectBundle)throws->Project {
         try bundle.project.validate();let folder=package(bundle.project.id)

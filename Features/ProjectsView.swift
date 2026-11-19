@@ -5,6 +5,7 @@ struct ProjectsView: View {
     @Bindable var session: Session
     @AppStorage("studio.pitchSpelling") private var spellingValue=PitchSpelling.automatic.rawValue
     @State private var showImport=false
+    @State private var mergeImport=false
     @State private var openingExample=false
     @State private var deleting: UUID?;@State private var renameID: UUID?;@State private var name=""
     @State private var query=""
@@ -25,6 +26,8 @@ struct ProjectsView: View {
         Button{showImport=true}label:{Label("Import project",systemImage:"square.and.arrow.down").font(.system(.subheadline,weight:.medium)).frame(maxWidth:.infinity,minHeight:44)}.buttonStyle(StudioQuietButtonStyle()).tint(.mint).accessibilityIdentifier("project.import")
         Button{guard !openingExample else{return};openingExample=true;Task{_ = await session.openExample();openingExample=false}}label:{Label("Open an example",systemImage:"music.note.list").frame(maxWidth:.infinity,minHeight:44)}.buttonStyle(StudioQuietButtonStyle()).tint(.mint).accessibilityIdentifier("project.example")
         if openingExample{ProgressView("Opening example…")}
+        Button{mergeImport=true;showImport=true}label:{Label("Merge a co-author's copy",systemImage:"arrow.triangle.merge").frame(maxWidth:.infinity,minHeight:44)}.buttonStyle(StudioQuietButtonStyle()).accessibilityIdentifier("project.merge-copy")
+        Text("Brings their edits of a shared .grillapack into the open project. One Undo reverts it.").font(.caption).foregroundStyle(Color.muted)
         Text("Opens a separate copy. Your current project is saved first.").font(.caption).foregroundStyle(Color.muted)
         if session.projectChangeQAEnabled{Button{Task{await session.runProjectChangeQA()}}label:{Text(verbatim:"Run project change checks").frame(minHeight:44)}.accessibilityIdentifier("project.change-probe")}
         HStack{SmallHeading(text:"ON THIS IPHONE");Spacer();Text("\(session.entries.count) projects").font(.system(.caption)).foregroundStyle(Color.muted)}
@@ -35,12 +38,14 @@ struct ProjectsView: View {
             }else{VStack(alignment:.leading,spacing:8){Label("Project needs recovery",systemImage:"exclamationmark.triangle");Text(LocalizedStringKey(entry.error ?? "Could not read project")).font(.caption).foregroundStyle(Color.muted);Button("Retry"){Task{await session.openStored(entry.id)}};if entry.hasBackup{Button("Recover last working copy"){Task{await session.recover(entry.id)}}}}.padding()}
         }
         if session.entries.isEmpty{Text("Start with chords or a beat.").foregroundStyle(Color.muted)}
+        if session.entries.count>1{Button{session.exportAllProjects()}label:{Label("Export all projects (.zip)",systemImage:"archivebox").frame(maxWidth:.infinity,minHeight:44)}.buttonStyle(StudioQuietButtonStyle()).disabled(session.exportInProgress).accessibilityIdentifier("project.export-all")}
         if !deleted.isEmpty{RecentlyDeletedList(items:deleted){id in Task{await session.restoreDeleted(id);deleted=await session.store.recentlyDeleted()}}}
     }.padding(22)}.background(Color.ink).navigationTitle("La Grilla").navigationBarTitleDisplayMode(.inline).toolbar{ToolbarItem(placement:.confirmationAction){Button("Done"){session.sheet=nil}}}}
     .disabled(openingExample).interactiveDismissDisabled(openingExample)
     .task{await session.refreshLibrary();deleted=await session.store.recentlyDeleted();guard !Task.isCancelled else{return};await session.save()}
     .fileImporter(isPresented:$showImport,allowedContentTypes:[UTType(exportedAs:"com.alexgazin.grillapack",conformingTo:.zip),.zip,.midi],allowsMultipleSelection:false){result in
-        switch result{case .success(let urls):if let url=urls.first{Task{await session.importProject(url)}};case .failure(let error):session.message=error.localizedDescription}
+        let merging=mergeImport;mergeImport=false
+        switch result{case .success(let urls):if let url=urls.first{Task{if merging{await session.mergeCopy(url)}else{await session.importProject(url)}}};case .failure(let error):session.message=error.localizedDescription}
     }
     .alert("Delete project?",isPresented:Binding(get:{deleting != nil},set:{if !$0{deleting=nil}})){Button("Delete",role:.destructive){if let id=deleting{Task{if id==session.project.id{await session.create(name:"Untitled",bpm:120,root:0,minor:false,bars:4)};if session.project.id != id{await session.delete(id);deleted=await session.store.recentlyDeleted()}}};deleting=nil};Button("Cancel",role:.cancel){deleting=nil}}message:{Text("The project moves to Recently Deleted and can be restored for 30 days.")}
     .alert("Rename project",isPresented:Binding(get:{renameID != nil},set:{if !$0{renameID=nil}})){TextField("Name",text:$name);Button("Save"){if let id=renameID,let p=session.entries.first(where:{$0.id==id})?.summary,!name.isEmpty{let title=name;Task{if id==session.project.id{session.edit{$0.name=title};await session.save()}else{await session.renameStored(id,expectedRevision:p.revision,to:title)}}};renameID=nil};Button("Cancel",role:.cancel){renameID=nil}}

@@ -842,6 +842,27 @@ import Observation
             }
         }
     }
+    /// I70: every saved project (up to 64) in one zip for Files or AirDrop.
+    func exportAllProjects() {
+        finishTake();cancelExport();exportGeneration+=1;let generation=exportGeneration
+        let ids=Array(entries.filter{$0.summary != nil}.map(\.id).prefix(64))
+        guard !ids.isEmpty else{return}
+        let folder=FileManager.default.temporaryDirectory.appendingPathComponent("GrillaExport-"+UUID().uuidString)
+        let url=folder.appendingPathComponent(NSLocalizedString("La Grilla projects",comment:"Batch export file name")).appendingPathExtension("zip")
+        exportInProgress=true;exportProgress=0;exportError=nil
+        exportTask=Task { @MainActor in
+            do {
+                await save()
+                try FileManager.default.createDirectory(at:folder,withIntermediateDirectories:true)
+                try await store.portableBatch(ids,to:url)
+                try Task.checkCancellation();guard generation==exportGeneration else{return}
+                exportProgress=1;exportInProgress=false;exportedFolder=folder;exportedURL=url;sheet=nil;exportTask=nil
+            } catch {
+                try? FileManager.default.removeItem(at:folder)
+                if generation==exportGeneration{exportInProgress=false;exportTask=nil;if !(error is CancellationError){message=error.localizedDescription}}
+            }
+        }
+    }
     func cancelExport(){exportGeneration+=1;exportTask?.cancel();exportTask=nil;exportInProgress=false;exportProgress=0}
     func finishSharing() {
         if let folder=exportedFolder{Task{try? await Task.sleep(for:.seconds(1));try? FileManager.default.removeItem(at:folder)}}
@@ -873,6 +894,29 @@ import Observation
             activateProject(installed,savedRevision:installed.revision,samples:samples)
             await refreshLibraryEntry(installed.id,validated:true)
         }catch{if let written{await retainUnopenedProject(written)}else{message=error.localizedDescription}}
+    }
+    /// I78: bring a co-author's edited copy into the open project as one Undo.
+    func mergeCopy(_ url:URL) async {
+        guard !recording,!armed,!performance.contextActive else{message="Return to editing before changing the source project.";return}
+        let access=url.startAccessingSecurityScopedResource();defer{if access{url.stopAccessingSecurityScopedResource()}}
+        let mine=project
+        do {
+            let theirs=try await Task.detached(priority:.userInitiated){
+                let handle=try FileHandle(forReadingFrom:url);defer{try? handle.close()}
+                let data=try handle.read(upToCount:128_000_001) ?? Data();guard data.count<=128_000_000 else{throw ExportError.archiveTooLarge}
+                return try PortableProject.decodeBundle(data,asCopy:false).project
+            }.value
+            let base=await store.sharedBase(mine.id)
+            let (merged,report)=try ProjectMerge.merge(base:base,mine:mine,theirs:theirs)
+            guard project.id==mine.id,project.revision==mine.revision else{message=AssistantError.stale.localizedDescription;return}
+            guard report.hasChanges else{message=NSLocalizedString("The copy has no changes to bring in.",comment:"Merge");return}
+            edit{$0=merged}
+            var text=String(format:NSLocalizedString("Merged: %d changes taken, %d added, %d removed.",comment:"Merge"),report.takenFromTheirs,report.added,report.removed)
+            if report.conflicts>0{text+=" "+String(format:NSLocalizedString("%d places changed on both sides kept your version.",comment:"Merge"),report.conflicts)}
+            if report.keptSounds>0{text+=" "+NSLocalizedString("Imported sounds stay as they were on this iPhone.",comment:"Merge")}
+            if base==nil{text+=" "+NSLocalizedString("Without a shared version nothing was removed.",comment:"Merge")}
+            message=text
+        }catch{message=error.localizedDescription}
     }
     func applyVoice(_ placement:VoicePlacement,data:Data,record:AudioAssetRecord,projectID:UUID,revision:Int)async throws->Bool {
         guard project.id==projectID,project.revision==revision,!recording,!armed,!performance.contextActive else{throw AssistantError.stale}

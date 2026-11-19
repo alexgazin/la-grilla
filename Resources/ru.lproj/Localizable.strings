@@ -1343,3 +1343,12 @@
 "Coral" = "Коралловый";
 "Violet" = "Фиолетовый";
 "Mint" = "Мятный";
+"La Grilla projects" = "Проекты La Grilla";
+"Export all projects (.zip)" = "Экспортировать все проекты (.zip)";
+"The copy has no changes to bring in." = "В копии нет изменений для переноса.";
+"Merged: %d changes taken, %d added, %d removed." = "Слито: принято изменений — %d, добавлено — %d, удалено — %d.";
+"%d places changed on both sides kept your version." = "В местах, изменённых с обеих сторон (%d), оставлена ваша версия.";
+"Imported sounds stay as they were on this iPhone." = "Импортированные звуки остались как на этом iPhone.";
+"Without a shared version nothing was removed." = "Без общей версии ничего не удалялось.";
+"Merge a co-author's copy" = "Слить копию соавтора";
+"Brings their edits of a shared .grillapack into the open project. One Undo reverts it." = "Переносит правки соавтора из общего .grillapack в открытый проект. Одна отмена возвращает как было.";

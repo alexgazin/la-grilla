@@ -4,6 +4,19 @@ import Foundation
 /// deflate and path extraction: portable projects contain bundled-preset references.
 public enum ProjectArchive {
     public struct Entry: Sendable {public var name:String;public var data:Data;public init(_ name:String,_ data:Data){self.name=name;self.data=data}}
+    /// I70: safe, unique file names for a batch archive ("Song.grillapack",
+    /// "Song (2).grillapack"); path separators and control characters are removed.
+    public static func fileNames(_ names:[String],extension ext:String)->[String] {
+        var used=Set<String>();var result:[String]=[]
+        for raw in names {
+            var base=String(raw.prefix(80)).components(separatedBy:CharacterSet(charactersIn:"/\\:").union(.controlCharacters)).joined(separator:"-").trimmingCharacters(in:CharacterSet(charactersIn:". ").union(.whitespaces))
+            if base.isEmpty{base="La Grilla"}
+            var name=base+"."+ext,counter=2
+            while used.contains(name.lowercased()){name="\(base) (\(counter))."+ext;counter+=1}
+            used.insert(name.lowercased());result.append(name)
+        }
+        return result
+    }
     public static func checksum(_ data:Data)->UInt32 {var crc=UInt32.max;for byte in data{crc=update(crc,byte)};return crc ^ UInt32.max}
     private static let table:[UInt32]=(0..<256).map{value in var c=UInt32(value);for _ in 0..<8{c=c&1 != 0 ? 0xedb88320^(c>>1):c>>1};return c}
     private static func update(_ crc:UInt32,_ byte:UInt8)->UInt32 {table[Int((crc^UInt32(byte))&255)]^(crc>>8)}

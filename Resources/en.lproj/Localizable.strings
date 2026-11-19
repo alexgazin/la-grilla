@@ -1341,3 +1341,12 @@
 "Coral" = "Coral";
 "Violet" = "Violet";
 "Mint" = "Mint";
+"La Grilla projects" = "La Grilla projects";
+"Export all projects (.zip)" = "Export all projects (.zip)";
+"The copy has no changes to bring in." = "The copy has no changes to bring in.";
+"Merged: %d changes taken, %d added, %d removed." = "Merged: %d changes taken, %d added, %d removed.";
+"%d places changed on both sides kept your version." = "%d places changed on both sides kept your version.";
+"Imported sounds stay as they were on this iPhone." = "Imported sounds stay as they were on this iPhone.";
+"Without a shared version nothing was removed." = "Without a shared version nothing was removed.";
+"Merge a co-author's copy" = "Merge a co-author's copy";
+"Brings their edits of a shared .grillapack into the open project. One Undo reverts it." = "Brings their edits of a shared .grillapack into the open project. One Undo reverts it.";
