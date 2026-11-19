@@ -7,6 +7,7 @@ import SwiftUI
 struct GettingStartedView: View {
     let close: () -> Void
     @State private var page = 0
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
     private struct Page: Identifiable {
         let id: Int
@@ -28,7 +29,7 @@ struct GettingStartedView: View {
             VStack(spacing: 18) {
                 VStack(alignment: .leading, spacing: 10) {
                     Image("LaunchMark").resizable().scaledToFit().frame(width: 64, height: 64).accessibilityHidden(true)
-                    Text("Your idea. Your groove. Your track.").font(.largeTitle.weight(.semibold)).tracking(-0.8)
+                    Text("Your idea. Your groove. Your track.").font(StudioTypography.display).tracking(-0.8)
                         .accessibilityIdentifier("welcome.title")
                     Text("A little studio, ready when inspiration arrives.").font(.body).foregroundStyle(Color.muted)
                 }.frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 24).padding(.top, 12)
@@ -49,7 +50,18 @@ struct GettingStartedView: View {
                     Text("Find this guide again in Settings → Getting started.").font(.caption).foregroundStyle(Color.muted)
                 }.padding(.horizontal, 24).padding(.bottom, 16)
             }
-            .background(Color.ink)
+            .background {
+                // Luz: a slow, quiet mesh of the four musical colours behind the intro.
+                ZStack {
+                    Color.ink
+                    if !reduceTransparency {
+                        MeshGradient(width: 3, height: 3,
+                                     points: [[0, 0], [0.5, 0], [1, 0], [0, 0.5], [0.55, 0.45], [1, 0.5], [0, 1], [0.5, 1], [1, 1]],
+                                     colors: [.ink, .harmony, .ink, .drums, .ink, .bass, .ink, .mint, .ink])
+                            .opacity(0.22)
+                    }
+                }.ignoresSafeArea().accessibilityHidden(true)
+            }
             .navigationTitle("Getting started")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Skip", action: close).accessibilityIdentifier("welcome.skip") } }
