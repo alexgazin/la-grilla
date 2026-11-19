@@ -1098,3 +1098,8 @@
 "Increase" = "Increase";
 "Decrease" = "Decrease";
 "ms" = "ms";
+"Peak %@ dBFS · CLIP %lld" = "Peak %@ dBFS · CLIP %lld";
+"Peak %@ dBFS" = "Peak %@ dBFS";
+"Peak %@ dBFS, %lld clipped frames" = "Peak %@ dBFS, %lld clipped frames";
+"Leave 1 dB headroom" = "Leave 1 dB headroom";
+"Measuring peak…" = "Measuring peak…";

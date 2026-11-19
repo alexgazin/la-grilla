@@ -1100,3 +1100,8 @@
 "Increase" = "Увеличить";
 "Decrease" = "Уменьшить";
 "ms" = "мс";
+"Peak %@ dBFS · CLIP %lld" = "Пик %@ dBFS · КЛИП %lld";
+"Peak %@ dBFS" = "Пик %@ dBFS";
+"Peak %@ dBFS, %lld clipped frames" = "Пик %@ dBFS, отсчётов с перегрузом %lld";
+"Leave 1 dB headroom" = "Оставить запас 1 дБ";
+"Measuring peak…" = "Измерение пика…";

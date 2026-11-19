@@ -19,7 +19,7 @@ struct PadEditExportTests {
         project.master = 0
         project.patterns[1].drums = [DrumEvent(tick: ppq, pad: 0, velocity: 108)]
         try project.tracks[1].setPadSample(sourceAsset, pad: 0)
-        let originalMIDI = try MIDIExporter.data(project)
+        var midiReference = project
         let settings = WAVSettings(sampleRate: 48_000, bitDepth: 16, tailSeconds: 0, dither: false)
         var library = SampleLibrary()
         library.insert(try PreparedSampleBank(asset: sourceAsset, data: sourceBytes))
@@ -40,7 +40,10 @@ struct PadEditExportTests {
                                                                  replacement.relativePath: printed])
         let store = ProjectStore(root: directory.appendingPathComponent("Projects"))
         let reopened = try await store.install(PortableProject.decodeBundle(package))
-        #expect(try MIDIExporter.data(reopened) == originalMIDI)
+        // Import names the copy in the MIDI conductor track. The note tracks
+        // and their timing must otherwise serialize identically.
+        midiReference.name = reopened.name
+        #expect(try MIDIExporter.data(reopened) == MIDIExporter.data(midiReference))
         let reopenedLibrary = try await store.loadSamples(for: reopened)
         let mix = try await OfflineRenderer.render(reopened, to: directory.appendingPathComponent("mix.wav"),
                                                    settings: settings, samples: reopenedLibrary)

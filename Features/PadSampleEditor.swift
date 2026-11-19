@@ -22,6 +22,8 @@ struct PadSampleEditor: View {
     @State private var audition: Task<Void, Never>?
     @State private var player: AVAudioPlayer?
     @State private var previewTrace = ""
+    @State private var levels: OneShotLevels?
+    @State private var measuredEdit: OneShotEdit?
 
     private var isCurrent: Bool {
         session.project.id == projectID && session.project.revision == revision &&
@@ -49,6 +51,12 @@ struct PadSampleEditor: View {
                         }
                         .padding(.horizontal, 14)
                         .background(Color.panel, in: RoundedRectangle(cornerRadius: 16))
+                        if measuredEdit == edit, let gain = levels?.headroomGainDB {
+                            Button("Leave 1 dB headroom") { adjust(.gain, to: gain, source: source) }
+                                .buttonStyle(.bordered).font(.subheadline)
+                                .frame(minHeight: 44).disabled(applying)
+                                .accessibilityIdentifier("pad-editor.headroom")
+                        }
                         Button("Reset sample edits") { update(source.initialEdit) }
                             .font(.subheadline).disabled(edit == source.initialEdit || applying)
                     } else if failure == nil {
@@ -119,6 +127,39 @@ struct PadSampleEditor: View {
                 Spacer()
                 Text(verbatim: duration(source.frameCount, rate: source.sampleRate))
             }.font(.caption.monospacedDigit()).foregroundStyle(Color.muted).accessibilityHidden(true)
+            peakDisplay(edit)
+        }
+        .task(id: edit) {
+            do {
+                try await Task.sleep(for: .milliseconds(95))
+                let result = try await DrumSamplePreparation.shared.editorLevels(source: source, edit: edit)
+                try Task.checkCancellation()
+                guard self.edit == edit, isCurrent else { return }
+                levels = result
+                measuredEdit = edit
+            } catch is CancellationError { return }
+            catch { failure = error.localizedDescription }
+        }
+    }
+
+    @ViewBuilder
+    private func peakDisplay(_ edit: OneShotEdit) -> some View {
+        if measuredEdit == edit, let levels {
+            let peak = levels.peakDBFS?.formatted(.number.precision(.fractionLength(1)).sign(strategy: .always())) ?? "−∞"
+            let clipped = levels.clippedFrames > 0
+            let format = clipped ? NSLocalizedString("Peak %@ dBFS · CLIP %lld", comment: "Input peak and saturated frames") :
+                NSLocalizedString("Peak %@ dBFS", comment: "Input peak before clipping")
+            let label = clipped ? String.localizedStringWithFormat(format, peak, Int64(levels.clippedFrames)) :
+                String.localizedStringWithFormat(format, peak)
+            Label(label, systemImage: clipped ? "exclamationmark.triangle.fill" : "waveform")
+                .font(.caption.monospacedDigit()).foregroundStyle(clipped ? Color.record : Color.muted)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(clipped ? String.localizedStringWithFormat(
+                    NSLocalizedString("Peak %@ dBFS, %lld clipped frames", comment: "VoiceOver input peak and clipped frames"),
+                    peak, Int64(levels.clippedFrames)) : label)
+                .accessibilityIdentifier("pad-editor.peak")
+        } else {
+            Text("Measuring peak…").font(.caption).foregroundStyle(Color.muted).accessibilityHidden(true)
         }
     }
 

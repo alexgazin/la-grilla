@@ -1,4 +1,4 @@
-# Project schema v14
+# Project schema v15
 
 A `.grilla` directory contains `manifest.json`, optional `backup.json`, and optional original recordings at `Assets/<UUID>.caf`. Foundation JSONEncoder/Decoder encode UUIDs as strings, dates as seconds since 2001-01-01, enums as their Swift raw strings, and ticks as integers. The canonical storage model and validator are [`Model.swift`](../Packages/MusicDomain/Sources/MusicDomain/Model.swift); assistant proposals have their own version numbers and [JSON contract](assistant-proposal.schema.json).
 
@@ -130,7 +130,7 @@ Manifests are bounded to 8,000,000 bytes. A `.grillapack` is a bounded standard 
 
 ## Migration history
 
-All migrations occur in a value copy. Source bytes remain unchanged until explicit save; save retains the prior valid manifest as backup. `ProjectDocument.decode` checks the outer schema and frozen `performanceTakes[].source` schema **before** typed decoding, so a frozen source with a newer schema is reported as a newer document even if it also contains unknown chord strings; no part is migrated. Nested takes are invalid. The migrated outer project and frozen source are fully validated against v8.
+All migrations occur in a value copy. Source bytes remain unchanged until explicit save; save retains the prior valid manifest as backup. `ProjectDocument.decode` checks the outer schema and frozen `performanceTakes[].source` schema **before** typed decoding, so a frozen source with a newer schema is reported as a newer document even if it also contains unknown chord strings; no part is migrated. Nested takes are invalid. The migrated outer project and frozen source are fully validated against the current schema.
 
 | Version | Change |
 | --- | --- |
@@ -148,3 +148,6 @@ The widened chord vocabulary and compact-voicing validation do not rewrite an ex
 ### Arranged projects in schema 14
 
 A chord event can carry a MIDI velocity from 1 to 127. An omitted velocity uses the historical value of 88. Materializing or copying a passage preserves its written chord dynamics. A project can store the optional `hasComposedEnding` flag to identify a song that initially plays through its ending. Explicit local transport choices can still enable a loop. Migration from schemas 1–13 preserves the original score and transport defaults, including projects frozen inside a performance take. A structured song can also store an optional validated arrangementRecipe containing the original local prompt and its editable generation plan. Reopening the plan creates a separate variation. Use build 41 or later to open newly saved schema 14 projects.
+
+
+Schema 15 preserves non-destructive drum-pad edits. An optional `tracks[].padEdits` dictionary maps each edited pad number to the original one-shot asset, its source frame count and rate, the edit parameters and the ID of the rendered one-shot in `padSamples`. Start is inclusive and end is exclusive, with trim and fades expressed in original sample frames and gain in dB. Project backups, portable bundles and frozen takes can reference the original and rendered PCM. Reopening the editor works from the original. Replacing a pad sound clears the recipe for that pad. Projects written by build 43 require a schema-15 reader. Older projects have no edit records until the user edits a pad.

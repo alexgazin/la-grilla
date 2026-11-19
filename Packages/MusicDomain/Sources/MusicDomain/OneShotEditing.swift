@@ -37,6 +37,14 @@ public struct OneShotWaveformBin: Equatable, Sendable {
     public let max: Float
 }
 
+public struct OneShotLevels: Equatable, Sendable {
+    /// Peak of the selected, gained, faded signal before conversion to PCM16.
+    /// For digital silence the peak has no finite logarithmic value.
+    public let peakDBFS: Double?
+    public let clippedFrames: Int
+    public let headroomGainDB: Double?
+}
+
 public struct OneShotSource: Sendable {
     public let asset: SampleAsset
     public let sampleRate: Int
@@ -76,19 +84,42 @@ public struct OneShotSource: Sendable {
 
     public func render(_ edit: OneShotEdit) throws -> SamplePCM {
         try edit.validate(frameCount: frameCount, sampleRate: sampleRate)
-        try Task.checkCancellation()
-        let length = edit.endFrame-edit.startFrame
-        let gain = pow(10, edit.gainDB/20)
         var output = [Int16]()
-        output.reserveCapacity(length)
+        output.reserveCapacity(edit.endFrame-edit.startFrame)
+        try forEachOutputSample(edit) { value in
+            output.append(Int16(clamping: Int(value.rounded())))
+        }
+        return SamplePCM(rate: sampleRate, zones: [.init(pitch: zone.pitch, samples: output)])
+    }
+
+    public func levels(for edit: OneShotEdit) throws -> OneShotLevels {
+        try edit.validate(frameCount: frameCount, sampleRate: sampleRate)
+        var peak = 0.0
+        var clipped = 0
+        try forEachOutputSample(edit) { value in
+            peak = max(peak, abs(value))
+            let quantized = value.rounded()
+            if quantized > Double(Int16.max) || quantized < Double(Int16.min) { clipped += 1 }
+        }
+        guard peak > 0 else { return OneShotLevels(peakDBFS: nil, clippedFrames: 0, headroomGainDB: nil) }
+        let decibels = 20*log10(peak/32768)
+        var suggested: Double?
+        if clipped > 0 {
+            let tenths = ((edit.gainDB-decibels-1)*10 + 1e-10).rounded(.down)
+            suggested = min(OneShotEdit.gainRange.upperBound, max(OneShotEdit.gainRange.lowerBound, tenths/10))
+        }
+        return OneShotLevels(peakDBFS: decibels, clippedFrames: clipped, headroomGainDB: suggested)
+    }
+
+    private func forEachOutputSample(_ edit: OneShotEdit, _ body: (Double) -> Void) throws {
+        let gain = pow(10, edit.gainDB/20)
+        let length = edit.endFrame-edit.startFrame
         for (index, sample) in zone.samples[edit.startFrame..<edit.endFrame].enumerated() {
             if index.isMultiple(of: 4096) { try Task.checkCancellation() }
             let attack = Self.fade(position: index, frames: edit.fadeInFrames)
             let release = Self.fade(position: length-1-index, frames: edit.fadeOutFrames)
-            let value = Double(sample)*gain*attack*release
-            output.append(Int16(clamping: Int(value.rounded())))
+            body(Double(sample)*gain*attack*release)
         }
-        return SamplePCM(rate: sampleRate, zones: [.init(pitch: zone.pitch, samples: output)])
     }
 
     /// A zero-length fade preserves the endpoint. A single-frame fade zeros

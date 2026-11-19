@@ -8,6 +8,11 @@ extension DrumSamplePreparation {
         return try OneShotSource(asset: asset, data: bytes)
     }
 
+    func editorLevels(source: OneShotSource, edit: OneShotEdit) throws -> OneShotLevels {
+        try Task.checkCancellation()
+        return try source.levels(for: edit)
+    }
+
     func editorPreview(source: OneShotSource, edit: OneShotEdit) throws -> Data {
         try Task.checkCancellation()
         return try source.previewWAV(edit)
