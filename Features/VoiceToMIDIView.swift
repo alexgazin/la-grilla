@@ -75,8 +75,8 @@ struct VoiceToMIDIView:View {
         VStack(spacing:12){
             if capture.state == .preparing{ProgressView("Preparing microphone…").tint(.record)}
             if capture.state == .waiting{HStack{ProgressView().tint(.record);Text("Waiting for the recording start…");Spacer();Text(String(format:NSLocalizedString("%.1f s",comment:"Countdown seconds"),capture.waitingSeconds)).monospacedDigit()}.font(.callout).accessibilityIdentifier("voice.waiting")}
-            if capture.state == .countIn{Text("\(capture.remaining)").font(.system(size:64,weight:.medium,design:.monospaced)).foregroundStyle(Color.record)}
-            if capture.state == .recording{HStack{Circle().fill(Color.record).frame(width:9,height:9);Text(String(format:NSLocalizedString("%.1f s",comment:"Recording seconds"),capture.elapsed)).font(.title2.monospaced());Spacer();ProgressView(value:min(1,capture.level)).tint(.record).frame(width:100)}}
+            if capture.state == .countIn{Text("\(capture.remaining)").font(.system(size:64,weight:.medium,design:.monospaced)).foregroundStyle(Color.record).contentTransition(.numericText(countsDown:true)).animation(Luz.Motion.snap,value:capture.remaining)}
+            if capture.state == .recording{HStack{Image(systemName:"record.circle.fill").foregroundStyle(Color.record).symbolEffect(.pulse,isActive:true).accessibilityHidden(true);Text(String(format:NSLocalizedString("%.1f s",comment:"Recording seconds"),capture.elapsed)).font(.title2.monospaced());Spacer();ProgressView(value:min(1,capture.level)).tint(.record).frame(width:100)}}
             if capture.state == .analyzing{ProgressView("Analyzing melody…",value:capture.progress).tint(.record)}
             if capture.isCapturing{Button{capture.stop()}label:{Label("Stop recording",systemImage:"stop.fill")}.buttonStyle(StudioActionStyle(color:.record))}
             else if capture.state != .analyzing && !applied{

@@ -19,6 +19,9 @@ struct EqualizerView: View {
     private var eq: StudioEQ {
         (destination == .master ? session.project.masterEQ : track?.equalizer) ?? StudioEQ()
     }
+    /// Luz: the curve and band handles take the track's colour (mint on the master).
+    private var tint: Color { track.map { Color.track($0.role) } ?? .mint
+    }
     private var band: EQBand { eq.bands[selected] }
     private var title: String { track?.displayName ?? NSLocalizedString("Master",comment:"Mixer output") }
     private var activePreset: EQPreset? { EQPreset.library.first { $0.settings.bands == eq.bands } }
@@ -103,11 +106,11 @@ struct EqualizerView: View {
                     let p=point(Double(i)/160,value)
                     if i==0{curve.move(to:p)}else{curve.addLine(to:p)}
                 }
-                context.stroke(curve,with:.color(snapshot.enabled ? .mint : .muted),lineWidth:2.5)
+                context.stroke(curve,with:.color(snapshot.enabled ? tint : .muted),lineWidth:2.5)
                 for (i,b) in snapshot.bands.enumerated() {
                     let p=point(x(b.frequency),b.filter.hasGain ? b.gain:0)
                     let r:CGFloat=i==selected ? 6:3.5
-                    context.fill(Path(ellipseIn:CGRect(x:p.x-r,y:p.y-r,width:2*r,height:2*r)),with:.color(b.enabled && snapshot.enabled ? .harmony:.muted))
+                    context.fill(Path(ellipseIn:CGRect(x:p.x-r,y:p.y-r,width:2*r,height:2*r)),with:.color(b.enabled && snapshot.enabled ? tint:.muted))
                 }
             }
             .frame(height:154).background(Color.panel,in:RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous))
