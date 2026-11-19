@@ -1352,3 +1352,10 @@
 "Without a shared version nothing was removed." = "Без общей версии ничего не удалялось.";
 "Merge a co-author's copy" = "Слить копию соавтора";
 "Brings their edits of a shared .grillapack into the open project. One Undo reverts it." = "Переносит правки соавтора из общего .grillapack в открытый проект. Одна отмена возвращает как было.";
+"Isomorphic grid" = "Изоморфная сетка";
+"Octaves" = "Октавы";
+"Key size" = "Размер клавиш";
+"Small" = "Маленькие";
+"Medium" = "Средние";
+"Large" = "Крупные";
+"Keyboard layout" = "Раскладка клавиатуры";

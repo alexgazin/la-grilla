@@ -553,3 +553,30 @@ public struct DrumLesson: Identifiable, Sendable, Equatable {
         }
     }
 }
+
+/// I20 · how many octaves fit: every white key keeps at least the chosen
+/// width (S 28, M 36, L 44 pt). `requested` 0 means automatic (up to 2).
+public enum KeyboardLayout {
+    public enum KeySize: Int, CaseIterable, Sendable { case small, medium, large
+        public var minimumWidth: Double { [28, 36, 44][rawValue] }
+    }
+    public static func octaves(requested: Int, width: Double, size: KeySize) -> Int {
+        let ceiling = requested == 0 ? 2 : min(3, max(1, requested))
+        var best = 1
+        for octaves in 1...ceiling where width / Double(7 * octaves + 1) >= size.minimumWidth { best = octaves }
+        return best
+    }
+}
+
+/// I18 · isomorphic grid: one semitone to the right, a fourth (5 semitones)
+/// per row upward, so every chord and scale shape is the same in every key.
+public enum IsomorphicLayout {
+    public static func pitch(row: Int, column: Int, base: Int) -> Int { base + column + 5 * row }
+    /// Pitches of a rows×columns grid, bottom row first, clamped to MIDI.
+    public static func grid(rows: Int, columns: Int, base: Int) -> [[Int]] {
+        (0..<max(1, rows)).map { row in (0..<max(1, columns)).map { min(127, max(0, pitch(row: row, column: $0, base: base))) } }
+    }
+    public static func inScale(_ pitch: Int, root: Int, minor: Bool) -> Bool {
+        NoteTools.scale(root: root, minor: minor).contains((pitch % 12 + 12) % 12)
+    }
+}

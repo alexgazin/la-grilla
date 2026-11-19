@@ -47,6 +47,9 @@ private struct InstrumentKeyboard: View {
     @AppStorage("keyboard.scaleOnly") private var scaleOnly = false
     @State private var sustain = false
     @AppStorage("keyboard.chordStrip") private var chordStrip = false
+    @AppStorage("keyboard.octaves") private var octaveSetting = 0       // I20: 0 automatic, 1…3
+    @AppStorage("keyboard.keySize") private var keySize = 1              // I20: S/M/L
+    @AppStorage("keyboard.grid") private var isomorphic = false          // I18
     /// I30: step input writes an eighth note per key at a cursor that advances when all keys are up.
     @State private var stepCursor: Int?
     @State private var stepHeld: Set<Int> = []
@@ -133,8 +136,9 @@ private struct InstrumentKeyboard: View {
                             ChordStrip(keyRoot: session.project.keyRoot, minor: session.project.minor) { pitch, down in key(pitch, down: down, track: track) }
                                 .padding(.horizontal, 10)
                         }
-                        InstrumentKeybed(root: root, octaves: geometry.size.width >= 660 ? 2 : 1,
+                        InstrumentKeybed(root: root, octaves: KeyboardLayout.octaves(requested: octaveSetting, width: geometry.size.width - 20, size: KeyboardLayout.KeySize(rawValue: keySize) ?? .medium),
                                          keyRoot: session.project.keyRoot, minor: session.project.minor, scaleOnly: scaleOnly,
+                                         gridColumns: isomorphic ? max(5, min(12, Int((geometry.size.width - 20) / (KeyboardLayout.KeySize(rawValue: keySize) ?? .medium).minimumWidth / 1.2))) : 0,
                                          play: { pitch, down in key(pitch, down: down, track: track) })
                             .id(surfaceID).padding(.horizontal, 10).padding(.bottom, 10)
                     }.padding(.top, compact ? 0 : 8)
@@ -144,6 +148,21 @@ private struct InstrumentKeyboard: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("Done") { dismiss() }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    // I18 · I20: grid layout, number of octaves and key width.
+                    Menu {
+                        Toggle("Isomorphic grid", isOn: Binding(get: { isomorphic }, set: { resetKeys(); isomorphic = $0 }))
+                        Picker("Octaves", selection: Binding(get: { octaveSetting }, set: { resetKeys(); octaveSetting = $0 })) {
+                            Text("Automatic").tag(0); Text(verbatim: "1").tag(1); Text(verbatim: "2").tag(2); Text(verbatim: "3").tag(3)
+                        }
+                        Picker("Key size", selection: Binding(get: { keySize }, set: { resetKeys(); keySize = $0 })) {
+                            Text("Small").tag(0); Text("Medium").tag(1); Text("Large").tag(2)
+                        }
+                    } label: {
+                        Image(systemName: isomorphic ? "square.grid.4x3.fill" : "rectangle.split.3x1").foregroundStyle(isomorphic ? Color.mint : Color.muted).frame(minWidth: 44, minHeight: 44)
+                    }.accessibilityLabel("Keyboard layout").accessibilityIdentifier("keyboard.layout")
+                        .disabled(take != nil)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { resetKeys(); soundBanks = true } label: { Image(systemName: "slider.horizontal.3") }
@@ -396,13 +415,16 @@ private struct InstrumentKeybed: UIViewRepresentable {
     let keyRoot: Int
     let minor: Bool
     var scaleOnly = false
+    /// I18: 0 = piano keys; otherwise an isomorphic grid with this many columns.
+    var gridColumns = 0
     let play: (Int, Bool) -> Void
 
     func makeUIView(context: Context) -> KeybedView { KeybedView() }
 
     func updateUIView(_ view: KeybedView, context: Context) {
         view.play = play
-        view.configure(root: root, octaves: octaves, keyRoot: keyRoot, minor: minor, scaleOnly: scaleOnly)
+        if gridColumns > 0 { view.configureGrid(base: root, columns: gridColumns, keyRoot: keyRoot, minor: minor) }
+        else { view.configure(root: root, octaves: octaves, keyRoot: keyRoot, minor: minor, scaleOnly: scaleOnly) }
     }
 
     static func dismantleUIView(_ view: KeybedView, coordinator: ()) { view.releaseAll() }
@@ -429,6 +451,40 @@ private final class KeybedView: UIView {
     required init?(coder: NSCoder) { return nil }
 
     private var flat = false
+    private var gridKeys = [(row: Int, column: Int, button: UIButton)]()
+    private var gridRows = 0, gridColumns = 0
+    private var gridKeyRoot = 0, gridMinor = false
+
+    /// I18: rows a fourth apart, semitones across; scale tones are light, the
+    /// key's root is mint-outlined. Duplicated pitches light up together.
+    func configureGrid(base: Int, columns: Int, keyRoot: Int, minor: Bool) {
+        let rows = 4
+        let next = [-1, base, columns, keyRoot, minor ? 1 : 0]
+        guard configuration != next else { return }
+        releaseAll()
+        configuration = next
+        subviews.forEach { $0.removeFromSuperview() }
+        whiteKeys = []; blackKeys = []; gridKeys = []
+        flat = true; gridRows = rows; gridColumns = columns; gridKeyRoot = keyRoot; gridMinor = minor
+        for (row, pitches) in IsomorphicLayout.grid(rows: rows, columns: columns, base: base).enumerated() {
+            for (column, pitch) in pitches.enumerated() {
+                let key = UIButton(type: .custom)
+                key.tag = pitch
+                let name = MusicalNotation.noteName(pitch, keyRoot: keyRoot, minor: minor)
+                key.accessibilityLabel = name
+                key.accessibilityIdentifier = "keyboard.grid.\(row).\(column)"
+                key.accessibilityTraits.insert(.playsSound)
+                key.setTitle(name, for: .normal)
+                key.titleLabel?.font = .monospacedSystemFont(ofSize: 12, weight: .semibold)
+                key.layer.cornerRadius = 8
+                key.addAction(UIAction { [weak self] _ in self?.activateKey(pitch) }, for: .primaryActionTriggered)
+                gridKeys.append((row, column, key))
+                addSubview(key)
+                style(key, held: false)
+            }
+        }
+        setNeedsLayout()
+    }
 
     func configure(root: Int, octaves: Int, keyRoot: Int, minor: Bool, scaleOnly: Bool = false) {
         let next = [root, octaves, keyRoot, minor ? 1 : 0, scaleOnly ? 1 : 0]
@@ -438,6 +494,7 @@ private final class KeybedView: UIView {
         subviews.forEach { $0.removeFromSuperview() }
         whiteKeys = []
         blackKeys = []
+        gridKeys = []; gridRows = 0; gridColumns = 0
         flat = scaleOnly
         let pitches = scaleOnly ? ScaleKeyboard.pitches(root: keyRoot, minor: minor, low: root, high: root + octaves * 12) : Array(root...(root + octaves * 12))
         for pitch in pitches {
@@ -465,6 +522,13 @@ private final class KeybedView: UIView {
 
     override func layoutSubviews() {
         super.layoutSubviews()
+        if gridRows > 0, gridColumns > 0 {
+            let width = bounds.width / CGFloat(gridColumns), height = bounds.height / CGFloat(gridRows)
+            for (row, column, key) in gridKeys {
+                key.frame = CGRect(x: width * CGFloat(column) + 1.5, y: height * CGFloat(gridRows - 1 - row) + 1.5, width: max(0, width - 3), height: max(0, height - 3))
+            }
+            return
+        }
         guard !whiteKeys.isEmpty else { return }
         let step = bounds.width / CGFloat(whiteKeys.count)
         for (i, key) in whiteKeys.enumerated() {
@@ -477,6 +541,15 @@ private final class KeybedView: UIView {
     }
 
     private func style(_ key: UIButton, held: Bool) {
+        if gridRows > 0 {
+            let inScale = IsomorphicLayout.inScale(key.tag, root: gridKeyRoot, minor: gridMinor)
+            key.backgroundColor = UIColor(held ? Color.mint : (inScale ? .keyboardIvory : .keyboardGraphite))
+            key.setTitleColor(UIColor(held ? Color.ink : (inScale ? .keyboardGraphite : .keyboardIvory)), for: .normal)
+            let root = (key.tag % 12 + 12) % 12 == gridKeyRoot
+            key.layer.borderWidth = root ? 2 : 1
+            key.layer.borderColor = (root ? UIColor(Color.mint) : UIColor.gray.withAlphaComponent(0.45)).cgColor
+            return
+        }
         let black = !flat && blackClasses.contains(key.tag % 12)
         key.backgroundColor = UIColor(held ? Color.mint : (black ? .keyboardGraphite : .keyboardIvory))
         key.setTitleColor(UIColor(held ? Color.ink : (black ? .keyboardIvory : .keyboardGraphite)), for: .normal)
@@ -504,7 +577,7 @@ private final class KeybedView: UIView {
 
     private func change(_ pitch: Int, held: Bool) {
         play?(pitch, held)
-        if let key = viewWithTag(pitch) as? UIButton { style(key, held: held) }
+        for case let key as UIButton in subviews where key.tag == pitch { style(key, held: held) }
     }
 
     private func activateKey(_ pitch: Int) {

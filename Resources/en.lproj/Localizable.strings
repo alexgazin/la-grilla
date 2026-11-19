@@ -1350,3 +1350,10 @@
 "Without a shared version nothing was removed." = "Without a shared version nothing was removed.";
 "Merge a co-author's copy" = "Merge a co-author's copy";
 "Brings their edits of a shared .grillapack into the open project. One Undo reverts it." = "Brings their edits of a shared .grillapack into the open project. One Undo reverts it.";
+"Isomorphic grid" = "Isomorphic grid";
+"Octaves" = "Octaves";
+"Key size" = "Key size";
+"Small" = "Small";
+"Medium" = "Medium";
+"Large" = "Large";
+"Keyboard layout" = "Keyboard layout";

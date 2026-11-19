@@ -235,4 +235,16 @@ struct HeardTickTests {
         #expect(RouteLatencyCalibration.heardTick(1000, milliseconds: 0, bpm: 120) == 1000)
         #expect(RouteLatencyCalibration.heardTick(1000, milliseconds: .nan, bpm: 120) == 1000)
     }
+
+    @Test func keyboardOctavesFitTheScreenAndIsomorphicGridUsesFourths() {
+        #expect(KeyboardLayout.octaves(requested: 0, width: 355, size: .medium) == 1)     // 375 pt iPhone
+        #expect(KeyboardLayout.octaves(requested: 0, width: 640, size: .medium) == 2)
+        #expect(KeyboardLayout.octaves(requested: 3, width: 640, size: .medium) == 2)
+        #expect(KeyboardLayout.octaves(requested: 3, width: 1000, size: .small) == 3)
+        #expect(KeyboardLayout.octaves(requested: 2, width: 355, size: .large) == 1)
+        let grid = IsomorphicLayout.grid(rows: 4, columns: 8, base: 48)
+        #expect(grid[0] == Array(48...55) && grid[1][0] == 53 && grid[3][7] == 48 + 7 + 15)
+        #expect(IsomorphicLayout.grid(rows: 2, columns: 2, base: 126)[1][1] == 127)
+        #expect(IsomorphicLayout.inScale(62, root: 2, minor: true) && !IsomorphicLayout.inScale(63, root: 2, minor: false) && IsomorphicLayout.inScale(66, root: 2, minor: false))
+    }
 }
