@@ -4,6 +4,8 @@ import MusicDomain
 struct MixerView: View {
     @Bindable var session: Session
     @State private var synthTrack: SynthTarget?
+    /// Gain when the current fader drag began; the drag moves relative to it.
+    @State private var dragStartGain: Double?
     @Environment(\.dynamicTypeSize) private var dynamicType
     @Environment(\.colorSchemeContrast) private var contrast
     @State private var activeFader: Int?
@@ -306,16 +308,17 @@ struct MixerView: View {
                                 if activeFader != index {
                                     session.mixerGesture = false
                                     activeFader = index
+                                    dragStartGain = gain
                                 }
                                 let travel = max(1, geometry.size.height - 32)
-                                let position = min(1, max(0, (value.location.y - 16) / travel))
-                                var target = Double(1 - position) * 67 - 61
+                                // Luz: relative drag; the cap never jumps to the finger.
+                                var target = min(6, max(-61, (dragStartGain ?? gain) - Double(value.translation.height / travel) * 67))
                                 // Luz detent: 0 dB catches the cap and ticks once.
                                 if abs(target) < 0.75 { target = 0 }
                                 if (target == 0) != (gain == 0) && target == 0 { Luz.Haptics.selection() }
                                 setGain(index, target)
                             }
-                            .onEnded { _ in finishGesture() })
+                            .onEnded { _ in dragStartGain = nil; finishGesture() })
                         .simultaneousGesture(TapGesture(count: 2).onEnded {
                             finishGesture(); setGain(index, 0); finishGesture(); Luz.Haptics.selection()
                         })
@@ -485,6 +488,7 @@ private struct MixerFaderFace: View {
     let increasedContrast: Bool
     private let ticks: [Double] = [6, 0, -12, -24, -36, -48, -61]
     private static let segments = 24
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         GeometryReader { geometry in
@@ -538,8 +542,8 @@ private struct MixerFaderFace: View {
                 if !increasedContrast { Capsule().fill(Color.studioText.opacity(0.18)).frame(width: 24, height: 1).padding(.top, 2) }
             }
             .shadow(color: .black.opacity(active ? 0.45 : 0.3), radius: active ? 6 : 3, y: active ? 4 : 2)
-            .scaleEffect(active ? 1.06 : 1)
-            .animation(Luz.Motion.snap, value: active)
+            .scaleEffect(active && !reduceMotion ? 1.06 : 1)
+            .animation(reduceMotion ? nil : Luz.Motion.snap, value: active)
     }
 
     /// LED segments with a held peak; colours change at -12 and -3 dBFS.

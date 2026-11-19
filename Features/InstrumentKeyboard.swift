@@ -542,8 +542,11 @@ private final class KeybedView: UIView, MusicalTouchSurface {
             key.accessibilityLabel = name
             key.accessibilityIdentifier = "keyboard.key." + String(pitch)
             key.accessibilityTraits.insert(.playsSound)
-            key.setTitle(name, for: .normal)
-            key.titleLabel?.font = .monospacedSystemFont(ofSize: black ? 11 : 13, weight: .semibold)
+            // Luz: a quiet keybed; only C and the key's root carry a printed name.
+            let pitchClass = (pitch % 12 + 12) % 12
+            key.setTitle(scaleOnly || pitchClass == 0 || pitchClass == keyRoot ? name : nil, for: .normal)
+            key.titleLabel?.font = UIFontMetrics(forTextStyle: .caption1).scaledFont(for: .monospacedSystemFont(ofSize: black ? 11 : 13, weight: .semibold), maximumPointSize: 18)
+            key.layer.cornerCurve = .continuous
             key.contentVerticalAlignment = .bottom
             key.contentEdgeInsets = UIEdgeInsets(top: 0, left: 0, bottom: black ? 10 : 18, right: 0)
             key.layer.cornerRadius = black ? 5 : Luz.Radius.key
@@ -584,7 +587,7 @@ private final class KeybedView: UIView, MusicalTouchSurface {
             key.setTitleColor(UIColor(held ? Color.ink : (inScale ? .keyboardGraphite : .keyboardIvory)), for: .normal)
             let root = (key.tag % 12 + 12) % 12 == gridKeyRoot
             key.layer.borderWidth = root ? 2 : 1
-            key.layer.borderColor = (root ? UIColor(Color.mint) : UIColor.gray.withAlphaComponent(0.45)).cgColor
+            key.layer.borderColor = (root ? UIColor(Color.mint) : UIColor(Color.outline)).cgColor
             if held { key.backgroundColor = accent }
             depth(key, held: held)
             return
@@ -593,7 +596,7 @@ private final class KeybedView: UIView, MusicalTouchSurface {
         key.backgroundColor = held ? accent : UIColor(black ? .keyboardGraphite : .keyboardIvory)
         key.setTitleColor(UIColor(held ? Color.ink : (black ? .keyboardIvory : .keyboardGraphite)), for: .normal)
         key.layer.borderWidth = black ? 1 : 0
-        key.layer.borderColor = UIColor.gray.withAlphaComponent(0.45).cgColor
+        key.layer.borderColor = UIColor(Color.outline).cgColor
         depth(key, held: held)
     }
 
@@ -606,6 +609,8 @@ private final class KeybedView: UIView, MusicalTouchSurface {
         key.layer.shadowOpacity = held && !highContrast ? 0.55 : 0
         key.layer.shadowRadius = held ? 8 : 0
         key.layer.shadowOffset = .zero
+        // An explicit path keeps the glow off the offscreen render path.
+        key.layer.shadowPath = held ? UIBezierPath(roundedRect: key.bounds, cornerRadius: key.layer.cornerRadius).cgPath : nil
         key.layer.masksToBounds = false
     }
 
@@ -629,7 +634,11 @@ private final class KeybedView: UIView, MusicalTouchSurface {
 
     private func change(_ pitch: Int, held: Bool) {
         play?(pitch, held)
-        for case let key as UIButton in subviews where key.tag == pitch { style(key, held: held) }
+        for case let key as UIButton in subviews where key.tag == pitch {
+            // Contact draws at once; only the release fades (0.22 s ease-out).
+            if held || UIAccessibility.isReduceMotionEnabled { style(key, held: held) }
+            else { UIView.animate(withDuration: 0.22, delay: 0, options: [.curveEaseOut, .allowUserInteraction, .beginFromCurrentState]) { self.style(key, held: false) } }
+        }
     }
 
     private func activateKey(_ pitch: Int) {
