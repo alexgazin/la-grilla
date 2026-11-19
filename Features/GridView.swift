@@ -537,7 +537,7 @@ struct GridView: View {
                 tick:tick,
                 chord:event?.chord ?? Chord(root:session.displayProject.keyRoot,quality:session.displayProject.minor ? .minor:.major),
                 duration:event?.duration ?? slice.duration)
-        } label: { ChordTile(chord:event?.chord,width:max(8,CGFloat(slice.duration)/CGFloat(barTicks)*barWidth-6),height:harmonyHeight-16,keyRoot:session.displayProject.keyRoot,minor:session.displayProject.minor,spelling:PitchSpelling(rawValue:pitchSpelling) ?? .automatic,showDegrees:showDegrees) }
+        } label: { ChordTile(chord:event?.chord,width:max(8,CGFloat(slice.duration)/CGFloat(barTicks)*barWidth-6),height:harmonyHeight-16,keyRoot:session.displayProject.keyRoot,minor:session.displayProject.minor,spelling:PitchSpelling(rawValue:pitchSpelling) ?? .automatic,showDegrees:showDegrees,isPlaying:session.audio.playing && (slice.timelineTick..<(slice.timelineTick+slice.duration)).contains(Int(session.audio.tick))) }
         .buttonStyle(StudioQuietButtonStyle()).disabled(editingLocked).accessibilityIdentifier("grid.chord.\(slice.id)").offset(x:CGFloat(slice.timelineTick)/CGFloat(barTicks)*barWidth+3,y:8)
         .simultaneousGesture(LongPressGesture(minimumDuration:0.35).sequenced(before:DragGesture()).onEnded { value in
             if case .second(true,let drag?)=value,let event {
@@ -633,6 +633,9 @@ struct ChordTile: View {
     let minor:Bool
     let spelling:PitchSpelling
     let showDegrees:Bool
+    /// Luz: the chord under the playhead lights up in amber.
+    var isPlaying=false
+    @Environment(\.colorSchemeContrast) private var contrast
     private var inset:CGFloat{width<64 ? 8:12}
     private var symbol:String{chord.map{MusicalNotation.chordSymbol($0,keyRoot:keyRoot,minor:minor,spelling:spelling)} ?? "+"}
     var body: some View {
@@ -677,7 +680,9 @@ struct ChordTile: View {
                 RoundedRectangle(cornerRadius:1).fill(Color.harmony.opacity(chord == nil ? 0.25:0.8))
                     .frame(width:max(0,min(24,width-inset*2)),height:2).padding(.leading,inset).padding(.top,0.5)
             }
-            .overlay{RoundedRectangle(cornerRadius:10,style:.continuous).strokeBorder(Color.harmony.opacity(chord == nil ? 0.2:0.4),lineWidth:0.75)}
+            .overlay{RoundedRectangle(cornerRadius:10,style:.continuous).strokeBorder(Color.harmony.opacity(isPlaying ? 1:chord == nil ? 0.2:0.4),lineWidth:isPlaying ? 1.5:0.75)}
+            .overlay{if isPlaying && contrast != .increased{RoundedRectangle(cornerRadius:10,style:.continuous).fill(Color.harmony.opacity(0.14)).allowsHitTesting(false)}}
             .clipShape(RoundedRectangle(cornerRadius:10,style:.continuous))
+            .shadow(color:Color.harmony.opacity(isPlaying && contrast != .increased ? 0.35:0),radius:8)
     }
 }
