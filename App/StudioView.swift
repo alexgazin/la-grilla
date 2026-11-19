@@ -3,6 +3,9 @@ import MusicDomain
 struct StudioView: View {
     @Bindable var session: Session
     @AppStorage("studio.pitchSpelling") private var spellingValue=PitchSpelling.automatic.rawValue
+    @Namespace private var tabPuck
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.colorSchemeContrast) private var contrast
     private var displayedKeyName:String{
         let project=session.displayProject
         let root=MusicalNotation.pitchClassName(project.keyRoot,keyRoot:project.keyRoot,minor:project.minor,spelling:PitchSpelling(rawValue:spellingValue) ?? .automatic)
@@ -133,17 +136,22 @@ struct StudioView: View {
                 .accessibilityValue(Text(verbatim:session.runtimeTraceReport))
             IconButton(symbol:"backward.end.fill",label:"Return to start",color:.muted){session.rewind()}
             Button{session.togglePlay()}label:{
+                // Luz: the play key morphs its symbol and glows while the song runs.
                 Image(systemName:session.audio.playing ? "stop.fill":"play.fill")
                     .font(.system(size:22,weight:.semibold)).foregroundStyle(Color.ink)
+                    .contentTransition(.symbolEffect(.replace))
                     .offset(x:session.audio.playing ? 0:2).frame(width:58,height:58)
-                    .background(Color.mint,in:RoundedRectangle(cornerRadius:21))
-                    .overlay{RoundedRectangle(cornerRadius:21).strokeBorder(Color.studioText.opacity(0.15),lineWidth:1)}
+                    .background(Color.mint,in:Circle())
+                    .overlay{Circle().strokeBorder(Color.studioText.opacity(0.15),lineWidth:1)}
+                    .shadow(color:Color.mint.opacity(session.audio.playing && contrast != .increased ? 0.55:0),radius:12)
+                    .animation(reduceMotion ? nil:Luz.Motion.snap,value:session.audio.playing)
             }.buttonStyle(StudioQuietButtonStyle()).accessibilityLabel(LocalizedStringKey(session.audio.playing ? "Stop":"Play"))
             IconButton(symbol:session.recording ? "stop.circle.fill":"record.circle",label:session.recording ? "Finish drum take":"Record drums",color:.record){session.tab=1;session.record()}
-                .background(session.recording || session.armed ? Color.record.opacity(0.12):Color.clear,in:RoundedRectangle(cornerRadius:14))
+                .background(session.recording || session.armed ? Color.record.opacity(0.16):Color.clear,in:Circle())
+                .shadow(color:Color.record.opacity(session.recording && contrast != .increased ? 0.5:0),radius:8)
                 .disabled(session.performance.contextActive).opacity(session.performance.contextActive ? 0.35:1)
             IconButton(symbol:"repeat",label:"Toggle loop",color:session.loop ? .mint:.muted){session.setLoop(enabled:!session.loop)}
-                .background(session.loop ? Color.mint.opacity(0.08):Color.clear,in:RoundedRectangle(cornerRadius:14))
+                .background(session.loop ? Color.mint.opacity(0.12):Color.clear,in:Circle())
                 .disabled(session.performance.contextActive).opacity(session.performance.contextActive ? 0.35:1)
         }.padding(.horizontal,12).padding(.top,10).padding(.bottom,8)
     }
@@ -157,14 +165,25 @@ struct StudioView: View {
     }
     func tab(_ symbol:String,_ label:LocalizedStringKey,_ index:Int)->some View {
         let selected=session.tab == index
-        return Button{session.tab=index}label:{
+        return Button{
+            guard session.tab != index else{return}
+            withAnimation(reduceMotion ? nil:Luz.Motion.snap){session.tab=index}
+            Luz.Haptics.selection()
+        }label:{
             HStack(spacing:7){
                 Image(systemName:symbol).font(.system(size:17,weight:.medium)).accessibilityHidden(true)
+                    .symbolEffect(.bounce,value:selected)
                 Text(label).font(StudioTypography.label)
             }.foregroundStyle(selected ? Color.studioText:Color.muted)
                 .frame(maxWidth:.infinity,minHeight:44)
-                .background(selected ? Color.raised:Color.clear,in:RoundedRectangle(cornerRadius:14))
-                .overlay(alignment:.bottom){Capsule().fill(Color.mint).frame(width:16,height:2).opacity(selected ? 1:0).padding(.bottom,2)}
+                .background{
+                    // Luz: one puck slides to the selected tab.
+                    if selected{
+                        Capsule(style:.continuous).fill(Color.raised)
+                            .overlay(alignment:.bottom){Capsule().fill(Color.mint).frame(width:16,height:2).padding(.bottom,3)}
+                            .matchedGeometryEffect(id:"tab",in:tabPuck)
+                    }
+                }
         }.buttonStyle(StudioQuietButtonStyle()).accessibilityAddTraits(selected ? .isSelected:[])
     }
 }
