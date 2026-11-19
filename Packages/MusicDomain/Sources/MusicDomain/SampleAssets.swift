@@ -39,6 +39,7 @@ public extension Project {
         for track in allTracks {
             if let sample = track.instrumentSample { result.insert(sample) }
             if let pads = track.padSamples { result.formUnion(pads.values) }
+            if let edits = track.padEdits { result.formUnion(edits.values.map(\.source)) }
         }
         return result
     }
@@ -154,6 +155,7 @@ public struct SamplePCM: Sendable {
 /// each submitted snapshot; Swift owners can be released during playback.
 public final class PreparedSampleBank: @unchecked Sendable {
     public let asset: SampleAsset
+    let sampleRate: Int
     let pointer: OpaquePointer
 
     public init(asset: SampleAsset, data: Data) throws {
@@ -174,6 +176,7 @@ public final class PreparedSampleBank: @unchecked Sendable {
         }
         guard let handle else { throw SampleError.invalid }
         self.asset = asset
+        sampleRate = pcm.rate
         pointer = handle
     }
 

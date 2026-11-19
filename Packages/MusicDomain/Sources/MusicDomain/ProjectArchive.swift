@@ -92,7 +92,8 @@ public enum PortableProject {
         for record in project.audioAssets ?? []{guard let data=assets[record.relativePath]else{throw ExportError.invalidArchive};try AssetIntegrity.validate(data,record:record);entries.append(.init(record.relativePath,data))}
         for asset in project.referencedSamples.sorted(by: { $0.relativePath < $1.relativePath }) {
             guard let data = assets[asset.relativePath] else { throw SampleError.unavailable }
-            _ = try SamplePCM.decode(data, asset: asset)
+            let pcm = try SamplePCM.decode(data, asset: asset)
+            try project.validatePadEditRate(for: asset, rate: pcm.rate)
             entries.append(.init(asset.relativePath, data))
         }
         return try ProjectArchive.encode(entries)
@@ -106,7 +107,8 @@ public enum PortableProject {
         for record in p.audioAssets ?? []{guard let data=entries.first(where:{$0.name==record.relativePath})?.data else{throw ExportError.invalidArchive};try AssetIntegrity.validate(data,record:record);assets[record.relativePath]=data}
         for asset in p.referencedSamples {
             guard let data = entries.first(where: { $0.name == asset.relativePath })?.data else { throw SampleError.unavailable }
-            _ = try SamplePCM.decode(data, asset: asset)
+            let pcm = try SamplePCM.decode(data, asset: asset)
+            try p.validatePadEditRate(for: asset, rate: pcm.rate)
             assets[asset.relativePath] = data
         }
         if asCopy{p.id=UUID();p.revision=0;p.modified=Date();p.name=String(p.name.prefix(110))+" imported"}

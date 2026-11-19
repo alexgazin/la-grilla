@@ -815,20 +815,43 @@ import Observation
         catch{await store.removeStagedAsset(record,projectID:projectID);throw error}
         noteTrackID=placement.trackID;sync();await save();return saveError==nil
     }
+    func resetPadEdit(pad: Int, trackID: UUID, projectID: UUID, revision: Int) async throws {
+        func matches() -> Bool {
+            project.id == projectID && project.revision == revision && projectChangeToken == nil &&
+                !recording && !armed && !performance.contextActive
+        }
+        guard matches(), let index = project.tracks.firstIndex(where: { $0.id == trackID }) else { throw SampleError.stale }
+        var candidate = project
+        let original = try candidate.tracks[index].restoreOriginal(pad: pad)
+        let bank = try await store.storedSampleBank(original, projectID: projectID)
+        try Task.checkCancellation()
+        guard matches() else { throw SampleError.stale }
+        try withHistoryTransaction { history, project in try history.apply(&project) { $0 = candidate } }
+        audio.samples.insert(bank)
+        audio.samples.retainOnly(history.retainedSamples.union(project.referencedSamples))
+        mixerGesture = false
+        sync()
+        scheduleSave()
+    }
     func assignSounds(_ changes: [(pad: Int?, sound: PreparedSound)], trackID: UUID,
-                      projectID: UUID, revision: Int) async throws {
+                      projectID: UUID, revision: Int, padEdit: PadSampleEditRecord? = nil) async throws {
         func matches() -> Bool {
             project.id == projectID && project.revision == revision && projectChangeToken == nil &&
                 !recording && !armed && !performance.contextActive
         }
         guard matches(), let index = project.tracks.firstIndex(where: { $0.id == trackID }) else { throw SampleError.stale }
         guard !changes.isEmpty, Set(changes.map { $0.pad }).count == changes.count else { throw SampleError.invalid }
+        if let padEdit {
+            guard changes.count == 1, let pad = changes[0].pad,
+                  let current = project.tracks[index].padSamples?[pad],
+                  padEdit.source == (project.tracks[index].padEdits?[pad]?.source ?? current) else {
+                throw SampleError.stale
+            }
+        }
         var candidate = project
         for (pad, sound) in changes {
             if let pad {
-                var pads = candidate.tracks[index].padSamples ?? [:]
-                pads[pad] = sound.asset
-                candidate.tracks[index].padSamples = pads
+                try candidate.tracks[index].setPadSample(sound.asset, pad: pad, edit: padEdit)
             } else {
                 candidate.tracks[index].instrumentSample = sound.asset
             }

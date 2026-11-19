@@ -50,10 +50,7 @@ public actor PadSampleStore {
 
     public func previewWAV(for asset: SampleAsset) throws -> Data {
         let pcm = try SamplePCM.decode(bytes(for: asset), asset: asset)
-        guard let zone = pcm.zones.first else { throw SampleError.invalid }
-        var wave = pcmWAVHeader(rate: pcm.rate, channels: 1, bits: 16, byteCount: zone.samples.count * 2)
-        for value in zone.samples { wave.little(value) }
-        return wave
+        return pcm.monoWAV()
     }
 
     public func remove(_ asset: SampleAsset) throws {

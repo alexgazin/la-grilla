@@ -1077,3 +1077,26 @@
 "Playing" = "Играет";
 
 "Bars %lld–%lld. %@" = "Такты %lld–%lld. %@";
+"Factory kits" = "Заводские наборы";
+"Pocket" = "Pocket";
+"Dusty" = "Dusty";
+"Coast" = "Coast";
+"Audition beat" = "Послушать бит";
+"Dry kick, grainy snare and softened cymbals." = "Сухая бочка, зернистый малый и мягкие тарелки.";
+"Deep kick, layered clap and metallic hats." = "Глубокая бочка, многослойный хлопок и металлический хэт.";
+"Balanced kick, crisp hats and short percussion." = "Собранная бочка, чёткий хэт и короткая перкуссия.";
+"Load Dusty Kit" = "Загрузить Dusty";
+"Load Coast Kit" = "Загрузить Coast";
+"Audition the same beat with each kit. Loading replaces the 16 pad sounds in one undoable edit." = "Сравни наборы на одном бите. Загрузка заменяет звуки 16 пэдов; всё можно отменить одним действием.";
+"Edit sample" = "Редактор сэмпла";
+"Reset sample edits" = "Сбросить правки сэмпла";
+"Hear edit" = "Послушать сэмпл";
+"Sample waveform" = "Форма волны сэмпла";
+"Trim start" = "Начало";
+"Trim end" = "Конец";
+"Sample gain" = "Усиление";
+"Fade in" = "Нарастание";
+"Fade out" = "Затухание";
+"Increase" = "Увеличить";
+"Decrease" = "Уменьшить";
+"ms" = "мс";

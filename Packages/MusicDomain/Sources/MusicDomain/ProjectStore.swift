@@ -238,11 +238,23 @@ public extension ProjectStore {
         return data
     }
 
+    func sampleData(_ asset: SampleAsset, projectID: UUID) throws -> Data {
+        let bytes = try readSample(asset, projectID: projectID)
+        _ = try SamplePCM.decode(bytes, asset: asset)
+        return bytes
+    }
+
+    func storedSampleBank(_ asset: SampleAsset, projectID: UUID) throws -> PreparedSampleBank {
+        try PreparedSampleBank(asset: asset, data: readSample(asset, projectID: projectID))
+    }
+
     func loadSamples(for project: Project) throws -> SampleLibrary {
         var library = SampleLibrary()
         for asset in project.referencedSamples {
             try Task.checkCancellation()
-            try library.insert(PreparedSampleBank(asset: asset, data: readSample(asset, projectID: project.id)))
+            let bank = try storedSampleBank(asset, projectID: project.id)
+            try project.validatePadEditRate(for: asset, rate: bank.sampleRate)
+            library.insert(bank)
         }
         return library
     }
@@ -266,7 +278,8 @@ public extension ProjectStore {
         for record in project.audioAssets ?? []{try Task.checkCancellation();files.append((record.relativePath,try assetURL(record,projectID:project.id)))}
         for asset in project.referencedSamples.sorted(by: { $0.relativePath < $1.relativePath }) {
             try Task.checkCancellation()
-            _ = try SamplePCM.decode(readSample(asset, projectID: project.id), asset: asset)
+            let pcm = try SamplePCM.decode(readSample(asset, projectID: project.id), asset: asset)
+            try project.validatePadEditRate(for: asset, rate: pcm.rate)
             files.append((asset.relativePath, try sampleURL(asset, projectID: project.id)))
         }
         try ProjectArchive.writeFiles(files,extras:entries,to:url)
@@ -279,7 +292,8 @@ public extension ProjectStore {
             for asset in bundle.project.referencedSamples {
                 try Task.checkCancellation()
                 guard let data = bundle.assets[asset.relativePath] else { throw SampleError.unavailable }
-                _ = try SamplePCM.decode(data, asset: asset)
+                let pcm = try SamplePCM.decode(data, asset: asset)
+                try bundle.project.validatePadEditRate(for: asset, rate: pcm.rate)
                 try putSample(data, asset: asset, projectID: bundle.project.id)
             }
             try save(bundle.project)
@@ -295,7 +309,8 @@ public extension ProjectStore {
             for asset in source.referencedSamples {
                 try Task.checkCancellation()
                 let data = try readSample(asset, projectID: source.id)
-                _ = try SamplePCM.decode(data, asset: asset)
+                let pcm = try SamplePCM.decode(data, asset: asset)
+                try source.validatePadEditRate(for: asset, rate: pcm.rate)
                 try putSample(data, asset: asset, projectID: copy.id)
             }
             try save(copy)

@@ -1075,3 +1075,26 @@
 "Playing" = "Playing";
 
 "Bars %lld–%lld. %@" = "Bars %lld–%lld. %@";
+"Factory kits" = "Factory kits";
+"Pocket" = "Pocket";
+"Dusty" = "Dusty";
+"Coast" = "Coast";
+"Audition beat" = "Audition beat";
+"Dry kick, grainy snare and softened cymbals." = "Dry kick, grainy snare and softened cymbals.";
+"Deep kick, layered clap and metallic hats." = "Deep kick, layered clap and metallic hats.";
+"Balanced kick, crisp hats and short percussion." = "Balanced kick, crisp hats and short percussion.";
+"Load Dusty Kit" = "Load Dusty Kit";
+"Load Coast Kit" = "Load Coast Kit";
+"Audition the same beat with each kit. Loading replaces the 16 pad sounds in one undoable edit." = "Audition the same beat with each kit. Loading replaces the 16 pad sounds in one undoable edit.";
+"Edit sample" = "Edit sample";
+"Reset sample edits" = "Reset sample edits";
+"Hear edit" = "Hear edit";
+"Sample waveform" = "Sample waveform";
+"Trim start" = "Trim start";
+"Trim end" = "Trim end";
+"Sample gain" = "Sample gain";
+"Fade in" = "Fade in";
+"Fade out" = "Fade out";
+"Increase" = "Increase";
+"Decrease" = "Decrease";
+"ms" = "ms";

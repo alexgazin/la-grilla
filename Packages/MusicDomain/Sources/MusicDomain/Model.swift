@@ -230,6 +230,7 @@ public struct Track: Codable, Equatable, Identifiable, Sendable {
     public var mute = false; public var solo = false; public var presetVersion = 2; public var clips: [Clip] = []
     public var instrumentSample: SampleAsset?
     public var padSamples: [Int: SampleAsset]?
+    public var padEdits: [Int: PadSampleEditRecord]?
     public init(role: TrackRole) { self.role = role }
 }
 public struct Section: Codable, Equatable, Identifiable, Sendable {
@@ -237,7 +238,7 @@ public struct Section: Codable, Equatable, Identifiable, Sendable {
     public init(name: String, start: Int = 0, length: Int) { self.name = name; self.start = start; self.length = length }
 }
 public struct Project: Codable, Equatable, Identifiable, Sendable {
-    public var id: UUID = UUID(); public static let currentSchemaVersion=14
+    public var id: UUID = UUID(); public static let currentSchemaVersion=15
     /// Portable, nonnegative revision IDs. Exhaustion requires a new project
     /// copy rather than wrapping an ID used by history, saving and playback.
     public static let maximumRevision=Int(Int32.max)
@@ -301,6 +302,10 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
               sampleBytes <= 116_000_000 - (audioAssets ?? []).reduce(0, { $0 + $1.byteCount }) else { throw SampleError.limit }
         for track in tracks {
             if let asset = track.instrumentSample, track.role == .drums || asset.kind != .instrument { throw MusicError.invalidProject }
+            if let edits = track.padEdits {
+                guard track.role == .drums, edits.count <= 16 else { throw SampleError.invalid }
+                for (pad, edit) in edits { try edit.validate(rendered: track.padSamples?[pad]) }
+            }
             if let pads = track.padSamples {
                 guard track.role == .drums, pads.count <= 16,
                       pads.allSatisfy({ (0..<16).contains($0.key) && $0.value.kind == .oneShot }) else { throw MusicError.invalidProject }
@@ -482,6 +487,10 @@ public enum ProjectDocument {
                 pattern.chords.allSatisfy { $0.velocity == nil }
             }) else { throw MusicError.invalidProject }
             p.schemaVersion=14
+        }
+        if p.schemaVersion==14 {
+            guard p.tracks.allSatisfy({ $0.padEdits == nil }) else { throw MusicError.invalidProject }
+            p.schemaVersion=15
         }
         if var take=p.performanceTake{take.source=try migrated(take.source);p.performanceTake=take}
         try p.validate();return p

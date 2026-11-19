@@ -7,6 +7,14 @@ struct DrumSamplePicker: View {
         let id: Int
     }
 
+    private struct EditTarget: Identifiable {
+        let id: UUID
+        let pad: Int
+        let revision: Int
+        let sample: SampleAsset
+        let record: PadSampleEditRecord?
+    }
+
     let session: Session
     let trackID: UUID
     let sourceID: UUID
@@ -14,6 +22,7 @@ struct DrumSamplePicker: View {
     @State private var pendingPad: Int?
     @State private var showImporter = false
     @State private var libraryTarget: LibraryTarget?
+    @State private var editTarget: EditTarget?
     @State private var busy = false
     @State private var task: Task<Void, Never>?
     @State private var error: String?
@@ -31,13 +40,14 @@ struct DrumSamplePicker: View {
         NavigationStack {
             List {
                 Section {
-                    Button { loadPocketKit() } label: {
-                        Label("Load Pocket Kit", systemImage: "square.grid.4x3.fill")
-                    }.accessibilityIdentifier("pad-samples.pocket-kit")
+                    FactoryDrumKitPanel(session: session) { kit in
+                        prepare { try await DrumSamplePreparation.shared.kit(kit) }
+                    }
                     if let pads = track?.padSamples, !pads.isEmpty {
                         Button("Restore built-in kit") { restore(pad: nil) }
                     }
-                } footer: { Text("16 original one-shots. Loading the kit replaces all pad sounds and can be undone.") }
+                } header: { Text("Factory kits") }
+                footer: { Text("Audition the same beat with each kit. Loading replaces the 16 pad sounds in one undoable edit.") }
                     .disabled(!editable)
                 if busy { ProgressView("Preparing samples…") }
                 if let error { Label(error, systemImage: "exclamationmark.circle").foregroundStyle(Color.record) }
@@ -67,6 +77,11 @@ struct DrumSamplePicker: View {
             PadSampleLibraryView(session: session, pad: target.id) { sound in
                 prepare { [(target.id, sound)] }
             }
+        }
+        .sheet(item: $editTarget) { target in
+            PadSampleEditor(session: session, projectID: sourceID, trackID: trackID,
+                            revision: target.revision, pad: target.pad,
+                            sample: target.sample, record: target.record)
         }
         .onDisappear { task?.cancel() }
     }
@@ -103,6 +118,16 @@ struct DrumSamplePicker: View {
                 .accessibilityValue(sample.map { Text($0.name) } ?? Text("Built-in pad"))
                 .accessibilityHint("Choose from library")
                 .accessibilityIdentifier("pad-samples.library.\(pad)")
+            if let sample {
+                Button {
+                    editTarget = EditTarget(id: sample.id, pad: pad, revision: session.project.revision,
+                                            sample: sample, record: track?.padEdits?[pad])
+                } label: {
+                    Image(systemName: "waveform.path").frame(width: 44, height: 44)
+                }.buttonStyle(.plain).foregroundStyle(Color.drums)
+                    .accessibilityLabel("Edit sample").accessibilityValue(name)
+                    .accessibilityIdentifier("pad-samples.edit.\(pad)")
+            }
             Menu {
                 Button { pendingPad = pad; showImporter = true } label: {
                     Label("Import sample", systemImage: "square.and.arrow.down")
@@ -114,10 +139,6 @@ struct DrumSamplePicker: View {
                 .accessibilityLabel("Pad sound options").accessibilityValue(name)
                 .accessibilityIdentifier("pad-samples.options.\(pad)")
         }
-    }
-
-    private func loadPocketKit() {
-        prepare { try await DrumSamplePreparation.shared.pocketKit() }
     }
 
     private func prepare(_ sounds: @escaping () async throws -> [(pad: Int?, sound: PreparedSound)]) {
@@ -143,9 +164,8 @@ struct DrumSamplePicker: View {
         session.edit { project in
             guard let index = project.tracks.firstIndex(where: { $0.id == trackID }) else { throw SampleError.stale }
             if let pad {
-                project.tracks[index].padSamples?.removeValue(forKey: pad)
-                if project.tracks[index].padSamples?.isEmpty == true { project.tracks[index].padSamples = nil }
-            } else { project.tracks[index].padSamples = nil }
+                try project.tracks[index].setPadSample(nil, pad: pad)
+            } else { project.tracks[index].clearPadSamples() }
         }
         if session.project.revision == previous { error = session.message }
     }
