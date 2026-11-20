@@ -27,11 +27,13 @@ struct MixerView: View {
     private var standardMixer: some View {
         GeometryReader { geometry in
             // Keep useful fader travel even when the landscape workspace scrolls.
-            let stripHeight = min(500, max(464, geometry.size.height - 88))
+            // Small iPhones: strips follow the visible height so Mute, Solo and Pan stay on screen.
+            let tight = geometry.size.height < 560
+            let stripHeight = tight ? max(300, geometry.size.height - 92) : min(500, max(464, geometry.size.height - 88))
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 16) {
                     deskHeading
-                    console(height: stripHeight)
+                    console(height: stripHeight, tight: tight)
                     MasterSpectrum(audio: session.audio)
                     deskFootnote
                 }
@@ -72,19 +74,19 @@ struct MixerView: View {
         }
     }
 
-    private func console(height: CGFloat) -> some View {
+    private func console(height: CGFloat, tight: Bool = false) -> some View {
         HStack(spacing: 0) {
             ScrollView(.horizontal) {
                 HStack(spacing: 0) {
                     ForEach(Array(session.displayProject.tracks.enumerated()), id: \.element.id) { index, track in
-                        channel(index: index, track: track, height: height)
+                        channel(index: index, track: track, height: height, tight: tight)
                             .frame(width: 120)
                             .overlay(alignment: .trailing) { consoleSeam }
                     }
                 }
             }
             .scrollIndicators(.visible)
-            channel(index: masterBus, track: nil, height: height)
+            channel(index: masterBus, track: nil, height: height, tight: tight)
                 .frame(width: 108)
                 .background(Color.raised.opacity(0.45))
                 .overlay(alignment: .leading) { consoleSeam }
@@ -123,21 +125,25 @@ struct MixerView: View {
         }
     }
 
-    private func channel(index: Int, track: Track?, height: CGFloat) -> some View {
+    /// `tight`: compact height; the per-track sound slot moves out (it stays on the Jam
+    /// screen and the grid's track labels) and the pan row is shorter.
+    private func channel(index: Int, track: Track?, height: CGFloat, tight: Bool = false) -> some View {
         let color = track.map { Color.track($0.role) } ?? .mint
         let gain = track?.gain ?? session.displayProject.master
         return VStack(spacing: 0) {
             channelHeading(track: track, color: color)
                 .frame(height: 34)
-            soundSlot(track: track, color: color)
-                .frame(height: 56)
+            if !tight {
+                soundSlot(track: track, color: color)
+                    .frame(height: 56)
+            }
             eqButton(track)
             gainReadout(index: index, gain: gain, color: color)
-                .padding(.vertical, 4)
+                .padding(.vertical, tight ? 0 : 4)
             fader(index: index, track: track, gain: gain, color: color)
-                .padding(.vertical, 8)
+                .padding(.vertical, tight ? 4 : 8)
             panSlot(index: index, track: track, color: color)
-                .frame(height: 84)
+                .frame(height: tight ? 66 : 84)
             if let track {
                 channelSwitches(index: index, track: track, color: color)
             } else {

@@ -29,9 +29,16 @@ struct JamView: View {
     }
     private func regularJam(compact:Bool)->some View {
         VStack(spacing:14){
-            jamHeading.padding(.top,12)
-            if focusedClip != nil{clipFocus}
-            HStack(spacing:10){soundControl;InstrumentKeyboardButton(session: session, compact: true);JamBeatIndicator(session:session)}
+            if compact && !dynamicType.isAccessibilitySize {
+                // Small iPhones: the kit's sound names the screen, so heading and sound share
+                // one row and all sixteen pads stay above the transport.
+                HStack(spacing:8){soundControl;InstrumentKeyboardButton(session: session, compact: true);editorMode}.padding(.top,8)
+                if focusedClip != nil{clipFocus}
+            } else {
+                jamHeading.padding(.top,12)
+                if focusedClip != nil{clipFocus}
+                HStack(spacing:10){soundControl;InstrumentKeyboardButton(session: session, compact: true);JamBeatIndicator(session:session)}
+            }
             recordingControls
             if session.recording || session.armed{recordingStatus}
             if steps {stepEditor.disabled(session.performance.contextActive)}else if dynamicType.isAccessibilitySize{accessiblePads}else{padGrid(height:(compact ? 264:312)-(compact && (session.recording || session.armed) ? 24:0)).disabled(session.performance.replaying).allowsHitTesting(!session.performance.replaying)}
