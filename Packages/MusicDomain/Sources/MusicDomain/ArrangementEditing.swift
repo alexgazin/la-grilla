@@ -24,7 +24,7 @@ extension Arrangement {
         try project.validate()
         guard (1...64).contains(bars),let index=project.sections.firstIndex(where:{$0.id==sectionID})else{throw MusicError.invalidProject}
         let section=project.sections[index],length=bars*barTicks,delta=length-section.length,end=section.start+section.length
-        guard project.length+delta<=64*barTicks else{throw MusicError.limit}
+        guard project.length+delta<=songTickLimit else{throw MusicError.limit}
         if delta==0{return project}
         var result=project
         for i in project.tracks.indices {
@@ -46,7 +46,7 @@ extension Arrangement {
         }
         result.sections[index].length=length
         for i in result.sections.indices where result.sections[i].start>=end{result.sections[i].start+=delta}
-        let used=Set(result.tracks.flatMap{$0.clips.map(\.patternID)});result.patterns.removeAll{!used.contains($0.id)}
+        result.removeUnusedPatterns()
         try result.validate();return result
     }
 }

@@ -213,7 +213,7 @@ private struct ScorePlot: View {
             }
             context.fill(Path(CGRect(x: 0, y: rulerHeight+chartHeight-0.5, width: size.width, height: 0.5)), with: .color(.outline))
         }
-        .clipShape(RoundedRectangle(cornerRadius: 6))
+        .clipShape(RoundedRectangle(cornerRadius:6,style:.continuous))
     }
 
     private func pitchBounds(row: Int) -> ClosedRange<Int> {

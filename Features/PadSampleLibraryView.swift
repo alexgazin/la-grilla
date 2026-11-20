@@ -19,6 +19,23 @@ struct PadSampleLibraryView: View {
     @State private var audition: Task<Void, Never>?
     @State private var auditionID: UUID?
     @State private var player: AVAudioPlayer?
+    @State private var factoryAudition: FactoryOneShot?
+
+    /// One of the original on-device kits' one-shots: always available, nothing to import.
+    struct FactoryOneShot: Hashable, Identifiable {
+        let kit: FactoryDrumKit
+        let pad: Int
+        var id: String { "\(kit.rawValue).\(pad)" }
+        var name: String { DrumSamplePreparation.factoryName(kit, pad: pad) }
+    }
+
+    private var factoryForPad: [FactoryOneShot] { FactoryDrumKit.allCases.map { FactoryOneShot(kit: $0, pad: pad) } }
+    private var factoryMatches: [FactoryOneShot] {
+        let query = search.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return [] }
+        return FactoryDrumKit.allCases.flatMap { kit in Compiler.padNames.indices.map { FactoryOneShot(kit: kit, pad: $0) } }
+            .filter { $0.name.localizedStandardContains(query) }
+    }
 
     private var filtered: [SampleAsset] {
         let query = search.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -37,11 +54,28 @@ struct PadSampleLibraryView: View {
                 }
                 if let error { Label(error, systemImage: "exclamationmark.circle").foregroundStyle(Color.record) }
                 if working { ProgressView("Preparing samples…") }
-                if filtered.isEmpty && !working {
-                    Text(LocalizedStringKey(search.isEmpty ? "No saved samples" : "No matching samples"))
-                        .foregroundStyle(Color.muted)
+                if !filtered.isEmpty {
+                    Section("My samples") { ForEach(filtered, id: \.id) { sample in row(sample) } }
                 }
-                ForEach(filtered, id: \.id) { sample in row(sample) }
+                if search.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    Section("Factory sounds for this pad") {
+                        ForEach(factoryForPad) { factoryRow($0) }
+                    }
+                    Section("All factory kits") {
+                        ForEach(FactoryDrumKit.allCases, id: \.self) { kit in
+                            DisclosureGroup {
+                                ForEach(Compiler.padNames.indices, id: \.self) { factoryRow(FactoryOneShot(kit: kit, pad: $0)) }
+                            } label: {
+                                Text(verbatim: DrumSamplePreparation.factoryName(kit, pad: 0).components(separatedBy: " · ").first ?? kit.rawValue)
+                                    .font(.headline).foregroundStyle(Color.studioText)
+                            }.accessibilityIdentifier("pad-library.kit.\(kit.rawValue)")
+                        }
+                    }
+                } else if !factoryMatches.isEmpty {
+                    Section("Factory sounds") { ForEach(factoryMatches) { factoryRow($0) } }
+                } else if filtered.isEmpty && !working {
+                    Text("No matching samples").foregroundStyle(Color.muted)
+                }
             }
             .scrollContentBackground(.hidden).background(Color.ink)
             .navigationTitle("Sample library").navigationBarTitleDisplayMode(.inline)
@@ -84,7 +118,7 @@ struct PadSampleLibraryView: View {
             Button {
                 if auditionID == sample.id { stopPreview() } else { preview(sample) }
             } label: {
-                Image(systemName: auditionID == sample.id ? "stop.fill" : "speaker.wave.2")
+                Image(systemName: auditionID == sample.id ? "stop.fill" : "speaker.wave.2").contentTransition(.symbolEffect(.replace))
                     .frame(width: 44, height: 44).foregroundStyle(Color.drums)
             }.buttonStyle(.plain).disabled(working)
                 .accessibilityLabel(auditionID == sample.id ? "Stop preview" : "Hear sound")
@@ -99,6 +133,63 @@ struct PadSampleLibraryView: View {
             } label: { Label("Remove from library", systemImage: "trash") }
                 .disabled(working)
         }
+    }
+
+    private func factoryRow(_ item: FactoryOneShot) -> some View {
+        let playing = factoryAudition == item
+        return HStack(spacing: 8) {
+            Button { chooseFactory(item) } label: {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(verbatim: item.name).font(.headline).foregroundStyle(Color.studioText)
+                    if item.pad != pad {
+                        Text(LocalizedStringKey(Compiler.padNames[item.pad])).font(.caption).foregroundStyle(Color.muted)
+                    }
+                }.frame(maxWidth: .infinity, minHeight: 44, alignment: .leading).contentShape(Rectangle())
+            }.buttonStyle(.plain).disabled(working)
+                .accessibilityIdentifier("pad-library.factory.\(item.id)")
+            Button {
+                if playing { stopPreview() } else { previewFactory(item) }
+            } label: {
+                Image(systemName: playing ? "stop.fill" : "speaker.wave.2").contentTransition(.symbolEffect(.replace))
+                    .frame(width: 44, height: 44).foregroundStyle(Color.drums)
+            }.buttonStyle(.plain).disabled(working)
+                .accessibilityLabel(playing ? "Stop preview" : "Hear sound")
+                .accessibilityValue(item.name)
+        }
+    }
+
+    private func chooseFactory(_ item: FactoryOneShot) {
+        perform {
+            let sound = try await DrumSamplePreparation.shared.factorySound(item.kit, pad: item.pad)
+            try Task.checkCancellation()
+            Luz.Haptics.selection()
+            use(sound)
+            dismiss()
+        }
+    }
+
+    private func previewFactory(_ item: FactoryOneShot) {
+        stopPreview()
+        error = nil
+        factoryAudition = item
+        audition = Task {
+            do {
+                let wave = try await DrumSamplePreparation.shared.factoryPreview(item.kit, pad: item.pad)
+                try Task.checkCancellation()
+                try await play(wave)
+            } catch is CancellationError { return }
+            catch { self.error = error.localizedDescription; stopPreview() }
+        }
+    }
+
+    private func play(_ wave: Data) async throws {
+        guard session.ensureAudio() else { throw SampleError.unavailable }
+        let audio = try AVAudioPlayer(data: wave)
+        audio.volume = 0.65
+        guard audio.play() else { throw SampleError.unavailable }
+        player = audio
+        try await Task.sleep(for: .seconds(audio.duration))
+        stopPreview()
     }
 
     private func choose(_ sample: SampleAsset) {
@@ -148,6 +239,7 @@ struct PadSampleLibraryView: View {
         audition?.cancel()
         audition = nil
         auditionID = nil
+        factoryAudition = nil
         player?.stop()
         player = nil
     }

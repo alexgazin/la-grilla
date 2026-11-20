@@ -4,7 +4,7 @@ import Foundation
 /// rearticulate sliced notes rather than trying to encode an audio buffer in SMF.
 public enum PerformanceTimeline {
     public static func durationTicks(_ take:PerformanceTake)->Int {
-        min(64*barTicks,max(1,Int((take.durationSeconds*take.source.bpm/60*Double(ppq)).rounded())))
+        min(songTickLimit,max(1,Int((take.durationSeconds*take.source.bpm/60*Double(ppq)).rounded())))
     }
     private static func tick(_ event:PerformanceEvent,_ take:PerformanceTake)->Int {
         min(durationTicks(take),Int((Double(event.frame)/take.sampleRate*take.source.bpm/60*Double(ppq)).rounded()))
@@ -170,7 +170,7 @@ public enum PerformanceTimeline {
             let barStart = ((tick(event, take) + barTicks / 2) / barTicks) * barTicks
             guard barStart < length else { continue }
             if names.last?.start == barStart { names[names.count - 1].name = section.name }
-            else if names.count < 8 { names.append((barStart, section.name)) }
+            else if names.count < maximumSections { names.append((barStart, section.name)) }
         }
         return names.enumerated().map { index, entry in
             let end = names.indices.contains(index + 1) ? names[index + 1].start : length

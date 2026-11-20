@@ -1,5 +1,17 @@
 # La Grilla для ручного тестирования
 
+**[Скачать IPA 46 для iPhone](https://raw.githubusercontent.com/alexgazin/la-grilla/14d06bb4d40fb7c539128519db744d3afe3d0475/Builds/Testing/LaGrilla-46-unsigned.ipa)**. Подпишите файл своим Apple ID через Sideloadly. Размер 9 087 773 байта, SHA-256 `9acf11d874604416f513465bf08f3d1645bc09cf0c4e217bd78491f49e0076c4`. [Файлы внутри архива](candidate46-package.json) · [Скриншоты](../../Screenshots/Build46/).
+
+Что в сборке:
+- новый дизайн Luz, переходы и эффекты;
+- обращение и октава аккорда;
+- 112 встроенных ударных в библиотеке;
+- дорожки бочки, малого и хэтов в «Карманном бите»;
+- ровный зум сетки;
+- 84 идеи из 100.
+
+Пакет собран из `308ce33`. На симуляторе в полном прогоне прошли 94 сценария. Пять оставшихся исправлены и прошли отдельно. Музыкальная логика, аудиоядро и сборки для iPhone в Xcode 16.4 и 26.0.1 зелёные. На физическом iPhone сборку ещё никто не запускал.
+
 **[Скачать IPA 43 для iPhone](https://raw.githubusercontent.com/alexgazin/la-grilla/ff575035e7c568ef88e40cefc202d31a3029b35f/Builds/Testing/LaGrilla-43-unsigned.ipa)**. Три барабанных набора, редактор сэмпла с контролем пика и библиотека своих наборов. Подпишите файл своим Apple ID через Sideloadly. Размер публичной загрузки 8 188 332 байта, SHA-256 `d8ed552f6fd620bad2765fde9047a198bbb4289381429ec0de1e1f5e89b8acf2`. [Все 94 сценария на симуляторе](candidate43-tests.json) · [Файлы внутри архива](candidate43-package.json) · [Послушать наборы и проверить перенос в DAW](../../Media/Grooves/Producer43/README.md).
 
 **[Скачать IPA 42 для iPhone](https://raw.githubusercontent.com/alexgazin/la-grilla/f65bb5893f4a1f8d28806c0fd1f41cd967e98d8c/Builds/Testing/LaGrilla-42-unsigned.ipa)**. Партитура с прослушиванием секций, сравнение исполнений A/B и три инструментальные аранжировки по описаниям музыканта. Размер 8 001 752 байт. SHA-256 `8bc3f55f37251e1251d9083c6ceeeaa6345d3ef8478741cf8ead6bb3eccea2d1`. Этот файл из Release-архива нужно подписать собственным Apple ID через Sideloadly. [Состав пакета и контрольные суммы](candidate42-package.json) · [Интерфейс](../../Screenshots/Score42/README.md)

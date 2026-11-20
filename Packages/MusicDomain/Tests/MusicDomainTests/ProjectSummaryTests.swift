@@ -173,3 +173,35 @@ struct ProjectSummaryTests {
         #expect(legacy.allSatisfy { $0.project != nil && $0.error == nil })
     }
 }
+
+struct StyleProfileTests {
+    private func summary(_ bpm: Double, _ key: Int, _ minor: Bool, bars: Int = 8, age: Double) -> ProjectSummary {
+        ProjectSummary(id: UUID(), name: "S", bpm: bpm, keyRoot: key, minor: minor, bars: bars, revision: 1, modified: Date(timeIntervalSince1970: 1_000_000 - age), schemaVersion: 15, trackCount: 3)
+    }
+    @Test func usualTempoKeyAndLengthFromOwnProjects() {
+        #expect(StyleProfile.from([summary(90, 2, true, age: 1), summary(92, 2, true, age: 2)]) == nil)
+        let profile = StyleProfile.from([summary(90, 2, true, age: 3), summary(96, 2, true, bars: 4, age: 2), summary(140, 7, false, age: 1), summary(84, 9, true, age: 4)])
+        #expect(profile?.bpm == 93 && profile?.keyRoot == 2 && profile?.minor == true && profile?.bars == 8 && profile?.projects == 4)
+        // A tie goes to the most recently modified key.
+        let tie = StyleProfile.from([summary(90, 2, true, age: 3), summary(91, 7, false, age: 1), summary(92, 0, false, age: 2)])
+        #expect(tie?.keyRoot == 7 && tie?.minor == false && tie?.bpm == 91)
+    }
+}
+
+struct BackupPlannerTests {
+    private func summary(_ age: Double) -> ProjectSummary {
+        ProjectSummary(id: UUID(), name: "S", bpm: 90, keyRoot: 0, minor: false, bars: 4, revision: 1, modified: Date(timeIntervalSince1970: 1_000_000 - age), schemaVersion: 15, trackCount: 2)
+    }
+    @Test func dailyAndOnlyChangedProjects() {
+        let now = Date(timeIntervalSince1970: 1_000_000)
+        #expect(BackupPlanner.due(last: nil, now: now))
+        #expect(!BackupPlanner.due(last: now.addingTimeInterval(-3600), now: now))
+        #expect(BackupPlanner.due(last: now.addingTimeInterval(-21 * 3600), now: now))
+        #expect(BackupPlanner.due(last: now.addingTimeInterval(3600), now: now))           // clock moved back
+        let old = summary(100_000), fresh = summary(10), newer = summary(5)
+        #expect(BackupPlanner.changed([old, fresh, newer], since: now.addingTimeInterval(-3600)) == [newer.id, fresh.id])
+        #expect(BackupPlanner.changed([old, fresh], since: nil).count == 2)
+        var calendar = Calendar(identifier: .gregorian); calendar.timeZone = TimeZone(identifier: "UTC")!
+        #expect(BackupPlanner.fileName(Date(timeIntervalSince1970: 0), calendar: calendar) == "La Grilla backup 1970-01-01.zip")
+    }
+}

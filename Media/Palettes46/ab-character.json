@@ -1,0 +1,30 @@
+{
+ "source": {
+  "centroidHz": 1698,
+  "lowBelow150Hz": 38.7,
+  "highAbove5kHz": 9.87,
+  "crestDB": 17.6,
+  "tailFirst500msDBFS": -135.2
+ },
+ "boomBap": {
+  "centroidHz": 430,
+  "lowBelow150Hz": 56.4,
+  "highAbove5kHz": 1.13,
+  "crestDB": 15.9,
+  "tailFirst500msDBFS": -126.5
+ },
+ "westCoast": {
+  "centroidHz": 1246,
+  "lowBelow150Hz": 46.3,
+  "highAbove5kHz": 8.47,
+  "crestDB": 15.3,
+  "tailFirst500msDBFS": -101.3
+ },
+ "atmosphericChillhop": {
+  "centroidHz": 570,
+  "lowBelow150Hz": 49.0,
+  "highAbove5kHz": 2.99,
+  "crestDB": 15.8,
+  "tailFirst500msDBFS": -50.4
+ }
+}

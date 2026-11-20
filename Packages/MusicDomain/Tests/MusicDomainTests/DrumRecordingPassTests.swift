@@ -67,7 +67,7 @@ struct DrumRecordingPassTests {
             #expect(pass.events==[accepted])
         }
         #expect(throws:MusicError.self){try DrumRecordingPass(draft:recording,replacing:(-1)..<0)}
-        #expect(throws:MusicError.self){try DrumRecordingPass(draft:recording,replacing:0..<(64*barTicks+1))}
+        #expect(throws:MusicError.self){try DrumRecordingPass(draft:recording,replacing:0..<(songTickLimit+1))}
     }
 
     @Test func patternLimitIsCertifiedAndOverflowDoesNotAppend()throws {
@@ -75,7 +75,8 @@ struct DrumRecordingPassTests {
         project.patterns[1].drums=(0..<4095).map{DrumEvent(tick:$0%barTicks,pad:$0%16)}
         var recording=try draft(project),pass=try DrumRecordingPass(draft:recording)
         #expect(pass.capacity==1)
-        try pass.append(DrumEvent(tick:0,pad:0))
+        // A free pad/tick: an identical existing step would merge into one attack.
+        try pass.append(DrumEvent(tick:1,pad:0))
         do{try pass.append(DrumEvent(tick:0,pad:1));Issue.record("Pattern overflow was accepted")}
         catch MusicError.tooDense{}
         #expect(pass.events.count==1)

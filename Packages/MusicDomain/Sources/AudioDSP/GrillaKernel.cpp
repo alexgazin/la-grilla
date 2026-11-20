@@ -3,6 +3,7 @@
 #include "PerformanceRuntime.hpp"
 #include "MIDIHub.hpp"
 #include "Equalizer.hpp"
+#include "Reverb.hpp"
 #include <complex>
 #include <atomic>
 #include <cmath>
@@ -18,7 +19,6 @@ struct LGSampleBank {
     bool ringsOut;
     std::vector<int16_t> pcm;
     std::array<LGSampleZone,128> nearest{};
-    std::array<float,128> keyboardGain{};
 };
 namespace {
 template<size_t N>
@@ -57,10 +57,26 @@ struct Voice { bool on=false; int pitch=0,track=0,pad=-1,instrument=0; double ph
     const LGSampleBank *sample=nullptr;
     LGSampleZone zone{};
     double sampleCursor=0;
-    float keyboardGain=0;
+    // I55 synth voice state.
+    bool synth=false;int wave=0;double svfA1=1,svfA2=0,svfA3=0,ic1=0,ic2=0;float lastEnv=0,releaseLevel=-1;double sA=0.005,sD=0.3,sS=0.7,sR=0.3,noteEnd=1e9;
 };
+// I55: band-limited oscillator (polyBLEP), TPT state-variable low-pass (stable at any cutoff), ADSR.
+static float synthFrame(Voice &v,double bend){
+    const double dt=v.phaseStep*bend;v.phase+=dt;if(v.phase>=1)v.phase-=1;
+    const auto blep=[dt](double t){if(t<dt){t/=dt;return t+t-t*t-1;}if(t>1-dt){t=(t-1)/dt;return t*t+t+t+1;}return 0.0;};
+    double osc;
+    if(v.wave==0)osc=2*v.phase-1-blep(v.phase);
+    else if(v.wave==1){double t=v.phase+0.5;if(t>=1)t-=1;osc=(v.phase<0.5?1.0:-1.0)+blep(v.phase)-blep(t);}
+    else osc=1-4*std::abs(v.phase-0.5);
+    const double v3=osc-v.ic2,v1=v.svfA1*v.ic1+v.svfA2*v3,v2=v.ic2+v.svfA2*v.ic1+v.svfA3*v3;
+    v.ic1=2*v1-v.ic1;v.ic2=2*v2-v.ic2;
+    double env;
+    if(v.age<v.noteEnd){env=v.age<v.sA?v.age/v.sA:v.sS+(1-v.sS)*std::exp(-5*(v.age-v.sA)/std::max(0.001,v.sD));v.lastEnv=float(env);}
+    else{if(v.releaseLevel<0)v.releaseLevel=v.lastEnv;env=v.releaseLevel*std::max(0.0,1-(v.age-v.noteEnd)/v.sR);}
+    return float(v2*env*0.22)*v.velocity;
+}
 
-static float sampleFrame(Voice& voice){
+static float sampleFrame(Voice& voice,double bend=1){
     const auto &zone=voice.zone;
     constexpr int crossfade=256;
     auto &cursor=voice.sampleCursor;
@@ -80,17 +96,13 @@ static float sampleFrame(Voice& voice){
         const float weight=float(offset/crossfade);
         value=value*(1-weight)+read(zone.loopStart+offset)*weight;
     }
-    cursor+=voice.playbackRatio;
+    cursor+=voice.playbackRatio*bend;
     return value;
 }
-// Keep a single key linear and reserve headroom for closely voiced chords.
-static float keyboardBus(float value){
-    constexpr float knee=0.75f, headroom=0.23f;
-    const float excess=std::abs(value)-knee;
-    if(excess<=0)return value;
-    return std::copysign(knee+headroom*excess/(headroom+excess),value);
-}
-struct Retirement {float sample=0;int track=0,remaining=0,total=1;float keyboardGain=0;};
+// Build 44: the built-in keybed has no listening gain of its own. A key played
+// live, the recorded note and the offline WAV share one gain structure:
+// velocity -> instrument -> track fader -> master.
+struct Retirement {float sample=0;int track=0,remaining=0,total=1;};
 struct Input { int value=0,velocity=100,track=0,instrument=0; bool preview=false;uint64_t identity=0; };
 struct OutputTimingMeter {
     static_assert(std::atomic<uint64_t>::is_always_lock_free&&std::atomic<uint32_t>::is_always_lock_free,"Output timing publication requires lock-free atomics");
@@ -164,11 +176,159 @@ struct LGKernel {
     std::array<Input,256> input{}; std::atomic<unsigned> write{0},read{0}; std::atomic<int> overflow{0};
     std::atomic<int> countRequest{0},countRemaining{0}; int counting=0;
     std::atomic<int> command{0},seek{-1},playing{0},applied{-1},metro{0},tailOnEnd{0};
+    // Ideas I5 · I10 · I56 · I57 · I59 (control thread writes, audio reads).
+    std::atomic<float> metroGain{1};std::atomic<int> metroAccent{1},metroSound{0};
+    std::array<std::array<std::atomic<int>,16>,MaxTracks> choke{};std::array<std::atomic<float>,MaxTracks> sidechainDepth{},drive{};std::array<std::atomic<int>,MaxTracks> crush{};
+    std::atomic<int> limiterOn{0};std::atomic<float> limiterCeiling{0.891f};
+    float scEnv=0;int scHold=0;
+    static constexpr uint32_t ScopeSize=4096;std::array<float,ScopeSize> scope{};std::atomic<uint32_t> scopeWrite{0};
+    std::array<std::atomic<float>,MaxTracks> reverbSend{};SendReverb reverb;
+    std::atomic<int> repeatPad{-1},repeatStep{240},repeatVelocity{100};std::atomic<uint32_t> repeatSerial{0};uint32_t repeatSeen=0;double repeatNextTick=-1,repeatFrames=0;
+    std::atomic<uint64_t> bendIdentity{0};std::atomic<float> bendSemitones{0},bendModulation{0};double vibratoPhase=0;
+    std::array<std::atomic<int32_t>,32> rampStart{},rampEnd{};std::array<std::atomic<float>,32> rampFrom{},rampTo{};std::atomic<int> rampCount{0};
+    int rampCounter=0;bool rampApplied=false;float rampLast=0;
+    void automationTick(){
+        const int count=rampCount.load(std::memory_order_acquire);
+        if(count<=0&&!rampApplied)return;
+        if(++rampCounter<32)return;
+        rampCounter=0;
+        const double bpm=current>=0?slots[current].bpm:120;
+        float value=0;bool inside=false;
+        if(count>0&&active&&current>=0){
+            const double tick=position.load(std::memory_order_relaxed);
+            for(int i=0;i<count;i++){
+                const int s=rampStart[size_t(i)].load(std::memory_order_relaxed),e=rampEnd[size_t(i)].load(std::memory_order_relaxed);
+                if(tick>=s&&tick<e){const double t=(tick-s)/double(std::max(1,e-s));value=float(rampFrom[size_t(i)].load(std::memory_order_relaxed)+(rampTo[size_t(i)].load(std::memory_order_relaxed)-rampFrom[size_t(i)].load(std::memory_order_relaxed))*t);inside=true;break;}
+            }
+        }
+        if(inside){if(!rampApplied||std::abs(value-rampLast)>1e-4f){fx.prepare(value,delayTarget.load(),bpm);rampLast=value;rampApplied=true;}}
+        else if(rampApplied){fx.prepare(filterTarget.load(),delayTarget.load(),bpm);rampApplied=false;}
+    }
+    std::array<std::atomic<int>,MaxTracks> synthOn{},synthWave{};std::array<std::atomic<float>,MaxTracks> synthCutoff{},synthResonance{},synthAttack{},synthDecay{},synthSustain{},synthRelease{};
+    void releaseVoice(Voice &v){if(v.synth){v.noteEnd=std::min(v.noteEnd,v.age);v.duration=std::min(v.duration,v.age+v.sR);}else v.duration=std::min(v.duration,v.age+0.008);}
+    std::atomic<int> clockOut{0};bool clockRunning=false;double clockNext=0;
+    void clockEmit(int status,int a=0,int b=0){renderHub->outputEvent(outputState,hostNow,status,a,b);}
+    void clockTick(){
+        if(!renderHub)return;
+        if(clockOut.load(std::memory_order_relaxed)==0){if(clockRunning){clockEmit(0xFC);clockRunning=false;}return;}
+        const bool running=active&&current>=0&&counting==0;
+        const double tick=position.load(std::memory_order_relaxed);
+        if(running&&!clockRunning){
+            if(tick<0.5)clockEmit(0xFA);
+            else{const int spp=std::min(16383,int(tick/240));clockEmit(0xF2,spp&127,(spp>>7)&127);clockEmit(0xFB);}
+            clockNext=std::ceil(tick/40-1e-9)*40;clockRunning=true;
+        }else if(!running&&clockRunning){clockEmit(0xFC);clockRunning=false;return;}
+        if(!running)return;
+        const double half=0.5*ticksPerFrame();
+        if(tick+40<clockNext)clockNext=std::ceil(tick/40-1e-9)*40;     // loop restart
+        if(tick>=clockNext-half){clockEmit(0xF8);clockNext+=40;}
+    }
+    std::array<std::atomic<int>,16> arpPitches{};std::atomic<int> arpCount{0},arpStep{240},arpMode{0},arpOctaves{1},arpVelocity{100};std::atomic<uint64_t> arpIdentity{0};
+    std::atomic<uint32_t> arpSerial{0};uint32_t arpSeen=0;double arpNextTick=-1,arpFrames=0;int arpIndex=0;
+    void arpTick(){
+        const int count=std::min(16,arpCount.load(std::memory_order_acquire));
+        if(count<=0)return;
+        const uint32_t serial=arpSerial.load(std::memory_order_acquire);
+        const int step=arpStep.load(std::memory_order_relaxed);
+        bool fire=false;
+        const double bpm=current>=0?slots[current].bpm:120;
+        if(serial!=arpSeen){arpSeen=serial;arpIndex=0;fire=true;
+            if(active&&current>=0){const double tick=position.load(std::memory_order_relaxed);arpNextTick=std::floor((tick+0.5*ticksPerFrame())/step+1)*step;}
+            arpFrames=step/960.0*60/bpm*sr;
+        }else if(active&&current>=0){
+            const double tick=position.load(std::memory_order_relaxed),half=0.5*ticksPerFrame();
+            if(tick+step<arpNextTick)arpNextTick=std::floor((tick+half)/step+1)*step;
+            if(tick>=arpNextTick-half){fire=true;arpNextTick+=step;}
+        }else if(--arpFrames<=0){fire=true;arpFrames+=step/960.0*60/bpm*sr;}
+        if(!fire)return;
+        const int track=identityTrack(arpIdentity.load(std::memory_order_relaxed));
+        if(track<0)return;
+        std::array<int,48> sequence{};int length=0;
+        std::array<int,16> held{};for(int i=0;i<count;i++)held[size_t(i)]=arpPitches[size_t(i)].load(std::memory_order_relaxed);
+        const int mode=arpMode.load(std::memory_order_relaxed),octaves=std::clamp(arpOctaves.load(std::memory_order_relaxed),1,3);
+        if(mode!=3)std::sort(held.begin(),held.begin()+count);
+        for(int o=0;o<octaves;o++)for(int i=0;i<count;i++){const int p=held[size_t(i)]+12*o;if(p<=127)sequence[size_t(length++)]=p;}
+        if(length==0)return;
+        int position=arpIndex;
+        if(mode==1)position=length-1-(arpIndex%length);
+        else if(mode==2&&length>1){const int period=2*length-2;const int k=arpIndex%period;position=k<length?k:period-k;}
+        else position=arpIndex%length;
+        ++arpIndex;
+        const int pitch=sequence[size_t(std::clamp(position,0,length-1))];
+        trigger(pitch,arpVelocity.load(std::memory_order_relaxed),track,-1,slots[current].instruments[track],step*0.8/960.0*60/bpm);
+    }
+    void repeatTick(){
+        const int pad=repeatPad.load(std::memory_order_acquire);
+        if(pad<0)return;
+        const uint32_t serial=repeatSerial.load(std::memory_order_acquire);
+        const int step=repeatStep.load(std::memory_order_relaxed);
+        bool fire=false;
+        if(active&&current>=0){
+            const double tick=position.load(std::memory_order_relaxed),half=0.5*ticksPerFrame();
+            if(serial!=repeatSeen||tick+step<repeatNextTick){repeatSeen=serial;repeatNextTick=std::floor((tick+half)/step+1)*step;}
+            if(tick>=repeatNextTick-half){fire=true;repeatNextTick+=step;}
+        }else{
+            const double bpm=current>=0?slots[current].bpm:120,frames=step/960.0*60/bpm*sr;
+            if(serial!=repeatSeen){repeatSeen=serial;repeatFrames=frames;}
+            if(--repeatFrames<=0){fire=true;repeatFrames+=frames;}
+        }
+        if(!fire)return;
+        const int track=roleTrack(1,1);if(track<0)return;
+        const int velocity=repeatVelocity.load(std::memory_order_relaxed);
+        performance.emit(8,track,float(velocity),pad,1);trigger(36,velocity,track,pad,1,1);
+    }
+    static constexpr int LimiterMax=256;
+    std::array<float,LimiterMax> limL{},limR{},limReq{},limGain{};int limPos=0,limLength=0;float limG1=1,limCoef=0;double limSum=0;bool limWasOn=false;
+    void click(bool downbeat){
+        static constexpr int pitches[3][2]={{96,84},{103,91},{84,72}};
+        const int sound=std::clamp(metroSound.load(std::memory_order_relaxed),0,2);
+        const bool accent=downbeat&&metroAccent.load(std::memory_order_relaxed)!=0;
+        const int velocity=std::clamp(int(std::lround(65*metroGain.load(std::memory_order_relaxed))),1,127);
+        trigger(pitches[sound][accent?0:1],velocity,Master,-1,0,0.035);
+    }
+    void dynamics(float *buses){
+        // Sidechain envelope: 10 ms attack hold after each kick, ~120 ms release.
+        if(scHold>0){scEnv+=(1-scEnv)*float(1-std::exp(-1/(sr*0.002)));--scHold;}else if(scEnv>0){scEnv*=float(std::exp(-1/(sr*0.12)));if(scEnv<1e-5f)scEnv=0;}
+        for(int t=0;t<MaxTracks;t++){
+            const float depth=sidechainDepth[t].load(std::memory_order_relaxed);
+            if(depth>0&&scEnv>0)buses[t]*=1-(1-std::pow(10.f,-depth/20))*scEnv;
+            const float amount=drive[t].load(std::memory_order_relaxed);
+            if(amount>0){const float g=1+9*amount;buses[t]=std::tanh(g*buses[t])/g*(1+amount);}
+            const int bits=crush[t].load(std::memory_order_relaxed);
+            if(bits>0){const float steps=float(1<<(bits-1));buses[t]=std::round(buses[t]*steps)/steps;}
+        }
+    }
+    bool limit(float &left,float &right){
+        // Look-ahead peak limiter. The delay line is always written, so the
+        // disabled path returns the input untouched (bit-identical). Enabled:
+        // the required gain is held at its minimum over the look-ahead window,
+        // released over ~80 ms and box-averaged over the same window. Each
+        // averaged gain is at most the gain the delayed sample needs, and the
+        // final min() makes that exact despite rounding.
+        if(limLength==0){limLength=std::clamp(int(std::lround(sr*0.0015)),8,LimiterMax-2);limReq.fill(1);limGain.fill(1);limSum=limLength+1;limCoef=float(1-std::exp(-1/(sr*0.08)));}
+        const float ceiling=limiterCeiling.load(std::memory_order_relaxed);
+        const float peak=std::max(std::abs(left),std::abs(right));
+        limPos=(limPos+1)%LimiterMax;
+        limL[limPos]=left;limR[limPos]=right;limReq[limPos]=peak>ceiling?ceiling/peak:1.f;
+        if(limiterOn.load(std::memory_order_relaxed)==0){
+            if(limWasOn){limGain.fill(1);limSum=limLength+1;limG1=1;limWasOn=false;}
+            return false;
+        }
+        limWasOn=true;
+        float hold=1;for(int i=0;i<=limLength;i++)hold=std::min(hold,limReq[(limPos-i+LimiterMax)%LimiterMax]);
+        limG1=std::min(hold,limG1+(1-limG1)*limCoef);
+        const int oldest=(limPos-limLength-1+LimiterMax)%LimiterMax,out=(limPos-limLength+LimiterMax)%LimiterMax;
+        limSum+=double(limG1)-double(limGain[oldest]);limGain[limPos]=limG1;
+        const float gain=std::min(float(limSum/double(limLength+1)),limReq[out]);
+        left=limL[out]*gain;right=limR[out]*gain;
+        return true;
+    }
+
     std::atomic<double> position{0}; std::atomic<uint64_t> clock{0};
     std::array<std::atomic<float>,Buses> gains, pans, meters; std::array<float,Buses> smooth{}, smoothPan{};std::array<float,MaxTracks> panValue{},panLeft{},panRight{};
     bool active=false,pendingInitialPlay=false; double origin=0; uint64_t elapsed=0,rendered=0; double previous=-1; long long cycle=0; int cursor=0; int lastBeat=-1;
     uint64_t trackLayoutToken=0;std::array<uint64_t,MaxTracks> trackLayoutKeys{};int trackLayoutCount=0;float lastLeft=0,lastRight=0,layoutFadeLeft=0,layoutFadeRight=0;int layoutFadeRemaining=0,layoutFadeTotal=1;
-    explicit LGKernel(double rate):sr(rate),fx(rate),kitFrames(int(std::ceil(rate))) {
+    explicit LGKernel(double rate):sr(rate),fx(rate),kitFrames(int(std::ceil(rate))),reverb(rate) {
         panValue.fill(std::numeric_limits<float>::quiet_NaN());
         for(int i=0;i<Buses;i++){presets[i].store(1);gains[i].store(i==Master?0.708f:0.5f);pans[i].store(0);meters[i].store(0);smooth[i]=gains[i].load(); }
         auto generate=[&](std::array<std::vector<float>,16>&bank,int frames){
@@ -193,11 +353,16 @@ struct LGKernel {
     void retire(const Voice &v){
         if(!v.on||(!v.sample&&v.presetVersion<2)||v.lastSample==0)return;
         auto *tail=&*std::min_element(retirements.begin(),retirements.end(),[](const auto &a,const auto &b){return std::abs(a.sample)*a.remaining/a.total<std::abs(b.sample)*b.remaining/b.total;});
-        const int count=std::max(1,int(std::ceil(sr*0.003)));*tail={v.lastSample,v.track,count,count,v.keyboardGain};
+        const int count=std::max(1,int(std::ceil(sr*0.003)));*tail={v.lastSample,v.track,count,count};
     }
     void silence(bool all=false){for(auto &v:voices)if(all||v.sourceKey<0){if(!all)retire(v);endOutput(v);v.on=false;}if(all){sustain.fill(false);for(auto &tail:retirements)tail.remaining=0;layoutFadeRemaining=0;}}
     Voice *trigger(int pitch,int velocity,int track,int pad,int instrument,double duration,bool output=true){
         if(pad==2)for(auto &v:voices)if(v.on&&v.pad==3){if(v.presetVersion>=2){retire(v);endOutput(v);v.on=false;}else{v.duration=std::min(v.duration,v.age+0.004);}}
+        if(pad>=0&&track>=0&&track<MaxTracks){
+            const int group=choke[track][pad].load(std::memory_order_relaxed);
+            if(group>0)for(auto &v:voices)if(v.on&&v.track==track&&v.pad>=0&&v.pad!=pad&&choke[track][v.pad].load(std::memory_order_relaxed)==group){retire(v);endOutput(v);v.on=false;}
+            if(pad==0)scHold=std::max(1,int(sr*0.01));
+        }
         Voice *v=nullptr; for(auto &x:voices)if(!x.on){v=&x;break;}
         if(!v) v=&*std::min_element(voices.begin(),voices.end(),[](auto&a,auto&b){return a.level<b.level;});
         retire(*v);endOutput(*v);*v=Voice{true,pitch,track,pad,instrument,0,0,duration,float(velocity/127.0),0};v->outputAllowed=output;v->presetVersion=presets[track].load(std::memory_order_relaxed);
@@ -235,6 +400,15 @@ struct LGKernel {
                 }
             }
         }
+        if(!v->sample&&pad<0&&track>=0&&track<MaxTracks&&synthOn[size_t(track)].load(std::memory_order_relaxed)){
+            v->synth=true;v->wave=synthWave[size_t(track)].load(std::memory_order_relaxed);
+            const double cutoff=80*std::pow(200.0,double(synthCutoff[size_t(track)].load(std::memory_order_relaxed)));
+            const double g=std::tan(Pi*std::min(cutoff,sr*0.45)/sr),damping=1.414-1.3*double(synthResonance[size_t(track)].load(std::memory_order_relaxed));
+            v->svfA1=1/(1+g*(g+damping));v->svfA2=g*v->svfA1;v->svfA3=g*v->svfA2;
+            v->sA=std::max(0.001,double(synthAttack[size_t(track)].load(std::memory_order_relaxed)));v->sD=double(synthDecay[size_t(track)].load(std::memory_order_relaxed));
+            v->sS=double(synthSustain[size_t(track)].load(std::memory_order_relaxed));v->sR=std::max(0.005,double(synthRelease[size_t(track)].load(std::memory_order_relaxed)));
+            v->noteEnd=duration;v->duration=duration+v->sR;
+        }
         startOutput(*v);return v;
     }
     void midiClear(int source,bool capture=true){
@@ -242,7 +416,7 @@ struct LGKernel {
         for(int channel=0;channel<16;channel++)sustain[source*16+channel]=false;
         if(capture)performance.emit(13,-1,0,0,source);
     }
-    void midiEvent(const LGMIDIEvent &e,bool capture=true,bool screenKeyboard=false){
+    void midiEvent(const LGMIDIEvent &e,bool capture=true){
         const int key=e.source*16+e.channel;
         if(e.status==9){
             if(e.instrument==1){
@@ -252,14 +426,13 @@ struct LGKernel {
             }
             for(auto &v:voices)if(v.on&&v.sourceKey==key&&v.pitch==e.a){endOutput(v);v.duration=std::min(v.duration,v.age+0.008);}
             auto *voice=trigger(e.a,e.b,e.track,-1,e.instrument,1e9,!capture);voice->sourceKey=key;voice->keyDown=true;
-            if(screenKeyboard)voice->keyboardGain=voice->sample?voice->sample->keyboardGain[e.a]:4.f;
             if(capture)performance.emit(10,e.track,float(e.b),e.a,key,e.instrument);
         }else if(e.status==8){
             if(e.instrument==1)return;
-            for(auto &v:voices)if(v.on&&v.sourceKey==key&&v.pitch==e.a){v.keyDown=false;if(!sustain[key]){endOutput(v);v.duration=std::min(v.duration,v.age+0.008);}}
+            for(auto &v:voices)if(v.on&&v.sourceKey==key&&v.pitch==e.a){v.keyDown=false;if(!sustain[key]){endOutput(v);releaseVoice(v);}}
             if(capture)performance.emit(11,e.track,0,e.a,key,e.instrument);
         }else if(e.status==11&&e.a==64){
-            sustain[key]=e.b>=64;if(!sustain[key])for(auto &v:voices)if(v.on&&v.sourceKey==key&&!v.keyDown){endOutput(v);v.duration=std::min(v.duration,v.age+0.008);}
+            sustain[key]=e.b>=64;if(!sustain[key])for(auto &v:voices)if(v.on&&v.sourceKey==key&&!v.keyDown){endOutput(v);releaseVoice(v);}
             if(capture)performance.emit(12,-1,sustain[key]?1.f:0.f,0,key);
         }else if(e.status==11&&(e.a==120||e.a==123)){midiClear(e.source,capture);}
     }
@@ -366,8 +539,8 @@ struct LGKernel {
     }
 };
 static bool validNotes(LGKernel*k,const LGNote*notes,int count,double bpm,int start,int end){
-    if(!k||(count>0&&!notes)||count<0||count>MaxNotes||!std::isfinite(bpm)||bpm<40||bpm>240||start<0||end<=start||end>245760)return false;
-    for(int n=0;n<count;n++)if(notes[n].tick<0||notes[n].duration<=0||notes[n].duration>245760||notes[n].tick>245760-notes[n].duration||notes[n].pitch<0||notes[n].pitch>127||notes[n].track<0||notes[n].track>=MaxTracks||notes[n].pad < -1||notes[n].pad>15||notes[n].instrument<0||notes[n].instrument>3||notes[n].velocity<1||notes[n].velocity>127)return false;
+    if(!k||(count>0&&!notes)||count<0||count>MaxNotes||!std::isfinite(bpm)||bpm<40||bpm>240||start<0||end<=start||end>491520)return false;
+    for(int n=0;n<count;n++)if(notes[n].tick<0||notes[n].duration<=0||notes[n].duration>491520||notes[n].tick>491520-notes[n].duration||notes[n].pitch<0||notes[n].pitch>127||notes[n].track<0||notes[n].track>=MaxTracks||notes[n].pad < -1||notes[n].pad>15||notes[n].instrument<0||notes[n].instrument>3||notes[n].velocity<1||notes[n].velocity>127)return false;
     return true;
 }
 static bool validMix(LGKernel*k,const LGTrackMix*tracks,int count,float masterDB,float filter,float delay){
@@ -451,20 +624,10 @@ LGSampleBank *lg_sample_create_with_release(int32_t rate,const LGSampleZone *zon
         auto pcmCopy=std::vector<int16_t>(pcm,pcm+frames);
         auto *bank=new LGSampleBank;
         bank->rate=rate;bank->ringsOut=ringsOut!=0;bank->pcm=std::move(pcmCopy);
-        // Measure once on the loading thread. Very quiet/silent zones stay silent
-        // or quiet; an unrelated loud zone cannot mask the rest of the keyboard.
-        std::array<float,128> gains{};
-        for(int i=0;i<count;i++){
-            const auto &zone=zones[i];
-            int peak=0;
-            for(int j=0;j<zone.frames;j++)peak=std::max(peak,std::abs(int(pcm[zone.offset+j])));
-            gains[i]=peak<32?1.f:std::clamp(0.84f*32768.f/float(peak),1.f,64.f);
-        }
         int nearest=0;
         for(int pitch=0;pitch<128;pitch++){
             while(nearest+1<count&&std::abs(zones[nearest+1].pitch-pitch)<std::abs(zones[nearest].pitch-pitch))nearest++;
             bank->nearest[pitch]=zones[nearest];
-            bank->keyboardGain[pitch]=gains[nearest];
         }
         return bank;
     }catch(...){return nullptr;}
@@ -497,8 +660,53 @@ void lg_countin(LGKernel*k,int frames){k->countRequest.store(frames);}
 int lg_countremaining(LGKernel*k){return k->countRemaining.load();}
 void lg_play(LGKernel*k,int play){k->command.store(play?1:-1,std::memory_order_release);}
 void lg_restart(LGKernel*k){k->command.store(2,std::memory_order_release);}
-void lg_seek(LGKernel*k,int tick){if(tick>=0)k->seek.store(std::min(245760,tick));}
+void lg_seek(LGKernel*k,int tick){if(tick>=0)k->seek.store(std::min(491520,tick));}
 static int enqueue(LGKernel*k,Input value){unsigned w=k->write.load(std::memory_order_relaxed),r=k->read.load(std::memory_order_acquire);if(w-r>=256){k->overflow.fetch_add(1);return 0;}k->input[w%256]=value;k->write.store(w+1,std::memory_order_release);return 1;}
+int lg_arp(LGKernel*k,uint64_t identity,const int32_t*pitches,int count,int step,int mode,int octaves,int velocity){
+    if(!k||count<0||count>16||(count>0&&(!pitches||identity==0))||mode<0||mode>3||octaves<1||octaves>3)return 0;
+    if(count>0&&step!=120&&step!=160&&step!=240&&step!=320&&step!=480)return 0;
+    for(int i=0;i<count;i++)if(pitches[i]<0||pitches[i]>127)return 0;
+    if(count==0){k->arpCount.store(0,std::memory_order_release);return 1;}
+    const bool starting=k->arpCount.load(std::memory_order_acquire)==0;
+    for(int i=0;i<count;i++)k->arpPitches[size_t(i)].store(pitches[i],std::memory_order_relaxed);
+    k->arpStep.store(step,std::memory_order_relaxed);k->arpMode.store(mode,std::memory_order_relaxed);k->arpOctaves.store(octaves,std::memory_order_relaxed);
+    k->arpVelocity.store(std::clamp(velocity,1,127),std::memory_order_relaxed);k->arpIdentity.store(identity,std::memory_order_relaxed);
+    if(starting)k->arpSerial.fetch_add(1,std::memory_order_acq_rel);
+    k->arpCount.store(count,std::memory_order_release);return 1;
+}
+void lg_pitch_bend(LGKernel*k,uint64_t identity,float semitones,float modulation){
+    if(!k||!std::isfinite(semitones)||!std::isfinite(modulation))return;
+    k->bendIdentity.store(identity,std::memory_order_relaxed);
+    k->bendSemitones.store(std::clamp(semitones,-12.f,12.f),std::memory_order_relaxed);
+    k->bendModulation.store(std::clamp(modulation,0.f,1.f),std::memory_order_relaxed);
+}
+int lg_filter_automation(LGKernel*k,const LGFilterRamp*ramps,int count){
+    if(!k||count<0||count>32||(count>0&&!ramps))return 0;
+    int previous=-1;
+    for(int i=0;i<count;i++){const auto &r=ramps[i];if(r.start<0||r.end<=r.start||r.start<previous||!std::isfinite(r.from)||!std::isfinite(r.to)||r.from< -1||r.from>1||r.to< -1||r.to>1)return 0;previous=r.end;}
+    k->rampCount.store(0,std::memory_order_release);
+    for(int i=0;i<count;i++){k->rampStart[size_t(i)].store(ramps[i].start,std::memory_order_relaxed);k->rampEnd[size_t(i)].store(ramps[i].end,std::memory_order_relaxed);k->rampFrom[size_t(i)].store(ramps[i].from,std::memory_order_relaxed);k->rampTo[size_t(i)].store(ramps[i].to,std::memory_order_relaxed);}
+    k->rampCount.store(count,std::memory_order_release);return 1;
+}
+int lg_synth(LGKernel*k,int track,const LGSynthPatch*p){
+    if(!k||track<0||track>=MaxTracks)return 0;
+    if(!p){k->synthOn[size_t(track)].store(0,std::memory_order_relaxed);return 1;}
+    const float values[]={p->cutoff,p->resonance,p->attack,p->decay,p->sustain,p->release};
+    for(float v:values)if(!std::isfinite(v))return 0;
+    if(p->wave<0||p->wave>2||p->cutoff<0||p->cutoff>1||p->resonance<0||p->resonance>0.9f||p->attack<0||p->attack>4||p->decay<0||p->decay>6||p->sustain<0||p->sustain>1||p->release<0||p->release>8)return 0;
+    const size_t t=size_t(track);
+    k->synthWave[t].store(p->wave,std::memory_order_relaxed);k->synthCutoff[t].store(p->cutoff,std::memory_order_relaxed);k->synthResonance[t].store(p->resonance,std::memory_order_relaxed);
+    k->synthAttack[t].store(p->attack,std::memory_order_relaxed);k->synthDecay[t].store(p->decay,std::memory_order_relaxed);k->synthSustain[t].store(p->sustain,std::memory_order_relaxed);k->synthRelease[t].store(p->release,std::memory_order_relaxed);
+    k->synthOn[t].store(1,std::memory_order_release);return 1;
+}
+void lg_midi_clock_out(LGKernel*k,int enabled){if(k)k->clockOut.store(enabled?1:0,std::memory_order_relaxed);}
+int lg_pad_repeat(LGKernel*k,int pad,int step,int velocity){
+    if(!k||pad< -1||pad>15)return 0;
+    if(pad<0){k->repeatPad.store(-1,std::memory_order_release);return 1;}
+    if(step!=120&&step!=160&&step!=240&&step!=320&&step!=480)return 0;
+    k->repeatStep.store(step,std::memory_order_relaxed);k->repeatVelocity.store(std::clamp(velocity,1,127),std::memory_order_relaxed);
+    k->repeatSerial.fetch_add(1,std::memory_order_acq_rel);k->repeatPad.store(pad,std::memory_order_release);return 1;
+}
 int lg_pad(LGKernel*k,int pad,int velocity){if(pad<0||pad>15)return 0;return enqueue(k,{pad,std::clamp(velocity,1,127),1,1,false});}
 void lg_note_preview(LGKernel*k,int pitch,int track,int instrument){if(pitch>=0&&pitch<=127&&track>=0&&track<MaxTracks&&instrument>=0&&instrument<=3)enqueue(k,{pitch,95,track,instrument,true});}
 int lg_note_preview_track(LGKernel*k,int pitch,uint64_t identity){return k&&pitch>=0&&pitch<=127&&identity!=0?enqueue(k,{pitch,95,-1,0,true,identity}):0;}
@@ -522,7 +730,7 @@ int lg_perform_replay_submit(LGKernel*k,const LGPerformanceEvent*events,int coun
     for(int i=0;i<count;i++){
         const auto &e=events[i];if(e.frame<previous||e.frame>duration||!std::isfinite(e.value))return 0;
         sameFrame=e.frame==previous?sameFrame+1:1;if(sameFrame>512)return 0;previous=e.frame;
-        if(e.kind==1){if(e.token<1||e.token>8||e.a<0||e.b<=e.a||e.b>245760||e.a%3840||e.b%3840)return 0;}
+        if(e.kind==1){if(e.token<1||e.token>16||e.a<0||e.b<=e.a||e.b>491520||e.a%3840||e.b%3840)return 0;}
         else if(e.kind==2){if(e.value!=1&&e.value!=-1&&e.value!=4&&e.value!=-4)return 0;}
         else if(e.kind==3){if(e.value!=0&&e.value!=240&&e.value!=480&&e.value!=960&&e.value!=1920)return 0;}
         else if(e.kind==4){if(e.value < -1||e.value>1)return 0;}
@@ -540,7 +748,7 @@ int lg_perform_replay_submit(LGKernel*k,const LGPerformanceEvent*events,int coun
 }
 uint64_t lg_perform_queue(LGKernel*k,int kind,float value,int start,int end,int token){
     if(!std::isfinite(value))return 0;
-    if(kind==1){if(token<0||token>8||(token!=0&&(start<0||end<=start||end>245760||start%3840!=0||end%3840!=0)))return 0;}
+    if(kind==1){if(token<0||token>16||(token!=0&&(start<0||end<=start||end>491520||start%3840!=0||end%3840!=0)))return 0;}
     else if(kind==2){if(value!=1&&value!=-1&&value!=4&&value!=-4)return 0;}
     else if(kind==3){if(value!=0&&value!=240&&value!=480&&value!=960&&value!=1920)return 0;}
     else return 0;
@@ -560,7 +768,7 @@ int lg_perform_warning(LGKernel*k){return k->performance.warning.load();}
 uint64_t lg_perform_clock(LGKernel*k){return k->performance.clock.load();}
 uint64_t lg_perform_duration(LGKernel*k){return k->performance.duration.load();}
 // The caller must stop/join its render engine before finalizing a paused kernel.
-void lg_perform_finalize_paused(LGKernel*k){k->performance.stop();k->performance.publish();k->active=false;k->pendingInitialPlay=false;k->playing.store(0);k->silence(true);k->fx.reset();}
+void lg_perform_finalize_paused(LGKernel*k){k->performance.stop();k->performance.publish();k->active=false;k->pendingInitialPlay=false;k->playing.store(0);k->silence(true);k->fx.reset();k->reverb.reset();}
 float lg_gain_target(LGKernel*k,int t){return t>=0&&t<Buses?k->gains[t].load():0;}
 float lg_pan_target(LGKernel*k,int t){return t>=0&&t<Buses?k->pans[t].load():0;}
 float lg_filter_target(LGKernel*k){return k->filterTarget.load();}
@@ -568,6 +776,28 @@ float lg_delay_target(LGKernel*k){return k->delayTarget.load();}
 void lg_panic(LGKernel*k){k->panicRequest.store(true,std::memory_order_release);k->command.store(-1);}
 void lg_tail_on_end(LGKernel*k,int enabled){k->tailOnEnd.store(enabled);}
 void lg_metronome(LGKernel*k,int on){k->metro.store(on);}
+int lg_metronome_config(LGKernel*k,float gainDB,int accent,int sound){
+    if(!k||!std::isfinite(gainDB)||gainDB< -24||gainDB>6||accent<0||accent>1||sound<0||sound>2)return 0;
+    k->metroGain.store(std::pow(10.f,gainDB/20));k->metroAccent.store(accent);k->metroSound.store(sound);return 1;
+}
+int lg_dynamics(LGKernel*k,const LGTrackDynamics*tracks,int count,int limiter,float ceilingDB){
+    if(!k||count<0||count>MaxTracks||(count>0&&!tracks)||limiter<0||limiter>1||!std::isfinite(ceilingDB)||ceilingDB< -12||ceilingDB> -0.2f)return 0;
+    for(int t=0;t<count;t++){
+        const auto &d=tracks[t];
+        if(!std::isfinite(d.sidechainDB)||d.sidechainDB<0||d.sidechainDB>12||!std::isfinite(d.reverbSend)||d.reverbSend<0||d.reverbSend>1||!std::isfinite(d.drive)||d.drive<0||d.drive>1||(d.crushBits!=0&&(d.crushBits<4||d.crushBits>16)))return 0;
+        for(int pad=0;pad<16;pad++)if(d.choke[pad]<0||d.choke[pad]>8)return 0;
+    }
+    for(int t=0;t<MaxTracks;t++){
+        const bool set=t<count;
+        for(int pad=0;pad<16;pad++)k->choke[t][pad].store(set?tracks[t].choke[pad]:0,std::memory_order_relaxed);
+        k->sidechainDepth[t].store(set?tracks[t].sidechainDB:0,std::memory_order_relaxed);
+        k->drive[t].store(set?tracks[t].drive:0,std::memory_order_relaxed);
+        k->crush[t].store(set?tracks[t].crushBits:0,std::memory_order_relaxed);
+        k->reverbSend[t].store(set?tracks[t].reverbSend:0,std::memory_order_relaxed);
+    }
+    k->limiterCeiling.store(std::pow(10.f,ceilingDB/20));k->limiterOn.store(limiter);return 1;
+}
+int lg_limiter_latency(LGKernel*k){return k&&k->limiterOn.load()?std::clamp(int(std::lround(k->sr*0.0015)),8,LGKernel::LimiterMax-2):0;}
 uint64_t lg_output_timing_begin(LGKernel*k){if(!k)return 0;const uint64_t old=k->outputTiming.request.load(std::memory_order_relaxed);if(old==UINT64_MAX)return 0;k->outputTiming.request.store(old+1,std::memory_order_release);return old+1;}
 int lg_output_timing_read(LGKernel*k,LGOutputTiming*timing){return k&&k->outputTiming.read(timing)?1:0;}
 void lg_render_midi(LGKernel*k,LGMIDIHub*hub,uint64_t hostTime,double hostTicksPerSecond,float*l,float*r,int frames){
@@ -584,7 +814,7 @@ void lg_render_midi(LGKernel*k,LGMIDIHub*hub,uint64_t hostTime,double hostTicksP
     // spin on the publisher. New commands/Panic replace that deferred intent.
     if(panic||cmd!=0)k->pendingInitialPlay=false;
     if(cmd==1&&k->current<0)k->pendingInitialPlay=true;
-    if(panic||cmd<0||cmd==2||cmd==3){k->performance.stop();k->active=false;k->counting=0;k->countRequest.store(0);k->countRemaining.store(0);k->fx.reset();k->silence(true);if(hub)hub->outputEvent(k->outputState,k->hostNow,0,0,0);k->read.store(k->write.load());}
+    if(panic||cmd<0||cmd==2||cmd==3){k->performance.stop();k->active=false;k->counting=0;k->countRequest.store(0);k->countRemaining.store(0);k->fx.reset();k->reverb.reset();k->silence(true);if(hub)hub->outputEvent(k->outputState,k->hostNow,0,0,0);k->read.store(k->write.load());}
     // An explicit seek is already a discontinuity, so use the newest complete
     // project before interpreting its range. This also handles seeking beyond
     // an old one-bar loop into a newly extended arrangement.
@@ -598,7 +828,7 @@ void lg_render_midi(LGKernel*k,LGMIDIHub*hub,uint64_t hostTime,double hostTicksP
     for(int t=0;t<Buses;t++){gainTargets[t]=k->gains[t].load();panTargets[t]=k->pans[t].load();}
     const float filter=k->filterTarget.load(),delay=k->delayTarget.load();
     k->fx.prepare(filter,delay,k->current<0?120:k->slots[k->current].bpm);
-    if(cmd==2||cmd==3)k->fx.reset();
+    if(cmd==2||cmd==3){k->fx.reset();k->reverb.reset();}
     if(cmd==3&&k->current>=0){
         k->slots[k->current].loop=true;
         k->performance.begin(k->performance.requestToken.load(),k->performance.requestEpoch.load(),k->performance.requestCapture.load()!=0,k->performance.requestLimit.load());
@@ -634,14 +864,14 @@ void lg_render_midi(LGKernel*k,LGMIDIHub*hub,uint64_t hostTime,double hostTicksP
                 else if(event.kind==10||event.kind==11){k->midiEvent({0,event.b/16,event.kind==10?9:8,event.b%16,event.a,int(event.value),event.track,event.token},false);}
                 else if(event.kind==12){k->midiEvent({0,event.b/16,11,event.b%16,64,event.value>0?127:0,0,0},false);}
                 else if(event.kind==13){k->midiClear(event.b,false);}
-                else if(event.kind==99){k->active=false;k->fx.releaseRepeat();if(k->tailOnEnd.load()){for(auto &voice:k->voices)if(voice.on&&voice.pad<0)voice.duration=std::min(voice.duration,voice.age+0.008);}else{k->silence(true);k->fx.reset();}}
+                else if(event.kind==99){k->active=false;k->fx.releaseRepeat();if(k->tailOnEnd.load()){for(auto &voice:k->voices)if(voice.on&&voice.pad<0)voice.duration=std::min(voice.duration,voice.age+0.008);}else{k->silence(true);k->fx.reset();k->reverb.reset();}}
             });
             if(!replay)k->performance.due(k->ticksPerFrame(),[&](PerformanceControl control){return k->performAction(control);});
         }
-        if(k->counting>0){int beatFrames=int(k->sr*60/k->slots[k->current].bpm);if(k->counting%beatFrames==0)k->trigger(k->counting>beatFrames*3?96:84,65,Master,-1,0,0.035);k->counting--;k->countRemaining.store(k->counting);}
+        if(k->counting>0){int beatFrames=int(k->sr*60/k->slots[k->current].bpm);if(k->counting%beatFrames==0)k->click(k->counting>beatFrames*3);k->counting--;k->countRemaining.store(k->counting);}
         else if(k->active&&k->current>=0){
             auto*s=&k->slots[k->current];double tp=k->ticksPerFrame();double raw=k->origin+k->elapsed*tp;double tick=raw-k->cycle*(s->end-s->start);bool looped=false;
-            if(tick>=s->end-0.5*tp){if(s->loop){k->cycle++;tick-=s->end-s->start;k->cursor=0;k->silence();while(k->cursor<s->count&&s->notes[k->cursor].tick<s->start)k->cursor++;k->lastBeat=-1;looped=true;}else{k->active=false;if(!k->tailOnEnd.load()){k->silence(true);k->fx.reset();}tick=s->end;}}
+            if(tick>=s->end-0.5*tp){if(s->loop){k->cycle++;tick-=s->end-s->start;k->cursor=0;k->silence();while(k->cursor<s->count&&s->notes[k->cursor].tick<s->start)k->cursor++;k->lastBeat=-1;looped=true;}else{k->active=false;if(!k->tailOnEnd.load()){k->silence(true);k->fx.reset();k->reverb.reset();}tick=s->end;}}
             int old=k->current;k->adopt(looped||!k->active,tick);if(k->current!=old){
                 s=&k->slots[k->current];tick=k->origin;tp=k->ticksPerFrame();
                 // Adoption can occur inside a render block. Refresh local mix
@@ -652,47 +882,68 @@ void lg_render_midi(LGKernel*k,LGMIDIHub*hub,uint64_t hostTime,double hostTicksP
             }
             if(k->active){
                 while(k->cursor<s->count&&s->notes[k->cursor].tick<=tick+0.5*tp){auto&n=s->notes[k->cursor++];if(n.tick>=s->start&&n.tick<s->end)k->trigger(n.pitch,n.velocity,n.track,n.pad,n.instrument,n.pad>=0?LegacyKitFrames/k->sr:std::min(n.duration,s->end-n.tick)/960.0*60/s->bpm);}
-                int beat=int(tick/960);if(beat!=k->lastBeat){if(k->metro.load())k->trigger(beat%4?84:96,65,Master,-1,0,0.035);k->lastBeat=beat;}
+                int beat=int(tick/960);if(beat!=k->lastBeat){if(k->metro.load())k->click(beat%4==0);k->lastBeat=beat;}
                 k->position.store(tick,std::memory_order_relaxed);k->previous=tick;k->elapsed++;
             }else k->position.store(tick);
         }
+        k->repeatTick();k->arpTick();k->clockTick();k->automationTick();
         if(f==0){while(rd<wr){auto v=k->input[rd++%256];if(v.identity){v.track=k->identityTrack(v.identity);if(v.track>=0)v.instrument=k->slots[k->current].instruments[v.track];}else if(!v.preview)v.track=k->roleTrack(1,1);else if(v.track<0)v.track=k->roleTrack(0,0);if(v.track<0)continue;k->performance.emit(v.preview?9:8,v.track,float(v.velocity),v.value,v.instrument);k->trigger(v.preview?v.value:36,v.velocity,v.track,v.preview?-1:v.value,v.instrument,v.preview?0.65:1);}k->read.store(rd,std::memory_order_release);}
         // Boundary-time input belongs to the newly adopted layout. Applying it
         // before adoption would create an old-index voice and then clear it.
-        if(hub)hub->dueWithOrigin(hostTime+uint64_t(double(f)*hostPerSample),uint64_t(std::max(1.0,hostPerSample)),[&](const LGMIDIEvent &event,bool screenKeyboard){if(!k->performance.replaying())k->midiEvent(event,true,screenKeyboard);});
+        if(hub)hub->dueWithOrigin(hostTime+uint64_t(double(f)*hostPerSample),uint64_t(std::max(1.0,hostPerSample)),[&](const LGMIDIEvent &event,bool){if(!k->performance.replaying())k->midiEvent(event,true);});
         for(int t=0;t<Buses;t++){k->smooth[t]+=(gainTargets[t]-k->smooth[t])*ramp;k->smoothPan[t]+=(panTargets[t]-k->smoothPan[t])*ramp;}
-        float left=0,right=0;float buses[Buses]={},keys[Buses]={};
+        float left=0,right=0;float buses[Buses]={};
+        // I16: one bent track at a time (the keyboard's); others keep factor 1.
+        int bentTrack=-1;double bend=1;
+        {const float semis=k->bendSemitones.load(std::memory_order_relaxed),mod=k->bendModulation.load(std::memory_order_relaxed);
+         if(mod!=0){k->vibratoPhase+=5.5/k->sr;if(k->vibratoPhase>=1)k->vibratoPhase-=1;}
+         if(semis!=0||mod!=0){bentTrack=k->identityTrack(k->bendIdentity.load(std::memory_order_relaxed));bend=std::pow(2.0,(double(semis)+0.5*double(mod)*std::sin(2*Pi*k->vibratoPhase))/12);}}
         for(auto&v:k->voices)if(v.on){
+            const double voiceBend=v.track==bentTrack?bend:1.0;
             float sample=0;const double remaining=v.duration-v.age;
             if(remaining<=0){k->endOutput(v);v.on=false;continue;}
-            if(v.sample){
-                sample=sampleFrame(v)*v.velocity*float(std::min(1.,v.age/0.001)*std::min(1.,remaining/0.008));
+            if(v.synth){
+                sample=synthFrame(v,voiceBend)*float(std::min(1.,remaining/0.004));
                 v.age=double(++v.ageFrames)/k->sr;
                 v.lastSample=sample;v.level=std::abs(sample);
-                if(v.keyboardGain>0)keys[v.track]+=sample*v.keyboardGain;else buses[v.track]+=sample;
+                buses[v.track]+=sample;
+                continue;
+            }
+            if(v.sample){
+                sample=sampleFrame(v,voiceBend)*v.velocity*float(std::min(1.,v.age/0.001)*std::min(1.,remaining/0.008));
+                v.age=double(++v.ageFrames)/k->sr;
+                v.lastSample=sample;v.level=std::abs(sample);
+                buses[v.track]+=sample;
                 continue;
             }
             if(v.pad>=0){const auto &bank=v.presetVersion>=2&&k->kitFrames!=LegacyKitFrames?k->kitV2:k->kit;int frame=v.presetVersion>=3?int(double(v.ageFrames)*v.playbackRatio):v.presetVersion>=2?int(v.ageFrames):int(v.age*k->sr);if(frame>=int(bank[v.pad].size())){k->endOutput(v);v.on=false;continue;}sample=bank[v.pad][frame];if(v.presetVersion>=3){v.toneState+=float(v.toneAlpha)*(sample-v.toneState);sample=v.presetVersion==3?v.toneState:float((sample+0.65*(sample-v.toneState))*0.85);}}
-            else {v.phase+=v.phaseStep;if(v.phase>=1)v.phase-=1;if(v.presetVersion<=2){sample=float((std::sin(2*Pi*v.phase)+(v.instrument==3?0.35:0.22)*std::sin(4*Pi*v.phase)+(v.instrument==3?0.12*std::sin(6*Pi*v.phase):0))*0.17);}else{const double sine=std::sin(2*Pi*v.phase),cosine=std::cos(2*Pi*v.phase),second=2*sine*cosine;sample=float((v.partials[0]*sine+v.partials[1]*second+v.partials[2]*sine*(3-4*sine*sine)+v.partials[3]*2*second*(1-2*sine*sine))*0.17);}}
+            else {v.phase+=v.phaseStep*voiceBend;if(v.phase>=1)v.phase-=1;if(v.presetVersion<=2){sample=float((std::sin(2*Pi*v.phase)+(v.instrument==3?0.35:0.22)*std::sin(4*Pi*v.phase)+(v.instrument==3?0.12*std::sin(6*Pi*v.phase):0))*0.17);}else{const double sine=std::sin(2*Pi*v.phase),cosine=std::cos(2*Pi*v.phase),second=2*sine*cosine;sample=float((v.partials[0]*sine+v.partials[1]*second+v.partials[2]*sine*(3-4*sine*sine)+v.partials[3]*2*second*(1-2*sine*sine))*0.17);}}
             double envelope=std::min(1.,v.age/(v.presetVersion>=3?v.attack:0.004))*std::min(1.,remaining/0.008);if(v.pad<0)envelope*=v.presetVersion>=2?v.decay:std::exp(-v.age*(v.instrument==2?1.5:0.7));
             sample*=float(envelope)*v.velocity;v.level=std::abs(sample);if(v.presetVersion>=2){v.age=double(++v.ageFrames)/k->sr;v.decay*=v.decayStep;}else{v.age+=1/k->sr;}
             v.lastSample=sample;
-            if(v.keyboardGain>0)keys[v.track]+=sample*v.keyboardGain;else buses[v.track]+=sample;
+            buses[v.track]+=sample;
         }
-        for(auto &tail:k->retirements)if(tail.remaining>0){const float value=tail.sample*float(tail.remaining)/float(tail.total);if(tail.keyboardGain>0)keys[tail.track]+=value*tail.keyboardGain;else buses[tail.track]+=value;--tail.remaining;}
-        for(int t=0;t<MaxTracks;t++)buses[t]+=keyboardBus(keys[t]);
+        for(auto &tail:k->retirements)if(tail.remaining>0){const float value=tail.sample*float(tail.remaining)/float(tail.total);buses[tail.track]+=value;--tail.remaining;}
+        k->dynamics(buses);
         k->fx.processBuses(buses,k->active);
+        float send=0;
         for(int t=0;t<MaxTracks;t++){
             const float amp=k->eqChannels[t].process(buses[t])*k->smooth[t];
             if(k->panValue[t]!=k->smoothPan[t]){const float angle=(k->smoothPan[t]+1)*float(Pi/4);k->panLeft[t]=std::cos(angle);k->panRight[t]=std::sin(angle);k->panValue[t]=k->smoothPan[t];}
             left+=amp*k->panLeft[t];right+=amp*k->panRight[t];peak[t]=std::max(peak[t],std::abs(amp));
+            send+=amp*k->reverbSend[t].load(std::memory_order_relaxed);
         }
+        if(k->reverb.active(send))k->reverb.process(send,left,right);
         k->fx.process(left,right);
         left=k->eqChannels[Master].process(left);right=k->eqChannels[Master+1].process(right);
         const float cue=buses[Master]*0.65f*0.7071067812f;left+=cue;right+=cue;
-        left*=k->smooth[Master];right*=k->smooth[Master];peak[Master]=std::max(peak[Master],std::max(std::abs(left),std::abs(right)));
+        left*=k->smooth[Master];right*=k->smooth[Master];float masterPeak=std::max(std::abs(left),std::abs(right));
         if(k->layoutFadeRemaining>0){const float weight=float(k->layoutFadeRemaining)/float(k->layoutFadeTotal);left=left*(1-weight)+k->layoutFadeLeft*weight;right=right*(1-weight)+k->layoutFadeRight*weight;--k->layoutFadeRemaining;}
-        l[f]=std::clamp(left,-0.98f,0.98f);r[f]=std::clamp(right,-0.98f,0.98f);k->lastLeft=l[f];k->lastRight=r[f];k->rendered++;k->performance.advance(k->active);
+        if(k->limit(left,right))masterPeak=std::max(std::abs(left),std::abs(right));
+        peak[Master]=std::max(peak[Master],masterPeak);
+        l[f]=std::clamp(left,-0.98f,0.98f);r[f]=std::clamp(right,-0.98f,0.98f);k->lastLeft=l[f];k->lastRight=r[f];
+        {const uint32_t w=k->scopeWrite.load(std::memory_order_relaxed);k->scope[w%LGKernel::ScopeSize]=0.5f*(l[f]+r[f]);k->scopeWrite.store(w+1,std::memory_order_release);}
+        k->rendered++;k->performance.advance(k->active);
     }
     for(int t=0;t<Buses;t++)k->meters[t].store(std::max(peak[t],k->meters[t].load()*float(std::exp(-double(frames)/(k->sr*0.12)))));
     k->performance.publish();k->clock.store(k->rendered);k->playing.store(k->active?1:0);
@@ -700,6 +951,13 @@ void lg_render_midi(LGKernel*k,LGMIDIHub*hub,uint64_t hostTime,double hostTicksP
 double lg_tick(LGKernel*k){return k->position.load();}uint64_t lg_clock(LGKernel*k){return k->clock.load();}
 int lg_playing(LGKernel*k){return k->playing.load();}int lg_revision(LGKernel*k){return k->applied.load();}
 float lg_meter(LGKernel*k,int t){return t>=0&&t<Buses?k->meters[t].load():0;}
+int lg_scope_read(LGKernel*k,float*out,int count){
+    if(!k||!out||count<=0)return 0;
+    const int n=std::min<int>(count,int(LGKernel::ScopeSize));
+    const uint32_t end=k->scopeWrite.load(std::memory_order_acquire);
+    for(int i=0;i<n;i++)out[i]=k->scope[(end-uint32_t(n)+uint32_t(i))%LGKernel::ScopeSize];
+    return n;
+}
 int lg_overflows(LGKernel*k){return k->overflow.load();}
 void lg_render(LGKernel*k,float*l,float*r,int frames){lg_render_midi(k,nullptr,0,0,l,r,frames);}
 

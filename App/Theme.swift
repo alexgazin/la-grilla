@@ -2,7 +2,8 @@ import SwiftUI
 import MusicDomain
 import UIKit
 
-// Nocturne: a quiet graphite chassis, with color reserved for musical meaning.
+// Luz: light on graphite. Matte content, glass chrome, instruments that light up
+// in their track colour. Rules: docs/DESIGN_SYSTEM_RU.md.
 extension Color {
     private static func adaptive(
         _ dark: UInt32,
@@ -24,9 +25,11 @@ extension Color {
         })
     }
 
-    static let ink = adaptive(0x0C0E12, 0xF3F5F7, contrastDark: 0x050609, contrastLight: 0xFFFFFF)
-    static let panel = adaptive(0x171C23, 0xFFFFFF, contrastDark: 0x10141A, contrastLight: 0xFFFFFF)
-    static let raised = adaptive(0x222A34, 0xE9EEF3, contrastDark: 0x1D2631, contrastLight: 0xE4EBF2)
+    static let ink = adaptive(0x0E0F12, 0xF5F4F0, contrastDark: 0x050609, contrastLight: 0xFFFFFF)
+    static let panel = adaptive(0x16181D, 0xFFFFFF, contrastDark: 0x10141A, contrastLight: 0xFFFFFF)
+    static let raised = adaptive(0x1E2127, 0xECEAE4, contrastDark: 0x1D2631, contrastLight: 0xE4EBF2)
+    /// Third elevation: pressed controls and the selected segment.
+    static let lifted = adaptive(0x272B33, 0xE2DFD7, contrastDark: 0x2A3442, contrastLight: 0xD5DCE4)
     static let studioText = adaptive(0xF3F5F0, 0x19232E, contrastDark: 0xFFFFFF, contrastLight: 0x09111C)
     static let muted = adaptive(0xA8B2BE, 0x536171, contrastDark: 0xCFD8E3, contrastLight: 0x354455)
     static let outline = adaptive(0x343E4C, 0xCDD6E1, contrastDark: 0x8797AB, contrastLight: 0x66788C)
@@ -60,25 +63,34 @@ enum StudioMetrics {
 }
 
 enum StudioTypography {
+    /// Screen titles and empty states: wide SF Pro.
+    static let display = Font.system(.largeTitle, design: .default, weight: .semibold).width(.expanded)
     static let title = Font.system(.title2, design: .default, weight: .semibold)
     static let action = Font.system(.subheadline, design: .default, weight: .semibold)
     static let label = Font.system(.caption, design: .default, weight: .semibold)
     static let detail = Font.system(.caption2, design: .default, weight: .medium)
     static let icon = Font.system(.body, design: .default, weight: .medium)
     static let value = Font.system(.body, design: .monospaced, weight: .medium)
+    /// Pad names and big friendly numbers.
+    static let pad = Font.system(.caption, design: .rounded, weight: .semibold)
+    /// Transport position, gain and other large numeric readouts.
+    static let readout = Font.system(.title2, design: .monospaced, weight: .medium)
+    static let index = Font.system(.caption2, design: .monospaced, weight: .medium)
 }
 
 enum StudioMotion {
     // Contact is immediate. Only release settles; repeated musical input never waits.
-    static let release = Animation.easeOut(duration: 0.12)
-    static let selection = Animation.easeOut(duration: 0.18)
-    static let panel = Animation.spring(response: 0.32, dampingFraction: 1)
+    static let release = Luz.Motion.release
+    static let selection = Luz.Motion.snap
+    static let panel = Luz.Motion.morph
 }
 
 struct IconButton: View {
     let symbol: String
     let label: LocalizedStringKey
     var color: Color = .primary
+    /// Luz toggle: when set, on = mint glyph on a 12 % mint circle, plus an accessibility value.
+    var isOn: Bool? = nil
     let action: () -> Void
 
     var body: some View {
@@ -86,12 +98,23 @@ struct IconButton: View {
             Image(systemName: symbol)
                 .font(StudioTypography.icon)
                 .symbolRenderingMode(.hierarchical)
-                .foregroundStyle(color)
+                .foregroundStyle(isOn == true ? Color.mint : color)
+                .contentTransition(.symbolEffect(.replace))
                 .frame(minWidth: StudioMetrics.hitTarget, minHeight: StudioMetrics.hitTarget)
+                .background { if isOn == true { Circle().fill(Color.mint.opacity(0.12)) } }
                 .contentShape(Rectangle())
         }
-        .buttonStyle(StudioQuietButtonStyle())
+        .buttonStyle(StudioQuietButtonStyle(radius: StudioMetrics.hitTarget / 2))
         .accessibilityLabel(label)
+        .modifier(ToggleAccessibilityValue(isOn: isOn))
+    }
+}
+
+/// Adds On/Off only to toggles, so callers' own accessibility values stay untouched.
+private struct ToggleAccessibilityValue: ViewModifier {
+    let isOn: Bool?
+    @ViewBuilder func body(content: Content) -> some View {
+        if let isOn { content.accessibilityValue(Text(LocalizedStringKey(isOn ? "On" : "Off"))) } else { content }
     }
 }
 
@@ -204,7 +227,7 @@ struct StudioActionStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         let pressed = enabled && configuration.isPressed
-        let shape = RoundedRectangle(cornerRadius: StudioMetrics.controlRadius, style: .continuous)
+        let shape = Capsule(style: .continuous)
         return configuration.label
             .font(StudioTypography.action)
             .foregroundStyle(prominent ? Color.ink : color)
@@ -222,8 +245,8 @@ struct StudioActionStyle: ButtonStyle {
                 .allowsHitTesting(false)
             }
             .opacity(enabled ? 1 : contrast == .increased ? 0.6 : 0.42)
-            .scaleEffect(pressed && !reduceMotion ? 0.985 : 1)
-            .animation(pressed || reduceMotion ? nil : StudioMotion.release, value: pressed)
+            .scaleEffect(pressed && !reduceMotion ? 0.98 : 1)
+            .animation(reduceMotion ? nil : pressed ? Luz.Motion.tap : Luz.Motion.release, value: pressed)
     }
 }
 
@@ -255,6 +278,8 @@ struct StudioSegments<Value: Equatable>: View {
     let title: LocalizedStringKey
     @Binding var selection: Value
     let options: [(Value, LocalizedStringKey)]
+    @Namespace private var puck
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         HStack(spacing: StudioMetrics.micro) {
@@ -263,9 +288,9 @@ struct StudioSegments<Value: Equatable>: View {
             }
         }
         .padding(StudioMetrics.micro)
-        .background(Color.ink, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .background(Color.ink, in: RoundedRectangle(cornerRadius: Luz.Radius.card, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
+            RoundedRectangle(cornerRadius: Luz.Radius.card, style: .continuous)
                 .strokeBorder(Color.outline, lineWidth: 0.75)
                 .allowsHitTesting(false)
         }
@@ -276,7 +301,9 @@ struct StudioSegments<Value: Equatable>: View {
     private func segment(at index: Int) -> some View {
         let selected = selection == options[index].0
         return Button {
-            selection = options[index].0
+            guard selection != options[index].0 else { return }
+            withAnimation(reduceMotion ? nil : Luz.Motion.snap) { selection = options[index].0 }
+            Luz.Haptics.selection()
         } label: {
             Text(options[index].1)
                 .font(StudioTypography.label)
@@ -284,7 +311,13 @@ struct StudioSegments<Value: Equatable>: View {
                 .minimumScaleFactor(1)
                 .frame(maxWidth: .infinity, minHeight: StudioMetrics.hitTarget)
                 .foregroundStyle(selected ? Color.ink : Color.muted)
-                .background(selected ? Color.mint : Color.clear, in: RoundedRectangle(cornerRadius: StudioMetrics.controlRadius, style: .continuous))
+                .background {
+                    // The selected puck slides between segments.
+                    if selected {
+                        RoundedRectangle(cornerRadius: Luz.Radius.cell, style: .continuous).fill(Color.mint)
+                            .matchedGeometryEffect(id: "puck", in: puck)
+                    }
+                }
         }
         .buttonStyle(StudioQuietButtonStyle())
         .accessibilityAddTraits(selected ? .isSelected : [])
@@ -295,16 +328,20 @@ struct StudioQuietButtonStyle: ButtonStyle {
     @Environment(\.isEnabled) private var enabled
     @Environment(\.isFocused) private var focused
     @Environment(\.colorSchemeContrast) private var contrast
+    /// The press plate follows the control's own corner radius; `plate: false`
+    /// leaves press feedback to the control (lit faces, transport keys).
+    var radius: CGFloat
+    var plate: Bool
 
-    init() {}
+    init(radius: CGFloat = Luz.Radius.cell, plate: Bool = true) { self.radius = radius; self.plate = plate }
 
     func makeBody(configuration: Configuration) -> some View {
-        let pressed = enabled && configuration.isPressed
-        let shape = RoundedRectangle(cornerRadius: StudioMetrics.controlRadius, style: .continuous)
+        let pressed = enabled && configuration.isPressed && plate
+        let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
         return configuration.label
             .contentShape(Rectangle())
             .background {
-                shape.fill(Color.studioText.opacity(pressed ? (contrast == .increased ? 0.04 : 0.065) : 0))
+                shape.fill(pressed ? Color.lifted.opacity(contrast == .increased ? 1 : 0.85) : Color.clear)
             }
             .overlay {
                 shape.strokeBorder(
@@ -320,6 +357,7 @@ struct StudioQuietButtonStyle: ButtonStyle {
 private struct StudioNavigationPlate: View {
     @Environment(\.colorSchemeContrast) private var contrast
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    var solid = false
 
     private var shape: RoundedRectangle {
         RoundedRectangle(cornerRadius: StudioMetrics.navigationRadius, style: .continuous)
@@ -327,7 +365,7 @@ private struct StudioNavigationPlate: View {
 
     var body: some View {
         Group {
-            if reduceTransparency || contrast == .increased {
+            if solid || reduceTransparency || contrast == .increased {
                 shape.fill(Color.panel)
             } else {
                 shape.fill(.regularMaterial).overlay { shape.fill(Color.panel.opacity(0.72)) }
@@ -343,10 +381,20 @@ private struct StudioNavigationPlate: View {
 struct StudioNavigationSurface: ViewModifier {
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.colorSchemeContrast) private var contrast
+    /// Solid chrome where blur must not compete with real-time drawing (Jam).
+    var solid: Bool
 
-    init() {}
+    init(solid: Bool = false) { self.solid = solid }
 
     @ViewBuilder func body(content: Content) -> some View {
+        if solid {
+            content.background { StudioNavigationPlate(solid: true) }
+        } else {
+            glass(content)
+        }
+    }
+
+    @ViewBuilder private func glass(_ content: Content) -> some View {
         #if compiler(>=6.2)
         if #available(iOS 26.0, *), !reduceTransparency, contrast != .increased {
             content.glassEffect(.regular, in: RoundedRectangle(cornerRadius: StudioMetrics.navigationRadius, style: .continuous))

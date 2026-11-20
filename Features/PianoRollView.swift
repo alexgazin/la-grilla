@@ -31,6 +31,33 @@ struct PianoRollView: View {
     var sourceRecord:AudioAssetRecord?{guard let id=clip?.sourceAssetID else{return nil};return session.project.audioAssets?.first{$0.id==id}}
     var sourcePlayhead:Double{guard let clip,let pattern else{return -1};let position=session.audio.tick-Double(clip.start);guard position>=0,position<Double(clip.length)else{return -1};return (position+Double(clip.offset)).truncatingRemainder(dividingBy:Double(pattern.length))}
     var note:NoteEvent?{pattern?.notes?.first{$0.id==selected}}
+    @AppStorage("notes.ghost") private var showGhost = true
+    /// I26: the other melodic parts in the same bars, drawn faintly behind the notes.
+    /// The body re-renders on every transport tick (sourcePlayhead), so both overlays
+    /// are memoised per project revision, clip and track: they must not recompile the
+    /// project on each frame, or touch gestures starve on the main thread.
+    @State private var overlays = RollOverlayCache()
+    func ghostNotes(for pattern:Pattern)->[NoteEvent]{
+        overlays.ghost(key:overlayKey(pattern)){ computeGhostNotes(for:pattern) }
+    }
+    func chordTones(for pattern:Pattern)->[ChordSpan]{
+        overlays.tones(key:overlayKey(pattern)){ computeChordTones(for:pattern) }
+    }
+    private func overlayKey(_ pattern:Pattern)->RollOverlayCache.Key {
+        .init(projectID:session.project.id,revision:session.project.revision,pattern:pattern.id,clip:clip?.id,track:track?.id,ghost:showGhost)
+    }
+    private func computeGhostNotes(for pattern:Pattern)->[NoteEvent]{
+        guard showGhost,let clip,clip.offset==0,clip.length==pattern.length,let index=session.project.tracks.firstIndex(where:{$0.id==track?.id}) else{return []}
+        return Compiler.notes(session.project,range:clip.start..<(clip.start+clip.length))
+            .filter{$0.pad<0 && $0.track != index && session.project.tracks[$0.track].role != .drums}
+            .prefix(2048).map{NoteEvent(tick:$0.tick,duration:$0.duration,pitch:$0.pitch,velocity:$0.velocity)}
+    }
+    /// I29: chord tones under the pattern, when the clip plays its pattern once from the start.
+    private func computeChordTones(for pattern:Pattern)->[ChordSpan]{
+        guard let clip,clip.offset==0,clip.length==pattern.length else{return []}
+        let harmony=Arrangement.harmony(session.project,section:MusicDomain.Section(name:"Notes",start:clip.start,length:clip.length))
+        return harmony.map{ChordSpan(range:$0.tick..<($0.tick+$0.duration),tones:Set($0.chord.notes.map{$0%12}))}
+    }
     var body:some View {
         NavigationStack {
             VStack(spacing:12){
@@ -38,9 +65,11 @@ struct PianoRollView: View {
                 if let clip,let pattern,clip.offset != 0 || clip.length != pattern.length{Text("Editing the source pattern updates every loop of this clip.").font(.caption).foregroundStyle(Color.muted).padding(.horizontal,16)}
                 if let pattern {
                     if listMode {eventList(pattern).frame(height:dynamicType.isAccessibilitySize ? 280:nil)} else {roll(pattern)}
-                    if let note {NoteInspector(session:session,patternID:pattern.id,note:note,snap:snap,spelling:spelling)}
+                    if let note {NoteInspector(session:session,patternID:pattern.id,note:note,snap:snap,spelling:spelling)
+                        .transition(.move(edge:.bottom).combined(with:.opacity))}
                     editBar(pattern).padding(.horizontal,16)
-                } else {ContentUnavailableView("Add a melody track",systemImage:"pianokeys",description:Text("Write a melody above your harmony."))}
+                    NoteToolsMenu(session:session,patternID:pattern.id,selected:selected).padding(.horizontal,16)
+                } else {LuzEmptyState(symbol:"pianokeys",title:"Add a melody track",detail:"Write a melody above your harmony.").padding(.horizontal,16)}
                 HStack(spacing:4){IconButton(symbol:"arrow.uturn.backward",label:"Undo"){session.undo()}.disabled(!session.history.canUndo).accessibilityIdentifier("notes.undo");IconButton(symbol:"arrow.uturn.forward",label:"Redo"){session.redo()}.disabled(!session.history.canRedo).accessibilityIdentifier("notes.redo");Spacer();Text(LocalizedStringKey(session.audio.playing ? "PLAYING":"STOPPED")).font(.caption.monospaced()).foregroundStyle(Color.muted).accessibilityIdentifier("notes.status");IconButton(symbol:session.audio.playing ? "stop.fill":"play.fill",label:session.audio.playing ? "Stop":"Play",color:.mint){session.togglePlay()}.accessibilityIdentifier("notes.play")}.padding(.horizontal,12).overlay(alignment:.top){Rectangle().fill(Color.outline.opacity(0.5)).frame(height:0.5)}
             }.padding(.top,12).padding(.bottom,8).background(Color.ink).modifier(ScrollableForLargeType())
             .navigationTitle("Piano roll").navigationBarTitleDisplayMode(.inline)
@@ -75,11 +104,11 @@ struct PianoRollView: View {
     private var trackControl:some View {
         Button{showTrackActions=true}label:{
             HStack(spacing:8){
-                Image(systemName:"pianokeys").font(.system(size:17,weight:.medium)).foregroundStyle(Color.mint)
+                Image(systemName:"pianokeys").font(.system(.body, weight: .medium)).foregroundStyle(Color.mint)
                 Text(track?.displayName ?? NSLocalizedString("Add melody",comment:"Track menu"))
                     .font(.subheadline.weight(.semibold)).foregroundStyle(Color.studioText)
                     .lineLimit(dynamicType.isAccessibilitySize ? nil:1).fixedSize(horizontal:false,vertical:dynamicType.isAccessibilitySize)
-                Image(systemName:"chevron.down").font(.system(size:11,weight:.semibold)).foregroundStyle(Color.muted)
+                Image(systemName:"chevron.down").font(.system(.caption2, weight: .semibold)).foregroundStyle(Color.muted)
             }.frame(minHeight:44)
         }.buttonStyle(StudioQuietButtonStyle()).accessibilityIdentifier("notes.tracks")
     }
@@ -111,7 +140,7 @@ struct PianoRollView: View {
         VStack(spacing:0){
             HStack{Button{lowPitch=max(0,lowPitch-12)}label:{Label("Octave",systemImage:"minus").frame(minHeight:44)}.disabled(lowPitch==0);Spacer();Text("\(noteName(lowPitch)) – \(noteName(lowPitch+23))").font(.caption.monospaced()).foregroundStyle(Color.muted);Spacer();Button{lowPitch=min(104,lowPitch+12)}label:{Image(systemName:"plus").frame(width:44,height:44)}.disabled(lowPitch==104)}.padding(.horizontal,16)
             PianoRollViewport(bars: CGFloat(p.length)/CGFloat(barTicks), barWidth: $barWidth,
-                              editing: noteDragging, measure: Self.measureZoom ? { width, visible in
+                              editing: noteDragging, focus: focusRect, measure: Self.measureZoom ? { width, visible in
                 renderedWidth = width; rollViewport = visible
             } : nil) {
                 HStack(spacing:0){
@@ -128,7 +157,7 @@ struct PianoRollView: View {
                                 .frame(width:barWidth,alignment:.leading)
                         }}.foregroundStyle(Color.muted).frame(height:24).background(Color.raised)
                             .overlay(alignment:.bottom){Rectangle().fill(Color.outline).frame(height:0.5)}
-                        RollCanvas(pattern:p,projectID:session.project.id,revision:session.project.revision,clipID:clip?.id,sectionID:session.section.id,selected:selected,lowPitch:lowPitch,barWidth:barWidth,snap:snap,tick:sourcePlayhead,editingChanged:{noteDragging=$0},select:{id in selected=id},insert:{tick,pitch in add(p,tick:tick,pitch:pitch)},move:{id,tick,pitch in change(p.id){NoteEditing.move(id,in:&$0,tick:tick,pitch:pitch,step:snap)}},resize:{id,duration in change(p.id){NoteEditing.resize(id,in:&$0,duration:duration,step:snap)}})
+                        RollCanvas(chordTones:chordTones(for:p),ghost:ghostNotes(for:p),pattern:p,projectID:session.project.id,revision:session.project.revision,clipID:clip?.id,sectionID:session.section.id,selected:selected,lowPitch:lowPitch,barWidth:barWidth,snap:snap,tick:sourcePlayhead,editingChanged:{noteDragging=$0},select:{id in selected=id},insert:{tick,pitch in add(p,tick:tick,pitch:pitch)},move:{id,tick,pitch in change(p.id){NoteEditing.move(id,in:&$0,tick:tick,pitch:pitch,step:snap)}},resize:{id,duration in change(p.id){NoteEditing.resize(id,in:&$0,duration:duration,step:snap)}})
                             .frame(width:CGFloat(p.length)/CGFloat(barTicks)*barWidth,height:576)
                     }
                 }
@@ -156,6 +185,12 @@ struct PianoRollView: View {
     private func noteDetails(_ note:NoteEvent)->some View {
         Text("\(note.tick/ppq+1):\(note.tick%ppq) · \(note.duration) ticks · v\(note.velocity)").font(.caption.monospaced())
     }
+    /// The selected note and its resize grip in viewport content coordinates (key column 48, ruler 24).
+    private var focusRect:(id:UUID,rect:CGRect)? {
+        guard let note,(lowPitch...lowPitch+23).contains(note.pitch) else{return nil}
+        let x=48+CGFloat(note.tick)/CGFloat(barTicks)*barWidth,width=max(4,CGFloat(note.duration)/CGFloat(barTicks)*barWidth)+44
+        return (note.id,CGRect(x:x,y:24+CGFloat(lowPitch+23-note.pitch)*24-10,width:width,height:44))
+    }
     func editBar(_ p:Pattern)->some View {
         HStack(spacing:2){
             IconButton(symbol:"plus",label:"Add note",color:.mint){add(p,tick:(note.map{$0.tick+$0.duration} ?? 0),pitch:note?.pitch ?? 72)}.accessibilityIdentifier("notes.add")
@@ -173,7 +208,7 @@ struct PianoRollView: View {
         }
     }
     func change(_ id:UUID,_ action:(inout Pattern)throws->Void){session.edit{p in if let i=p.patterns.firstIndex(where:{$0.id==id}){try action(&p.patterns[i])}}}
-    func add(_ p:Pattern,tick:Int,pitch:Int){change(p.id){try NoteEditing.insert(NoteEvent(tick:tick,duration:snap*2,pitch:pitch),into:&$0,step:snap)};selected=session.project.patterns.first{$0.id==p.id}?.notes?.last?.id;preview(pitch)}
+    func add(_ p:Pattern,tick:Int,pitch:Int){Luz.Haptics.selection();change(p.id){try NoteEditing.insert(NoteEvent(tick:tick,duration:snap*2,pitch:pitch),into:&$0,step:snap)};selected=session.project.patterns.first{$0.id==p.id}?.notes?.last?.id;preview(pitch)}
     func preview(_ pitch:Int){if session.ensureAudio(),let id=track?.id,let i=session.project.tracks.firstIndex(where:{$0.id==id}){session.audio.previewNote(pitch,track:i)}}
     func isBlack(_ pitch:Int)->Bool{[1,3,6,8,10].contains(pitch%12)}
 }
@@ -185,6 +220,8 @@ private struct PianoRollViewport<Content: View>: UIViewControllerRepresentable {
     let bars: CGFloat
     @Binding var barWidth: CGFloat
     let editing: Bool
+    /// The selected note (content coordinates) is scrolled into view when the selection changes.
+    var focus: (id: UUID, rect: CGRect)? = nil
     let measure: ((CGFloat, CGRect) -> Void)?
     @ViewBuilder let content: () -> Content
 
@@ -195,6 +232,7 @@ private struct PianoRollViewport<Content: View>: UIViewControllerRepresentable {
     func updateUIViewController(_ controller: Controller, context: Context) {
         controller.update(content: content(), bars: bars, width: barWidth, editing: editing,
                           setWidth: { barWidth = $0 }, measure: measure)
+        controller.reveal(focus)
     }
 
     final class Controller: UIViewController, UIScrollViewDelegate {
@@ -244,6 +282,7 @@ private struct PianoRollViewport<Content: View>: UIViewControllerRepresentable {
         override func viewDidLayoutSubviews() {
             super.viewDidLayoutSubviews()
             layoutCanvas()
+            applyReveal()
         }
         private func layoutCanvas() {
             let size = CGSize(width: 48+bars*width, height: 24+24*24)
@@ -259,6 +298,38 @@ private struct PianoRollViewport<Content: View>: UIViewControllerRepresentable {
             lastMeasurement = visible; lastContentWidth = contentWidth
             // Measurements are exposed to the on-device geometry regression only.
             DispatchQueue.main.async { measure(contentWidth, visible) }
+        }
+        private var revealedID: UUID?
+        private var focus: (id: UUID, rect: CGRect)?
+        private var revealPending = false
+        /// A newly selected note must be visible: the inspector that appears with the
+        /// selection shrinks the roll on the next layout pass, so the request stays
+        /// pending for a moment and is re-checked on every layout until the user scrolls.
+        func reveal(_ focus: (id: UUID, rect: CGRect)?) {
+            self.focus = focus
+            guard let focus else { revealedID = nil; revealPending = false; return }
+            if focus.id != revealedID {
+                revealedID = focus.id; revealPending = true
+                let id = focus.id
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in
+                    if self?.revealedID == id { self?.revealPending = false }
+                }
+            }
+            applyReveal()
+        }
+        func scrollViewWillBeginDragging(_ scrollView: UIScrollView) { revealPending = false }
+        private func applyReveal() {
+            guard revealPending, anchor == nil, let focus, scroll.bounds.height > 0 else { return }
+            let visible = scroll.bounds.inset(by: UIEdgeInsets(top: 24, left: 48, bottom: 0, right: 0))
+            guard !visible.contains(focus.rect) else { return }
+            var offset = scroll.contentOffset
+            if focus.rect.maxY > visible.maxY { offset.y += focus.rect.maxY - visible.maxY + 12 }
+            if focus.rect.minY < visible.minY { offset.y -= visible.minY - focus.rect.minY + 12 }
+            if focus.rect.maxX > visible.maxX { offset.x += focus.rect.maxX - visible.maxX + 12 }
+            if focus.rect.minX < visible.minX { offset.x -= visible.minX - focus.rect.minX + 12 }
+            let maxX = max(0, scroll.contentSize.width - scroll.bounds.width)
+            let maxY = max(0, scroll.contentSize.height - scroll.bounds.height)
+            scroll.setContentOffset(CGPoint(x: min(maxX, max(0, offset.x)), y: min(maxY, max(0, offset.y))), animated: false)
         }
         @objc private func magnify(_ gesture: UIPinchGestureRecognizer) {
             if gesture.state == .began {
@@ -329,7 +400,27 @@ private struct PianoCanvasInput: UIViewRepresentable {
     func updateUIView(_ view: UIView, context: Context) { context.coordinator.input = self }
 }
 
+struct ChordSpan:Equatable {let range:Range<Int>;let tones:Set<Int>}
+
+
+/// Reference-type memo: reading or filling it never invalidates the view.
+final class RollOverlayCache {
+    struct Key: Equatable { let projectID: UUID; let revision: Int; let pattern: UUID; let clip: UUID?; let track: UUID?; let ghost: Bool }
+    private var ghostKey: Key?, ghostValue: [NoteEvent] = []
+    private var tonesKey: Key?, tonesValue: [ChordSpan] = []
+    func ghost(key: Key, compute: () -> [NoteEvent]) -> [NoteEvent] {
+        if ghostKey != key { ghostValue = compute(); ghostKey = key }
+        return ghostValue
+    }
+    func tones(key: Key, compute: () -> [ChordSpan]) -> [ChordSpan] {
+        if tonesKey != key { tonesValue = compute(); tonesKey = key }
+        return tonesValue
+    }
+}
+
 private struct RollCanvas:View {
+    var chordTones:[ChordSpan]=[]
+    var ghost:[NoteEvent]=[]
     let pattern:Pattern;let projectID:UUID;let revision:Int;let clipID:UUID?;let sectionID:UUID
     let selected:UUID?;let lowPitch:Int;let barWidth:CGFloat;let snap:Int;let tick:Double
     let editingChanged:(Bool)->Void
@@ -376,7 +467,24 @@ private struct RollCanvas:View {
             }, end: { translation in
                 finish(.move, translation: translation)
             }, cancel: cancel)
-            .accessibilityLabel("Piano roll. Use the note list to edit with VoiceOver.")
+            .accessibilityLabel("Piano roll")
+            .accessibilityValue(Text(verbatim:selectedNote.map{MusicalNotation.noteName($0.pitch,keyRoot:0,minor:false)+" · "+MusicalPosition(tick:$0.tick).description} ?? NSLocalizedString("No note selected",comment:"Piano roll")))
+            .accessibilityHint("Swipe up or down to move between notes. The Actions rotor moves the selected note.")
+            // I91: VoiceOver walks notes in time order and moves the selected one.
+            .accessibilityAdjustableAction{direction in
+                let ordered=(pattern.notes ?? []).sorted{($0.tick,$0.pitch)<($1.tick,$1.pitch)}
+                guard !ordered.isEmpty else{return}
+                let index=ordered.firstIndex{$0.id==selected}
+                switch direction{
+                case .increment:select(ordered[index.map{min(ordered.count-1,$0+1)} ?? 0].id)
+                case .decrement:select(ordered[index.map{max(0,$0-1)} ?? ordered.count-1].id)
+                @unknown default:break
+                }
+            }
+            .accessibilityAction(named:Text("Move later by a step")){if let note=selectedNote{move(note.id,note.tick+snap,note.pitch)}}
+            .accessibilityAction(named:Text("Move earlier by a step")){if let note=selectedNote{move(note.id,max(0,note.tick-snap),note.pitch)}}
+            .accessibilityAction(named:Text("Up a semitone")){if let note=selectedNote{move(note.id,note.tick,min(127,note.pitch+1))}}
+            .accessibilityAction(named:Text("Down a semitone")){if let note=selectedNote{move(note.id,note.tick,max(0,note.pitch-1))}}
             .accessibilityIdentifier("notes.canvas")
             if let note=displayedSelection,(lowPitch...lowPitch+23).contains(note.pitch) {
                 resizeGrip(note).position(gripCenter(note))
@@ -417,6 +525,9 @@ private struct RollCanvas:View {
                 let color:Color=bar ? .muted.opacity(0.5):beat ? .outline:.raised
                 context.stroke(line,with:.color(color),lineWidth:bar ? 1:0.5)
             }
+            for note in ghost where (lowPitch...lowPitch+23).contains(note.pitch) {
+                context.fill(Path(roundedRect:rect(note),cornerRadius:3),with:.color(.studioText.opacity(0.12)))
+            }
             let drag=interaction
             for original in pattern.notes ?? [] {
                 var note=original
@@ -436,12 +547,16 @@ private struct RollCanvas:View {
                 if note.id==drag?.original.id {
                     context.stroke(Path(roundedRect:rect(original),cornerRadius:4),with:.color(.mint.opacity(0.35)),style:StrokeStyle(lineWidth:1,dash:[3,3]))
                 }
+                // I29: a note outside the chord sounding under it gets a harmony-coloured mark.
+                if let span=chordTones.first(where:{$0.range.contains(note.tick)}),!span.tones.contains(note.pitch%12) {
+                    context.fill(Path(ellipseIn:CGRect(x:r.minX+2,y:r.midY-3,width:6,height:6)),with:.color(.harmony))
+                }
             }
-            if tick>=0 && tick<Double(pattern.length){let x=CGFloat(tick)/CGFloat(barTicks)*barWidth;var line=Path();line.move(to:CGPoint(x:x,y:0));line.addLine(to:CGPoint(x:x,y:size.height));context.stroke(line,with:.color(.record),lineWidth:1.5)}
+            if tick>=0 && tick<Double(pattern.length){let x=CGFloat(tick)/CGFloat(barTicks)*barWidth;var line=Path();line.move(to:CGPoint(x:x,y:0));line.addLine(to:CGPoint(x:x,y:size.height));context.stroke(line,with:.color(.mint),lineWidth:1.5)}
         }
     }
     private func resizeGrip(_ note:NoteEvent)->some View {
-        Image(systemName:"arrow.left.and.right").font(.system(size:12,weight:.bold)).foregroundStyle(Color.ink)
+        Image(systemName:"arrow.left.and.right").font(.system(.caption, weight: .bold)).foregroundStyle(Color.ink)
             .frame(width:28,height:28).background(Color.mint,in:Circle())
             .overlay{Circle().stroke(Color.studioText.opacity(0.7),lineWidth:1).frame(width:28,height:28)}
             .frame(width:44,height:44).contentShape(Rectangle())
@@ -465,10 +580,17 @@ private struct RollCanvas:View {
             Text("End \(position(note.tick+note.duration))").font(.system(.caption,design:.monospaced,weight:.semibold))
             Text("\(Double(note.duration)/Double(ppq),specifier:"%.2f") beats").font(.caption2.monospacedDigit()).foregroundStyle(Color.muted)
         }.foregroundStyle(Color.studioText).padding(.horizontal,12).padding(.vertical,8)
-            .background(Color.raised,in:RoundedRectangle(cornerRadius:10,style:.continuous))
-            .overlay{RoundedRectangle(cornerRadius:10,style:.continuous).stroke(Color.mint,lineWidth:1)}
-            .fixedSize().position(x:min(max(64,endpoint(note)),max(64,contentWidth-64)),y:rect(note).minY>=70 ? rect(note).midY-60:rect(note).midY+64)
+            .background(Color.raised,in:RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous))
+            .overlay{RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous).stroke(Color.mint,lineWidth:1)}
+            .fixedSize().position(readoutPosition(note))
             .accessibilityIdentifier("notes.drag-preview")
+    }
+    /// Above the finger when there is room, otherwise beside it: never under it.
+    private func readoutPosition(_ note:NoteEvent)->CGPoint {
+        let finger=gripCenter(note)
+        let center=NoteGesturePreview.readoutCenter(finger:.init(x:Double(finger.x),y:Double(finger.y)),noteMinY:Double(rect(note).minY),
+                                                    readoutWidth:128,readoutHeight:48,contentWidth:Double(contentWidth),contentHeight:576)
+        return CGPoint(x:center.x,y:center.y)
     }
     private func update(_ operation:Operation,translation:CGSize,note:NoteEvent?){
         guard !invalidated,let note else{return}
@@ -479,21 +601,16 @@ private struct RollCanvas:View {
         }
         guard let current=gestureAnchor,current.context==context,current.operation==operation,
               pattern.notes?.first(where:{$0.id==current.original.id})==current.original else{interaction=nil;gestureAnchor=nil;invalidated=true;editingChanged(false);return}
-        interaction?.preview=preview(current,translation:translation)
+        let next=preview(current,translation:translation)
+        // Luz: a tick each time the dragged note lands on a new step, pitch or length.
+        if let old=interaction?.preview,old.tick != next.tick || old.pitch != next.pitch || old.duration != next.duration{Luz.Haptics.selection()}
+        interaction?.preview=next
     }
     private func preview(_ interaction:Anchor,translation:CGSize)->NoteEvent {
-        guard barWidth.isFinite,barWidth>0,translation.width.isFinite,translation.height.isFinite else{return interaction.original}
-        let step=max(1,snap)
-        let rawSteps=Double(translation.width/barWidth)*Double(barTicks)/Double(step)
-        let steps=Int(min(Double(pattern.length/step+1),max(-Double(pattern.length/step+1),rawSteps)).rounded())
-        let pitchDelta=Int(min(127,max(-127,Double(translation.height/24))).rounded())
-        if steps==0 && (interaction.operation == .resize || pitchDelta==0){return interaction.original}
-        var temporary=Pattern(length:pattern.length,notes:[interaction.original])
-        switch interaction.operation {
-        case .resize:NoteEditing.resize(interaction.original.id,in:&temporary,duration:interaction.original.duration+steps*step,step:step)
-        case .move:NoteEditing.move(interaction.original.id,in:&temporary,tick:interaction.original.tick+steps*step,pitch:min(lowPitch+23,max(lowPitch,interaction.original.pitch-pitchDelta)),step:step)
-        }
-        return temporary.notes?.first ?? interaction.original
+        // Build 44: the same model function computes the drawn and the saved note.
+        NoteGesturePreview.preview(interaction.original,operation:interaction.operation == .resize ? .resize:.move,
+                                   patternLength:pattern.length,translationX:Double(translation.width),translationY:Double(translation.height),
+                                   barWidth:Double(barWidth),step:snap,visiblePitches:lowPitch...lowPitch+23)
     }
     private func finish(_ operation:Operation,translation:CGSize){
         defer{cancel()}
@@ -524,4 +641,73 @@ private struct NoteInspector:View {
     }
     func move(_ tick:Int){session.edit{p in if let i=p.patterns.firstIndex(where:{$0.id==patternID}){NoteEditing.move(note.id,in:&p.patterns[i],tick:tick,pitch:note.pitch,step:snap)}}}
     func resize(_ duration:Int){session.edit{p in if let i=p.patterns.firstIndex(where:{$0.id==patternID}){NoteEditing.resize(note.id,in:&p.patterns[i],duration:duration,step:snap)}}}
+}
+
+/// Waves 2–3 note tools: one undoable edit on the selected note or the whole pattern.
+private struct NoteToolsMenu: View {
+    @Bindable var session: Session
+    @AppStorage("notes.ghost") private var showGhost = true
+    let patternID: UUID
+    let selected: UUID?
+    var body: some View {
+        Menu {
+            Button("Humanize timing and velocity") { apply { notes, ids, length in NoteTools.humanize(notes, ids: ids, timing: 18, velocity: 10, seed: UInt64(session.project.revision) &+ 1, length: length) } }
+            Button("Legato") { apply { notes, ids, length in NoteTools.legato(notes, ids: ids, length: length) } }
+            Button("Staccato") { apply { notes, ids, _ in NoteTools.staccato(notes, ids: ids) } }
+            Button("Up one step in the key") { apply { notes, ids, _ in NoteTools.scaleTranspose(notes, ids: ids, steps: 1, root: session.project.keyRoot, minor: session.project.minor) } }
+            Toggle("Show other parts", isOn: $showGhost)
+            Button("Down one step in the key") { apply { notes, ids, _ in NoteTools.scaleTranspose(notes, ids: ids, steps: -1, root: session.project.keyRoot, minor: session.project.minor) } }
+            // I21 · I22: group edits keep the shape of the phrase; velocity stays 1–127.
+            Menu("Velocity") {
+                Button("Soft (60)") { group { NoteSelection.setVelocity(&$0, ids: $1, to: 60) } }
+                Button("Medium (90)") { group { NoteSelection.setVelocity(&$0, ids: $1, to: 90) } }
+                Button("Loud (118)") { group { NoteSelection.setVelocity(&$0, ids: $1, to: 118) } }
+                Button("Louder (+10)") { group { NoteSelection.offsetVelocity(&$0, ids: $1, by: 10) } }
+                Button("Softer (−10)") { group { NoteSelection.offsetVelocity(&$0, ids: $1, by: -10) } }
+                Button("Crescendo") { group { NoteSelection.ramp(&$0, ids: $1, from: 55, to: 115) } }
+                Button("Diminuendo") { group { NoteSelection.ramp(&$0, ids: $1, from: 115, to: 55) } }
+            }.accessibilityIdentifier("notes.tools.velocity")
+            Menu("Timing") {
+                Button("Twice as long") { group { NoteSelection.stretch(&$0, ids: $1, factor: 2) } }
+                Button("Half as long") { group { NoteSelection.stretch(&$0, ids: $1, factor: 0.5) } }
+                Button("Earlier by a 1/16") { group { NoteSelection.shift(&$0, ids: $1, ticks: -ppq / 4, semitones: 0) } }
+                Button("Later by a 1/16") { group { NoteSelection.shift(&$0, ids: $1, ticks: ppq / 4, semitones: 0) } }
+                Button("Up an octave") { group { NoteSelection.shift(&$0, ids: $1, ticks: 0, semitones: 12) } }
+                Button("Down an octave") { group { NoteSelection.shift(&$0, ids: $1, ticks: 0, semitones: -12) } }
+            }.accessibilityIdentifier("notes.tools.timing")
+            // I28: the phrase of this section, fitted to another section's chords.
+            if let index = session.project.tracks.firstIndex(where: { $0.id == session.noteTrackID && $0.role == .melody }) {
+                Menu("Copy phrase to section") {
+                    ForEach(session.project.sections.filter { $0.id != session.section.id }) { target in
+                        Button(target.name) {
+                            let source = session.section
+                            session.edit { try PhraseCopy.copy(track: index, from: source, to: target, in: &$0) }
+                        }
+                    }
+                }.accessibilityIdentifier("notes.tools.copy-phrase")
+            }
+        } label: {
+            Label(selected == nil ? "Tools · all notes" : "Tools · selected note", systemImage: "wand.and.stars")
+                .font(.caption.weight(.semibold)).frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+        }.accessibilityIdentifier("notes.tools")
+    }
+
+    private func apply(_ transform: @escaping ([NoteEvent], Set<UUID>, Int) -> [NoteEvent]) {
+        let id = patternID, target = selected
+        session.edit { project in
+            guard let index = project.patterns.firstIndex(where: { $0.id == id }) else { return }
+            let notes = project.patterns[index].notes ?? []
+            let ids: Set<UUID> = target.map { Set([$0]) } ?? Set(notes.map(\.id))
+            project.patterns[index].notes = transform(notes, ids, project.patterns[index].length)
+        }
+    }
+
+    private func group(_ change: @escaping (inout Pattern, Set<UUID>) -> Void) {
+        let id = patternID, target = selected
+        session.edit { project in
+            guard let index = project.patterns.firstIndex(where: { $0.id == id }) else { return }
+            let ids: Set<UUID> = target.map { Set([$0]) } ?? Set((project.patterns[index].notes ?? []).map(\.id))
+            change(&project.patterns[index], ids)
+        }
+    }
 }

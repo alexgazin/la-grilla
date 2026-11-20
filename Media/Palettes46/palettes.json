@@ -1,0 +1,83 @@
+[
+  {
+    "abDifferenceLU" : -0.04257264136604633,
+    "abGainOffsetDB" : -1.6574121371560686,
+    "abPaletteLUFS" : -27.637341706548757,
+    "abPeakDBFS" : -13.591433573065492,
+    "abSourceLUFS" : -27.59476906518271,
+    "bars" : 8,
+    "bpm" : 90,
+    "dawInstruments" : [
+      "Harmony: chords — assign a keys\/pad instrument",
+      "Drums: drums — GM drum map (channel 10)",
+      "Bass: bass — assign a bass instrument",
+      "Melody: lead — assign a lead instrument"
+    ],
+    "drumKit" : "dusty",
+    "instrumentalGainOffsetDB" : -2.2548435985229,
+    "instrumentalLUFS" : -26.321884466997492,
+    "instrumentalPeakDBFS" : -12.409254606620383,
+    "instrumentalSourceLUFS" : -26.232067326084724,
+    "key" : "D minor",
+    "masterDelayWet" : 0,
+    "midiNotes" : 205,
+    "palette" : "Boom bap",
+    "paletteID" : "boomBap-v1",
+    "prompt" : "Make a boom bap beat, 90 bpm, D minor, 8 bars, chords: Dm7 Gm7 Bbmaj7 A7",
+    "stemsVersusMixResidualDB" : -95.23458187875255
+  },
+  {
+    "abDifferenceLU" : 0.04852771738244499,
+    "abGainOffsetDB" : -1.5485131664620049,
+    "abPaletteLUFS" : -27.546241347800265,
+    "abPeakDBFS" : -14.617215566717938,
+    "abSourceLUFS" : -27.59476906518271,
+    "bars" : 8,
+    "bpm" : 94,
+    "dawInstruments" : [
+      "Harmony: chords — assign a keys\/pad instrument",
+      "Drums: drums — GM drum map (channel 10)",
+      "Bass: bass — assign a bass instrument",
+      "Melody: lead — assign a lead instrument"
+    ],
+    "drumKit" : "coast",
+    "instrumentalGainOffsetDB" : -1.7645494257667096,
+    "instrumentalLUFS" : -26.088827719916917,
+    "instrumentalPeakDBFS" : -11.349505042255705,
+    "instrumentalSourceLUFS" : -26.021138804074894,
+    "key" : "G minor",
+    "masterDelayWet" : 0,
+    "midiNotes" : 240,
+    "palette" : "West Coast",
+    "paletteID" : "westCoast-v1",
+    "prompt" : "Make a West Coast beat, 94 bpm, G minor, 8 bars, chords: Gm Eb Cm D7",
+    "stemsVersusMixResidualDB" : -95.23513204455696
+  },
+  {
+    "abDifferenceLU" : 0.0027111093369569517,
+    "abGainOffsetDB" : -2.0026649325601014,
+    "abPaletteLUFS" : -27.592057955845753,
+    "abPeakDBFS" : -13.692896289614477,
+    "abSourceLUFS" : -27.59476906518271,
+    "bars" : 8,
+    "bpm" : 84,
+    "dawInstruments" : [
+      "Harmony: chords — assign a keys\/pad instrument",
+      "Drums: drums — GM drum map (channel 10)",
+      "Bass: bass — assign a bass instrument",
+      "Melody: lead — assign a lead instrument"
+    ],
+    "drumKit" : "pocket",
+    "instrumentalGainOffsetDB" : -2.6682372599303577,
+    "instrumentalLUFS" : -26.357984626785328,
+    "instrumentalPeakDBFS" : -12.570970150602093,
+    "instrumentalSourceLUFS" : -26.265102120437188,
+    "key" : "E minor",
+    "masterDelayWet" : 0.18,
+    "midiNotes" : 208,
+    "palette" : "Atmospheric chillhop",
+    "paletteID" : "atmosphericChillhop-v1",
+    "prompt" : "Make a chillhop beat at 84 bpm, E minor, 8 bars, laid back keys, chords: Em9 Cmaj7 Am7 B7",
+    "stemsVersusMixResidualDB" : -14.490356048716134
+  }
+]

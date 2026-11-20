@@ -3,6 +3,9 @@ import MusicDomain
 
 struct MixerView: View {
     @Bindable var session: Session
+    @State private var synthTrack: SynthTarget?
+    /// Gain when the current fader drag began; the drag moves relative to it.
+    @State private var dragStartGain: Double?
     @Environment(\.dynamicTypeSize) private var dynamicType
     @Environment(\.colorSchemeContrast) private var contrast
     @State private var activeFader: Int?
@@ -14,6 +17,7 @@ struct MixerView: View {
             else { standardMixer }
         }
         .sheet(item:$equalizer) { EqualizerView(session:session,destination:$0) }
+        .sheet(item:$synthTrack) { SynthEditorView(session: session, trackID: $0.id) }
         .onDisappear { finishGesture() }
         .onChange(of: session.performance.replaying) { _, replaying in
             if replaying { finishGesture() }
@@ -23,11 +27,14 @@ struct MixerView: View {
     private var standardMixer: some View {
         GeometryReader { geometry in
             // Keep useful fader travel even when the landscape workspace scrolls.
-            let stripHeight = min(500, max(464, geometry.size.height - 88))
+            // Small iPhones: strips follow the visible height so Mute, Solo and Pan stay on screen.
+            let tight = geometry.size.height < 560
+            let stripHeight = tight ? max(300, geometry.size.height - 92) : min(500, max(464, geometry.size.height - 88))
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 16) {
                     deskHeading
-                    console(height: stripHeight)
+                    console(height: stripHeight, tight: tight)
+                    MasterSpectrum(audio: session.audio)
                     deskFootnote
                 }
                 .padding(.horizontal, 16)
@@ -48,11 +55,18 @@ struct MixerView: View {
                     .minimumScaleFactor(0.8)
             }
             Spacer(minLength: 0)
+            Button { session.endHarmonyPreview(); session.sheet = .palettes } label: {
+                Label("Palettes", systemImage: "paintpalette").font(.caption.weight(.semibold))
+                    .frame(minHeight: 44).padding(.horizontal, 10)
+                    .background(Color.raised.opacity(0.55), in: RoundedRectangle(cornerRadius: StudioMetrics.controlRadius, style: .continuous))
+            }.buttonStyle(StudioQuietButtonStyle()).accessibilityIdentifier("mixer.palettes")
+                .disabled(session.performance.contextActive)
+            MixPresetMenu(session: session)
             VStack(spacing: 5) {
                 Image(systemName: "headphones")
                     .font(.system(size: 18, weight: .medium))
                 Text("STEREO")
-                    .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                    .font(.system(.caption2, design: .monospaced, weight: .semibold))
                     .tracking(0.8)
             }
             .foregroundStyle(Color.muted)
@@ -60,19 +74,19 @@ struct MixerView: View {
         }
     }
 
-    private func console(height: CGFloat) -> some View {
+    private func console(height: CGFloat, tight: Bool = false) -> some View {
         HStack(spacing: 0) {
             ScrollView(.horizontal) {
                 HStack(spacing: 0) {
                     ForEach(Array(session.displayProject.tracks.enumerated()), id: \.element.id) { index, track in
-                        channel(index: index, track: track, height: height)
+                        channel(index: index, track: track, height: height, tight: tight)
                             .frame(width: 120)
                             .overlay(alignment: .trailing) { consoleSeam }
                     }
                 }
             }
             .scrollIndicators(.visible)
-            channel(index: masterBus, track: nil, height: height)
+            channel(index: masterBus, track: nil, height: height, tight: tight)
                 .frame(width: 108)
                 .background(Color.raised.opacity(0.45))
                 .overlay(alignment: .leading) { consoleSeam }
@@ -100,7 +114,7 @@ struct MixerView: View {
     private var deskFootnote: some View {
         HStack(alignment: .top, spacing: 9) {
             Image(systemName: "waveform.path")
-                .font(.system(size: 15, weight: .medium))
+                .font(.system(.subheadline, weight: .medium))
                 .foregroundStyle(Color.mint)
                 .padding(.top, 2)
                 .accessibilityHidden(true)
@@ -111,21 +125,25 @@ struct MixerView: View {
         }
     }
 
-    private func channel(index: Int, track: Track?, height: CGFloat) -> some View {
+    /// `tight`: compact height; the per-track sound slot moves out (it stays on the Jam
+    /// screen and the grid's track labels) and the pan row is shorter.
+    private func channel(index: Int, track: Track?, height: CGFloat, tight: Bool = false) -> some View {
         let color = track.map { Color.track($0.role) } ?? .mint
         let gain = track?.gain ?? session.displayProject.master
         return VStack(spacing: 0) {
             channelHeading(track: track, color: color)
                 .frame(height: 34)
-            soundSlot(track: track, color: color)
-                .frame(height: 56)
+            if !tight {
+                soundSlot(track: track, color: color)
+                    .frame(height: 56)
+            }
             eqButton(track)
             gainReadout(index: index, gain: gain, color: color)
-                .padding(.vertical, 4)
+                .padding(.vertical, tight ? 0 : 4)
             fader(index: index, track: track, gain: gain, color: color)
-                .padding(.vertical, 8)
+                .padding(.vertical, tight ? 4 : 8)
             panSlot(index: index, track: track, color: color)
-                .frame(height: 70)
+                .frame(height: tight ? 66 : 84)
             if let track {
                 channelSwitches(index: index, track: track, color: color)
             } else {
@@ -138,17 +156,84 @@ struct MixerView: View {
         .frame(height: height)
     }
 
-    private func channelHeading(track: Track?, color: Color) -> some View {
+    @ViewBuilder private func channelHeading(track: Track?, color: Color) -> some View {
+        if let track {
+            // I39: the heading opens a menu to lock the part against generators and phrase edits.
+            Menu {
+                Button(track.locked == true ? "Unlock part" : "Lock part", systemImage: track.locked == true ? "lock.open" : "lock") {
+                    let id = track.id
+                    session.edit { p in if let i = p.tracks.firstIndex(where: { $0.id == id }) { p.tracks[i].locked = p.tracks[i].locked == true ? nil : true } }
+                }
+                dynamicsMenu(track)
+            } label: { headingLabel(track: track, color: color) }
+                .accessibilityIdentifier("mixer.track-menu.\(track.role.rawValue)")
+                .disabled(session.performance.contextActive)
+        } else {
+            // I59: a look-ahead limiter keeps the master under −1 dBFS (live and export).
+            Menu {
+                Toggle("Limiter at −1 dBFS", isOn: Binding(get: { session.project.masterFX?.limiter == true }, set: { on in
+                    session.edit { p in var fx = p.masterFX ?? MasterFX(); fx.limiter = on ? true : nil; p.masterFX = fx }
+                }))
+            } label: { headingLabel(track: nil, color: color) }
+                .accessibilityIdentifier("mixer.master-menu")
+                .disabled(session.performance.contextActive)
+        }
+    }
+
+    /// I5 · I56 · I57: per-part colour and dynamics, each one undoable edit.
+    @ViewBuilder private func dynamicsMenu(_ track: Track) -> some View {
+        let value = track.dynamics ?? TrackDynamics()
+        if track.role == .drums {
+            Toggle("Hats choke each other", isOn: Binding(get: { value.chokeGroups.contains([2, 3]) }, set: { on in
+                setDynamics(track.id) { d in d.chokeGroups.removeAll { $0 == [2, 3] }; if on { d.chokeGroups.append([2, 3]) } }
+            }))
+            Toggle("Crash and ride choke each other", isOn: Binding(get: { value.chokeGroups.contains([9, 10]) }, set: { on in
+                setDynamics(track.id) { d in d.chokeGroups.removeAll { $0 == [9, 10] }; if on { d.chokeGroups.append([9, 10]) } }
+            }))
+        } else {
+            Picker("Duck under the kick", selection: Binding(get: { value.sidechainDB }, set: { db in setDynamics(track.id) { $0.sidechainDB = db } })) {
+                Text("Off").tag(0.0)
+                ForEach([3.0, 6.0, 9.0, 12.0], id: \.self) { db in Text(String(format: NSLocalizedString("%.0f dB", comment: "Sidechain depth"), db)).tag(db) }
+            }
+        }
+        Picker("Reverb send", selection: Binding(get: { value.reverbSend }, set: { send in setDynamics(track.id) { $0.reverbSend = send } })) {
+            Text("Off").tag(0.0); Text("Small").tag(0.15); Text("Medium").tag(0.3); Text("Large").tag(0.5)
+        }
+        if track.role != .drums {
+            Button("Synth…", systemImage: "waveform.path") { synthTrack = SynthTarget(id: track.id) }
+        }
+        Picker("Drive", selection: Binding(get: { value.drive }, set: { amount in setDynamics(track.id) { $0.drive = amount } })) {
+            Text("Off").tag(0.0); Text("Light").tag(0.3); Text("Heavy").tag(0.7)
+        }
+        Picker("Bit depth", selection: Binding(get: { value.crushBits }, set: { bits in setDynamics(track.id) { $0.crushBits = bits } })) {
+            Text("Off").tag(0); Text("12-bit").tag(12); Text("8-bit").tag(8)
+        }
+    }
+
+    private func setDynamics(_ id: UUID, _ change: @escaping (inout TrackDynamics) -> Void) {
+        session.edit { p in
+            guard let i = p.tracks.firstIndex(where: { $0.id == id }) else { return }
+            var d = p.tracks[i].dynamics ?? TrackDynamics()
+            change(&d)
+            p.tracks[i].dynamics = d.isNeutral ? nil : d
+        }
+    }
+
+    private func headingLabel(track: Track?, color: Color) -> some View {
         HStack(spacing: 6) {
             Image(systemName: track.map { roleSymbol($0.role) } ?? "speaker.wave.2.fill")
-                .font(.system(size: 12, weight: .semibold))
+                .font(.system(.caption, weight: .semibold))
                 .foregroundStyle(color)
                 .accessibilityHidden(true)
             Text(track?.displayName ?? NSLocalizedString("Master", comment: "Master channel"))
-                .font(.system(size: 12, weight: .semibold))
+                .font(.system(.caption, weight: .semibold))
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
                 .frame(maxWidth: .infinity, alignment: .leading)
+            if track?.locked == true {
+                Image(systemName: "lock.fill").font(.system(.caption2, weight: .semibold)).foregroundStyle(Color.muted)
+                    .accessibilityLabel("Locked")
+            }
         }
         .overlay(alignment: .topLeading) {
             Capsule().fill(color).frame(width: 20, height: 2).offset(y: -5)
@@ -162,15 +247,15 @@ struct MixerView: View {
         } else {
             VStack(spacing: 5) {
                 Text("STEREO")
-                    .font(.system(size: 11, weight: .medium, design: .monospaced))
+                    .font(.system(.caption2, design: .monospaced, weight: .medium))
                     .tracking(0.4)
                 Text("OUT")
-                    .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                    .font(.system(.caption, design: .monospaced, weight: .semibold))
                     .foregroundStyle(color)
             }
             .foregroundStyle(Color.muted)
             .frame(maxWidth: .infinity, minHeight: 48)
-            .background(Color.ink.opacity(0.7), in: RoundedRectangle(cornerRadius: 10))
+            .background(Color.ink.opacity(0.7), in: RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous))
         }
     }
 
@@ -198,17 +283,17 @@ struct MixerView: View {
         } label: {
             HStack(alignment: .firstTextBaseline, spacing: 3) {
                 Text(verbatim: gain <= -61 ? "−∞" : String(format: "%.1f", gain))
-                    .font(largeType ? .headline.monospaced() : .system(size: 20, weight: .medium, design: .monospaced))
+                    .font(largeType ? .headline.monospaced() : .system(.title3, design: .monospaced, weight: .medium))
                     .monospacedDigit()
                 Text("dB")
-                    .font(largeType ? .caption : .system(size: 11, weight: .medium, design: .monospaced))
+                    .font(largeType ? .caption : .system(.caption2, design: .monospaced, weight: .medium))
                     .foregroundStyle(Color.muted)
             }
             .foregroundStyle(color)
             .frame(maxWidth: .infinity, minHeight: 44)
-            .background(Color.ink, in: RoundedRectangle(cornerRadius: 8))
+            .background(Color.ink, in: RoundedRectangle(cornerRadius:8,style:.continuous))
             .overlay {
-                RoundedRectangle(cornerRadius: 8)
+                RoundedRectangle(cornerRadius:8,style:.continuous)
                     .stroke(Color.outline.opacity(contrast == .increased ? 1 : 0.65), lineWidth: 0.75)
             }
         }
@@ -218,7 +303,7 @@ struct MixerView: View {
     }
 
     private func fader(index: Int, track: Track?, gain: Double, color: Color) -> some View {
-        MixerFaderFace(gain: gain, level: session.audio.meters[index], color: color,
+        MixerFaderFace(gain: gain, level: session.audio.meters[index], peak: session.audio.peakHolds[index], color: color,
                        active: activeFader == index, increasedContrast: contrast == .increased)
             .contentShape(Rectangle())
             .overlay {
@@ -229,12 +314,20 @@ struct MixerView: View {
                                 if activeFader != index {
                                     session.mixerGesture = false
                                     activeFader = index
+                                    dragStartGain = gain
                                 }
                                 let travel = max(1, geometry.size.height - 32)
-                                let position = min(1, max(0, (value.location.y - 16) / travel))
-                                setGain(index, Double(1 - position) * 67 - 61)
+                                // Luz: relative drag; the cap never jumps to the finger.
+                                var target = min(6, max(-61, (dragStartGain ?? gain) - Double(value.translation.height / travel) * 67))
+                                // Luz detent: 0 dB catches the cap and ticks once.
+                                if abs(target) < 0.75 { target = 0 }
+                                if (target == 0) != (gain == 0) && target == 0 { Luz.Haptics.selection() }
+                                setGain(index, target)
                             }
-                            .onEnded { _ in finishGesture() })
+                            .onEnded { _ in dragStartGain = nil; finishGesture() })
+                        .simultaneousGesture(TapGesture(count: 2).onEnded {
+                            finishGesture(); setGain(index, 0); finishGesture(); Luz.Haptics.selection()
+                        })
                 }
             }
             .accessibilityElement(children: .ignore)
@@ -251,26 +344,25 @@ struct MixerView: View {
         if let track {
             VStack(spacing: 0) {
                 Text("Pan")
-                    .font(.system(size: 11, weight: .medium))
+                    .font(.system(.caption2, weight: .medium))
                     .foregroundStyle(Color.muted)
                     .accessibilityHidden(true)
-                Slider(value: panBinding(index), in: -1...1,
-                       onEditingChanged: { _ in session.mixerGesture = false })
-                    .tint(color)
-                    .frame(minHeight: 44)
-                    .accessibilityLabel("Pan \(track.displayName)")
-                    .accessibilityIdentifier("mixer.pan.\(index)")
+                // Luz: a bipolar knob with a centre detent and double-tap reset.
+                LuzKnob(title: "Pan", value: panBinding(index), range: -1...1, defaultValue: 0, detents: [0], bipolar: true, tint: color,
+                        format: { v in abs(v) < 0.01 ? "C" : v < 0 ? "L\(Int((-v * 50).rounded()))" : "R\(Int((v * 50).rounded()))" },
+                        onEditingChanged: { _ in session.mixerGesture = false }, identifier: "mixer.pan.\(index)", size: 44, showsTitle: false)
             }
         } else {
             Text("L  ·  R")
-                .font(.system(size: 11, weight: .medium, design: .monospaced))
+                .font(.system(.caption2, design: .monospaced, weight: .medium))
                 .foregroundStyle(Color.muted)
         }
     }
 
     private func channelSwitches(index: Int, track: Track, color: Color) -> some View {
         HStack(spacing: 6) {
-            channelSwitch(title: "M", active: track.mute, color: color) {
+            // Luz: mute reads as "off" (light on lifted), solo lights in the track colour.
+            channelSwitch(title: "M", active: track.mute, color: .studioText) {
                 session.mixerImmediate { $0.tracks[index].mute.toggle() }
             }
             .accessibilityLabel("Mute \(track.displayName)")
@@ -287,16 +379,18 @@ struct MixerView: View {
 
     private func channelSwitch(title: LocalizedStringKey, active: Bool, color: Color,
                                action: @escaping () -> Void) -> some View {
-        Button(action: action) {
+        Button { action(); Luz.Haptics.selection() } label: {
+            // Luz lit toggle: a latching key that glows in the track colour when on.
             Text(title)
-                .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                .font(.system(.footnote, design: .monospaced, weight: .semibold))
                 .foregroundStyle(active ? Color.ink : Color.muted)
                 .frame(maxWidth: .infinity, minHeight: 44)
-                .background(active ? color : Color.ink, in: RoundedRectangle(cornerRadius: 8))
+                .background(active ? color : Color.ink, in: RoundedRectangle(cornerRadius: Luz.Radius.cell, style: .continuous))
                 .overlay {
-                    RoundedRectangle(cornerRadius: 8)
+                    RoundedRectangle(cornerRadius: Luz.Radius.cell, style: .continuous)
                         .stroke(active ? color : Color.outline.opacity(contrast == .increased ? 1 : 0.75), lineWidth: 1)
                 }
+                .shadow(color: color.opacity(active && contrast != .increased ? 0.5 : 0), radius: 6)
         }
         .buttonStyle(StudioQuietButtonStyle())
         .accessibilityAddTraits(active ? .isSelected : [])
@@ -308,15 +402,17 @@ struct MixerView: View {
             Circle().fill(clipped ? Color.record : Color.mint).frame(width: 5, height: 5)
                 .accessibilityHidden(true)
             Text(LocalizedStringKey(clipped ? "CLIP" : "OUT"))
-                .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                .font(.system(.caption2, design: .monospaced, weight: .semibold))
                 .foregroundStyle(clipped ? Color.record : Color.muted)
         }
         .frame(maxWidth: .infinity, minHeight: 44)
-        .background(Color.ink, in: RoundedRectangle(cornerRadius: 8))
+        .background(Color.ink, in: RoundedRectangle(cornerRadius:8,style:.continuous))
     }
 
     private var accessibleMixer: some View {
         Form {
+            Button("Palettes") { session.endHarmonyPreview(); session.sheet = .palettes }
+                .accessibilityIdentifier("mixer.palettes").disabled(session.performance.contextActive)
             ForEach(Array(session.displayProject.tracks.enumerated()), id: \.element.id) { index, track in
                 SwiftUI.Section(track.displayName) {
                     TrackSoundButton(session: session, trackID: track.id)
@@ -391,10 +487,13 @@ struct MixerView: View {
 private struct MixerFaderFace: View {
     let gain: Double
     let level: Float
+    var peak: Float = 0
     let color: Color
     let active: Bool
     let increasedContrast: Bool
     private let ticks: [Double] = [6, 0, -12, -24, -36, -48, -61]
+    private static let segments = 24
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         GeometryReader { geometry in
@@ -402,10 +501,10 @@ private struct MixerFaderFace: View {
             let railX = max(55, geometry.size.width * 0.56)
             let capY = 16 + CGFloat((6 - min(6, max(-61, gain))) / 67) * travel
             ZStack(alignment: .topLeading) {
-                RoundedRectangle(cornerRadius: 4)
+                RoundedRectangle(cornerRadius:4,style:.continuous)
                     .fill(Color.ink)
                     .frame(width: 8, height: travel + 8)
-                    .overlay { RoundedRectangle(cornerRadius: 4).stroke(Color.outline.opacity(0.5), lineWidth: 0.75) }
+                    .overlay { RoundedRectangle(cornerRadius:4,style:.continuous).stroke(Color.outline.opacity(0.5), lineWidth: 0.75) }
                     .position(x: railX, y: geometry.size.height / 2)
                 ForEach(ticks, id: \.self) { value in
                     rulerMark(value, y: 16 + CGFloat((6 - value) / 67) * travel)
@@ -432,37 +531,164 @@ private struct MixerFaderFace: View {
     }
 
     private var faderCap: some View {
-        RoundedRectangle(cornerRadius: 5, style: .continuous)
-            .fill(LinearGradient(colors: [Color.studioText, Color.studioText.opacity(0.72)],
-                                 startPoint: .top, endPoint: .bottom))
-            .frame(width: 38, height: 30)
+        // Luz fader: a fat capsule cap with a lit centre line in the track colour.
+        Capsule(style: .continuous)
+            .fill(LinearGradient(colors: [Color.lifted, Color.raised], startPoint: .top, endPoint: .bottom))
+            .frame(width: 40, height: 28)
             .overlay {
-                VStack(spacing: 3) {
-                    Rectangle().fill(Color.ink.opacity(0.3)).frame(width: 22, height: 1)
-                    Rectangle().fill(Color.ink).frame(width: 28, height: 2)
-                    Rectangle().fill(Color.ink.opacity(0.3)).frame(width: 22, height: 1)
-                }
+                Capsule().fill(color).frame(width: 26, height: active ? 3 : 2)
+                    .shadow(color: color.opacity(active && !increasedContrast ? 0.8 : 0), radius: 4)
             }
             .overlay {
-                RoundedRectangle(cornerRadius: 5, style: .continuous)
-                    .stroke(active ? color : Color.studioText.opacity(0.8), lineWidth: active ? 2 : 0.75)
+                Capsule(style: .continuous)
+                    .strokeBorder(active ? color : Color.outline.opacity(increasedContrast ? 1 : 0.9), lineWidth: active || increasedContrast ? 1.5 : 0.75)
             }
-            .shadow(color: .black.opacity(0.35), radius: 3, y: 3)
+            .overlay(alignment: .top) {
+                if !increasedContrast { Capsule().fill(Color.studioText.opacity(0.18)).frame(width: 24, height: 1).padding(.top, 2) }
+            }
+            .shadow(color: .black.opacity(active ? 0.45 : 0.3), radius: active ? 6 : 3, y: active ? 4 : 2)
+            .scaleEffect(active && !reduceMotion ? 1.06 : 1)
+            .animation(reduceMotion ? nil : Luz.Motion.snap, value: active)
     }
 
+    /// LED segments with a held peak; colours change at -12 and -3 dBFS.
     private func engineMeter(height: CGFloat) -> some View {
-        ZStack(alignment: .bottom) {
-            Capsule().fill(Color.ink)
-            LinearGradient(stops: [.init(color: .record, location: 0),
-                                   .init(color: .harmony, location: 0.16),
-                                   .init(color: color, location: 0.4),
-                                   .init(color: color.opacity(0.75), location: 1)],
-                           startPoint: .top, endPoint: .bottom)
-                .mask(alignment: .bottom) {
-                    Rectangle().frame(height: height * CGFloat(min(1, max(0, level))))
-                }
+        let count = Self.segments
+        let lit = Int((CGFloat(min(1, max(0, level))) * CGFloat(count)).rounded(.up))
+        let held = min(count - 1, max(0, Int((CGFloat(min(1, max(0, peak))) * CGFloat(count)).rounded(.up)) - 1))
+        return VStack(spacing: 1.5) {
+            ForEach((0..<count).reversed(), id: \.self) { segment in
+                let fraction = Double(segment + 1) / Double(count)
+                let hue: Color = fraction > 0.92 ? .record : fraction > 0.75 ? .harmony : color
+                RoundedRectangle(cornerRadius:1.5,style:.continuous)
+                    .fill(segment < lit || (peak > 0.01 && segment == held) ? hue : Color.ink)
+                    .opacity(segment < lit || (peak > 0.01 && segment == held) ? 1 : (increasedContrast ? 1 : 0.8))
+            }
         }
-        .clipShape(Capsule())
+        .frame(height: height)
+        .padding(1.5)
+        .background(Color.ink, in: Capsule())
         .overlay { Capsule().stroke(Color.outline.opacity(increasedContrast ? 1 : 0.65), lineWidth: 0.75) }
+        .accessibilityHidden(true)
+    }
+}
+
+/// I64: one undoable master EQ and lead balance for a listening situation.
+private struct MixPresetMenu: View {
+    @Bindable var session: Session
+    var body: some View {
+        Menu {
+            ForEach(MixPreset.allCases, id: \.self) { preset in
+                Button { session.edit { $0 = try preset.applied(to: $0) } } label: {
+                    Text(LocalizedStringKey(preset.title))
+                }
+            }
+        } label: {
+            Image(systemName: "dial.medium").font(.system(.body, weight: .medium))
+                .frame(width: 44, height: 44)
+                .background(Color.raised.opacity(0.55), in: RoundedRectangle(cornerRadius: StudioMetrics.controlRadius, style: .continuous))
+        }
+        .accessibilityLabel("Mix presets").accessibilityIdentifier("mixer.mix-presets")
+        .disabled(session.performance.contextActive)
+    }
+}
+
+/// I63: a live master spectrum (30 Hz–16 kHz, 24 bands), drawn while audio plays.
+private struct MasterSpectrum: View {
+    let audio: AudioController
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    var body: some View {
+        TimelineView(.animation(minimumInterval: reduceMotion ? 0.25 : 1.0 / 20, paused: !audio.playing)) { _ in
+            let bands = audio.playing ? Spectrum.bands(audio.scope(2048), rate: audio.sampleRate) : [Float](repeating: -90, count: 24)
+            Canvas { context, size in
+                let width = size.width / CGFloat(bands.count)
+                for (i, level) in bands.enumerated() {
+                    let height = max(1, CGFloat((level + 72) / 72) * size.height)
+                    let rect = CGRect(x: CGFloat(i) * width + 1, y: size.height - height, width: max(1, width - 2), height: height)
+                    context.fill(Path(roundedRect: rect, cornerRadius: 1.5), with: .color(level > -6 ? Color.record : Color.mint.opacity(0.8)))
+                }
+            }
+        }
+        .frame(height: 44)
+        .padding(.horizontal, 4)
+        .background(Color.ink.opacity(0.7), in: RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous))
+        .accessibilityElement()
+        .accessibilityLabel("Master spectrum")
+        .accessibilityIdentifier("mixer.spectrum")
+    }
+}
+
+struct SynthTarget: Identifiable { let id: UUID }
+
+/// I55: knobs for a melodic track's synth voice. Moving a knob is heard at
+/// once; releasing it saves one undoable edit.
+private struct SynthEditorView: View {
+    @Bindable var session: Session
+    let trackID: UUID
+    @Environment(\.dismiss) private var dismiss
+    @State private var patch = SynthPatch()
+    private var index: Int? { session.project.tracks.firstIndex { $0.id == trackID } }
+    private var track: Track? { index.map { session.project.tracks[$0] } }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                if let track {
+                    Toggle("Use the synth", isOn: Binding(get: { track.synth != nil }, set: { on in commit(on ? patch : nil) }))
+                        .accessibilityIdentifier("synth.enabled")
+                    if track.instrumentSample != nil {
+                        Text("This track plays an imported instrument. Choose a built-in sound to hear the synth.").font(.caption).foregroundStyle(Color.muted)
+                    }
+                    if track.synth != nil {
+                        Section("Presets") {
+                            ForEach(SynthPatch.presets, id: \.name) { preset in
+                                Button(LocalizedStringKey(preset.name)) { patch = preset.patch; commit(patch) }.frame(minHeight: 44)
+                            }
+                        }
+                        Section("Oscillator") {
+                            Picker("Wave", selection: Binding(get: { patch.wave }, set: { patch.wave = $0; commit(patch) })) {
+                                Text("Saw").tag(SynthPatch.Wave.saw); Text("Square").tag(SynthPatch.Wave.square); Text("Triangle").tag(SynthPatch.Wave.triangle)
+                            }.pickerStyle(.segmented)
+                        }
+                        Section("Filter") {
+                            HStack {
+                                knob("Cutoff", \.cutoff, 0...1, default: 0.7, format: { String(format: "%.0f Hz", 80 * pow(200, $0)) })
+                                knob("Resonance", \.resonance, 0...0.9, default: 0.2, format: { String(format: "%.0f%%", $0 / 0.9 * 100) })
+                            }.frame(maxWidth: .infinity)
+                        }
+                        Section("Envelope") {
+                            HStack {
+                                knob("Attack", \.attack, 0.001...2, default: 0.01, format: seconds)
+                                knob("Decay", \.decay, 0.01...3, default: 0.3, format: seconds)
+                                knob("Sustain", \.sustain, 0...1, default: 0.7, format: { String(format: "%.0f%%", $0 * 100) })
+                                knob("Release", \.release, 0.01...4, default: 0.3, format: seconds)
+                            }.frame(maxWidth: .infinity)
+                        }
+                    }
+                } else { Text("This track no longer exists.") }
+            }
+            .navigationTitle(track?.displayName ?? "")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
+        }
+        .onAppear { if let synth = track?.synth { patch = synth } }
+        .onDisappear { if let index { session.audio.previewSynth(track: index, session.project.tracks[index].synth) } }
+    }
+
+    private func seconds(_ value: Double) -> String { value < 1 ? String(format: "%.0f ms", value * 1000) : String(format: "%.2f s", value) }
+
+    private func knob(_ title: LocalizedStringKey, _ key: WritableKeyPath<SynthPatch, Double>, _ range: ClosedRange<Double>, default initial: Double, format: @escaping (Double) -> String) -> some View {
+        // Luz knob: heard while turning (preview), one Undo when released.
+        LuzKnob(title: title, value: Binding(get: { patch[keyPath: key] }, set: { value in
+            patch[keyPath: key] = value
+            if let index { session.audio.previewSynth(track: index, patch) }
+        }), range: range, defaultValue: initial, tint: Color.track(track?.role ?? .melody), format: format,
+                onEditingChanged: { editing in if !editing { commit(patch) } })
+            .frame(maxWidth: .infinity)
+    }
+
+    private func commit(_ value: SynthPatch?) {
+        let id = trackID
+        session.edit { p in if let i = p.tracks.firstIndex(where: { $0.id == id }) { p.tracks[i].synth = value } }
     }
 }

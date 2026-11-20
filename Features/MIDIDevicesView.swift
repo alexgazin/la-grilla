@@ -24,12 +24,13 @@ struct MIDIDevicesView:View {
                 Button("Refresh & reconnect"){reconnect()}.frame(minHeight:44).accessibilityIdentifier("midi.reconnect")
             }
             SwiftUI.Section("Play into") {
-                Picker("Instrument",selection:Binding(get:{settings.trackID ?? session.project.tracks[0].id},set:{id in edit{$0.trackID=id}})){ForEach(session.project.tracks){track in Text(track.displayName).tag(track.id)}}
+                Picker("Instrument",selection:Binding<UUID?>(get:{settings.trackID},set:{id in edit{$0.trackID=id}})){Text("The part you are editing").tag(UUID?.none);ForEach(session.project.tracks){track in Text(track.displayName).tag(Optional(track.id))}}
                 Picker("Input channel",selection:Binding(get:{settings.channel ?? -1},set:{channel in edit{$0.channel=channel<0 ? nil:channel}})){Text("All channels").tag(-1);ForEach(0..<16,id:\.self){i in Text("Channel \(i+1)").tag(i)}}
                 Text("Drums use General MIDI note numbers. NoteOn with velocity zero is NoteOff. CC64 controls sustain. Incoming notes are included when recording a performance take.").font(.caption).foregroundStyle(.secondary)
             }.disabled(!settings.enabled)
             SwiftUI.Section("MIDI output") {
                 Picker("Destination",selection:Binding(get:{settings.outputID.map(Int64.init) ?? Int64.min},set:{id in edit{$0.outputID=id==Int64.min ? nil:Int32(id)}})){Text("None").tag(Int64.min);ForEach(midi.destinations){endpoint in Text(endpoint.name).tag(Int64(endpoint.id))}}
+                if settings.outputID != nil{Toggle("Send MIDI clock",isOn:Binding(get:{settings.clockOut == true},set:{on in edit{$0.clockOut=on ? true:nil}})).accessibilityIdentifier("midi.clock-out")}
                 Text("Project notes and live pads are sent to this destination. Incoming MIDI is not forwarded. Harmony uses channel 1, bass 2, drums 10, melodies 3–8.").font(.caption).foregroundStyle(.secondary)
                 LabeledContent("Messages sent",value:String(midi.outputSent)).accessibilityIdentifier("midi.output-count")
                 if midi.isFixture{HStack{Text("Virtual output received notes");Spacer();Text(String(midi.fixtureReceivedNotes)).accessibilityIdentifier("midi.fixture-received")}}

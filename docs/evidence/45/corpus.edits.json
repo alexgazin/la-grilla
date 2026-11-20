@@ -1,0 +1,90 @@
+[
+  {
+    "actual" : "Remove Closed hat, Open hat in bars 11–14",
+    "category" : "edit",
+    "expected" : "Hats removed in bars 11–14 only; the first verse shares the pattern and stays",
+    "id" : "E1",
+    "language" : "RU",
+    "pass" : true,
+    "protected" : "untargeted parts identical, manual pickup kept, mix/sample kept",
+    "rendered" : "changed bars [11, 12, 13, 14]; outside range: []",
+    "text" : "Убери хэт во втором куплете"
+  },
+  {
+    "actual" : "Make Closed hat, Open hat busier in bars 15–18",
+    "category" : "edit",
+    "expected" : "Hats denser in bars 15–18",
+    "id" : "E2",
+    "language" : "EN",
+    "pass" : true,
+    "protected" : "untargeted parts identical, manual pickup kept, mix/sample kept",
+    "rendered" : "changed bars [15, 16, 17, 18]; outside range: []",
+    "text" : "Make the hats busier in the last chorus"
+  },
+  {
+    "actual" : "Remove Kick in bar 18",
+    "category" : "edit",
+    "expected" : "Typo «бочьку» understood: kick removed in bar 18",
+    "id" : "E3",
+    "language" : "RU",
+    "pass" : true,
+    "protected" : "untargeted parts identical, manual pickup kept, mix/sample kept",
+    "rendered" : "changed bars [18]; outside range: []",
+    "text" : "Убери бочьку в последнем такте"
+  },
+  {
+    "actual" : "Make Bass sparser in bars 15–18",
+    "category" : "edit",
+    "expected" : "Bass line sparser in bars 15–18; chords protected",
+    "id" : "E4",
+    "language" : "RU",
+    "pass" : true,
+    "protected" : "untargeted parts identical, manual pickup kept, mix/sample kept",
+    "rendered" : "changed bars [15, 16, 17, 18]; outside range: []",
+    "text" : "Сделай бас реже во втором припеве, аккорды не трогай"
+  },
+  {
+    "actual" : "Fade Flute out over bars 15–18",
+    "category" : "edit",
+    "expected" : "Flute fades out over bars 15–18; the hand-played pickup in bar 1 is unchanged",
+    "id" : "E5",
+    "language" : "EN",
+    "pass" : true,
+    "protected" : "untargeted parts identical, manual pickup kept, mix/sample kept",
+    "rendered" : "changed bars [15, 16, 17, 18]; outside range: []",
+    "text" : "Fade the flute out over the last four bars"
+  },
+  {
+    "actual" : "Play Harmony later in bars 3–6",
+    "category" : "edit",
+    "expected" : "Keys (harmony) about 24 ms late in bars 3–6",
+    "id" : "E6",
+    "language" : "RU",
+    "pass" : true,
+    "protected" : "untargeted parts identical, manual pickup kept, mix/sample kept",
+    "rendered" : "changed bars [3, 4, 5, 6, 7]; outside range: []",
+    "text" : "Пианино пусть слегка запаздывает в первом куплете"
+  },
+  {
+    "actual" : "Arpeggiate the chords on Harmony in bars 15–18",
+    "category" : "edit",
+    "expected" : "New arpeggio part over the existing chords in bars 15–18",
+    "id" : "E7",
+    "language" : "RU",
+    "pass" : true,
+    "protected" : "untargeted parts identical, manual pickup kept, mix/sample kept",
+    "rendered" : "changed bars [15, 16, 17, 18]; outside range: []",
+    "text" : "Добавь арпеджио по аккордам во втором припеве"
+  },
+  {
+    "actual" : "Remove Kick in every other bar of bars 3–6",
+    "category" : "edit",
+    "expected" : "Kick (own sample) silent in bars 4 and 6; sample assignment kept",
+    "id" : "E8",
+    "language" : "EN",
+    "pass" : true,
+    "protected" : "untargeted parts identical, manual pickup kept, mix/sample kept",
+    "rendered" : "changed bars [4, 6]; outside range: []",
+    "text" : "Mute the kick every other bar in the first verse"
+  }
+]

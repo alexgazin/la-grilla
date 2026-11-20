@@ -8,12 +8,18 @@ struct AssistantView:View {
     @Environment(\.scenePhase) private var phase
     @Environment(\.dynamicTypeSize) private var dynamicType
     @FocusState private var focused:Bool
+    private static let generateAnchor="assistant.generate.anchor"
     @State private var input=""
     @State private var generatedInput=""
     @State private var proposal:AssistantProposal?
     @State private var candidate:Project?
     @State private var proposalSource:Project?
+    // Build 45: an edit of the open project described in words.
+    @State private var songEditPlan:SongEditPlan?
+    @State private var songEditCandidate:Project?
+    @State private var songEditSource:Project?
     @State private var error:String?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var ambiguous=false
     @State private var previewB=false
     @State private var language="ru-RU"
@@ -41,7 +47,9 @@ struct AssistantView:View {
                         .accessibilityValue(LocalizedStringKey(session.harmonyPreview ? "Preview":"Original")).accessibilityIdentifier("assistant.preview-state")
                     Button { session.openTrackBuilder(idea:input) } label: {
                         Label("Build a track",systemImage:"slider.horizontal.3")
-                    }.buttonStyle(.bordered).disabled(dictation.recording || dictation.requesting || dictation.finalizing || generationTask != nil)
+                    }.buttonStyle(StudioActionStyle(prominent:false)).disabled(dictation.recording || dictation.requesting || dictation.finalizing || generationTask != nil)
+                    SongFormTemplateMenu{template in useTemplate(template)}
+                        .disabled(dictation.recording || dictation.requesting || dictation.finalizing || generationTask != nil)
                     if session.project.arrangementRecipe != nil {
                         Button("Edit saved arrangement as a copy") { TrackBuilderView.openSavedArrangement(in: session) }
                             .disabled(dictation.recording || dictation.requesting || dictation.finalizing || generationTask != nil)
@@ -51,9 +59,11 @@ struct AssistantView:View {
                         .onChange(of:input){_,value in
                             if value.count>2000{input=String(value.prefix(2000))}
                             if focused,!dictation.recording,!dictation.requesting,!dictation.finalizing{dictation.error=nil}
-                            if value != generatedInput{cancelGeneration();proposal=nil;candidate=nil;proposalSource=nil;usedUnavailableAIFallback=false}
+                            if value != generatedInput{cancelGeneration();proposal=nil;candidate=nil;proposalSource=nil;clearSongEdit();usedUnavailableAIFallback=false}
                             session.endHarmonyPreview()
                         }
+                    // Right under the text, so it stays above the keyboard while typing.
+                    Button{generate()}label:{Label("Review command",systemImage:"sparkles")}.buttonStyle(StudioActionStyle()).disabled(input.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty || dictation.requesting || dictation.recording || dictation.finalizing || generationTask != nil).accessibilityIdentifier("assistant.generate").id(Self.generateAnchor)
                     dictationToolbar
                     if dictation.requesting{ProgressView("Preparing dictation…")}
                     if dictation.finalizing{ProgressView("Finishing dictation…")}
@@ -61,12 +71,11 @@ struct AssistantView:View {
                     StudioSegments(title:"Assistant mode",selection:$mode,options:AssistantMode.allCases.map{($0,LocalizedStringKey($0.title))}).disabled(dictation.recording || dictation.requesting || dictation.finalizing)
                     aiAvailability
                     if let error=dictation.error{Text(LocalizedStringKey(error)).font(.caption).foregroundStyle(Color.record).accessibilityIdentifier("assistant.dictation-error")}
-                    Button{generate()}label:{Label("Review command",systemImage:"sparkles")}.buttonStyle(StudioActionStyle()).disabled(input.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty || dictation.requesting || dictation.recording || dictation.finalizing || generationTask != nil).accessibilityIdentifier("assistant.generate")
                     if mode != .commands{aiOptions}
                     DisclosureGroup{Text("Dictation uses on-device recognition. You can always type. Humming has a separate melody recording.").font(.caption).foregroundStyle(Color.muted).padding(.vertical,8)}label:{Text("Dictation details").frame(maxWidth:.infinity,minHeight:44,alignment:.leading)}.font(.caption).foregroundStyle(Color.muted)
                     if generationTask != nil{HStack{ProgressView("Preparing proposal…");Spacer();Button("Cancel generation"){cancelGeneration()}.frame(minHeight:44)}}
                     if let error{
-                        Text(LocalizedStringKey(error)).font(.callout).foregroundStyle(Color.record).accessibilityIdentifier("assistant.error")
+                        Text(LocalizedStringKey(error)).font(.callout).foregroundStyle(Color.record).luzShake(error).transition(Luz.Transition.pop(reduceMotion)).accessibilityIdentifier("assistant.error")
                         if mode == .onDeviceAI, SongFormBrief.recognizes(input) {
                             Button("Review with the offline arranger") {
                                 do { session.openTrackBuilder(idea:input,suggestion:try TrackBrief().suggesting(input)) }
@@ -78,14 +87,38 @@ struct AssistantView:View {
                             Button("Try a chord progression"){useProgressionExample()}.frame(minHeight:44).accessibilityIdentifier("assistant.empty-harmony-example")
                         }
                     }
-                    if ambiguous {VStack(spacing:8){Button("Stretch chords evenly"){generate(.stretch)};Button("Repeat, one bar per chord"){generate(.repeatBars)}}.buttonStyle(.bordered).frame(maxWidth:.infinity)}
-                    if let proposal,let candidate,let proposalSource{review(proposal,source:proposalSource,candidate:candidate)}
-                }.padding(18)
-            }.accessibilityIdentifier("assistant.review-scroll").scrollDismissesKeyboard(.interactively).background(Color.ink).navigationTitle("Assistant").navigationBarTitleDisplayMode(.inline)
+                    if ambiguous {VStack(spacing:8){Button("Stretch chords evenly"){generate(.stretch)};Button("Repeat, one bar per chord"){generate(.repeatBars)}}.buttonStyle(StudioActionStyle(prominent:false)).frame(maxWidth:.infinity)}
+                    if let proposal,let candidate,let proposalSource{review(proposal,source:proposalSource,candidate:candidate).transition(Luz.Transition.rise(reduceMotion))}
+                    if songEditPlan==nil,proposal==nil,let log=session.project.editLog,!log.isEmpty{
+                        // I41: recent phrase edits of this project; tap one to reuse it.
+                        VStack(alignment:.leading,spacing:6){
+                            SmallHeading(text:"RECENT EDITS")
+                            ForEach(Array(log.suffix(5).reversed().enumerated()),id:\.offset){_,text in
+                                Button{input=text}label:{Text(verbatim:text).font(.caption).lineLimit(2).frame(maxWidth:.infinity,minHeight:44,alignment:.leading)}
+                                    .buttonStyle(StudioQuietButtonStyle())
+                            }
+                        }.accessibilityIdentifier("assistant.recent-edits")
+                    }
+                    if let songEditPlan,let songEditSource{
+                        SongEditReview(session:session,plan:songEditPlan,source:songEditSource,candidate:songEditCandidate,
+                                       choose:{reviewSongEdit(songEditPlan.choosing($0),source:songEditSource)},
+                                       recalculate:{generate()},apply:{applySongEdit(songEditPlan)})
+                            .transition(Luz.Transition.rise(reduceMotion))
+                    }
+                }
+                // Luz: proposals rise in; the motion follows the state, never the typing.
+                .animation(reduceMotion ? .easeOut(duration:0.15):Luz.Motion.morph,value:proposal==nil)
+                .animation(reduceMotion ? .easeOut(duration:0.15):Luz.Motion.morph,value:songEditPlan==nil)
+                .animation(reduceMotion ? nil:Luz.Motion.snap,value:error)
+                .padding(18)
+            }
+            .accessibilityIdentifier("assistant.review-scroll")
+            .scrollDismissesKeyboard(.interactively).background(Color.ink).navigationTitle("Assistant").navigationBarTitleDisplayMode(.inline)
                 .toolbar{ToolbarItem(placement:.cancellationAction){Button("Cancel"){closeEditor()}}}
         }.tint(.mint)
         .sheet(isPresented:$showExamples){AssistantExamplesView(language:language){text,requiresAI in input=text;if requiresAI{mode = .onDeviceAI}else if SongFormBrief.recognizes(text){mode = .automatic};showExamples=false}}
         .onChange(of:dictation.text){_,value in if !value.isEmpty{input=value}}
+        .onChange(of:error){_,value in if value != nil{Luz.Haptics.error()}}
         .onChange(of:mode){_,_ in resetReview();refreshAIStatus()}
         .onChange(of:language){_,_ in resetReview();refreshAIStatus()}
         .onChange(of:aiLanguage){_,_ in resetReview();refreshAIStatus()}
@@ -93,7 +126,7 @@ struct AssistantView:View {
         .onChange(of:phase){_,p in if p == .background{cancelGeneration();dictation.cancel();restoreAudio()}else if p == .active{refreshAIStatus()}}
         .onReceive(NotificationCenter.default.publisher(for:AVAudioSession.interruptionNotification).receive(on:RunLoop.main)){_ in dictation.cancel();restoreAudio()}
         .onDisappear{cancelGeneration();dictation.cancel();restoreAudio();session.endHarmonyPreview()}
-        .onAppear{refreshAIStatus();if let i=ProcessInfo.processInfo.arguments.firstIndex(of:"--screen"),ProcessInfo.processInfo.arguments.count>i+1{let target=ProcessInfo.processInfo.arguments[i+1];if target=="assistant-proposal"{input="Tempo 110; Chorus 8 bars: Am F C G each 2 bars";generate()}else if target=="assistant-song-proposal"{input="Song: Tempo 108; Key D minor; Intro 4 bars: Dm Gm A Dm; Chorus 8 bars: Dm Gm C F each 2 bars";generate()}}}
+        .onAppear{refreshAIStatus();if session.assistantListens{session.assistantListens=false;startDictation()};if let i=ProcessInfo.processInfo.arguments.firstIndex(of:"--screen"),ProcessInfo.processInfo.arguments.count>i+1{let target=ProcessInfo.processInfo.arguments[i+1];if target=="assistant-proposal"{input="Tempo 110; Chorus 8 bars: Am F C G each 2 bars";generate()}else if target=="assistant-song-edit"{input=Locale.preferredLanguages.first?.hasPrefix("ru")==true ? "Бас и аккорды оставь. Убери бочку в первых двух тактах и добавь короткую сбивку перед первым припевом.":"Keep the bass and chords. Remove the kick in the first two bars and add a short fill before the first chorus.";generate()}else if target=="assistant-song-proposal"{input="Song: Tempo 108; Key D minor; Intro 4 bars: Dm Gm A Dm; Chorus 8 bars: Dm Gm C F each 2 bars";generate()}}}
     }
     private func useProgressionExample(){
         let bars=session.section.length/barTicks
@@ -124,7 +157,7 @@ struct AssistantView:View {
     }
     private var aiOptions:some View {
         VStack(alignment:.leading,spacing:0){
-            Button{showAIOptions.toggle()}label:{HStack{Text("AI language and setup");Spacer();Image(systemName:showAIOptions ? "chevron.up":"chevron.down").accessibilityHidden(true)}.frame(maxWidth:.infinity,minHeight:44).contentShape(Rectangle())}
+            Button{withAnimation(Luz.Motion.morph){showAIOptions.toggle()}}label:{HStack{Text("AI language and setup");Spacer();Image(systemName:"chevron.down").rotationEffect(.degrees(showAIOptions ? 180:0)).accessibilityHidden(true)}.frame(maxWidth:.infinity,minHeight:44).contentShape(Rectangle())}
                 .buttonStyle(StudioQuietButtonStyle()).accessibilityIdentifier("assistant.ai-options")
                 .accessibilityValue(LocalizedStringKey(showAIOptions ? "Expanded":"Collapsed"))
             if showAIOptions{VStack(alignment:.leading,spacing:10){
@@ -180,7 +213,7 @@ struct AssistantView:View {
                     Text(verbatim:String(code.prefix(2)).uppercased()).font(.caption.weight(.semibold))
                         .frame(minWidth:44,minHeight:44)
                         .foregroundStyle(selection.wrappedValue==code ? Color.ink:Color.muted)
-                        .background(selection.wrappedValue==code ? Color.mint:Color.clear,in:RoundedRectangle(cornerRadius:11,style:.continuous))
+                        .background(selection.wrappedValue==code ? Color.mint:Color.clear,in:RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous))
                 }.buttonStyle(StudioQuietButtonStyle())
                     .accessibilityIdentifier(identifier+String(code.prefix(2)))
                     .accessibilityAddTraits(selection.wrappedValue==code ? .isSelected:[])
@@ -197,8 +230,8 @@ struct AssistantView:View {
             }
             if proposal.operations.contains(where:{$0.type == .arrangeSong}){
                 Text("Creates form and chords. Existing drum and melody parts are reused; new parts are not generated.").font(.caption).foregroundStyle(Color.muted).accessibilityIdentifier("assistant.composition-scope")
-                if reusedPartsContainEmptySections(proposal,source:source,role:.drums){Label("Source sections without drum notes stay empty. Add a beat in Jam.",systemImage:"exclamationmark.triangle").font(.caption).foregroundStyle(Color.harmony).accessibilityIdentifier("assistant.empty-drums")}
-                if reusedPartsContainEmptySections(proposal,source:source,role:.melody){Label("Source sections without melody notes stay empty. Add notes or record a melody.",systemImage:"exclamationmark.triangle").font(.caption).foregroundStyle(Color.harmony).accessibilityIdentifier("assistant.empty-melody")}
+                if reusedPartsContainEmptySections(proposal,source:source,role:.drums){Label("Source sections without drum notes stay empty. Add a beat in Jam.",systemImage:"exclamationmark.triangle").font(.caption).foregroundStyle(Color.studioText).accessibilityIdentifier("assistant.empty-drums")}
+                if reusedPartsContainEmptySections(proposal,source:source,role:.melody){Label("Source sections without melody notes stay empty. Add notes or record a melody.",systemImage:"exclamationmark.triangle").font(.caption).foregroundStyle(Color.studioText).accessibilityIdentifier("assistant.empty-melody")}
                 formComparison(source:source,candidate:candidate)
             }
             if let plan=proposal.operations.first(where:{$0.type == .generateSketch})?.sketch{
@@ -208,8 +241,8 @@ struct AssistantView:View {
             ForEach(Array(proposal.operations.enumerated()),id:\.offset){_,op in Text(summary(op,scope:proposal.scopeSectionID,source:source,candidate:candidate)).padding(12).frame(maxWidth:.infinity,alignment:.leading).modifier(StudioSurface())}
             AssistantHarmonyReview(proposal:proposal,source:source,candidate:candidate)
             if !proposal.assumptions.isEmpty{SmallHeading(text:"ASSUMPTIONS");ForEach(proposal.assumptions,id:\.self){Text($0).font(.caption).foregroundStyle(Color.muted)}}
-            ForEach(proposal.warnings,id:\.self){Label($0,systemImage:"exclamationmark.triangle").font(.caption).foregroundStyle(Color.harmony)}
-            HStack(spacing:10){Button{previewB=false;session.previewAssistant(source,wholeSong:proposal.changesWholeSong,sectionID:proposal.scopeSectionID)}label:{Text("A · Original").frame(maxWidth:.infinity,minHeight:48).background(session.harmonyPreview && !previewB ? Color.mint.opacity(0.2):Color.raised,in:RoundedRectangle(cornerRadius:10))}.accessibilityIdentifier("assistant.a");Button{previewB=true;session.previewAssistant(candidate,wholeSong:proposal.changesWholeSong,sectionID:proposal.scopeSectionID)}label:{Text("B · Proposal").frame(maxWidth:.infinity,minHeight:48).background(session.harmonyPreview && previewB ? Color.mint.opacity(0.2):Color.raised,in:RoundedRectangle(cornerRadius:10))}.accessibilityIdentifier("assistant.b")}
+            ForEach(proposal.warnings,id:\.self){Label($0,systemImage:"exclamationmark.triangle").font(.caption).foregroundStyle(Color.studioText)}
+            HStack(spacing:10){Button{previewB=false;session.previewAssistant(source,wholeSong:proposal.changesWholeSong,sectionID:proposal.scopeSectionID)}label:{Text("A · Original").frame(maxWidth:.infinity,minHeight:48).background(session.harmonyPreview && !previewB ? Color.mint.opacity(0.2):Color.raised,in:RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous))}.accessibilityIdentifier("assistant.a");Button{previewB=true;session.previewAssistant(candidate,wholeSong:proposal.changesWholeSong,sectionID:proposal.scopeSectionID)}label:{Text("B · Proposal").frame(maxWidth:.infinity,minHeight:48).background(session.harmonyPreview && previewB ? Color.mint.opacity(0.2):Color.raised,in:RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous))}.accessibilityIdentifier("assistant.b")}
             if session.harmonyPreview{Button("Stop preview"){session.endHarmonyPreview()}.frame(minHeight:44).accessibilityIdentifier("assistant.stop-preview")}
             Button{apply(proposal)}label:{Text("Apply proposal")}.buttonStyle(StudioActionStyle()).accessibilityIdentifier("assistant.apply")
             Text("One Undo restores the whole change.").font(.caption).foregroundStyle(Color.muted)
@@ -284,10 +317,16 @@ struct AssistantView:View {
         MusicalNotation.chordSymbol(chord,keyRoot:project.keyRoot,minor:project.minor,spelling:PitchSpelling(rawValue:pitchSpelling) ?? .automatic)
     }
     func generate(_ distribution:ChordDistribution?=nil){
-        cancelGeneration();focused=false;session.endHarmonyPreview();ambiguous=false;generatedInput=input;proposal=nil;candidate=nil;proposalSource=nil;error=nil;generatedWithAI=false;usedUnavailableAIFallback=false;availabilityError=false
+        cancelGeneration();focused=false;session.endHarmonyPreview();ambiguous=false;generatedInput=input;proposal=nil;candidate=nil;proposalSource=nil;clearSongEdit();error=nil;generatedWithAI=false;usedUnavailableAIFallback=false;availabilityError=false
         let snapshot=session.project,scope=session.section.id
         ai.refresh(localeIdentifier:aiLanguage)
         let songRequest = SongFormBrief.recognizes(input)
+        // An edit of the open song works through local musical logic in every
+        // mode, offline and without the system model.
+        if !songRequest, SongEditParser.intent(input,project:snapshot) == .edit {
+            reviewSongEdit(SongEditParser.plan(input,project:snapshot,selectedSectionID:scope),source:snapshot)
+            return
+        }
         if songRequest && (mode != .onDeviceAI || !ai.available) {
             do {
                 let brief = try TrackBrief().suggesting(input)
@@ -348,7 +387,31 @@ struct AssistantView:View {
     }
     func cancelGeneration(){generationID+=1;generationTask?.cancel();generationTask=nil;timeoutTask?.cancel();timeoutTask=nil}
     private func resetReview(){
-        session.endHarmonyPreview();cancelGeneration();proposal=nil;candidate=nil;proposalSource=nil;usedUnavailableAIFallback=false;error=nil;availabilityError=false
+        session.endHarmonyPreview();cancelGeneration();proposal=nil;candidate=nil;proposalSource=nil;clearSongEdit();usedUnavailableAIFallback=false;error=nil;availabilityError=false
+    }
+    /// I31: a whole-song form built from the current sections, reviewed before applying.
+    private func useTemplate(_ template:SongFormTemplate){
+        resetReview()
+        let snapshot=session.project
+        do{let p=try template.proposal(for:snapshot);candidate=try p.candidate(for:snapshot);proposalSource=snapshot;proposal=p}
+        catch{self.error=error.localizedDescription}
+    }
+    private func clearSongEdit(){songEditPlan=nil;songEditCandidate=nil;songEditSource=nil}
+    private func reviewSongEdit(_ plan:SongEditPlan,source:Project){
+        session.endHarmonyPreview()
+        songEditPlan=plan;songEditSource=source;songEditCandidate=nil
+        guard plan.isApplicable else{return}
+        do{songEditCandidate=try SongEditor.apply(plan,to:source)}
+        catch{self.error=error.localizedDescription;songEditPlan=nil;songEditSource=nil}
+    }
+    private func applySongEdit(_ plan:SongEditPlan){
+        guard session.project.id==plan.projectID,session.project.revision==plan.baseRevision else{self.error=SongEditError.stale.localizedDescription;return}
+        session.endHarmonyPreview();session.finishTake();let revision=session.project.revision
+        session.edit{$0=try SongEditor.applyLogged(plan,to:$0)}
+        guard session.project.revision>revision else{return}
+        let firstBar=plan.operations.flatMap{$0.kind == .fill ? [$0.bars.upperBound-1]:$0.editedBars}.min() ?? 0
+        if let section=session.project.sections.first(where:{$0.start<=firstBar*barTicks && $0.start+$0.length>firstBar*barTicks}){session.select(section)}
+        closeEditor()
     }
     private func refreshAIStatus(){
         ai.refresh(localeIdentifier:aiLanguage)
@@ -522,4 +585,17 @@ private struct AssistantExamplesView:View {
         Button{choose(language.hasPrefix("ru") ? "Создай форму: интро 4 такта, куплет 8 тактов и припев 8 тактов. Тональность Ре минор, темп 108. Используй Dm7 Gm7 A7 Dm7.":"Create a song form: 4-bar intro, 8-bar verse and 8-bar chorus in D minor at 108 BPM, using Dm7 Gm7 A7 Dm7.",true)}label:{Label("Create a complete song form",systemImage:"sparkles")}.accessibilityIdentifier("assistant.example.ai-song")
     }.environment(\.defaultMinListRowHeight,52).navigationTitle("Examples").navigationBarTitleDisplayMode(.inline).toolbar{ToolbarItem(placement:.cancellationAction){Button("Cancel"){dismiss()}}}}
     .presentationDetents([.large]).tint(.mint)}
+}
+
+private struct SongFormTemplateMenu: View {
+    let choose: (SongFormTemplate) -> Void
+    var body: some View {
+        Menu {
+            ForEach(SongFormTemplate.allCases, id: \.self) { template in
+                Button(LocalizedStringKey(template.title)) { choose(template) }
+            }
+        } label: {
+            Label("Song form template", systemImage: "rectangle.split.3x1").frame(minHeight: 44)
+        }.accessibilityIdentifier("assistant.form-template")
+    }
 }

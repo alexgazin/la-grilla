@@ -56,6 +56,35 @@ void lg_play(LGKernel *k, int play);
 void lg_restart(LGKernel *k);
 void lg_seek(LGKernel *k, int tick);
 int lg_pad(LGKernel *k, int pad, int velocity);
+// I3 note repeat: while set, the pad retriggers on the transport grid every
+// stepTicks (120, 160, 240, 320 or 480) after the current tick; with the
+// transport stopped it free-runs at the current tempo. pad -1 stops.
+int lg_pad_repeat(LGKernel *k, int pad, int stepTicks, int velocity);
+// I82: send MIDI clock (24 PPQN) with Start/Continue (+ Song Position) and
+// Stop to the selected MIDI output, sample-timed with the transport.
+void lg_midi_clock_out(LGKernel *k, int enabled);
+// I36: master filter sweeps over tick ranges (up to 32, sorted, no overlap):
+// the filter moves linearly from `from` to `to` (-1 low-pass ... 0 open ... 1
+// high-pass) while the transport is inside a ramp, then returns to the mixer
+// value. count 0 removes them (bit-identical to never setting any).
+typedef struct { int32_t start, end; float from, to; } LGFilterRamp;
+// I55: a subtractive synth for a melodic track's built-in voices (imported
+// instruments keep their samples): wave 0 saw, 1 square, 2 triangle
+// (band-limited), resonant low-pass (cutoff 0...1 = 80 Hz...16 kHz,
+// resonance 0...0.9) and an ADSR envelope in seconds. NULL turns it off.
+typedef struct { int32_t wave; float cutoff, resonance, attack, decay, sustain, release; } LGSynthPatch;
+int lg_synth(LGKernel *k, int track, const LGSynthPatch *patch);
+int lg_filter_automation(LGKernel *k, const LGFilterRamp *ramps, int count);
+// I16: live pitch bend (-12...+12 semitones) and modulation (0...1 = vibrato
+// up to ±0.5 semitone at 5.5 Hz) for the voices of the track with `identity`.
+// Zero for both leaves every voice bit-identical.
+void lg_pitch_bend(LGKernel *k, uint64_t identity, float semitones, float modulation);
+// I15 live arpeggiator for the track with `identity`: up to 16 held pitches
+// (in the order played), stepTicks 120/160/240/320/480, mode 0 up, 1 down,
+// 2 up-down, 3 as played, over 1...3 octaves. The first note sounds at once;
+// later notes follow the transport grid (free-running when stopped). Updating
+// the held notes keeps the timing; count 0 stops.
+int lg_arp(LGKernel *k, uint64_t identity, const int32_t *pitches, int count, int stepTicks, int mode, int octaves, int velocity);
 void lg_preview(LGKernel *k, int pitch);
 void lg_note_preview(LGKernel *k, int pitch, int track, int instrument);
 // Resolve a stable LGProjectTrack identity after audio-boundary adoption.
@@ -96,6 +125,21 @@ float lg_filter_target(LGKernel *k);
 float lg_delay_target(LGKernel *k);
 void lg_tail_on_end(LGKernel *k, int enabled);
 void lg_metronome(LGKernel *k, int enabled);
+// I10: metronome level (-24...+6 dB), downbeat accent (0/1) and sound
+// (0 beep, 1 high, 2 low). The defaults (0, 1, 0) are the original click.
+// Applies to the count-in too. Returns 0 for invalid values.
+int lg_metronome_config(LGKernel *k, float gainDB, int accent, int sound);
+// Ideas I5, I56, I57, I59: per-track choke groups (0 = none; pads in the same
+// group silence each other), sidechain ducking from the kick pad (0...12 dB),
+// saturation drive (0...1) and bit depth (0 off, else 4...16); a master
+// look-ahead limiter (ceiling -12...0 dBFS). All-zero tracks and a disabled
+// limiter leave the output bit-identical. Index order follows the project
+// tracks; values are adopted at the next sample. Returns 0 if invalid.
+// reverbSend (0...1, I58) feeds a shared room reverb returned to the master.
+typedef struct { int32_t choke[16]; float sidechainDB, drive; int32_t crushBits; float reverbSend; } LGTrackDynamics;
+int lg_dynamics(LGKernel *k, const LGTrackDynamics *tracks, int count, int limiter, float ceilingDB);
+// Frames of look-ahead delay the limiter adds while enabled (0 when off).
+int lg_limiter_latency(LGKernel *k);
 void lg_render(LGKernel *k, float *left, float *right, int frames);
 void lg_render_midi(LGKernel *k,LGMIDIHub *hub,uint64_t hostTime,double hostTicksPerSecond,float *left,float *right,int frames);
 // Serialized control owner: request a fresh measurement, adopted by the next
@@ -114,6 +158,10 @@ uint64_t lg_clock(LGKernel *k);
 int lg_playing(LGKernel *k);
 int lg_revision(LGKernel *k);
 float lg_meter(LGKernel *k, int track);
+// I63: copy the latest `count` (<= 4096) mono master samples for a spectrum
+// view. Lock-free; a concurrent block may tear the copy, which only affects
+// the picture. Returns the number of samples written.
+int lg_scope_read(LGKernel *k, float *out, int count);
 int lg_overflows(LGKernel *k);
 #ifdef __cplusplus
 }

@@ -1,5 +1,22 @@
 # Physical release acceptance record
 
+## Build 44 on a physical iPhone · pads, keys and note resize
+
+Software changes under test: one gain structure for the built-in keybed (live = recorded = WAV, `Tests/keyboard_level_test.cpp`), one attack per pad/step when recording over a sounding step (`SingleAttackRecordingTests`) and a resize readout that stays above or beside the finger (`NoteGesturePreviewTests`). No physical result exists yet; every cell below is **Pending** until an identified device session is recorded.
+
+**Protocol for each route (speaker, wired/USB, Bluetooth).** Record three series of 32 hits per route. Use a shared time reference: a contact microphone or piezo on the glass on channel 1 and the output (line or acoustic microphone) on channel 2. Alternatively, one external microphone can hear both the finger click and the sound. Record the model, iOS, route, sample rate, I/O buffer, tempo, quantization and recording method with every take. Analyse each WAV with `python3 scripts/device/pad_latency.py take.wav --route … --model … --ios … --rate … --buffer … --bpm … --quantize … --build 44 --method … --json take.json`. The script reports the median, p95, IQR/min/max, misses, duplicate attacks and the measurement uncertainty. Measure build 43 under the same conditions and compare the two builds with `--compare 43.json 44.json`. Measure the first hit after opening and after a pause separately from a warmed-up series.
+
+| Check | Evidence to collect | Status |
+| --- | --- | --- |
+| Pad touch → sound, speaker | 3 × 32 hits, 43 vs 44, median/p95/spread/misses/duplicates | Pending |
+| Pad touch → sound, wired or USB | Same as speaker | Pending |
+| Pad touch → sound, Bluetooth | Same, with this route's own results | Pending |
+| First hit after launch and after pause | Separate series of single hits | Pending |
+| Four bars with and without quantization | Recorded events vs played; no missed or repeated attacks at the loop edge or while monitoring | Pending |
+| Two fingers, fast alternation, chord hold, slide off, system gesture cancel | No stuck or doubled notes | Pending |
+| Keys: one phrase live / recorded / WAV | Piano, soft-attack timbre, bass, imported instrument; alone and with the beat; peaks match (host result 0.000 dB, `docs/evidence/44/`) | Pending (host PASS) |
+| Note resize on a small screen, long note, while playing | Readout visible above/beside the finger, saved note equals the preview, one Undo | Pending (host PASS) |
+
 ## Build 43 on a physical iPhone
 
 Use the [current IPA and installation steps](../../Builds/Testing/README.md). Record the device, iOS version, audio route and build alongside each take. Portable projects from this build use schema 15.

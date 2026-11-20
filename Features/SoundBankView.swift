@@ -132,7 +132,7 @@ struct SoundBankView: View {
                         .foregroundStyle(selected ? Color.mint : Color.muted)
                     if case .included(let instrument) = choice {
                         Image(instrument.artwork).resizable().scaledToFill()
-                            .frame(width: 52, height: 52).clipShape(RoundedRectangle(cornerRadius: 9))
+                            .frame(width: 52, height: 52).clipShape(RoundedRectangle(cornerRadius:9,style:.continuous))
                             .accessibilityHidden(true)
                     }
                     VStack(alignment: .leading, spacing: 4) {
@@ -149,7 +149,7 @@ struct SoundBankView: View {
                 if active { stopAudition() } else { audition(choice, bank: bank) }
             } label: {
                 if active && player == nil { ProgressView() }
-                else { Image(systemName: active ? "stop.fill" : "speaker.wave.2").foregroundStyle(Color.mint) }
+                else { Image(systemName: active ? "stop.fill" : "speaker.wave.2").foregroundStyle(Color.mint).contentTransition(.symbolEffect(.replace)) }
             }
             .buttonStyle(.plain)
             .frame(width: 44, height: 44)

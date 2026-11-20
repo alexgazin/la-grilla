@@ -3,6 +3,10 @@ import Foundation
 public let ppq = 960
 public let barTicks = 3840
 public let masterBus = 8
+/// I38 · longest song (bars) and most sections; the kernel shares the tick limit.
+public let maximumSongBars = 128
+public let maximumSections = 16
+public let songTickLimit = maximumSongBars * barTicks
 public enum TrackRole: String, Codable, CaseIterable, Sendable { case harmony, drums, bass, melody
     public var instrument:Int {switch self{case .harmony:0;case .drums:1;case .bass:2;case .melody:3}}
 }
@@ -90,6 +94,9 @@ public struct Chord: Codable, Equatable, Sendable {
     public var rootSpelling:String?
     public var slashBassSpelling:String?
     public var customIntervals:[Int]?
+    /// Whole-chord register shift in octaves (−2…+2). Nil is the legacy register.
+    public var octave:Int?
+    public static let octaveRange = -2...2
     public static let maximumVoices=9 // Eight formula tones plus an explicit slash bass.
     public init(root: Int = 0, quality: Quality = .major, inversion: Int = 0,slashBass:Int?=nil,voicedNotes:[Int]?=nil,customIntervals:[Int]?=nil,rootBassPitch:Int?=nil,rootSpelling:String?=nil,slashBassSpelling:String?=nil) { self.root = root; self.quality = customIntervals==nil ? quality:.major; self.inversion = inversion;self.slashBass=slashBass;self.voicedNotes=voicedNotes;self.customIntervals=customIntervals;self.rootBassPitch=rootBassPitch;self.rootSpelling=rootSpelling.map{ChordWriting.canonical($0) ?? $0};self.slashBassSpelling=slashBassSpelling.map{ChordWriting.canonical($0) ?? $0} }
     public static let roots = ["C", "C♯", "D", "E♭", "E", "F", "F♯", "G", "A♭", "A", "B♭", "B"]
@@ -102,17 +109,40 @@ public struct Chord: Codable, Equatable, Sendable {
         let bassName=slashBass.map{"/"+(ChordWriting.name(slashBassSpelling,for:$0) ?? Self.roots[($0%12+12)%12])} ?? ""
         return rootName+suffix+bassName
     }
+    /// The pitch class the bass should play: the slash bass, else the lowest
+    /// chord tone of the chosen inversion, else the root.
+    public var bassPitchClass:Int {
+        if let slashBass{return slashBass}
+        let intervals=effectiveIntervals
+        guard voicedNotes==nil,inversion>0,intervals.indices.contains(inversion) else{return root}
+        return (root+intervals[inversion])%12
+    }
+    /// Moves the whole chord by `octaves`, keeping an explicit voicing when it
+    /// has one. Returns false (and changes nothing) when it would leave the range.
+    @discardableResult public mutating func shiftOctave(by octaves:Int)->Bool {
+        guard octaves != 0 else{return true}
+        if let voiced=voicedNotes {
+            let moved=voiced.map{$0+12*octaves}
+            guard moved.allSatisfy({(0...127).contains($0)})else{return false}
+            voicedNotes=moved;return true
+        }
+        let target=(octave ?? 0)+octaves
+        guard Self.octaveRange.contains(target)else{return false}
+        var candidate=self;candidate.octave=target==0 ? nil:target
+        guard candidate.isValidVoicing(candidate.notes)else{return false}
+        self=candidate;return true
+    }
     public var notes: [Int] {
         if let voicedNotes{return voicedNotes.sorted()}
         guard (0..<12).contains(root),Self.validIntervals(effectiveIntervals),(0..<effectiveIntervals.count).contains(inversion),slashBass==nil || (0..<12).contains(slashBass!) else{return []}
-        let base = root == 0 ? 60 : 48 + root
+        let base = (root == 0 ? 60 : 48 + root) + 12 * (octave ?? 0)
         var result = effectiveIntervals.map { base + $0 }
         for i in 0..<inversion {
             result[i] += 12
             // Custom formulas may deliberately include octave doublings.
             while result.enumerated().contains(where:{$0.offset != i && $0.element==result[i]}){result[i] += 12}
         }
-        if let slashBass{var bass=48+slashBass;while bass>=(result.min() ?? 60){bass-=12};result.append(bass)}
+        if let slashBass{var bass=48+slashBass+12*(octave ?? 0);while bass>=(result.min() ?? 60){bass-=12};result.append(bass)}
         return result.sorted()
     }
     public static func validIntervals(_ values:[Int])->Bool {
@@ -145,7 +175,8 @@ public struct Chord: Codable, Equatable, Sendable {
               slashBass==nil || (0..<12).contains(slashBass!),
               ChordWriting.valid(rootSpelling,for:root),
               slashBassSpelling==nil || (slashBass != nil && ChordWriting.valid(slashBassSpelling,for:slashBass!)),
-              rootBassPitch==nil || ((0...127).contains(rootBassPitch!) && rootBassPitch!%12 == (slashBass ?? root)),isValidVoicing(notes) else{throw MusicError.invalidChord}
+              octave==nil || Self.octaveRange.contains(octave!),
+              rootBassPitch==nil || ((0...127).contains(rootBassPitch!) && (rootBassPitch!%12 == (slashBass ?? root) || rootBassPitch!%12 == bassPitchClass)),isValidVoicing(notes) else{throw MusicError.invalidChord}
     }
     public static func parse(_ text: String) throws -> Chord {
         guard text.utf8.count<=256 else{throw MusicError.invalidChord}
@@ -222,6 +253,9 @@ public struct Pattern: Codable, Equatable, Identifiable, Sendable {
 }
 public struct Clip: Codable, Equatable, Identifiable, Sendable {
     public var id: UUID = UUID(); public var patternID: UUID;public var sourceAssetID:UUID?; public var start: Int; public var length: Int; public var offset: Int = 0
+    /// I34: alternative patterns for this clip (not including the current one),
+    /// one to three. Nil in older files.
+    public var variants: [UUID]?
     public init(patternID: UUID, start: Int, length: Int) { self.patternID = patternID; self.start = start; self.length = length }
 }
 public struct Track: Codable, Equatable, Identifiable, Sendable {
@@ -231,10 +265,21 @@ public struct Track: Codable, Equatable, Identifiable, Sendable {
     public var instrumentSample: SampleAsset?
     public var padSamples: [Int: SampleAsset]?
     public var padEdits: [Int: PadSampleEditRecord]?
+    /// I39: a locked part is kept by generators, palettes and phrase edits.
+    /// Absent in older files (= unlocked); older apps ignore it.
+    public var locked: Bool?
+    /// I5 · I56 · I57: choke groups, sidechain and insert colour; nil = neutral.
+    public var dynamics: TrackDynamics?
+    /// I55: synth voice for the built-in sound of a melodic track; nil = the palette preset.
+    public var synth: SynthPatch?
     public init(role: TrackRole) { self.role = role }
 }
 public struct Section: Codable, Equatable, Identifiable, Sendable {
     public var id: UUID = UUID(); public var name: String; public var start: Int; public var length: Int
+    /// I35: chosen colour (0 harmony, 1 drums, 2 bass, 3 mint). Nil = by name, as before.
+    public var color: Int?
+    /// I36: master filter sweep across this section (from → to, −1 low-pass … 0 open … 1 high-pass).
+    public var filterSweep: FilterSweep?
     public init(name: String, start: Int = 0, length: Int) { self.name = name; self.start = start; self.length = length }
 }
 public struct Project: Codable, Equatable, Identifiable, Sendable {
@@ -255,6 +300,8 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
     public var performanceTake:PerformanceTake?{get{performanceTakes?.first}set{performanceTakes=newValue.map{[$0]}}}
     public var audioAssets:[AudioAssetRecord]?
     public var midi:MIDISettings?
+    /// I41: the last phrase edits applied to this project (newest last, at most 32).
+    public var editLog:[String]?
     /// Legacy register for implicit root bass. To change it in an existing project,
     /// use MusicalEditing.setBassRegister: explicit rootBassPitch values are absolute
     /// and must be shifted atomically as well; raw field assignment does not do that.
@@ -282,12 +329,15 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
     public func validate() throws {
         guard schemaVersion == Self.currentSchemaVersion else { throw MusicError.unsupportedSchema }
         guard (0...Self.maximumRevision).contains(revision),bpm.isFinite, (40...240).contains(bpm), (0..<12).contains(keyRoot), !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, name.count <= 120,
-              (1...8).contains(sections.count), (barTicks...64*barTicks).contains(length), tracks.count >= 2, tracks.count <= 8,
+              (1...maximumSections).contains(sections.count), (barTicks...songTickLimit).contains(length), tracks.count >= 2, tracks.count <= 8,
               bassGate.isFinite, (0.1...1).contains(bassGate), (-1...1).contains(bassOctave), master.isFinite, (-61...6).contains(master),
               tracks[0].role == .harmony, tracks[1].role == .drums, tracks.dropFirst(2).allSatisfy({$0.role == .bass || $0.role == .melody}), tracks.filter({$0.role == .bass}).count <= 1,
-              patterns.count <= 64, Set(patterns.map(\.id)).count == patterns.count, Set(sections.map(\.id)).count == sections.count,
+              patterns.count <= 128, Set(patterns.map(\.id)).count == patterns.count, Set(sections.map(\.id)).count == sections.count,
               Set(tracks.map(\.id)).count == tracks.count else { throw MusicError.invalidProject }
         guard (performanceTakes ?? []).count<=1 else{throw MusicError.limit}
+        if let log=editLog{guard log.count<=32,log.allSatisfy({$0.count<=300}) else{throw MusicError.invalidProject}}
+        for track in tracks{try track.dynamics?.validate();try track.synth?.validate();if track.synth != nil,track.role == .drums{throw MusicError.invalidProject}}
+        guard sections.allSatisfy({$0.color.map{(0...3).contains($0)} ?? true}),sections.allSatisfy({$0.filterSweep?.isValid ?? true}) else{throw MusicError.invalidProject}
         try midi?.validate(self)
         try masterEQ?.validate()
         try masterFX?.validate();try performanceTake?.validate()
@@ -318,7 +368,7 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
         for p in patterns {ids += p.chords.map(\.id);ids += p.drums.map(\.id);ids += (p.notes ?? []).map(\.id)}
         guard Set(ids).count == ids.count else { throw MusicError.invalidProject }
         var end = 0
-        for s in sections { guard s.start == end, s.length > 0, s.length <= 64*barTicks, s.length % barTicks == 0, !s.name.isEmpty, s.name.count <= 120 else { throw MusicError.invalidProject }; end += s.length }
+        for s in sections { guard s.start == end, s.length > 0, s.length <= songTickLimit, s.length % barTicks == 0, !s.name.isEmpty, s.name.count <= 120 else { throw MusicError.invalidProject }; end += s.length }
         for p in patterns {
             guard p.length >= barTicks, p.length % barTicks == 0, p.length <= length, p.chords.count <= 256, p.drums.count <= 4096, (p.notes ?? []).count <= 4096 else { throw MusicError.invalidProject }
             var end = 0
@@ -340,6 +390,7 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
             for c in t.clips.sorted(by: {$0.start < $1.start}) {
                 guard c.start >= end, c.start < length, c.length > 0, c.length <= length, c.start + c.length <= length, c.offset >= 0, let p = patterns.first(where: {$0.id == c.patternID}), c.offset < p.length else { throw MusicError.invalidProject }
                 if let asset=c.sourceAssetID{guard (audioAssets ?? []).contains(where:{$0.id==asset})else{throw MusicError.invalidProject}}
+                if let v=c.variants{guard (1...3).contains(v.count),Set(v).count==v.count,!v.contains(c.patternID),v.allSatisfy({id in patterns.contains{$0.id==id}})else{throw MusicError.invalidProject}}
                 end = c.start + c.length
             }
         }
@@ -365,7 +416,7 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
     }
     public mutating func deleteTrack(_ id:UUID)throws {
         guard let i=tracks.firstIndex(where:{$0.id==id}),i>=2 else{throw MusicError.invalidProject}
-        tracks.remove(at:i);let referenced=Set(tracks.flatMap{$0.clips.map(\.patternID)});patterns.removeAll{!referenced.contains($0.id)}
+        tracks.remove(at:i);removeUnusedPatterns()
         midi?.mappings.removeAll{$0.trackID==id};if midi?.trackID==id{midi?.trackID=nil}
     }
     public mutating func duplicateTrack(_ id:UUID)throws {

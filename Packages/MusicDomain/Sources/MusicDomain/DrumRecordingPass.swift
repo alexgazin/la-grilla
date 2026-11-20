@@ -19,7 +19,7 @@ public struct DrumRecordingPass:Sendable {
               baseline.tracks.flatMap(\.clips).filter({$0.patternID==draft.patternID}).count==1
         else{throw MusicError.invalidProject}
         if let absoluteRange {
-            guard absoluteRange.lowerBound>=0,absoluteRange.upperBound<=64*barTicks else{throw MusicError.invalidProject}
+            guard absoluteRange.lowerBound>=0,absoluteRange.upperBound<=songTickLimit else{throw MusicError.invalidProject}
             baseline.patterns[index].drums.removeAll{absoluteRange.contains(draft.start+$0.tick)}
         }
         // Only removing drum events preserves the draft's validated structure.
@@ -34,7 +34,7 @@ public struct DrumRecordingPass:Sendable {
         let compiledCount=Compiler.notes(baseline).count
         let bytes=try JSONEncoder().encode(baseline).count
         guard upperBound<=65_536,compiledCount<=32_768,bytes<=8_000_000 else{throw MusicError.tooDense}
-        // A valid DrumEvent contains only UUID, tick<=245759, pad<=15 and
+        // A valid DrumEvent contains only UUID, tick<=491519, pad<=15 and
         // velocity<=127. Its encoded object plus separator is <128 bytes.
         capacity=max(0,min(4_096-baseline.patterns[index].drums.count,
                            32_768-compiledCount,(65_536-upperBound)/2,(8_000_000-bytes)/128))

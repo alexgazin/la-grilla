@@ -321,6 +321,7 @@ final class SoundPickerUITests:XCTestCase {
         XCTAssertEqual(assignment.split(separator: ",").count, 16)
         kits.tap()
         let names = app.textFields["pad-kits.name"]
+        XCTAssertTrue(names.waitForExistence(timeout: 8))
         names.tap()
         names.typeText(name)
         app.buttons["pad-kits.save"].tap()

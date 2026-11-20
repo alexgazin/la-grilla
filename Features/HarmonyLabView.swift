@@ -28,7 +28,7 @@ struct HarmonyLabView:View {
                     }
                     if proposal==nil || showStyles {
                         LazyVGrid(columns:[GridItem(.flexible()),GridItem(.flexible())],spacing:6){ForEach(HarmonyStyle.allCases,id:\.self){value in
-                            Button{style=value;invalidate()}label:{HStack(spacing:6){Text(LocalizedStringKey(value.title)).font(.system(.subheadline,weight:.medium));Spacer(minLength:2);if style==value{Image(systemName:"checkmark").font(.caption.weight(.semibold))}}.padding(.horizontal,12).frame(maxWidth:.infinity,minHeight:44).foregroundStyle(style==value ? Color.ink:Color.studioText).background(style==value ? Color.harmony:Color.panel,in:RoundedRectangle(cornerRadius:12,style:.continuous))}.buttonStyle(StudioQuietButtonStyle())
+                            Button{style=value;invalidate()}label:{HStack(spacing:6){Text(LocalizedStringKey(value.title)).font(.system(.subheadline,weight:.medium));Spacer(minLength:2);if style==value{Image(systemName:"checkmark").font(.caption.weight(.semibold))}}.padding(.horizontal,12).frame(maxWidth:.infinity,minHeight:44).foregroundStyle(style==value ? Color.ink:Color.studioText).background(style==value ? Color.harmony:Color.panel,in:RoundedRectangle(cornerRadius:StudioMetrics.controlRadius,style:.continuous))}.buttonStyle(StudioQuietButtonStyle())
                         }}
                         Text(description(style)).font(.caption).foregroundStyle(Color.muted)
                     }else{
@@ -114,7 +114,7 @@ struct HarmonyLabView:View {
                     Text("\(change.tick/barTicks+1):\(change.tick%barTicks/ppq+1)").font(.system(.caption2,design:.monospaced)).foregroundStyle(Color.muted).frame(minWidth:24)
                     Text(chordName(change.before,in:proposal.candidate)).font(.system(.title3,weight:.semibold)).lineLimit(1).minimumScaleFactor(0.6).frame(maxWidth:.infinity,alignment:.leading)
                     Image(systemName:"arrow.right").font(.caption).foregroundStyle(Color.muted)
-                    VStack(alignment:.leading,spacing:4){Text(chordName(change.after,in:proposal.candidate)).font(.system(.title3,weight:.semibold)).foregroundStyle(Color.harmony).lineLimit(1).minimumScaleFactor(0.6);Text(MusicalNotation.chordNoteNames(change.after,keyRoot:proposal.candidate.keyRoot,minor:proposal.candidate.minor,spelling:spelling).joined(separator:" · ")).font(.system(size:11,design:.monospaced)).foregroundStyle(Color.muted).lineLimit(2)}.frame(maxWidth:.infinity,alignment:.leading)
+                    VStack(alignment:.leading,spacing:4){Text(chordName(change.after,in:proposal.candidate)).font(.system(.title3,weight:.semibold)).foregroundStyle(Color.harmony).lineLimit(1).minimumScaleFactor(0.6);Text(MusicalNotation.chordNoteNames(change.after,keyRoot:proposal.candidate.keyRoot,minor:proposal.candidate.minor,spelling:spelling).joined(separator:" · ")).font(.system(.caption2, design: .monospaced)).foregroundStyle(Color.muted).lineLimit(2)}.frame(maxWidth:.infinity,alignment:.leading)
                     if change.chromatic{Image(systemName:"circle.lefthalf.filled").accessibilityLabel("Contains chromatic notes").foregroundStyle(Color.harmony)}
                 }.padding(12).modifier(StudioSurface())
             }

@@ -49,8 +49,8 @@ private struct ProjectSummaryDocument: Decodable {
             let section = try sections.nestedContainer(keyedBy: SectionKeys.self)
             let start = try section.decode(Int.self, forKey: .start)
             let length = try section.decode(Int.self, forKey: .length)
-            guard start == end, length > 0, length <= 64 * barTicks,
-                  length % barTicks == 0, length <= 64 * barTicks - end else { throw MusicError.invalidProject }
+            guard start == end, length > 0, length <= songTickLimit,
+                  length % barTicks == 0, length <= songTickLimit - end else { throw MusicError.invalidProject }
             end += length
         }
         // A future frozen source must not appear compatible merely because the
@@ -191,6 +191,54 @@ public actor ProjectStore {
         }.sorted { ($0.project?.modified ?? .distantPast) > ($1.project?.modified ?? .distantPast) }
     }
     public func delete(_ id: UUID) throws { try FileManager.default.removeItem(at: package(id)) }
+
+    // MARK: I73 · Recently deleted (30 days)
+
+    public struct TrashedProject: Sendable, Identifiable, Equatable {
+        public let id: UUID
+        public let name: String
+        public let deletedAt: Date
+    }
+    /// A sibling folder, so the project list (which reads only `root`) never sees it.
+    private var trashRoot: URL { root.deletingLastPathComponent().appendingPathComponent(root.lastPathComponent + "-RecentlyDeleted", isDirectory: true) }
+    private func trashed(_ id: UUID) -> URL { trashRoot.appendingPathComponent(id.uuidString).appendingPathExtension("grilla") }
+
+    /// Move a project with its samples and recordings out of the list; it can be restored for 30 days.
+    public func moveToTrash(_ id: UUID, now: Date = Date()) throws {
+        try FileManager.default.createDirectory(at: trashRoot, withIntermediateDirectories: true)
+        let destination = trashed(id)
+        if FileManager.default.fileExists(atPath: destination.path) { try FileManager.default.removeItem(at: destination) }
+        try FileManager.default.moveItem(at: package(id), to: destination)
+        try Data(ISO8601DateFormatter().string(from: now).utf8).write(to: destination.appendingPathComponent("deleted-at.txt"), options: .atomic)
+    }
+
+    public func recentlyDeleted() -> [TrashedProject] {
+        guard let urls = try? FileManager.default.contentsOfDirectory(at: trashRoot, includingPropertiesForKeys: nil) else { return [] }
+        return urls.filter { $0.pathExtension == "grilla" }.compactMap { url -> TrashedProject? in
+            guard let id = UUID(uuidString: url.deletingPathExtension().lastPathComponent),
+                  let stamp = try? String(contentsOf: url.appendingPathComponent("deleted-at.txt"), encoding: .utf8),
+                  let date = ISO8601DateFormatter().date(from: stamp.trimmingCharacters(in: .whitespacesAndNewlines)) else { return nil }
+            let name = (try? Data(contentsOf: url.appendingPathComponent("manifest.json"))).flatMap { try? ProjectDocument.decode($0).name } ?? NSLocalizedString("Untitled", comment: "Project name")
+            return TrashedProject(id: id, name: name, deletedAt: date)
+        }.sorted { $0.deletedAt > $1.deletedAt }
+    }
+
+    /// Put a trashed project back into the list; refuses to overwrite a live project.
+    public func restoreFromTrash(_ id: UUID) throws {
+        guard !FileManager.default.fileExists(atPath: package(id).path) else { throw MusicError.invalidProject }
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        try FileManager.default.moveItem(at: trashed(id), to: package(id))
+        try? FileManager.default.removeItem(at: package(id).appendingPathComponent("deleted-at.txt"))
+    }
+
+    /// Permanently remove projects deleted more than `days` ago. Returns how many.
+    @discardableResult public func purgeTrash(olderThan days: Int = 30, now: Date = Date()) -> Int {
+        var removed = 0
+        for item in recentlyDeleted() where now.timeIntervalSince(item.deletedAt) > Double(days) * 86_400 {
+            if (try? FileManager.default.removeItem(at: trashed(item.id))) != nil { removed += 1 }
+        }
+        return removed
+    }
 }
 
 public extension ProjectStore {
@@ -272,6 +320,23 @@ public extension ProjectStore {
         try AssetIntegrity.validate(Data(contentsOf:url),record:record);return url
     }
     func removeStagedAsset(_ record:AudioAssetRecord,projectID:UUID){try? FileManager.default.removeItem(at:package(projectID).appendingPathComponent(record.relativePath))}
+    /// I70: several projects (at most 64) as one zip of portable projects.
+    @discardableResult func portableBatch(_ ids:[UUID],to url:URL)throws->Int {
+        guard (1...64).contains(ids.count) else{throw ExportError.invalidSettings}
+        let folder=url.deletingLastPathComponent().appendingPathComponent("batch-"+UUID().uuidString,isDirectory:true)
+        try FileManager.default.createDirectory(at:folder,withIntermediateDirectories:true)
+        defer{try? FileManager.default.removeItem(at:folder)}
+        let projects=try ids.map{try load($0)}
+        let names=ProjectArchive.fileNames(projects.map(\.name),extension:"grillapack")
+        var files:[(name:String,url:URL)]=[]
+        for (project,name) in zip(projects,names) {
+            try Task.checkCancellation()
+            let file=folder.appendingPathComponent(name)
+            try portable(project,to:file);files.append((name,file))
+        }
+        try ProjectArchive.writeFiles(files,to:url)
+        return files.count
+    }
     func portable(_ project:Project,to url:URL)throws {
         let entries=try PortableProject.documentEntries(project)
         var files:[(name:String,url:URL)]=[]
@@ -283,6 +348,14 @@ public extension ProjectStore {
             files.append((asset.relativePath, try sampleURL(asset, projectID: project.id)))
         }
         try ProjectArchive.writeFiles(files,extras:entries,to:url)
+        // I78: remember what was shared, as the base for merging a co-author's copy.
+        if let data=try? JSONEncoder().encode(project){try? data.write(to:package(project.id).appendingPathComponent("shared-base.json"),options:.atomic)}
+    }
+    /// I78: the version last exported as a portable project, if any.
+    func sharedBase(_ id:UUID)->Project? {
+        guard let data=try? Data(contentsOf:package(id).appendingPathComponent("shared-base.json")),data.count<=8_000_000,
+              let project=try? JSONDecoder().decode(Project.self,from:data),(try? project.validate()) != nil else{return nil}
+        return project
     }
     func install(_ bundle:PortableProjectBundle)throws->Project {
         try bundle.project.validate();let folder=package(bundle.project.id)
@@ -325,5 +398,51 @@ public extension ProjectStore {
         // the original ID. The active package owns all of that take's assets.
         draft.id = projectID
         return try duplicate(draft, suffix: "")
+    }
+}
+
+/// I50 · the musician's habits from their own saved projects, computed on the
+/// device only: median tempo, most used key and mode, usual length. Needs at
+/// least three projects; nothing leaves the iPhone.
+public struct StyleProfile: Equatable, Sendable {
+    public let bpm: Double
+    public let keyRoot: Int
+    public let minor: Bool
+    public let bars: Int
+    public let projects: Int
+
+    public static func from(_ summaries: [ProjectSummary], minimum: Int = 3) -> StyleProfile? {
+        let valid = summaries.filter { $0.bpm.isFinite && (40...240).contains($0.bpm) && (0..<12).contains($0.keyRoot) && $0.bars > 0 }
+        guard valid.count >= max(1, minimum) else { return nil }
+        let tempos = valid.map(\.bpm).sorted()
+        let middle = tempos.count / 2
+        let median = tempos.count.isMultiple(of: 2) ? (tempos[middle - 1] + tempos[middle]) / 2 : tempos[middle]
+        // Most frequent key; ties go to the most recently modified project.
+        let recent = valid.sorted { $0.modified > $1.modified }
+        var counts: [Int: Int] = [:]
+        for s in valid { counts[s.keyRoot * 2 + (s.minor ? 1 : 0), default: 0] += 1 }
+        let top = counts.values.max() ?? 0
+        let key = recent.first { counts[$0.keyRoot * 2 + ($0.minor ? 1 : 0)] == top }!
+        var bars: [Int: Int] = [:]
+        for s in valid { bars[s.bars, default: 0] += 1 }
+        let usualBars = bars.max { a, b in a.value == b.value ? a.key > b.key : a.value < b.value }!.key
+        return StyleProfile(bpm: median.rounded(), keyRoot: key.keyRoot, minor: key.minor, bars: min(64, usualBars), projects: valid.count)
+    }
+}
+
+/// I77 · automatic backup to a folder the musician chose in Files: at most
+/// once a day, only projects changed since the previous backup.
+public enum BackupPlanner {
+    public static let interval: TimeInterval = 20 * 3600
+    public static func due(last: Date?, now: Date) -> Bool {
+        guard let last else { return true }
+        return now.timeIntervalSince(last) >= interval || now < last
+    }
+    public static func changed(_ summaries: [ProjectSummary], since last: Date?) -> [UUID] {
+        summaries.filter { last == nil || $0.modified > last! }.sorted { $0.modified > $1.modified }.prefix(64).map(\.id)
+    }
+    public static func fileName(_ date: Date, calendar: Calendar = .current) -> String {
+        let c = calendar.dateComponents([.year, .month, .day], from: date)
+        return String(format: "La Grilla backup %04d-%02d-%02d.zip", c.year ?? 0, c.month ?? 0, c.day ?? 0)
     }
 }

@@ -6,11 +6,14 @@ public struct WAVSettings: Sendable, Equatable {
     public var bitDepth: Int
     public var tailSeconds: Double
     public var dither: Bool
-    public init(sampleRate: Int = 48000, bitDepth: Int = 24, tailSeconds: Double = 2, dither: Bool = true) {
-        self.sampleRate = sampleRate; self.bitDepth = bitDepth; self.tailSeconds = tailSeconds; self.dither = dither
+    /// I68: peak-normalize each stem to this level (dBFS); nil keeps the mix levels.
+    public var normalizeStemsDBFS: Double?
+    public init(sampleRate: Int = 48000, bitDepth: Int = 24, tailSeconds: Double = 2, dither: Bool = true, normalizeStemsDBFS: Double? = nil) {
+        self.sampleRate = sampleRate; self.bitDepth = bitDepth; self.tailSeconds = tailSeconds; self.dither = dither; self.normalizeStemsDBFS = normalizeStemsDBFS
     }
     public func validate() throws {
         guard [44100,48000].contains(sampleRate), [16,24].contains(bitDepth), tailSeconds.isFinite, (0...10).contains(tailSeconds) else { throw ExportError.invalidSettings }
+        if let target = normalizeStemsDBFS { guard target.isFinite, (-12...0).contains(target) else { throw ExportError.invalidSettings } }
     }
 }
 public enum ExportError: Error, LocalizedError {
@@ -71,6 +74,9 @@ public enum OfflineRenderer {
         lg_master(kernel, Float(isolatedTrack == nil ? project.master : 0))
         let fx=isolatedTrack==nil ? (project.masterFX ?? MasterFX()):MasterFX();lg_effects(kernel,Float(fx.filter),Float(fx.delayWet))
         lg_metronome(kernel, 0); lg_tail_on_end(kernel, settings.tailSeconds > 0 ? 1 : 0)
+        guard project.applyDynamics(to: kernel, includeMaster: isolatedTrack == nil) else { throw ExportError.renderUnavailable }
+        project.applySynths(to: kernel)
+        if isolatedTrack == nil { guard project.applyAutomation(to: kernel, rangeStart: performance == nil ? range.lowerBound : 0) else { throw ExportError.renderUnavailable } }
         var left = [Float](repeating: 0, count: 4096), right = left
         // Settle the exact same DSP ramps before the first written sample.
         left.withUnsafeMutableBufferPointer { l in right.withUnsafeMutableBufferPointer { r in lg_render(kernel,l.baseAddress,r.baseAddress,Int32(min(4096,settings.sampleRate / 20))) } }
@@ -83,6 +89,9 @@ public enum OfflineRenderer {
             lg_seek(kernel,Int32(firstSection.start));lg_perform_begin(kernel,Int32(project.sections.firstIndex{$0.id==firstSection.id}!+1),1,0,0)
         }else{lg_seek(kernel, 0);lg_play(kernel,1);contentFrames=Int((Double(range.count)*60/(project.bpm*Double(ppq))*Double(settings.sampleRate)).rounded())}
         let frames=contentFrames+Int((settings.tailSeconds*Double(settings.sampleRate)).rounded())
+        // The limiter's look-ahead delays the master; drop it so the file starts on the beat.
+        var latency=Int(lg_limiter_latency(kernel))
+        while latency>0{let count=min(4096,latency);left.withUnsafeMutableBufferPointer{l in right.withUnsafeMutableBufferPointer{r in lg_render(kernel,l.baseAddress,r.baseAddress,Int32(count))}};latency-=count}
         var complete = false
         defer { if !complete {try? FileManager.default.removeItem(at:url)} }
         let writer = try PCMWriter(url: url, sampleRate: settings.sampleRate, bits: settings.bitDepth, frames: frames)

@@ -7,7 +7,7 @@ public enum Compiler {
     public static let padNames = ["Kick","Snare","Closed hat","Open hat","Clap","Rim","Low tom","Mid tom","High tom","Crash","Ride","Tambourine","Cowbell","Clave","Shaker","Perc"]
     public static func bassPitch(for chord:Chord,register:Int)->Int {
         if let exact=chord.rootBassPitch{return exact}
-        let root=chord.slashBass ?? chord.root
+        let root=chord.bassPitchClass
         return (root==0 ? 36:24+root)+register*12
     }
     public static func notes(_ project: Project, range: Range<Int>? = nil) -> [CompiledNote] {
@@ -63,7 +63,7 @@ public enum MIDIExporter {
     }
     public static func sequence(_ project:Project,notes:[CompiledNote],duration:Int,markers:[MIDIMarker]=[],controls:[MIDIControl]=[])throws->Data {
         try project.validate()
-        guard (1...64*barTicks).contains(duration),notes.count<=200_000,markers.count<=16384,controls.count<=150_000 else{throw MusicError.limit}
+        guard (1...songTickLimit).contains(duration),notes.count<=200_000,markers.count<=16384,controls.count<=150_000 else{throw MusicError.limit}
         guard notes.allSatisfy({$0.tick>=0 && $0.tick<duration && $0.duration>0 && $0.duration<=duration-$0.tick && (0...127).contains($0.pitch) && (1...127).contains($0.velocity) && project.tracks.indices.contains($0.track)}),markers.allSatisfy({(0...duration).contains($0.tick) && $0.text.utf8.count<=512}),controls.allSatisfy({(0...duration).contains($0.tick) && project.tracks.indices.contains($0.track) && (0...127).contains($0.number) && (0...127).contains($0.value)})else{throw MusicError.invalidProject}
         let tempo = Int((60_000_000 / project.bpm).rounded())
         func meta(_ type: UInt8, _ bytes: [UInt8]) -> [UInt8] { [0xff,type] + vlq(bytes.count) + bytes }

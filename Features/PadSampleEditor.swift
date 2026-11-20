@@ -50,13 +50,16 @@ struct PadSampleEditor: View {
                             }
                         }
                         .padding(.horizontal, 14)
-                        .background(Color.panel, in: RoundedRectangle(cornerRadius: 16))
+                        .background(Color.panel, in: RoundedRectangle(cornerRadius:Luz.Radius.card,style:.continuous))
                         if measuredEdit == edit, let gain = levels?.headroomGainDB {
                             Button("Leave 1 dB headroom") { adjust(.gain, to: gain, source: source) }
-                                .buttonStyle(.bordered).font(.subheadline)
+                                .buttonStyle(StudioActionStyle(color: .drums, prominent: false))
                                 .frame(minHeight: 44).disabled(applying)
                                 .accessibilityIdentifier("pad-editor.headroom")
                         }
+                        // I52: cut the silence before and after the hit in one step.
+                        Button("Trim silence") { update(source.autoTrim()) }
+                            .font(.subheadline).disabled(applying).accessibilityIdentifier("pad-editor.trim-silence")
                         Button("Reset sample edits") { update(source.initialEdit) }
                             .font(.subheadline).disabled(edit == source.initialEdit || applying)
                     } else if failure == nil {
@@ -87,7 +90,7 @@ struct PadSampleEditor: View {
                         Label(audition == nil ? "Hear edit" : "Stop preview", systemImage: audition == nil ? "play.fill" : "stop.fill")
                             .font(.headline).frame(maxWidth: .infinity, minHeight: 44)
                     }
-                    .buttonStyle(.borderedProminent).foregroundStyle(Color.ink).disabled(applying)
+                    .buttonStyle(StudioActionStyle(color: .drums)).disabled(applying)
                     .accessibilityValue(Text(verbatim: session.runtimeTraceEnabled ? previewTrace : ""))
                     .accessibilityIdentifier("pad-editor.preview")
                     .padding(.horizontal, 16).padding(.vertical, 8).background(Color.ink)
@@ -352,8 +355,8 @@ private struct PadSampleWaveform: View {
                 handle("chevron.left", x: lastX, y: geometry.size.height - 15)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Color.panel, in: RoundedRectangle(cornerRadius: 16))
-            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .background(Color.panel, in: RoundedRectangle(cornerRadius:Luz.Radius.card,style:.continuous))
+            .clipShape(RoundedRectangle(cornerRadius:Luz.Radius.card,style:.continuous))
             .contentShape(Rectangle())
             .gesture(DragGesture(minimumDistance: 1).onChanged { gesture in
                 let target: SampleParameter
@@ -375,9 +378,9 @@ private struct PadSampleWaveform: View {
     }
 
     private func handle(_ symbol: String, x: CGFloat, y: CGFloat) -> some View {
-        Image(systemName: symbol).font(.system(size: 11, weight: .bold))
+        Image(systemName: symbol).font(.system(.caption2, weight: .bold))
             .foregroundStyle(Color.ink)
-            .frame(width: 18, height: 20).background(Color.drums, in: RoundedRectangle(cornerRadius: 5))
+            .frame(width: 18, height: 20).background(Color.drums, in: RoundedRectangle(cornerRadius:5,style:.continuous))
             .position(x: x, y: y)
     }
 

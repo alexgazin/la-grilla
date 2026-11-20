@@ -1,0 +1,123 @@
+[
+  {
+    "actual" : "intent=create; 90 BPM, D minor, 8 bars, 2 sections, 196 notes",
+    "category" : "new song",
+    "expected" : "Boom bap, 90 BPM, D minor, 8 bars, written chords Dm Bb Gm A7 kept",
+    "id" : "N1",
+    "language" : "RU",
+    "pass" : true,
+    "protected" : "—",
+    "rendered" : "offline project valid",
+    "text" : "Сделай бит в стиле boom bap, 90 bpm, ре минор, 8 тактов, аккорды: Dm Bb Gm A7"
+  },
+  {
+    "actual" : "intent=create; 124 BPM, A minor, 16 bars, 2 sections, 451 notes",
+    "category" : "new song",
+    "expected" : "House, 124 BPM, A minor, 16 bars, Am F C G",
+    "id" : "N2",
+    "language" : "EN",
+    "pass" : true,
+    "protected" : "—",
+    "rendered" : "offline project valid",
+    "text" : "Make a house track at 124 bpm in A minor, 16 bars, chords: Am F C G"
+  },
+  {
+    "actual" : "intent=create; 106 BPM, C major, 8 bars, 2 sections, 205 notes",
+    "category" : "new song",
+    "expected" : "Jazz, 106 BPM, C major, 8 bars, ii–V–I–vi as written",
+    "id" : "N3",
+    "language" : "RU",
+    "pass" : true,
+    "protected" : "—",
+    "rendered" : "offline project valid",
+    "text" : "Сделай джазовый трек 106 бпм, до мажор, 8 тактов, аккорды: Dm7 G7 Cmaj7 Am7"
+  },
+  {
+    "actual" : "intent=create; 94 BPM, G minor, 8 bars, 2 sections, 237 notes",
+    "category" : "new song",
+    "expected" : "West Coast hip-hop feel, 94 BPM, G minor, 8 bars",
+    "id" : "N4",
+    "language" : "EN",
+    "pass" : true,
+    "protected" : "—",
+    "rendered" : "offline project valid",
+    "text" : "Create a West Coast beat, 94 bpm, G minor, 8 bars"
+  },
+  {
+    "actual" : "intent=create; 96 BPM, D minor, 4 bars, 2 sections, 98 notes",
+    "category" : "new song",
+    "expected" : "Lo-fi hip-hop, night mood: minor, 96 BPM, 4 bars",
+    "id" : "N5",
+    "language" : "RU",
+    "pass" : true,
+    "protected" : "—",
+    "rendered" : "offline project valid",
+    "text" : "Сделай ночной лоу-фай бит на 4 такта"
+  },
+  {
+    "actual" : "intent=create; 106 BPM, C major, 4 bars, 2 sections, 106 notes",
+    "category" : "new song",
+    "expected" : "Written chords win over the jazz default progression",
+    "id" : "N6",
+    "language" : "EN",
+    "pass" : true,
+    "protected" : "—",
+    "rendered" : "offline project valid",
+    "text" : "Make a jazz track, 4 bars, chords: Fmaj7 Em7 Am7 D9"
+  },
+  {
+    "actual" : "intent=create; 128 BPM, A minor, 8 bars, 2 sections, 210 notes",
+    "category" : "new song",
+    "expected" : "House 128 BPM, 8 bars, the last half bar is silent",
+    "id" : "N7",
+    "language" : "RU",
+    "pass" : true,
+    "protected" : "—",
+    "rendered" : "offline project valid",
+    "text" : "Сделай хаус трек 128 бпм, 8 тактов, в конце полтакта тишины"
+  },
+  {
+    "actual" : "intent=create; 88 BPM, E minor, 8 bars, 2 sections, 193 notes",
+    "category" : "new song",
+    "expected" : "Hip-hop 88 BPM, E minor, keys about 24 ms behind the beat",
+    "id" : "N8",
+    "language" : "EN",
+    "pass" : true,
+    "protected" : "—",
+    "rendered" : "offline project valid",
+    "text" : "Make a chillhop beat at 88 bpm, E minor, 8 bars, laid back keys"
+  },
+  {
+    "actual" : "intent=create; 90 BPM, E minor, 26 bars, 4 sections, 542 notes",
+    "category" : "regression",
+    "expected" : "Chillhop 90 BPM E minor: flute bar, beat with late piano, 16 developing bars on C D B E, arpeggio part, one gong",
+    "id" : "A1",
+    "language" : "RU",
+    "pass" : true,
+    "protected" : "—",
+    "rendered" : "offline project valid",
+    "text" : "Песня в стиле chillhop. Около 90 бпм. Тональность ми натуральный минор. Вступление один такт флейта и сразу начинается бит, атмосферное слегка опаздывающее пианино.\nПервая часть аккорды: C, D, B, E\n16 тактов с развитием. Далее вторая часть арпеджио этих аккордов и завершаем ударом гонга"
+  },
+  {
+    "actual" : "intent=create; 128 BPM, D minor, 32 bars, 3 sections, 626 notes",
+    "category" : "regression",
+    "expected" : "D minor workout: four-on-the-floor kick, offbeat hats, 8 bars A Bb C D, 16 calmer bars D E F G, the first part returns",
+    "id" : "A2",
+    "language" : "RU",
+    "pass" : true,
+    "protected" : "—",
+    "rendered" : "offline project valid",
+    "text" : "Динамичная композиция для тренировки. Прямая бочка. Хайхэт в слабую долю. Тональность Ре минор.\nПервая часть 8 тактов аккорды по повышающей A, Bb, C, D\nВторая часть 16 тактов аккорды D, E, F, G чуть спокойнее для передышки. И опять возвращаемся в первую часть."
+  },
+  {
+    "actual" : "intent=create; 64 BPM, C major, 24 bars, 3 sections, 165 notes",
+    "category" : "regression",
+    "expected" : "Ambient C Bb G Ab: 8-bar intro, 8 bars of bansuri, sparse keys, long delays, gradual fade with tail",
+    "id" : "A3",
+    "language" : "RU",
+    "pass" : true,
+    "protected" : "—",
+    "rendered" : "offline project valid",
+    "text" : "Песня для медитации. В стиле эмбиент. Длинные дилеи или подобные эффекты.\nОсновные 4 аккорда песни C, Bb, G, Ab .\nПервая часть 8 тактов как вступление, далее вторая часть добавляем соло на флейте Бансури. 8 тактов.\nТретья часть добавляем немного клавиш и далее потихоньку рассеиваем звук что бы закончить трек"
+  }
+]

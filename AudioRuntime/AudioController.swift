@@ -163,6 +163,9 @@ private enum AudioRender {
     private var handle: KernelHandle?
     var tick: Double = 0; var playing = false; var appliedRevision = -1
     var meters: [Float] = Array(repeating:0,count:masterBus+1); var sampleRate: Double = 48000
+    /// Luz meters: the highest recent level per bus, held 1 s, then falling.
+    var peakHolds: [Float] = Array(repeating:0,count:masterBus+1)
+    @ObservationIgnored private var peakTimes = [TimeInterval](repeating:0,count:masterBus+1)
     var countRemaining = 0; var error: String?
     var overflows = 0
     @ObservationIgnored var onPoll:(()->Void)?
@@ -270,6 +273,7 @@ private enum AudioRender {
             stage="connect-source"
             e.attach(node);e.connect(node,to:e.mainMixerNode,format:format)
             try startOutputGraph(e,stage:&stage)
+            metronomeSettings.apply(to: h.pointer)
             handle=h;source=node;engine=e;submittedNotes=nil;pendingEngine=nil
             observeConfiguration(of:e)
             timer?.invalidate();timer=Timer.scheduledTimer(withTimeInterval:1/30,repeats:true){[weak self] _ in
@@ -495,6 +499,13 @@ private enum AudioRender {
         guard let k = handle?.pointer else { return }
         clock = lg_clock(k); tick = lg_tick(k); playing = lg_playing(k) != 0; appliedRevision = sentRevisions[Int(lg_revision(k))] ?? -1; countRemaining = Int(lg_countremaining(k)); overflows = Int(lg_overflows(k))
         meters = (0...masterBus).map {lg_meter(k,Int32($0))}
+        let now = ProcessInfo.processInfo.systemUptime
+        var holds = peakHolds
+        for bus in holds.indices {
+            if meters[bus] >= holds[bus] { holds[bus] = meters[bus]; peakTimes[bus] = now }
+            else if now - peakTimes[bus] > 1 { holds[bus] = max(meters[bus], holds[bus] * 0.92) }
+        }
+        if holds != peakHolds { peakHolds = holds }
         if let onRuntimeTrace {
             let state="\(engine?.isRunning == true)/\(playing)/\(lg_revision(k))/\(generation)"
             if state != lastRuntimeTracePoll{lastRuntimeTracePoll=state;onRuntimeTrace("audio.poll.transition")}
@@ -524,6 +535,7 @@ private enum AudioRender {
             }
         } catch { self.error = error.localizedDescription; return false }
         guard ok != 0 else{error="Audio update could not be queued. Stop and retry.";return false}
+        p.applyDynamics(to: k); p.applyAutomation(to: k); p.applySynths(to: k)
         lg_tail_on_end(k, !loop && p.hasComposedEnding == true ? 1 : 0)
         generation=next;sentRevisions[next]=p.revision;routing[next]=midiRouting(p)
         pruneRouting(k)
@@ -565,6 +577,7 @@ private enum AudioRender {
         let tracks=trackMix(p)
         let fx=p.masterFX ?? MasterFX()
         let accepted=tracks.withUnsafeBufferPointer{lg_mix_revision_eq(k,$0.baseAddress,Int32($0.count),Float(p.master),Float(fx.filter),Float(fx.delayWet),Int32(generation),p.equalizerBands())} != 0
+        if accepted{p.applyDynamics(to: k); p.applyAutomation(to: k); p.applySynths(to: k)}
         if !accepted{error="Audio update could not be queued. Stop and retry."};return accepted
     }
     func play(countInBPM: Double? = nil) {
@@ -616,13 +629,53 @@ private enum AudioRender {
         guard let k=handle?.pointer else{throw MusicError.invalidProject};performanceEpoch+=1
         submittedNotes=nil;submit(p,loop:true,range:section.start..<section.start+section.length);metronome(false);seek(section.start)
         if let replay{let ok=replay.withUnsafeBufferPointer{lg_perform_replay_submit(k,$0.baseAddress,Int32($0.count),duration,Int32(performanceEpoch))};guard ok != 0 else{throw MusicError.invalidProject}}
-        let limit=UInt64((Double(64*barTicks)/Double(ppq)*60/p.bpm*sampleRate).rounded())
+        let limit=UInt64((Double(songTickLimit)/Double(ppq)*60/p.bpm*sampleRate).rounded())
         lg_perform_begin(k,Int32(token),Int32(performanceEpoch),recording ? 1:0,recording ? limit:0);playing=true;return performanceEpoch
     }
     func drainPerformance()->[LGPerformanceEvent]{guard let k=handle?.pointer else{return []};var result:[LGPerformanceEvent]=[];while true{let count=performanceBuffer.withUnsafeMutableBufferPointer{lg_perform_pop(k,$0.baseAddress,Int32($0.count))};if count==0{break};result.append(contentsOf:performanceBuffer.prefix(Int(count)))};return result}
     func effects(_ fx:MasterFX){if let k=handle?.pointer{lg_effects(k,Float(fx.filter),Float(fx.delayWet))}}
     func panic(){if let k=handle?.pointer{lg_panic(k)};playing=false}
-    func metronome(_ on: Bool) {if let k = handle?.pointer {lg_metronome(k,on ? 1 : 0)}}
+    /// I10: level, accent, sound and count-in-only, kept in UserDefaults.
+    var metronomeSettings = AudioController.storedMetronome {
+        didSet {
+            if let data = try? JSONEncoder().encode(metronomeSettings) { UserDefaults.standard.set(data, forKey: "metronome.settings") }
+            if let k = handle?.pointer { metronomeSettings.apply(to: k); lg_metronome(k, metronomeOn && !metronomeSettings.countInOnly ? 1 : 0) }
+        }
+    }
+    private static var storedMetronome: MetronomeSettings {
+        guard let data = UserDefaults.standard.data(forKey: "metronome.settings"), let value = try? JSONDecoder().decode(MetronomeSettings.self, from: data) else { return MetronomeSettings() }
+        return MetronomeSettings(gainDB: value.gainDB, accent: value.accent, sound: value.sound, countInOnly: value.countInOnly)
+    }
+    private var metronomeOn = false
+    /// I15: live arpeggio of the held pitches on the track with `identity`; empty stops.
+    @discardableResult func arp(identity: UInt64, pitches: [Int], step: Int, mode: Int, octaves: Int, velocity: Int = 100) -> Bool {
+        guard let k = handle?.pointer else { return false }
+        let values = pitches.prefix(16).map { Int32($0) }
+        return values.withUnsafeBufferPointer { lg_arp(k, identity, $0.baseAddress, Int32($0.count), Int32(step), Int32(mode), Int32(octaves), Int32(velocity)) } != 0
+    }
+    /// I16: pitch bend (semitones) and modulation (0...1) for the track with `identity`.
+    func pitchBend(identity: UInt64, semitones: Float, modulation: Float) { if let k = handle?.pointer { lg_pitch_bend(k, identity, semitones, modulation) } }
+    /// I55: hear a synth patch while its knobs move, before the edit is committed.
+    func previewSynth(track index: Int, _ patch: SynthPatch?) {
+        guard let k = handle?.pointer, (0..<masterBus).contains(index) else { return }
+        if let patch { var value = LGSynthPatch(wave: Int32(patch.wave.rawValue), cutoff: Float(patch.cutoff), resonance: Float(patch.resonance), attack: Float(patch.attack), decay: Float(patch.decay), sustain: Float(patch.sustain), release: Float(patch.release)); _ = lg_synth(k, Int32(index), &value) }
+        else { _ = lg_synth(k, Int32(index), nil) }
+    }
+    /// I82: MIDI clock and transport messages on the selected output.
+    func midiClock(_ on: Bool) { if let k = handle?.pointer { lg_midi_clock_out(k, on ? 1 : 0) } }
+    /// I63: the latest mono master samples for the spectrum view.
+    func scope(_ count: Int) -> [Float] {
+        guard let k = handle?.pointer else { return [] }
+        var samples = [Float](repeating: 0, count: max(0, min(4096, count)))
+        let n = samples.withUnsafeMutableBufferPointer { lg_scope_read(k, $0.baseAddress, Int32($0.count)) }
+        return Array(samples.prefix(Int(n)))
+    }
+    /// I3: start (pad) or stop (nil) the kernel's note repeat.
+    @discardableResult func padRepeat(_ pad: Int?, step: Int = 240, velocity: Int = 100) -> Bool {
+        guard let k = handle?.pointer else { return false }
+        return lg_pad_repeat(k, Int32(pad ?? -1), Int32(step), Int32(velocity)) != 0
+    }
+    func metronome(_ on: Bool) {metronomeOn=on;if let k = handle?.pointer {metronomeSettings.apply(to: k);lg_metronome(k,on && !metronomeSettings.countInOnly ? 1 : 0)}}
     func invalidateMusicSnapshot(){submittedNotes=nil}
     func reset() {
         musicCompilationCache.reset()

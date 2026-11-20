@@ -1,0 +1,46 @@
+[
+  {
+    "actual" : "choice: Chorus (bar 7); choice: Chorus (bar 15)",
+    "category" : "ambiguous",
+    "expected" : "Two choruses: ask which one (bars 7–10 or 15–18)",
+    "id" : "Q1",
+    "language" : "RU",
+    "pass" : true,
+    "protected" : "project unchanged (no apply)",
+    "rendered" : "—",
+    "text" : "Сделай хэт плотнее в припеве"
+  },
+  {
+    "actual" : "Remove Kick in bars 7–10; problem(contradiction): Remove Kick in bars 7–10",
+    "category" : "ambiguous",
+    "expected" : "Contradiction: the kick is part of the kept drums",
+    "id" : "Q2",
+    "language" : "EN",
+    "pass" : true,
+    "protected" : "project unchanged (no apply)",
+    "rendered" : "—",
+    "text" : "Keep the drums and remove the kick in the first chorus"
+  },
+  {
+    "actual" : "problem(unsupported): Добавь вокал во второй припев; problem(unsupported): сделай его грустнее",
+    "category" : "ambiguous",
+    "expected" : "Unsupported: vocals and «sadder» are named as the problem; draft kept",
+    "id" : "Q3",
+    "language" : "RU",
+    "pass" : true,
+    "protected" : "project unchanged (no apply)",
+    "rendered" : "—",
+    "text" : "Добавь вокал во второй припев и сделай его грустнее"
+  },
+  {
+    "actual" : "Remove Harmony in bars 3–6; problem(derivedBass): Remove Harmony in bars 3–6",
+    "category" : "ambiguous",
+    "expected" : "The bass is built from the chords: removing them would change the kept bass",
+    "id" : "Q4",
+    "language" : "RU",
+    "pass" : true,
+    "protected" : "project unchanged (no apply)",
+    "rendered" : "—",
+    "text" : "Оставь бас и убери аккорды в первом куплете"
+  }
+]

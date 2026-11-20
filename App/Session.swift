@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import UIKit
 import MusicDomain
 import AVFoundation
 import Observation
@@ -17,11 +18,24 @@ import Observation
     var displayProject:Project{performance.contextActive ? (performance.runtimeProject ?? project):(drumPlayback ?? project)}
     var selectedSection: UUID?{didSet{if selectedSection != oldValue{noteClipID=nil;drumClipID=nil}}}; var tab = 0; var loop = true; var loopBars = 4; var metronome = false
     var quantize: Quantize = .sixteenth; var overdub = true; var countIn = true
+    /// I06/I07: how far recorded hits move to the grid (1 = fully) and swing (0.5 = straight).
+    var quantizeStrength = 1.0; var swing = 0.5
     var recording = false; var armed = false; var armClock: UInt64 = 0
     var passClock: UInt64 = 0; var replaceNextPass = false
     struct RawHit {let tick: Int;let sampleFrame: UInt64;let event: DrumEvent}
     var rawHits: [RawHit] = []
-    private struct PadRecordingInput {let pad:Int;let tick:Int;let clock:UInt64}
+    private struct PadRecordingInput {let pad:Int;let tick:Int;let clock:UInt64;var velocity:Int=100}
+    /// I09: recent live hits played without Record, kept for "Keep the last bars".
+    @ObservationIgnored private var retroHits=PadRetroBuffer(capacity:1024)
+    /// I04: take each hit's velocity from the touch (off: every hit is 100).
+    var padVelocityFromTouch=false
+    /// I01/I02: measured click-to-tap offset per output route (ms), applied to recorded hits only.
+    var routeLatency:[String:Double]=(UserDefaults.standard.dictionary(forKey:"studio.routeLatency") as? [String:Double]) ?? [:]
+    var currentRouteKey:String{AVAudioSession.sharedInstance().currentRoute.outputs.first.map{$0.portType.rawValue} ?? "unknown"}
+    func saveRouteLatency(_ milliseconds:Double?){
+        routeLatency[currentRouteKey]=milliseconds
+        UserDefaults.standard.set(routeLatency,forKey:"studio.routeLatency")
+    }
     @ObservationIgnored private var pendingPadInputs:[PadRecordingInput]=[]
     @ObservationIgnored private var drumPass:DrumRecordingPass?
     /// Read-only inspection of events already drained from the contact queue.
@@ -76,7 +90,7 @@ import Observation
     private let runtimeTraceStart=ProcessInfo.processInfo.systemUptime
     let personalKits: PersonalKitStore
     let store: ProjectStore
-    enum Sheet: String, Identifiable {case projects, newProject, trackBuilder, export, settings, gettingStarted, bass, sections, notes, harmony, assistant, voice, perform, midiDevices; var id: String { rawValue }}
+    enum Sheet: String, Identifiable {case projects, newProject, trackBuilder, export, settings, gettingStarted, bass, sections, notes, harmony, assistant, voice, perform, midiDevices, palettes; var id: String { rawValue }}
     private static var qaProjectStoreID:UUID? {
         let arguments=ProcessInfo.processInfo.arguments
         guard arguments.contains("--uitesting"),let index=arguments.firstIndex(of:"--project-store-id"),arguments.indices.contains(index+1)else{return nil}
@@ -154,6 +168,7 @@ import Observation
     func bootstrap() async {
         runtimeTrace("bootstrap.begin")
         defer{runtimeTrace("bootstrap.return")}
+        await store.purgeTrash()
         if let bootstrapTask {await bootstrapTask.value;return}
         let task=Task { @MainActor in
             do {
@@ -197,7 +212,11 @@ import Observation
         // Device consent and selection take effect at the touch, even while a
         // structural edit waits for its bar. Only UUID routing follows the
         // adopted layout; the hub resolves its current index at the boundary.
-        midi.configure(project.midi ?? MIDISettings(),tracks:audio.activeMIDIRouting?.tracks ?? project.tracks)
+        let tracks=audio.activeMIDIRouting?.tracks ?? project.tracks
+        var settings=project.midi ?? MIDISettings()
+        if settings.trackID==nil{settings.trackID=MIDISettings.automaticTrack(tracks,focused:noteTrackID)}
+        midi.configure(settings,tracks:tracks)
+        audio.midiClock(settings.outputID != nil && settings.clockOut == true)
     }
     /// Share the real QA endpoint setup between launch and an explicit reconnect.
     /// A failed launch never creates an enabled project or a pretend mapping.
@@ -224,7 +243,63 @@ import Observation
         runtimeTrace("scene.\(phase).before");defer{runtimeTrace("scene.\(phase).after")}
         if phase == .active{backgrounded=false;if ready{_ = ensureAudio();syncMIDI()};return}
         finishTake();Task{await save()}
-        if phase == .background{backgrounded=true;stopMicrophone?();microphoneOwner=nil;stopMicrophone=nil;if harmonyPreview{endHarmonyPreview()};suspendIdleAudio()}
+        if phase == .background{backgrounded=true;stopMicrophone?();microphoneOwner=nil;stopMicrophone=nil;if harmonyPreview{endHarmonyPreview()};suspendIdleAudio();backupInBackground()}
+    }
+    // MARK: I77 · automatic backup to a Files folder
+    var backupFolderName:String?=UserDefaults.standard.string(forKey:"backup.folderName")
+    var lastBackup:Date?=UserDefaults.standard.object(forKey:"backup.last") as? Date
+    @ObservationIgnored private var backingUp=false
+    func chooseBackupFolder(_ url:URL) {
+        let access=url.startAccessingSecurityScopedResource();defer{if access{url.stopAccessingSecurityScopedResource()}}
+        do {
+            let bookmark=try url.bookmarkData(options:[],includingResourceValuesForKeys:nil,relativeTo:nil)
+            UserDefaults.standard.set(bookmark,forKey:"backup.folder");UserDefaults.standard.set(url.lastPathComponent,forKey:"backup.folderName")
+            backupFolderName=url.lastPathComponent
+            Task{await backupNow(force:true)}
+        }catch{message=error.localizedDescription}
+    }
+    func stopBackup() {
+        for key in ["backup.folder","backup.folderName","backup.last"]{UserDefaults.standard.removeObject(forKey:key)}
+        backupFolderName=nil;lastBackup=nil
+    }
+    private final class BackgroundTaskBox:@unchecked Sendable{var id=UIBackgroundTaskIdentifier.invalid}
+    private func backupInBackground() {
+        guard UserDefaults.standard.data(forKey:"backup.folder") != nil,BackupPlanner.due(last:lastBackup,now:Date()) else{return}
+        let box=BackgroundTaskBox()
+        box.id=UIApplication.shared.beginBackgroundTask(withName:"La Grilla backup"){UIApplication.shared.endBackgroundTask(box.id);box.id = .invalid}
+        Task{@MainActor in
+            await backupNow(force:false)
+            if box.id != .invalid{UIApplication.shared.endBackgroundTask(box.id);box.id = .invalid}
+        }
+    }
+    /// `force` backs up every project now; otherwise only projects changed since the last backup, once a day.
+    func backupNow(force:Bool) async {
+        guard !backingUp,let bookmark=UserDefaults.standard.data(forKey:"backup.folder") else{return}
+        guard force || BackupPlanner.due(last:lastBackup,now:Date()) else{return}
+        backingUp=true;defer{backingUp=false}
+        var stale=false
+        guard let folder=try? URL(resolvingBookmarkData:bookmark,options:[],relativeTo:nil,bookmarkDataIsStale:&stale) else{
+            if force{message=NSLocalizedString("The backup folder is no longer available. Choose it again in Settings.",comment:"Backup")};return
+        }
+        await save();await refreshLibrary()
+        let ids=BackupPlanner.changed(entries.compactMap(\.summary),since:force ? nil:lastBackup)
+        let now=Date()
+        guard !ids.isEmpty else{lastBackup=now;UserDefaults.standard.set(now,forKey:"backup.last");return}
+        let temporary=FileManager.default.temporaryDirectory.appendingPathComponent("backup-"+UUID().uuidString).appendingPathExtension("zip")
+        defer{try? FileManager.default.removeItem(at:temporary)}
+        do {
+            try await store.portableBatch(ids,to:temporary)
+            let access=folder.startAccessingSecurityScopedResource();defer{if access{folder.stopAccessingSecurityScopedResource()}}
+            let target=folder.appendingPathComponent(BackupPlanner.fileName(now))
+            var coordination:NSError?,failure:Error?
+            NSFileCoordinator().coordinate(writingItemAt:target,options:.forReplacing,error:&coordination){url in
+                do{if FileManager.default.fileExists(atPath:url.path){try FileManager.default.removeItem(at:url)};try FileManager.default.copyItem(at:temporary,to:url)}catch{failure=error}
+            }
+            if let error=coordination ?? failure{throw error}
+            if stale,let fresh=try? folder.bookmarkData(options:[],includingResourceValuesForKeys:nil,relativeTo:nil){UserDefaults.standard.set(fresh,forKey:"backup.folder")}
+            lastBackup=now;UserDefaults.standard.set(now,forKey:"backup.last")
+            if force{showToast(String(format:NSLocalizedString("Backed up %d projects",comment:"Backup"),ids.count))}
+        }catch{if force{message=error.localizedDescription}}
     }
     private func suspendIdleAudio(){
         guard backgrounded,!audio.playing,!performance.stopping else{return}
@@ -283,6 +358,21 @@ import Observation
     func mixerImmediate(_ change: (inout Project) throws -> Void) {
         mixerGesture=false; mixerEdit(change); mixerGesture=false
     }
+    /// I43: open the Assistant listening, scoped to the section at `tick`.
+    @ObservationIgnored var assistantListens=false
+    func editByVoice(at tick:Int) {
+        if let section=project.sections.first(where:{$0.start<=tick && tick<$0.start+$0.length}){select(section)}
+        assistantListens=true;sheet = .assistant
+    }
+    /// I90: short confirmation shown over the studio.
+    var toast:String?
+    func showToast(_ text:String){toast=text;Task{@MainActor in try? await Task.sleep(for:.seconds(1.2));if toast==text{toast=nil}}}
+    /// Undo or redo from a gesture; true when something changed.
+    func gestureUndo(_ forward:Bool)->Bool {
+        guard !recording,!armed,!performance.contextActive,forward ? history.canRedo:history.canUndo else{return false}
+        if forward{redo()}else{undo()}
+        showToast(forward ? "Redo":"Undo");return true
+    }
     func undo() {if performance.contextActive{Task{await leavePerformance();undo()};return};guard !recording && !armed else {return}; mixerGesture=false;withHistoryTransaction{h,p in h.undo(&p)};restoreGeneratedLoop();sync();scheduleSave()}
     func redo() {if performance.contextActive{Task{await leavePerformance();redo()};return};guard !recording && !armed else {return}; mixerGesture=false;withHistoryTransaction{h,p in h.redo(&p)};restoreGeneratedLoop();sync();scheduleSave()}
     func scheduleSave() {saveTask?.cancel();saveTask = Task {try? await Task.sleep(for:.milliseconds(700));guard !Task.isCancelled else{return};await save()} }
@@ -334,7 +424,7 @@ import Observation
     func togglePlay() {
         runtimeTrace("togglePlay.before");defer{runtimeTrace("togglePlay.after")}
         if performance.contextActive{if performance.playing || performance.starting{Task{await performance.stop();pollPerformance()}}else if performance.replaying,let take=performance.replayTake{replayPerformance(take)}else{startPerformance(record:false)};return}
-        if audio.playing {finishTake();audio.stop()}else if ensureAudio(){if audio.tick>=Double(loopRange.upperBound){audio.seek(loopRange.lowerBound)};audio.play()}
+        if audio.playing {finishTake();audio.stop();Luz.Haptics.transportStop()}else if ensureAudio(){if audio.tick>=Double(loopRange.upperBound){audio.seek(loopRange.lowerBound)};audio.play();Luz.Haptics.transportStart()}
     }
     func rewind() {if performance.contextActive{Task{await leavePerformance();rewind()};return};finishTake();audio.stop();audio.seek(loopRange.lowerBound)}
     func record() {
@@ -354,7 +444,7 @@ import Observation
             audio.seek(loopRange.lowerBound);audio.play(countInBPM:countIn ? project.bpm : nil)
             armClock=audio.clock+UInt64(countIn ? barFrames : 0)
         }
-        passClock=armClock;replaceNextPass = !overdub;armed=true;sync()
+        passClock=armClock;replaceNextPass = !overdub;armed=true;sync();Luz.Haptics.transportStart()
     }
     func pollRecording() {
         if let end = draftEndTick, harmonyPreview, !audio.playing, Int(audio.tick) == end {
@@ -368,6 +458,7 @@ import Observation
                 endHarmonyPreview()
             }
         }
+        flushRepeatHits()
         drainPadRecordingInputs()
         syncMIDI();midi.poll(replaying:performance.replaying);pollPerformance()
         updateNowPlaying()
@@ -382,6 +473,76 @@ import Observation
             commitPass(); passClock += frames
         }
     }
+    /// I09: put the hits played without Record during the last `bars` bars into
+    /// the current drum clip, quantized, as one undoable edit.
+    @discardableResult func keepRecentHits(bars:Int)->Int {
+        guard !recording,!armed,!performance.contextActive,let track=project.tracks.first(where:{$0.role == .drums}),
+              let clip=focusedDrumClip ?? track.clips.first(where:{$0.start<=section.start && $0.start+$0.length>section.start}) else{return 0}
+        audio.refreshClock()
+        let framesPerBar=UInt64((Double(barTicks)/Double(ppq)*60/project.bpm*audio.sampleRate).rounded())
+        let window=UInt64(max(1,bars))*framesPerBar
+        let since=audio.clock>window ? audio.clock-window:0
+        let events=retroHits.events(since:since,clipStart:clip.start,clipLength:clip.length,quantizer:GrooveQuantizer(quantize,strength:quantizeStrength,swing:swing))
+        guard !events.isEmpty else{message=NSLocalizedString("Play the pads while the loop runs, then keep what you played.",comment:"Keep recent hits");return 0}
+        do{
+            var draft=try DrumRecordingDraft(project:project,clipID:clip.id)
+            try draft.commitPass(events)
+            let candidate=try draft.candidate(for:project)
+            edit{$0=candidate}
+            retroHits=PadRetroBuffer(capacity:1024)
+            return events.count
+        }catch{message=error.localizedDescription;return 0}
+    }
+    /// I3: note repeat rate while a pad is held (nil = off), and the running hold.
+    var noteRepeat:NoteRepeat.Rate?=UserDefaults.standard.object(forKey:"jam.noteRepeat").flatMap{($0 as? Int).flatMap(NoteRepeat.Rate.init(rawValue:))}{didSet{UserDefaults.standard.set(noteRepeat?.rawValue,forKey:"jam.noteRepeat");if noteRepeat==nil{endRepeat()}}}
+    @ObservationIgnored private var lastPadVelocity=100
+    @ObservationIgnored private var repeatHold:(pad:Int,tick:Int,clock:UInt64,velocity:Int,step:Int,emitted:Int)?
+    /// Called with the set of held pads; the last pad pressed repeats.
+    func padsHeld(_ held:Set<Int>) {
+        if let hold=repeatHold,!held.contains(hold.pad){endRepeat()}
+        guard let rate=noteRepeat,repeatHold==nil,let pad=held.sorted().last,!performance.replaying,audio.isPrepared else{return}
+        audio.refreshClock()
+        let velocity=lastPadVelocity
+        guard audio.padRepeat(pad,step:rate.rawValue,velocity:velocity) else{return}
+        repeatHold=(pad,Int(audio.tick),audio.clock,velocity,rate.rawValue,Int(audio.tick))
+    }
+    private func endRepeat() {
+        guard repeatHold != nil else{return}
+        audio.padRepeat(nil);audio.refreshClock()
+        flushRepeatHits()
+        repeatHold=nil
+    }
+    /// The kernel fires on every grid tick after the press; the same ticks go to
+    /// the recording (or the retro buffer) as they pass, so passes stay in order.
+    private func flushRepeatHits() {
+        guard var hold=repeatHold,audio.playing,audio.clock>hold.clock else{return}
+        let framesPerTick=audio.sampleRate*60/(project.bpm*Double(ppq))
+        let now=hold.tick+Int(Double(audio.clock-hold.clock)/framesPerTick)
+        guard now>hold.emitted else{return}
+        let ticks=NoteRepeat.hits(from:hold.emitted+1,to:now+1,rate:NoteRepeat.Rate(rawValue:hold.step) ?? .sixteenth).prefix(512)
+        let span=max(1,loopRange.count)
+        for unwrapped in ticks {
+            var tick=unwrapped
+            if loop,tick>=loopRange.upperBound{tick=loopRange.lowerBound+(tick-loopRange.lowerBound)%span}
+            let clock=hold.clock+UInt64((Double(unwrapped-hold.tick)*framesPerTick).rounded())
+            if recording || armed{
+                guard pendingPadInputs.count<4096 else{break}
+                pendingPadInputs.append(PadRecordingInput(pad:hold.pad,tick:tick,clock:clock,velocity:hold.velocity))
+            }else{retroHits.append(.init(tick:tick,pad:hold.pad,velocity:hold.velocity,clock:clock))}
+        }
+        hold.emitted=now;repeatHold=hold
+    }
+    /// I8: while recording, the first tap discards what was played in the current
+    /// pass; with an empty pass it removes the previous committed pass. The loop
+    /// and the recording keep going.
+    var canUndoPass:Bool{recording && (!(drumPass?.events.isEmpty ?? true) || drumDraft?.canUndoPass == true)}
+    func undoPass() {
+        guard recording,var draft=drumDraft else{return}
+        drainPadRecordingInputs()
+        if drumPass?.events.isEmpty ?? true{guard draft.undoLastPass() else{return}}
+        do{drumDraft=draft;drumPass=try DrumRecordingPass(draft:draft,replacing:replaceNextPass ? loopRange:nil);rawHits=[];sync()}
+        catch{message=error.localizedDescription;drumPass=nil;rawHits=[]}
+    }
     func commitPass() {
         guard var draft=drumDraft else{return}
         do{
@@ -393,15 +554,20 @@ import Observation
     }
     /// Keep the contact path bounded: enqueue sound, snapshot the transport and
     /// return. Recording bookkeeping is drained in order by the existing poll.
-    @discardableResult func hit(_ pad:Int,touchTime:TimeInterval?=nil)->Bool {
+    @discardableResult func hit(_ pad:Int,touchTime:TimeInterval?=nil,velocity:Int?=nil)->Bool {
         guard !backgrounded,!performance.replaying,(0..<16).contains(pad),audio.isPrepared || ensureAudio() else{return false}
-        guard audio.pad(pad) else{return false}
+        let strength=min(127,max(1,velocity ?? 100))
+        guard audio.pad(pad,velocity:strength) else{return false}
+        lastPadVelocity=strength
         acceptedPadHits+=1
         if let touchTime,touchTime.isFinite{lastPadDispatchMilliseconds=max(0,(ProcessInfo.processInfo.systemUptime-touchTime)*1000)}
         if recording || armed {
             audio.refreshClock()
             guard pendingPadInputs.count<4096 else{message=MusicError.tooDense.localizedDescription;return true}
-            pendingPadInputs.append(PadRecordingInput(pad:pad,tick:Int(audio.tick),clock:audio.clock))
+            pendingPadInputs.append(PadRecordingInput(pad:pad,tick:Int(audio.tick),clock:audio.clock,velocity:strength))
+        } else if audio.playing {
+            audio.refreshClock()
+            retroHits.append(.init(tick:Int(audio.tick),pad:pad,velocity:strength,clock:audio.clock))
         }
         return true
     }
@@ -416,8 +582,12 @@ import Observation
                 let passes=(input.clock-passClock)/frames
                 commitPass();passClock+=passes*frames
             }
-            guard let draft=drumDraft,let local=draft.localTick(input.tick),drumPass != nil else{continue}
-            let event=DrumEvent(tick:quantize.tick(local,length:takeLength),pad:input.pad)
+            // Recorded position follows what the musician heard on this route.
+            var heard=routeLatency[currentRouteKey].map{RouteLatencyCalibration.heardTick(input.tick,milliseconds:$0,bpm:project.bpm)} ?? input.tick
+            // Heard just before the loop restarted: it belongs at the loop's end.
+            if heard<loopRange.lowerBound,input.tick>=loopRange.lowerBound{heard+=loopRange.count}
+            guard let draft=drumDraft,let local=draft.localTick(heard) ?? draft.localTick(input.tick),drumPass != nil else{continue}
+            let event=DrumEvent(tick:GrooveQuantizer(quantize,strength:quantizeStrength,swing:swing).tick(local,length:takeLength),pad:input.pad,velocity:input.velocity)
             do{
                 try drumPass?.append(event)
                 rawHits.append(RawHit(tick:local,sampleFrame:input.clock,event:event))
@@ -425,6 +595,7 @@ import Observation
         }
     }
     func finishTake() {
+        flushRepeatHits()
         drainPadRecordingInputs()
         let hadTake=recording;armed=false;recording=false
         if hadTake{commitPass()}
@@ -727,7 +898,9 @@ import Observation
         do{_ = try await store.rename(id,expectedRevision:expectedRevision,to:title);validated=true}catch{message=error.localizedDescription}
         await refreshLibraryEntry(id,validated:validated)
     }
-    func delete(_ id: UUID) async {do{try await store.delete(id);entries.removeAll{$0.id==id};libraryLoadFailures.removeValue(forKey:id);UserDefaults.standard.removeObject(forKey:generatedLoopKey(id))}catch{message=error.localizedDescription}}
+    /// I73: deleting moves the project to Recently Deleted for 30 days.
+    func delete(_ id: UUID) async {do{try await store.moveToTrash(id);entries.removeAll{$0.id==id};libraryLoadFailures.removeValue(forKey:id);UserDefaults.standard.removeObject(forKey:generatedLoopKey(id))}catch{message=error.localizedDescription}}
+    func restoreDeleted(_ id:UUID)async {do{try await store.restoreFromTrash(id);await refreshLibrary()}catch{message=error.localizedDescription}}
     func recover(_ id:UUID)async {
         guard let token=beginProjectChange()else{return}
         defer{endProjectChange(token)}
@@ -748,13 +921,13 @@ import Observation
         }catch{if let written{await retainUnopenedProject(written)}else{message=error.localizedDescription}}
     }
     enum ExportFormat:String,CaseIterable,Identifiable {
-        case midi,wav,stems,project
+        case midi,wav,stems,project,aac,video
         var id:String{rawValue}
-        var title:String{switch self{case .midi:"Standard MIDI";case .wav:"Stereo WAV";case .stems:"Aligned stems";case .project:"Portable project"}}
-        var fileExtension:String{switch self{case .midi:"mid";case .wav:"wav";case .stems:"zip";case .project:"grillapack"}}
+        var title:String{switch self{case .midi:"Standard MIDI";case .wav:"Stereo WAV";case .stems:"Aligned stems";case .project:"Portable project";case .aac:"AAC for sharing";case .video:"Video for social"}}
+        var fileExtension:String{switch self{case .midi:"mid";case .wav:"wav";case .stems:"zip";case .project:"grillapack";case .aac:"m4a";case .video:"mp4"}}
     }
     func export(format:ExportFormat,settings:WAVSettings,range:Range<Int>,tracks:Set<UUID>,performance:PerformanceTake?=nil) {
-        if performance != nil && format != .midi && format != .wav{exportError="Choose WAV or MIDI for a performance.";return}
+        if performance != nil && format != .midi && format != .wav && format != .aac{exportError="Choose WAV or MIDI for a performance.";return}
         finishTake();cancelExport();exportGeneration+=1;let generation=exportGeneration
         let snapshot=performance?.source ?? project;let samples=audio.samples;exportInProgress=true;exportProgress=0;exportWarning=nil
         let folder=FileManager.default.temporaryDirectory.appendingPathComponent("GrillaExport-"+UUID().uuidString)
@@ -772,12 +945,47 @@ import Observation
                     let receipt:RenderReceipt;if let performance{receipt=try await OfflineRenderer.renderPerformance(performance,to:url,settings:settings,samples:samples,progress:progress)}else{receipt=try await OfflineRenderer.render(snapshot,to:url,settings:settings,range:range,samples:samples,progress:progress)}
                     if receipt.clipped{exportWarning="Clipping was detected. Lower track or master gain for a cleaner export."}
                 case .stems:_ = try await StemExporter.render(snapshot,to:url,settings:settings,range:range,selected:tracks,samples:samples,progress:progress)
+                case .aac:
+                    let wav=folder.appendingPathComponent("mix.wav")
+                    let receipt:RenderReceipt;if let performance{receipt=try await OfflineRenderer.renderPerformance(performance,to:wav,settings:settings,samples:samples,progress:progress)}else{receipt=try await OfflineRenderer.render(snapshot,to:wav,settings:settings,range:range,samples:samples,progress:progress)}
+                    if receipt.clipped{exportWarning="Clipping was detected. Lower track or master gain for a cleaner export."}
+                    try await Task.detached(priority:.userInitiated){try AACEncoder.encode(wav:wav,to:url)}.value
+                    try? FileManager.default.removeItem(at:wav)
+                case .video:
+                    // I67: the same mix as WAV, then frames drawn offline and joined into an MP4.
+                    let wav=folder.appendingPathComponent("mix.wav")
+                    let half:@Sendable(Double)->Void={value in progress(value*0.5)}
+                    let receipt=try await OfflineRenderer.render(snapshot,to:wav,settings:settings,range:range,samples:samples,progress:half)
+                    if receipt.clipped{exportWarning="Clipping was detected. Lower track or master gain for a cleaner export."}
+                    try await Task.detached(priority:.userInitiated){try await VideoExporter.encode(wav:wav,project:snapshot,range:range,to:url,progress:progress)}.value
+                    try? FileManager.default.removeItem(at:wav)
                 }
                 try Task.checkCancellation();guard generation==exportGeneration else{return}
-                exportProgress=1;exportInProgress=false;exportedFolder=folder;exportedURL=url;sheet=nil;exportTask=nil
+                exportProgress=1;exportInProgress=false;exportedFolder=folder;exportedURL=url;sheet=nil;exportTask=nil;if exportWarning==nil{Luz.Haptics.success()}else{Luz.Haptics.warning()}
             } catch {
                 try? FileManager.default.removeItem(at:folder)
                 if generation==exportGeneration{exportInProgress=false;exportTask=nil;if !(error is CancellationError){exportError=error.localizedDescription}}
+            }
+        }
+    }
+    /// I70: every saved project (up to 64) in one zip for Files or AirDrop.
+    func exportAllProjects() {
+        finishTake();cancelExport();exportGeneration+=1;let generation=exportGeneration
+        let ids=Array(entries.filter{$0.summary != nil}.map(\.id).prefix(64))
+        guard !ids.isEmpty else{return}
+        let folder=FileManager.default.temporaryDirectory.appendingPathComponent("GrillaExport-"+UUID().uuidString)
+        let url=folder.appendingPathComponent(NSLocalizedString("La Grilla projects",comment:"Batch export file name")).appendingPathExtension("zip")
+        exportInProgress=true;exportProgress=0;exportError=nil
+        exportTask=Task { @MainActor in
+            do {
+                await save()
+                try FileManager.default.createDirectory(at:folder,withIntermediateDirectories:true)
+                try await store.portableBatch(ids,to:url)
+                try Task.checkCancellation();guard generation==exportGeneration else{return}
+                exportProgress=1;exportInProgress=false;exportedFolder=folder;exportedURL=url;sheet=nil;exportTask=nil;if exportWarning==nil{Luz.Haptics.success()}else{Luz.Haptics.warning()}
+            } catch {
+                try? FileManager.default.removeItem(at:folder)
+                if generation==exportGeneration{exportInProgress=false;exportTask=nil;if !(error is CancellationError){message=error.localizedDescription}}
             }
         }
     }
@@ -797,6 +1005,10 @@ import Observation
             let imported=try await Task.detached(priority:.userInitiated){
                 let handle=try FileHandle(forReadingFrom:url);defer{try? handle.close()}
                 let data=try handle.read(upToCount:128_000_001) ?? Data();guard data.count<=128_000_000 else{throw ExportError.archiveTooLarge}
+                // I75: a Standard MIDI File becomes a new editable project.
+                if ["mid","midi","smf"].contains(url.pathExtension.lowercased()) {
+                    return try MIDIFileImport.read(data,name:url.deletingPathExtension().lastPathComponent).bundle
+                }
                 return try PortableProject.decodeBundle(data)
             }.value
             try await projectChangeBoundary(token,expected:expected,stage:"import.decoded")
@@ -808,6 +1020,29 @@ import Observation
             activateProject(installed,savedRevision:installed.revision,samples:samples)
             await refreshLibraryEntry(installed.id,validated:true)
         }catch{if let written{await retainUnopenedProject(written)}else{message=error.localizedDescription}}
+    }
+    /// I78: bring a co-author's edited copy into the open project as one Undo.
+    func mergeCopy(_ url:URL) async {
+        guard !recording,!armed,!performance.contextActive else{message="Return to editing before changing the source project.";return}
+        let access=url.startAccessingSecurityScopedResource();defer{if access{url.stopAccessingSecurityScopedResource()}}
+        let mine=project
+        do {
+            let theirs=try await Task.detached(priority:.userInitiated){
+                let handle=try FileHandle(forReadingFrom:url);defer{try? handle.close()}
+                let data=try handle.read(upToCount:128_000_001) ?? Data();guard data.count<=128_000_000 else{throw ExportError.archiveTooLarge}
+                return try PortableProject.decodeBundle(data,asCopy:false).project
+            }.value
+            let base=await store.sharedBase(mine.id)
+            let (merged,report)=try ProjectMerge.merge(base:base,mine:mine,theirs:theirs)
+            guard project.id==mine.id,project.revision==mine.revision else{message=AssistantError.stale.localizedDescription;return}
+            guard report.hasChanges else{message=NSLocalizedString("The copy has no changes to bring in.",comment:"Merge");return}
+            edit{$0=merged}
+            var text=String(format:NSLocalizedString("Merged: %d changes taken, %d added, %d removed.",comment:"Merge"),report.takenFromTheirs,report.added,report.removed)
+            if report.conflicts>0{text+=" "+String(format:NSLocalizedString("%d places changed on both sides kept your version.",comment:"Merge"),report.conflicts)}
+            if report.keptSounds>0{text+=" "+NSLocalizedString("Imported sounds stay as they were on this iPhone.",comment:"Merge")}
+            if base==nil{text+=" "+NSLocalizedString("Without a shared version nothing was removed.",comment:"Merge")}
+            message=text
+        }catch{message=error.localizedDescription}
     }
     func applyVoice(_ placement:VoicePlacement,data:Data,record:AudioAssetRecord,projectID:UUID,revision:Int)async throws->Bool {
         guard project.id==projectID,project.revision==revision,!recording,!armed,!performance.contextActive else{throw AssistantError.stale}
@@ -882,6 +1117,58 @@ import Observation
         sync()
         scheduleSave()
     }
+    // MARK: Build 46 palettes
+
+    /// The loaded sounds plus a palette's kit, for auditioning without staging anything.
+    func paletteLibrary(_ kit: [(pad: Int, asset: SampleAsset, data: Data)]) throws -> SampleLibrary {
+        try PaletteAudition.library(audio.samples, kit: kit)
+    }
+
+    /// Audition a palette candidate of the current revision. The project and
+    /// its Undo history stay unchanged; Stop preview or any edit ends it.
+    func previewPalette(_ candidate: Project, range: Range<Int>, samples: SampleLibrary) {
+        guard !performance.contextActive else { message = "Return to editing before changing the source project."; return }
+        finishTake()
+        guard ensureAudio() else { return }
+        guard candidate.id == project.id, candidate.revision == project.revision else { message = AssistantError.stale.localizedDescription; return }
+        guard range.lowerBound >= 0, range.upperBound <= candidate.length, !range.isEmpty else { message = MusicError.invalidProject.localizedDescription; return }
+        if !harmonyPreview { previewPosition = Int(audio.tick); previewPlaying = audio.playing; harmonyPreview = true }
+        audio.audition(candidate, range: range, loop: true, samples: samples)
+        syncMIDI()
+    }
+
+    /// Apply a palette candidate as one undoable change, staging its kit first.
+    func applyPalette(_ candidate: Project, kit: [(pad: Int, asset: SampleAsset, data: Data)], projectID: UUID, revision: Int) async throws {
+        func matches() -> Bool {
+            project.id == projectID && project.revision == revision && projectChangeToken == nil &&
+                !recording && !armed && !performance.contextActive
+        }
+        guard matches(), candidate.id == projectID, candidate.revision == revision else { throw SampleError.stale }
+        try candidate.validate()
+        endHarmonyPreview()
+        let needed = Set(candidate.referencedSamples).subtracting(project.referencedSamples).subtracting(history.retainedSamples)
+        let sounds = kit.filter { needed.contains($0.asset) }
+        var prepared: [PreparedSampleBank] = []
+        do {
+            for sound in sounds {
+                try Task.checkCancellation()
+                guard matches() else { throw SampleError.stale }
+                prepared.append(try await store.stageSample(sound.data, asset: sound.asset, projectID: projectID))
+            }
+            try Task.checkCancellation()
+            guard matches() else { throw SampleError.stale }
+            try withHistoryTransaction { history, project in try history.apply(&project) { $0 = candidate } }
+        } catch {
+            for bank in prepared { await store.removeStagedSample(bank.asset, projectID: projectID) }
+            throw error
+        }
+        for bank in prepared { audio.samples.insert(bank) }
+        audio.samples.retainOnly(history.retainedSamples.union(project.referencedSamples))
+        mixerGesture = false
+        sync()
+        scheduleSave()
+    }
+
     func listPersonalKits() async throws -> [PersonalKitSummary] { try await personalKits.list() }
 
     func deletePersonalKit(_ id: UUID) async throws { try await personalKits.delete(id) }

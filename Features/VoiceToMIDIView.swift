@@ -75,8 +75,8 @@ struct VoiceToMIDIView:View {
         VStack(spacing:12){
             if capture.state == .preparing{ProgressView("Preparing microphone…").tint(.record)}
             if capture.state == .waiting{HStack{ProgressView().tint(.record);Text("Waiting for the recording start…");Spacer();Text(String(format:NSLocalizedString("%.1f s",comment:"Countdown seconds"),capture.waitingSeconds)).monospacedDigit()}.font(.callout).accessibilityIdentifier("voice.waiting")}
-            if capture.state == .countIn{Text("\(capture.remaining)").font(.system(size:64,weight:.medium,design:.monospaced)).foregroundStyle(Color.record)}
-            if capture.state == .recording{HStack{Circle().fill(Color.record).frame(width:9,height:9);Text(String(format:NSLocalizedString("%.1f s",comment:"Recording seconds"),capture.elapsed)).font(.title2.monospaced());Spacer();ProgressView(value:min(1,capture.level)).tint(.record).frame(width:100)}}
+            if capture.state == .countIn{Text("\(capture.remaining)").font(.system(size:64,weight:.medium,design:.monospaced)).foregroundStyle(Color.record).contentTransition(.numericText(countsDown:true)).animation(Luz.Motion.snap,value:capture.remaining)}
+            if capture.state == .recording{HStack{Image(systemName:"record.circle.fill").foregroundStyle(Color.record).symbolEffect(.pulse,isActive:true).accessibilityHidden(true);Text(String(format:NSLocalizedString("%.1f s",comment:"Recording seconds"),capture.elapsed)).font(.title2.monospaced());Spacer();ProgressView(value:min(1,capture.level)).tint(.record).frame(width:100)}}
             if capture.state == .analyzing{ProgressView("Analyzing melody…",value:capture.progress).tint(.record)}
             if capture.isCapturing{Button{capture.stop()}label:{Label("Stop recording",systemImage:"stop.fill")}.buttonStyle(StudioActionStyle(color:.record))}
             else if capture.state != .analyzing && !applied{
@@ -87,12 +87,12 @@ struct VoiceToMIDIView:View {
     }
     func draft(_ result:VoiceCaptureResult)->some View {
         VStack(alignment:.leading,spacing:16){
-            Canvas{context,size in for (i,amplitude) in result.analysis.waveform.enumerated(){let x=CGFloat(i)/CGFloat(max(1,result.analysis.waveform.count))*size.width,h=max(1,CGFloat(amplitude)*size.height);context.fill(Path(CGRect(x:x,y:(size.height-h)/2,width:2,height:h)),with:.color(.record.opacity(0.6)))}}.frame(height:64).background(Color.panel,in:RoundedRectangle(cornerRadius:10)).accessibilityLabel("Original voice waveform")
+            Canvas{context,size in for (i,amplitude) in result.analysis.waveform.enumerated(){let x=CGFloat(i)/CGFloat(max(1,result.analysis.waveform.count))*size.width,h=max(1,CGFloat(amplitude)*size.height);context.fill(Path(CGRect(x:x,y:(size.height-h)/2,width:2,height:h)),with:.color(.record.opacity(0.6)))}}.frame(height:64).background(Color.panel,in:RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous)).accessibilityLabel("Original voice waveform")
             HStack{Text("\(notes.count) notes").font(.headline).accessibilityIdentifier("voice.note-count");Spacer();Text("\(notes.filter{($0.confidence ?? 1)<0.9}.count) uncertain").font(.caption).foregroundStyle(Color.harmony)}
-            if notes.isEmpty{Text("No stable notes were found. Listen to the original or try a clearer phrase.").font(.callout).foregroundStyle(Color.harmony)}
+            if notes.isEmpty{Text("No stable notes were found. Listen to the original or try a clearer phrase.").font(.callout).foregroundStyle(Color.studioText)}
             HStack(spacing:10){
-                Button{original()}label:{Label(LocalizedStringKey(capture.originalPlaying ? "Stop original":"Original voice"),systemImage:"waveform").frame(maxWidth:.infinity,minHeight:48).background(Color.raised,in:RoundedRectangle(cornerRadius:10))}.disabled(applying).accessibilityIdentifier("voice.original")
-                Button{instrument()}label:{Label("Instrument",systemImage:"pianokeys").frame(maxWidth:.infinity,minHeight:48).background(Color.raised,in:RoundedRectangle(cornerRadius:10))}.disabled(notes.isEmpty || applied || applying).accessibilityIdentifier("voice.instrument")
+                Button{original()}label:{Label(LocalizedStringKey(capture.originalPlaying ? "Stop original":"Original voice"),systemImage:"waveform").frame(maxWidth:.infinity,minHeight:48).background(Color.raised,in:RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous))}.disabled(applying).accessibilityIdentifier("voice.original")
+                Button{instrument()}label:{Label("Instrument",systemImage:"pianokeys").frame(maxWidth:.infinity,minHeight:48).background(Color.raised,in:RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous))}.disabled(notes.isEmpty || applied || applying).accessibilityIdentifier("voice.instrument")
             }.font(.subheadline)
             if session.harmonyPreview{Button("Stop preview"){session.endHarmonyPreview()}.frame(minHeight:44).accessibilityIdentifier("voice.stop-preview")}
             DisclosureGroup("Rhythm and scale"){
@@ -100,9 +100,9 @@ struct VoiceToMIDIView:View {
             }.disabled(draftLocked)
             if !notes.isEmpty{noteRoll.disabled(draftLocked);eventEditor}
             Picker("Destination",selection:$target){Text("New melody track").tag(nil as UUID?);ForEach(session.project.tracks.filter{$0.role == .melody}){t in Text(t.displayName).tag(Optional(t.id))}}.pickerStyle(.menu).disabled(draftLocked)
-            if target != nil{Text("Melody notes in the selected section will be replaced. Other sections stay as written.").font(.caption).foregroundStyle(Color.harmony)}
+            if target != nil{Text("Melody notes in the selected section will be replaced. Other sections stay as written.").font(.caption).foregroundStyle(Color.studioText)}
             if stale && !applied {
-                Text("The project changed. Review this melody against the current project before applying.").font(.callout).foregroundStyle(Color.harmony)
+                Text("The project changed. Review this melody against the current project before applying.").font(.callout).foregroundStyle(Color.studioText)
                 Button("Review against current project"){rebase()}.frame(minHeight:48).disabled(applying || capture.isCapturing || capture.state == .analyzing).accessibilityIdentifier("voice.rebase")
             }
             #if DEBUG
@@ -115,7 +115,7 @@ struct VoiceToMIDIView:View {
             }
             #endif
             if applied {
-                Text("Notes applied. Save needs attention.").font(.callout).foregroundStyle(Color.harmony)
+                Text("Notes applied. Save needs attention.").font(.callout).foregroundStyle(Color.studioText)
                 Button("Retry save"){Task{await session.save();if session.saveError==nil{dismiss()}else{error=session.saveError}}}.frame(minHeight:48)
             }else{
                 Button{apply()}label:{HStack{if applying{ProgressView()};Text("Apply melody")}}.buttonStyle(StudioActionStyle()).disabled(notes.isEmpty || stale || applying || capture.isCapturing || capture.state == .analyzing).accessibilityIdentifier("voice.apply")
@@ -130,12 +130,12 @@ struct VoiceToMIDIView:View {
                 for row in minimum...maximum{let y=CGFloat(maximum-row)/CGFloat(maximum-minimum+1)*size.height;var line=Path();line.move(to:CGPoint(x:0,y:y));line.addLine(to:CGPoint(x:size.width,y:y));context.stroke(line,with:.color(.raised),lineWidth:1)}
                 for beat in 0...sectionLength/ppq{let x=CGFloat(beat*ppq)/CGFloat(sectionLength)*size.width;var line=Path();line.move(to:CGPoint(x:x,y:0));line.addLine(to:CGPoint(x:x,y:size.height));context.stroke(line,with:.color(.raised),lineWidth:1)}
             }
-            ForEach(notes){n in Button{selected=n.id}label:{RoundedRectangle(cornerRadius:3).fill((n.confidence ?? 1)<0.9 ? Color.harmony:Color.mint).opacity(selected==n.id ? 1:0.7).frame(width:max(8,CGFloat(n.duration)/CGFloat(sectionLength)*geo.size.width),height:max(8,geo.size.height/CGFloat(maximum-minimum+1)-3))}.buttonStyle(StudioQuietButtonStyle()).offset(x:CGFloat(n.tick)/CGFloat(sectionLength)*geo.size.width,y:CGFloat(maximum-n.pitch)/CGFloat(maximum-minimum+1)*geo.size.height).accessibilityLabel(noteName(n.pitch))}
-        }}.frame(height:150).background(Color.panel,in:RoundedRectangle(cornerRadius:10))
+            ForEach(notes){n in Button{selected=n.id}label:{RoundedRectangle(cornerRadius:3,style:.continuous).fill((n.confidence ?? 1)<0.9 ? Color.harmony:Color.mint).opacity(selected==n.id ? 1:0.7).frame(width:max(8,CGFloat(n.duration)/CGFloat(sectionLength)*geo.size.width),height:max(8,geo.size.height/CGFloat(maximum-minimum+1)-3))}.buttonStyle(StudioQuietButtonStyle()).offset(x:CGFloat(n.tick)/CGFloat(sectionLength)*geo.size.width,y:CGFloat(maximum-n.pitch)/CGFloat(maximum-minimum+1)*geo.size.height).accessibilityLabel(noteName(n.pitch))}
+        }}.frame(height:150).background(Color.panel,in:RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous))
     }
     var eventEditor:some View {
         VStack(spacing:10){
-            ScrollView(.horizontal){HStack{ForEach(notes){n in Button{selected=n.id}label:{Text(noteName(n.pitch)).font(.caption.monospaced()).padding(12).frame(minHeight:44).background(selected==n.id ? Color.record.opacity(0.2):Color.panel,in:RoundedRectangle(cornerRadius:8))}.buttonStyle(StudioQuietButtonStyle())}}}
+            ScrollView(.horizontal){HStack{ForEach(notes){n in Button{selected=n.id}label:{Text(noteName(n.pitch)).font(.caption.monospaced()).padding(12).frame(minHeight:44).background(selected==n.id ? Color.record.opacity(0.2):Color.panel,in:RoundedRectangle(cornerRadius:8,style:.continuous))}.buttonStyle(StudioQuietButtonStyle())}}}
             if let note {
                 Stepper("Pitch: \(noteName(note.pitch))",value:Binding(get:{note.pitch},set:{v in edit{$0.pitch=v}}),in:0...127).accessibilityLabel("Note pitch").accessibilityValue(Text(verbatim:noteName(note.pitch))).accessibilityIdentifier("voice.pitch")
                 HStack{Button("Octave down"){edit{$0.pitch=max(0,$0.pitch-12)}};Spacer();Button("Octave up"){edit{$0.pitch=min(127,$0.pitch+12)}}}.frame(minHeight:44)

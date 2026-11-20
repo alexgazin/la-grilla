@@ -84,7 +84,7 @@ private struct LoadingSplashView: View {
                     SplashStudioMark(scanning: scanning, reduceMotion: reduceMotion)
                         .frame(width: 96, height: 96)
                     Text(verbatim: "La Grilla")
-                        .font(.largeTitle.weight(.semibold))
+                        .font(StudioTypography.display)
                         .foregroundStyle(Color.studioText)
                         .lineLimit(1).minimumScaleFactor(0.55)
                         .frame(maxWidth: 280).background(Color.ink)

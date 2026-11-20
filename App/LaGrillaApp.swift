@@ -9,12 +9,17 @@ import MusicDomain
         if ProcessInfo.processInfo.arguments.contains("--uitesting") && !ProcessInfo.processInfo.arguments.contains("--respect-appearance"){appearance=2}
         if let index=ProcessInfo.processInfo.arguments.firstIndex(of:"--appearance"),ProcessInfo.processInfo.arguments.count>index+1{appearance=ProcessInfo.processInfo.arguments[index+1]=="light" ? 1:2}
         await session.bootstrap()
+        if !ProcessInfo.processInfo.arguments.contains("--uitesting") { LocalDiagnostics.shared.start() }
+        if LaunchRequest.take() == .newBeat { session.openTrackBuilder() }
         if let index=ProcessInfo.processInfo.arguments.firstIndex(of:"--screen"),ProcessInfo.processInfo.arguments.count>index+1 {
             let target=ProcessInfo.processInfo.arguments[index+1]
             if target=="midi" || target=="midi-mapped" {
                 session.prepareMIDIFixture()
                 session.sheet = .midiDevices;session.togglePlay()
                 if target=="midi-mapped"{session.midi.learning = .filter;try? await Task.sleep(for:.milliseconds(500));session.midi.sendFixture()}
+            }
+            if target=="assistant-song-edit", let demo=try? SongEditDemo.project(name:NSLocalizedString("Two choruses",comment:"Song edit demo project")) {
+                await session.open(demo)
             }
             if target.hasPrefix("perform") {
                 session.edit{p in try p.duplicateSection(p.sections[0].id,name:"Chorus")}
@@ -38,6 +43,7 @@ import MusicDomain
             };if target.hasPrefix("voice"){session.sheet = .voice};if target.hasPrefix("assistant"){session.sheet = .assistant};if target.hasPrefix("harmony"){session.sheet = .harmony};if target=="settings"{session.sheet = .settings};if target=="jam"{session.tab=1};if target=="mixer"{session.tab=2};if target=="projects"{session.sheet = .projects};if target.hasPrefix("export"){session.exportPreset=target=="export-wav" ? "wav":target=="export-stems" ? "stems":"midi";session.sheet = .export}
         }
     }.onOpenURL{url in Task{await session.importProject(url)}}
+    .onReceive(NotificationCenter.default.publisher(for:.laGrillaLaunchRequest).receive(on:RunLoop.main)){_ in if LaunchRequest.take() == .newBeat{session.openTrackBuilder()}}
     .onChange(of:phase){_,value in session.sceneChanged(value)}
     .onReceive(NotificationCenter.default.publisher(for:AVAudioSession.interruptionNotification).receive(on:RunLoop.main)){n in
         let type=n.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt

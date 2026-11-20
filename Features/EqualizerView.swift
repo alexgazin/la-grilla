@@ -19,6 +19,9 @@ struct EqualizerView: View {
     private var eq: StudioEQ {
         (destination == .master ? session.project.masterEQ : track?.equalizer) ?? StudioEQ()
     }
+    /// Luz: the curve and band handles take the track's colour (mint on the master).
+    private var tint: Color { track.map { Color.track($0.role) } ?? .mint
+    }
     private var band: EQBand { eq.bands[selected] }
     private var title: String { track?.displayName ?? NSLocalizedString("Master",comment:"Mixer output") }
     private var activePreset: EQPreset? { EQPreset.library.first { $0.settings.bands == eq.bands } }
@@ -77,7 +80,7 @@ struct EqualizerView: View {
                 Text(LocalizedStringKey(activePreset?.name ?? "Custom EQ"))
                 Spacer()
                 Image(systemName:"chevron.up.chevron.down")
-            }.padding(12).background(Color.panel,in:RoundedRectangle(cornerRadius:12))
+            }.padding(12).background(Color.panel,in:RoundedRectangle(cornerRadius:StudioMetrics.controlRadius,style:.continuous))
         }.accessibilityLabel("EQ presets").accessibilityValue(LocalizedStringKey(activePreset?.name ?? "Custom EQ"))
     }
 
@@ -103,14 +106,14 @@ struct EqualizerView: View {
                     let p=point(Double(i)/160,value)
                     if i==0{curve.move(to:p)}else{curve.addLine(to:p)}
                 }
-                context.stroke(curve,with:.color(snapshot.enabled ? .mint : .muted),lineWidth:2.5)
+                context.stroke(curve,with:.color(snapshot.enabled ? tint : .muted),lineWidth:2.5)
                 for (i,b) in snapshot.bands.enumerated() {
                     let p=point(x(b.frequency),b.filter.hasGain ? b.gain:0)
                     let r:CGFloat=i==selected ? 6:3.5
-                    context.fill(Path(ellipseIn:CGRect(x:p.x-r,y:p.y-r,width:2*r,height:2*r)),with:.color(b.enabled && snapshot.enabled ? .harmony:.muted))
+                    context.fill(Path(ellipseIn:CGRect(x:p.x-r,y:p.y-r,width:2*r,height:2*r)),with:.color(b.enabled && snapshot.enabled ? tint:.muted))
                 }
             }
-            .frame(height:154).background(Color.panel,in:RoundedRectangle(cornerRadius:10))
+            .frame(height:154).background(Color.panel,in:RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous))
             .overlay { GeometryReader { proxy in
                 Color.clear.contentShape(Rectangle())
                     .gesture(DragGesture(minimumDistance:0).onChanged{ value in
@@ -161,7 +164,7 @@ struct EqualizerView: View {
                 control("Gain",value:String(format:"%+.1f dB",band.gain),binding:Binding(get:{band.gain},set:{ v in update(continuous:true){$0.bands[selected].gain=v} }),range:-18...18)
             }
             control("Q",value:String(format:"%.2f",band.q),binding:Binding(get:{log2(band.q)},set:{ v in update(continuous:true){$0.bands[selected].q=pow(2,v)} }),range:-2...3)
-        }.padding(14).background(Color.panel,in:RoundedRectangle(cornerRadius:14))
+        }.padding(14).background(Color.panel,in:RoundedRectangle(cornerRadius:Luz.Radius.card,style:.continuous))
     }
     private func control(_ title:LocalizedStringKey,value:String,binding:Binding<Double>,range:ClosedRange<Double>)->some View {
         VStack(spacing:3) {

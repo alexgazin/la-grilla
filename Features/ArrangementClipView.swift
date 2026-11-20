@@ -28,8 +28,8 @@ struct ArrangementClipFace: View {
         VStack(alignment:.leading,spacing:5) {
             if width>=62 {
                 HStack(spacing:5) {
-                    Image(systemName:track.role == .drums ? "square.grid.2x2":"pianokeys").font(.system(size:11))
-                    Text(track.displayName).font(.system(size:11,weight:.semibold)).lineLimit(1)
+                    Image(systemName:track.role == .drums ? "square.grid.2x2":"pianokeys").font(.system(.caption2))
+                    Text(track.displayName).font(.system(.caption2, weight: .semibold)).lineLimit(1)
                 }.foregroundStyle(color).padding(.trailing,10)
             }
             Canvas { context,size in
@@ -46,11 +46,11 @@ struct ArrangementClipFace: View {
             }.accessibilityHidden(true)
             if width>=110,height>=85 {
                 Text("\(MusicalPosition(tick:clip.start).description) → \(MusicalPosition(tick:clip.start+clip.length).description)")
-                    .font(.system(size:11,design:.monospaced)).foregroundStyle(Color.muted).lineLimit(1)
+                    .font(.system(.caption2, design: .monospaced)).foregroundStyle(Color.muted).lineLimit(1)
             }
         }.padding(width<62 ? 3:9).frame(width:width,height:height,alignment:.topLeading)
-            .background(color.opacity(resizing ? 0.2:0.1),in:RoundedRectangle(cornerRadius:11,style:.continuous))
-            .overlay{RoundedRectangle(cornerRadius:11,style:.continuous).stroke(resizing ? Color.mint:color.opacity(0.4),lineWidth:resizing ? 2:1)}
+            .background(color.opacity(resizing ? 0.2:0.1),in:RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous))
+            .overlay{RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous).stroke(resizing ? Color.mint:color.opacity(0.4),lineWidth:resizing ? 2:1)}
             .contentShape(Rectangle())
     }
 }
@@ -84,11 +84,11 @@ struct ArrangementClipInspector: View {
                     }
                     SwiftUI.Section {
                         Picker("Snap",selection:$grid){Text("1 bar").tag(barTicks);Text("1 beat").tag(ppq);Text("1/16").tag(240)}
-                        Stepper(value:Binding(get:{clip.start},set:{value in commit{try ClipEditing.move($0,to:selection.trackID,start:value,snap:grid,in:&$1)}}),in:0...max(0,64*barTicks-clip.length),step:grid){
+                        Stepper(value:Binding(get:{clip.start},set:{value in commit{try ClipEditing.move($0,to:selection.trackID,start:value,snap:grid,in:&$1)}}),in:0...max(0,songTickLimit-clip.length),step:grid){
                             LabeledContent("Start",value:MusicalPosition(tick:clip.start).description)
                         }.accessibilityIdentifier("clip.start").accessibilityValue(MusicalPosition(tick:clip.start).description)
                             .accessibilityHint(MusicalPosition(tick:clip.start).arrangementAccessibilityDescription)
-                        Stepper(value:Binding(get:{clip.length},set:{value in commit{try ClipEditing.resize($0,length:value,snap:grid,in:&$1)}}),in:grid...max(grid,64*barTicks-clip.start),step:grid){
+                        Stepper(value:Binding(get:{clip.length},set:{value in commit{try ClipEditing.resize($0,length:value,snap:grid,in:&$1)}}),in:grid...max(grid,songTickLimit-clip.start),step:grid){
                             LabeledContent("Length",value:String(format:NSLocalizedString("%.2f bars",comment:"Clip length"),Double(clip.length)/Double(barTicks)))
                         }.accessibilityIdentifier("clip.length").accessibilityValue(String(format:NSLocalizedString("%.2f bars",comment:"Clip length"),Double(clip.length)/Double(barTicks)))
                         Stepper(value:Binding(get:{clip.offset},set:{value in commit{try ClipEditing.setOffset($0,offset:value,snap:240,in:&$1)}}),in:0...max(0,pattern.length-240),step:240){
@@ -99,6 +99,23 @@ struct ArrangementClipInspector: View {
                         Text("Clip position")
                     } footer: {
                         Text("Bar:beat:tick · 960 ticks per beat; zero ticks are omitted.")
+                    }
+                    if clip.sourceAssetID==nil {
+                        // I34: A/B/C takes of this part; switching is one Undo.
+                        let options=ClipVariants.options(clip,in:session.project)
+                        SwiftUI.Section {
+                            if options.count>1 {
+                                Picker("Variant",selection:Binding(get:{clip.patternID},set:{id in let trackID=selection.trackID,clipID=clip.id;session.edit{try ClipVariants.select(id,track:trackID,clip:clipID,in:&$0)}})){
+                                    ForEach(Array(options.enumerated()),id:\.element){index,id in Text(verbatim:ClipVariants.label(index)).tag(id)}
+                                }.pickerStyle(.segmented).accessibilityIdentifier("clip.variant")
+                            }
+                            Button("New variant from this part"){let trackID=selection.trackID,clipID=clip.id;session.edit{try ClipVariants.add(track:trackID,clip:clipID,in:&$0)}}
+                                .frame(minHeight:44).disabled(options.count>=ClipVariants.maximum).accessibilityIdentifier("clip.variant-add")
+                            if options.count>1 {
+                                Button("Delete this variant",role:.destructive){let trackID=selection.trackID,clipID=clip.id;session.edit{try ClipVariants.removeCurrent(track:trackID,clip:clipID,in:&$0)}}
+                                    .frame(minHeight:44).accessibilityIdentifier("clip.variant-delete")
+                            }
+                        } header: { Text("Variants") } footer: { Text("Try another take of this part and switch back any time.") }
                     }
                     SwiftUI.Section {
                         Button("Duplicate clip"){commit{try ClipEditing.copy($0,to:selection.trackID,start:clip.start+clip.length,snap:240,in:&$1)}}.frame(minHeight:44).accessibilityIdentifier("clip.duplicate")

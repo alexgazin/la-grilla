@@ -1,6 +1,7 @@
 import SwiftUI
 import UIKit
 import MusicDomain
+import UniformTypeIdentifiers
 struct ChordEditor: View {
     @Bindable var session: Session; let selection: ChordSelection
     @AppStorage("studio.pitchSpelling") private var spellingValue = PitchSpelling.automatic.rawValue
@@ -12,6 +13,7 @@ struct ChordEditor: View {
     @State private var formulaText=""
     private enum InputField:Hashable{case symbol,formula}
     @FocusState private var focusedField:InputField?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var body: some View {
         NavigationStack{ScrollView{VStack(alignment:.leading,spacing:22){
             VStack(alignment:.leading,spacing:8){
@@ -19,10 +21,12 @@ struct ChordEditor: View {
                 if showDegrees{Text(MusicalNotation.degreeSymbol(chord,keyRoot:session.project.keyRoot,minor:session.project.minor)).font(.title3).accessibilityIdentifier("chord.degree")}
                 Text(MusicalNotation.chordNoteNames(chord,keyRoot:session.project.keyRoot,minor:session.project.minor,spelling:spelling).joined(separator:" · ")).font(.system(.subheadline,design:.monospaced)).foregroundStyle(Color.muted).accessibilityIdentifier("chord.notes")
             }.foregroundStyle(Color.harmony)
-            HStack{TextField("Chord symbol",text:$text).focused($focusedField,equals:.symbol).textInputAutocapitalization(.never).autocorrectionDisabled().textFieldStyle(.roundedBorder).frame(minHeight:44).onSubmit{parse()}.accessibilityIdentifier("chord.symbol");Button{parse()}label:{Text("Set").frame(minWidth:44,minHeight:44).contentShape(Rectangle())}.accessibilityIdentifier("chord.set-symbol")}
-            if let error{Text(LocalizedStringKey(error)).font(.caption).foregroundStyle(Color.record).accessibilityIdentifier("chord.error")}
+                // Luz: the symbol and its notes morph as the chord changes (inversion, octave, quality).
+                .contentTransition(.interpolate).animation(Luz.Motion.morph,value:chord)
+            HStack{TextField("Chord symbol",text:$text).focused($focusedField,equals:.symbol).textInputAutocapitalization(.never).autocorrectionDisabled().textFieldStyle(.roundedBorder).frame(minHeight:44).onSubmit{parse()}.accessibilityIdentifier("chord.symbol");Button{parse()}label:{Text("Set").frame(minWidth:44,minHeight:44).contentShape(Rectangle())}.accessibilityIdentifier("chord.set-symbol")}.luzShake(error)
+            if let error{Text(LocalizedStringKey(error)).font(.caption).foregroundStyle(Color.record).accessibilityIdentifier("chord.error").transition(Luz.Transition.pop(reduceMotion))}
             SmallHeading(text:"ROOT")
-            LazyVGrid(columns:Array(repeating:GridItem(.flexible()),count:6),spacing:8){ForEach(0..<12,id:\.self){root in Button{chord.root=root;chord.voicedNotes=nil;text=chord.symbol;error=nil}label:{Text(pitchName(root)).font(.system(.body,weight:.medium)).foregroundStyle(chord.root==root ? Color.ink:Color.harmony).frame(maxWidth:.infinity,minHeight:44).background(chord.root==root ? Color.harmony:Color.raised,in:RoundedRectangle(cornerRadius:8))}.buttonStyle(StudioQuietButtonStyle())}}
+            LazyVGrid(columns:Array(repeating:GridItem(.flexible()),count:6),spacing:8){ForEach(0..<12,id:\.self){root in Button{chord.root=root;chord.voicedNotes=nil;text=chord.symbol;error=nil}label:{Text(pitchName(root)).font(.system(.body,weight:.medium)).foregroundStyle(chord.root==root ? Color.ink:Color.harmony).frame(maxWidth:.infinity,minHeight:44).background(chord.root==root ? Color.harmony:Color.raised,in:RoundedRectangle(cornerRadius:8,style:.continuous))}.buttonStyle(StudioQuietButtonStyle())}}
             SmallHeading(text:"QUALITY")
             Toggle("Custom intervals",isOn:Binding(get:{chord.customIntervals != nil},set:{enabled in chord.customIntervals=enabled ? chord.quality.intervals:nil;if enabled{chord.quality = .major};chord.inversion=0;chord.voicedNotes=nil;formulaText=chord.effectiveIntervals.map(String.init).joined(separator:", ");text=chord.symbol;error=nil})).accessibilityIdentifier("chord.custom")
             if chord.customIntervals != nil {
@@ -31,15 +35,22 @@ struct ChordEditor: View {
                 Button("Set formula"){setFormula()}.frame(minHeight:44).accessibilityIdentifier("chord.set-formula")
             }else{
                 Picker("Chord family",selection:$family){ForEach(ChordFamily.allCases,id:\.self){value in Text(LocalizedStringKey(value.rawValue)).tag(value)}}.pickerStyle(.menu).frame(minHeight:44)
-                LazyVGrid(columns:Array(repeating:GridItem(.flexible()),count:4),spacing:8){ForEach(Quality.allCases.filter{$0.family==family},id:\.rawValue){q in Button{chord.quality=q;chord.inversion=0;chord.voicedNotes=nil;text=chord.symbol;error=nil}label:{Text(q.label).font(.system(.caption,weight:.medium)).foregroundStyle(chord.quality==q ? Color.ink:Color.harmony).frame(maxWidth:.infinity,minHeight:44).background(chord.quality==q ? Color.harmony:Color.raised,in:RoundedRectangle(cornerRadius:8))}.buttonStyle(StudioQuietButtonStyle())}}
+                LazyVGrid(columns:Array(repeating:GridItem(.flexible()),count:4),spacing:8){ForEach(Quality.allCases.filter{$0.family==family},id:\.rawValue){q in Button{chord.quality=q;chord.inversion=0;chord.voicedNotes=nil;text=chord.symbol;error=nil}label:{Text(q.label).font(.system(.caption,weight:.medium)).foregroundStyle(chord.quality==q ? Color.ink:Color.harmony).frame(maxWidth:.infinity,minHeight:44).background(chord.quality==q ? Color.harmony:Color.raised,in:RoundedRectangle(cornerRadius:8,style:.continuous))}.buttonStyle(StudioQuietButtonStyle())}}
             }
             HStack {
                 Text("Inversion")
                 Spacer(minLength:8)
-                Picker("Inversion",selection:Binding(get:{chord.inversion},set:{chord.inversion=$0;chord.voicedNotes=nil})){ForEach(0..<chord.effectiveIntervals.count,id:\.self){i in
+                Picker("Inversion",selection:Binding(get:{chord.inversion},set:{value in guard value != chord.inversion || chord.voicedNotes != nil else{return};chord.inversion=value;chord.voicedNotes=nil;chord.rootBassPitch=nil;Luz.Haptics.selection();audition()})){ForEach(0..<chord.effectiveIntervals.count,id:\.self){i in
                     if i==0{Text("Root position").tag(i)}else{Text("Inversion \(i)").tag(i)}
                 }}
                     .labelsHidden().pickerStyle(.menu).frame(minHeight:44).contentShape(Rectangle()).accessibilityIdentifier("chord.inversion")
+            }.frame(minHeight:44)
+            HStack(spacing:10) {
+                Text("Octave")
+                Spacer(minLength:8)
+                Button{shiftOctave(-1)}label:{Image(systemName:"minus").frame(width:44,height:44).contentShape(Rectangle())}.buttonStyle(StudioQuietButtonStyle()).disabled(!canShift(-1)).accessibilityLabel("Octave down").accessibilityIdentifier("chord.octave-down")
+                Text(octaveLabel).font(.system(.body,design:.monospaced,weight:.medium)).monospacedDigit().frame(minWidth:40).luzNumeric(Double(chord.octave ?? 0)).animation(Luz.Motion.snap,value:octaveLabel).accessibilityIdentifier("chord.octave")
+                Button{shiftOctave(1)}label:{Image(systemName:"plus").frame(width:44,height:44).contentShape(Rectangle())}.buttonStyle(StudioQuietButtonStyle()).disabled(!canShift(1)).accessibilityLabel("Octave up").accessibilityIdentifier("chord.octave-up")
             }.frame(minHeight:44)
             HStack {
                 Text("Slash bass")
@@ -48,7 +59,7 @@ struct ChordEditor: View {
                     .labelsHidden().pickerStyle(.menu).frame(minHeight:44).contentShape(Rectangle()).accessibilityIdentifier("chord.slash-bass")
             }.frame(minHeight:44)
             Stepper("Duration: \(duration/240) sixteenths",value:$duration,in:240...max(240,(session.project.patterns.first(where:{$0.id==selection.patternID})?.length ?? barTicks)-selection.tick),step:240).accessibilityIdentifier("chord.duration")
-        }.padding(22)}.background(Color.panel)
+        }.animation(Luz.Motion.snap,value:error).padding(22)}.background(Color.panel)
             .safeAreaInset(edge:.bottom,spacing:0){
                 chordActions.padding(.horizontal,22).padding(.vertical,12).background(Color.panel)
             }
@@ -57,8 +68,17 @@ struct ChordEditor: View {
     }
     // Keep the two frequent actions reachable while the chord catalog scrolls.
     private var chordActions:some View {
-        HStack{Button{preview()}label:{Label("Preview",systemImage:"speaker.wave.2").frame(maxWidth:.infinity,minHeight:48).background(Color.raised,in:RoundedRectangle(cornerRadius:10))}.accessibilityIdentifier("chord.preview");Button{apply()}label:{Text("Apply").fontWeight(.semibold).foregroundStyle(Color.ink).frame(maxWidth:.infinity,minHeight:48).background(Color.harmony,in:RoundedRectangle(cornerRadius:10))}.accessibilityIdentifier("chord.apply")}.buttonStyle(StudioQuietButtonStyle())
+        HStack{Button{preview()}label:{Label("Preview",systemImage:"speaker.wave.2")}.buttonStyle(StudioActionStyle(color:.harmony,prominent:false)).accessibilityIdentifier("chord.preview");Button{apply();Luz.Haptics.success()}label:{Text("Apply")}.buttonStyle(StudioActionStyle(color:.harmony)).accessibilityIdentifier("chord.apply")}
     }
+    private var octaveLabel:String {
+        let value:Int
+        if let voiced=chord.voicedNotes,let low=voiced.min(){value=Int((Double(low-(chord.root==0 ? 60:48+chord.root))/12).rounded())}else{value=chord.octave ?? 0}
+        return value==0 ? "0":(value>0 ? "+\(value)":"\(value)")
+    }
+    private func canShift(_ octaves:Int)->Bool{var copy=chord;return copy.shiftOctave(by:octaves)}
+    private func shiftOctave(_ octaves:Int){guard chord.shiftOctave(by:octaves)else{Luz.Haptics.warning();return};Luz.Haptics.selection();audition()}
+    /// Lets the musician hear an inversion or octave change at once.
+    private func audition(){if session.ensureAudio(){session.audio.preview(chord)}}
     private var chordRootName:String {spelling == .automatic ? (chord.rootSpelling ?? pitchName(chord.root)):pitchName(chord.root)}
     private func pitchName(_ value:Int)->String{MusicalNotation.pitchClassName(value,keyRoot:session.project.keyRoot,minor:session.project.minor,spelling:spelling)}
     func parse(){focusedField=nil;do{chord=try MusicalEditing.rebuildChord(from:text,preserving:chord);family=chord.quality.family;formulaText=chord.effectiveIntervals.map(String.init).joined(separator:", ");text=chord.symbol;error=nil}catch{self.error=error.localizedDescription}}
@@ -88,7 +108,7 @@ struct SettingsView: View {
             Button{if let url=URL(string:UIApplication.openSettingsURLString){UIApplication.shared.open(url)}}label:{Label("Language and permissions",systemImage:"arrow.up.forward.app")}.accessibilityIdentifier("settings.system")
             Text("Change this app’s language and permissions in iOS Settings. Available options depend on your device.").font(.caption).foregroundStyle(.secondary)
         }
-        Section("Project tempo"){Stepper(value:Binding(get:{session.project.bpm},set:{v in session.edit{$0.bpm=v}}),in:40...240,step:1){Text("\(Int(session.project.bpm)) BPM").monospacedDigit()}.disabled(session.recording || session.armed)}
+        Section("Project tempo"){Stepper(value:Binding(get:{session.project.bpm},set:{v in session.edit{$0.bpm=v}}),in:40...240,step:1){Text("\(Int(session.project.bpm)) BPM").monospacedDigit()}.disabled(session.recording || session.armed);TapTempoRow(session:session)}
         Section("Project key"){
             Picker("Root",selection:Binding(get:{session.project.keyRoot},set:{v in session.edit{$0.keyRoot=v}})){ForEach(0..<12,id:\.self){i in Text(MusicalNotation.pitchClassName(i,keyRoot:session.project.keyRoot,minor:session.project.minor,spelling:PitchSpelling(rawValue:spellingValue) ?? .automatic)).tag(i).accessibilityIdentifier("settings.key-option.\(i)")}}.pickerStyle(.navigationLink).accessibilityIdentifier("settings.key-root")
             Toggle("Minor",isOn:Binding(get:{session.project.minor},set:{v in session.edit{$0.minor=v}})).accessibilityIdentifier("settings.key-minor")
@@ -107,7 +127,10 @@ struct SettingsView: View {
         }
         Section("Transport"){Toggle("Loop",isOn:Binding(get:{session.loop},set:{session.setLoop(enabled:$0)}));Picker("Loop length",selection:Binding(get:{session.loopBars},set:{session.setLoop(bars:$0)})){ForEach(session.loopLengthOptions,id:\.self){n in Text("\(n) bars").tag(n)}}}
         Section("MIDI"){Button("MIDI devices"){session.sheet = .midiDevices}}
+        Section("Timing"){LatencyCalibrationRow(session:session)}
+        Section("Metronome"){MetronomeSettingsRows(audio:session.audio)}
         audioSettings
+        Section("Backup"){BackupRows(session:session)}
         Section("About La Grilla"){
             Button("Getting started"){session.sheet = .gettingStarted}.accessibilityIdentifier("settings.help")
             LabeledContent("Version",value:"\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "") (\(Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? ""))")
@@ -133,6 +156,12 @@ struct SettingsView: View {
                     Label("Share audio diagnostics",systemImage:"square.and.arrow.up").frame(minHeight:44)
                 }.accessibilityIdentifier("settings.audio-diagnostics")
                 Text("Includes audio route types and error codes, never recordings.").font(.caption).foregroundStyle(.secondary)
+            }
+            if let report=LocalDiagnostics.shared.latestReport {
+                ShareLink(item:report){
+                    Label("Share the latest crash report",systemImage:"ladybug").frame(minHeight:44)
+                }.accessibilityIdentifier("settings.crash-report")
+                Text("Kept only on this iPhone. Contains system stack traces, never your music.").font(.caption).foregroundStyle(.secondary)
             }
         }
     }
@@ -304,7 +333,7 @@ struct SectionsView: View {
                         .font(.caption).foregroundStyle(Color.muted)
                     Button { adding = true } label: { Label("Add section", systemImage: "plus") }
                         .buttonStyle(StudioActionStyle(prominent: false))
-                        .disabled(editingLocked || remainingBars == 0 || session.project.sections.count >= 8)
+                        .disabled(editingLocked || remainingBars == 0 || session.project.sections.count >= maximumSections)
                         .accessibilityIdentifier("sections.add")
                     HStack(spacing: 4) {
                         IconButton(symbol: "arrow.uturn.backward", label: "Undo") { session.undo() }
@@ -351,7 +380,14 @@ struct SectionsView: View {
     private func actionList(_ section:MusicDomain.Section)->some View {NavigationStack{List{
         Button("Rename"){pendingRename=section.id;actions=nil}
         Button("Duplicate"){session.edit{try SectionEditing.duplicate(section.id,name:section.name=="Verse" ? "Chorus":String((section.name+" copy").prefix(120)),in:&$0)};actions=nil}
-            .disabled(session.project.sections.count>=8 || session.project.length+section.length>64*barTicks).accessibilityIdentifier("section.duplicate")
+            .disabled(session.project.sections.count>=maximumSections || session.project.length+section.length>songTickLimit).accessibilityIdentifier("section.duplicate")
+        Picker("Colour",selection:Binding(get:{section.color ?? -1},set:{value in let id=section.id;session.edit{p in if let i=p.sections.firstIndex(where:{$0.id==id}){p.sections[i].color=value<0 ? nil:value}};actions=nil})){
+            Text("Automatic").tag(-1)
+            ForEach(SongFormStyle.choices,id:\.index){choice in Label{Text(choice.name)}icon:{Image(systemName:"circle.fill").foregroundStyle(choice.color)}.tag(choice.index)}
+        }.accessibilityIdentifier("section.color")
+        Picker("Filter sweep",selection:Binding(get:{sweepTag(section.filterSweep)},set:{tag in let id=section.id,value=sweep(tag);session.edit{p in if let i=p.sections.firstIndex(where:{$0.id==id}){p.sections[i].filterSweep=value}};actions=nil})){
+            Text("None").tag(0);Text("Open up").tag(1);Text("Close down").tag(2);Text("Rise").tag(3);Text("Drop in").tag(4)
+        }.accessibilityIdentifier("section.filter-sweep")
         Button("Move earlier"){move(section.id,by:-1);actions=nil}.disabled(session.project.sections.first?.id==section.id).accessibilityIdentifier("section.earlier")
         Button("Move later"){move(section.id,by:1);actions=nil}.disabled(session.project.sections.last?.id==section.id).accessibilityIdentifier("section.later")
         if session.project.sections.count>1{Button("Delete section",role:.destructive){pendingDelete=section.id;actions=nil}.accessibilityIdentifier("section.delete")}
@@ -359,6 +395,8 @@ struct SectionsView: View {
         .toolbar{ToolbarItem(placement:.cancellationAction){Button("Cancel"){actions=nil}}}}
         .presentationDetents([.medium,.large]).tint(.mint)
     }
+    private func sweep(_ tag:Int)->FilterSweep?{[nil,FilterSweep.openUp,.closeDown,.riseUp,.dropIn][max(0,min(4,tag))]}
+    private func sweepTag(_ value:FilterSweep?)->Int{[FilterSweep.openUp,.closeDown,.riseUp,.dropIn].firstIndex{$0==value}.map{$0+1} ?? 0}
     private func finishAction(){
         if let id=pendingRename,let section=session.project.sections.first(where:{$0.id==id}){name=section.name;editing=id}
         if let id=pendingDelete,session.project.sections.contains(where:{$0.id==id}){deleting=id}
@@ -408,5 +446,119 @@ private struct AddSongSection: View {
         }
         .tint(.mint)
         .onAppear { bars = min(4, maximumBars) }
+    }
+}
+
+/// I11: tap four or more times; the median interval proposes a tempo.
+private struct TapTempoRow: View {
+    @Bindable var session: Session
+    @State private var taps: [TimeInterval] = []
+    private var estimate: Double? { TempoEstimator.fromTaps(taps) }
+    var body: some View {
+        HStack(spacing: 12) {
+            Button("Tap tempo") {
+                let now = ProcessInfo.processInfo.systemUptime
+                if let last = taps.last, now - last > 2 { taps = [] }
+                taps.append(now)
+                if taps.count > 12 { taps.removeFirst(taps.count - 12) }
+            }.frame(minHeight: 44).accessibilityIdentifier("settings.tap-tempo")
+            Spacer(minLength: 0)
+            if let estimate {
+                Button(String(format: NSLocalizedString("Use %.0f BPM", comment: "Tap tempo"), estimate)) {
+                    let value = estimate.rounded()
+                    session.edit { $0.bpm = value }
+                    taps = []
+                }.frame(minHeight: 44).disabled(session.recording || session.armed).accessibilityIdentifier("settings.tap-tempo.use")
+            }
+        }
+    }
+}
+
+/// I01: tap along with the metronome; the median offset becomes this route's
+/// recording compensation. The live sound is never delayed.
+/// I77: a Files folder (iCloud Drive or on this iPhone) gets a daily zip of changed projects.
+private struct BackupRows: View {
+    @Bindable var session: Session
+    @State private var choosing = false
+    var body: some View {
+        if let name = session.backupFolderName {
+            LabeledContent("Folder", value: name)
+            if let last = session.lastBackup { LabeledContent("Last backup", value: last.formatted(date: .abbreviated, time: .shortened)) }
+            Button("Back up now") { Task { await session.backupNow(force: true) } }.frame(minHeight: 44).accessibilityIdentifier("settings.backup.now")
+            Button("Stop automatic backup", role: .destructive) { session.stopBackup() }.frame(minHeight: 44)
+        } else {
+            Button("Choose a backup folder") { choosing = true }.frame(minHeight: 44).accessibilityIdentifier("settings.backup.choose")
+        }
+        Text("Once a day, when you leave the app, projects changed since the last backup are saved as one zip in that folder.").font(.caption).foregroundStyle(.secondary)
+            .fileImporter(isPresented: $choosing, allowedContentTypes: [.folder]) { result in
+                if case .success(let url) = result { session.chooseBackupFolder(url) }
+            }
+    }
+}
+
+/// I10: metronome level, accent, sound and count-in only.
+private struct MetronomeSettingsRows: View {
+    @Bindable var audio: AudioController
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            LabeledContent("Level", value: String(format: NSLocalizedString("%+.0f dB", comment: "Metronome level"), audio.metronomeSettings.gainDB))
+            Slider(value: Binding(get: { audio.metronomeSettings.gainDB }, set: { audio.metronomeSettings.gainDB = ($0).rounded() }), in: -24...6, step: 1)
+                .accessibilityLabel("Metronome level").accessibilityIdentifier("settings.metronome.level")
+        }
+        Toggle("Accent the first beat", isOn: $audio.metronomeSettings.accent).accessibilityIdentifier("settings.metronome.accent")
+        Picker("Sound", selection: $audio.metronomeSettings.sound) {
+            Text("Beep").tag(MetronomeSettings.Sound.beep)
+            Text("High").tag(MetronomeSettings.Sound.high)
+            Text("Low").tag(MetronomeSettings.Sound.low)
+        }.accessibilityIdentifier("settings.metronome.sound")
+        Toggle("Only during the count-in", isOn: $audio.metronomeSettings.countInOnly).accessibilityIdentifier("settings.metronome.count-in-only")
+    }
+}
+
+private struct LatencyCalibrationRow: View {
+    @Bindable var session: Session
+    @State private var running = false
+    @State private var offsets: [Double] = []
+    private var estimate: RouteLatencyCalibration? { RouteLatencyCalibration.estimate(offsets) }
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if let saved = session.routeLatency[session.currentRouteKey] {
+                Text(String(format: NSLocalizedString("This output: %.0f ms recording compensation", comment: "Latency calibration"), saved)).font(.caption)
+            }
+            if running {
+                Button { tap() } label: {
+                    Text("Tap on every click").frame(maxWidth: .infinity, minHeight: 88)
+                        .background(Color.mint.opacity(0.25), in: RoundedRectangle(cornerRadius:Luz.Radius.card,style:.continuous))
+                }.buttonStyle(.plain).accessibilityIdentifier("settings.latency.tap")
+                Text(String(format: NSLocalizedString("%d taps", comment: "Latency calibration"), offsets.count)).font(.caption.monospacedDigit())
+                if let estimate {
+                    Button(String(format: NSLocalizedString("Save %.0f ms for this output", comment: "Latency calibration"), estimate.medianMilliseconds)) {
+                        session.saveRouteLatency(estimate.medianMilliseconds); stop()
+                    }.frame(minHeight: 44).accessibilityIdentifier("settings.latency.save")
+                }
+                Button("Stop") { stop() }.frame(minHeight: 44)
+            } else {
+                Button("Calibrate recording timing") { start() }.frame(minHeight: 44).accessibilityIdentifier("settings.latency.start")
+                if session.routeLatency[session.currentRouteKey] != nil { Button("Reset for this output") { session.saveRouteLatency(nil) }.frame(minHeight: 44) }
+            }
+            Text("Tap 8 or more clicks. Useful for Bluetooth headphones; the live sound is unchanged.").font(.caption).foregroundStyle(.secondary)
+        }
+    }
+    private func start() {
+        offsets = []; running = true
+        guard session.ensureAudio() else { running = false; return }
+        session.metronome = true; session.audio.metronome(true)
+        if !session.audio.playing { session.togglePlay() }
+    }
+    private func stop() {
+        running = false
+        if session.audio.playing { session.togglePlay() }
+    }
+    private func tap() {
+        session.audio.refreshClock()
+        let beat = Double(ppq)
+        var phase = session.audio.tick.truncatingRemainder(dividingBy: beat)
+        if phase > beat / 2 { phase -= beat }
+        offsets.append(phase / beat * 60 / session.project.bpm * 1000)
     }
 }

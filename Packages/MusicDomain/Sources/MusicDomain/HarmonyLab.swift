@@ -56,7 +56,7 @@ public enum Arrangement {
         }
         let pattern=Pattern(length:section.length,chords:events)
         project.patterns.append(pattern);clips.append(Clip(patternID:pattern.id,start:section.start,length:section.length));project.tracks[index].clips=clips.sorted{$0.start<$1.start}
-        let used=Set(project.tracks.flatMap{$0.clips.map(\.patternID)});project.patterns.removeAll{!used.contains($0.id)}
+        project.removeUnusedPatterns()
     }
 }
 

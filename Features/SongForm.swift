@@ -22,15 +22,17 @@ struct SongFormOverview: View {
                         .frame(width: geometry.size.width * CGFloat(section.length) / CGFloat(length))
                 }
             }
-            .clipShape(RoundedRectangle(cornerRadius: 5))
+            .clipShape(RoundedRectangle(cornerRadius:5,style:.continuous))
         }
         .frame(height: 12)
         .accessibilityHidden(true)
     }
 }
 
-enum SongFormStyle {
+@MainActor enum SongFormStyle {
+    static let choices: [(index: Int, color: Color, name: LocalizedStringKey)] = [(0, .harmony, "Amber"), (1, .drums, "Lavender"), (2, .bass, "Teal"), (3, .mint, "Mint")]
     static func color(for section: MusicDomain.Section) -> Color {
+        if let chosen = section.color, let choice = choices.first(where: { $0.index == chosen }) { return choice.color }
         // Familiar section names share a color in the editor and Assistant.
         let kind = section.name.lowercased().split(whereSeparator: \.isWhitespace).first
         switch kind {
@@ -95,7 +97,7 @@ struct SongFormLegend: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
         .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
-        .background(Color.panel, in: RoundedRectangle(cornerRadius: 12))
+        .background(Color.panel, in: RoundedRectangle(cornerRadius:StudioMetrics.controlRadius,style:.continuous))
         .contentShape(Rectangle())
     }
 }
@@ -157,9 +159,9 @@ struct SongFormLane: View {
             .padding(.horizontal, 8)
             .padding(.bottom, 10)
             .frame(maxWidth: .infinity, minHeight: typeSize.isAccessibilitySize ? 158 : 96, alignment: .topLeading)
-            .background(Color.panel, in: RoundedRectangle(cornerRadius: 12))
+            .background(Color.panel, in: RoundedRectangle(cornerRadius:StudioMetrics.controlRadius,style:.continuous))
             .overlay {
-                RoundedRectangle(cornerRadius: 12)
+                RoundedRectangle(cornerRadius:StudioMetrics.controlRadius,style:.continuous)
                     .strokeBorder(highlighted || moving ? Color.mint : Color.outline,
                                   lineWidth: highlighted || moving ? 2 : 1)
                     .allowsHitTesting(false)
