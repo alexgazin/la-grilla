@@ -1,0 +1,160 @@
+{
+  "file": "LaGrilla-unsigned.ipa",
+  "bytes": 9087773,
+  "sha256": "9acf11d874604416f513465bf08f3d1645bc09cf0c4e217bd78491f49e0076c4",
+  "sourceSHA": "308ce33dc8d06f744034a718e2454039e12f6f7c",
+  "version": "1.0.0",
+  "build": "46",
+  "bundleID": "com.alexgazin.LaGrilla",
+  "signed": false,
+  "requiresTesterSigning": true,
+  "appReviewReady": false,
+  "originalAppBytesPreserved": true,
+  "binary": {
+    "architecture": "arm64",
+    "platform": "iOS",
+    "minimumOS": "18.0.0",
+    "sdk": "26.2.0",
+    "uuid": "3892D4EE-65C1-378C-B5BC-AA1C1A488F7F",
+    "dsymUUIDMatches": null,
+    "foundationModelsLoadCommand": "LC_LOAD_WEAK_DYLIB",
+    "foundationModelsOrdinal": 20,
+    "foundationModelsWeakSymbols": 78,
+    "foundationModelsWeakChainedImports": 78,
+    "initializerSections": [],
+    "hasCodeSignatureCommand": false,
+    "runtimeValidation": "Static binary checks only; signed-device startup on iOS 18 still requires device QA."
+  },
+  "entries": [
+    {
+      "path": "Payload/LaGrilla.app/AppIcon60x60@2x.png",
+      "bytes": 8973,
+      "sha256": "8eccdbdae3a3c2728bf47bfedbabd1b9fca0c61e7dde50348fd8a9725bc2f988"
+    },
+    {
+      "path": "Payload/LaGrilla.app/AppIcon76x76@2x~ipad.png",
+      "bytes": 14352,
+      "sha256": "ff33a41130e380888fd7d799596ec876148242f45f7d662f6ae4cbf9b689cb02"
+    },
+    {
+      "path": "Payload/LaGrilla.app/Assets.car",
+      "bytes": 1726184,
+      "sha256": "5ff1954b2f93b9f6f087d1775bf8154e6435e16e9fa00beb6fad7f00a215e7f0"
+    },
+    {
+      "path": "Payload/LaGrilla.app/FactoryInstruments/LICENSE-CC0.txt",
+      "bytes": 7048,
+      "sha256": "a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499"
+    },
+    {
+      "path": "Payload/LaGrilla.app/FactoryInstruments/manifest.json",
+      "bytes": 8107,
+      "sha256": "b48a2b35dd12f7234c24321af9288424d1d566e0966636ce5fdbcf3901c2e539"
+    },
+    {
+      "path": "Payload/LaGrilla.app/FactoryInstruments/nylon-guitar.lgpcm",
+      "bytes": 1974030,
+      "sha256": "a5a079fb6045f961c0788a98d3d2cf3fb7c220dcc0537b9fdffce8d455573c07"
+    },
+    {
+      "path": "Payload/LaGrilla.app/FactoryInstruments/piano.lgpcm",
+      "bytes": 3225864,
+      "sha256": "99ab675b5a3ba11a060a8e1c748d091dea9a57af6a45372a9b976d679634980c"
+    },
+    {
+      "path": "Payload/LaGrilla.app/Info.plist",
+      "bytes": 2574,
+      "sha256": "b466e03eb65571d3a9c549322a91658382492dfefb2d17c08a0c208a88647119"
+    },
+    {
+      "path": "Payload/LaGrilla.app/LaGrilla",
+      "bytes": 9821776,
+      "sha256": "c37335f500991882dc596ee2007223ae33019b596c87553ac014f7ccb60a8b4d"
+    },
+    {
+      "path": "Payload/LaGrilla.app/LaunchScreen.storyboardc/Info.plist",
+      "bytes": 279,
+      "sha256": "448ed5ac69ed842e3df9619b25982422ecdc5bddaafeb681825f20bf9b2acd9c"
+    },
+    {
+      "path": "Payload/LaGrilla.app/LaunchScreen.storyboardc/UIViewController-launch-controller.nib",
+      "bytes": 932,
+      "sha256": "13c81ad144d31e08508cfbe0b57080fabba95ac14b1d586dea5fc9bcdb8e05b9"
+    },
+    {
+      "path": "Payload/LaGrilla.app/LaunchScreen.storyboardc/launch-controller-view-launch-root.nib",
+      "bytes": 11801,
+      "sha256": "52346626edfa8d4a58a554b1b67b9b370ebeac08292e04a2559324ad1ab8a8dd"
+    },
+    {
+      "path": "Payload/LaGrilla.app/Metadata.appintents/extract.actionsdata",
+      "bytes": 3031,
+      "sha256": "08b72334a0f22b7515e4d255dcf68bf88d5b98f10a38f2c768a7f88ed9a69211"
+    },
+    {
+      "path": "Payload/LaGrilla.app/Metadata.appintents/version.json",
+      "bytes": 52,
+      "sha256": "bab460aa12d825ea6777926ba8011734b4f5bfb2721e3fe3c833d5147d221dfd"
+    },
+    {
+      "path": "Payload/LaGrilla.app/PkgInfo",
+      "bytes": 8,
+      "sha256": "82502191c9484b04d685374f9879a0066069c49b8acae7a04b01d38d07e8eca0"
+    },
+    {
+      "path": "Payload/LaGrilla.app/PrivacyInfo.xcprivacy",
+      "bytes": 816,
+      "sha256": "f9e21baa2ade53f025f455dd07237c2ae59bcd0af2e1aeb6d7944cd431c0c342"
+    },
+    {
+      "path": "Payload/LaGrilla.app/en.lproj/InfoPlist.strings",
+      "bytes": 154,
+      "sha256": "3cf68b1a59e6395736a4c55da8c7e9903a68be963ceeb92dc2d13e482f07124b"
+    },
+    {
+      "path": "Payload/LaGrilla.app/en.lproj/Localizable.strings",
+      "bytes": 50180,
+      "sha256": "7149fd3f2d7bc38f59d875ec0e92cfbe0882f4282c7ad406fa6ad7523b7a6698"
+    },
+    {
+      "path": "Payload/LaGrilla.app/en.lproj/Localizable.stringsdict",
+      "bytes": 474,
+      "sha256": "4896dce06202c956649bf2d02c219f110f12fd6430ce881b3d45e857d5259ce4"
+    },
+    {
+      "path": "Payload/LaGrilla.app/en.lproj/nlu.appintents/60a1ad32e865f92d9a44c201d9f28753.version",
+      "bytes": 1,
+      "sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d"
+    },
+    {
+      "path": "Payload/LaGrilla.app/en.lproj/nlu.appintents/nlu.lzfse",
+      "bytes": 2268,
+      "sha256": "5a5ce780108015ca520c41b5d6a8ea72cace3434a813cd908d7e018b7a34fe72"
+    },
+    {
+      "path": "Payload/LaGrilla.app/ru.lproj/InfoPlist.strings",
+      "bytes": 1037,
+      "sha256": "3163919b3f715a4c10d4a9c0adf62e6e6701da231a29a20348c9f2f50f50c429"
+    },
+    {
+      "path": "Payload/LaGrilla.app/ru.lproj/Localizable.strings",
+      "bytes": 136827,
+      "sha256": "ecfe2534655802041748232439f30cfaffb950ccf9d161d112becc2c0732c381"
+    },
+    {
+      "path": "Payload/LaGrilla.app/ru.lproj/Localizable.stringsdict",
+      "bytes": 844,
+      "sha256": "2ed45b790c61f5f140d11a6030e475514e611c7379b20fd68255603032402fd3"
+    },
+    {
+      "path": "Payload/LaGrilla.app/ru.lproj/nlu.appintents/e600afc09a4298407f70d47857572f33.version",
+      "bytes": 1,
+      "sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d"
+    },
+    {
+      "path": "Payload/LaGrilla.app/ru.lproj/nlu.appintents/nlu.lzfse",
+      "bytes": 2640,
+      "sha256": "6f3264e25ab862ace65b666f22afe06e0cf0ac775ec6d97dccd342e5c8db1943"
+    }
+  ]
+}
