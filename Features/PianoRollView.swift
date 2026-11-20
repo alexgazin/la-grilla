@@ -33,14 +33,27 @@ struct PianoRollView: View {
     var note:NoteEvent?{pattern?.notes?.first{$0.id==selected}}
     @AppStorage("notes.ghost") private var showGhost = true
     /// I26: the other melodic parts in the same bars, drawn faintly behind the notes.
+    /// The body re-renders on every transport tick (sourcePlayhead), so both overlays
+    /// are memoised per project revision, clip and track: they must not recompile the
+    /// project on each frame, or touch gestures starve on the main thread.
+    @State private var overlays = RollOverlayCache()
     func ghostNotes(for pattern:Pattern)->[NoteEvent]{
+        overlays.ghost(key:overlayKey(pattern)){ computeGhostNotes(for:pattern) }
+    }
+    func chordTones(for pattern:Pattern)->[ChordSpan]{
+        overlays.tones(key:overlayKey(pattern)){ computeChordTones(for:pattern) }
+    }
+    private func overlayKey(_ pattern:Pattern)->RollOverlayCache.Key {
+        .init(projectID:session.project.id,revision:session.project.revision,pattern:pattern.id,clip:clip?.id,track:track?.id,ghost:showGhost)
+    }
+    private func computeGhostNotes(for pattern:Pattern)->[NoteEvent]{
         guard showGhost,let clip,clip.offset==0,clip.length==pattern.length,let index=session.project.tracks.firstIndex(where:{$0.id==track?.id}) else{return []}
         return Compiler.notes(session.project,range:clip.start..<(clip.start+clip.length))
             .filter{$0.pad<0 && $0.track != index && session.project.tracks[$0.track].role != .drums}
             .prefix(2048).map{NoteEvent(tick:$0.tick,duration:$0.duration,pitch:$0.pitch,velocity:$0.velocity)}
     }
     /// I29: chord tones under the pattern, when the clip plays its pattern once from the start.
-    func chordTones(for pattern:Pattern)->[ChordSpan]{
+    private func computeChordTones(for pattern:Pattern)->[ChordSpan]{
         guard let clip,clip.offset==0,clip.length==pattern.length else{return []}
         let harmony=Arrangement.harmony(session.project,section:MusicDomain.Section(name:"Notes",start:clip.start,length:clip.length))
         return harmony.map{ChordSpan(range:$0.tick..<($0.tick+$0.duration),tones:Set($0.chord.notes.map{$0%12}))}
@@ -346,6 +359,21 @@ private struct PianoCanvasInput: UIViewRepresentable {
 }
 
 struct ChordSpan:Equatable {let range:Range<Int>;let tones:Set<Int>}
+
+/// Reference-type memo: reading or filling it never invalidates the view.
+final class RollOverlayCache {
+    struct Key: Equatable { let projectID: UUID; let revision: Int; let pattern: UUID; let clip: UUID?; let track: UUID?; let ghost: Bool }
+    private var ghostKey: Key?, ghostValue: [NoteEvent] = []
+    private var tonesKey: Key?, tonesValue: [ChordSpan] = []
+    func ghost(key: Key, compute: () -> [NoteEvent]) -> [NoteEvent] {
+        if ghostKey != key { ghostValue = compute(); ghostKey = key }
+        return ghostValue
+    }
+    func tones(key: Key, compute: () -> [ChordSpan]) -> [ChordSpan] {
+        if tonesKey != key { tonesValue = compute(); tonesKey = key }
+        return tonesValue
+    }
+}
 
 private struct RollCanvas:View {
     var chordTones:[ChordSpan]=[]

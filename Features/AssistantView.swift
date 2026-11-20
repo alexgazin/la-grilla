@@ -68,7 +68,6 @@ struct AssistantView:View {
                     StudioSegments(title:"Assistant mode",selection:$mode,options:AssistantMode.allCases.map{($0,LocalizedStringKey($0.title))}).disabled(dictation.recording || dictation.requesting || dictation.finalizing)
                     aiAvailability
                     if let error=dictation.error{Text(LocalizedStringKey(error)).font(.caption).foregroundStyle(Color.record).accessibilityIdentifier("assistant.dictation-error")}
-                    Button{generate()}label:{Label("Review command",systemImage:"sparkles")}.buttonStyle(StudioActionStyle()).disabled(input.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty || dictation.requesting || dictation.recording || dictation.finalizing || generationTask != nil).accessibilityIdentifier("assistant.generate")
                     if mode != .commands{aiOptions}
                     DisclosureGroup{Text("Dictation uses on-device recognition. You can always type. Humming has a separate melody recording.").font(.caption).foregroundStyle(Color.muted).padding(.vertical,8)}label:{Text("Dictation details").frame(maxWidth:.infinity,minHeight:44,alignment:.leading)}.font(.caption).foregroundStyle(Color.muted)
                     if generationTask != nil{HStack{ProgressView("Preparing proposal…");Spacer();Button("Cancel generation"){cancelGeneration()}.frame(minHeight:44)}}
@@ -109,7 +108,14 @@ struct AssistantView:View {
                 .animation(reduceMotion ? .easeOut(duration:0.15):Luz.Motion.morph,value:songEditPlan==nil)
                 .animation(reduceMotion ? nil:Luz.Motion.snap,value:error)
                 .padding(18)
-            }.accessibilityIdentifier("assistant.review-scroll").scrollDismissesKeyboard(.interactively).background(Color.ink).navigationTitle("Assistant").navigationBarTitleDisplayMode(.inline)
+            }
+            // The main action stays above the keyboard and the growing form: pinned to the bottom edge.
+            .safeAreaInset(edge:.bottom,spacing:0){
+                Button{generate()}label:{Label("Review command",systemImage:"sparkles")}.buttonStyle(StudioActionStyle()).disabled(input.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty || dictation.requesting || dictation.recording || dictation.finalizing || generationTask != nil).accessibilityIdentifier("assistant.generate")
+                    .padding(.horizontal,18).padding(.top,8).padding(.bottom,10)
+                    .background(Color.ink)
+            }
+            .accessibilityIdentifier("assistant.review-scroll").scrollDismissesKeyboard(.interactively).background(Color.ink).navigationTitle("Assistant").navigationBarTitleDisplayMode(.inline)
                 .toolbar{ToolbarItem(placement:.cancellationAction){Button("Cancel"){closeEditor()}}}
         }.tint(.mint)
         .sheet(isPresented:$showExamples){AssistantExamplesView(language:language){text,requiresAI in input=text;if requiresAI{mode = .onDeviceAI}else if SongFormBrief.recognizes(text){mode = .automatic};showExamples=false}}
