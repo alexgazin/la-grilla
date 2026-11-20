@@ -37,10 +37,17 @@ struct ChordEditor: View {
             HStack {
                 Text("Inversion")
                 Spacer(minLength:8)
-                Picker("Inversion",selection:Binding(get:{chord.inversion},set:{chord.inversion=$0;chord.voicedNotes=nil})){ForEach(0..<chord.effectiveIntervals.count,id:\.self){i in
+                Picker("Inversion",selection:Binding(get:{chord.inversion},set:{value in guard value != chord.inversion || chord.voicedNotes != nil else{return};chord.inversion=value;chord.voicedNotes=nil;chord.rootBassPitch=nil;Luz.Haptics.selection();audition()})){ForEach(0..<chord.effectiveIntervals.count,id:\.self){i in
                     if i==0{Text("Root position").tag(i)}else{Text("Inversion \(i)").tag(i)}
                 }}
                     .labelsHidden().pickerStyle(.menu).frame(minHeight:44).contentShape(Rectangle()).accessibilityIdentifier("chord.inversion")
+            }.frame(minHeight:44)
+            HStack(spacing:10) {
+                Text("Octave")
+                Spacer(minLength:8)
+                Button{shiftOctave(-1)}label:{Image(systemName:"minus").frame(width:44,height:44).contentShape(Rectangle())}.buttonStyle(StudioQuietButtonStyle()).disabled(!canShift(-1)).accessibilityLabel("Octave down").accessibilityIdentifier("chord.octave-down")
+                Text(octaveLabel).font(.system(.body,design:.monospaced,weight:.medium)).monospacedDigit().frame(minWidth:40).accessibilityIdentifier("chord.octave")
+                Button{shiftOctave(1)}label:{Image(systemName:"plus").frame(width:44,height:44).contentShape(Rectangle())}.buttonStyle(StudioQuietButtonStyle()).disabled(!canShift(1)).accessibilityLabel("Octave up").accessibilityIdentifier("chord.octave-up")
             }.frame(minHeight:44)
             HStack {
                 Text("Slash bass")
@@ -60,6 +67,15 @@ struct ChordEditor: View {
     private var chordActions:some View {
         HStack{Button{preview()}label:{Label("Preview",systemImage:"speaker.wave.2")}.buttonStyle(StudioActionStyle(color:.harmony,prominent:false)).accessibilityIdentifier("chord.preview");Button{apply();Luz.Haptics.success()}label:{Text("Apply")}.buttonStyle(StudioActionStyle(color:.harmony)).accessibilityIdentifier("chord.apply")}
     }
+    private var octaveLabel:String {
+        let value:Int
+        if let voiced=chord.voicedNotes,let low=voiced.min(){value=Int((Double(low-(chord.root==0 ? 60:48+chord.root))/12).rounded())}else{value=chord.octave ?? 0}
+        return value==0 ? "0":(value>0 ? "+\(value)":"\(value)")
+    }
+    private func canShift(_ octaves:Int)->Bool{var copy=chord;return copy.shiftOctave(by:octaves)}
+    private func shiftOctave(_ octaves:Int){guard chord.shiftOctave(by:octaves)else{Luz.Haptics.warning();return};Luz.Haptics.selection();audition()}
+    /// Lets the musician hear an inversion or octave change at once.
+    private func audition(){if session.ensureAudio(){session.audio.preview(chord)}}
     private var chordRootName:String {spelling == .automatic ? (chord.rootSpelling ?? pitchName(chord.root)):pitchName(chord.root)}
     private func pitchName(_ value:Int)->String{MusicalNotation.pitchClassName(value,keyRoot:session.project.keyRoot,minor:session.project.minor,spelling:spelling)}
     func parse(){focusedField=nil;do{chord=try MusicalEditing.rebuildChord(from:text,preserving:chord);family=chord.quality.family;formulaText=chord.effectiveIntervals.map(String.init).joined(separator:", ");text=chord.symbol;error=nil}catch{self.error=error.localizedDescription}}

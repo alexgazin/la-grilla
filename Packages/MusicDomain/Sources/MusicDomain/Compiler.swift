@@ -7,7 +7,7 @@ public enum Compiler {
     public static let padNames = ["Kick","Snare","Closed hat","Open hat","Clap","Rim","Low tom","Mid tom","High tom","Crash","Ride","Tambourine","Cowbell","Clave","Shaker","Perc"]
     public static func bassPitch(for chord:Chord,register:Int)->Int {
         if let exact=chord.rootBassPitch{return exact}
-        let root=chord.slashBass ?? chord.root
+        let root=chord.bassPitchClass
         return (root==0 ? 36:24+root)+register*12
     }
     public static func notes(_ project: Project, range: Range<Int>? = nil) -> [CompiledNote] {

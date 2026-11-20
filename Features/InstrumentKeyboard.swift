@@ -95,45 +95,7 @@ private struct InstrumentKeyboard: View {
                         if !compact {
                             instrumentPanel(track, height: min(170, max(88, geometry.size.height * 0.20)))
                         }
-                        HStack(spacing: 6) {
-                            if compact { trackMenu(track, compact: true) }
-                            IconButton(symbol: "minus", label: "Octave down") { changeOctave(-12) }
-                                .disabled(root == 24)
-                            Text(verbatim: MusicalNotation.noteName(root, keyRoot: session.project.keyRoot,
-                                                                   minor: session.project.minor))
-                                .font(.body.monospacedDigit()).accessibilityIdentifier("keyboard.octave")
-                            IconButton(symbol: "plus", label: "Octave up") { changeOctave(12) }
-                                .disabled(root == 96)
-                            IconButton(symbol: scaleOnly ? "music.note.list" : "pianokeys", label: "Notes of the key only",
-                                       color: scaleOnly ? .mint : .muted) { resetKeys(); scaleOnly.toggle() }
-                                .accessibilityValue(LocalizedStringKey(scaleOnly ? "On" : "Off"))
-                                .accessibilityIdentifier("keyboard.scale-only")
-                            IconButton(symbol: "pedal.accelerator", label: "Sustain", color: sustain ? .mint : .muted) { setSustain(!sustain) }
-                                .accessibilityValue(LocalizedStringKey(sustain ? "On" : "Off"))
-                                .accessibilityIdentifier("keyboard.sustain")
-                            IconButton(symbol: "music.quarternote.3", label: "One-finger chords", color: chordStrip ? .mint : .muted) { resetKeys(); chordStrip.toggle() }
-                                .accessibilityValue(LocalizedStringKey(chordStrip ? "On" : "Off"))
-                                .accessibilityIdentifier("keyboard.chord-strip")
-                            if track.role == .melody {
-                                IconButton(symbol: "text.insert", label: "Step input", color: stepCursor != nil ? .mint : .muted) {
-                                    resetKeys(); stepCursor = stepCursor == nil ? 0 : nil; stepHeld = []
-                                }.accessibilityValue(Text(verbatim: stepCursor.map { MusicalPosition(tick: $0).description } ?? ""))
-                                    .accessibilityIdentifier("keyboard.step-input").disabled(take != nil)
-                            }
-                            Spacer()
-                            if track.role == .melody, let clip = sourceClip(track) {
-                                IconButton(symbol: take == nil ? "record.circle" : "stop.circle.fill",
-                                           label: take == nil ? "Record phrase" : "Finish phrase", color: .record) {
-                                    if take != nil { finishPhrase() }
-                                    else if let pattern = session.project.patterns.first(where: { $0.id == clip.patternID }) {
-                                        take = KeyboardPhrase(patternID: clip.patternID, bpm: session.project.bpm)
-                                        recordingLength = pattern.length
-                                    }
-                                }.accessibilityIdentifier("keyboard.record")
-                            }
-                            IconButton(symbol: session.audio.playing ? "stop.fill" : "play.fill",
-                                       label: session.audio.playing ? "Stop" : "Play") { session.togglePlay() }
-                        }.padding(.horizontal, 14)
+                        controlsRow(track, compact: compact)
                         if let error {
                             Text(error).font(.caption).foregroundStyle(Color.record).padding(.horizontal)
                         }
@@ -141,19 +103,7 @@ private struct InstrumentKeyboard: View {
                             ChordStrip(keyRoot: session.project.keyRoot, minor: session.project.minor, color: Color.track(track.role)) { pitch, down in key(pitch, down: down, track: track) }
                                 .padding(.horizontal, 10)
                         }
-                        HStack(spacing: 8) {
-                        if bendStrips {
-                            BendStrips { semitones, modulation in
-                                session.audio.pitchBend(identity: MIDIController.trackIdentity(track.id), semitones: semitones, modulation: modulation)
-                            }
-                        }
-                        InstrumentKeybed(root: root, octaves: KeyboardLayout.octaves(requested: octaveSetting, width: geometry.size.width - 20 - (bendStrips ? 92 : 0), size: KeyboardLayout.KeySize(rawValue: keySize) ?? .medium),
-                                         keyRoot: session.project.keyRoot, minor: session.project.minor, scaleOnly: scaleOnly,
-                                         gridColumns: isomorphic ? max(5, min(12, Int((geometry.size.width - 20 - (bendStrips ? 92 : 0)) / (KeyboardLayout.KeySize(rawValue: keySize) ?? .medium).minimumWidth / 1.2))) : 0,
-                                         color: Color.track(track.role),
-                                         play: { pitch, down in key(pitch, down: down, track: track) })
-                            .id(surfaceID)
-                        }.padding(.horizontal, 10).padding(.bottom, 10)
+                        keybedRow(track, width: geometry.size.width)
                     }.padding(.top, compact ? 0 : 8)
                 }
             }
@@ -164,30 +114,7 @@ private struct InstrumentKeyboard: View {
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     // I18 · I20: grid layout, number of octaves and key width.
-                    Menu {
-                        Toggle("Isomorphic grid", isOn: Binding(get: { isomorphic }, set: { resetKeys(); isomorphic = $0 }))
-                        Picker("Octaves", selection: Binding(get: { octaveSetting }, set: { resetKeys(); octaveSetting = $0 })) {
-                            Text("Automatic").tag(0); Text(verbatim: "1").tag(1); Text(verbatim: "2").tag(2); Text(verbatim: "3").tag(3)
-                        }
-                        Picker("Key size", selection: Binding(get: { keySize }, set: { resetKeys(); keySize = $0 })) {
-                            Text("Small").tag(0); Text("Medium").tag(1); Text("Large").tag(2)
-                        }
-                        Toggle("Bend and modulation strips", isOn: Binding(get: { bendStrips }, set: { resetKeys(); bendStrips = $0 }))
-                        Picker("Arpeggiator", selection: Binding(get: { arpRate }, set: { resetKeys(); arpRate = $0 })) {
-                            Text("Off").tag(0); Text(verbatim: "1/8").tag(480); Text(verbatim: "1/16").tag(240); Text(verbatim: "1/16T").tag(160); Text(verbatim: "1/32").tag(120)
-                        }
-                        if arpRate > 0 {
-                            Picker("Arpeggio order", selection: Binding(get: { arpMode }, set: { resetKeys(); arpMode = $0 })) {
-                                Text("Up").tag(0); Text("Down").tag(1); Text("Up and down").tag(2); Text("As played").tag(3)
-                            }
-                            Picker("Arpeggio octaves", selection: Binding(get: { arpOctaves }, set: { resetKeys(); arpOctaves = $0 })) {
-                                Text(verbatim: "1").tag(1); Text(verbatim: "2").tag(2); Text(verbatim: "3").tag(3)
-                            }
-                        }
-                    } label: {
-                        Image(systemName: isomorphic ? "square.grid.4x3.fill" : "rectangle.split.3x1").foregroundStyle(isomorphic ? Color.mint : Color.muted).frame(minWidth: 44, minHeight: 44)
-                    }.accessibilityLabel("Keyboard layout").accessibilityIdentifier("keyboard.layout")
-                        .disabled(take != nil)
+                    layoutMenu
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { resetKeys(); soundBanks = true } label: { Image(systemName: "slider.horizontal.3") }
@@ -204,6 +131,98 @@ private struct InstrumentKeyboard: View {
         .onAppear { _ = session.ensureAudio() }
         .onChange(of: phase) { _, phase in if phase != .active { finishPhrase(); resetKeys() } }
         .onDisappear { task?.cancel(); finishPhrase(); session.midi.releaseKeyboard(); arpHeld = []; session.audio.arp(identity: 0, pitches: [], step: 240, mode: 0, octaves: 1) }
+    }
+
+    private var stepCursorDescription: String { stepCursor.map { MusicalPosition(tick: $0).description } ?? "" }
+
+    private func controlsRow(_ track: Track, compact: Bool) -> some View {
+        HStack(spacing: 6) {
+            if compact { trackMenu(track, compact: true) }
+            IconButton(symbol: "minus", label: "Octave down") { changeOctave(-12) }
+                .disabled(root == 24)
+            Text(verbatim: MusicalNotation.noteName(root, keyRoot: session.project.keyRoot,
+                                                   minor: session.project.minor))
+                .font(.body.monospacedDigit()).accessibilityIdentifier("keyboard.octave")
+            IconButton(symbol: "plus", label: "Octave up") { changeOctave(12) }
+                .disabled(root == 96)
+            IconButton(symbol: scaleOnly ? "music.note.list" : "pianokeys", label: "Notes of the key only",
+                       color: scaleOnly ? .mint : .muted) { resetKeys(); scaleOnly.toggle() }
+                .accessibilityValue(LocalizedStringKey(scaleOnly ? "On" : "Off"))
+                .accessibilityIdentifier("keyboard.scale-only")
+            IconButton(symbol: "pedal.accelerator", label: "Sustain", color: sustain ? .mint : .muted) { setSustain(!sustain) }
+                .accessibilityValue(LocalizedStringKey(sustain ? "On" : "Off"))
+                .accessibilityIdentifier("keyboard.sustain")
+            IconButton(symbol: "music.quarternote.3", label: "One-finger chords", color: chordStrip ? .mint : .muted) { resetKeys(); chordStrip.toggle() }
+                .accessibilityValue(LocalizedStringKey(chordStrip ? "On" : "Off"))
+                .accessibilityIdentifier("keyboard.chord-strip")
+            if track.role == .melody {
+                IconButton(symbol: "text.insert", label: "Step input", color: stepCursor != nil ? .mint : .muted) {
+                    resetKeys(); stepCursor = stepCursor == nil ? 0 : nil; stepHeld = []
+                }.accessibilityValue(Text(verbatim: stepCursorDescription))
+                    .accessibilityIdentifier("keyboard.step-input").disabled(take != nil)
+            }
+            Spacer()
+            if track.role == .melody, let clip = sourceClip(track) {
+                IconButton(symbol: take == nil ? "record.circle" : "stop.circle.fill",
+                           label: take == nil ? "Record phrase" : "Finish phrase", color: .record) {
+                    if take != nil { finishPhrase() }
+                    else if let pattern = session.project.patterns.first(where: { $0.id == clip.patternID }) {
+                        take = KeyboardPhrase(patternID: clip.patternID, bpm: session.project.bpm)
+                        recordingLength = pattern.length
+                    }
+                }.accessibilityIdentifier("keyboard.record")
+            }
+            IconButton(symbol: session.audio.playing ? "stop.fill" : "play.fill",
+                       label: session.audio.playing ? "Stop" : "Play") { session.togglePlay() }
+        }.padding(.horizontal, 14)
+    }
+
+    private func keybedRow(_ track: Track, width: CGFloat) -> some View {
+        let size = KeyboardLayout.KeySize(rawValue: keySize) ?? .medium
+        let available = width - 20 - (bendStrips ? 92 : 0)
+        let columns = isomorphic ? max(5, min(12, Int(available / size.minimumWidth / 1.2))) : 0
+        return HStack(spacing: 8) {
+        if bendStrips {
+            BendStrips { semitones, modulation in
+                session.audio.pitchBend(identity: MIDIController.trackIdentity(track.id), semitones: semitones, modulation: modulation)
+            }
+        }
+        InstrumentKeybed(root: root, octaves: KeyboardLayout.octaves(requested: octaveSetting, width: available, size: size),
+                         keyRoot: session.project.keyRoot, minor: session.project.minor, scaleOnly: scaleOnly,
+                         gridColumns: columns,
+                         color: Color.track(track.role),
+                         play: { pitch, down in key(pitch, down: down, track: track) })
+            .id(surfaceID)
+        }.padding(.horizontal, 10).padding(.bottom, 10)
+
+    }
+
+    private var layoutMenu: some View {
+        Menu {
+            Toggle("Isomorphic grid", isOn: Binding(get: { isomorphic }, set: { resetKeys(); isomorphic = $0 }))
+            Picker("Octaves", selection: Binding(get: { octaveSetting }, set: { resetKeys(); octaveSetting = $0 })) {
+                Text("Automatic").tag(0); Text(verbatim: "1").tag(1); Text(verbatim: "2").tag(2); Text(verbatim: "3").tag(3)
+            }
+            Picker("Key size", selection: Binding(get: { keySize }, set: { resetKeys(); keySize = $0 })) {
+                Text("Small").tag(0); Text("Medium").tag(1); Text("Large").tag(2)
+            }
+            Toggle("Bend and modulation strips", isOn: Binding(get: { bendStrips }, set: { resetKeys(); bendStrips = $0 }))
+            Picker("Arpeggiator", selection: Binding(get: { arpRate }, set: { resetKeys(); arpRate = $0 })) {
+                Text("Off").tag(0); Text(verbatim: "1/8").tag(480); Text(verbatim: "1/16").tag(240); Text(verbatim: "1/16T").tag(160); Text(verbatim: "1/32").tag(120)
+            }
+            if arpRate > 0 {
+                Picker("Arpeggio order", selection: Binding(get: { arpMode }, set: { resetKeys(); arpMode = $0 })) {
+                    Text("Up").tag(0); Text("Down").tag(1); Text("Up and down").tag(2); Text("As played").tag(3)
+                }
+                Picker("Arpeggio octaves", selection: Binding(get: { arpOctaves }, set: { resetKeys(); arpOctaves = $0 })) {
+                    Text(verbatim: "1").tag(1); Text(verbatim: "2").tag(2); Text(verbatim: "3").tag(3)
+                }
+            }
+        } label: {
+            Image(systemName: isomorphic ? "square.grid.4x3.fill" : "rectangle.split.3x1").foregroundStyle(isomorphic ? Color.mint : Color.muted).frame(minWidth: 44, minHeight: 44)
+        }.accessibilityLabel("Keyboard layout").accessibilityIdentifier("keyboard.layout")
+            .disabled(take != nil)
+
     }
 
     private func factorySound(_ name: String?) -> FactoryInstrument? {

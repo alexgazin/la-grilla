@@ -94,6 +94,9 @@ public struct Chord: Codable, Equatable, Sendable {
     public var rootSpelling:String?
     public var slashBassSpelling:String?
     public var customIntervals:[Int]?
+    /// Whole-chord register shift in octaves (−2…+2). Nil is the legacy register.
+    public var octave:Int?
+    public static let octaveRange = -2...2
     public static let maximumVoices=9 // Eight formula tones plus an explicit slash bass.
     public init(root: Int = 0, quality: Quality = .major, inversion: Int = 0,slashBass:Int?=nil,voicedNotes:[Int]?=nil,customIntervals:[Int]?=nil,rootBassPitch:Int?=nil,rootSpelling:String?=nil,slashBassSpelling:String?=nil) { self.root = root; self.quality = customIntervals==nil ? quality:.major; self.inversion = inversion;self.slashBass=slashBass;self.voicedNotes=voicedNotes;self.customIntervals=customIntervals;self.rootBassPitch=rootBassPitch;self.rootSpelling=rootSpelling.map{ChordWriting.canonical($0) ?? $0};self.slashBassSpelling=slashBassSpelling.map{ChordWriting.canonical($0) ?? $0} }
     public static let roots = ["C", "C♯", "D", "E♭", "E", "F", "F♯", "G", "A♭", "A", "B♭", "B"]
@@ -106,17 +109,40 @@ public struct Chord: Codable, Equatable, Sendable {
         let bassName=slashBass.map{"/"+(ChordWriting.name(slashBassSpelling,for:$0) ?? Self.roots[($0%12+12)%12])} ?? ""
         return rootName+suffix+bassName
     }
+    /// The pitch class the bass should play: the slash bass, else the lowest
+    /// chord tone of the chosen inversion, else the root.
+    public var bassPitchClass:Int {
+        if let slashBass{return slashBass}
+        let intervals=effectiveIntervals
+        guard voicedNotes==nil,inversion>0,intervals.indices.contains(inversion) else{return root}
+        return (root+intervals[inversion])%12
+    }
+    /// Moves the whole chord by `octaves`, keeping an explicit voicing when it
+    /// has one. Returns false (and changes nothing) when it would leave the range.
+    @discardableResult public mutating func shiftOctave(by octaves:Int)->Bool {
+        guard octaves != 0 else{return true}
+        if let voiced=voicedNotes {
+            let moved=voiced.map{$0+12*octaves}
+            guard moved.allSatisfy({(0...127).contains($0)})else{return false}
+            voicedNotes=moved;return true
+        }
+        let target=(octave ?? 0)+octaves
+        guard Self.octaveRange.contains(target)else{return false}
+        var candidate=self;candidate.octave=target==0 ? nil:target
+        guard candidate.isValidVoicing(candidate.notes)else{return false}
+        self=candidate;return true
+    }
     public var notes: [Int] {
         if let voicedNotes{return voicedNotes.sorted()}
         guard (0..<12).contains(root),Self.validIntervals(effectiveIntervals),(0..<effectiveIntervals.count).contains(inversion),slashBass==nil || (0..<12).contains(slashBass!) else{return []}
-        let base = root == 0 ? 60 : 48 + root
+        let base = (root == 0 ? 60 : 48 + root) + 12 * (octave ?? 0)
         var result = effectiveIntervals.map { base + $0 }
         for i in 0..<inversion {
             result[i] += 12
             // Custom formulas may deliberately include octave doublings.
             while result.enumerated().contains(where:{$0.offset != i && $0.element==result[i]}){result[i] += 12}
         }
-        if let slashBass{var bass=48+slashBass;while bass>=(result.min() ?? 60){bass-=12};result.append(bass)}
+        if let slashBass{var bass=48+slashBass+12*(octave ?? 0);while bass>=(result.min() ?? 60){bass-=12};result.append(bass)}
         return result.sorted()
     }
     public static func validIntervals(_ values:[Int])->Bool {
@@ -149,7 +175,8 @@ public struct Chord: Codable, Equatable, Sendable {
               slashBass==nil || (0..<12).contains(slashBass!),
               ChordWriting.valid(rootSpelling,for:root),
               slashBassSpelling==nil || (slashBass != nil && ChordWriting.valid(slashBassSpelling,for:slashBass!)),
-              rootBassPitch==nil || ((0...127).contains(rootBassPitch!) && rootBassPitch!%12 == (slashBass ?? root)),isValidVoicing(notes) else{throw MusicError.invalidChord}
+              octave==nil || Self.octaveRange.contains(octave!),
+              rootBassPitch==nil || ((0...127).contains(rootBassPitch!) && (rootBassPitch!%12 == (slashBass ?? root) || rootBassPitch!%12 == bassPitchClass)),isValidVoicing(notes) else{throw MusicError.invalidChord}
     }
     public static func parse(_ text: String) throws -> Chord {
         guard text.utf8.count<=256 else{throw MusicError.invalidChord}

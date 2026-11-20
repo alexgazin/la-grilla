@@ -55,7 +55,7 @@ public enum MusicalNotation {
         let bassName = chord.slashBass.map { pitch in
             let written=spelling == .automatic ? ChordWriting.name(chord.slashBassSpelling,for:pitch):nil
             return "/"+(written ?? pitchClassName(pitch,keyRoot:keyRoot,minor:minor,spelling:spelling))
-        } ?? ""
+        } ?? (chord.bassPitchClass != chord.root ? "/"+pitchClassName(chord.bassPitchClass,keyRoot:keyRoot,minor:minor,spelling:spelling) : "")
         return root + suffix + bassName
     }
 
