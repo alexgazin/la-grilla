@@ -328,12 +328,14 @@ private struct PianoCanvasInput: UIViewRepresentable {
             guard recognizer is UILongPressGestureRecognizer else { return true }
             start = touch.location(in: recognizer.view)
             note = input.hitNote(start)
+            PianoTouchTrace.log("hold shouldReceive at \(start) note=\(note.map { "\($0.pitch)@\($0.tick)" } ?? "nil") view=\(recognizer.view?.bounds.size ?? .zero)")
             return note != nil
         }
         @objc func tapped(_ recognizer: UITapGestureRecognizer) { input.tap(recognizer.location(in: recognizer.view)) }
         @objc func held(_ recognizer: UILongPressGestureRecognizer) {
             let location = recognizer.location(in: recognizer.view)
             let delta = CGSize(width: location.x-start.x, height: location.y-start.y)
+            PianoTouchTrace.log("hold state=\(recognizer.state.rawValue) delta=\(delta)")
             switch recognizer.state {
             case .began, .changed:
                 if let note { input.drag(note, delta) }
@@ -359,6 +361,12 @@ private struct PianoCanvasInput: UIViewRepresentable {
 }
 
 struct ChordSpan:Equatable {let range:Range<Int>;let tones:Set<Int>}
+
+/// Temporary UI-test diagnostics for piano touch gestures (stdout lands in the xcresult).
+enum PianoTouchTrace {
+    static let enabled = ProcessInfo.processInfo.arguments.contains("--uitesting")
+    static func log(_ message: @autoclosure () -> String) { if enabled { print("[piano-touch] \(message())") } }
+}
 
 /// Reference-type memo: reading or filling it never invalidates the view.
 final class RollOverlayCache {
@@ -461,6 +469,7 @@ private struct RollCanvas:View {
             // for completion. A system cancellation never invokes onEnded.
             // update() takes ownership only when the touch actually found a note.
             // Holding blank canvas must still allow a one-finger pan.
+            PianoTouchTrace.log("resizing=\(active)")
             if !active { interaction=nil; invalidated=false; editingChanged(false) }
         }
         .onChange(of:scenePhase){_,phase in if phase != .active{interaction=nil;gestureAnchor=nil;invalidated=touching;editingChanged(false)}}
@@ -550,6 +559,7 @@ private struct RollCanvas:View {
         return CGPoint(x:center.x,y:center.y)
     }
     private func update(_ operation:Operation,translation:CGSize,note:NoteEvent?){
+        PianoTouchTrace.log("update \(operation) t=\(translation) invalidated=\(invalidated) note=\(note != nil) hasInteraction=\(interaction != nil)")
         guard !invalidated,let note else{return}
         if interaction==nil {
             let anchor=Anchor(context:context,operation:operation,original:note)
@@ -557,7 +567,9 @@ private struct RollCanvas:View {
             editingChanged(true)
         }
         guard let current=gestureAnchor,current.context==context,current.operation==operation,
-              pattern.notes?.first(where:{$0.id==current.original.id})==current.original else{interaction=nil;gestureAnchor=nil;invalidated=true;editingChanged(false);return}
+              pattern.notes?.first(where:{$0.id==current.original.id})==current.original else{
+            PianoTouchTrace.log("update invalidated: anchor=\(gestureAnchor != nil) contextEqual=\(gestureAnchor?.context==context) op=\(gestureAnchor?.operation == operation) noteSame=\(gestureAnchor.map{a in pattern.notes?.first(where:{$0.id==a.original.id})==a.original} ?? false) old=\(String(describing:gestureAnchor?.context)) new=\(context)")
+            interaction=nil;gestureAnchor=nil;invalidated=true;editingChanged(false);return}
         let next=preview(current,translation:translation)
         // Luz: a tick each time the dragged note lands on a new step, pitch or length.
         if let old=interaction?.preview,old.tick != next.tick || old.pitch != next.pitch || old.duration != next.duration{Luz.Haptics.selection()}
@@ -570,6 +582,7 @@ private struct RollCanvas:View {
                                    barWidth:Double(barWidth),step:snap,visiblePitches:lowPitch...lowPitch+23)
     }
     private func finish(_ operation:Operation,translation:CGSize){
+        PianoTouchTrace.log("finish \(operation) t=\(translation) invalidated=\(invalidated) anchor=\(gestureAnchor != nil) contextEqual=\(gestureAnchor?.context==context)")
         defer{cancel()}
         guard !invalidated,let current=gestureAnchor,current.operation==operation,current.context==context,
               pattern.notes?.first(where:{$0.id==current.original.id})==current.original else{return}
@@ -578,7 +591,7 @@ private struct RollCanvas:View {
         select(final.id)
         switch operation{case .move:move(final.id,final.tick,final.pitch);case .resize:resize(final.id,final.duration)}
     }
-    private func cancel(){interaction=nil;gestureAnchor=nil;invalidated=false;editingChanged(false)}
+    private func cancel(){PianoTouchTrace.log("cancel");interaction=nil;gestureAnchor=nil;invalidated=false;editingChanged(false)}
 }
 
 private struct NoteInspector:View {
