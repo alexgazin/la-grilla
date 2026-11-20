@@ -115,6 +115,7 @@ struct LuzEmptyState: View {
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.colorScheme) private var scheme
     @ScaledMetric(relativeTo: .largeTitle) private var symbolSize: CGFloat = 40
+    @State private var greeted = false
 
     var body: some View {
         VStack(spacing: 12) {
@@ -122,6 +123,9 @@ struct LuzEmptyState: View {
                 .font(.system(size: symbolSize, weight: .medium))
                 .foregroundStyle(Color.mint)
                 .symbolRenderingMode(.hierarchical)
+                // Luz: the empty state greets once with a bounce (system symbol effects honour Reduce Motion).
+                .symbolEffect(.bounce.up, options: .nonRepeating, value: greeted)
+                .onAppear { greeted = true }
                 .accessibilityHidden(true)
             Text(title).font(StudioTypography.title.width(.expanded)).multilineTextAlignment(.center)
             if let detail { Text(detail).font(.callout).foregroundStyle(Color.muted).multilineTextAlignment(.center) }

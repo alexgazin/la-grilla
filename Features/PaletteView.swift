@@ -7,6 +7,7 @@ import MusicDomain
 /// undoable change. Tracks with the musician's own sounds are kept by default.
 struct PaletteView: View {
     @Bindable var session: Session
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var selected: ProducerPalette.Style?
     @State private var keep: Set<UUID> = []
     @State private var result: PaletteAudition.Result?
@@ -32,13 +33,18 @@ struct PaletteView: View {
                         .font(.caption).foregroundStyle(Color.muted).accessibilityIdentifier("palettes.scope")
                     ForEach(ProducerPalette.Style.allCases, id: \.self) { style in
                         PaletteCard(style: style, selected: selected == style) { choose(style) }
+                            .luzScrollDepth()
+                            .luzEntrance(ProducerPalette.Style.allCases.firstIndex(of: style) ?? 0)
                     }
                     missingSounds
                     keepList
-                    if loading { ProgressView("Matching levels on this section…").accessibilityIdentifier("palettes.loading") }
-                    if let error { Text(LocalizedStringKey(error)).font(.callout).foregroundStyle(Color.record).accessibilityIdentifier("palettes.error") }
-                    if let result, !loading { review(result) }
+                    if loading { ProgressView("Matching levels on this section…").accessibilityIdentifier("palettes.loading").transition(Luz.Transition.pop(reduceMotion)) }
+                    if let error { Text(LocalizedStringKey(error)).font(.callout).foregroundStyle(Color.record).accessibilityIdentifier("palettes.error").transition(Luz.Transition.pop(reduceMotion)) }
+                    // Luz: the review rises in once the levels are matched.
+                    if let result, !loading { review(result).transition(Luz.Transition.rise(reduceMotion)) }
                 }.padding(18)
+                .animation(reduceMotion ? .easeOut(duration: 0.15) : Luz.Motion.morph, value: loading)
+                .animation(reduceMotion ? nil : Luz.Motion.snap, value: error)
             }
             .accessibilityIdentifier("palettes.scroll")
             .background(Color.ink).navigationTitle("Palettes").navigationBarTitleDisplayMode(.inline)
@@ -175,13 +181,14 @@ private struct PaletteCard: View {
                 HStack {
                     Text(LocalizedStringKey(style.title)).font(.subheadline.weight(.semibold))
                     Spacer(minLength: 0)
-                    if selected { Image(systemName: "checkmark.circle.fill").foregroundStyle(Color.mint) }
+                    if selected { Image(systemName: "checkmark.circle.fill").foregroundStyle(Color.mint).transition(.scale(scale: 0.5).combined(with: .opacity)) }
                 }
                 Text(LocalizedStringKey(style.brief)).font(.caption).foregroundStyle(Color.muted).multilineTextAlignment(.leading)
             }
             .padding(12).frame(maxWidth: .infinity, alignment: .leading)
             .background(Color.panel, in: RoundedRectangle(cornerRadius: StudioMetrics.controlRadius, style: .continuous))
             .overlay { RoundedRectangle(cornerRadius: StudioMetrics.controlRadius, style: .continuous).stroke(selected ? Color.mint : Color.outline, lineWidth: selected ? 2 : 1) }
+            .animation(Luz.Motion.snap, value: selected)
         }
         .buttonStyle(.plain)
         .accessibilityAddTraits(selected ? .isSelected : [])

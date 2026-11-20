@@ -35,7 +35,7 @@ struct GettingStartedView: View {
                 }.frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 24).padding(.top, 12)
                 TabView(selection: $page) {
                     ForEach(Array(pages.enumerated()), id: \.element.id) { index, item in
-                        IntroCard(symbol: item.symbol, title: item.title, detail: item.detail, color: item.color)
+                        IntroCard(symbol: item.symbol, title: item.title, detail: item.detail, color: item.color, active: page == index)
                             .padding(.horizontal, 24).tag(index)
                     }
                 }
@@ -54,12 +54,8 @@ struct GettingStartedView: View {
                 // Luz: a slow, quiet mesh of the four musical colours behind the intro.
                 ZStack {
                     Color.ink
-                    if !reduceTransparency {
-                        MeshGradient(width: 3, height: 3,
-                                     points: [[0, 0], [0.5, 0], [1, 0], [0, 0.5], [0.55, 0.45], [1, 0.5], [0, 1], [0.5, 1], [1, 1]],
-                                     colors: [.ink, .harmony, .ink, .drums, .ink, .bass, .ink, .mint, .ink])
-                            .opacity(0.20)
-                    }
+                    // The mesh drifts slowly (LuzAurora is static under Reduce Motion).
+                    if !reduceTransparency { LuzAurora().opacity(0.6) }
                 }.ignoresSafeArea().accessibilityHidden(true)
             }
             .navigationTitle("Getting started")
@@ -74,12 +70,15 @@ private struct IntroCard: View {
     let title: LocalizedStringKey
     let detail: LocalizedStringKey
     let color: Color
+    var active = false
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.colorSchemeContrast) private var contrast
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             Image(systemName: symbol).font(.system(.largeTitle, weight: .medium)).foregroundStyle(color).accessibilityHidden(true)
+                // Luz: the symbol greets each page as it becomes current.
+                .symbolEffect(.bounce.up, options: .nonRepeating, value: active)
             Text(title).font(.title3.weight(.semibold))
             Text(detail).font(.callout).foregroundStyle(Color.muted).fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 0)

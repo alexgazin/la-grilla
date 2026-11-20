@@ -13,6 +13,7 @@ struct ChordEditor: View {
     @State private var formulaText=""
     private enum InputField:Hashable{case symbol,formula}
     @FocusState private var focusedField:InputField?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var body: some View {
         NavigationStack{ScrollView{VStack(alignment:.leading,spacing:22){
             VStack(alignment:.leading,spacing:8){
@@ -20,8 +21,10 @@ struct ChordEditor: View {
                 if showDegrees{Text(MusicalNotation.degreeSymbol(chord,keyRoot:session.project.keyRoot,minor:session.project.minor)).font(.title3).accessibilityIdentifier("chord.degree")}
                 Text(MusicalNotation.chordNoteNames(chord,keyRoot:session.project.keyRoot,minor:session.project.minor,spelling:spelling).joined(separator:" · ")).font(.system(.subheadline,design:.monospaced)).foregroundStyle(Color.muted).accessibilityIdentifier("chord.notes")
             }.foregroundStyle(Color.harmony)
-            HStack{TextField("Chord symbol",text:$text).focused($focusedField,equals:.symbol).textInputAutocapitalization(.never).autocorrectionDisabled().textFieldStyle(.roundedBorder).frame(minHeight:44).onSubmit{parse()}.accessibilityIdentifier("chord.symbol");Button{parse()}label:{Text("Set").frame(minWidth:44,minHeight:44).contentShape(Rectangle())}.accessibilityIdentifier("chord.set-symbol")}
-            if let error{Text(LocalizedStringKey(error)).font(.caption).foregroundStyle(Color.record).accessibilityIdentifier("chord.error")}
+                // Luz: the symbol and its notes morph as the chord changes (inversion, octave, quality).
+                .contentTransition(.interpolate).animation(Luz.Motion.morph,value:chord)
+            HStack{TextField("Chord symbol",text:$text).focused($focusedField,equals:.symbol).textInputAutocapitalization(.never).autocorrectionDisabled().textFieldStyle(.roundedBorder).frame(minHeight:44).onSubmit{parse()}.accessibilityIdentifier("chord.symbol");Button{parse()}label:{Text("Set").frame(minWidth:44,minHeight:44).contentShape(Rectangle())}.accessibilityIdentifier("chord.set-symbol")}.luzShake(error)
+            if let error{Text(LocalizedStringKey(error)).font(.caption).foregroundStyle(Color.record).accessibilityIdentifier("chord.error").transition(Luz.Transition.pop(reduceMotion))}
             SmallHeading(text:"ROOT")
             LazyVGrid(columns:Array(repeating:GridItem(.flexible()),count:6),spacing:8){ForEach(0..<12,id:\.self){root in Button{chord.root=root;chord.voicedNotes=nil;text=chord.symbol;error=nil}label:{Text(pitchName(root)).font(.system(.body,weight:.medium)).foregroundStyle(chord.root==root ? Color.ink:Color.harmony).frame(maxWidth:.infinity,minHeight:44).background(chord.root==root ? Color.harmony:Color.raised,in:RoundedRectangle(cornerRadius:8,style:.continuous))}.buttonStyle(StudioQuietButtonStyle())}}
             SmallHeading(text:"QUALITY")
@@ -46,7 +49,7 @@ struct ChordEditor: View {
                 Text("Octave")
                 Spacer(minLength:8)
                 Button{shiftOctave(-1)}label:{Image(systemName:"minus").frame(width:44,height:44).contentShape(Rectangle())}.buttonStyle(StudioQuietButtonStyle()).disabled(!canShift(-1)).accessibilityLabel("Octave down").accessibilityIdentifier("chord.octave-down")
-                Text(octaveLabel).font(.system(.body,design:.monospaced,weight:.medium)).monospacedDigit().frame(minWidth:40).accessibilityIdentifier("chord.octave")
+                Text(octaveLabel).font(.system(.body,design:.monospaced,weight:.medium)).monospacedDigit().frame(minWidth:40).luzNumeric(Double(chord.octave ?? 0)).animation(Luz.Motion.snap,value:octaveLabel).accessibilityIdentifier("chord.octave")
                 Button{shiftOctave(1)}label:{Image(systemName:"plus").frame(width:44,height:44).contentShape(Rectangle())}.buttonStyle(StudioQuietButtonStyle()).disabled(!canShift(1)).accessibilityLabel("Octave up").accessibilityIdentifier("chord.octave-up")
             }.frame(minHeight:44)
             HStack {
@@ -56,7 +59,7 @@ struct ChordEditor: View {
                     .labelsHidden().pickerStyle(.menu).frame(minHeight:44).contentShape(Rectangle()).accessibilityIdentifier("chord.slash-bass")
             }.frame(minHeight:44)
             Stepper("Duration: \(duration/240) sixteenths",value:$duration,in:240...max(240,(session.project.patterns.first(where:{$0.id==selection.patternID})?.length ?? barTicks)-selection.tick),step:240).accessibilityIdentifier("chord.duration")
-        }.padding(22)}.background(Color.panel)
+        }.animation(Luz.Motion.snap,value:error).padding(22)}.background(Color.panel)
             .safeAreaInset(edge:.bottom,spacing:0){
                 chordActions.padding(.horizontal,22).padding(.vertical,12).background(Color.panel)
             }

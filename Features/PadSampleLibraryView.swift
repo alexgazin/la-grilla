@@ -118,7 +118,7 @@ struct PadSampleLibraryView: View {
             Button {
                 if auditionID == sample.id { stopPreview() } else { preview(sample) }
             } label: {
-                Image(systemName: auditionID == sample.id ? "stop.fill" : "speaker.wave.2")
+                Image(systemName: auditionID == sample.id ? "stop.fill" : "speaker.wave.2").contentTransition(.symbolEffect(.replace))
                     .frame(width: 44, height: 44).foregroundStyle(Color.drums)
             }.buttonStyle(.plain).disabled(working)
                 .accessibilityLabel(auditionID == sample.id ? "Stop preview" : "Hear sound")
@@ -150,7 +150,7 @@ struct PadSampleLibraryView: View {
             Button {
                 if playing { stopPreview() } else { previewFactory(item) }
             } label: {
-                Image(systemName: playing ? "stop.fill" : "speaker.wave.2")
+                Image(systemName: playing ? "stop.fill" : "speaker.wave.2").contentTransition(.symbolEffect(.replace))
                     .frame(width: 44, height: 44).foregroundStyle(Color.drums)
             }.buttonStyle(.plain).disabled(working)
                 .accessibilityLabel(playing ? "Stop preview" : "Hear sound")

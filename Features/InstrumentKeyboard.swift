@@ -58,6 +58,7 @@ private struct InstrumentKeyboard: View {
     /// I30: step input writes an eighth note per key at a cursor that advances when all keys are up.
     @State private var stepCursor: Int?
     @State private var stepHeld: Set<Int> = []
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var track: Track? {
         session.project.tracks.first { $0.id == (selectedTrackID ?? trackID) && $0.role != .drums }
@@ -82,6 +83,7 @@ private struct InstrumentKeyboard: View {
                                 HStack(spacing: 9) {
                                     ForEach(FactoryInstrument.allCases) { instrument in
                                         instrumentCard(instrument, track: track, compact: compact)
+                                            .luzScrollDepth(.horizontal)
                                             .id(instrument.id)
                                     }
                                 }.padding(.horizontal, 14)
@@ -242,6 +244,7 @@ private struct InstrumentKeyboard: View {
             Spacer(minLength: 4)
             if let current {
                 Image(current.artwork).resizable().scaledToFill()
+                    .id(current.id).transition(Luz.Transition.replace(reduceMotion))
                     .frame(width: height * 1.2, height: height).clipped()
                     .mask(LinearGradient(stops: [.init(color: .clear, location: 0),
                                                  .init(color: .black, location: 0.22),
@@ -253,6 +256,7 @@ private struct InstrumentKeyboard: View {
                     .foregroundStyle(Color.track(track.role)).padding(.trailing, 22).accessibilityHidden(true)
             }
         }.frame(maxWidth: .infinity).frame(height: height)
+            .animation(Luz.Motion.morph, value: current?.id)
             .background(Color.panel, in: RoundedRectangle(cornerRadius:Luz.Radius.card,style:.continuous))
             .clipShape(RoundedRectangle(cornerRadius:Luz.Radius.card,style:.continuous))
             .overlay { RoundedRectangle(cornerRadius:Luz.Radius.card,style:.continuous).strokeBorder(Color.outline, lineWidth: 0.7) }

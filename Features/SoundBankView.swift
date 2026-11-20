@@ -149,7 +149,7 @@ struct SoundBankView: View {
                 if active { stopAudition() } else { audition(choice, bank: bank) }
             } label: {
                 if active && player == nil { ProgressView() }
-                else { Image(systemName: active ? "stop.fill" : "speaker.wave.2").foregroundStyle(Color.mint) }
+                else { Image(systemName: active ? "stop.fill" : "speaker.wave.2").foregroundStyle(Color.mint).contentTransition(.symbolEffect(.replace)) }
             }
             .buttonStyle(.plain)
             .frame(width: 44, height: 44)

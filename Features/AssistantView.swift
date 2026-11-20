@@ -18,6 +18,7 @@ struct AssistantView:View {
     @State private var songEditCandidate:Project?
     @State private var songEditSource:Project?
     @State private var error:String?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var ambiguous=false
     @State private var previewB=false
     @State private var language="ru-RU"
@@ -72,7 +73,7 @@ struct AssistantView:View {
                     DisclosureGroup{Text("Dictation uses on-device recognition. You can always type. Humming has a separate melody recording.").font(.caption).foregroundStyle(Color.muted).padding(.vertical,8)}label:{Text("Dictation details").frame(maxWidth:.infinity,minHeight:44,alignment:.leading)}.font(.caption).foregroundStyle(Color.muted)
                     if generationTask != nil{HStack{ProgressView("Preparing proposal…");Spacer();Button("Cancel generation"){cancelGeneration()}.frame(minHeight:44)}}
                     if let error{
-                        Text(LocalizedStringKey(error)).font(.callout).foregroundStyle(Color.record).accessibilityIdentifier("assistant.error")
+                        Text(LocalizedStringKey(error)).font(.callout).foregroundStyle(Color.record).luzShake(error).transition(Luz.Transition.pop(reduceMotion)).accessibilityIdentifier("assistant.error")
                         if mode == .onDeviceAI, SongFormBrief.recognizes(input) {
                             Button("Review with the offline arranger") {
                                 do { session.openTrackBuilder(idea:input,suggestion:try TrackBrief().suggesting(input)) }
@@ -85,7 +86,7 @@ struct AssistantView:View {
                         }
                     }
                     if ambiguous {VStack(spacing:8){Button("Stretch chords evenly"){generate(.stretch)};Button("Repeat, one bar per chord"){generate(.repeatBars)}}.buttonStyle(StudioActionStyle(prominent:false)).frame(maxWidth:.infinity)}
-                    if let proposal,let candidate,let proposalSource{review(proposal,source:proposalSource,candidate:candidate)}
+                    if let proposal,let candidate,let proposalSource{review(proposal,source:proposalSource,candidate:candidate).transition(Luz.Transition.rise(reduceMotion))}
                     if songEditPlan==nil,proposal==nil,let log=session.project.editLog,!log.isEmpty{
                         // I41: recent phrase edits of this project; tap one to reuse it.
                         VStack(alignment:.leading,spacing:6){
@@ -100,8 +101,14 @@ struct AssistantView:View {
                         SongEditReview(session:session,plan:songEditPlan,source:songEditSource,candidate:songEditCandidate,
                                        choose:{reviewSongEdit(songEditPlan.choosing($0),source:songEditSource)},
                                        recalculate:{generate()},apply:{applySongEdit(songEditPlan)})
+                            .transition(Luz.Transition.rise(reduceMotion))
                     }
-                }.padding(18)
+                }
+                // Luz: proposals rise in; the motion follows the state, never the typing.
+                .animation(reduceMotion ? .easeOut(duration:0.15):Luz.Motion.morph,value:proposal==nil)
+                .animation(reduceMotion ? .easeOut(duration:0.15):Luz.Motion.morph,value:songEditPlan==nil)
+                .animation(reduceMotion ? nil:Luz.Motion.snap,value:error)
+                .padding(18)
             }.accessibilityIdentifier("assistant.review-scroll").scrollDismissesKeyboard(.interactively).background(Color.ink).navigationTitle("Assistant").navigationBarTitleDisplayMode(.inline)
                 .toolbar{ToolbarItem(placement:.cancellationAction){Button("Cancel"){closeEditor()}}}
         }.tint(.mint)

@@ -6,6 +6,7 @@ struct JamView: View {
     @Environment(\.dynamicTypeSize) private var dynamicType
     @Environment(\.scenePhase) private var scenePhase
     @State private var steps = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var showGuide=false
     @State private var selectedPad = 0
     @State private var stepBar = 0
@@ -137,9 +138,9 @@ struct JamView: View {
         VStack(spacing:16){
             HStack{Menu{ForEach(0..<16,id:\.self){i in Button(LocalizedStringKey(Compiler.padNames[i])){selectedPad=i}}}label:{Label(LocalizedStringKey(Compiler.padNames[selectedPad]),systemImage:"waveform").font(.subheadline.weight(.semibold)).foregroundStyle(Color.drums).frame(minHeight:44)};Spacer();Picker("Bar",selection:$stepBar){ForEach(0..<(drumPattern?.length ?? barTicks)/barTicks,id:\.self){i in Text("Bar \(i+1)").tag(i)}}.frame(width:dynamicType.isAccessibilitySize ? 150:110)}
             Picker("Step view",selection:$lanes){Text("Lanes").tag(true);Text("One pad").tag(false)}.pickerStyle(.segmented).accessibilityIdentifier("jam.step-view")
-            if lanes{DrumLanesView(pattern:drumPattern,bar:stepBar,selectedPad:$selectedPad,audio:session.audio,origin:drumClipStart){pad,tick in toggleStep(tick,pad:pad)}}else{singlePadSteps}
+            if lanes{DrumLanesView(pattern:drumPattern,bar:stepBar,selectedPad:$selectedPad,audio:session.audio,origin:drumClipStart){pad,tick in toggleStep(tick,pad:pad)}.transition(Luz.Transition.replace(reduceMotion))}else{singlePadSteps.transition(Luz.Transition.replace(reduceMotion))}
             VStack(alignment:.leading,spacing:8){HStack{SmallHeading(text:"VELOCITY");Spacer();Text(String(Int(velocity))).font(.system(.caption, design: .monospaced)).foregroundStyle(Color.drums).monospacedDigit()};Slider(value:$velocity,in:1...127,step:1).tint(.drums);Button("Apply velocity to this bar"){guard let id=drumPattern?.id else{return};session.edit{p in if let i=p.patterns.firstIndex(where:{$0.id==id}){for n in p.patterns[i].drums.indices where p.patterns[i].drums[n].pad==selectedPad && p.patterns[i].drums[n].tick/barTicks==stepBar{p.patterns[i].drums[n].velocity=Int(velocity)}}}}.font(.caption).frame(minHeight:44)}
-        }.padding(14).modifier(StudioSurface())
+        }.animation(reduceMotion ? .easeOut(duration:0.15):Luz.Motion.morph,value:lanes).padding(14).modifier(StudioSurface())
     }
     private var singlePadSteps:some View {
         LazyVGrid(columns:Array(repeating:GridItem(.flexible(),spacing:6),count:4),spacing:10){ForEach(0..<16,id:\.self){step in
