@@ -7,24 +7,28 @@ import SwiftUI
 /// - nothing here reads the transport tick, so the 30 Hz playhead path stays untouched;
 /// - effects are GPU-cheap: opacity, scale, offset, blur on small views only.
 extension Luz {
+    /// UI tests check behaviour, not motion: structural transitions are skipped so a
+    /// snapshot never catches a half-faded duplicate of a control (like Reduce Motion).
+    static let uiTesting = ProcessInfo.processInfo.arguments.contains("--uitesting")
+
     @MainActor enum Transition {
         /// Content that replaces content in place (tabs, steps, states): soft blur cross-fade.
         static func replace(_ reduceMotion: Bool) -> AnyTransition {
-            reduceMotion ? .opacity : AnyTransition(.blurReplace(.downUp))
+            Luz.uiTesting ? .identity : reduceMotion ? .opacity : AnyTransition(.blurReplace(.downUp))
         }
         /// Something new arriving from below (rows, notices, inline panels).
         static func rise(_ reduceMotion: Bool) -> AnyTransition {
-            reduceMotion ? .opacity : .asymmetric(
+            Luz.uiTesting ? .identity : reduceMotion ? .opacity : .asymmetric(
                 insertion: .move(edge: .bottom).combined(with: .opacity).combined(with: AnyTransition(.blurReplace)),
                 removal: .opacity.combined(with: .scale(scale: 0.96)))
         }
         /// A banner from the top edge (toasts, notices).
         static func drop(_ reduceMotion: Bool) -> AnyTransition {
-            reduceMotion ? .opacity : .move(edge: .top).combined(with: .opacity).combined(with: AnyTransition(.blurReplace))
+            Luz.uiTesting ? .identity : reduceMotion ? .opacity : .move(edge: .top).combined(with: .opacity).combined(with: AnyTransition(.blurReplace))
         }
         /// A small element that pops into place (badges, chips, errors).
         static func pop(_ reduceMotion: Bool) -> AnyTransition {
-            reduceMotion ? .opacity : .scale(scale: 0.86).combined(with: .opacity).combined(with: AnyTransition(.blurReplace))
+            Luz.uiTesting ? .identity : reduceMotion ? .opacity : .scale(scale: 0.86).combined(with: .opacity).combined(with: AnyTransition(.blurReplace))
         }
     }
 }
@@ -36,7 +40,8 @@ extension Luz {
 struct LuzZoomSource<ID: Hashable>: ViewModifier {
     let id: ID
     let namespace: Namespace.ID
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+    private var reduceMotion: Bool { systemReduceMotion || Luz.uiTesting }
     func body(content: Content) -> some View {
         if reduceMotion { content } else { content.matchedTransitionSource(id: id, in: namespace) }
     }
@@ -45,7 +50,8 @@ struct LuzZoomSource<ID: Hashable>: ViewModifier {
 struct LuzZoomDestination<ID: Hashable>: ViewModifier {
     let id: ID
     let namespace: Namespace.ID
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+    private var reduceMotion: Bool { systemReduceMotion || Luz.uiTesting }
     func body(content: Content) -> some View {
         if reduceMotion { content } else { content.navigationTransition(.zoom(sourceID: id, in: namespace)) }
     }
@@ -66,7 +72,8 @@ extension View {
 /// until they reach the visible area. Axis-aware, Reduce Motion keeps them still.
 struct LuzScrollDepth: ViewModifier {
     var axis: Axis = .vertical
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+    private var reduceMotion: Bool { systemReduceMotion || Luz.uiTesting }
     func body(content: Content) -> some View {
         if reduceMotion { content } else {
             content.scrollTransition(.interactive, axis: axis) { view, phase in
@@ -82,7 +89,8 @@ struct LuzScrollDepth: ViewModifier {
 struct LuzParallax: ViewModifier {
     var axis: Axis = .horizontal
     var amount: CGFloat = 18
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+    private var reduceMotion: Bool { systemReduceMotion || Luz.uiTesting }
     func body(content: Content) -> some View {
         if reduceMotion { content } else {
             content.scrollTransition(.interactive, axis: axis) { view, phase in
@@ -105,10 +113,11 @@ extension View {
 struct LuzEntrance: ViewModifier {
     let index: Int
     @State private var shown = false
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+    private var reduceMotion: Bool { systemReduceMotion || Luz.uiTesting }
     func body(content: Content) -> some View {
         content
-            .opacity(shown ? 1 : 0)
+            .opacity(shown || Luz.uiTesting ? 1 : 0)
             .offset(y: shown || reduceMotion ? 0 : 10)
             .blur(radius: shown || reduceMotion ? 0 : 4)
             .onAppear {
@@ -129,7 +138,8 @@ extension View {
 /// error haptic. Trigger with any changing Equatable value, e.g. an error count.
 struct LuzShake<Trigger: Equatable>: ViewModifier {
     let trigger: Trigger
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+    private var reduceMotion: Bool { systemReduceMotion || Luz.uiTesting }
     func body(content: Content) -> some View {
         if reduceMotion { content } else {
             content.keyframeAnimator(initialValue: CGFloat(0), trigger: trigger) { view, x in
@@ -150,7 +160,8 @@ struct LuzShake<Trigger: Equatable>: ViewModifier {
 /// A confirmation: the element swells by 6% and settles (Apply, Save, Use).
 struct LuzConfirm<Trigger: Equatable>: ViewModifier {
     let trigger: Trigger
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+    private var reduceMotion: Bool { systemReduceMotion || Luz.uiTesting }
     func body(content: Content) -> some View {
         if reduceMotion { content } else {
             content.keyframeAnimator(initialValue: CGFloat(1), trigger: trigger) { view, scale in
@@ -169,7 +180,8 @@ struct LuzConfirm<Trigger: Equatable>: ViewModifier {
 /// The phase animator stops entirely when inactive.
 struct LuzBreathe: ViewModifier {
     let active: Bool
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+    private var reduceMotion: Bool { systemReduceMotion || Luz.uiTesting }
     func body(content: Content) -> some View {
         if active && !reduceMotion {
             content.phaseAnimator([1.0, 0.45]) { view, value in view.opacity(value) } animation: { _ in .easeInOut(duration: 0.7) }
@@ -190,7 +202,8 @@ extension View {
 /// The start screens' living backdrop: a dark mesh in the four track colours
 /// that drifts slowly. Static under Reduce Motion and Increase Contrast.
 struct LuzAurora: View {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+    private var reduceMotion: Bool { systemReduceMotion || Luz.uiTesting }
     @Environment(\.colorSchemeContrast) private var contrast
     @Environment(\.colorScheme) private var scheme
 

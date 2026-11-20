@@ -47,7 +47,7 @@ struct DrumLanesView: View {
                     .font(.caption.weight(selected ? .bold : .medium))
                     .foregroundStyle(selected ? Color.drums : Color.muted)
                     .lineLimit(2).minimumScaleFactor(0.7).multilineTextAlignment(.leading)
-                    .frame(width: Self.labelWidth - 4, height: 44, alignment: .leading)
+                    .frame(width: Self.labelWidth - 4, height: 46, alignment: .leading)
                     .contentShape(Rectangle())
             }.buttonStyle(.plain)
                 .accessibilityAddTraits(selected ? .isSelected : [])
@@ -73,7 +73,7 @@ struct DrumLanesView: View {
                     RoundedRectangle(cornerRadius: 5, style: .continuous)
                         .strokeBorder(selected && !on ? Color.drums.opacity(0.35) : .clear, lineWidth: 1)
                 }
-                .frame(maxWidth: .infinity).frame(height: 44)
+                .frame(maxWidth: .infinity).frame(height: 46)
                 .contentShape(Rectangle())
         }
         .buttonStyle(StudioQuietButtonStyle(plate: false))

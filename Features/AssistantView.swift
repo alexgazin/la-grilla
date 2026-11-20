@@ -38,7 +38,6 @@ struct AssistantView:View {
     @State private var showAIOptions=false
     var body:some View {
         NavigationStack {
-            ScrollViewReader { reader in
             ScrollView {
                 VStack(alignment:.leading,spacing:18){
                     Text("An idea, in your words.").font(.headline)
@@ -63,7 +62,7 @@ struct AssistantView:View {
                             if value != generatedInput{cancelGeneration();proposal=nil;candidate=nil;proposalSource=nil;clearSongEdit();usedUnavailableAIFallback=false}
                             session.endHarmonyPreview()
                         }
-                    // Right under the text: with the keyboard up, the focus scroll below keeps it visible.
+                    // Right under the text, so it stays above the keyboard while typing.
                     Button{generate()}label:{Label("Review command",systemImage:"sparkles")}.buttonStyle(StudioActionStyle()).disabled(input.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty || dictation.requesting || dictation.recording || dictation.finalizing || generationTask != nil).accessibilityIdentifier("assistant.generate").id(Self.generateAnchor)
                     dictationToolbar
                     if dictation.requesting{ProgressView("Preparing dictation…")}
@@ -114,13 +113,6 @@ struct AssistantView:View {
                 .padding(18)
             }
             .accessibilityIdentifier("assistant.review-scroll")
-            // The keyboard must never hide the main action: when typing starts, the review
-            // button scrolls to the bottom of the visible area, just above the keyboard.
-            .onChange(of:focused){_,isFocused in
-                guard isFocused else{return}
-                DispatchQueue.main.asyncAfter(deadline:.now()+0.35){withAnimation(Luz.Motion.snap){reader.scrollTo(Self.generateAnchor,anchor:.bottom)}}
-            }
-            }
             .scrollDismissesKeyboard(.interactively).background(Color.ink).navigationTitle("Assistant").navigationBarTitleDisplayMode(.inline)
                 .toolbar{ToolbarItem(placement:.cancellationAction){Button("Cancel"){closeEditor()}}}
         }.tint(.mint)

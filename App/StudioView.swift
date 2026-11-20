@@ -57,7 +57,7 @@ struct StudioView: View {
     private var workspaceStage: some View {
         ZStack{
             workspace.id(session.tab)
-                .transition(reduceMotion ? .opacity:.opacity.combined(with:.scale(scale:0.985)))
+                .transition(Luz.uiTesting ? .identity:reduceMotion ? .opacity:.opacity.combined(with:.scale(scale:0.985)))
         }.frame(maxWidth:.infinity,maxHeight:.infinity).clipped()
     }
     @ViewBuilder var workspace: some View {
