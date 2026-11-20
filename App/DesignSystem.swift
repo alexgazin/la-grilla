@@ -142,16 +142,6 @@ struct LuzEmptyState: View {
     }
 }
 
-/// A button that is played like an instrument: the lit face is its press state.
-struct LitButtonStyle: ButtonStyle {
-    let color: Color
-    var radius: CGFloat = Luz.Radius.cell
-    var isOn = false
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label.litInstrument(color, isDown: configuration.isPressed || isOn, radius: radius)
-    }
-}
-
 /// Circular transport key: sinks on press, glows (gradient, no blur) while on.
 struct TransportKeyStyle: ButtonStyle {
     var color: Color = .mint

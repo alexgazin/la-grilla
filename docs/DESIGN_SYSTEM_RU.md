@@ -160,7 +160,7 @@
 | --- | --- |
 | `Luz.Motion`, `Luz.Radius`, `Luz.Haptics` | пружины, радиусы, хаптика |
 | `LitInstrument` / `.litInstrument` | светящийся инструмент; ореол рисуется градиентом, без размытия |
-| `LitButtonStyle`, `TransportKeyStyle` | кнопка‑инструмент, клавиша транспорта |
+| `TransportKeyStyle` | клавиша транспорта (кнопки‑инструменты используют `.litInstrument` в метке) |
 | `LuzKnob` | детенты, сброс двойным тапом, для VoiceOver и тестов выглядит как стандартный слайдер |
 | `SelectableTile` | выбираемая карточка |
 | `LuzNotice` | баннеры и предупреждения |
