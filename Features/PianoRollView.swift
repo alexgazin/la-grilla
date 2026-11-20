@@ -282,6 +282,7 @@ private struct PianoRollViewport<Content: View>: UIViewControllerRepresentable {
         override func viewDidLayoutSubviews() {
             super.viewDidLayoutSubviews()
             layoutCanvas()
+            applyReveal()
         }
         private func layoutCanvas() {
             let size = CGSize(width: 48+bars*width, height: 24+24*24)
@@ -299,12 +300,26 @@ private struct PianoRollViewport<Content: View>: UIViewControllerRepresentable {
             DispatchQueue.main.async { measure(contentWidth, visible) }
         }
         private var revealedID: UUID?
-        /// A newly selected note must be visible: the inspector below the roll can
-        /// leave only a few rows on screen. Runs once per selection, never mid-gesture.
+        private var focus: (id: UUID, rect: CGRect)?
+        private var revealPending = false
+        /// A newly selected note must be visible: the inspector that appears with the
+        /// selection shrinks the roll on the next layout pass, so the request stays
+        /// pending for a moment and is re-checked on every layout until the user scrolls.
         func reveal(_ focus: (id: UUID, rect: CGRect)?) {
-            guard let focus else { revealedID = nil; return }
-            guard focus.id != revealedID, anchor == nil, scroll.bounds.height > 0 else { return }
-            revealedID = focus.id
+            self.focus = focus
+            guard let focus else { revealedID = nil; revealPending = false; return }
+            if focus.id != revealedID {
+                revealedID = focus.id; revealPending = true
+                let id = focus.id
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in
+                    if self?.revealedID == id { self?.revealPending = false }
+                }
+            }
+            applyReveal()
+        }
+        func scrollViewWillBeginDragging(_ scrollView: UIScrollView) { revealPending = false }
+        private func applyReveal() {
+            guard revealPending, anchor == nil, let focus, scroll.bounds.height > 0 else { return }
             let visible = scroll.bounds.inset(by: UIEdgeInsets(top: 24, left: 48, bottom: 0, right: 0))
             guard !visible.contains(focus.rect) else { return }
             var offset = scroll.contentOffset
