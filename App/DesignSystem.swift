@@ -160,12 +160,9 @@ struct TransportKeyStyle: ButtonStyle {
             .frame(width: diameter, height: diameter)
             .background(color, in: Circle())
             .overlay { Circle().strokeBorder(Color.studioText.opacity(contrast == .increased ? 0.6 : 0.15), lineWidth: 1) }
-            .background {
-                if contrast != .increased {
-                    Circle().fill(RadialGradient(colors: [color.opacity(0.5), color.opacity(0)], center: .center, startRadius: diameter * 0.3, endRadius: diameter * 0.85))
-                        .padding(-diameter * 0.3).opacity(isOn ? 1 : 0).allowsHitTesting(false)
-                }
-            }
+            // The glow is a shadow, not an oversized background: it must never widen the
+            // key's frame (a 1.6× halo pushed the landscape Play key off the screen edge).
+            .shadow(color: contrast != .increased && isOn ? color.opacity(0.55) : .clear, radius: diameter * 0.22)
             .scaleEffect(pressed && !reduceMotion ? 0.97 : 1)
             .animation(reduceMotion ? nil : pressed ? Luz.Motion.tap : Luz.Motion.release, value: pressed)
             .animation(reduceMotion ? nil : Luz.Motion.snap, value: isOn)

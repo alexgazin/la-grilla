@@ -148,7 +148,8 @@ final class TranspositionUITests:XCTestCase {
         openSettings(app)
         let persistedSpelling=try XCTUnwrap(reveal(spelling,in:app))
         XCTAssertTrue(selected("Flats",in:persistedSpelling.snapshot))
-        let persistedDegrees=try XCTUnwrap(visibleSnapshot("settings.show-degrees",type:.switch,in:try XCTUnwrap(persistedSpelling.appSnapshot)))
+        // Taller Luz rows can leave the next row just below the fold: reveal it on its own.
+        let persistedDegrees=try XCTUnwrap(reveal(degrees,in:app))
         guard degrees.isHittable else{XCTFail("The persisted scale-degrees switch must remain hittable in Settings");return}
         XCTAssertEqual(persistedDegrees.snapshot.value as? String,"1")
         let revisionBeforeRestore=field("revision",in:current(transport))
@@ -156,6 +157,7 @@ final class TranspositionUITests:XCTestCase {
         // hierarchy. Restore through its real controls, never app defaults.
         // No gesture occurred since spelling's visibility/hittability check.
         if !selected(originalSpelling,in:persistedSpelling.snapshot){
+            reveal(spelling,in:app)
             spelling.tap()
             let spellingIDs=["Auto (key)":"automatic","Sharps":"sharps","Flats":"flats"]
             let option=try XCTUnwrap(spellingIDs[originalSpelling])
@@ -163,8 +165,8 @@ final class TranspositionUITests:XCTestCase {
         }
         // Picker navigation invalidates previous geometry. Reveal the actual
         // switch again and observe restored spelling in that fresh hierarchy.
+        let restoredSpelling=try XCTUnwrap(reveal(spelling,in:app))
         let restoreDegrees=try XCTUnwrap(reveal(degrees,in:app))
-        let restoredSpelling=try XCTUnwrap(visibleSnapshot("settings.pitch-spelling",type:.button,in:try XCTUnwrap(restoreDegrees.appSnapshot)))
         XCTAssertTrue(selected(originalSpelling,in:restoredSpelling.snapshot))
         let restoredDegrees=setDegrees(originalDegrees,control:degrees,observed:restoreDegrees)
         XCTAssertEqual(restoredDegrees,originalDegrees)

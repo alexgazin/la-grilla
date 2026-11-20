@@ -19,7 +19,7 @@ struct JamView: View {
     @AppStorage("jam.lanes") private var lanes = true
     @AppStorage("jam.lesson") private var lessonID = ""
     var body:some View{
-        Group{if verticalSize == .compact{compactJam}else{GeometryReader{geometry in ScrollView(.vertical){regularJam(compact:geometry.size.height<500)}.scrollDisabled(!pressed.isEmpty)}}}
+        Group{if verticalSize == .compact{compactJam}else{GeometryReader{geometry in ScrollView(.vertical){regularJam(compact:geometry.size.height<500)}.scrollDisabled(!pressed.isEmpty)}.ignoresSafeArea(.keyboard)}}
             .onChange(of:drumPattern?.id){_,_ in stepBar=0}
             .onChange(of:drumPattern?.length){_,length in stepBar=min(stepBar,max(0,(length ?? barTicks)/barTicks-1))}
             .onChange(of:scenePhase){_,phase in if phase != .active{pressed=[]}}
@@ -29,16 +29,17 @@ struct JamView: View {
     }
     private func regularJam(compact:Bool)->some View {
         VStack(spacing:14){
-            if compact && !dynamicType.isAccessibilitySize {
-                // Small iPhones: the kit's sound names the screen, so heading and sound share
-                // one row and all sixteen pads stay above the transport.
-                HStack(spacing:8){soundControl;InstrumentKeyboardButton(session: session, compact: true);editorMode}.padding(.top,8)
-                if focusedClip != nil{clipFocus}
-            } else {
-                jamHeading.padding(.top,12)
-                if focusedClip != nil{clipFocus}
-                HStack(spacing:10){soundControl;InstrumentKeyboardButton(session: session, compact: true);JamBeatIndicator(session:session)}
-            }
+            // Small iPhones: the kit's sound names the screen, so the heading row folds into the
+            // sound row and all sixteen pads stay above the transport. The sound button keeps one
+            // structural position either way: re-creating it would close the sheets it presents.
+            let tight = compact && !dynamicType.isAccessibilitySize
+            if !tight {jamHeading.padding(.top,12)}
+            if focusedClip != nil{clipFocus}
+            HStack(spacing:tight ? 8:10){
+                soundControl
+                InstrumentKeyboardButton(session: session, compact: true)
+                if tight{editorMode}else{JamBeatIndicator(session:session)}
+            }.padding(.top,tight ? 8:0)
             recordingControls
             if session.recording || session.armed{recordingStatus}
             if steps {stepEditor.disabled(session.performance.contextActive)}else if dynamicType.isAccessibilitySize{accessiblePads}else{padGrid(height:(compact ? 264:312)-(compact && (session.recording || session.armed) ? 24:0)).disabled(session.performance.replaying).allowsHitTesting(!session.performance.replaying)}
