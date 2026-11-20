@@ -7,7 +7,7 @@ import SwiftUI
 /// - nothing here reads the transport tick, so the 30 Hz playhead path stays untouched;
 /// - effects are GPU-cheap: opacity, scale, offset, blur on small views only.
 extension Luz {
-    enum Transition {
+    @MainActor enum Transition {
         /// Content that replaces content in place (tabs, steps, states): soft blur cross-fade.
         static func replace(_ reduceMotion: Bool) -> AnyTransition {
             reduceMotion ? .opacity : AnyTransition(.blurReplace(.downUp))
