@@ -8,6 +8,7 @@ struct AssistantView:View {
     @Environment(\.scenePhase) private var phase
     @Environment(\.dynamicTypeSize) private var dynamicType
     @FocusState private var focused:Bool
+    private static let generateAnchor="assistant.generate.anchor"
     @State private var input=""
     @State private var generatedInput=""
     @State private var proposal:AssistantProposal?
@@ -37,6 +38,7 @@ struct AssistantView:View {
     @State private var showAIOptions=false
     var body:some View {
         NavigationStack {
+            ScrollViewReader { reader in
             ScrollView {
                 VStack(alignment:.leading,spacing:18){
                     Text("An idea, in your words.").font(.headline)
@@ -61,6 +63,8 @@ struct AssistantView:View {
                             if value != generatedInput{cancelGeneration();proposal=nil;candidate=nil;proposalSource=nil;clearSongEdit();usedUnavailableAIFallback=false}
                             session.endHarmonyPreview()
                         }
+                    // Right under the text: with the keyboard up, the focus scroll below keeps it visible.
+                    Button{generate()}label:{Label("Review command",systemImage:"sparkles")}.buttonStyle(StudioActionStyle()).disabled(input.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty || dictation.requesting || dictation.recording || dictation.finalizing || generationTask != nil).accessibilityIdentifier("assistant.generate").id(Self.generateAnchor)
                     dictationToolbar
                     if dictation.requesting{ProgressView("Preparing dictation…")}
                     if dictation.finalizing{ProgressView("Finishing dictation…")}
@@ -109,13 +113,15 @@ struct AssistantView:View {
                 .animation(reduceMotion ? nil:Luz.Motion.snap,value:error)
                 .padding(18)
             }
-            // The main action stays above the keyboard and the growing form: pinned to the bottom edge.
-            .safeAreaInset(edge:.bottom,spacing:0){
-                Button{generate()}label:{Label("Review command",systemImage:"sparkles")}.buttonStyle(StudioActionStyle()).disabled(input.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty || dictation.requesting || dictation.recording || dictation.finalizing || generationTask != nil).accessibilityIdentifier("assistant.generate")
-                    .padding(.horizontal,18).padding(.top,8).padding(.bottom,10)
-                    .background(Color.ink)
+            .accessibilityIdentifier("assistant.review-scroll")
+            // The keyboard must never hide the main action: when typing starts, the review
+            // button scrolls to the bottom of the visible area, just above the keyboard.
+            .onChange(of:focused){_,isFocused in
+                guard isFocused else{return}
+                DispatchQueue.main.asyncAfter(deadline:.now()+0.35){withAnimation(Luz.Motion.snap){reader.scrollTo(Self.generateAnchor,anchor:.bottom)}}
             }
-            .accessibilityIdentifier("assistant.review-scroll").scrollDismissesKeyboard(.interactively).background(Color.ink).navigationTitle("Assistant").navigationBarTitleDisplayMode(.inline)
+            }
+            .scrollDismissesKeyboard(.interactively).background(Color.ink).navigationTitle("Assistant").navigationBarTitleDisplayMode(.inline)
                 .toolbar{ToolbarItem(placement:.cancellationAction){Button("Cancel"){closeEditor()}}}
         }.tint(.mint)
         .sheet(isPresented:$showExamples){AssistantExamplesView(language:language){text,requiresAI in input=text;if requiresAI{mode = .onDeviceAI}else if SongFormBrief.recognizes(text){mode = .automatic};showExamples=false}}
