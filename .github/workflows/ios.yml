@@ -21,16 +21,18 @@ jobs:
     runs-on: macos-26
     # Main 8bc finished all 73 methods 0.385s before the former 60-minute
     # supervisor deadline; XCTest finalization was interrupted, leaving no
-    # xcresult Info.plist. Keep every case limit, allow 65 minutes for the full
-    # command and reserve 10 minutes for evidence in this 90-minute job.
-    timeout-minutes: 90
+    # xcresult Info.plist. Keep every case limit, allow 95 minutes for the full
+    # command and reserve 10 minutes for evidence in this 125-minute job.
+    # Build 46 grew the suite past the former 65-minute bound (84 cases ended
+    # at 64:58 once, then 55 of 84 at 63:26): every case still runs.
+    timeout-minutes: 125
     steps:
       - name: Reserve time for native evidence preservation
         run: |
           python3 - <<'PY'
           import os,time
           with open(os.environ['GITHUB_ENV'],'a') as output:
-              output.write(f'GRILLA_NATIVE_DEADLINE_EPOCH={time.time()+80*60}\n')
+              output.write(f'GRILLA_NATIVE_DEADLINE_EPOCH={time.time()+115*60}\n')
           PY
       - uses: actions/checkout@v4
       - name: Verify current App Store toolchain
@@ -190,9 +192,9 @@ jobs:
         id: native_flows
         if: ${{ !cancelled() && steps.prepare_simulator.outcome == 'success' }}
         # Independent runner-side bound also covers a blocked Python I/O call.
-        # Full native execution/finalization has 65 minutes; focused subsets
+        # Full native execution/finalization has 95 minutes; focused subsets
         # retain 25 minutes. Per-case limits and bounded cleanup stay unchanged.
-        timeout-minutes: 70
+        timeout-minutes: 100
         env:
           GRILLA_REQUIRE_MIC_INPUT: '1'
           TEST_RUNNER_GRILLA_REQUIRE_MIC_INPUT: '1'
@@ -208,7 +210,7 @@ jobs:
           set -o pipefail
           DEVICE=$(cat /tmp/grilla-simulator-id)
           SCOPE=full
-          GRILLA_NATIVE_TIMEOUT_SECONDS=3900
+          GRILLA_NATIVE_TIMEOUT_SECONDS=5700
           GRILLA_NATIVE_LABEL=full-native-ui
           INVENTORY=(--functional-inventory UITests)
           FILTER=(-skip-testing:LaGrillaUITests/ScreenshotTests/testCaptureCompactScreens)
