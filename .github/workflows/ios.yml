@@ -8,6 +8,11 @@ on:
       - feat/native-demo20
       - feat/native-demo-intel-preflight
   workflow_dispatch:
+    inputs:
+      only_testing:
+        description: 'Comma-separated UI test cases (Class/testMethod) to rerun alone; empty runs the full suite'
+        required: false
+        default: ''
 env:
   DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
 concurrency:
@@ -204,6 +209,7 @@ jobs:
           TEST_RUNNER_GRILLA_INPUT_DIAGNOSTIC: ${{ contains(github.event.head_commit.message, '[input-diagnostic]') && '1' || '0' }}
           GRILLA_PIANO_ZOOM: ${{ contains(github.event.head_commit.message, '[piano-zoom]') && '1' || '0' }}
           GRILLA_ASSISTANT23_ONLY: ${{ contains(github.event.head_commit.message, '[assistant23-only]') && '1' || '0' }}
+          GRILLA_ONLY_TESTING: ${{ github.event.inputs.only_testing || '' }}
           GRILLA_RU_RECAPTURE: ${{ contains(github.event.head_commit.message, '[ru-capture]') && '1' || '0' }}
           TEST_RUNNER_GRILLA_RU_RECAPTURE: ${{ contains(github.event.head_commit.message, '[ru-capture]') && '1' || '0' }}
         run: |
@@ -235,6 +241,20 @@ jobs:
                        --require-test PianoTouchUITests/testPinchChangesTimeScaleAndKeepsPitchRowsInPlace
                        --require-test PianoTouchUITests/testHoldAndMoveKeepsDurationAndCommitsOneUndoableEdit
                        --require-test PianoTouchUITests/testResizeHandleUsesGridAndCommitsOneUndoableEdit)
+          fi
+          if test -n "$GRILLA_ONLY_TESTING"; then
+            # Rerun only the named cases (e.g. the failures of the last full pass).
+            SCOPE=focused
+            GRILLA_NATIVE_TIMEOUT_SECONDS=1500
+            GRILLA_NATIVE_LABEL=selected-cases
+            FILTER=()
+            INVENTORY=()
+            IFS=',' read -ra GRILLA_CASES <<< "$GRILLA_ONLY_TESTING"
+            for case_id in "${GRILLA_CASES[@]}"; do
+              case_id=$(echo "$case_id" | xargs)
+              FILTER+=("-only-testing:LaGrillaUITests/$case_id")
+              INVENTORY+=(--require-test "$case_id")
+            done
           fi
           if test "$GRILLA_ASSISTANT23_ONLY" = 1; then
             GRILLA_ASSISTANT_CASES=(AIAvailabilityTests/testActualUnavailableModelLocallyReviewsJazzAppliesAndUndoesOnce AIAvailabilityTests/testActualUnavailableModelRecheckPreservesIndependentLanguagesInputAndProject AssistantCompositionTests/testIdleProposalEndsOnLanguageChangeWithoutEditing AuthorizedMicrophoneTests/testGrantedSpeechCallbackAndOutputOnlyAssistantRemainUsable)
