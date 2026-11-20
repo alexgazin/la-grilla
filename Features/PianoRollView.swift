@@ -140,7 +140,7 @@ struct PianoRollView: View {
         VStack(spacing:0){
             HStack{Button{lowPitch=max(0,lowPitch-12)}label:{Label("Octave",systemImage:"minus").frame(minHeight:44)}.disabled(lowPitch==0);Spacer();Text("\(noteName(lowPitch)) – \(noteName(lowPitch+23))").font(.caption.monospaced()).foregroundStyle(Color.muted);Spacer();Button{lowPitch=min(104,lowPitch+12)}label:{Image(systemName:"plus").frame(width:44,height:44)}.disabled(lowPitch==104)}.padding(.horizontal,16)
             PianoRollViewport(bars: CGFloat(p.length)/CGFloat(barTicks), barWidth: $barWidth,
-                              editing: noteDragging, measure: Self.measureZoom ? { width, visible in
+                              editing: noteDragging, focus: focusRect, measure: Self.measureZoom ? { width, visible in
                 renderedWidth = width; rollViewport = visible
             } : nil) {
                 HStack(spacing:0){
@@ -185,6 +185,12 @@ struct PianoRollView: View {
     private func noteDetails(_ note:NoteEvent)->some View {
         Text("\(note.tick/ppq+1):\(note.tick%ppq) · \(note.duration) ticks · v\(note.velocity)").font(.caption.monospaced())
     }
+    /// The selected note and its resize grip in viewport content coordinates (key column 48, ruler 24).
+    private var focusRect:(id:UUID,rect:CGRect)? {
+        guard let note,(lowPitch...lowPitch+23).contains(note.pitch) else{return nil}
+        let x=48+CGFloat(note.tick)/CGFloat(barTicks)*barWidth,width=max(4,CGFloat(note.duration)/CGFloat(barTicks)*barWidth)+44
+        return (note.id,CGRect(x:x,y:24+CGFloat(lowPitch+23-note.pitch)*24-10,width:width,height:44))
+    }
     func editBar(_ p:Pattern)->some View {
         HStack(spacing:2){
             IconButton(symbol:"plus",label:"Add note",color:.mint){add(p,tick:(note.map{$0.tick+$0.duration} ?? 0),pitch:note?.pitch ?? 72)}.accessibilityIdentifier("notes.add")
@@ -214,6 +220,8 @@ private struct PianoRollViewport<Content: View>: UIViewControllerRepresentable {
     let bars: CGFloat
     @Binding var barWidth: CGFloat
     let editing: Bool
+    /// The selected note (content coordinates) is scrolled into view when the selection changes.
+    var focus: (id: UUID, rect: CGRect)? = nil
     let measure: ((CGFloat, CGRect) -> Void)?
     @ViewBuilder let content: () -> Content
 
@@ -224,6 +232,7 @@ private struct PianoRollViewport<Content: View>: UIViewControllerRepresentable {
     func updateUIViewController(_ controller: Controller, context: Context) {
         controller.update(content: content(), bars: bars, width: barWidth, editing: editing,
                           setWidth: { barWidth = $0 }, measure: measure)
+        controller.reveal(focus)
     }
 
     final class Controller: UIViewController, UIScrollViewDelegate {
@@ -289,6 +298,24 @@ private struct PianoRollViewport<Content: View>: UIViewControllerRepresentable {
             // Measurements are exposed to the on-device geometry regression only.
             DispatchQueue.main.async { measure(contentWidth, visible) }
         }
+        private var revealedID: UUID?
+        /// A newly selected note must be visible: the inspector below the roll can
+        /// leave only a few rows on screen. Runs once per selection, never mid-gesture.
+        func reveal(_ focus: (id: UUID, rect: CGRect)?) {
+            guard let focus else { revealedID = nil; return }
+            guard focus.id != revealedID, anchor == nil, scroll.bounds.height > 0 else { return }
+            revealedID = focus.id
+            let visible = scroll.bounds.inset(by: UIEdgeInsets(top: 24, left: 48, bottom: 0, right: 0))
+            guard !visible.contains(focus.rect) else { return }
+            var offset = scroll.contentOffset
+            if focus.rect.maxY > visible.maxY { offset.y += focus.rect.maxY - visible.maxY + 12 }
+            if focus.rect.minY < visible.minY { offset.y -= visible.minY - focus.rect.minY + 12 }
+            if focus.rect.maxX > visible.maxX { offset.x += focus.rect.maxX - visible.maxX + 12 }
+            if focus.rect.minX < visible.minX { offset.x -= visible.minX - focus.rect.minX + 12 }
+            let maxX = max(0, scroll.contentSize.width - scroll.bounds.width)
+            let maxY = max(0, scroll.contentSize.height - scroll.bounds.height)
+            scroll.setContentOffset(CGPoint(x: min(maxX, max(0, offset.x)), y: min(maxY, max(0, offset.y))), animated: false)
+        }
         @objc private func magnify(_ gesture: UIPinchGestureRecognizer) {
             if gesture.state == .began {
                 let contentX = gesture.location(in: scroll).x
@@ -328,14 +355,12 @@ private struct PianoCanvasInput: UIViewRepresentable {
             guard recognizer is UILongPressGestureRecognizer else { return true }
             start = touch.location(in: recognizer.view)
             note = input.hitNote(start)
-            PianoTouchTrace.log("hold shouldReceive at \(start) note=\(note.map { "\($0.pitch)@\($0.tick)" } ?? "nil") view=\(recognizer.view?.bounds.size ?? .zero)")
             return note != nil
         }
         @objc func tapped(_ recognizer: UITapGestureRecognizer) { input.tap(recognizer.location(in: recognizer.view)) }
         @objc func held(_ recognizer: UILongPressGestureRecognizer) {
             let location = recognizer.location(in: recognizer.view)
             let delta = CGSize(width: location.x-start.x, height: location.y-start.y)
-            PianoTouchTrace.log("hold state=\(recognizer.state.rawValue) delta=\(delta)")
             switch recognizer.state {
             case .began, .changed:
                 if let note { input.drag(note, delta) }
@@ -362,11 +387,6 @@ private struct PianoCanvasInput: UIViewRepresentable {
 
 struct ChordSpan:Equatable {let range:Range<Int>;let tones:Set<Int>}
 
-/// Temporary UI-test diagnostics for piano touch gestures (stdout lands in the xcresult).
-enum PianoTouchTrace {
-    static let enabled = ProcessInfo.processInfo.arguments.contains("--uitesting")
-    static func log(_ message: @autoclosure () -> String) { if enabled { print("[piano-touch] \(message())") } }
-}
 
 /// Reference-type memo: reading or filling it never invalidates the view.
 final class RollOverlayCache {
@@ -469,7 +489,6 @@ private struct RollCanvas:View {
             // for completion. A system cancellation never invokes onEnded.
             // update() takes ownership only when the touch actually found a note.
             // Holding blank canvas must still allow a one-finger pan.
-            PianoTouchTrace.log("resizing=\(active)")
             if !active { interaction=nil; invalidated=false; editingChanged(false) }
         }
         .onChange(of:scenePhase){_,phase in if phase != .active{interaction=nil;gestureAnchor=nil;invalidated=touching;editingChanged(false)}}
@@ -559,7 +578,6 @@ private struct RollCanvas:View {
         return CGPoint(x:center.x,y:center.y)
     }
     private func update(_ operation:Operation,translation:CGSize,note:NoteEvent?){
-        PianoTouchTrace.log("update \(operation) t=\(translation) invalidated=\(invalidated) note=\(note != nil) hasInteraction=\(interaction != nil)")
         guard !invalidated,let note else{return}
         if interaction==nil {
             let anchor=Anchor(context:context,operation:operation,original:note)
@@ -567,9 +585,7 @@ private struct RollCanvas:View {
             editingChanged(true)
         }
         guard let current=gestureAnchor,current.context==context,current.operation==operation,
-              pattern.notes?.first(where:{$0.id==current.original.id})==current.original else{
-            PianoTouchTrace.log("update invalidated: anchor=\(gestureAnchor != nil) contextEqual=\(gestureAnchor?.context==context) op=\(gestureAnchor?.operation == operation) noteSame=\(gestureAnchor.map{a in pattern.notes?.first(where:{$0.id==a.original.id})==a.original} ?? false) old=\(String(describing:gestureAnchor?.context)) new=\(context)")
-            interaction=nil;gestureAnchor=nil;invalidated=true;editingChanged(false);return}
+              pattern.notes?.first(where:{$0.id==current.original.id})==current.original else{interaction=nil;gestureAnchor=nil;invalidated=true;editingChanged(false);return}
         let next=preview(current,translation:translation)
         // Luz: a tick each time the dragged note lands on a new step, pitch or length.
         if let old=interaction?.preview,old.tick != next.tick || old.pitch != next.pitch || old.duration != next.duration{Luz.Haptics.selection()}
@@ -582,7 +598,6 @@ private struct RollCanvas:View {
                                    barWidth:Double(barWidth),step:snap,visiblePitches:lowPitch...lowPitch+23)
     }
     private func finish(_ operation:Operation,translation:CGSize){
-        PianoTouchTrace.log("finish \(operation) t=\(translation) invalidated=\(invalidated) anchor=\(gestureAnchor != nil) contextEqual=\(gestureAnchor?.context==context)")
         defer{cancel()}
         guard !invalidated,let current=gestureAnchor,current.operation==operation,current.context==context,
               pattern.notes?.first(where:{$0.id==current.original.id})==current.original else{return}
@@ -591,7 +606,7 @@ private struct RollCanvas:View {
         select(final.id)
         switch operation{case .move:move(final.id,final.tick,final.pitch);case .resize:resize(final.id,final.duration)}
     }
-    private func cancel(){PianoTouchTrace.log("cancel");interaction=nil;gestureAnchor=nil;invalidated=false;editingChanged(false)}
+    private func cancel(){interaction=nil;gestureAnchor=nil;invalidated=false;editingChanged(false)}
 }
 
 private struct NoteInspector:View {

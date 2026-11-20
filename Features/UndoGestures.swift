@@ -66,9 +66,16 @@ struct UndoGestureInstaller: UIViewRepresentable {
             var view = touch.view
             while let current = view {
                 if current is MusicalTouchSurface || current is UITextField || current is UITextView { return false }
+                // Views that zoom with two fingers (piano roll): a short pinch must never read as undo.
+                if current.gestureRecognizers?.contains(where: { $0 is UIPinchGestureRecognizer }) == true { return false }
                 view = current.superview
             }
             return true
+        }
+
+        /// Any pinch in progress wins over a two- or three-finger tap.
+        func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRequireFailureOf other: UIGestureRecognizer) -> Bool {
+            other is UIPinchGestureRecognizer
         }
 
         func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool { true }
