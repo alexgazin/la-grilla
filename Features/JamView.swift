@@ -14,6 +14,8 @@ struct JamView: View {
     /// Luz: the last hit's velocity per pad scales its light.
     @State private var padVelocity: [Int: Int] = [:]
     @AppStorage("jam.haptics") private var padHaptics = false
+    /// Pocket beat: kick, snare and hats as lanes at once (musician feedback).
+    @AppStorage("jam.lanes") private var lanes = true
     @AppStorage("jam.lesson") private var lessonID = ""
     var body:some View{
         Group{if verticalSize == .compact{compactJam}else{GeometryReader{geometry in ScrollView(.vertical){regularJam(compact:geometry.size.height<500)}.scrollDisabled(!pressed.isEmpty)}}}
@@ -134,7 +136,13 @@ struct JamView: View {
     var stepEditor: some View {
         VStack(spacing:16){
             HStack{Menu{ForEach(0..<16,id:\.self){i in Button(LocalizedStringKey(Compiler.padNames[i])){selectedPad=i}}}label:{Label(LocalizedStringKey(Compiler.padNames[selectedPad]),systemImage:"waveform").font(.subheadline.weight(.semibold)).foregroundStyle(Color.drums).frame(minHeight:44)};Spacer();Picker("Bar",selection:$stepBar){ForEach(0..<(drumPattern?.length ?? barTicks)/barTicks,id:\.self){i in Text("Bar \(i+1)").tag(i)}}.frame(width:dynamicType.isAccessibilitySize ? 150:110)}
-            LazyVGrid(columns:Array(repeating:GridItem(.flexible(),spacing:6),count:4),spacing:10){ForEach(0..<16,id:\.self){step in
+            Picker("Step view",selection:$lanes){Text("Lanes").tag(true);Text("One pad").tag(false)}.pickerStyle(.segmented).accessibilityIdentifier("jam.step-view")
+            if lanes{DrumLanesView(pattern:drumPattern,bar:stepBar,selectedPad:$selectedPad,audio:session.audio,origin:drumClipStart){pad,tick in toggleStep(tick,pad:pad)}}else{singlePadSteps}
+            VStack(alignment:.leading,spacing:8){HStack{SmallHeading(text:"VELOCITY");Spacer();Text(String(Int(velocity))).font(.system(.caption, design: .monospaced)).foregroundStyle(Color.drums).monospacedDigit()};Slider(value:$velocity,in:1...127,step:1).tint(.drums);Button("Apply velocity to this bar"){guard let id=drumPattern?.id else{return};session.edit{p in if let i=p.patterns.firstIndex(where:{$0.id==id}){for n in p.patterns[i].drums.indices where p.patterns[i].drums[n].pad==selectedPad && p.patterns[i].drums[n].tick/barTicks==stepBar{p.patterns[i].drums[n].velocity=Int(velocity)}}}}.font(.caption).frame(minHeight:44)}
+        }.padding(14).modifier(StudioSurface())
+    }
+    private var singlePadSteps:some View {
+        LazyVGrid(columns:Array(repeating:GridItem(.flexible(),spacing:6),count:4),spacing:10){ForEach(0..<16,id:\.self){step in
                 let tick=stepBar*barTicks+step*240
                 let exists=drumPattern?.drums.contains(where:{$0.pad==selectedPad && $0.tick==tick}) ?? false
                 Button{toggleStep(tick);Luz.Haptics.selection()}label:{VStack(spacing:9){Text(String(step+1)).font(StudioTypography.index);RoundedRectangle(cornerRadius:3,style:.continuous).fill(exists ? Color.ink.opacity(0.55):Color.drums.opacity(0.35)).frame(height:26)}.foregroundStyle(exists ? Color.ink:Color.muted).padding(8).frame(height:61)
@@ -142,10 +150,8 @@ struct JamView: View {
                     .litInstrument(.drums,isDown:exists,radius:Luz.Radius.cell,intensity:step%4==0 ? 1:0.75)
                     .overlay{StepPlayhead(audio:session.audio,tick:tick,origin:drumClipStart,length:drumPattern?.length ?? barTicks)}}.buttonStyle(StudioQuietButtonStyle(plate:false)).accessibilityLabel("Step \(step+1)").accessibilityValue(LocalizedStringKey(exists ? "On":"Off")).accessibilityIdentifier("jam.step.\(step)")
             }}
-            VStack(alignment:.leading,spacing:8){HStack{SmallHeading(text:"VELOCITY");Spacer();Text(String(Int(velocity))).font(.system(.caption, design: .monospaced)).foregroundStyle(Color.drums).monospacedDigit()};Slider(value:$velocity,in:1...127,step:1).tint(.drums);Button("Apply velocity to this bar"){guard let id=drumPattern?.id else{return};session.edit{p in if let i=p.patterns.firstIndex(where:{$0.id==id}){for n in p.patterns[i].drums.indices where p.patterns[i].drums[n].pad==selectedPad && p.patterns[i].drums[n].tick/barTicks==stepBar{p.patterns[i].drums[n].velocity=Int(velocity)}}}}.font(.caption).frame(minHeight:44)}
-        }.padding(14).modifier(StudioSurface())
     }
-    func toggleStep(_ tick: Int){guard let pattern=drumPattern else{return};session.edit{p in guard let i=p.patterns.firstIndex(where:{$0.id==pattern.id})else{return};if p.patterns[i].drums.contains(where:{$0.pad==selectedPad && $0.tick==tick}){p.patterns[i].drums.removeAll(where:{$0.pad==selectedPad && $0.tick==tick})}else{p.patterns[i].drums.append(DrumEvent(tick:tick,pad:selectedPad,velocity:Int(velocity)))}}}
+    func toggleStep(_ tick: Int,pad:Int?=nil){let selectedPad=pad ?? self.selectedPad;guard let pattern=drumPattern else{return};session.edit{p in guard let i=p.patterns.firstIndex(where:{$0.id==pattern.id})else{return};if p.patterns[i].drums.contains(where:{$0.pad==selectedPad && $0.tick==tick}){p.patterns[i].drums.removeAll(where:{$0.pad==selectedPad && $0.tick==tick})}else{p.patterns[i].drums.append(DrumEvent(tick:tick,pad:selectedPad,velocity:Int(velocity)))}}}
 }
 
 /// Pure presentation: the shared native surface owns note onset and held contacts.

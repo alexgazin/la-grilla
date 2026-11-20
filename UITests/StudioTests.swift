@@ -144,7 +144,7 @@ final class StudioTests: XCTestCase {
         let scroll=app.scrollViews.firstMatch
         let steps=app.buttons["Шаги"];reveal(steps,in:scroll,up:false);steps.tap()
         let step=app.buttons["jam.step.0"];reveal(step,in:scroll)
-        XCTAssertEqual(step.label,"Шаг 1");assertMinimumTouchDimension(step.frame.height)
+        XCTAssertTrue(step.label=="Шаг 1" || step.label.hasSuffix("шаг 1"),step.label);assertMinimumTouchDimension(step.frame.height)
         let original=step.value as? String
         XCTAssertTrue(original=="Вкл." || original=="Выкл.")
         let undo=app.buttons["Отменить"];XCTAssertFalse(undo.isEnabled)

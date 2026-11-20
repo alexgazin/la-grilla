@@ -140,6 +140,10 @@ struct GridView: View {
                         }
                     }
                 }
+                // Musician feedback: while two fingers zoom the timeline the page must not drift
+                // vertically. Zoom positions the timeline programmatically, so user scrolling
+                // can pause for the gesture.
+                .scrollDisabled(pinchActive || pinchReference != nil)
                 tools.padding(.horizontal,12).padding(.vertical,7)
             }.onAppear{configureViewport(geometry.size)}.onChange(of:geometry.size){_,size in cancelTimelineGesture();configureViewport(size)}.onChange(of:session.project.id){_,_ in
                 cancelTimelineGesture();zoomed=false;timelinePosition.scrollTo(edge:.leading);configureViewport(geometry.size)

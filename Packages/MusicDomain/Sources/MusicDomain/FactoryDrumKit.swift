@@ -180,6 +180,11 @@ extension FactoryDrumKit {
 
     /// Two bars of the same 92 BPM break for every kit. Uses original PCM,
     /// sampler-style polyphony and one fixed mix gain so auditions are comparable.
+    /// One pad's one-shot as a mono WAV, for auditioning in the sample library.
+    public func oneShotWAV(pad: Int) throws -> Data {
+        SamplePCM(rate: Self.sampleRate, zones: [.init(pitch: 60, samples: try sample(pad: pad))]).monoWAV()
+    }
+
     public func previewWAV() throws -> Data {
         let rate = Self.sampleRate
         let step = Double(rate) * 60 / (92 * 4)

@@ -1432,3 +1432,11 @@
 "Lavender" = "Лавандовый";
 "Teal" = "Бирюзовый";
 "Clear" = "Очистить";
+"My samples" = "Мои сэмплы";
+"Factory sounds for this pad" = "Встроенные звуки для этого пэда";
+"All factory kits" = "Все встроенные наборы";
+"Factory sounds" = "Встроенные звуки";
+"Lanes" = "Дорожки";
+"One pad" = "Один пэд";
+"Step view" = "Вид шагов";
+"%@, step %lld" = "%@, шаг %lld";
