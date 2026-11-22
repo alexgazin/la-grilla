@@ -1450,3 +1450,12 @@
 "Layers" = "Layers";
 "Muted" = "Muted";
 "%@ · %lld" = "%@ · %lld";
+"TAKES" = "TAKES";
+"Delete last take" = "Delete last take";
+"Programmed" = "Programmed";
+"Take %lld" = "Take %lld";
+"Mute take %lld" = "Mute take %lld";
+"Keep in the beat" = "Keep in the beat";
+"Delete take" = "Delete take";
+"More for take %lld" = "More for take %lld";
+"Take %lld · %lld" = "Take %lld · %lld";

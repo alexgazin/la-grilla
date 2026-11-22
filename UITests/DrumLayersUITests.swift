@@ -38,4 +38,29 @@ final class DrumLayersUITests: XCTestCase {
         app.buttons["Undo"].firstMatch.tap()
         XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == 'Off'"), object: mute)], timeout: 5), .completed)
     }
+
+    @MainActor func testDeleteOnlyTheLastRecordedTakeKeepsTheProgrammedBeat() {
+        XCUIDevice.shared.orientation = .portrait
+        let app = XCUIApplication()
+        app.launchArguments = ["--uitesting", "--screen", "jam", "--project-store-id", UUID().uuidString, "-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
+        app.launch()
+        XCTAssertTrue(app.buttons["perform.transport"].waitForExistence(timeout: 15))
+        app.buttons["Record drums"].tap()
+        XCTAssertTrue(app.staticTexts["REC · DRUMS"].waitForExistence(timeout: 8))
+        // Clap is not in the demo beat, so every hit is new material of this take.
+        for _ in 0..<3 { app.buttons["Clap"].tap(); Thread.sleep(forTimeInterval: 0.3) }
+        app.buttons["Finish drum take"].tap()
+        let deleteLast = app.buttons["jam.takes.delete-last"]
+        reveal(deleteLast, in: app)
+        XCTAssertTrue(app.staticTexts["Take 1"].exists)
+        XCTAssertTrue(app.buttons["jam.layer.mute.4"].exists, "The take's clap is a layer")
+        let shot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        shot.name = "Takes46-recorded-take"; shot.lifetime = .keepAlways; add(shot)
+        deleteLast.tap()
+        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: app.buttons["jam.layer.mute.4"])], timeout: 5), .completed)
+        XCTAssertFalse(app.staticTexts["Take 1"].exists)
+        XCTAssertTrue(app.buttons["jam.layer.mute.0"].exists, "The programmed kick is untouched")
+        app.buttons["Undo"].firstMatch.tap()
+        XCTAssertTrue(app.staticTexts["Take 1"].waitForExistence(timeout: 5), "One Undo brings the take back")
+    }
 }

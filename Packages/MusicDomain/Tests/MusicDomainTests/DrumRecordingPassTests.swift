@@ -40,7 +40,8 @@ struct DrumRecordingPassTests {
         #expect(pass.events==[replacement])
         try recording.commitPass(pass.events,replacing:range)
         let result=try #require(recording.project.patterns.first{$0.id==recording.patternID})
-        #expect(result.drums.count==2 && result.drums.contains{$0.id==retainedID} && result.drums.contains(replacement))
+        var tagged=replacement;tagged.take=recording.takeID
+        #expect(result.drums.count==2 && result.drums.contains{$0.id==retainedID} && result.drums.contains(tagged))
         try recording.project.validate()
     }
 

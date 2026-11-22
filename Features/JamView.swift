@@ -162,7 +162,7 @@ struct JamView: View {
                     .overlay{StepPlayhead(audio:session.audio,tick:tick,origin:drumClipStart,length:drumPattern?.length ?? barTicks)}}.buttonStyle(StudioQuietButtonStyle(plate:false)).accessibilityLabel("Step \(step+1)").accessibilityValue(LocalizedStringKey(exists ? "On":"Off")).accessibilityIdentifier("jam.step.\(step)")
             }}
     }
-    func toggleStep(_ tick: Int,pad:Int?=nil){let selectedPad=pad ?? self.selectedPad;guard let pattern=drumPattern else{return};session.edit{p in guard let i=p.patterns.firstIndex(where:{$0.id==pattern.id})else{return};if p.patterns[i].drums.contains(where:{$0.pad==selectedPad && $0.tick==tick}){p.patterns[i].drums.removeAll(where:{$0.pad==selectedPad && $0.tick==tick})}else{p.patterns[i].drums.append(DrumEvent(tick:tick,pad:selectedPad,velocity:Int(velocity)))}}}
+    func toggleStep(_ tick: Int,pad:Int?=nil){let selectedPad=pad ?? self.selectedPad;guard let pattern=drumPattern else{return};session.edit{p in guard let i=p.patterns.firstIndex(where:{$0.id==pattern.id})else{return};if p.patterns[i].drums.contains(where:{$0.pad==selectedPad && $0.tick==tick}){p.patterns[i].drums.removeAll(where:{$0.pad==selectedPad && $0.tick==tick});DrumTakes.pruneEmpty(&p.patterns[i])}else{p.patterns[i].drums.append(DrumEvent(tick:tick,pad:selectedPad,velocity:Int(velocity)))}}}
 }
 
 /// Pure presentation: the shared native surface owns note onset and held contacts.

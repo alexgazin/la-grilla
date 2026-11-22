@@ -5,12 +5,14 @@ extension Arrangement {
         var result=Pattern(length:section.length)
         for c in track.clips {
             guard let pattern=p.patterns.first(where:{$0.id==c.patternID})else{continue}
+            // Recorded takes travel with their hits, so each one stays separable.
+            for take in pattern.drumTakes ?? [] where result.drumTakes?.contains(where:{$0.id==take.id}) != true {result.drumTakes=(result.drumTakes ?? [])+[take]}
             for cycle in stride(from:-c.offset,to:c.length,by:pattern.length){
                 for e in pattern.chords {
                     let start=max(c.start,c.start+cycle+e.tick,section.start),end=min(c.start+c.length,c.start+cycle+e.tick+e.duration,section.start+section.length)
                     if end>start{result.chords.append(ChordEvent(tick:start-section.start,duration:end-start,chord:e.chord,velocity:e.velocity))}
                 }
-                for e in pattern.drums {let absolute=c.start+cycle+e.tick;if absolute>=c.start,absolute<c.start+c.length,absolute>=section.start,absolute<section.start+section.length{result.drums.append(DrumEvent(tick:absolute-section.start,pad:e.pad,velocity:e.velocity))}}
+                for e in pattern.drums {let absolute=c.start+cycle+e.tick;if absolute>=c.start,absolute<c.start+c.length,absolute>=section.start,absolute<section.start+section.length{var hit=DrumEvent(tick:absolute-section.start,pad:e.pad,velocity:e.velocity);hit.take=e.take;result.drums.append(hit)}}
                 for e in pattern.notes ?? [] {
                     let start=max(c.start,c.start+cycle+e.tick,section.start),end=min(c.start+c.length,c.start+cycle+e.tick+e.duration,section.start+section.length)
                     if end>start{result.notes?.append(NoteEvent(tick:start-section.start,duration:end-start,pitch:e.pitch,velocity:e.velocity,confidence:e.confidence))}

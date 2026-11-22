@@ -1452,3 +1452,12 @@
 "Layers" = "Слои";
 "Muted" = "Заглушено";
 "%@ · %lld" = "%@ · %lld";
+"TAKES" = "ДУБЛИ";
+"Delete last take" = "Удалить последний дубль";
+"Programmed" = "Прописано шагами";
+"Take %lld" = "Дубль %lld";
+"Mute take %lld" = "Заглушить дубль %lld";
+"Keep in the beat" = "Оставить в бите";
+"Delete take" = "Удалить дубль";
+"More for take %lld" = "Ещё для дубля %lld";
+"Take %lld · %lld" = "Дубль %lld · %lld";
