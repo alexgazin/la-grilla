@@ -32,7 +32,7 @@ public enum Compiler {
                             if end>start{result.append(CompiledNote(tick:clip.start+start,duration:end-start,pitch:note.pitch,velocity:note.velocity,track:index,instrument:3))}
                         }
                     } else {
-                        for drum in pattern.drums where cycle + drum.tick >= 0 && cycle + drum.tick < clip.length && (0..<16).contains(drum.pad) {
+                        for drum in pattern.drums where cycle + drum.tick >= 0 && cycle + drum.tick < clip.length && (0..<16).contains(drum.pad) && !track.isPadMuted(drum.pad) {
                             result.append(CompiledNote(tick: clip.start + cycle + drum.tick, duration: 120, pitch: drumMap[drum.pad], velocity: drum.velocity, track: index, pad: drum.pad,instrument:1))
                         }
                     }

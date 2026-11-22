@@ -1438,3 +1438,15 @@
 "One pad" = "One pad";
 "Step view" = "Step view";
 "%@, step %lld" = "%@, step %lld";
+"LAYERS" = "LAYERS";
+"%lld hits" = "%lld hits";
+"More for %@" = "More for %@";
+"Unmute" = "Unmute";
+"Clear layer" = "Clear layer";
+"Clear whole beat" = "Clear whole beat";
+"Clear in bar %lld" = "Clear in bar %lld";
+"Clear bar %lld" = "Clear bar %lld";
+"Unmute all" = "Unmute all";
+"Layers" = "Layers";
+"Muted" = "Muted";
+"%@ · %lld" = "%@ · %lld";

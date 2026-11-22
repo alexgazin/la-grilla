@@ -44,6 +44,8 @@ struct JamView: View {
             if session.recording || session.armed{recordingStatus}
             if steps {stepEditor.disabled(session.performance.contextActive)}else if dynamicType.isAccessibilitySize{accessiblePads}else{padGrid(height:(compact ? 264:312)-(compact && (session.recording || session.armed) ? 24:0)).disabled(session.performance.replaying).allowsHitTesting(!session.performance.replaying)}
             if !steps{Text("Touch to play · grid shapes the recording").font(.caption2).foregroundStyle(Color.muted).frame(maxWidth:.infinity,alignment:.leading)}
+            // Musician feedback: every playing layer, with Mute, Solo and Clear in one place.
+            DrumLayersView(session:session,pattern:drumPattern,bar:steps ? stepBar:nil)
             if session.audio.wirelessOutput{Text("For tighter timing, use the speaker or wired headphones.").font(.caption2).foregroundStyle(Color.drums).frame(maxWidth:.infinity,alignment:.leading)}
             if let lesson=DrumLesson.library.first(where:{$0.id==lessonID}){DrumLessonPanel(lesson:lesson,played:drumPattern?.drums ?? [],bars:min(4,max(1,(drumPattern?.length ?? barTicks)/barTicks))){lessonID=""}}
             recordingGuide
@@ -93,7 +95,7 @@ struct JamView: View {
             HStack{Text("Pocket kit").font(.headline);Spacer();compactOptions}
             HStack(spacing:10){soundControl;InstrumentKeyboardButton(session: session, compact: true);editorMode}
         }else{
-            HStack(spacing:10){Text("Pocket kit").font(.headline);soundControl;InstrumentKeyboardButton(session: session, compact: true);Spacer(minLength:0);editorMode;compactOptions}
+            HStack(spacing:10){Text("Pocket kit").font(.headline);soundControl;InstrumentKeyboardButton(session: session, compact: true);Spacer(minLength:0);DrumLayersMenu(session:session,pattern:drumPattern);editorMode;compactOptions}
         }
         if focusedClip != nil{clipFocus}
         if steps{ScrollView{stepEditor.disabled(session.performance.contextActive)}}else if dynamicType.isAccessibilitySize{accessiblePads}else{padGrid(height:200).disabled(session.performance.replaying)}
@@ -146,7 +148,7 @@ struct JamView: View {
         VStack(spacing:16){
             HStack{Menu{ForEach(0..<16,id:\.self){i in Button(LocalizedStringKey(Compiler.padNames[i])){selectedPad=i}}}label:{Label(LocalizedStringKey(Compiler.padNames[selectedPad]),systemImage:"waveform").font(.subheadline.weight(.semibold)).foregroundStyle(Color.drums).frame(minHeight:44)};Spacer();Picker("Bar",selection:$stepBar){ForEach(0..<(drumPattern?.length ?? barTicks)/barTicks,id:\.self){i in Text("Bar \(i+1)").tag(i)}}.frame(width:dynamicType.isAccessibilitySize ? 150:110)}
             Picker("Step view",selection:$lanes){Text("Lanes").tag(true);Text("One pad").tag(false)}.pickerStyle(.segmented).accessibilityIdentifier("jam.step-view")
-            if lanes{DrumLanesView(pattern:drumPattern,bar:stepBar,selectedPad:$selectedPad,audio:session.audio,origin:drumClipStart){pad,tick in toggleStep(tick,pad:pad)}.transition(Luz.Transition.replace(reduceMotion))}else{singlePadSteps.transition(Luz.Transition.replace(reduceMotion))}
+            if lanes{DrumLanesView(pattern:drumPattern,bar:stepBar,selectedPad:$selectedPad,audio:session.audio,origin:drumClipStart,mutedPads:Set(session.displayProject.tracks.first{$0.role == .drums}?.mutedPads ?? [])){pad,tick in toggleStep(tick,pad:pad)}.transition(Luz.Transition.replace(reduceMotion))}else{singlePadSteps.transition(Luz.Transition.replace(reduceMotion))}
             VStack(alignment:.leading,spacing:8){HStack{SmallHeading(text:"VELOCITY");Spacer();Text(String(Int(velocity))).font(.system(.caption, design: .monospaced)).foregroundStyle(Color.drums).monospacedDigit()};Slider(value:$velocity,in:1...127,step:1).tint(.drums);Button("Apply velocity to this bar"){guard let id=drumPattern?.id else{return};session.edit{p in if let i=p.patterns.firstIndex(where:{$0.id==id}){for n in p.patterns[i].drums.indices where p.patterns[i].drums[n].pad==selectedPad && p.patterns[i].drums[n].tick/barTicks==stepBar{p.patterns[i].drums[n].velocity=Int(velocity)}}}}.font(.caption).frame(minHeight:44)}
         }.animation(reduceMotion ? .easeOut(duration:0.15):Luz.Motion.morph,value:lanes).padding(14).modifier(StudioSurface())
     }
