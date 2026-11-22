@@ -160,6 +160,16 @@
 			"isa" = "PBXBuildFile";
 			"fileRef" = "1322A60E604F618486224825";
 		};
+		"BF7BF77F81B7F6129A23B3A7" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "Features/DrumLayersView.swift";
+			"sourceTree" = "SOURCE_ROOT";
+		};
+		"224A136A187898BCEA05162C" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "BF7BF77F81B7F6129A23B3A7";
+		};
 		"6F2D89894573D83C321549E1" = {
 			"isa" = "PBXFileReference";
 			"lastKnownFileType" = "sourcecode.swift";
@@ -469,6 +479,7 @@
 				"390C9B54F5AC943144659F3B",
 				"E313F38A63DE261EE7C9141C",
 				"1322A60E604F618486224825",
+				"BF7BF77F81B7F6129A23B3A7",
 				"6F2D89894573D83C321549E1",
 				"B5FCEE76D5E5C943FE601284",
 				"34A6AE0B0EC7B155F32DDAE8",
@@ -822,6 +833,12 @@
 			"path" = "UITests/DeviceRecoveryTests.swift";
 			"sourceTree" = "SOURCE_ROOT";
 		};
+		"1FF5277C6DF0427C75268A77" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "UITests/DrumLayersUITests.swift";
+			"sourceTree" = "SOURCE_ROOT";
+		};
 		"B4D4FF714F7EF3F257AC9BFE" = {
 			"isa" = "PBXFileReference";
 			"lastKnownFileType" = "sourcecode.swift";
@@ -929,6 +946,7 @@
 				"EC11CC277B38E7141A590858",
 				"A0AB1C7AC5C3693FE07678FB",
 				"FEB3B283D0AA50FB5A20F7C9",
+				"1FF5277C6DF0427C75268A77",
 				"B4D4FF714F7EF3F257AC9BFE",
 				"F0B86C33D4B3D7DF10F015B2",
 				"A120B0593DDF71F380D1E143",
@@ -1146,7 +1164,7 @@
 				"GENERATE_INFOPLIST_FILE" = "NO";
 				"INFOPLIST_FILE" = "App/Info.plist";
 				"MARKETING_VERSION" = "1.0.0";
-				"CURRENT_PROJECT_VERSION" = "46";
+				"CURRENT_PROJECT_VERSION" = "47";
 				"ASSETCATALOG_COMPILER_APPICON_NAME" = "AppIcon";
 				"INFOPLIST_KEY_CFBundleDisplayName" = "La Grilla";
 				"INFOPLIST_KEY_LSApplicationCategoryType" = "public.app-category.music";
@@ -1180,7 +1198,7 @@
 				"GENERATE_INFOPLIST_FILE" = "NO";
 				"INFOPLIST_FILE" = "App/Info.plist";
 				"MARKETING_VERSION" = "1.0.0";
-				"CURRENT_PROJECT_VERSION" = "46";
+				"CURRENT_PROJECT_VERSION" = "47";
 				"ASSETCATALOG_COMPILER_APPICON_NAME" = "AppIcon";
 				"INFOPLIST_KEY_CFBundleDisplayName" = "La Grilla";
 				"INFOPLIST_KEY_LSApplicationCategoryType" = "public.app-category.music";
@@ -1219,6 +1237,7 @@
 				"08E7EA7C7F98346596C22C18",
 				"107BE4FF9CD20D8A61788BBC",
 				"61D8474CC39317FC3FF51EE6",
+				"224A136A187898BCEA05162C",
 				"A7E50479DF36A0C9CB361F91",
 				"586A1646E08C306C3B726A7B",
 				"B0301145DE94A1169F65568F",
@@ -1400,6 +1419,10 @@
 			"isa" = "PBXBuildFile";
 			"fileRef" = "FEB3B283D0AA50FB5A20F7C9";
 		};
+		"13F880F5E12FA3E4FE6D7098" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "1FF5277C6DF0427C75268A77";
+		};
 		"D22AA41F79624E943B38E898" = {
 			"isa" = "PBXBuildFile";
 			"fileRef" = "B4D4FF714F7EF3F257AC9BFE";
@@ -1535,6 +1558,7 @@
 				"CFBCB4CE9422545C53E155D9",
 				"BA195D10AF007B384EF5DD9D",
 				"9CF7038F0FD5B0B98458CB1B",
+				"13F880F5E12FA3E4FE6D7098",
 				"D22AA41F79624E943B38E898",
 				"5A4D6689E60000CF61FE571D",
 				"A31C499560874568115B86CC",

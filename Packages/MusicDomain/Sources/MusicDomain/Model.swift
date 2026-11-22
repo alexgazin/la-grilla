@@ -238,6 +238,9 @@ public struct ChordEvent: Codable, Equatable, Identifiable, Sendable {
 }
 public struct DrumEvent: Codable, Equatable, Identifiable, Sendable {
     public var id: UUID = UUID(); public var tick: Int; public var pad: Int; public var velocity: Int
+    /// The recorded take this hit came from; nil = programmed (steps, pads outside
+    /// recording, generators). Absent in older files.
+    public var take: UUID?
     public init(tick: Int, pad: Int, velocity: Int = 100) { self.tick = tick; self.pad = pad; self.velocity = velocity }
 }
 public struct NoteEvent: Codable, Equatable, Identifiable, Sendable {
@@ -249,7 +252,17 @@ public struct NoteEvent: Codable, Equatable, Identifiable, Sendable {
 }
 public struct Pattern: Codable, Equatable, Identifiable, Sendable {
     public var id: UUID = UUID(); public var length: Int; public var chords: [ChordEvent] = []; public var drums: [DrumEvent] = []; public var notes:[NoteEvent]?
+    /// Recorded drum takes laid over this pattern, oldest first. Nil in older files.
+    public var drumTakes: [DrumTake]?
     public init(length: Int, chords: [ChordEvent] = [], drums: [DrumEvent] = [], notes:[NoteEvent]=[]) { self.length = length; self.chords = chords; self.drums = drums; self.notes=notes }
+}
+/// One recording pass (record → stop) over a drum pattern. Its hits carry its id, so
+/// the take can be muted, kept (merged into the programmed beat) or deleted alone.
+public struct DrumTake: Codable, Equatable, Identifiable, Sendable {
+    public var id: UUID
+    public var number: Int
+    public var muted: Bool?
+    public init(id: UUID = UUID(), number: Int, muted: Bool? = nil) { self.id = id; self.number = number; self.muted = muted }
 }
 public struct Clip: Codable, Equatable, Identifiable, Sendable {
     public var id: UUID = UUID(); public var patternID: UUID;public var sourceAssetID:UUID?; public var start: Int; public var length: Int; public var offset: Int = 0
@@ -272,7 +285,11 @@ public struct Track: Codable, Equatable, Identifiable, Sendable {
     public var dynamics: TrackDynamics?
     /// I55: synth voice for the built-in sound of a melodic track; nil = the palette preset.
     public var synth: SynthPatch?
+    /// Drum layers (pads) silenced in playback and export while their hits stay in the
+    /// pattern. Nil or empty = every pad plays; absent in older files.
+    public var mutedPads: [Int]?
     public init(role: TrackRole) { self.role = role }
+    public func isPadMuted(_ pad: Int) -> Bool { mutedPads?.contains(pad) == true }
 }
 public struct Section: Codable, Equatable, Identifiable, Sendable {
     public var id: UUID = UUID(); public var name: String; public var start: Int; public var length: Int
@@ -336,7 +353,8 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
               Set(tracks.map(\.id)).count == tracks.count else { throw MusicError.invalidProject }
         guard (performanceTakes ?? []).count<=1 else{throw MusicError.limit}
         if let log=editLog{guard log.count<=32,log.allSatisfy({$0.count<=300}) else{throw MusicError.invalidProject}}
-        for track in tracks{try track.dynamics?.validate();try track.synth?.validate();if track.synth != nil,track.role == .drums{throw MusicError.invalidProject}}
+        for track in tracks{try track.dynamics?.validate();try track.synth?.validate();if track.synth != nil,track.role == .drums{throw MusicError.invalidProject}
+            if let muted=track.mutedPads,track.role != .drums || Set(muted).count != muted.count || !muted.allSatisfy({(0..<16).contains($0)}){throw MusicError.invalidProject}}
         guard sections.allSatisfy({$0.color.map{(0...3).contains($0)} ?? true}),sections.allSatisfy({$0.filterSweep?.isValid ?? true}) else{throw MusicError.invalidProject}
         try midi?.validate(self)
         try masterEQ?.validate()
@@ -370,6 +388,7 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
         var end = 0
         for s in sections { guard s.start == end, s.length > 0, s.length <= songTickLimit, s.length % barTicks == 0, !s.name.isEmpty, s.name.count <= 120 else { throw MusicError.invalidProject }; end += s.length }
         for p in patterns {
+            if let takes=p.drumTakes{guard takes.count<=64,Set(takes.map(\.id)).count==takes.count,takes.allSatisfy({$0.number>0})else{throw MusicError.invalidProject}}
             guard p.length >= barTicks, p.length % barTicks == 0, p.length <= length, p.chords.count <= 256, p.drums.count <= 4096, (p.notes ?? []).count <= 4096 else { throw MusicError.invalidProject }
             var end = 0
             for e in p.chords.sorted(by: {$0.tick < $1.tick}) {

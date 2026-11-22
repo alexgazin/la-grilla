@@ -10,6 +10,8 @@ struct DrumLanesView: View {
     @Binding var selectedPad: Int
     let audio: AudioController
     let origin: Int
+    /// Layers silenced in the Layers panel: shown dimmed with a crossed speaker.
+    var mutedPads: Set<Int> = []
     let toggle: (_ pad: Int, _ tick: Int) -> Void
 
     static let corePads = [0, 1, 2, 3]
@@ -41,9 +43,13 @@ struct DrumLanesView: View {
 
     private func row(_ pad: Int, hits: [String: Int]) -> some View {
         let selected = pad == selectedPad
+        let muted = mutedPads.contains(pad)
         return HStack(spacing: 0) {
             Button { selectedPad = pad; Luz.Haptics.selection() } label: {
-                Text(LocalizedStringKey(Compiler.padNames[pad]))
+                HStack(spacing: 2) {
+                    if muted { Image(systemName: "speaker.slash.fill").font(.caption2).foregroundStyle(Color.record).accessibilityLabel("Muted") }
+                    Text(LocalizedStringKey(Compiler.padNames[pad]))
+                }
                     .font(.caption.weight(selected ? .bold : .medium))
                     .foregroundStyle(selected ? Color.drums : Color.muted)
                     .lineLimit(2).minimumScaleFactor(0.7).multilineTextAlignment(.leading)
@@ -60,6 +66,7 @@ struct DrumLanesView: View {
                         .padding(.leading, step > 0 && step % 4 == 0 ? 4 : 0)
                 }
             }
+            .opacity(muted ? 0.4 : 1)
         }
     }
 

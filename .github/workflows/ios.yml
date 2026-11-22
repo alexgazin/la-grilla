@@ -353,7 +353,8 @@ jobs:
           # Store preparation or distribution.
           exit "$GRILLA_ATTACHMENTS_FAILED"
       - name: Prepare validated App Store screenshots
-        if: success() && !contains(github.event.head_commit.message, '[input-diagnostic]') && (!contains(github.event.head_commit.message, '[ui-only]') || contains(github.event.head_commit.message, '[ru-capture]'))
+        # A focused rerun (only_testing) never captures the Store set, so there is nothing to prepare.
+        if: success() && inputs.only_testing == '' && !contains(github.event.head_commit.message, '[input-diagnostic]') && (!contains(github.event.head_commit.message, '[ui-only]') || contains(github.event.head_commit.message, '[ru-capture]'))
         run: python3 scripts/release/prepare_store_screenshots.py Screenshots/OriginalVision Screenshots/AppStore
       - name: Save simulator screenshots
         if: always()
