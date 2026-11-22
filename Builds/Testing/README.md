@@ -1,5 +1,14 @@
 # La Grilla для ручного тестирования
 
+**[Скачать IPA 47 для iPhone](https://raw.githubusercontent.com/alexgazin/la-grilla/769ef8b6315c785bdc13a17dda91379c2c79ae17/Builds/Testing/LaGrilla-47-unsigned.ipa)**. Подпишите файл своим Apple ID через Sideloadly. Размер 9 156 610 байт, SHA-256 `60d4e92ca36c8c97da50c9d5376a85c913d4ce4e7bc5450342721348b6cce1f0`. [Файлы внутри архива](candidate47-package.json).
+
+Что в сборке, кроме всего из 46:
+- панель «Слои» в «Карманном бите»: Mute, Solo и очистка отдельного инструмента, такта или всего бита;
+- дубли: каждая запись поверх бита хранится отдельно, последний дубль можно удалить, заглушить или оставить в бите, не трогая нарисованное;
+- каждое действие отменяется одним Undo, старые проекты открываются без миграции (схема 15).
+
+Пакет собран из `d6cd1ed` ([прогон CI](https://github.com/alexgazin/la-grilla/actions/runs/45064313882)). TESTS_PLACEHOLDER На физическом iPhone сборку ещё никто не запускал.
+
 **[Скачать IPA 46 для iPhone](https://raw.githubusercontent.com/alexgazin/la-grilla/14d06bb4d40fb7c539128519db744d3afe3d0475/Builds/Testing/LaGrilla-46-unsigned.ipa)**. Подпишите файл своим Apple ID через Sideloadly. Размер 9 087 773 байта, SHA-256 `9acf11d874604416f513465bf08f3d1645bc09cf0c4e217bd78491f49e0076c4`. [Файлы внутри архива](candidate46-package.json) · [Скриншоты](../../Screenshots/Build46/).
 
 Что в сборке:
