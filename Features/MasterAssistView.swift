@@ -10,6 +10,8 @@ struct MasterAssistView: View {
     @State private var measuring = false
     @State private var error: String?
     @State private var source = Source.after
+    /// U55: compare at the same loudness, so "after" is not better just for being louder.
+    @State private var matchLoudness = true
     enum Source: Hashable { case before, after }
 
     private var suggestion: MasterSuggestion? {
@@ -47,8 +49,13 @@ struct MasterAssistView: View {
                         .padding(12).frame(maxWidth: .infinity, alignment: .leading)
                         .background(Color.panel, in: RoundedRectangle(cornerRadius: Luz.Radius.card, style: .continuous))
                         .accessibilityElement(children: .combine).accessibilityIdentifier("master.result")
+                        Toggle("Match loudness for the comparison", isOn: $matchLoudness)
+                            .onChange(of: matchLoudness) { _, _ in if session.harmonyPreview { play() } }
+                            .accessibilityIdentifier("master.match-loudness")
                         AuditionBar(screen: "master", source: $source, sources: [(.before, "Before"), (.after, "After")],
-                                    playing: session.harmonyPreview, caption: "Before and after play from the same beat.", play: play, stop: { session.endHarmonyPreview() })
+                                    playing: session.harmonyPreview,
+                                    caption: matchLoudness ? "After plays at the loudness of Before, so you hear only what the limiter and level change." : "Before and after play from the same beat.",
+                                    play: play, stop: { session.endHarmonyPreview() })
                         Button { apply() } label: { Text("Apply to the master").frame(maxWidth: .infinity, minHeight: 48) }
                             .buttonStyle(StudioActionStyle()).disabled(suggestion.advice == "silent" || session.recording || session.armed)
                             .accessibilityIdentifier("master.apply")
@@ -75,7 +82,12 @@ struct MasterAssistView: View {
     }
 
     private func play() {
-        if source == .before { session.previewSnapshot(session.project) } else if let project = candidate() { session.previewSnapshot(project) }
+        if source == .before { session.previewSnapshot(session.project); return }
+        guard var project = candidate() else { return }
+        if matchLoudness, let measured, let suggestion, measured.integratedLUFS.isFinite {
+            project.master = max(-60, min(6, suggestion.master - (suggestion.predictedLUFS - measured.integratedLUFS)))
+        }
+        session.previewSnapshot(project)
     }
 
     private func measure() async {

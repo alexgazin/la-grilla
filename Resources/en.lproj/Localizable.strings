@@ -2222,3 +2222,7 @@
 /* 808 slides */
 "Slide into the next note" = "Slide into the next note";
 "Notes follow the song's key. Tap a step for a note, tap it again to pick its pitch, length and a slide into the next note." = "Notes follow the song's key. Tap a step for a note, tap it again to pick its pitch, length and a slide into the next note.";
+
+/* Loudness-matched comparison */
+"Match loudness for the comparison" = "Match loudness for the comparison";
+"After plays at the loudness of Before, so you hear only what the limiter and level change." = "After plays at the loudness of Before, so you hear only what the limiter and level change.";
