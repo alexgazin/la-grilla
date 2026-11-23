@@ -63,4 +63,36 @@ final class DrumLayersUITests: XCTestCase {
         app.buttons["Undo"].firstMatch.tap()
         XCTAssertTrue(app.staticTexts["Take 1"].waitForExistence(timeout: 5), "One Undo brings the take back")
     }
+
+    /// U8: a deleted take waits in Recently deleted and comes back in one step.
+    @MainActor func testDeletedTakeComesBackFromRecentlyDeleted() {
+        XCUIDevice.shared.orientation = .portrait
+        let app = XCUIApplication()
+        app.launchArguments = ["--uitesting", "--screen", "jam", "--project-store-id", UUID().uuidString, "-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
+        app.launch()
+        XCTAssertTrue(app.buttons["perform.transport"].waitForExistence(timeout: 15))
+        app.buttons["Record drums"].tap()
+        XCTAssertTrue(app.staticTexts["REC · DRUMS"].waitForExistence(timeout: 8))
+        for _ in 0..<3 { app.buttons["Clap"].tap(); Thread.sleep(forTimeInterval: 0.3) }
+        app.buttons["Finish drum take"].tap()
+        let deleteLast = app.buttons["jam.takes.delete-last"]
+        reveal(deleteLast, in: app)
+        deleteLast.tap()
+        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: app.staticTexts["Take 1"])], timeout: 5), .completed)
+        app.staticTexts["studio.tempo"].tap()
+        let trash = app.buttons["settings.trash"]
+        XCTAssertTrue(trash.waitForExistence(timeout: 5))
+        trash.tap()
+        let restore = app.buttons["trash.restore.0"]
+        XCTAssertTrue(restore.waitForExistence(timeout: 5))
+        let shot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        shot.name = "Stage1-recently-deleted"; shot.lifetime = .keepAlways; add(shot)
+        restore.tap()
+        XCTAssertTrue(app.staticTexts["trash.empty"].waitForExistence(timeout: 5))
+        app.buttons["trash.done"].tap()
+        let take = app.staticTexts["Take 1"]
+        for _ in 0..<10 where !take.exists { app.scrollViews.firstMatch.swipeUp() }
+        XCTAssertTrue(take.waitForExistence(timeout: 5), "The take is back with its hits")
+        XCTAssertTrue(app.buttons["jam.layer.mute.4"].exists)
+    }
 }

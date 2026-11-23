@@ -1532,4 +1532,15 @@
 "Use a version name with 1–60 characters." = "Use a version name with 1–60 characters.";
 "This version is no longer available." = "This version is no longer available.";
 "This project" = "This project";
-"Hear and return to any recent edit, or keep named versions of the song." = "Hear and return to any recent edit, or keep named versions of the song.";
+"Recently deleted" = "Recently deleted";
+"Deleted tracks, drum takes and clips stay here for 30 days, even after you close the app." = "Deleted tracks, drum takes and clips stay here for 30 days, even after you close the app.";
+"Nothing deleted recently." = "Nothing deleted recently.";
+"Track %@" = "Track %@";
+"Take %@" = "Take %@";
+"Clip on %@ · bar %lld" = "Clip on %@ · bar %lld";
+"Deleted %@ · %lld days left" = "Deleted %@ · %lld days left";
+"Restore %@" = "Restore %@";
+"The place this came from no longer exists." = "The place this came from no longer exists.";
+"Something else now plays in that spot. Clear it first, then restore." = "Something else now plays in that spot. Clear it first, then restore.";
+"This song already has 8 tracks. Delete one to restore this track." = "This song already has 8 tracks. Delete one to restore this track.";
+"Hear and return to any recent edit, keep named versions of the song, or bring back deleted tracks, takes and clips." = "Hear and return to any recent edit, keep named versions of the song, or bring back deleted tracks, takes and clips.";

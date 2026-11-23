@@ -49,6 +49,7 @@ struct StudioView: View {
         case .palettes: PaletteView(session:session)
         case .history: HistoryView(session:session)
         case .versions: VersionsView(session:session)
+        case .trash: TrashView(session:session)
         }}.modifier(SheetZoom(sheet:sheet,namespace:sheetZoom)).modifier(StudioQATypeSize()).scrollContentBackground(.hidden).tint(.mint).presentationDragIndicator(.visible).presentationBackground(Color.panel).presentationCornerRadius(Luz.Radius.sheet)}
         .sheet(isPresented:Binding(get:{session.shareURL != nil},set:{if !$0 {session.shareURL=nil}}),onDismiss:{session.finishSharing()}){if let url=session.shareURL{ShareView(url:url)}}
         .alert("La Grilla",isPresented:Binding(get:{session.message != nil},set:{if !$0{session.message=nil}})){Button("OK"){session.message=nil}}message:{Text(LocalizedStringKey(session.message ?? ""))}
@@ -88,6 +89,7 @@ struct StudioView: View {
     @ViewBuilder private var historyMenu:some View {
         Button("Edit history",systemImage:"clock.arrow.circlepath"){session.sheet = .history}
         Button("Song versions",systemImage:"bookmark"){session.sheet = .versions}
+        Button("Recently deleted",systemImage:"trash"){session.sheet = .trash}
     }
     private var saveColor: Color {
         if session.saveError != nil { return .record }

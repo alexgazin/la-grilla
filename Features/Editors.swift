@@ -106,7 +106,8 @@ struct SettingsView: View {
         Section("This project"){
             Button{session.sheet = .history}label:{Label("Edit history",systemImage:"clock.arrow.circlepath")}.accessibilityIdentifier("settings.history")
             Button{session.sheet = .versions}label:{Label("Song versions",systemImage:"bookmark")}.accessibilityIdentifier("settings.versions")
-            Text("Hear and return to any recent edit, or keep named versions of the song.").font(.caption).foregroundStyle(.secondary)
+            Button{session.sheet = .trash}label:{Label("Recently deleted",systemImage:"trash")}.accessibilityIdentifier("settings.trash")
+            Text("Hear and return to any recent edit, keep named versions of the song, or bring back deleted tracks, takes and clips.").font(.caption).foregroundStyle(.secondary)
         }
         Section("App preferences"){
             Picker("Theme",selection:$appearance){Text("System").tag(0);Text("Light").tag(1);Text("Dark").tag(2)}.pickerStyle(.menu).accessibilityIdentifier("settings.theme")
@@ -185,7 +186,7 @@ struct BassView: View {
         guard on != enabled else{return}
         session.edit{project in
             if on{guard project.tracks.count<8 else{throw MusicError.trackLimit};project.tracks.append(Track(role:.bass))}
-            else if let id=project.tracks.first(where:{$0.role == .bass})?.id{try project.deleteTrack(id)}
+            else if let id=project.tracks.first(where:{$0.role == .bass})?.id{try ProjectTrash.deleteTrack(id,in:&project)}
         }
     })}
     var body:some View {NavigationStack{Form{

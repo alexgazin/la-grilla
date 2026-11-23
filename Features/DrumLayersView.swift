@@ -224,8 +224,10 @@ struct DrumLayersMenu: View {
             change(&p.patterns[i])
         }
     }
+    /// The deleted take goes to Recently deleted (U8), so it can come back after a relaunch.
     static func deleteTake(session: Session, pattern: Pattern?, take: UUID) {
-        editPattern(session, pattern) { DrumTakes.delete(&$0, take: take) }
+        guard let id = pattern?.id else { return }
+        session.edit { try ProjectTrash.deleteTake(take, pattern: id, in: &$0) }
         Luz.Haptics.warning()
     }
     static func setTakeMuted(session: Session, pattern: Pattern?, take: UUID, muted: Bool) {

@@ -119,7 +119,7 @@ struct ArrangementClipInspector: View {
                     }
                     SwiftUI.Section {
                         Button("Duplicate clip"){commit{try ClipEditing.copy($0,to:selection.trackID,start:clip.start+clip.length,snap:240,in:&$1)}}.frame(minHeight:44).accessibilityIdentifier("clip.duplicate")
-                        Button("Delete clip",role:.destructive){commit{try ClipEditing.delete($0,in:&$1)};if self.clip==nil{dismiss()}}.frame(minHeight:44).accessibilityIdentifier("clip.delete")
+                        Button("Delete clip",role:.destructive){commit{payload,project in guard let track=payload.sourceTrackID else{throw ClipEditingError.missing};try ProjectTrash.deleteClip(payload.objectID,track:track,in:&project)};if self.clip==nil{dismiss()}}.frame(minHeight:44).accessibilityIdentifier("clip.delete")
                     }
                     SwiftUI.Section {
                         Text("Clips repeat their source pattern when extended. Musical content is never overwritten by a drop.").font(.caption).foregroundStyle(Color.muted)

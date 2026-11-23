@@ -319,6 +319,8 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
     public var midi:MIDISettings?
     /// I41: the last phrase edits applied to this project (newest last, at most 32).
     public var editLog:[String]?
+    /// U8: tracks, takes and clips deleted in the last 30 days (see ProjectTrash). Nil in older files.
+    public var recentlyDeleted:[DeletedItem]?
     /// Legacy register for implicit root bass. To change it in an existing project,
     /// use MusicalEditing.setBassRegister: explicit rootBassPitch values are absolute
     /// and must be shifted atomically as well; raw field assignment does not do that.
@@ -353,6 +355,7 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
               Set(tracks.map(\.id)).count == tracks.count else { throw MusicError.invalidProject }
         guard (performanceTakes ?? []).count<=1 else{throw MusicError.limit}
         if let log=editLog{guard log.count<=32,log.allSatisfy({$0.count<=300}) else{throw MusicError.invalidProject}}
+        if let trash=recentlyDeleted{guard trash.count<=ProjectTrash.itemLimit,Set(trash.map(\.id)).count==trash.count,trash.allSatisfy({$0.name.count<=200 && $0.deletedAt.timeIntervalSinceReferenceDate.isFinite})else{throw MusicError.invalidProject}}
         for track in tracks{try track.dynamics?.validate();try track.synth?.validate();if track.synth != nil,track.role == .drums{throw MusicError.invalidProject}
             if let muted=track.mutedPads,track.role != .drums || Set(muted).count != muted.count || !muted.allSatisfy({(0..<16).contains($0)}){throw MusicError.invalidProject}}
         guard sections.allSatisfy({$0.color.map{(0...3).contains($0)} ?? true}),sections.allSatisfy({$0.filterSweep?.isValid ?? true}) else{throw MusicError.invalidProject}

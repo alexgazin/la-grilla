@@ -1534,4 +1534,15 @@
 "Use a version name with 1–60 characters." = "Имя версии — от 1 до 60 символов.";
 "This version is no longer available." = "Этой версии больше нет.";
 "This project" = "Этот проект";
-"Hear and return to any recent edit, or keep named versions of the song." = "Послушай и верни любую недавнюю правку или сохрани версии песни с именами.";
+"Recently deleted" = "Недавно удалённые";
+"Deleted tracks, drum takes and clips stay here for 30 days, even after you close the app." = "Удалённые дорожки, дубли и клипы хранятся здесь 30 дней, даже после закрытия приложения.";
+"Nothing deleted recently." = "Недавно ничего не удаляли.";
+"Track %@" = "Дорожка «%@»";
+"Take %@" = "Дубль %@";
+"Clip on %@ · bar %lld" = "Клип на «%@» · такт %lld";
+"Deleted %@ · %lld days left" = "Удалено %@ · осталось дней: %lld";
+"Restore %@" = "Восстановить: %@";
+"The place this came from no longer exists." = "Места, откуда это удалили, больше нет.";
+"Something else now plays in that spot. Clear it first, then restore." = "На этом месте теперь звучит другое. Сначала освободи его, потом восстанавливай.";
+"This song already has 8 tracks. Delete one to restore this track." = "В песне уже 8 дорожек. Удали одну, чтобы вернуть эту.";
+"Hear and return to any recent edit, keep named versions of the song, or bring back deleted tracks, takes and clips." = "Послушай и верни любую недавнюю правку, сохрани версии песни или верни удалённые дорожки, дубли и клипы.";

@@ -90,7 +90,7 @@ import Observation
     private let runtimeTraceStart=ProcessInfo.processInfo.systemUptime
     let personalKits: PersonalKitStore
     let store: ProjectStore
-    enum Sheet: String, Identifiable {case projects, newProject, trackBuilder, export, settings, gettingStarted, bass, sections, notes, harmony, assistant, voice, perform, midiDevices, palettes, history, versions; var id: String { rawValue }}
+    enum Sheet: String, Identifiable {case projects, newProject, trackBuilder, export, settings, gettingStarted, bass, sections, notes, harmony, assistant, voice, perform, midiDevices, palettes, history, versions, trash; var id: String { rawValue }}
     private static var qaProjectStoreID:UUID? {
         let arguments=ProcessInfo.processInfo.arguments
         guard arguments.contains("--uitesting"),let index=arguments.firstIndex(of:"--project-store-id"),arguments.indices.contains(index+1)else{return nil}
@@ -404,6 +404,8 @@ import Observation
         edit{p in var restored=version;restored.id=id;restored.name=p.name;p=restored}
         showToast("Restored")
     }
+    /// U8 · Bring back a deleted track, take or clip in one Undo step.
+    func restoreDeleted(_ id:UUID){edit{try ProjectTrash.restore(id,in:&$0)};if message==nil{showToast("Restored")}}
     func scheduleSave() {saveTask?.cancel();saveTask = Task {try? await Task.sleep(for:.milliseconds(700));guard !Task.isCancelled else{return};await save()} }
     func save() async {
         // Scene/background notifications may arrive while the catalogue is
@@ -711,7 +713,7 @@ import Observation
     }
     func addMelody(){finishTake();let count=project.tracks.count;edit{try $0.addMelody()};if project.tracks.count>count{noteTrackID=project.tracks.last?.id}}
     func duplicateMelody(_ id:UUID){finishTake();let count=project.tracks.count;edit{try $0.duplicateTrack(id)};if project.tracks.count>count{noteTrackID=project.tracks.last?.id}}
-    func deleteMelody(_ id:UUID){finishTake();edit{try $0.deleteTrack(id)};noteTrackID=project.tracks.first{$0.role == .melody}?.id}
+    func deleteMelody(_ id:UUID){finishTake();edit{try ProjectTrash.deleteTrack(id,in:&$0)};noteTrackID=project.tracks.first{$0.role == .melody}?.id}
     func setLoop(bars: Int? = nil, enabled: Bool? = nil) {guard !recording && !armed else{message="Finish the take before changing the loop.";return};if let bars{loopBars=bars};if let enabled{loop=enabled};saveGeneratedLoopPreference();sync()}
     func select(_ section: MusicDomain.Section) {if performance.contextActive{performance.queueSection(section.id);return};guard !recording && !armed else{return};selectedSection=section.id;sync();if !audio.playing{audio.seek(section.start)}}
     @discardableResult

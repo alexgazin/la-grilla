@@ -34,7 +34,8 @@ public struct SampleAsset: Codable, Equatable, Hashable, Sendable {
 
 public extension Project {
     var referencedSamples: Set<SampleAsset> {
-        let allTracks = tracks + (performanceTake?.source.tracks ?? [])
+        // Deleted tracks keep their samples so they can come back (U8).
+        let allTracks = tracks + (performanceTake?.source.tracks ?? []) + (recentlyDeleted ?? []).compactMap(\.track)
         var result: Set<SampleAsset> = []
         for track in allTracks {
             if let sample = track.instrumentSample { result.insert(sample) }

@@ -145,3 +145,76 @@ struct ProjectVersionTests {
         #expect(await store.versions(of: project.id).count == ProjectStore.versionLimit)
     }
 }
+
+struct ProjectTrashTests {
+    private func song() -> Project {
+        var project = Project.demo()
+        try! project.addMelody(name: "Lead")
+        let pattern = project.tracks[3].clips[0].patternID
+        let index = project.patterns.firstIndex { $0.id == pattern }!
+        project.patterns[index].notes = [NoteEvent(tick: 0, duration: 480, pitch: 64, velocity: 90)]
+        return project
+    }
+
+    @Test func aDeletedTrackComesBackInPlaceWithItsNotes() throws {
+        var project = song()
+        let lead = project.tracks[3], before = project
+        try ProjectTrash.deleteTrack(lead.id, in: &project, now: Date(timeIntervalSince1970: 100))
+        #expect(!project.tracks.contains { $0.id == lead.id })
+        #expect(ProjectTrash.items(in: project, now: Date(timeIntervalSince1970: 200)).map(\.name) == ["Lead"])
+        try project.validate()
+        let item = try #require(project.recentlyDeleted?.first)
+        try ProjectTrash.restore(item.id, in: &project)
+        #expect(project.tracks == before.tracks)
+        #expect(project.recentlyDeleted == nil)
+        #expect(Compiler.notes(project) == Compiler.notes(before))
+    }
+
+    @Test func aDeletedTakeComesBackWithItsHitsAndTheBeatStays() throws {
+        var project = Project.demo()
+        let take = DrumTake(number: 1)
+        var hit = DrumEvent(tick: 240, pad: 4); hit.take = take.id
+        project.patterns[1].drums.append(hit); project.patterns[1].drumTakes = [take]
+        let before = project
+        try ProjectTrash.deleteTake(take.id, pattern: project.patterns[1].id, in: &project)
+        #expect(project.patterns[1].drums.count == before.patterns[1].drums.count - 1)
+        #expect(project.patterns[1].drumTakes == nil)
+        try ProjectTrash.restore(project.recentlyDeleted![0].id, in: &project)
+        #expect(project.patterns[1] == before.patterns[1])
+    }
+
+    @Test func aClipComesBackOnlyIntoAFreeSpot() throws {
+        var project = song()
+        let lead = project.tracks[3], clip = lead.clips[0]
+        try ProjectTrash.deleteClip(clip.id, track: lead.id, in: &project)
+        #expect(project.tracks[3].clips.isEmpty)
+        let item = project.recentlyDeleted![0]
+        var blocked = project
+        try ClipEditing.create(on: lead.id, start: 0, in: &blocked)
+        #expect(throws: ProjectTrashError.noRoom) { try ProjectTrash.restore(item.id, in: &blocked) }
+        try ProjectTrash.restore(item.id, in: &project)
+        #expect(project.tracks[3].clips == [clip])
+    }
+
+    @Test func oldItemsArePurgedAfterThirtyDaysAndTheListIsBounded() throws {
+        var project = song()
+        try ProjectTrash.deleteTrack(project.tracks[3].id, in: &project, now: Date(timeIntervalSince1970: 0))
+        #expect(ProjectTrash.daysLeft(project.recentlyDeleted![0], now: Date(timeIntervalSince1970: 86_400 * 3)) == 27)
+        #expect(ProjectTrash.purge(&project, now: Date(timeIntervalSince1970: 86_400 * 29)) == 0)
+        #expect(ProjectTrash.purge(&project, now: Date(timeIntervalSince1970: 86_400 * 31)) == 1)
+        #expect(project.recentlyDeleted == nil)
+        for index in 0..<(ProjectTrash.itemLimit + 5) {
+            ProjectTrash.push(DeletedItem(kind: .take, deletedAt: Date(timeIntervalSince1970: Double(index)), name: "\(index)"), into: &project)
+        }
+        #expect(project.recentlyDeleted?.count == ProjectTrash.itemLimit)
+        #expect(project.recentlyDeleted?.first?.name == "5")
+    }
+
+    @Test func olderFilesWithoutTheTrashStillDecode() throws {
+        let project = Project.demo()
+        var json = try JSONSerialization.jsonObject(with: JSONEncoder().encode(project)) as! [String: Any]
+        json.removeValue(forKey: "recentlyDeleted")
+        let decoded = try ProjectDocument.decode(JSONSerialization.data(withJSONObject: json))
+        #expect(decoded.recentlyDeleted == nil && decoded.tracks == project.tracks)
+    }
+}
