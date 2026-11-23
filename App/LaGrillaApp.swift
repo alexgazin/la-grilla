@@ -17,6 +17,8 @@ import MusicDomain
         }
         if let request = LaunchRequest.take() { await session.handleLaunch(request) }
         Task { await ProjectSpotlight.refresh() }
+        // I55: a connected game controller plays the pads.
+        GamepadPads.shared.attach(session)
         // U70: once after an update, show what is new in this build.
         let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? ""
         let lastShown = UserDefaults.standard.string(forKey: "whatsNew.lastBuild")

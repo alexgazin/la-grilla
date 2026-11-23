@@ -391,3 +391,56 @@ extension View {
         }
     }
 }
+
+// MARK: - U24 Gesture tips
+
+/// One-time tips for gestures that are easy to miss. Each shows once, until "Got it".
+enum CoachTip: String, CaseIterable {
+    case pinchGrid, renameSection, undoHistory, stepHold, stepSize, beatMachine
+    var symbol: String {
+        switch self {
+        case .pinchGrid: "arrow.up.left.and.arrow.down.right"
+        case .renameSection: "hand.tap"
+        case .undoHistory: "clock.arrow.circlepath"
+        case .stepHold: "hand.point.up.left"
+        case .stepSize: "square.grid.3x3"
+        case .beatMachine: "square.grid.4x3.fill"
+        }
+    }
+    var text: LocalizedStringKey {
+        switch self {
+        case .pinchGrid: "Pinch the grid to zoom bars in and out."
+        case .renameSection: "Double-tap a section to rename it."
+        case .undoHistory: "Touch and hold Undo to jump back several steps or open the edit history."
+        case .stepHold: "Touch and hold a lit step for chance and rolls."
+        case .stepSize: "Change the step size for triplets or thirty-seconds."
+        case .beatMachine: "The beat machine has ready beats in many genres, 808s and 19 kits."
+        }
+    }
+    static let storageKey = "tips.seen"
+}
+
+/// Shows the first unseen tip of a screen with a Got it button. Hidden in UI tests.
+struct CoachTipBanner: View {
+    let tips: [CoachTip]
+    @AppStorage(CoachTip.storageKey) private var seenRaw = ""
+    var body: some View {
+        let seen = Favorites(seenRaw)
+        if !Luz.uiTesting || ProcessInfo.processInfo.arguments.contains("--tips"), let tip = tips.first(where: { !seen.contains($0.rawValue) }) {
+            HStack(alignment: .top, spacing: 10) {
+                Image(systemName: tip.symbol).font(.headline).foregroundStyle(Color.mint).frame(width: 24)
+                Text(tip.text).font(.subheadline).foregroundStyle(Color.studioText).fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 4)
+                Button("Got it") {
+                    var next = Favorites(seenRaw); next.toggle(tip.rawValue); seenRaw = next.stored
+                }.font(.subheadline.weight(.semibold)).accessibilityIdentifier("tip.dismiss")
+            }
+            .padding(12)
+            .background(Color.panel, in: RoundedRectangle(cornerRadius: Luz.Radius.card, style: .continuous))
+            .overlay { RoundedRectangle(cornerRadius: Luz.Radius.card, style: .continuous).strokeBorder(Color.mint.opacity(0.5), lineWidth: 1) }
+            .transition(.opacity.combined(with: .move(edge: .top)))
+            .accessibilityElement(children: .combine)
+            .accessibilityIdentifier("tip.\(tip.rawValue)")
+        }
+    }
+}

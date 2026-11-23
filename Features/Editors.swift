@@ -195,6 +195,7 @@ struct SettingsView: View {
             Toggle("Count in out loud before a take",isOn:$voiceCountIn).accessibilityIdentifier("settings.voice-count-in")
             Toggle("Show what plays as captions",isOn:$hitCaptions).accessibilityIdentifier("settings.hit-captions")
             Toggle("High-contrast grid",isOn:$gridContrast).accessibilityIdentifier("settings.grid-contrast")
+            Button("Show gesture tips again"){UserDefaults.standard.removeObject(forKey:CoachTip.storageKey);session.showToast("Tips will show again")}.accessibilityIdentifier("settings.tips-reset")
         }
         audioSettings
         Section("Backup"){BackupRows(session:session)
@@ -220,6 +221,12 @@ struct SettingsView: View {
             Button{session.sheet = .markers}label:{Label("Markers",systemImage:"flag")}.accessibilityIdentifier("settings.markers")
             Button{session.sheet = .dynamics}label:{Label("Song dynamics",systemImage:"chart.line.uptrend.xyaxis")}.accessibilityIdentifier("settings.dynamics")
             Button{session.sheet = .tuner}label:{Label("Tuner",systemImage:"tuningfork")}.accessibilityIdentifier("settings.tuner")
+            // I43: the teacher's beat becomes the lesson a student plays back and is scored on.
+            if session.project.assignment == nil {
+                Button{makeAssignment()}label:{Label("Make an assignment from this beat",systemImage:"graduationcap")}.accessibilityIdentifier("settings.assignment")
+            } else {
+                Button(role:.destructive){session.edit{$0.assignment=nil}}label:{Label("Remove the assignment",systemImage:"graduationcap")}.accessibilityIdentifier("settings.assignment-remove")
+            }
             // I48: how others may use the song when it is shared.
             Picker("When shared",selection:Binding(get:{session.project.license ?? ""},set:{value in session.edit{$0.license=value.isEmpty ? nil:value}})){
                 Text("Not set").tag("")
@@ -242,6 +249,14 @@ struct SettingsView: View {
         }
 
     }.navigationTitle("Settings").navigationBarTitleDisplayMode(.inline).toolbar{ToolbarItem(placement:.confirmationAction){Button("Done"){session.sheet=nil}}}}
+    private func makeAssignment(){
+        let section=session.section
+        guard let drums=session.project.tracks.first(where:{$0.role == .drums}) else{return}
+        let pattern=Arrangement.materialize(session.project,track:drums,section:section)
+        guard let task=Assignment.from(pattern.drums,title:String(format:NSLocalizedString("Play %@ like this",comment:"Assignment title"),section.name)) else{session.message="Put a beat in this section first; its first bar becomes the assignment.";return}
+        session.edit{$0.assignment=task}
+        session.showToast("Assignment saved")
+    }
         // A presented Form owns its appearance boundary. Apply the observed
         // preference here as well as to the window so live changes update the
         // current sheet, rather than only its presenter or the next opening.

@@ -514,6 +514,12 @@ public struct DrumLesson: Identifiable, Sendable, Equatable {
     /// One bar per line: (pad, sixteenth steps 0…15).
     public let hits: [(pad: Int, steps: [Int])]
     public static func == (a: DrumLesson, b: DrumLesson) -> Bool { a.id == b.id }
+    public init(id: String, title: String, hits: [(pad: Int, steps: [Int])]) { self.id = id; self.title = title; self.hits = hits }
+
+    /// I43 · A teacher's assignment as a lesson: the first bar of a beat on sixteenths.
+    public static func assignment(_ assignment: Assignment) -> DrumLesson {
+        DrumLesson(id: "assignment", title: assignment.title, hits: assignment.lanes.map { (pad: $0.pad, steps: $0.steps) })
+    }
 
     public static let library: [DrumLesson] = [
         DrumLesson(id: "four-floor", title: "Four on the floor", hits: [(0, [0, 4, 8, 12]), (2, [2, 6, 10, 14]), (4, [4, 12])]),

@@ -107,24 +107,29 @@ struct DrumSamplePicker: View {
             }
         }
         .tint(.drums)
-        .fileImporter(isPresented: $showImporter, allowedContentTypes: [.wav, .aiff]) { result in
+        .fileImporter(isPresented: $showImporter, allowedContentTypes: [.wav, .aiff, .audio, .movie]) { result in
             guard let pendingPad else { return }
             switch result {
             case .success(let url):
                 prepare {
-                    let sound = try await DrumSamplePreparation.shared.importAndKeep(url)
+                    // I36: a video or voice memo gives its sound to the pad.
+                    let sound = try await DrumSamplePreparation.shared.importAndKeep(try await AudioExtraction.wavIfNeeded(url))
                     return [(pendingPad, sound)]
                 }
             case .failure(let failure): error = failure.localizedDescription
             }
         }
-        .fileImporter(isPresented: $showSliceImporter, allowedContentTypes: [.wav, .aiff]) { result in
+        .fileImporter(isPresented: $showSliceImporter, allowedContentTypes: [.wav, .aiff, .audio, .movie]) { result in
             switch result {
-            case .success(let url):
-                loopTempo = nil; loopURL = url
-                Task { loopTempo = try? await DrumSamplePreparation.shared.loopTempo(url) }
+            case .success(let picked):
+                loopTempo = nil
+                Task {
+                    guard let url = try? await AudioExtraction.wavIfNeeded(picked) else { return }
+                    loopURL = url
+                    loopTempo = try? await DrumSamplePreparation.shared.loopTempo(url)
+                }
                 prepare {
-                    let slices = try await DrumSamplePreparation.shared.importSlices(url)
+                    let slices = try await DrumSamplePreparation.shared.importSlices(try await AudioExtraction.wavIfNeeded(picked))
                     return slices.prefix(16).enumerated().map { (pad: Optional($0.offset), sound: $0.element) }
                 }
             case .failure(let failure): error = failure.localizedDescription

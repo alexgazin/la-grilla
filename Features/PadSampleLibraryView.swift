@@ -92,11 +92,11 @@ struct PadSampleLibraryView: View {
             do { samples = try await DrumSamplePreparation.library.get().list() }
             catch { self.error = error.localizedDescription }
         }
-        .fileImporter(isPresented: $importing, allowedContentTypes: [.wav, .aiff]) { result in
+        .fileImporter(isPresented: $importing, allowedContentTypes: [.wav, .aiff, .audio, .movie]) { result in
             switch result {
             case .success(let url):
                 perform {
-                    _ = try await DrumSamplePreparation.shared.importAndKeep(url)
+                    _ = try await DrumSamplePreparation.shared.importAndKeep(try await AudioExtraction.wavIfNeeded(url))
                     samples = try await DrumSamplePreparation.library.get().list()
                     search = ""
                 }

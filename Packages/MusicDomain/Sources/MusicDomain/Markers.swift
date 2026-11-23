@@ -66,3 +66,27 @@ public enum MarkerEditing {
     /// Bar and beat label, 1-based ("5.3").
     public static func position(_ tick: Int) -> String { "\(tick / barTicks + 1).\(tick % barTicks / ppq + 1)" }
 }
+
+/// I43 · A teacher's assignment kept in the project: one bar of beat to play back.
+public struct Assignment: Codable, Equatable, Sendable {
+    public struct Lane: Codable, Equatable, Sendable { public var pad: Int; public var steps: [Int] }
+    public var title: String
+    public var lanes: [Lane]
+
+    /// The first bar of `hits`, each hit moved to the nearest sixteenth.
+    public static func from(_ hits: [DrumEvent], title: String) -> Assignment? {
+        var lanes: [Int: Set<Int>] = [:]
+        for hit in hits where hit.tick < barTicks && (0..<16).contains(hit.pad) {
+            let step = min(15, (hit.tick + 120) / 240)
+            lanes[hit.pad, default: []].insert(step)
+        }
+        guard !lanes.isEmpty else { return nil }
+        let trimmed = String(title.trimmingCharacters(in: .whitespacesAndNewlines).prefix(80))
+        return Assignment(title: trimmed.isEmpty ? "Assignment" : trimmed, lanes: lanes.keys.sorted().map { Lane(pad: $0, steps: lanes[$0]!.sorted()) })
+    }
+
+    public func validate() throws {
+        guard !title.isEmpty, title.count <= 80, lanes.count <= 16, Set(lanes.map(\.pad)).count == lanes.count,
+              lanes.allSatisfy({ (0..<16).contains($0.pad) && !$0.steps.isEmpty && $0.steps.allSatisfy { (0..<16).contains($0) } }) else { throw MusicError.invalidProject }
+    }
+}

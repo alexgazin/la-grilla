@@ -2201,3 +2201,20 @@
 "Warmer" = "Warmer";
 "More space" = "More space";
 "Drier" = "Drier";
+
+/* Tips, assignments, video sound */
+"Pinch the grid to zoom bars in and out." = "Pinch the grid to zoom bars in and out.";
+"Double-tap a section to rename it." = "Double-tap a section to rename it.";
+"Touch and hold Undo to jump back several steps or open the edit history." = "Touch and hold Undo to jump back several steps or open the edit history.";
+"Touch and hold a lit step for chance and rolls." = "Touch and hold a lit step for chance and rolls.";
+"Change the step size for triplets or thirty-seconds." = "Change the step size for triplets or thirty-seconds.";
+"The beat machine has ready beats in many genres, 808s and 19 kits." = "The beat machine has ready beats in many genres, 808s and 19 kits.";
+"Got it" = "Got it";
+"Show gesture tips again" = "Show gesture tips again";
+"Tips will show again" = "Tips will show again";
+"This file has no sound to take. Choose a video or recording with audio." = "This file has no sound to take. Choose a video or recording with audio.";
+"Make an assignment from this beat" = "Make an assignment from this beat";
+"Remove the assignment" = "Remove the assignment";
+"Play %@ like this" = "Play %@ like this";
+"Put a beat in this section first; its first bar becomes the assignment." = "Put a beat in this section first; its first bar becomes the assignment.";
+"Assignment saved" = "Assignment saved";

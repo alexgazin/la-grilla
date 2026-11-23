@@ -126,6 +126,7 @@ struct GridView: View {
                         sectionChips
                         if !hasMusicalEvents{emptyProjectGuide.padding(.horizontal,16).padding(.bottom,14)}
                         else{NextStepCard(session:session).padding(.horizontal,16).padding(.bottom,10)}
+                        CoachTipBanner(tips:[.pinchGrid,.renameSection,.undoHistory]).padding(.horizontal,16).padding(.bottom,10)
                         if clipMode{clipControls.padding(.horizontal,16).padding(.bottom,8)}
                         HStack(spacing:0){
                             VStack(spacing:0){Color.ink.frame(height:28);trackLabel(.harmony,height:harmonyHeight);trackLabel(.drums,height:drumHeight);if showsRootBassLane { trackLabel(.bass,height:bassHeight) };ForEach(session.displayProject.tracks.filter{$0.role == .melody}){track in melodyTrackLabel(track)}}.frame(width:gutter)

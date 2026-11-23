@@ -2203,3 +2203,20 @@
 "Warmer" = "Теплее";
 "More space" = "Больше простора";
 "Drier" = "Суше";
+
+/* Tips, assignments, video sound */
+"Pinch the grid to zoom bars in and out." = "Сведите или разведите пальцы на сетке, чтобы менять масштаб тактов.";
+"Double-tap a section to rename it." = "Дважды коснитесь секции, чтобы её переименовать.";
+"Touch and hold Undo to jump back several steps or open the edit history." = "Удерживайте «Отменить», чтобы вернуться на несколько шагов или открыть историю правок.";
+"Touch and hold a lit step for chance and rolls." = "Удерживайте горящий шаг, чтобы задать вероятность и дробь.";
+"Change the step size for triplets or thirty-seconds." = "Смените размер шага для триолей или тридцать вторых.";
+"The beat machine has ready beats in many genres, 808s and 19 kits." = "В битмашине готовые биты многих жанров, 808 и 19 наборов.";
+"Got it" = "Понятно";
+"Show gesture tips again" = "Снова показывать подсказки жестов";
+"Tips will show again" = "Подсказки снова будут показываться";
+"This file has no sound to take. Choose a video or recording with audio." = "В этом файле нет звука. Выберите видео или запись со звуком.";
+"Make an assignment from this beat" = "Сделать задание из этого бита";
+"Remove the assignment" = "Убрать задание";
+"Play %@ like this" = "Сыграй %@ вот так";
+"Put a beat in this section first; its first bar becomes the assignment." = "Сначала поставьте бит в эту секцию: его первый такт станет заданием.";
+"Assignment saved" = "Задание сохранено";

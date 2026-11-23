@@ -1,3 +1,4 @@
+import LinkPresentation
 import SwiftUI
 import MusicDomain
 import UIKit
@@ -73,6 +74,33 @@ struct ExportView:View {
 }
 struct ShareView:UIViewControllerRepresentable {
     let url:URL
-    func makeUIViewController(context:Context)->UIActivityViewController{UIActivityViewController(activityItems:[url],applicationActivities:nil)}
+    func makeUIViewController(context:Context)->UIActivityViewController{
+        // I45: a project file shows its song name and the app icon in the share sheet and AirDrop.
+        let item:Any=url.pathExtension.lowercased()=="grillapack" ? ProjectShareItem(url:url):url
+        return UIActivityViewController(activityItems:[item],applicationActivities:nil)
+    }
     func updateUIViewController(_ controller:UIActivityViewController,context:Context){}
+}
+
+/// The share sheet's preview card for a .grillapack: the song's name, "La Grilla project"
+/// and the app icon.
+final class ProjectShareItem:NSObject,UIActivityItemSource {
+    let url:URL
+    init(url:URL){self.url=url}
+    func activityViewControllerPlaceholderItem(_ controller:UIActivityViewController)->Any{url}
+    func activityViewController(_ controller:UIActivityViewController,itemForActivityType type:UIActivity.ActivityType?)->Any?{url}
+    func activityViewControllerLinkMetadata(_ controller:UIActivityViewController)->LPLinkMetadata?{
+        let metadata=LPLinkMetadata()
+        metadata.originalURL=url
+        metadata.url=url
+        metadata.title=url.deletingPathExtension().lastPathComponent
+        if let icon=Self.icon{metadata.iconProvider=NSItemProvider(object:icon);metadata.imageProvider=NSItemProvider(object:icon)}
+        return metadata
+    }
+    private static var icon:UIImage?{
+        guard let icons=Bundle.main.infoDictionary?["CFBundleIcons"] as? [String:Any],
+              let primary=icons["CFBundlePrimaryIcon"] as? [String:Any],
+              let files=primary["CFBundleIconFiles"] as? [String],let name=files.last else{return UIImage(named:"AppIcon")}
+        return UIImage(named:name)
+    }
 }

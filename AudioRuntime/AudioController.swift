@@ -206,6 +206,8 @@ private enum AudioRender {
     var retainedRoutingCount:Int {routing.count}
     /// Control-path diagnostic; no render callback consults the compiler cache.
     var musicCompilationCount:Int{musicCompilationCache.compileCount}
+    /// U37: compiled notes of a project from the shared cache (the playing project is already compiled).
+    func compiledNotes(_ p:Project)->[CompiledNote]{musicCompilationCache.notes(p)}
     var clock: UInt64 = 0
     var failureReport:String {
         let encoder=JSONEncoder();encoder.outputFormatting=[.sortedKeys]

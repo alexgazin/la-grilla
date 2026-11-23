@@ -253,6 +253,9 @@ struct MixerView: View {
                 Image(systemName: "lock.fill").font(.system(.caption2, weight: .semibold)).foregroundStyle(Color.muted)
                     .accessibilityLabel("Locked")
             }
+            if let track, let index = session.displayProject.tracks.firstIndex(where: { $0.id == track.id }) {
+                SoundingDot(session: session, track: index, color: color)
+            }
         }
         .overlay(alignment: .topLeading) {
             Capsule().fill(color).frame(width: 20, height: 2).offset(y: -5)
@@ -709,5 +712,32 @@ private struct SynthEditorView: View {
     private func commit(_ value: SynthPatch?) {
         let id = trackID
         session.edit { p in if let i = p.tracks.firstIndex(where: { $0.id == id }) { p.tracks[i].synth = value } }
+    }
+}
+
+/// U37 · Lights while the track has a note sounding at the playhead.
+private struct SoundingDot: View {
+    let session: Session
+    let track: Int
+    let color: Color
+    var body: some View {
+        let tick = Int(session.audio.tick)
+        let lit = session.audio.playing && Self.sounding(session.audio.compiledNotes(session.displayProject), track: track, at: tick)
+        Circle().fill(lit ? color : color.opacity(0.15)).frame(width: 7, height: 7)
+            .transaction { $0.animation = nil }
+            .accessibilityHidden(true)
+    }
+
+    /// Notes are sorted by start: find the last one that started, then look back one bar.
+    static func sounding(_ notes: [CompiledNote], track: Int, at tick: Int) -> Bool {
+        var low = 0, high = notes.count
+        while low < high { let mid = (low + high) / 2; if notes[mid].tick <= tick { low = mid + 1 } else { high = mid } }
+        var index = low - 1
+        while index >= 0 && notes[index].tick > tick - barTicks {
+            let note = notes[index]
+            if note.track == track && tick < note.tick + max(90, note.duration) { return true }
+            index -= 1
+        }
+        return false
     }
 }

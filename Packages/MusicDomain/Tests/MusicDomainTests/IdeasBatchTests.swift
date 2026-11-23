@@ -158,3 +158,34 @@ struct MasterTweakTests {
         #expect(CommandMatcher.rank("теплее").first?.command == .warmer)
     }
 }
+
+struct GamepadMappingTests {
+    @Test func buttonsPlayPadsOncePerPressAndTriggersSetVelocity() {
+        let map = GamepadMapping.standard
+        #expect(map.hit(.a, value: 1, wasPressed: false)! == (0, 104))
+        #expect(map.hit(.a, value: 1, wasPressed: true) == nil, "Holding does not retrigger")
+        #expect(map.hit(.a, value: 0, wasPressed: true) == nil, "Release plays nothing")
+        let soft = map.hit(.rightTrigger, value: 0.2, wasPressed: false)!, hard = map.hit(.rightTrigger, value: 1, wasPressed: false)!
+        #expect(soft.pad == 1 && soft.velocity < hard.velocity && hard.velocity == 127)
+        #expect(GamepadMapping(pads: [.a: 20]).pads.isEmpty, "Only real pads")
+        #expect(Set(map.pads.values).isSubset(of: Set(0..<16)))
+    }
+}
+
+struct AssignmentTests {
+    @Test func aBeatBecomesALessonThatScoresAStudentsTake() throws {
+        var project = Project.demo()
+        let task = try #require(Assignment.from(project.patterns[1].drums + [DrumEvent(tick: 250, pad: 4)], title: "Play the verse"))
+        #expect(task.lanes.map(\.pad) == [0, 1, 2, 4] && task.lanes.first { $0.pad == 4 }?.steps == [1])
+        project.assignment = task
+        try project.validate()
+        let lesson = DrumLesson.assignment(task)
+        let perfect = lesson.score(lesson.events, bars: 1)
+        #expect(perfect.accuracy == 100)
+        let sloppy = lesson.score(lesson.events.dropLast(2) + [DrumEvent(tick: 3000, pad: 12)], bars: 1)
+        #expect(sloppy.missed == 2 && sloppy.extra == 1 && sloppy.accuracy < 100)
+        #expect(Assignment.from([], title: "x") == nil)
+        let copy = try PortableProject.decode(PortableProject.data(project), asCopy: false)
+        #expect(copy.assignment == task)
+    }
+}
