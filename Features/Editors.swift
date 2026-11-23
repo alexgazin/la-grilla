@@ -111,6 +111,15 @@ struct ChordWhyRow: View {
     var body: some View {
         let why = HarmonyExplainer.explain(chord, previous: previous, keyRoot: keyRoot, minor: minor)
         DisclosureGroup(isExpanded: $open) {
+            // I30: how to play it on guitar and ukulele (x = not played).
+            HStack(spacing: 16) {
+                ForEach(ChordShapes.Instrument.allCases, id: \.self) { instrument in
+                    if let shape = ChordShapes.shape(for: chord, on: instrument) {
+                        Text("\(Text(LocalizedStringKey(instrument == .guitar ? "Guitar" : "Ukulele"))): \(Text(verbatim: shape.frets.map { $0 < 0 ? "x" : String($0) }.joined(separator: " ")))")
+                            .font(.caption.monospaced())
+                    }
+                }
+            }.padding(.top, 6).accessibilityIdentifier("chord.shapes")
             Text(verbatim: why.sentences.map { NSLocalizedString($0, comment: "Why it sounds") }.joined(separator: " ")).font(.callout).foregroundStyle(Color.studioText).fixedSize(horizontal: false, vertical: true).padding(.top, 6)
         } label: {
             HStack(spacing: 8) {
@@ -433,6 +442,10 @@ struct SectionsView: View {
         Picker("Filter sweep",selection:Binding(get:{sweepTag(section.filterSweep)},set:{tag in let id=section.id,value=sweep(tag);session.edit{p in if let i=p.sections.firstIndex(where:{$0.id==id}){p.sections[i].filterSweep=value}};actions=nil})){
             Text("None").tag(0);Text("Open up").tag(1);Text("Close down").tag(2);Text("Rise").tag(3);Text("Drop in").tag(4)
         }.accessibilityIdentifier("section.filter-sweep")
+        // I22: this section in another key (drums stay).
+        Picker("Key of this section",selection:Binding(get:{section.transpose ?? 0},set:{value in let id=section.id;session.edit{p in if let i=p.sections.firstIndex(where:{$0.id==id}){p.sections[i].transpose=value==0 ? nil:value}};actions=nil})){
+            ForEach(-6...6,id:\.self){value in Text(value==0 ? NSLocalizedString("As the song",comment:"Section key"):String(format:"%+d",value)).tag(value)}
+        }.accessibilityIdentifier("section.key")
         // U32: copy this section's music to another project (or paste what was copied).
         Menu("Copy music"){
             Button("Copy chords"){copyMusic(.chords,section)}

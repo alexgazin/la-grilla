@@ -42,6 +42,16 @@ public enum Compiler {
                 }
             }
         }
+        // I22: a section in another key moves its pitched notes (drums keep their pads).
+        let shifted = project.sections.contains { ($0.transpose ?? 0) != 0 }
+        if shifted {
+            for index in result.indices where result[index].pad < 0 {
+                if let section = project.sections.first(where: { $0.start <= result[index].tick && result[index].tick < $0.start + $0.length }),
+                   let amount = section.transpose, amount != 0 {
+                    result[index].pitch = min(127, max(0, result[index].pitch + amount))
+                }
+            }
+        }
         return result.compactMap { note in
             let start = max(note.tick, range.lowerBound); let end = min(note.tick + note.duration, range.upperBound)
             guard end > start else { return nil }; var n = note; n.tick = start - range.lowerBound; n.duration = end-start; return n

@@ -90,7 +90,7 @@ import Observation
     private let runtimeTraceStart=ProcessInfo.processInfo.systemUptime
     let personalKits: PersonalKitStore
     let store: ProjectStore
-    enum Sheet: String, Identifiable {case projects, newProject, trackBuilder, export, settings, gettingStarted, bass, sections, notes, harmony, assistant, voice, perform, midiDevices, palettes, history, versions, trash, commands, variations, comp, chordImport, melodyIdeas, lyrics, master; var id: String { rawValue }}
+    enum Sheet: String, Identifiable {case projects, newProject, trackBuilder, export, settings, gettingStarted, bass, sections, notes, harmony, assistant, voice, perform, midiDevices, palettes, history, versions, trash, commands, variations, comp, chordImport, melodyIdeas, lyrics, master, mood; var id: String { rawValue }}
     private static var qaProjectStoreID:UUID? {
         let arguments=ProcessInfo.processInfo.arguments
         guard arguments.contains("--uitesting"),let index=arguments.firstIndex(of:"--project-store-id"),arguments.indices.contains(index+1)else{return nil}
@@ -406,6 +406,20 @@ import Observation
     }
     /// Stage 3 tools (variations, comping) work on this pattern.
     var toolPatternID:UUID?
+    /// I28 · Copies the melody track that plays `patternID` into a new track with every
+    /// note moved a third or sixth in the key, in one Undo.
+    func addSecondVoice(patternID:UUID,interval:Harmonizer.Interval){
+        guard let source=project.tracks.first(where:{$0.role == .melody && $0.clips.contains{$0.patternID==patternID}})else{return}
+        let key=project.keyRoot,minor=project.minor
+        edit{p in
+            try p.duplicateTrack(source.id)
+            guard let index=p.tracks.indices.last else{return}
+            p.tracks[index].name=String((source.displayName+" · "+NSLocalizedString("2nd voice",comment:"Second voice")).prefix(40))
+            for clip in p.tracks[index].clips{
+                if let i=p.patterns.firstIndex(where:{$0.id==clip.patternID}){p.patterns[i].notes=Harmonizer.secondVoice(p.patterns[i].notes ?? [],keyRoot:key,minor:minor,interval:interval)}
+            }
+        }
+    }
     /// U44 · Practice: hear the selected section slower, looping; the song does not change.
     var practicing=false
     func togglePractice(rate:Double=0.75){
@@ -494,6 +508,7 @@ import Observation
         case .master: presentEditor(.master)
         case .focusSection: toggleFocus()
         case .practice: togglePractice()
+        case .mood: presentEditor(.mood)
         }
     }
     /// U8 · Bring back a deleted track, take or clip in one Undo step.

@@ -274,10 +274,24 @@ struct DrumLayersMenu: View {
     }
 
     /// The trailing ⋯ of a layer row: clearing is a menu step, never a single stray tap.
+    static func euclid(session: Session, pattern: Pattern?, pad: Int, bar: Int, hits: Int) {
+        guard let id = pattern?.id else { return }
+        session.edit { p in
+            guard let i = p.patterns.firstIndex(where: { $0.id == id }) else { return }
+            Euclid.apply(hits: hits, pad: pad, bar: min(bar, p.patterns[i].length / barTicks - 1), to: &p.patterns[i])
+        }
+        Luz.Haptics.success()
+    }
     static func layerMenu(session: Session, pattern: Pattern?, pad: Int, bar: Int?, hits: Int) -> some View {
         Menu {
             if let bar {
                 Button("Clear in bar \(bar + 1)", systemImage: "eraser") { clear(session: session, pattern: pattern, pad: pad, bar: bar) }
+            }
+            // I26: an even spread of N hits over the bar's 16 steps.
+            Menu("Euclidean rhythm", systemImage: "circle.hexagongrid") {
+                ForEach([3, 4, 5, 7, 9, 11], id: \.self) { count in
+                    Button("\(count) of 16") { euclid(session: session, pattern: pattern, pad: pad, bar: bar ?? 0, hits: count) }
+                }
             }
             Button("Clear layer", systemImage: "trash", role: .destructive) { clear(session: session, pattern: pattern, pad: pad, bar: nil) }
                 .disabled(hits == 0)

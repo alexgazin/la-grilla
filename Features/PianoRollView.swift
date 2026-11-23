@@ -659,6 +659,12 @@ private struct NoteToolsMenu: View {
         Menu {
             Button("Melody ideas…", systemImage: "wand.and.stars") { session.toolPatternID = patternID; session.sheet = .melodyIdeas }
             Button("Lyrics…", systemImage: "text.quote") { session.sheet = .lyrics }
+            // I28: a harmony line on a new track, a third or sixth away in the key.
+            Menu("Second voice", systemImage: "music.note.list") {
+                ForEach(Harmonizer.Interval.allCases, id: \.self) { interval in
+                    Button(LocalizedStringKey(interval.title)) { session.addSecondVoice(patternID: patternID, interval: interval) }
+                }
+            }
             Button("Humanize timing and velocity") { apply { notes, ids, length in NoteTools.humanize(notes, ids: ids, timing: 18, velocity: 10, seed: UInt64(session.project.revision) &+ 1, length: length) } }
             Button("Legato") { apply { notes, ids, length in NoteTools.legato(notes, ids: ids, length: length) } }
             Button("Staccato") { apply { notes, ids, _ in NoteTools.staccato(notes, ids: ids) } }

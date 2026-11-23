@@ -303,6 +303,8 @@ public struct Section: Codable, Equatable, Identifiable, Sendable {
     public var filterSweep: FilterSweep?
     /// I9: the words of this section, one line per phrase. Nil in older files.
     public var lyrics: String?
+    /// I22: semitones this section is moved from the song's key (−6…+6); drums stay. Nil = the song's key.
+    public var transpose: Int?
     public init(name: String, start: Int = 0, length: Int) { self.name = name; self.start = start; self.length = length }
 }
 public struct Project: Codable, Equatable, Identifiable, Sendable {
@@ -361,7 +363,7 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
               Set(tracks.map(\.id)).count == tracks.count else { throw MusicError.invalidProject }
         guard (performanceTakes ?? []).count<=1 else{throw MusicError.limit}
         if let log=editLog{guard log.count<=32,log.allSatisfy({$0.count<=300}) else{throw MusicError.invalidProject}}
-        guard sections.allSatisfy({($0.lyrics?.count ?? 0)<=4000}),patterns.allSatisfy({($0.notes ?? []).allSatisfy{($0.syllable?.count ?? 0)<=32}})else{throw MusicError.invalidProject}
+        guard sections.allSatisfy({($0.lyrics?.count ?? 0)<=4000 && (-6...6).contains($0.transpose ?? 0)}),patterns.allSatisfy({($0.notes ?? []).allSatisfy{($0.syllable?.count ?? 0)<=32}})else{throw MusicError.invalidProject}
         if let trash=recentlyDeleted{guard trash.count<=ProjectTrash.itemLimit,Set(trash.map(\.id)).count==trash.count,trash.allSatisfy({$0.name.count<=200 && $0.deletedAt.timeIntervalSinceReferenceDate.isFinite})else{throw MusicError.invalidProject}}
         for track in tracks{try track.dynamics?.validate();try track.synth?.validate();if track.synth != nil,track.role == .drums{throw MusicError.invalidProject}
             if let muted=track.mutedPads,track.role != .drums || Set(muted).count != muted.count || !muted.allSatisfy({(0..<16).contains($0)}){throw MusicError.invalidProject}}
