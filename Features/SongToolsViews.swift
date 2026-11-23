@@ -10,6 +10,13 @@ struct ArrangementDoctorView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 10) {
                     Text("Suggestions, not rules: trust your ears.").font(.caption).foregroundStyle(Color.muted)
+                    // I60: what it sounds like, with the closest starter groove.
+                    let style = StyleGuess.guess(session.project)
+                    HStack {
+                        Text("\(Text("Sounds like")) \(Text(LocalizedStringKey(StarterGrooves.all.first { $0.id == style.grooveID }?.title ?? ""))) — \(Text(LocalizedStringKey(style.reason)))").font(.callout)
+                        Spacer(minLength: 4)
+                        Button("Grooves") { session.sheet = .grooves }.font(.callout.weight(.semibold)).frame(minHeight: 44)
+                    }.padding(12).background(Color.panel, in: RoundedRectangle(cornerRadius: Luz.Radius.card, style: .continuous)).accessibilityIdentifier("doctor.style")
                     if findings.isEmpty {
                         Label("Nothing stands out. Nice.", systemImage: "checkmark.seal").font(.callout).foregroundStyle(Color.mint).padding(.vertical, 20)
                             .accessibilityIdentifier("doctor.clean")

@@ -253,3 +253,34 @@ public enum EarTraining {
         }
     }
 }
+
+/// I58 · Balance by role: a starting mix where the beat leads, the bass sits under it and
+/// harmony stays behind the melody. A starting point, not a master.
+public enum RoleBalance {
+    public static let gains: [TrackRole: Double] = [.drums: -6, .bass: -8, .melody: -7, .harmony: -11]
+    public static func apply(to project: inout Project) {
+        for index in project.tracks.indices { project.tracks[index].gain = gains[project.tracks[index].role] ?? project.tracks[index].gain }
+        project.master = -3
+    }
+}
+
+/// I60 · What the song sounds like, from tempo, swing and the drum pattern — with the
+/// starter groove closest to it.
+public enum StyleGuess {
+    public struct Guess: Equatable, Sendable { public let grooveID: String; public let reason: String }
+    public static func guess(_ project: Project) -> Guess {
+        let drums = project.patterns.flatMap(\.drums)
+        let bars = max(1, project.length / barTicks)
+        let hatsPerBar = Double(drums.filter { $0.pad == 2 }.count) / Double(bars)
+        let kicksOnBeats = drums.filter { $0.pad == 0 && $0.tick % ppq == 0 }.count, kicks = max(1, drums.filter { $0.pad == 0 }.count)
+        let swung = drums.contains { $0.tick % (barTicks / 16) != 0 }
+        let bpm = project.bpm
+        if bpm >= 130 && hatsPerBar >= 12 { return Guess(grooveID: "trap", reason: "Fast tempo with rolling hi-hats.") }
+        let kicksPerBar = Double(drums.filter { $0.pad == 0 }.count) / Double(bars)
+        if (118...130).contains(bpm) && kicksPerBar >= 3.5 && Double(kicksOnBeats) / Double(kicks) > 0.8 { return Guess(grooveID: "house", reason: "Four on the floor around 124 BPM.") }
+        if bpm < 88 && swung { return Guess(grooveID: "lofi", reason: "Slow and swung.") }
+        if (84...98).contains(bpm) { return Guess(grooveID: "boombap", reason: "Around 90 BPM with a backbeat.") }
+        if (100...112).contains(bpm) && hatsPerBar >= 12 { return Guess(grooveID: "funk", reason: "Busy sixteenth hats around 104 BPM.") }
+        return Guess(grooveID: "rock", reason: "Straight eighths and a backbeat.")
+    }
+}

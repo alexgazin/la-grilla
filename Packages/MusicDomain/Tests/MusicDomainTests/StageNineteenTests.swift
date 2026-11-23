@@ -102,3 +102,21 @@ struct NotesAndLicenseTests {
         #expect(decoded.license == nil && decoded.notes == nil)
     }
 }
+
+struct BalanceAndStyleTests {
+    @Test func roleBalanceSetsGainsByRole() {
+        var project = Project.demo()
+        RoleBalance.apply(to: &project)
+        #expect(project.tracks.first { $0.role == .drums }?.gain == -6 && project.tracks.first { $0.role == .harmony }?.gain == -11 && project.master == -3)
+    }
+
+    @Test func stylesAreGuessedFromTempoAndDrums() {
+        var trap = Project(name: "T"); trap.bpm = 140
+        trap.patterns[1].drums = (0..<64).map { DrumEvent(tick: $0 * 240, pad: 2) } + [DrumEvent(tick: 0, pad: 0)]
+        #expect(StyleGuess.guess(trap).grooveID == "trap")
+        var house = Project(name: "H"); house.bpm = 124
+        house.patterns[1].drums = (0..<16).map { DrumEvent(tick: $0 * 960, pad: 0) }
+        #expect(StyleGuess.guess(house).grooveID == "house")
+        #expect(StyleGuess.guess(Project.demo()).grooveID == "rock")
+    }
+}

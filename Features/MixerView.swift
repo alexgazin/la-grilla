@@ -183,6 +183,8 @@ struct MixerView: View {
                     session.edit { p in var fx = p.masterFX ?? MasterFX(); fx.limiter = on ? true : nil; p.masterFX = fx }
                 }))
                 Button("Prepare for release…", systemImage: "gauge.with.dots.needle.67percent") { session.presentEditor(.master) }
+                // I58: a starting mix by role (one Undo).
+                Button("Balance by role", systemImage: "slider.horizontal.3") { session.mixerImmediate { RoleBalance.apply(to: &$0) } }
             } label: { headingLabel(track: nil, color: color) }
                 .accessibilityIdentifier("mixer.master-menu")
                 .disabled(session.performance.contextActive)
