@@ -124,3 +124,16 @@ struct PadSwapAndWhatsNewTests {
         #expect(StorageUsage.bytes(of: folder.appendingPathComponent("missing")) == 0)
     }
 }
+
+struct StarterGrooveTests {
+    @Test func everyGrooveIsAValidOneBarBeatThatPastes() throws {
+        for groove in StarterGrooves.all {
+            #expect(groove.steps.values.allSatisfy { $0.count == 16 }, "\(groove.id)")
+            let clip = groove.clipboard
+            #expect(!clip.drums.isEmpty && clip.drums.allSatisfy { $0.tick < barTicks })
+            var project = Project(name: groove.title, bars: 2)
+            try clip.paste(into: project.sections[0], project: &project)
+            #expect(project.patterns[1].drums.count == clip.drums.count * 2)
+        }
+    }
+}

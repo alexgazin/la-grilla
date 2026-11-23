@@ -48,7 +48,8 @@ struct JamView: View {
             if (drumPattern?.drums.isEmpty ?? true) && !session.recording && !session.armed {
                 EmptyStateCard(screen:"jam",symbol:"square.grid.2x2",message:"No beat yet. Record it on the pads or place hits on the steps.",actions:[
                     .init(title:"Record",symbol:"record.circle"){session.record()},
-                    .init(title:"Steps",symbol:"square.grid.4x3.fill"){steps=true}
+                    .init(title:"Steps",symbol:"square.grid.4x3.fill"){steps=true},
+                    .init(title:"Starter groove",symbol:"music.quarternote.3"){session.presentEditor(.grooves)}
                 ]).disabled(session.performance.contextActive)
             }
             // Musician feedback: every playing layer, with Mute, Solo and Clear in one place.

@@ -75,3 +75,63 @@ struct MoodProgressionsView: View {
         Luz.Haptics.success()
     }
 }
+
+/// I70 · Starter grooves by genre: hear one in this section, then use it (one Undo).
+struct StarterGroovesView: View {
+    @Bindable var session: Session
+    @State private var selected = StarterGrooves.all[0].id
+    @State private var source = Source.groove
+    enum Source: Hashable { case current, groove }
+
+    private var groove: StarterGrooves.Groove { StarterGrooves.all.first { $0.id == selected } ?? StarterGrooves.all[0] }
+    private func candidate() -> Project? {
+        var project = session.project
+        guard (try? groove.clipboard.paste(into: session.section, project: &project)) != nil else { return nil }
+        return project
+    }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("One bar, repeated across the section. Our own patterns: use them freely.").font(.caption).foregroundStyle(Color.muted)
+                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
+                        ForEach(Array(StarterGrooves.all.enumerated()), id: \.element.id) { index, item in
+                            Button { selected = item.id; if session.harmonyPreview { play() } } label: {
+                                VStack(spacing: 4) {
+                                    Text(LocalizedStringKey(item.title)).font(.headline)
+                                    Text("\(item.bpm) BPM").font(.caption.monospacedDigit()).foregroundStyle(Color.muted)
+                                }.frame(maxWidth: .infinity, minHeight: 64)
+                                    .background(selected == item.id ? Color.drums.opacity(0.2) : Color.panel, in: RoundedRectangle(cornerRadius: Luz.Radius.card, style: .continuous))
+                            }
+                            .buttonStyle(StudioQuietButtonStyle())
+                            .accessibilityAddTraits(selected == item.id ? .isSelected : [])
+                            .accessibilityIdentifier("grooves.item.\(index)")
+                        }
+                    }
+                    AuditionBar(screen: "grooves", source: $source, sources: [(.current, "As it is"), (.groove, "This groove")],
+                                playing: session.harmonyPreview, enabled: candidate() != nil,
+                                caption: "The beat changes only when you use the groove. The song's tempo stays.", play: play, stop: { session.endHarmonyPreview() })
+                    Button { apply() } label: { Text("Use this groove").frame(maxWidth: .infinity, minHeight: 48) }
+                        .buttonStyle(StudioActionStyle()).disabled(candidate() == nil || session.recording || session.armed)
+                        .accessibilityIdentifier("grooves.apply")
+                }.padding(18)
+            }
+            .background(Color.ink)
+            .navigationTitle("Starter grooves").navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { session.endHarmonyPreview(); session.sheet = nil } } }
+        }
+        .tint(.mint)
+        .onDisappear { session.endHarmonyPreview() }
+    }
+    private func play() {
+        if source == .current { session.previewSnapshot(session.project) } else if let project = candidate() { session.previewSnapshot(project) }
+    }
+    private func apply() {
+        let clip = groove.clipboard, target = session.section
+        session.endHarmonyPreview()
+        session.edit { try clip.paste(into: target, project: &$0) }
+        session.sheet = nil
+        Luz.Haptics.success()
+    }
+}

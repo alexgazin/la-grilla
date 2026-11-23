@@ -190,3 +190,34 @@ public enum SongLicense: String, CaseIterable, Sendable {
         switch self { case .allRights: "Listen only (all rights reserved)"; case .attribution: "Remix with credit (CC BY)"; case .nonCommercial: "Remix with credit, not for sale (CC BY-NC)" }
     }
 }
+
+/// I70 · Starter grooves by genre, written as step strings (16 steps, x = hit, o = soft),
+/// ready to paste into any section with MusicClipboard. Our own patterns, free to use.
+public enum StarterGrooves {
+    public struct Groove: Sendable, Identifiable {
+        public let id: String
+        public let title: String
+        public let bpm: Int
+        /// pad → 16-step string.
+        public let steps: [Int: String]
+        public var clipboard: MusicClipboard {
+            var drums: [DrumEvent] = []
+            for (pad, line) in steps {
+                for (index, mark) in line.enumerated() where mark == "x" || mark == "o" {
+                    drums.append(DrumEvent(tick: index * (barTicks / 16), pad: pad, velocity: mark == "x" ? 108 : 58))
+                }
+            }
+            return MusicClipboard(kind: .beat, length: barTicks, keyRoot: 0, minor: false, bpm: Double(bpm), chords: [], drums: drums.sorted { $0.tick == $1.tick ? $0.pad < $1.pad : $0.tick < $1.tick }, notes: [])
+        }
+    }
+    public static let all: [Groove] = [
+        .init(id: "boombap", title: "Boom bap", bpm: 90, steps: [0: "x.....x...x.....", 1: "....x.......x...", 2: "x.x.x.x.x.x.x.x.", 3: "...............o"]),
+        .init(id: "trap", title: "Trap", bpm: 140, steps: [0: "x......x..x.....", 1: "........x.......", 2: "xxxxxxxxxxxxxxxx", 4: "........x......."]),
+        .init(id: "house", title: "House", bpm: 124, steps: [0: "x...x...x...x...", 4: "....x.......x...", 2: "..x...x...x...x.", 3: "..o...o...o...o."]),
+        .init(id: "lofi", title: "Lo-fi", bpm: 80, steps: [0: "x......x.x......", 1: "....x.......x..o", 2: "x.o.x.o.x.o.x.o.", 5: "..............o."]),
+        .init(id: "rock", title: "Rock", bpm: 116, steps: [0: "x.......x.x.....", 1: "....x.......x...", 2: "x.x.x.x.x.x.x.x.", 9: "x..............."]),
+        .init(id: "reggaeton", title: "Reggaeton", bpm: 96, steps: [0: "x...x...x...x...", 1: "...x..x....x..x.", 2: "x.x.x.x.x.x.x.x."]),
+        .init(id: "funk", title: "Funk", bpm: 104, steps: [0: "x.....x.x.....x.", 1: "....x..o.o..x...", 2: "xxxxxxxxxxxxxxxx", 3: "......x........."]),
+        .init(id: "afrobeat", title: "Afrobeats", bpm: 108, steps: [0: "x......x..x.....", 5: "...x..x....x..x.", 2: "x.x.x.x.x.x.x.x.", 11: "..x...x...x...x."]),
+    ]
+}
