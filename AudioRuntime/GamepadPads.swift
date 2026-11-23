@@ -14,8 +14,8 @@ import MusicDomain
     func attach(_ session: Session) {
         self.session = session
         guard observers.isEmpty else { return }
-        observers.append(NotificationCenter.default.addObserver(forName: .GCControllerDidConnect, object: nil, queue: .main) { [weak self] note in
-            MainActor.assumeIsolated { if let controller = note.object as? GCController { self?.bind(controller) } }
+        observers.append(NotificationCenter.default.addObserver(forName: .GCControllerDidConnect, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { GCController.controllers().forEach { self?.bind($0) } }
         })
         observers.append(NotificationCenter.default.addObserver(forName: .GCControllerDidDisconnect, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.connected = GCController.controllers().first?.vendorName }

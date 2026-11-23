@@ -158,6 +158,14 @@ struct SettingsView: View {
     @AppStorage("studio.pitchSpelling") private var spellingValue = PitchSpelling.automatic.rawValue
     @AppStorage("studio.showDegrees") private var showDegrees = false
     @Bindable var session: Session
+    private func makeAssignment(){
+        let section=session.section
+        guard let drums=session.project.tracks.first(where:{$0.role == .drums}) else{return}
+        let pattern=Arrangement.materialize(session.project,track:drums,section:section)
+        guard let task=Assignment.from(pattern.drums,title:String(format:NSLocalizedString("Play %@ like this",comment:"Assignment title"),section.name)) else{session.message="Put a beat in this section first; its first bar becomes the assignment.";return}
+        session.edit{$0.assignment=task}
+        session.showToast("Assignment saved")
+    }
     var body: some View {NavigationStack{Form{
         Section("App preferences"){
             Picker("Theme",selection:$appearance){Text("System").tag(0);Text("Light").tag(1);Text("Dark").tag(2)}.pickerStyle(.menu).accessibilityIdentifier("settings.theme")
@@ -249,14 +257,6 @@ struct SettingsView: View {
         }
 
     }.navigationTitle("Settings").navigationBarTitleDisplayMode(.inline).toolbar{ToolbarItem(placement:.confirmationAction){Button("Done"){session.sheet=nil}}}}
-    private func makeAssignment(){
-        let section=session.section
-        guard let drums=session.project.tracks.first(where:{$0.role == .drums}) else{return}
-        let pattern=Arrangement.materialize(session.project,track:drums,section:section)
-        guard let task=Assignment.from(pattern.drums,title:String(format:NSLocalizedString("Play %@ like this",comment:"Assignment title"),section.name)) else{session.message="Put a beat in this section first; its first bar becomes the assignment.";return}
-        session.edit{$0.assignment=task}
-        session.showToast("Assignment saved")
-    }
         // A presented Form owns its appearance boundary. Apply the observed
         // preference here as well as to the window so live changes update the
         // current sheet, rather than only its presenter or the next opening.
