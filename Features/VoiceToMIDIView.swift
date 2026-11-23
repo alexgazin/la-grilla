@@ -127,16 +127,9 @@ struct VoiceToMIDIView:View {
     /// notes with the beat. Nothing reaches the project until Apply melody.
     var listenPanel:some View {
         let blocked=applying || capture.isCapturing || capture.state == .analyzing || (listenSource != .voice && (notes.isEmpty || applied))
-        return VStack(alignment:.leading,spacing:12){
-            Text("LISTEN").font(.caption.weight(.semibold)).tracking(1.2).foregroundStyle(Color.muted)
-            StudioSegments(title:"Listen to",selection:$listenSource,options:[(.voice,"Voice"),(.midi,"MIDI"),(.beat,"MIDI + beat")],identifier:"voice.listen")
-            Button{togglePlay()}label:{Label(LocalizedStringKey(listening ? "Stop":"Play"),systemImage:listening ? "stop.fill":"play.fill").font(.headline).frame(maxWidth:.infinity,minHeight:52)}
-                .buttonStyle(StudioActionStyle(color:listening ? .record:.mint)).disabled(blocked && !listening).accessibilityIdentifier("voice.play")
-            Text(LocalizedStringKey(listenCaption)).font(.caption).foregroundStyle(Color.muted).fixedSize(horizontal:false,vertical:true)
-        }
-        .padding(14).background(Color.panel,in:RoundedRectangle(cornerRadius:Luz.Radius.card,style:.continuous))
-        .onChange(of:listenSource){_,_ in if listening{stopListening();startListening()}}
-        .onChange(of:target){_,_ in if session.harmonyPreview{startListening()}}
+        return AuditionBar(screen:"voice",source:$listenSource,sources:[(.voice,"Voice"),(.midi,"MIDI"),(.beat,"MIDI + beat")],
+                           playing:listening,enabled:!blocked,caption:LocalizedStringKey(listenCaption),play:startListening,stop:stopListening)
+            .onChange(of:target){_,_ in if session.harmonyPreview{startListening()}}
     }
     var listenCaption:String {
         switch listenSource {
