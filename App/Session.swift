@@ -90,7 +90,7 @@ import Observation
     private let runtimeTraceStart=ProcessInfo.processInfo.systemUptime
     let personalKits: PersonalKitStore
     let store: ProjectStore
-    enum Sheet: String, Identifiable {case projects, newProject, trackBuilder, export, settings, gettingStarted, bass, sections, notes, harmony, assistant, voice, perform, midiDevices, palettes, history, versions, trash, commands, variations, comp, chordImport, melodyIdeas, lyrics, master, mood; var id: String { rawValue }}
+    enum Sheet: String, Identifiable {case projects, newProject, trackBuilder, export, settings, gettingStarted, bass, sections, notes, harmony, assistant, voice, perform, midiDevices, palettes, history, versions, trash, commands, variations, comp, chordImport, melodyIdeas, lyrics, master, mood, doctor, earTraining; var id: String { rawValue }}
     private static var qaProjectStoreID:UUID? {
         let arguments=ProcessInfo.processInfo.arguments
         guard arguments.contains("--uitesting"),let index=arguments.firstIndex(of:"--project-store-id"),arguments.indices.contains(index+1)else{return nil}
@@ -509,6 +509,8 @@ import Observation
         case .focusSection: toggleFocus()
         case .practice: togglePractice()
         case .mood: presentEditor(.mood)
+        case .doctor: presentEditor(.doctor)
+        case .earTraining: presentEditor(.earTraining)
         }
     }
     /// U8 · Bring back a deleted track, take or clip in one Undo step.
@@ -1072,10 +1074,10 @@ import Observation
         }catch{if let written{await retainUnopenedProject(written)}else{message=error.localizedDescription}}
     }
     enum ExportFormat:String,CaseIterable,Identifiable {
-        case midi,wav,stems,project,aac,video,daw
+        case midi,wav,stems,project,aac,video,daw,musicxml
         var id:String{rawValue}
-        var title:String{switch self{case .midi:"Standard MIDI";case .wav:"Stereo WAV";case .stems:"Aligned stems";case .project:"Portable project";case .aac:"AAC for sharing";case .video:"Video for social";case .daw:"For a DAW: stems, MIDI, README"}}
-        var fileExtension:String{switch self{case .midi:"mid";case .wav:"wav";case .stems,.daw:"zip";case .project:"grillapack";case .aac:"m4a";case .video:"mp4"}}
+        var title:String{switch self{case .midi:"Standard MIDI";case .wav:"Stereo WAV";case .stems:"Aligned stems";case .project:"Portable project";case .aac:"AAC for sharing";case .video:"Video for social";case .daw:"For a DAW: stems, MIDI, README";case .musicxml:"Lead sheet (MusicXML)"}}
+        var fileExtension:String{switch self{case .midi:"mid";case .wav:"wav";case .stems,.daw:"zip";case .project:"grillapack";case .aac:"m4a";case .video:"mp4";case .musicxml:"musicxml"}}
     }
     func export(format:ExportFormat,settings:WAVSettings,range:Range<Int>,tracks:Set<UUID>,performance:PerformanceTake?=nil) {
         if performance != nil && format != .midi && format != .wav && format != .aac{exportError="Choose WAV or MIDI for a performance.";return}
@@ -1096,6 +1098,9 @@ import Observation
                     let receipt:RenderReceipt;if let performance{receipt=try await OfflineRenderer.renderPerformance(performance,to:url,settings:settings,samples:samples,progress:progress)}else{receipt=try await OfflineRenderer.render(snapshot,to:url,settings:settings,range:range,samples:samples,progress:progress)}
                     if receipt.clipped{exportWarning="Clipping was detected. Lower track or master gain for a cleaner export."}
                 case .stems:_ = try await StemExporter.render(snapshot,to:url,settings:settings,range:range,selected:tracks,samples:samples,progress:progress)
+                case .musicxml:
+                    // I49: melody, chord symbols, lyrics and section marks for notation apps.
+                    try MusicXMLExporter.data(snapshot).write(to:url,options:.atomic)
                 case .daw:
                     // I14: every track as an aligned stem, plus song.mid and a README.
                     let extras=try DAWPackage.extras(snapshot,range:range,settings:settings)

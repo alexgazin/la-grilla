@@ -5,7 +5,7 @@ public enum CommandID: String, CaseIterable, Codable, Sendable {
     case play, record, undo, redo, loop
     case tempo, key, transpose, addSection, duplicateSection, addMelody, deleteLastTake
     case grid, jam, mixer, notes, voice, assistant, harmony, palettes, sections, bass, perform
-    case settings, projects, newProject, export, history, versions, trash, midiDevices, chordImport, lyrics, master, focusSection, practice, mood
+    case settings, projects, newProject, export, history, versions, trash, midiDevices, chordImport, lyrics, master, focusSection, practice, mood, doctor, earTraining
 }
 
 /// What a command needs from the query.
@@ -109,6 +109,10 @@ public enum CommandCatalog {
               synonyms: ["practice", "slower", "slow down", "практика", "медленнее", "замедлить", "потренироваться", "разучить"]),
         .init(id: .mood, title: "Progression by mood", symbol: "theatermasks", parameter: nil,
               synonyms: ["mood", "progression by mood", "sad chords", "happy chords", "настроение", "грустные аккорды", "весёлые аккорды", "прогрессия по настроению"]),
+        .init(id: .doctor, title: "Check the song", symbol: "stethoscope", parameter: nil,
+              synonyms: ["check song", "check arrangement", "problems", "проверить песню", "проверка", "что не так", "ошибки в аранжировке"]),
+        .init(id: .earTraining, title: "Ear training", symbol: "ear", parameter: nil,
+              synonyms: ["ear training", "guess chord", "quiz", "тренировка слуха", "угадай аккорд", "слух", "сольфеджио"]),
         .init(id: .midiDevices, title: "MIDI devices", symbol: "pianokeys.inverse", parameter: nil,
               synonyms: ["midi", "controller", "keyboard", "миди", "контроллер", "миди устройства"]),
     ]

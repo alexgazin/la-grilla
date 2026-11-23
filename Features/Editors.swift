@@ -179,6 +179,12 @@ struct SettingsView: View {
             Button{session.sheet = .history}label:{Label("Edit history",systemImage:"clock.arrow.circlepath")}.accessibilityIdentifier("settings.history")
             Button{session.sheet = .versions}label:{Label("Song versions",systemImage:"bookmark")}.accessibilityIdentifier("settings.versions")
             Button{session.sheet = .trash}label:{Label("Recently deleted",systemImage:"trash")}.accessibilityIdentifier("settings.trash")
+            // I59: offline name ideas from the key and tempo.
+            Menu{
+                ForEach(SongNames.suggestions(keyRoot:session.project.keyRoot,minor:session.project.minor,bpm:session.project.bpm,seed:UInt64(session.project.revision),russian:Locale.current.language.languageCode?.identifier=="ru"),id:\.self){name in
+                    Button(name){session.edit{$0.name=name}}
+                }
+            }label:{Label("Suggest a song name",systemImage:"textformat.alt")}.accessibilityIdentifier("settings.names")
             Text("Hear and return to any recent edit, keep named versions of the song, or bring back deleted tracks, takes and clips.").font(.caption).foregroundStyle(.secondary)
         }
         Section("About La Grilla"){
