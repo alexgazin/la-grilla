@@ -50,6 +50,10 @@ struct BeatMachineView: View {
             }
         }
         .tint(.mint)
+        .onAppear {
+            if let id = session.beatMachinePreset, let preset = BeatPreset.preset(id) { genre = preset.genre; draft = BeatDraft(preset); wholeSong = true }
+            session.beatMachinePreset = nil
+        }
         .task(id: draft.kit) { await loadKit(draft.kit) }
         .task(id: draft.bass) { if let bass = draft.bass { await loadBass(bass) } }
         .onChange(of: draft) { _, _ in if session.harmonyPreview { play() } }

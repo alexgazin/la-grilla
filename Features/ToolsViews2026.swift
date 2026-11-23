@@ -371,3 +371,23 @@ struct DynamicsView: View {
         Luz.Haptics.success()
     }
 }
+
+// MARK: - U48 Rename in place
+
+extension View {
+    /// A name field for the item whose id is set; Save is one edit, Cancel leaves it.
+    func renameAlert(_ title: LocalizedStringKey, item: Binding<UUID?>, text: Binding<String>, limit: Int,
+                     save: @escaping (UUID, String) -> Void) -> some View {
+        alert(title, isPresented: Binding(get: { item.wrappedValue != nil }, set: { if !$0 { item.wrappedValue = nil } })) {
+            TextField("Name", text: text).accessibilityIdentifier("rename.field")
+            Button("Save") {
+                if let id = item.wrappedValue {
+                    let name = text.wrappedValue.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !name.isEmpty { save(id, String(name.prefix(limit))) }
+                }
+                item.wrappedValue = nil
+            }.accessibilityIdentifier("rename.save")
+            Button("Cancel", role: .cancel) { item.wrappedValue = nil }
+        }
+    }
+}

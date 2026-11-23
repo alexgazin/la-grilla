@@ -2165,3 +2165,25 @@
 "Chords and locked tracks stay. Nothing changes until you apply." = "Аккорды и закреплённые дорожки остаются. Пока не примените, ничего не меняется.";
 "Apply dynamics" = "Применить динамику";
 "Step size" = "Размер шага";
+
+/* Errors with an action */
+"A song can contain up to 16 sections and 128 bars. Remove or shorten a section first." = "Песня может содержать до 16 секций и 128 тактов. Сначала удалите или укоротите секцию.";
+"A project can contain up to eight tracks. Delete one in the Mixer first." = "В проекте может быть до восьми дорожек. Сначала удалите одну в микшере.";
+"This project has too many events. Shorten a part or remove some notes." = "В проекте слишком много событий. Укоротите партию или уберите часть нот.";
+"The project contains invalid musical data. Undo the last change or reopen the project." = "В проекте неверные музыкальные данные. Отмените последнее изменение или откройте проект заново.";
+"This project has reached its sound sample limit. Empty Recently deleted or remove a sound." = "В проекте достигнут предел сэмплов. Очистите «Недавно удалённые» или уберите один звук.";
+"This sound sample is unsupported or damaged. Try another file." = "Этот сэмпл не поддерживается или повреждён. Попробуйте другой файл.";
+"A project can keep up to eight source recordings. Delete one to add another." = "В проекте может быть до восьми исходных записей. Удалите одну, чтобы добавить новую.";
+
+/* Favorites, rename, quick start, actions */
+"Open song form" = "Открыть форму песни";
+"Open Recently deleted" = "Открыть «Недавно удалённые»";
+"Finish the take" = "Закончить дубль";
+"Back to editing" = "Вернуться к редактированию";
+"Favorites" = "Избранное";
+"Recently used" = "Недавние";
+"Search: 808, warm keys, бас…" = "Поиск: 808, тёплые клавиши, бас…";
+"Remove from favorites" = "Убрать из избранного";
+"Add to favorites" = "В избранное";
+"Start with a beat" = "Начать с бита";
+"Makes a project at the genre's tempo in the key below and opens its beat to hear and change." = "Создаёт проект в темпе жанра и в тональности ниже и открывает его бит, чтобы послушать и поменять.";

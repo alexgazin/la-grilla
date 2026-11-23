@@ -102,6 +102,27 @@ struct NewProjectView: View {
                     Text(LocalizedStringKey(template == .empty ? "Start empty, then add chords or record a beat.":"Editable chords, drums and root bass in your chosen key. A local starting point, not AI generation."))
                         .font(.caption).foregroundStyle(.secondary)
                 }
+                // U51: one tap makes a project at the genre's tempo and opens its beat in the beat machine.
+                Section {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(BeatPreset.Genre.allCases) { genre in
+                                Button { startWithBeat(genre) } label: {
+                                    VStack(spacing: 4) {
+                                        Image(systemName: genre.symbol).font(.title3.weight(.bold)).foregroundStyle(.white)
+                                            .frame(width: 56, height: 56)
+                                            .background(LinearGradient(colors: [Color(hue: genre.hues.0, saturation: 0.7, brightness: 0.8), Color(hue: genre.hues.1, saturation: 0.8, brightness: 0.4)],
+                                                                       startPoint: .topLeading, endPoint: .bottomTrailing), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                                        Text(LocalizedStringKey(genre.title)).font(.caption2.weight(.semibold)).lineLimit(1).frame(width: 72)
+                                    }
+                                }
+                                .buttonStyle(.plain).disabled(creating)
+                                .accessibilityLabel(LocalizedStringKey(genre.title))
+                                .accessibilityIdentifier("project.quick.\(genre.rawValue)")
+                            }
+                        }.padding(.vertical, 4)
+                    }
+                } header: { Text("Start with a beat") } footer: { Text("Makes a project at the genre's tempo in the key below and opens its beat to hear and change.") }
                 if let usual=StyleProfile.from(session.entries.compactMap(\.summary)) {
                     // I50: computed on this iPhone from your own projects.
                     Section {
@@ -143,6 +164,18 @@ struct NewProjectView: View {
         }
         .presentationDetents([.large])
         .interactiveDismissDisabled(creating)
+    }
+    private func startWithBeat(_ genre: BeatPreset.Genre) {
+        guard !creating, let preset = BeatPreset.presets(genre).first else { return }
+        creating = true; creationError = nil
+        Task {
+            let created = await session.create(name: name, bpm: Double(preset.bpm), root: root, minor: minor, bars: 8, template: .empty)
+            if created {
+                session.beatMachinePreset = preset.id
+                session.sheet = .beatMachine
+            } else if session.sheet == .newProject { creationError = session.message ?? session.saveError; session.message = nil }
+            creating = false
+        }
     }
     private func templateButton(_ option:ProjectTemplate,title:LocalizedStringKey)->some View {
         Button{template=option}label:{Text(title).frame(maxWidth:.infinity,minHeight:44).foregroundStyle(template==option ? Color.ink:Color.studioText).background(template==option ? Color.mint:Color.raised,in:RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous))}

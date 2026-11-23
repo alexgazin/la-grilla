@@ -489,12 +489,12 @@ public enum MusicError: Error, LocalizedError {
         let key = switch self {
         case .invalidChord: "Unrecognized chord. Choose a chord from the list."
         case .unsupportedSchema: "This project was made with a newer version. The original has been preserved."
-        case .limit: "A song can contain up to 8 sections and 64 bars."
-        case .assetLimit: "A project can keep up to eight source recordings."
+        case .limit: "A song can contain up to 16 sections and 128 bars. Remove or shorten a section first."
+        case .assetLimit: "A project can keep up to eight source recordings. Delete one to add another."
         case .revisionLimit: "This project has reached its revision limit. Save a copy to continue editing."
-        case .trackLimit: "A project can contain up to eight tracks."
-        case .tooDense: "This project has too many events."
-        case .invalidProject: "The project contains invalid musical data."
+        case .trackLimit: "A project can contain up to eight tracks. Delete one in the Mixer first."
+        case .tooDense: "This project has too many events. Shorten a part or remove some notes."
+        case .invalidProject: "The project contains invalid musical data. Undo the last change or reopen the project."
         }
         return NSLocalizedString(key, comment: "Project validation")
     }

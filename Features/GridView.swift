@@ -63,6 +63,9 @@ struct GridView: View {
     @AppStorage("studio.pitchSpelling") private var pitchSpelling="automatic"
     @AppStorage("studio.showDegrees") private var showDegrees=false
     @State private var barWidth: CGFloat = 96
+    /// U48: a double tap on a section chip renames it.
+    @State private var renamingSection: UUID?
+    @State private var renameText = ""
     @State private var selection: ChordSelection?
     @State private var dragStart: Int?
     @State private var viewport=CGSize(width:440,height:630)
@@ -108,6 +111,11 @@ struct GridView: View {
         return clipMode ? min(64,max(base+4,resized)):base
     }
     var body: some View {
+        gridBody.renameAlert("Rename section",item:$renamingSection,text:$renameText,limit:120){id,name in
+            session.edit{p in if let i=p.sections.firstIndex(where:{$0.id==id}){p.sections[i].name=name}}
+        }
+    }
+    private var gridBody: some View {
         GeometryReader{geometry in
             VStack(spacing:0){
                 ScrollView(.vertical,showsIndicators:false){
@@ -265,6 +273,8 @@ struct GridView: View {
                 .background(selected ? Color.lifted:Color.panel,in:RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous))
                 .overlay{RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous).strokeBorder(selected ? tint:Color.outline.opacity(0.65),lineWidth:selected ? 1.5:0.75)}
         }.buttonStyle(StudioQuietButtonStyle(radius:Luz.Radius.cell)).accessibilityIdentifier("grid.section.\(section.id)")
+            .simultaneousGesture(TapGesture(count:2).onEnded{guard !editingLocked else{return};renameText=section.name;renamingSection=section.id})
+            .accessibilityAction(named:Text("Rename")){guard !editingLocked else{return};renameText=section.name;renamingSection=section.id}
             .accessibilityAddTraits(selected ? .isSelected:[])
             .modifier(ArrangementDragSource(payload:editingLocked ? nil:ArrangementDragPayload(project:session.project,sectionID:section.id).encoded()))
             .dropDestination(for:String.self){items,_ in session.reorderSection(drop:items,onto:section.id)}

@@ -4,6 +4,9 @@ import MusicDomain
 struct MixerView: View {
     @Bindable var session: Session
     @State private var synthTrack: SynthTarget?
+    /// U48: a double tap on a channel name renames the track.
+    @State private var renamingTrack: UUID?
+    @State private var renameText = ""
     /// Gain when the current fader drag began; the drag moves relative to it.
     @State private var dragStartGain: Double?
     @Environment(\.dynamicTypeSize) private var dynamicType
@@ -17,6 +20,9 @@ struct MixerView: View {
             else { standardMixer }
         }
         .sheet(item:$equalizer) { EqualizerView(session:session,destination:$0) }
+        .renameAlert("Rename track", item: $renamingTrack, text: $renameText, limit: 40) { id, name in
+            session.edit { p in if let i = p.tracks.firstIndex(where: { $0.id == id }) { p.tracks[i].name = name } }
+        }
         .sheet(item:$synthTrack) { SynthEditorView(session: session, trackID: $0.id) }
         .onDisappear { finishGesture() }
         .onChange(of: session.performance.replaying) { _, replaying in
@@ -241,6 +247,8 @@ struct MixerView: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+                .onTapGesture(count: 2) { if let track, !session.performance.contextActive { renameText = track.displayName; renamingTrack = track.id } }
             if track?.locked == true {
                 Image(systemName: "lock.fill").font(.system(.caption2, weight: .semibold)).foregroundStyle(Color.muted)
                     .accessibilityLabel("Locked")

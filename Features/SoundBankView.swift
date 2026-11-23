@@ -1,4 +1,5 @@
 import AVFoundation
+import MusicDomain
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -35,12 +36,20 @@ struct SoundBankView: View {
     @State private var search = ""
     @State private var output: URL?
     @State private var player: AVAudioPlayer?
+    /// U53 · U54: starred and recently used instruments, on this device.
+    @AppStorage("sounds.favorites") private var favoritesRaw = ""
+    @AppStorage("sounds.recent") private var recentRaw = ""
+    private var favorites: Favorites { Favorites(favoritesRaw) }
+    private var recent: [FactoryInstrument] { RecentItems(recentRaw).ids.compactMap(FactoryInstrument.init(rawValue:)) }
 
     private var bank: ImportedSoundBank? { banks.first { $0.id == bankID } }
     private var query: String { search.trimmingCharacters(in: .whitespacesAndNewlines) }
     private var matchingIncluded: [FactoryInstrument] {
-        FactoryInstrument.allCases.filter { matches($0.displayName) }
+        let found = FactoryInstrument.allCases.filter { SoundIndex.matches(name: $0.displayName, id: $0.rawValue, query: query) }
+        guard !query.isEmpty else { return found }
+        return found.sorted { SoundIndex.score(name: $0.displayName, id: $0.rawValue, query: query) > SoundIndex.score(name: $1.displayName, id: $1.rawValue, query: query) }
     }
+    private var starred: [FactoryInstrument] { matchingIncluded.filter { favorites.contains($0.rawValue) } }
     private var matchingPrograms: [SoundBankProgram] {
         (bank?.programs ?? []).filter { matches($0.name) }
     }
@@ -49,6 +58,20 @@ struct SoundBankView: View {
     var body: some View {
         NavigationStack {
             List {
+                if !starred.isEmpty {
+                    Section("Favorites") {
+                        ForEach(starred) { instrument in
+                            soundRow(.included(instrument), identifier: "sound-bank.favorite.\(instrument.id)")
+                        }
+                    }
+                }
+                if query.isEmpty && !recent.isEmpty {
+                    Section("Recently used") {
+                        ForEach(recent) { instrument in
+                            soundRow(.included(instrument), identifier: "sound-bank.recent.\(instrument.id)")
+                        }
+                    }
+                }
                 if !matchingIncluded.isEmpty {
                     Section("Studio instruments") {
                         ForEach(matchingIncluded) { instrument in
@@ -85,7 +108,7 @@ struct SoundBankView: View {
             .background(Color.ink)
             .navigationTitle("Sound banks")
             .navigationBarTitleDisplayMode(.inline)
-            .searchable(text: $search, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search instruments")
+            .searchable(text: $search, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search: 808, warm keys, бас…")
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
             .safeAreaInset(edge: .bottom) {
                 VStack(alignment: .leading, spacing: 10) {
@@ -156,6 +179,20 @@ struct SoundBankView: View {
             .disabled(applying)
             .accessibilityLabel(active ? "Stop preview" : "Hear sound")
             .accessibilityValue(choice.name)
+            if case .included(let instrument) = choice {
+                let starredNow = favorites.contains(instrument.rawValue)
+                Button {
+                    var next = favorites; next.toggle(instrument.rawValue); favoritesRaw = next.stored
+                    Luz.Haptics.selection()
+                } label: {
+                    Image(systemName: starredNow ? "star.fill" : "star").foregroundStyle(starredNow ? Color.harmony : Color.muted)
+                        .contentTransition(.symbolEffect(.replace))
+                }
+                .buttonStyle(.plain).frame(width: 40, height: 44)
+                .accessibilityLabel(LocalizedStringKey(starredNow ? "Remove from favorites" : "Add to favorites"))
+                .accessibilityValue(choice.name)
+                .accessibilityIdentifier(identifier + ".star")
+            }
         }
     }
 
@@ -176,6 +213,7 @@ struct SoundBankView: View {
                 }
                 try Task.checkCancellation()
                 try await session.assignSounds([(nil, sound)], trackID: trackID, projectID: projectID, revision: revision)
+                if case .included(let instrument) = choice { var used = RecentItems(recentRaw); used.use(instrument.rawValue); recentRaw = used.stored }
                 dismiss()
             } catch is CancellationError {
                 return

@@ -2163,3 +2163,25 @@
 "Chords and locked tracks stay. Nothing changes until you apply." = "Chords and locked tracks stay. Nothing changes until you apply.";
 "Apply dynamics" = "Apply dynamics";
 "Step size" = "Step size";
+
+/* Errors with an action */
+"A song can contain up to 16 sections and 128 bars. Remove or shorten a section first." = "A song can contain up to 16 sections and 128 bars. Remove or shorten a section first.";
+"A project can contain up to eight tracks. Delete one in the Mixer first." = "A project can contain up to eight tracks. Delete one in the Mixer first.";
+"This project has too many events. Shorten a part or remove some notes." = "This project has too many events. Shorten a part or remove some notes.";
+"The project contains invalid musical data. Undo the last change or reopen the project." = "The project contains invalid musical data. Undo the last change or reopen the project.";
+"This project has reached its sound sample limit. Empty Recently deleted or remove a sound." = "This project has reached its sound sample limit. Empty Recently deleted or remove a sound.";
+"This sound sample is unsupported or damaged. Try another file." = "This sound sample is unsupported or damaged. Try another file.";
+"A project can keep up to eight source recordings. Delete one to add another." = "A project can keep up to eight source recordings. Delete one to add another.";
+
+/* Favorites, rename, quick start, actions */
+"Open song form" = "Open song form";
+"Open Recently deleted" = "Open Recently deleted";
+"Finish the take" = "Finish the take";
+"Back to editing" = "Back to editing";
+"Favorites" = "Favorites";
+"Recently used" = "Recently used";
+"Search: 808, warm keys, бас…" = "Search: 808, warm keys, бас…";
+"Remove from favorites" = "Remove from favorites";
+"Add to favorites" = "Add to favorites";
+"Start with a beat" = "Start with a beat";
+"Makes a project at the genre's tempo in the key below and opens its beat to hear and change." = "Makes a project at the genre's tempo in the key below and opens its beat to hear and change.";

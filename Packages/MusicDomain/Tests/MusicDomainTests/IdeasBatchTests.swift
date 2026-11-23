@@ -90,3 +90,37 @@ struct IdeasBatchTests {
         #expect(ArrangementDynamics.role(of: Section(name: "Part 1", length: barTicks), index: 0, count: 4) == .intro)
     }
 }
+
+struct SoundSearchTests {
+    private func found(_ query: String) -> Set<String> {
+        Set(SoundIndex.tags.keys.filter { SoundIndex.matches(name: $0, id: $0, query: query) })
+    }
+
+    @Test func wordsInEitherLanguageFindTheirSounds() {
+        let cases: [(String, String)] = [
+            ("808", "synth-808-sub"), ("бас пальцами", "synth-finger-bass"), ("finger bass", "synth-finger-bass"),
+            ("лоу-фай клавиши", "synth-lofi-keys"), ("lofi keys", "synth-lofi-keys"), ("тёплый пэд", "ambient-pad"),
+            ("саксофон джаз", "alto-sax"), ("гитара", "nylon-guitar"), ("фонк", "synth-808-dirty"), ("амапиано", "synth-log-drum"),
+            ("хор", "synth-choir-pad"), ("струнные", "synth-string-pad"), ("8 бит", "synth-chip-lead"), ("acid 303", "synth-acid-bass"),
+            ("вибрафон", "vibraphone"), ("ORGAN", "organ"), ("клавиши", "piano"), ("риз", "synth-reese-bass"),
+        ]
+        for (query, id) in cases { #expect(found(query).contains(id), "\(query) → \(id)") }
+        #expect(found("бас пальцами").count == 1)
+        #expect(found("qqq").isEmpty)
+        #expect(SoundIndex.matches(name: "Warm keys", id: "x", query: ""))
+        #expect(SoundIndex.score(name: "808 Sub", id: "synth-808-sub", query: "808 sub") == 100)
+        #expect(SoundIndex.score(name: "808 Sub", id: "synth-808-sub", query: "808") > SoundIndex.score(name: "Square bass", id: "synth-square-bass", query: "бас"))
+    }
+
+    @Test func favoritesAndRecentsKeepTheirOrder() {
+        var favorites = Favorites("")
+        favorites.toggle("piano"); favorites.toggle("synth-808-sub"); favorites.toggle("piano")
+        #expect(favorites.ids == ["synth-808-sub"] && Favorites(favorites.stored) == favorites)
+        favorites.toggle("bad,id")
+        #expect(favorites.ids.count == 1)
+        var recent = RecentItems("")
+        for id in ["a", "b", "c", "a", "d", "e", "f", "g", "h", "i"] { recent.use(id) }
+        #expect(recent.ids.first == "i" && recent.ids.count == RecentItems.limit && !recent.ids.contains("b"))
+        #expect(recent.ids.filter { $0 == "a" }.count <= 1)
+    }
+}

@@ -410,6 +410,8 @@ import Observation
     }
     /// Stage 3 tools (variations, comping) work on this pattern.
     var toolPatternID:UUID?
+    /// U51: the ready beat the beat machine opens with (from "Start with a beat").
+    var beatMachinePreset:String?
     /// I28 · Copies the melody track that plays `patternID` into a new track with every
     /// note moved a third or sixth in the key, in one Undo.
     func addSecondVoice(patternID:UUID,interval:Harmonizer.Interval){
