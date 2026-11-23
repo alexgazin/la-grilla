@@ -422,7 +422,7 @@ struct BeatMachineView: View {
             Toggle(isOn: $useTempo) { Text(String(format: NSLocalizedString("Use the beat's tempo (%lld BPM)", comment: "Beat machine"), draft.bpm)) }
                 .accessibilityIdentifier("beat.use-tempo")
             if draft.bass != nil && !draft.bassNotes.isEmpty && session.project.tracks.contains(where: { $0.role == .bass }) {
-                Toggle("Mute the chord bass while the 808 plays", isOn: $muteChordBass).accessibilityIdentifier("beat.mute-bass")
+                Toggle("Mute the chord bass in the whole song", isOn: $muteChordBass).accessibilityIdentifier("beat.mute-bass")
             }
             Button { session.harmonyPreview ? session.endHarmonyPreview() : play() } label: {
                 Label(LocalizedStringKey(session.harmonyPreview ? "Stop" : "Play with the song"), systemImage: session.harmonyPreview ? "stop.fill" : "play.fill")
