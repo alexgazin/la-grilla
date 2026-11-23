@@ -336,7 +336,7 @@ struct BeatMachineView: View {
 
     private func noteName(_ semitones: Int) -> String {
         let pitch = BeatDraft.bassRoot(keyRoot: session.project.keyRoot) + BeatDraft.fitted(semitones, writtenMinor: draft.minor, songMinor: session.project.minor)
-        return PitchSpelling.pitchClassName(pitch % 12, keyRoot: session.project.keyRoot, minor: session.project.minor) + String(pitch / 12 - 1)
+        return MusicalNotation.pitchClassName(pitch % 12, keyRoot: session.project.keyRoot, minor: session.project.minor) + String(pitch / 12 - 1)
     }
 
     private func bassKey(_ symbol: String, _ label: LocalizedStringKey, action: @escaping () -> Void) -> some View {
