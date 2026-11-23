@@ -4,6 +4,15 @@ import XCTest
 final class HistoryVersionsUITests: XCTestCase {
     override func setUp() { super.setUp(); continueAfterFailure = false; executionTimeAllowance = 180 }
 
+    /// The project entries sit near the end of the (lazy) settings list.
+    @MainActor private func settingsEntry(_ app: XCUIApplication, _ identifier: String) -> XCUIElement {
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
+        let button = app.buttons[identifier]
+        for _ in 0..<12 where !(button.exists && button.isHittable) { app.swipeUp() }
+        XCTAssertTrue(button.isHittable, identifier)
+        return button
+    }
+
     @MainActor private func launch() -> XCUIApplication {
         XCUIDevice.shared.orientation = .portrait
         let app = XCUIApplication()
@@ -27,7 +36,7 @@ final class HistoryVersionsUITests: XCTestCase {
         let tempo = app.staticTexts["studio.tempo"]
         XCTAssertEqual(tempo.label, "120 BPM")
         raiseTempo(app, by: 3)
-        app.buttons["settings.history"].tap()
+        settingsEntry(app, "settings.history").tap()
         XCTAssertTrue(app.buttons["history.current"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["history.current"].label.contains("122 → 123"), app.buttons["history.current"].label)
         let start = app.buttons["history.row.0"]
@@ -55,14 +64,14 @@ final class HistoryVersionsUITests: XCTestCase {
         let app = launch()
         let tempo = app.staticTexts["studio.tempo"]
         raiseTempo(app, by: 1)
-        app.buttons["settings.versions"].tap()
+        settingsEntry(app, "settings.versions").tap()
         XCTAssertTrue(app.staticTexts["versions.empty"].waitForExistence(timeout: 5))
         app.buttons["versions.save"].tap()
         XCTAssertTrue(app.buttons["versions.row.0"].waitForExistence(timeout: 5))
         app.buttons["versions.done"].tap()
         XCTAssertEqual(tempo.label, "121 BPM")
         raiseTempo(app, by: 2)
-        app.buttons["settings.versions"].tap()
+        settingsEntry(app, "settings.versions").tap()
         let row = app.buttons["versions.row.0"]
         XCTAssertTrue(row.waitForExistence(timeout: 5))
         row.tap()

@@ -4,6 +4,15 @@ import XCTest
 final class DrumLayersUITests: XCTestCase {
     override func setUp() { super.setUp(); continueAfterFailure = false; executionTimeAllowance = 180 }
 
+    /// The project entries sit near the end of the (lazy) settings list.
+    @MainActor private func settingsEntry(_ app: XCUIApplication, _ identifier: String) -> XCUIElement {
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
+        let button = app.buttons[identifier]
+        for _ in 0..<12 where !(button.exists && button.isHittable) { app.swipeUp() }
+        XCTAssertTrue(button.isHittable, identifier)
+        return button
+    }
+
     @MainActor private func reveal(_ element: XCUIElement, in app: XCUIApplication) {
         for _ in 0..<10 { if element.exists && element.isHittable { return }; app.scrollViews.firstMatch.swipeUp() }
         XCTAssertTrue(element.isHittable)
@@ -80,9 +89,7 @@ final class DrumLayersUITests: XCTestCase {
         deleteLast.tap()
         XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: app.staticTexts["Take 1"])], timeout: 5), .completed)
         app.staticTexts["studio.tempo"].tap()
-        let trash = app.buttons["settings.trash"]
-        XCTAssertTrue(trash.waitForExistence(timeout: 5))
-        trash.tap()
+        settingsEntry(app, "settings.trash").tap()
         let restore = app.buttons["trash.restore.0"]
         XCTAssertTrue(restore.waitForExistence(timeout: 5))
         let shot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())

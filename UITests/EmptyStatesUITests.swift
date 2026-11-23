@@ -19,10 +19,14 @@ final class EmptyStatesUITests: XCTestCase {
         XCTAssertTrue(app.buttons["empty.jam.0"].exists)
         let shot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         shot.name = "Stage1-empty-jam"; shot.lifetime = .keepAlways; add(shot)
-        app.buttons["empty.jam.1"].tap()
+        let steps = app.buttons["empty.jam.1"]
+        for _ in 0..<8 where !(steps.exists && steps.isHittable) { app.scrollViews.firstMatch.swipeUp() }
+        steps.tap()
         let lanes = app.descendants(matching: .any)["jam.lanes"]
         XCTAssertTrue(lanes.waitForExistence(timeout: 5), "Steps show the lanes")
-        app.buttons["jam.step.0"].firstMatch.tap()
+        let step = app.buttons["jam.step.0"].firstMatch
+        for _ in 0..<8 where !(step.exists && step.isHittable) { app.scrollViews.firstMatch.swipeDown() }
+        step.tap()
         XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: card)], timeout: 5), .completed)
     }
 
