@@ -1,4 +1,5 @@
 import SwiftUI
+import LocalAuthentication
 import MusicDomain
 import UniformTypeIdentifiers
 struct ProjectsView: View {
@@ -14,6 +15,17 @@ struct ProjectsView: View {
     @AppStorage("projects.order") private var orderRaw=ProjectOrdering.modified.rawValue
     @AppStorage("projects.pinned") private var pinnedRaw=""
     private var pinned:Set<UUID>{Set(pinnedRaw.split(separator:",").compactMap{UUID(uuidString:String($0))})}
+    /// I65: projects hidden behind Face ID or the passcode (kept on this device).
+    @AppStorage("projects.private") private var privateRaw=""
+    private var privateIDs:Set<UUID>{Set(privateRaw.split(separator:",").compactMap{UUID(uuidString:String($0))})}
+    private func togglePrivate(_ id:UUID){var set=privateIDs;if set.contains(id){set.remove(id)}else{set.insert(id)};privateRaw=set.map(\.uuidString).sorted().joined(separator:",")}
+    private func open(_ id:UUID){
+        guard privateIDs.contains(id) else{Task{await session.openStored(id)};return}
+        let context=LAContext()
+        context.evaluatePolicy(.deviceOwnerAuthentication,localizedReason:NSLocalizedString("Open a private project",comment:"Face ID reason")){ok,_ in
+            if ok{Task{@MainActor in await session.openStored(id)}}
+        }
+    }
     private func togglePin(_ id:UUID){var set=pinned;if set.contains(id){set.remove(id)}else{set.insert(id)};pinnedRaw=set.map(\.uuidString).sorted().joined(separator:",")}
     private var ordered:[ProjectStore.SummaryEntry]{
         let order=ProjectOrdering(rawValue:orderRaw) ?? .modified
@@ -47,7 +59,7 @@ struct ProjectsView: View {
         if session.entries.count>3{HStack(spacing:8){Image(systemName:"magnifyingglass").foregroundStyle(Color.muted).accessibilityHidden(true);TextField("Search by name, tempo or key",text:$query).textFieldStyle(.plain).accessibilityIdentifier("project.search");if !query.isEmpty{Button{query=""}label:{Image(systemName:"xmark.circle.fill").foregroundStyle(Color.muted)}.accessibilityLabel("Clear")}}.padding(.horizontal,12).frame(minHeight:44).background(Color.panel,in:Capsule(style:.continuous)).overlay{Capsule(style:.continuous).strokeBorder(Color.outline.opacity(0.8),lineWidth:0.75)}}
         ForEach(visibleEntries){entry in
             if let p=entry.summary {HStack(spacing:14){VStack(spacing:3){ForEach(0..<3){row in HStack(spacing:2){ForEach(0..<4){bar in RoundedRectangle(cornerRadius:1,style:.continuous).fill((row==0 ? Color.harmony:row==1 ? Color.drums:Color.bass).opacity(row==2 && p.trackCount<3 ? 0.08:0.6)).frame(width:8,height:row==0 ? 12:4)}}}}.frame(width:48,height:48).background(Color.raised,in:RoundedRectangle(cornerRadius:7,style:.continuous))
-                Button{Task{await session.openStored(entry.id)}}label:{VStack(alignment:.leading,spacing:6){Text(p.name).font(.system(.body,weight:.medium)).foregroundStyle(.primary);Text("\(Int(p.bpm)) BPM · \(MusicalNotation.pitchClassName(p.keyRoot,keyRoot:p.keyRoot,minor:p.minor,spelling:PitchSpelling(rawValue:spellingValue) ?? .automatic)+" "+NSLocalizedString(p.minor ? "minor":"major",comment:"Key mode")) · \(p.length/barTicks) bars").font(.system(.caption)).foregroundStyle(Color.muted);Text(p.modified,style:.relative).font(.system(.caption2)).foregroundStyle(Color.muted)}}.buttonStyle(StudioQuietButtonStyle()).accessibilityIdentifier("project.open."+entry.id.uuidString);Spacer();Menu{Button("Open"){Task{await session.openStored(entry.id)}};Button(pinned.contains(entry.id) ? "Unpin":"Pin to top",systemImage:pinned.contains(entry.id) ? "pin.slash":"pin"){togglePin(entry.id)};Button("Rename"){renameID=entry.id;name=p.name};Button("Duplicate"){Task{await session.duplicateStored(entry.id)}};Button("Delete",role:.destructive){deleting=entry.id}}label:{Image(systemName:"ellipsis").foregroundStyle(Color.muted).frame(width:44,height:44)}}.padding(.vertical,8).overlay(alignment:.bottom){Rectangle().fill(Color.raised).frame(height:1)}
+                Button{open(entry.id)}label:{VStack(alignment:.leading,spacing:6){HStack(spacing:4){if privateIDs.contains(entry.id){Image(systemName:"lock.fill").font(.caption).foregroundStyle(Color.muted).accessibilityLabel("Private")};Text(privateIDs.contains(entry.id) ? NSLocalizedString("Private project",comment:"Hidden name"):p.name).font(.system(.body,weight:.medium)).foregroundStyle(.primary)};Text("\(Int(p.bpm)) BPM · \(MusicalNotation.pitchClassName(p.keyRoot,keyRoot:p.keyRoot,minor:p.minor,spelling:PitchSpelling(rawValue:spellingValue) ?? .automatic)+" "+NSLocalizedString(p.minor ? "minor":"major",comment:"Key mode")) · \(p.length/barTicks) bars").font(.system(.caption)).foregroundStyle(Color.muted);Text(p.modified,style:.relative).font(.system(.caption2)).foregroundStyle(Color.muted)}}.buttonStyle(StudioQuietButtonStyle()).accessibilityIdentifier("project.open."+entry.id.uuidString);Spacer();Menu{Button("Open"){open(entry.id)};Button(privateIDs.contains(entry.id) ? "Stop hiding":"Hide behind Face ID",systemImage:privateIDs.contains(entry.id) ? "lock.open":"lock"){togglePrivate(entry.id)};Button(pinned.contains(entry.id) ? "Unpin":"Pin to top",systemImage:pinned.contains(entry.id) ? "pin.slash":"pin"){togglePin(entry.id)};Button("Rename"){renameID=entry.id;name=p.name};Button("Duplicate"){Task{await session.duplicateStored(entry.id)}};Button("Delete",role:.destructive){deleting=entry.id}}label:{Image(systemName:"ellipsis").foregroundStyle(Color.muted).frame(width:44,height:44)}}.padding(.vertical,8).overlay(alignment:.bottom){Rectangle().fill(Color.raised).frame(height:1)}
                 .luzScrollDepth().luzEntrance(session.entries.firstIndex(where:{$0.id==entry.id}) ?? 0)
             }else{VStack(alignment:.leading,spacing:8){Label("Project needs recovery",systemImage:"exclamationmark.triangle");Text(LocalizedStringKey(entry.error ?? "Could not read project")).font(.caption).foregroundStyle(Color.muted);Button("Retry"){Task{await session.openStored(entry.id)}};if entry.hasBackup{Button("Recover last working copy"){Task{await session.recover(entry.id)}}}}.padding()}
         }

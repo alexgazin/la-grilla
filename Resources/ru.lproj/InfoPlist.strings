@@ -3,3 +3,4 @@
 
 "NSBluetoothAlwaysUsageDescription" = "Подключение Bluetooth MIDI-клавиатуры или контроллера при открытии списка Bluetooth MIDI-устройств.";
 "NSMotionUsageDescription" = "Наклон телефона управляет фильтром или общей громкостью, когда ты включаешь эту функцию.";
+"NSFaceIDUsageDescription" = "Открывать проекты, которые ты скрыл за Face ID.";
