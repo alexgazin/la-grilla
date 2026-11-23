@@ -90,7 +90,7 @@ import Observation
     private let runtimeTraceStart=ProcessInfo.processInfo.systemUptime
     let personalKits: PersonalKitStore
     let store: ProjectStore
-    enum Sheet: String, Identifiable {case projects, newProject, trackBuilder, export, settings, gettingStarted, bass, sections, notes, harmony, assistant, voice, perform, midiDevices, palettes, history, versions, trash; var id: String { rawValue }}
+    enum Sheet: String, Identifiable {case projects, newProject, trackBuilder, export, settings, gettingStarted, bass, sections, notes, harmony, assistant, voice, perform, midiDevices, palettes, history, versions, trash, commands; var id: String { rawValue }}
     private static var qaProjectStoreID:UUID? {
         let arguments=ProcessInfo.processInfo.arguments
         guard arguments.contains("--uitesting"),let index=arguments.firstIndex(of:"--project-store-id"),arguments.indices.contains(index+1)else{return nil}
@@ -403,6 +403,63 @@ import Observation
         let id=project.id
         edit{p in var restored=version;restored.id=id;restored.name=p.name;p=restored}
         showToast("Restored")
+    }
+    /// U4 · U13 · Runs a command from the search field or the quick bar. Commands with a
+    /// missing value open the place where it is set.
+    func run(_ id:CommandID,_ argument:CommandArgument?=nil) {
+        CommandMemory.remember(id)
+        switch id {
+        case .play: togglePlay()
+        case .record: tab=1;record()
+        case .undo: undo()
+        case .redo: redo()
+        case .loop: setLoop(enabled:!loop)
+        case .tempo:
+            if case .bpm(let value)? = argument { edit{$0.bpm=Double(value)};showToast(String(format:NSLocalizedString("Tempo %lld BPM",comment:"Command"),value)) }
+            else { presentEditor(.settings) }
+        case .key:
+            if case .key(let root,let minor)? = argument { edit{$0.keyRoot=root;$0.minor=minor};showToast(project.keyName) }
+            else { presentEditor(.settings) }
+        case .transpose:
+            if case .semitones(let amount)? = argument { edit{$0=try MusicalEditing.transpose($0,semitones:amount).candidate} }
+            else { presentEditor(.settings) }
+        case .addSection:
+            var name="Chorus"
+            if case .name(let value)? = argument { name=value }
+            let bars=max(1,section.length/barTicks)
+            edit{try SectionEditing.append(name:NSLocalizedString(name,comment:"Section name"),bars:bars,to:&$0)}
+            if let added=project.sections.last{select(added)}
+        case .duplicateSection:
+            let current=section
+            edit{try $0.duplicateSection(current.id,name:String((current.name+" 2").prefix(120)))}
+        case .addMelody: edit{try $0.addMelody()}
+        case .deleteLastTake:
+            let current=section
+            guard let drums=project.tracks.first(where:{$0.role == .drums}),
+                  let clip=drums.clips.first(where:{$0.start<current.start+current.length && $0.start+$0.length>current.start}),
+                  let pattern=project.patterns.first(where:{$0.id==clip.patternID}),
+                  let latest=DrumTakes.latest(in:pattern) else{message="There is no recorded take in this section.";return}
+            edit{try ProjectTrash.deleteTake(latest.id,pattern:pattern.id,in:&$0)}
+        case .grid: sheet=nil;tab=0
+        case .jam: sheet=nil;tab=1
+        case .mixer: sheet=nil;tab=2
+        case .notes: presentEditor(.notes)
+        case .voice: presentEditor(.voice)
+        case .assistant: presentEditor(.assistant)
+        case .harmony: presentEditor(.harmony)
+        case .palettes: presentEditor(.palettes)
+        case .sections: presentEditor(.sections)
+        case .bass: presentEditor(.bass)
+        case .perform: sheet = .perform
+        case .settings: presentEditor(.settings)
+        case .projects: sheet = .projects
+        case .newProject: sheet = .newProject
+        case .export: finishTake();exportTake=nil;sheet = .export
+        case .history: presentEditor(.history)
+        case .versions: presentEditor(.versions)
+        case .trash: presentEditor(.trash)
+        case .midiDevices: presentEditor(.midiDevices)
+        }
     }
     /// U8 · Bring back a deleted track, take or clip in one Undo step.
     func restoreDeleted(_ id:UUID){edit{try ProjectTrash.restore(id,in:&$0)};if message==nil{showToast("Restored")}}
