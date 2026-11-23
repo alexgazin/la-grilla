@@ -32,6 +32,7 @@ public struct CommandMatch: Equatable, Sendable {
     public let command: CommandID
     public let argument: CommandArgument?
     public let score: Double
+    public init(command: CommandID, argument: CommandArgument?, score: Double) { self.command = command; self.argument = argument; self.score = score }
 }
 
 public enum CommandCatalog {
