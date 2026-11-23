@@ -10,11 +10,22 @@ struct ProjectsView: View {
     @State private var deleting: UUID?;@State private var renameID: UUID?;@State private var name=""
     @State private var query=""
     @State private var deleted:[ProjectStore.TrashedProject]=[]
+    /// U34: order and pinned projects, kept on this device.
+    @AppStorage("projects.order") private var orderRaw=ProjectOrdering.modified.rawValue
+    @AppStorage("projects.pinned") private var pinnedRaw=""
+    private var pinned:Set<UUID>{Set(pinnedRaw.split(separator:",").compactMap{UUID(uuidString:String($0))})}
+    private func togglePin(_ id:UUID){var set=pinned;if set.contains(id){set.remove(id)}else{set.insert(id)};pinnedRaw=set.map(\.uuidString).sorted().joined(separator:",")}
+    private var ordered:[ProjectStore.SummaryEntry]{
+        let order=ProjectOrdering(rawValue:orderRaw) ?? .modified
+        let summaries=order.sorted(session.entries.compactMap(\.summary),pinned:pinned)
+        let rank=Dictionary(uniqueKeysWithValues:summaries.enumerated().map{($0.element.id,$0.offset)})
+        return session.entries.sorted{(rank[$0.id] ?? Int.max)<(rank[$1.id] ?? Int.max)}
+    }
     /// I74: match name, tempo or key ("90", "D minor", "ре минор").
     private var visibleEntries:[ProjectStore.SummaryEntry]{
         let text=query.trimmingCharacters(in:.whitespaces).lowercased()
-        guard !text.isEmpty else{return session.entries}
-        return session.entries.filter{entry in
+        guard !text.isEmpty else{return ordered}
+        return ordered.filter{entry in
             guard let p=entry.summary else{return false}
             let key=(Chord.roots[p.keyRoot]+" "+(p.minor ? "minor":"major")+" "+NSLocalizedString(p.minor ? "minor":"major",comment:"Key mode")).lowercased()
             return p.name.lowercased().contains(text) || "\(Int(p.bpm))".hasPrefix(text) || key.contains(text) || MusicalNotation.pitchClassName(p.keyRoot,keyRoot:p.keyRoot,minor:p.minor,spelling:.automatic).lowercased()==text
@@ -30,11 +41,12 @@ struct ProjectsView: View {
         Text("Brings their edits of a shared .grillapack into the open project. One Undo reverts it.").font(.caption).foregroundStyle(Color.muted)
         Text("Opens a separate copy. Your current project is saved first.").font(.caption).foregroundStyle(Color.muted)
         if session.projectChangeQAEnabled{Button{Task{await session.runProjectChangeQA()}}label:{Text(verbatim:"Run project change checks").frame(minHeight:44)}.accessibilityIdentifier("project.change-probe")}
-        HStack{SmallHeading(text:"ON THIS IPHONE");Spacer();Text("\(session.entries.count) projects").font(.system(.caption)).foregroundStyle(Color.muted)}
+        HStack{SmallHeading(text:"ON THIS IPHONE");Spacer();Text("\(session.entries.count) projects").font(.system(.caption)).foregroundStyle(Color.muted)
+            Menu{Picker("Sort by",selection:$orderRaw){ForEach(ProjectOrdering.allCases,id:\.rawValue){order in Text(LocalizedStringKey(order.title)).tag(order.rawValue)}}}label:{Image(systemName:"arrow.up.arrow.down").frame(width:44,height:44)}.accessibilityLabel("Sort projects").accessibilityIdentifier("project.sort")}
         if session.entries.count>3{HStack(spacing:8){Image(systemName:"magnifyingglass").foregroundStyle(Color.muted).accessibilityHidden(true);TextField("Search by name, tempo or key",text:$query).textFieldStyle(.plain).accessibilityIdentifier("project.search");if !query.isEmpty{Button{query=""}label:{Image(systemName:"xmark.circle.fill").foregroundStyle(Color.muted)}.accessibilityLabel("Clear")}}.padding(.horizontal,12).frame(minHeight:44).background(Color.panel,in:Capsule(style:.continuous)).overlay{Capsule(style:.continuous).strokeBorder(Color.outline.opacity(0.8),lineWidth:0.75)}}
         ForEach(visibleEntries){entry in
             if let p=entry.summary {HStack(spacing:14){VStack(spacing:3){ForEach(0..<3){row in HStack(spacing:2){ForEach(0..<4){bar in RoundedRectangle(cornerRadius:1,style:.continuous).fill((row==0 ? Color.harmony:row==1 ? Color.drums:Color.bass).opacity(row==2 && p.trackCount<3 ? 0.08:0.6)).frame(width:8,height:row==0 ? 12:4)}}}}.frame(width:48,height:48).background(Color.raised,in:RoundedRectangle(cornerRadius:7,style:.continuous))
-                Button{Task{await session.openStored(entry.id)}}label:{VStack(alignment:.leading,spacing:6){Text(p.name).font(.system(.body,weight:.medium)).foregroundStyle(.primary);Text("\(Int(p.bpm)) BPM · \(MusicalNotation.pitchClassName(p.keyRoot,keyRoot:p.keyRoot,minor:p.minor,spelling:PitchSpelling(rawValue:spellingValue) ?? .automatic)+" "+NSLocalizedString(p.minor ? "minor":"major",comment:"Key mode")) · \(p.length/barTicks) bars").font(.system(.caption)).foregroundStyle(Color.muted);Text(p.modified,style:.relative).font(.system(.caption2)).foregroundStyle(Color.muted)}}.buttonStyle(StudioQuietButtonStyle()).accessibilityIdentifier("project.open."+entry.id.uuidString);Spacer();Menu{Button("Open"){Task{await session.openStored(entry.id)}};Button("Rename"){renameID=entry.id;name=p.name};Button("Duplicate"){Task{await session.duplicateStored(entry.id)}};Button("Delete",role:.destructive){deleting=entry.id}}label:{Image(systemName:"ellipsis").foregroundStyle(Color.muted).frame(width:44,height:44)}}.padding(.vertical,8).overlay(alignment:.bottom){Rectangle().fill(Color.raised).frame(height:1)}
+                Button{Task{await session.openStored(entry.id)}}label:{VStack(alignment:.leading,spacing:6){Text(p.name).font(.system(.body,weight:.medium)).foregroundStyle(.primary);Text("\(Int(p.bpm)) BPM · \(MusicalNotation.pitchClassName(p.keyRoot,keyRoot:p.keyRoot,minor:p.minor,spelling:PitchSpelling(rawValue:spellingValue) ?? .automatic)+" "+NSLocalizedString(p.minor ? "minor":"major",comment:"Key mode")) · \(p.length/barTicks) bars").font(.system(.caption)).foregroundStyle(Color.muted);Text(p.modified,style:.relative).font(.system(.caption2)).foregroundStyle(Color.muted)}}.buttonStyle(StudioQuietButtonStyle()).accessibilityIdentifier("project.open."+entry.id.uuidString);Spacer();Menu{Button("Open"){Task{await session.openStored(entry.id)}};Button(pinned.contains(entry.id) ? "Unpin":"Pin to top",systemImage:pinned.contains(entry.id) ? "pin.slash":"pin"){togglePin(entry.id)};Button("Rename"){renameID=entry.id;name=p.name};Button("Duplicate"){Task{await session.duplicateStored(entry.id)}};Button("Delete",role:.destructive){deleting=entry.id}}label:{Image(systemName:"ellipsis").foregroundStyle(Color.muted).frame(width:44,height:44)}}.padding(.vertical,8).overlay(alignment:.bottom){Rectangle().fill(Color.raised).frame(height:1)}
                 .luzScrollDepth().luzEntrance(session.entries.firstIndex(where:{$0.id==entry.id}) ?? 0)
             }else{VStack(alignment:.leading,spacing:8){Label("Project needs recovery",systemImage:"exclamationmark.triangle");Text(LocalizedStringKey(entry.error ?? "Could not read project")).font(.caption).foregroundStyle(Color.muted);Button("Retry"){Task{await session.openStored(entry.id)}};if entry.hasBackup{Button("Recover last working copy"){Task{await session.recover(entry.id)}}}}.padding()}
         }

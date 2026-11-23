@@ -58,7 +58,8 @@ final class SketchGenerationTests:XCTestCase {
         app.terminate();app.launch()
         XCTAssertTrue(transport.waitForExistence(timeout:15))
         XCTAssertEqual(state(transport),persisted)
-        XCTAssertTrue(app.staticTexts["Untitled"].exists)
+        // U35: a project created without a name is named by key, tempo and day.
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format:"label BEGINSWITH 'C major · 120 · '")).firstMatch.exists)
         XCTAssertEqual(chords.allElementsBoundByIndex.prefix(4).map(\.label),labels)
         XCTAssertEqual(number("loopRangeCount",in:current(transport)),8*3840)
         app.buttons["Play"].tap()

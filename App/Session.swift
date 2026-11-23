@@ -934,7 +934,9 @@ import Observation
     }
     @discardableResult func create(name: String,bpm: Double,root: Int,minor: Bool,bars: Int,template:ProjectTemplate = .empty) async -> Bool {
         do {
-            let project = try ProjectTemplates.make(name:name,bpm:bpm,root:root,minor:minor,bars:bars,template:template)
+            // U35: an empty name becomes "A minor · 92 · Tuesday".
+            let title=name.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty ? ProjectNaming.suggest(keyRoot:root,minor:minor,bpm:bpm):name
+            let project = try ProjectTemplates.make(name:title,bpm:bpm,root:root,minor:minor,bars:bars,template:template)
             return await saveNewProject(project)
         } catch { message=error.localizedDescription; return false }
     }
