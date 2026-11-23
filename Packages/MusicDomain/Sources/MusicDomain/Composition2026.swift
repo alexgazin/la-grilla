@@ -216,3 +216,38 @@ public enum StepChance {
         return Int(random.next() % 100)
     }
 }
+
+/// I56 · "Continue for me": the next section grows out of this one — the same groove with a
+/// fill, the progression with its last chord swapped for a relative, and a new melody over it.
+public enum ContinueIdea {
+    /// Relative substitutes: I↔vi, IV↔ii, V↔iii (by root motion), keeping the quality family.
+    static func relative(of chord: Chord, keyRoot: Int, minor: Bool) -> Chord {
+        let interval = ((chord.root - keyRoot) % 12 + 12) % 12
+        let map: [Int: (Int, Quality)] = minor
+            ? [0: (3, .major), 3: (0, .minor), 5: (8, .major), 8: (5, .minor), 7: (10, .major), 10: (7, .minor)]
+            : [0: (9, .minor), 9: (0, .major), 5: (2, .minor), 2: (5, .major), 7: (4, .minor), 4: (7, .major)]
+        guard let (target, quality) = map[interval] else { return chord }
+        return Chord(root: (keyRoot + target) % 12, quality: quality)
+    }
+
+    public static func extend(_ sectionID: UUID, name: String, seed: UInt64 = 1, in project: inout Project) throws {
+        var candidate = project
+        try SectionEditing.duplicateWithVariation(sectionID, name: name, in: &candidate)
+        guard let source = candidate.sections.firstIndex(where: { $0.id == sectionID }) else { throw MusicError.invalidProject }
+        let copy = candidate.sections[source + 1]
+        func pattern(_ role: TrackRole) -> Int? {
+            guard let track = candidate.tracks.first(where: { $0.role == role }),
+                  let clip = track.clips.first(where: { $0.start == copy.start }) else { return nil }
+            return candidate.patterns.firstIndex { $0.id == clip.patternID }
+        }
+        if let h = pattern(.harmony), let lastIndex = candidate.patterns[h].chords.indices.max(by: { candidate.patterns[h].chords[$0].tick < candidate.patterns[h].chords[$1].tick }) {
+            candidate.patterns[h].chords[lastIndex].chord = relative(of: candidate.patterns[h].chords[lastIndex].chord, keyRoot: candidate.keyRoot, minor: candidate.minor)
+        }
+        if let m = pattern(.melody), !(candidate.patterns[m].notes ?? []).isEmpty {
+            let chords = Arrangement.harmony(candidate, section: copy)
+            candidate.patterns[m].notes = MelodySketcher.melody(chords: chords, length: candidate.patterns[m].length, keyRoot: candidate.keyRoot, minor: candidate.minor, density: 0.5, seed: seed)
+        }
+        try candidate.validate()
+        project = candidate
+    }
+}

@@ -480,6 +480,7 @@ struct SectionsView: View {
         Button("Rename"){pendingRename=section.id;actions=nil}
         Button("Duplicate"){session.edit{try SectionEditing.duplicate(section.id,name:section.name=="Verse" ? "Chorus":String((section.name+" copy").prefix(120)),in:&$0)};actions=nil}
         // I40: the same section again with a snare fill at the end of the copy.
+        Button("Continue for me"){let id=section.id;session.edit{try ContinueIdea.extend(id,name:NSLocalizedString("Continuation",comment:"Section name"),seed:UInt64(session.project.revision) &+ 1,in:&$0)};actions=nil}.accessibilityIdentifier("section.continue")
         Button("Duplicate with a fill"){session.edit{try SectionEditing.duplicateWithVariation(section.id,name:String((section.name+" 2").prefix(120)),in:&$0)};actions=nil}.accessibilityIdentifier("section.duplicate-fill")
             .disabled(session.project.sections.count>=maximumSections || session.project.length+section.length>songTickLimit).accessibilityIdentifier("section.duplicate")
         Picker("Colour",selection:Binding(get:{section.color ?? -1},set:{value in let id=section.id;session.edit{p in if let i=p.sections.firstIndex(where:{$0.id==id}){p.sections[i].color=value<0 ? nil:value}};actions=nil})){

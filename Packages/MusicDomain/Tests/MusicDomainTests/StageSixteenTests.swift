@@ -153,3 +153,16 @@ struct ChanceAndRatchetCompileTests {
         #expect(throws: MusicError.self) { try project.validate() }
     }
 }
+
+struct ContinueIdeaTests {
+    @Test func theContinuationVariesTheLastChordAndKeepsTheSource() throws {
+        var project = Project.demo()
+        let before = project.patterns[0].chords.map(\.chord.symbol)
+        try ContinueIdea.extend(project.sections[0].id, name: "Continuation", in: &project)
+        #expect(project.sections.map(\.name) == ["Verse", "Continuation"])
+        #expect(project.patterns[0].chords.map(\.chord.symbol) == before)
+        let continued = Arrangement.harmony(project, section: project.sections[1]).map(\.chord.symbol)
+        #expect(continued.prefix(3) == before.prefix(3) && continued.last == "Em")   // G (V) → Em (iii)
+        #expect(ContinueIdea.relative(of: Chord(root: 9, quality: .minor), keyRoot: 0, minor: false).symbol == "C")
+    }
+}

@@ -90,7 +90,7 @@ import Observation
     private let runtimeTraceStart=ProcessInfo.processInfo.systemUptime
     let personalKits: PersonalKitStore
     let store: ProjectStore
-    enum Sheet: String, Identifiable {case projects, newProject, trackBuilder, export, settings, gettingStarted, bass, sections, notes, harmony, assistant, voice, perform, midiDevices, palettes, history, versions, trash, commands, variations, comp, chordImport, melodyIdeas, lyrics, master, mood, doctor, earTraining, whatsNew, coNotes, vj; var id: String { rawValue }}
+    enum Sheet: String, Identifiable {case projects, newProject, trackBuilder, export, settings, gettingStarted, bass, sections, notes, harmony, assistant, voice, perform, midiDevices, palettes, history, versions, trash, commands, variations, comp, chordImport, melodyIdeas, lyrics, master, mood, doctor, earTraining, whatsNew, coNotes, vj, help; var id: String { rawValue }}
     private static var qaProjectStoreID:UUID? {
         let arguments=ProcessInfo.processInfo.arguments
         guard arguments.contains("--uitesting"),let index=arguments.firstIndex(of:"--project-store-id"),arguments.indices.contains(index+1)else{return nil}
@@ -515,6 +515,11 @@ import Observation
         case .repeatLast: break
         case .coNotes: presentEditor(.coNotes)
         case .vj: sheet = .vj
+        case .help: presentEditor(.help)
+        case .continueIdea:
+            let current=section
+            edit{try ContinueIdea.extend(current.id,name:NSLocalizedString("Continuation",comment:"Section name"),seed:UInt64(project.revision) &+ 1,in:&$0)}
+            if let index=project.sections.firstIndex(where:{$0.id==current.id}),index+1<project.sections.count{select(project.sections[index+1])}
         case .doctor: presentEditor(.doctor)
         case .earTraining: presentEditor(.earTraining)
         }
