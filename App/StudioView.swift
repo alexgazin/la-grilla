@@ -66,6 +66,7 @@ struct StudioView: View {
         case .mood: MoodProgressionsView(session:session)
         case .doctor: ArrangementDoctorView(session:session)
         case .earTraining: EarTrainingView(session:session)
+        case .whatsNew: WhatsNewView(session:session)
         }}.safeAreaInset(edge:.bottom){if [.bass,.palettes,.lyrics,.harmony].contains(sheet){SheetMiniTransport(session:session)}}
         .modifier(SheetZoom(sheet:sheet,namespace:sheetZoom)).modifier(StudioQATypeSize()).scrollContentBackground(.hidden).tint(.mint).presentationDragIndicator(.visible).presentationBackground(Color.panel).presentationCornerRadius(Luz.Radius.sheet)}
         .sheet(isPresented:Binding(get:{session.shareURL != nil},set:{if !$0 {session.shareURL=nil}}),onDismiss:{session.finishSharing()}){if let url=session.shareURL{ShareView(url:url)}}
@@ -299,6 +300,9 @@ private struct StudioKeyCommands: View {
             Button("Undo") { session.undo() }.keyboardShortcut("z", modifiers: .command)
             Button("Redo") { session.redo() }.keyboardShortcut("z", modifiers: [.command, .shift])
             Button("Repeat the last action") { session.run(.repeatLast) }.keyboardShortcut("y", modifiers: .command)
+            // I53: page-turner pedals send Page Down / Page Up.
+            Button("Record drums") { session.tab = 1; session.record() }.keyboardShortcut(.pageDown, modifiers: [])
+            Button("Undo") { session.undo() }.keyboardShortcut(.pageUp, modifiers: [])
             Button("Open Grid") { session.tab = 0 }.keyboardShortcut("1", modifiers: .command)
             Button("Open Jam") { session.tab = 1 }.keyboardShortcut("2", modifiers: .command)
             Button("Open Mixer") { session.tab = 2 }.keyboardShortcut("3", modifiers: .command)

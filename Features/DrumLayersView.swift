@@ -293,6 +293,15 @@ struct DrumLayersMenu: View {
                     Button("\(count) of 16") { euclid(session: session, pattern: pattern, pad: pad, bar: bar ?? 0, hits: count) }
                 }
             }
+            // U27: trade this pad's hits and sound with another pad.
+            Menu("Swap with pad", systemImage: "arrow.left.arrow.right") {
+                ForEach((0..<16).filter { $0 != pad }, id: \.self) { other in
+                    Button(LocalizedStringKey(Compiler.padNames[other])) {
+                        guard let track = session.project.tracks.first(where: { $0.role == .drums })?.id else { return }
+                        session.edit { try PadEditing.swap(pad, other, track: track, in: &$0) }
+                    }
+                }
+            }
             Button("Clear layer", systemImage: "trash", role: .destructive) { clear(session: session, pattern: pattern, pad: pad, bar: nil) }
                 .disabled(hits == 0)
         } label: {

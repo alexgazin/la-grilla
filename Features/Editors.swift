@@ -139,6 +139,14 @@ struct SettingsView: View {
     @AppStorage("studio.visualMetronome") private var visualMetronome=false
     @AppStorage("studio.leftHanded") private var leftHanded=false
     @AppStorage("nextStep.off") private var nextStepOff=false
+    @State private var temporaryBytes:Int64=StorageUsage.bytes(of:FileManager.default.temporaryDirectory)
+    private func clearTemporary(){
+        let folder=FileManager.default.temporaryDirectory
+        for url in (try? FileManager.default.contentsOfDirectory(at:folder,includingPropertiesForKeys:nil)) ?? [] where url.lastPathComponent.hasPrefix("GrillaExport-") || url.lastPathComponent.hasPrefix("Loudness-") || url.lastPathComponent.hasPrefix("stems-") {
+            try? FileManager.default.removeItem(at:url)
+        }
+        temporaryBytes=StorageUsage.bytes(of:folder)
+    }
     @AppStorage("studio.pitchSpelling") private var spellingValue = PitchSpelling.automatic.rawValue
     @AppStorage("studio.showDegrees") private var showDegrees = false
     @Bindable var session: Session
@@ -175,6 +183,12 @@ struct SettingsView: View {
         }
         audioSettings
         Section("Backup"){BackupRows(session:session)}
+        // U62: how much room songs and temporary files take, and clearing the temporary ones.
+        Section("Storage"){
+            LabeledContent("Songs and versions",value:ByteCountFormatter.string(fromByteCount:StorageUsage.bytes(of:session.store.root),countStyle:.file))
+            LabeledContent("Temporary files",value:ByteCountFormatter.string(fromByteCount:temporaryBytes,countStyle:.file))
+            Button("Clear temporary files"){clearTemporary()}.accessibilityIdentifier("settings.clear-temporary").disabled(session.exportInProgress)
+        }
         Section("This project"){
             Button{session.sheet = .history}label:{Label("Edit history",systemImage:"clock.arrow.circlepath")}.accessibilityIdentifier("settings.history")
             Button{session.sheet = .versions}label:{Label("Song versions",systemImage:"bookmark")}.accessibilityIdentifier("settings.versions")

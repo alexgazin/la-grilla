@@ -17,6 +17,11 @@ import MusicDomain
         }
         if let request = LaunchRequest.take() { await session.handleLaunch(request) }
         Task { await ProjectSpotlight.refresh() }
+        // U70: once after an update, show what is new in this build.
+        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? ""
+        let lastShown = UserDefaults.standard.string(forKey: "whatsNew.lastBuild")
+        if !ProcessInfo.processInfo.arguments.contains("--uitesting"), WhatsNew.shouldShow(lastShownBuild: lastShown, currentBuild: build), session.sheet == nil { session.sheet = .whatsNew }
+        UserDefaults.standard.set(build, forKey: "whatsNew.lastBuild")
         if let index=ProcessInfo.processInfo.arguments.firstIndex(of:"--screen"),ProcessInfo.processInfo.arguments.count>index+1 {
             let target=ProcessInfo.processInfo.arguments[index+1]
             if target=="midi" || target=="midi-mapped" {

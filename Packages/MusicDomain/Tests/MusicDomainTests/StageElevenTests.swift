@@ -91,3 +91,36 @@ struct NextStepTests {
         #expect(Practice.slowed(song, rate: 0.5).patterns == song.patterns)
     }
 }
+
+struct PadSwapAndWhatsNewTests {
+    @Test func swappingPadsMovesHitsAndMuteAndIsReversible() throws {
+        var project = Project.demo()
+        let drums = project.tracks[1].id
+        project.tracks[1].mutedPads = [0]
+        let kicks = project.patterns[1].drums.filter { $0.pad == 0 }.map(\.tick)
+        try PadEditing.swap(0, 4, track: drums, in: &project)
+        #expect(project.patterns[1].drums.filter { $0.pad == 4 }.map(\.tick) == kicks)
+        #expect(project.patterns[1].drums.filter { $0.pad == 0 }.isEmpty)
+        #expect(project.tracks[1].mutedPads == [4])
+        try PadEditing.swap(4, 0, track: drums, in: &project)
+        #expect(project.patterns[1].drums.filter { $0.pad == 0 }.map(\.tick) == kicks)
+        #expect(throws: MusicError.self) { try PadEditing.swap(0, 0, track: drums, in: &project) }
+    }
+
+    @Test func whatsNewShowsOnlyAfterAnUpdate() {
+        #expect(!WhatsNew.shouldShow(lastShownBuild: nil, currentBuild: "51"))
+        #expect(WhatsNew.shouldShow(lastShownBuild: "50", currentBuild: "51"))
+        #expect(!WhatsNew.shouldShow(lastShownBuild: "51", currentBuild: "51"))
+        #expect(WhatsNew.items.count >= 4)
+    }
+
+    @Test func storageCountsFiles() throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("Storage-" + UUID().uuidString)
+        try FileManager.default.createDirectory(at: folder.appendingPathComponent("a"), withIntermediateDirectories: true)
+        try Data(count: 1000).write(to: folder.appendingPathComponent("a/x.bin"))
+        try Data(count: 500).write(to: folder.appendingPathComponent("y.bin"))
+        defer { try? FileManager.default.removeItem(at: folder) }
+        #expect(StorageUsage.bytes(of: folder) == 1500)
+        #expect(StorageUsage.bytes(of: folder.appendingPathComponent("missing")) == 0)
+    }
+}

@@ -114,3 +114,57 @@ public struct MusicClipboard: Codable, Equatable, Sendable {
         project = candidate
     }
 }
+
+/// U27 · Swap two pads: their hits, sounds, edits and mute state trade places.
+public enum PadEditing {
+    public static func swap(_ a: Int, _ b: Int, track trackID: UUID, in project: inout Project) throws {
+        guard a != b, (0..<16).contains(a), (0..<16).contains(b),
+              let index = project.tracks.firstIndex(where: { $0.id == trackID && $0.role == .drums }) else { throw MusicError.invalidProject }
+        var candidate = project
+        let patterns = Set(candidate.tracks[index].clips.flatMap { [$0.patternID] + ($0.variants ?? []) })
+        for p in candidate.patterns.indices where patterns.contains(candidate.patterns[p].id) {
+            candidate.patterns[p].drums = candidate.patterns[p].drums.map { hit in
+                var moved = hit; moved.pad = hit.pad == a ? b : hit.pad == b ? a : hit.pad; return moved
+            }
+        }
+        var track = candidate.tracks[index]
+        if var samples = track.padSamples { let first = samples[a]; samples[a] = samples[b]; samples[b] = first; track.padSamples = samples.isEmpty ? nil : samples }
+        if var edits = track.padEdits { let first = edits[a]; edits[a] = edits[b]; edits[b] = first; track.padEdits = edits.isEmpty ? nil : edits }
+        if let muted = track.mutedPads { track.mutedPads = muted.map { $0 == a ? b : $0 == b ? a : $0 }.sorted() }
+        candidate.tracks[index] = track
+        try candidate.validate()
+        project = candidate
+    }
+}
+
+/// U62 · How much room the songs take on this device.
+public enum StorageUsage {
+    /// Bytes under a folder (files only), or 0 when it does not exist.
+    public static func bytes(of folder: URL) -> Int64 {
+        guard let walker = FileManager.default.enumerator(at: folder, includingPropertiesForKeys: [.fileSizeKey, .isRegularFileKey]) else { return 0 }
+        var total: Int64 = 0
+        for case let url as URL in walker {
+            guard let values = try? url.resourceValues(forKeys: [.fileSizeKey, .isRegularFileKey]), values.isRegularFile == true else { continue }
+            total += Int64(values.fileSize ?? 0)
+        }
+        return total
+    }
+}
+
+/// U70 · What's new in this build, shown once after an update.
+public enum WhatsNew {
+    public struct Item: Equatable, Sendable { public let symbol: String; public let title: String; public let detail: String; public let command: CommandID? }
+    public static let items: [Item] = [
+        .init(symbol: "clock.arrow.circlepath", title: "Edit history and song versions", detail: "Hear any recent edit and return to it; keep named versions and compare them A/B.", command: .history),
+        .init(symbol: "magnifyingglass", title: "Search actions, also by voice", detail: "Type or say “tempo 92” or “add a chorus”. Pin favourites to the quick bar.", command: nil),
+        .init(symbol: "wand.and.stars", title: "Beat tools", detail: "Variations of a beat, automatic fills and building the best take from several.", command: .jam),
+        .init(symbol: "camera.viewfinder", title: "Chords from a song or photo", detail: "Analyse a song file or read a songbook page; hear it before applying.", command: .chordImport),
+        .init(symbol: "text.quote", title: "Lyrics, lead sheets and DAW packages", detail: "Words under the melody, MusicXML for notation apps, stems with MIDI and a README.", command: .lyrics),
+        .init(symbol: "gauge.with.dots.needle.67percent", title: "Prepare for release", detail: "Measure loudness and get the master to Spotify, Apple Music or club level.", command: .master),
+    ]
+    /// Shown when the build changed since it was last shown (never on a fresh install's first launch).
+    public static func shouldShow(lastShownBuild: String?, currentBuild: String) -> Bool {
+        guard let last = lastShownBuild else { return false }
+        return last != currentBuild
+    }
+}
