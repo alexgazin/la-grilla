@@ -13,7 +13,8 @@ final class RouteWarningUITests: XCTestCase {
         app.buttons["Record drums"].tap()
         let alert = app.alerts["Record over this route?"]
         XCTAssertTrue(alert.waitForExistence(timeout: 5))
-        alert.buttons["Record anyway"].tap()
+        // iOS 26 can expose an alert action twice (glass and title); both are the same action.
+        alert.buttons["Record anyway"].firstMatch.tap()
         XCTAssertTrue(app.staticTexts["REC · DRUMS"].waitForExistence(timeout: 8))
         app.buttons["Finish drum take"].tap()
     }

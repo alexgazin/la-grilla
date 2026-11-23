@@ -23,7 +23,7 @@ final class BeatMachineUITests: XCTestCase {
         XCTAssertEqual(app.staticTexts["beat.title"].label, "Dark Trap")
 
         // A kick on the third sixteenth: the step reports its new state.
-        let step = app.descendants(matching: .any)["beat.step.0.2"]
+        let step = app.buttons["beat.step.0.2"]
         XCTAssertTrue(step.waitForExistence(timeout: 5))
         XCTAssertEqual(step.value as? String, "Off")
         step.tap()

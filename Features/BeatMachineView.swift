@@ -249,15 +249,14 @@ struct BeatMachineView: View {
             HStack(spacing: 3) {
                 ForEach(0..<16, id: \.self) { index in
                     let step = page * 16 + index
-                    StepCell(hit: draft.hit(pad: pad, step: step), color: BeatPad.color(pad), downbeat: index % 4 == 0)
-                        .onTapGesture { withAnimation(.snappy(duration: 0.15)) { draft.toggle(pad: pad, step: step) }; Luz.Haptics.selection() }
-                        .contextMenu { stepMenu(pad: pad, step: step) }
-                        .accessibilityElement()
-                        .accessibilityLabel(Text(verbatim: "\(NSLocalizedString(Compiler.padNames[pad], comment: "Pad")) \(step + 1)"))
-                        .accessibilityValue(LocalizedStringKey(Self.hitName(draft.hit(pad: pad, step: step))))
-                        .accessibilityAddTraits(.isButton)
-                        .accessibilityAction { draft.toggle(pad: pad, step: step) }
-                        .accessibilityIdentifier("beat.step.\(pad).\(step)")
+                    Button { withAnimation(.snappy(duration: 0.15)) { draft.toggle(pad: pad, step: step) }; Luz.Haptics.selection() } label: {
+                        StepCell(hit: draft.hit(pad: pad, step: step), color: BeatPad.color(pad), downbeat: index % 4 == 0)
+                    }
+                    .buttonStyle(.plain)
+                    .contextMenu { stepMenu(pad: pad, step: step) }
+                    .accessibilityLabel(Text(verbatim: "\(NSLocalizedString(Compiler.padNames[pad], comment: "Pad")) \(step + 1)"))
+                    .accessibilityValue(LocalizedStringKey(Self.hitName(draft.hit(pad: pad, step: step))))
+                    .accessibilityIdentifier("beat.step.\(pad).\(step)")
                 }
             }
             .overlay { StepPlayhead(session: session, steps: draft.steps, page: page, start: session.section.start, active: session.harmonyPreview) }
@@ -299,15 +298,14 @@ struct BeatMachineView: View {
             HStack(spacing: 3) {
                 ForEach(0..<16, id: \.self) { index in
                     let step = page * 16 + index
-                    BassCell(note: draft.bassNote(at: step), step: step, selected: bassStep != nil && draft.bassNote(at: step)?.step == bassStep,
-                             downbeat: index % 4 == 0, label: draft.bassNotes.first { $0.step == step }.map { noteName($0.semitones) })
-                        .onTapGesture { tapBass(step) }
-                        .accessibilityElement()
-                        .accessibilityLabel(Text(verbatim: "808 \(step + 1)"))
-                        .accessibilityValue(Text(verbatim: draft.bassNote(at: step).map { noteName($0.semitones) } ?? NSLocalizedString("Off", comment: "Step")))
-                        .accessibilityAddTraits(.isButton)
-                        .accessibilityAction { tapBass(step) }
-                        .accessibilityIdentifier("beat.bass.\(step)")
+                    Button { tapBass(step) } label: {
+                        BassCell(note: draft.bassNote(at: step), step: step, selected: bassStep != nil && draft.bassNote(at: step)?.step == bassStep,
+                                 downbeat: index % 4 == 0, label: draft.bassNotes.first { $0.step == step }.map { noteName($0.semitones) })
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(Text(verbatim: "808 \(step + 1)"))
+                    .accessibilityValue(Text(verbatim: draft.bassNote(at: step).map { noteName($0.semitones) } ?? NSLocalizedString("Off", comment: "Step")))
+                    .accessibilityIdentifier("beat.bass.\(step)")
                 }
             }.padding(.leading, 68)
             if let step = bassStep, draft.bassNotes.contains(where: { $0.step == step }) {
