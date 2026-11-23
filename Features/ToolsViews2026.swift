@@ -154,7 +154,7 @@ struct TunerView: View {
     }
 
     private var gauge: some View {
-        let tuned = reading.map { abs(smoothedCents) <= 5 } ?? false
+        let tuned = reading != nil && abs(smoothedCents) <= 5
         return VStack(spacing: 6) {
             ZStack {
                 Canvas { context, size in
@@ -304,41 +304,17 @@ struct DynamicsView: View {
                 VStack(alignment: .leading, spacing: 14) {
                     Text("The same parts, thinned and filled so the song breathes: a sparse intro, a lighter verse, a full chorus with a crash, a contrasting bridge.")
                         .font(.caption).foregroundStyle(Color.muted)
-                    let before = ArrangementDynamics.density(session.project)
-                    let shaped = candidate()
-                    let after = shaped.map(ArrangementDynamics.density) ?? before
-                    let peak = max(1, (before.values + after.values).max() ?? 1)
-                    ForEach(Array(session.project.sections.enumerated()), id: \.element.id) { index, section in
-                        HStack(spacing: 12) {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(verbatim: section.name).font(.headline)
-                                Menu {
-                                    ForEach(ArrangementDynamics.Role.allCases, id: \.self) { role in
-                                        Button(LocalizedStringKey(role.title)) { roles[section.id] = role }
-                                    }
-                                } label: {
-                                    Label(LocalizedStringKey((roles[section.id] ?? .keep).title), systemImage: "slider.horizontal.3").font(.subheadline)
-                                }.accessibilityIdentifier("dynamics.role.\(index)")
-                            }
-                            Spacer()
-                            VStack(alignment: .trailing, spacing: 3) {
-                                bar(before[section.id] ?? 0, peak: peak, color: Color.muted)
-                                bar(after[section.id] ?? 0, peak: peak, color: Color.drums)
-                            }.frame(width: 120).accessibilityHidden(true)
-                        }
-                        .padding(12)
-                        .background(Color.panel, in: RoundedRectangle(cornerRadius: Luz.Radius.card, style: .continuous))
-                    }
+                    sectionRows
                     HStack(spacing: 14) {
                         Label("As it is", systemImage: "circle.fill").foregroundStyle(Color.muted)
                         Label("With dynamics", systemImage: "circle.fill").foregroundStyle(Color.drums)
                     }.font(.caption)
                     AuditionBar(screen: "dynamics", source: $source, sources: [(.current, "As it is"), (.shaped, "With dynamics")],
-                                playing: session.harmonyPreview, enabled: shaped != nil,
+                                playing: session.harmonyPreview, enabled: candidate() != nil,
                                 caption: "Chords and locked tracks stay. Nothing changes until you apply.", play: play, stop: { session.endHarmonyPreview() })
                     if let error { Text(error).font(.caption).foregroundStyle(Color.record) }
                     Button { apply() } label: { Text("Apply dynamics").frame(maxWidth: .infinity, minHeight: 48) }
-                        .buttonStyle(StudioActionStyle()).disabled(shaped == nil || session.recording || session.armed)
+                        .buttonStyle(StudioActionStyle()).disabled(candidate() == nil || session.recording || session.armed)
                         .accessibilityIdentifier("dynamics.apply")
                 }.padding(18)
             }
@@ -349,6 +325,37 @@ struct DynamicsView: View {
         .tint(.mint)
         .onAppear { if roles.isEmpty { roles = ArrangementDynamics.plan(session.project) } }
         .onDisappear { session.endHarmonyPreview() }
+    }
+
+    private var sectionRows: some View {
+        let before = ArrangementDynamics.density(session.project)
+        let after = candidate().map(ArrangementDynamics.density) ?? before
+        let peak = max(1, (Array(before.values) + Array(after.values)).max() ?? 1)
+        return ForEach(Array(session.project.sections.enumerated()), id: \.element.id) { index, section in
+            sectionRow(index: index, section: section, before: before[section.id] ?? 0, after: after[section.id] ?? 0, peak: peak)
+        }
+    }
+
+    private func sectionRow(index: Int, section: MusicDomain.Section, before: Double, after: Double, peak: Double) -> some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(verbatim: section.name).font(.headline)
+                Menu {
+                    ForEach(ArrangementDynamics.Role.allCases, id: \.self) { role in
+                        Button(LocalizedStringKey(role.title)) { roles[section.id] = role }
+                    }
+                } label: {
+                    Label(LocalizedStringKey((roles[section.id] ?? .keep).title), systemImage: "slider.horizontal.3").font(.subheadline)
+                }.accessibilityIdentifier("dynamics.role.\(index)")
+            }
+            Spacer()
+            VStack(alignment: .trailing, spacing: 3) {
+                bar(before, peak: peak, color: Color.muted)
+                bar(after, peak: peak, color: Color.drums)
+            }.frame(width: 120).accessibilityHidden(true)
+        }
+        .padding(12)
+        .background(Color.panel, in: RoundedRectangle(cornerRadius: Luz.Radius.card, style: .continuous))
     }
 
     private func bar(_ value: Double, peak: Double, color: Color) -> some View {

@@ -24,6 +24,7 @@ public struct SectionPreview: Equatable, Sendable {
     public let name: String
     public let bars: Int
     public let color: Int?
+    public init(name: String, bars: Int, color: Int?) { self.name = name; self.bars = bars; self.color = color }
 }
 
 private struct ProjectSummaryDocument: Decodable {
