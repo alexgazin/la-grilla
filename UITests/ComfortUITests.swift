@@ -24,10 +24,13 @@ final class ComfortUITests: XCTestCase {
         XCTAssertTrue(app.buttons["perform.transport"].waitForExistence(timeout: 15))
         let focus = app.buttons["grid.focus"]
         XCTAssertTrue(focus.waitForExistence(timeout: 5))
+        // The demo loops its only section, so focus may already be on: each tap flips it.
+        let initial = focus.label
+        let flipped = initial == "Leave focus" ? "Focus on this section" : "Leave focus"
         focus.tap()
-        XCTAssertEqual(focus.label, "Leave focus")
+        XCTAssertEqual(focus.label, flipped)
         focus.tap()
-        XCTAssertEqual(focus.label, "Focus on this section")
+        XCTAssertEqual(focus.label, initial)
         app.buttons["commands.open"].tap()
         let field = app.textFields["commands.field"]
         XCTAssertTrue(field.waitForExistence(timeout: 5))

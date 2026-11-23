@@ -1956,3 +1956,11 @@
 "Speed" = "Скорость";
 "Pitch" = "Высота";
 "Changes apply on the next loop." = "Изменения вступают со следующего повтора.";
+
+/* Keyboard shortcuts */
+"Start a drum take" = "Начать дубль барабанов";
+"Focus or leave the section" = "Фокус на секции или выйти";
+"Undo the last change" = "Отменить последнее изменение";
+"Redo the last change" = "Вернуть отменённое изменение";
+"Start a drum take (pedal)" = "Начать дубль барабанов (педаль)";
+"Undo the last change (pedal)" = "Отменить последнее изменение (педаль)";

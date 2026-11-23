@@ -308,17 +308,19 @@ private struct SheetZoom: ViewModifier {
 private struct StudioKeyCommands: View {
     @Bindable var session: Session
     var body: some View {
+        // Labels differ from the visible buttons so UI tests and Full Keyboard Access
+        // never see two "Undo" or "Record drums" buttons.
         Group {
             Button("Play or stop") { session.togglePlay() }.keyboardShortcut(.space, modifiers: [])
-            Button("Record drums") { session.tab = 1; session.record() }.keyboardShortcut("r", modifiers: [])
+            Button("Start a drum take") { session.tab = 1; session.record() }.keyboardShortcut("r", modifiers: [])
             Button("Loop on or off") { session.setLoop(enabled: !session.loop) }.keyboardShortcut("l", modifiers: [])
-            Button("Focus on this section") { session.toggleFocus() }.keyboardShortcut("f", modifiers: [])
-            Button("Undo") { session.undo() }.keyboardShortcut("z", modifiers: .command)
-            Button("Redo") { session.redo() }.keyboardShortcut("z", modifiers: [.command, .shift])
+            Button("Focus or leave the section") { session.toggleFocus() }.keyboardShortcut("f", modifiers: [])
+            Button("Undo the last change") { session.undo() }.keyboardShortcut("z", modifiers: .command)
+            Button("Redo the last change") { session.redo() }.keyboardShortcut("z", modifiers: [.command, .shift])
             Button("Repeat the last action") { session.run(.repeatLast) }.keyboardShortcut("y", modifiers: .command)
             // I53: page-turner pedals send Page Down / Page Up.
-            Button("Record drums") { session.tab = 1; session.record() }.keyboardShortcut(.pageDown, modifiers: [])
-            Button("Undo") { session.undo() }.keyboardShortcut(.pageUp, modifiers: [])
+            Button("Start a drum take (pedal)") { session.tab = 1; session.record() }.keyboardShortcut(.pageDown, modifiers: [])
+            Button("Undo the last change (pedal)") { session.undo() }.keyboardShortcut(.pageUp, modifiers: [])
             Button("Open Grid") { session.tab = 0 }.keyboardShortcut("1", modifiers: .command)
             Button("Open Jam") { session.tab = 1 }.keyboardShortcut("2", modifiers: .command)
             Button("Open Mixer") { session.tab = 2 }.keyboardShortcut("3", modifiers: .command)

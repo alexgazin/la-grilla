@@ -1954,3 +1954,11 @@
 "Speed" = "Speed";
 "Pitch" = "Pitch";
 "Changes apply on the next loop." = "Changes apply on the next loop.";
+
+/* Keyboard shortcuts */
+"Start a drum take" = "Start a drum take";
+"Focus or leave the section" = "Focus or leave the section";
+"Undo the last change" = "Undo the last change";
+"Redo the last change" = "Redo the last change";
+"Start a drum take (pedal)" = "Start a drum take (pedal)";
+"Undo the last change (pedal)" = "Undo the last change (pedal)";
