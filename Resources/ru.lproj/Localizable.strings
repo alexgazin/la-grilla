@@ -1632,3 +1632,14 @@
 "Lo-fi loop" = "Лоу-фай луп";
 "EDM build and drop" = "EDM: нарастание и дроп";
 "Short idea" = "Короткая идея";
+"Record over this route?" = "Записывать через этот выход?";
+"Record anyway" = "Всё равно записать";
+"Calibrate" = "Откалибровать";
+"%@ adds about %lld ms, so recorded hits may land late. Wired headphones or the speaker are better for recording." = "%@ добавляет примерно %lld мс, поэтому записанные удары могут опаздывать. Для записи лучше проводные наушники или динамик.";
+"%@, about %lld ms" = "%@, около %lld мс";
+"Speaker" = "Динамик";
+"Wired" = "Провод";
+"USB audio" = "USB-аудио";
+"Bluetooth" = "Bluetooth";
+"AirPlay" = "AirPlay";
+"Audio output" = "Аудиовыход";

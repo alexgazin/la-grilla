@@ -112,3 +112,19 @@ struct FormTemplateTests {
         #expect(await store.summary(project.id).summary?.bars == 64)
     }
 }
+
+struct AudioRouteAdviceTests {
+    @Test func portsMapToKindsAndBluetoothWarnsBeforeRecording() {
+        #expect(AudioRouteAdvice.kind(portTypes: ["Speaker"]) == .speaker)
+        #expect(AudioRouteAdvice.kind(portTypes: ["Headphones"]) == .wired)
+        #expect(AudioRouteAdvice.kind(portTypes: ["USBAudio"]) == .usb)
+        #expect(AudioRouteAdvice.kind(portTypes: ["BluetoothA2DPOutput"]) == .bluetooth)
+        #expect(AudioRouteAdvice.kind(portTypes: ["AirPlay"]) == .airPlay)
+        #expect(AudioRouteAdvice.kind(portTypes: []) == .other)
+        #expect(AudioRouteAdvice.warnsBeforeRecording(.bluetooth, measured: nil))
+        #expect(!AudioRouteAdvice.warnsBeforeRecording(.wired, measured: 14))
+        #expect(AudioRouteAdvice.warnsBeforeRecording(.wired, measured: 80))
+        #expect(AudioRouteAdvice.latency(.speaker, measured: 27.6) == (28, true))
+        #expect(AudioRouteAdvice.latency(.bluetooth, measured: nil) == (160, false))
+    }
+}

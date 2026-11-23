@@ -43,7 +43,7 @@ struct JamView: View {
             recordingControls
             if session.recording || session.armed{recordingStatus}
             if steps {stepEditor.disabled(session.performance.contextActive)}else if dynamicType.isAccessibilitySize{accessiblePads}else{padGrid(height:(compact ? 264:312)-(compact && (session.recording || session.armed) ? 24:0)).disabled(session.performance.replaying).allowsHitTesting(!session.performance.replaying)}
-            if !steps{Text("Touch to play · grid shapes the recording").font(.caption2).foregroundStyle(Color.muted).frame(maxWidth:.infinity,alignment:.leading)}
+            if !steps{HStack{Text("Touch to play · grid shapes the recording").font(.caption2).foregroundStyle(Color.muted);Spacer(minLength:4);RouteBadge(session:session)}.frame(maxWidth:.infinity,alignment:.leading)}
             // U12: an empty beat suggests how to start instead of showing nothing.
             if (drumPattern?.drums.isEmpty ?? true) && !session.recording && !session.armed {
                 EmptyStateCard(screen:"jam",symbol:"square.grid.2x2",message:"No beat yet. Record it on the pads or place hits on the steps.",actions:[
@@ -270,5 +270,21 @@ private struct JamBeatIndicator:View {
     var body:some View{
         let beat=session.armed && session.audio.countRemaining>0 ? max(0,4-Int(ceil(Double(session.audio.countRemaining)/session.audio.sampleRate*session.project.bpm/60))):Int(session.audio.tick/Double(ppq))%4
         return VStack(alignment:.leading,spacing:9){Text("Beat").font(.caption2.weight(.medium)).foregroundStyle(Color.muted);HStack(spacing:5){ForEach(0..<4,id:\.self){index in RoundedRectangle(cornerRadius:2,style:.continuous).fill(session.audio.playing && index==beat ? (session.armed ? Color.record:Color.mint):Color.outline).frame(width:index==0 ? 17:11,height:4)}}}.padding(.horizontal,12).frame(minHeight:64).background(Color.panel,in:RoundedRectangle(cornerRadius:Luz.Radius.card,style:.continuous)).accessibilityElement(children:.ignore).accessibilityLabel("Beat").accessibilityValue(session.audio.playing ? String(beat+1):NSLocalizedString("Stopped",comment:"Transport"))
+    }
+}
+
+/// U16 · Where the sound goes and how late it is (measured, or typical with "~").
+struct RouteBadge: View {
+    let session: Session
+    var body: some View {
+        let kind = session.routeKind, latency = session.routeLatencyDisplay
+        Label {
+            Text(verbatim: (latency.measured ? "≈" : "~") + "\(latency.milliseconds) ms")
+        } icon: { Image(systemName: kind.symbol) }
+            .font(.caption2.monospacedDigit())
+            .foregroundStyle(AudioRouteAdvice.warnsBeforeRecording(kind, measured: latency.measured ? Double(latency.milliseconds) : nil) ? Color.drums : Color.muted)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(Text("\(Text(LocalizedStringKey(kind.title))), about \(latency.milliseconds) ms"))
+            .accessibilityIdentifier("jam.route")
     }
 }

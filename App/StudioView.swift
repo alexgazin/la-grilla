@@ -57,6 +57,12 @@ struct StudioView: View {
         }}.modifier(SheetZoom(sheet:sheet,namespace:sheetZoom)).modifier(StudioQATypeSize()).scrollContentBackground(.hidden).tint(.mint).presentationDragIndicator(.visible).presentationBackground(Color.panel).presentationCornerRadius(Luz.Radius.sheet)}
         .sheet(isPresented:Binding(get:{session.shareURL != nil},set:{if !$0 {session.shareURL=nil}}),onDismiss:{session.finishSharing()}){if let url=session.shareURL{ShareView(url:url)}}
         .alert("La Grilla",isPresented:Binding(get:{session.message != nil},set:{if !$0{session.message=nil}})){Button("OK"){session.message=nil}}message:{Text(LocalizedStringKey(session.message ?? ""))}
+        // U16: a late route (Bluetooth, AirPlay, a measured delay over 60 ms) is named before recording.
+        .alert("Record over this route?",isPresented:$session.routeWarningPending){
+            Button("Record anyway"){session.recordAnyway()}.accessibilityIdentifier("route.record-anyway")
+            Button("Calibrate"){session.routeWarningPending=false;session.presentEditor(.settings)}
+            Button("Cancel",role:.cancel){session.routeWarningPending=false}
+        }message:{Text("\(Text(LocalizedStringKey(session.routeKind.title))) adds about \(session.routeLatencyDisplay.milliseconds) ms, so recorded hits may land late. Wired headphones or the speaker are better for recording.")}
 
     }
     /// Grid, Jam and Mixer replace each other with a short cross-fade and settle (no blur:

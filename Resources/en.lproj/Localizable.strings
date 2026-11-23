@@ -1630,3 +1630,14 @@
 "Lo-fi loop" = "Lo-fi loop";
 "EDM build and drop" = "EDM build and drop";
 "Short idea" = "Short idea";
+"Record over this route?" = "Record over this route?";
+"Record anyway" = "Record anyway";
+"Calibrate" = "Calibrate";
+"%@ adds about %lld ms, so recorded hits may land late. Wired headphones or the speaker are better for recording." = "%@ adds about %lld ms, so recorded hits may land late. Wired headphones or the speaker are better for recording.";
+"%@, about %lld ms" = "%@, about %lld ms";
+"Speaker" = "Speaker";
+"Wired" = "Wired";
+"USB audio" = "USB audio";
+"Bluetooth" = "Bluetooth";
+"AirPlay" = "AirPlay";
+"Audio output" = "Audio output";

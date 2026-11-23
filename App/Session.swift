@@ -531,9 +531,19 @@ import Observation
         if audio.playing {finishTake();audio.stop();Luz.Haptics.transportStop()}else if ensureAudio(){if audio.tick>=Double(loopRange.upperBound){audio.seek(loopRange.lowerBound)};audio.play();Luz.Haptics.transportStart()}
     }
     func rewind() {if performance.contextActive{Task{await leavePerformance();rewind()};return};finishTake();audio.stop();audio.seek(loopRange.lowerBound)}
+    /// U16 · Set when recording would start on a late route; the studio asks first.
+    var routeWarningPending=false
+    @ObservationIgnored private var routeWarningAccepted=false
+    var routeKind:AudioRouteKind{AudioRouteAdvice.kind(portTypes:audio.outputPortTypes)}
+    var routeLatencyDisplay:(milliseconds:Int,measured:Bool){AudioRouteAdvice.latency(routeKind,measured:routeLatency[currentRouteKey])}
+    func recordAnyway(){routeWarningAccepted=true;routeWarningPending=false;record()}
     func record() {
         guard !performance.contextActive else{message="Return to editing before recording a drum loop.";return}
         if recording || armed {finishTake();return}
+        if !routeWarningAccepted,!ProcessInfo.processInfo.arguments.contains("--uitesting") || ProcessInfo.processInfo.arguments.contains("--route-bluetooth"),
+           AudioRouteAdvice.warnsBeforeRecording(ProcessInfo.processInfo.arguments.contains("--route-bluetooth") ? .bluetooth:routeKind,measured:routeLatency[currentRouteKey]) {
+            routeWarningPending=true;return
+        }
         guard ensureAudio(),let track=project.tracks.first(where:{$0.role == .drums}),let clip=focusedDrumClip ?? track.clips.first(where:{$0.start<=section.start && $0.start+$0.length>section.start})else{return}
         do{drumDraft=try DrumRecordingDraft(project:project,clipID:clip.id)}catch{message=error.localizedDescription;return}
         audio.refreshClock()

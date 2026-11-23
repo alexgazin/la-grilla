@@ -194,6 +194,8 @@ private enum AudioRender {
         }
     }
     var isPrepared: Bool { engine?.isRunning == true }
+    /// U16: output port types of the current route, first first.
+    var outputPortTypes:[String]{AVAudioSession.sharedInstance().currentRoute.outputs.map{$0.portType.rawValue}}
     var wirelessOutput:Bool {
         AVAudioSession.sharedInstance().currentRoute.outputs.contains{[AVAudioSession.Port.bluetoothA2DP,.bluetoothHFP,.bluetoothLE,.airPlay].contains($0.portType)}
     }
