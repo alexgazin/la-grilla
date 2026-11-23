@@ -1729,3 +1729,6 @@
 "The root moves down a fourth: the move feels open, not final." = "Бас идёт на кварту вниз: ход звучит открыто, а не завершённо.";
 "The root slides by a semitone: smooth and dramatic." = "Бас сдвигается на полутон: плавно и драматично.";
 "The root steps by a tone: it walks rather than jumps." = "Бас шагает на тон: идёт, а не прыгает.";
+"Stop listening" = "Остановить";
+"Say an action" = "Сказать действие";
+"Listening… say an action, for example “tempo ninety”" = "Слушаю… скажи действие, например «темп девяносто»";

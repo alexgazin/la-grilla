@@ -8,6 +8,10 @@ struct CommandPaletteView: View {
     @State private var query = ""
     @FocusState private var focused: Bool
     @AppStorage(CommandMemory.pinnedKey) private var pinnedRaw = ""
+    /// U9 · Say the action instead of typing it (on-device speech, only while listening).
+    @State private var dictation = DictationController()
+    @State private var microphoneLease: UUID?
+    private var listening: Bool { dictation.recording || dictation.requesting || dictation.finalizing }
 
     private var matches: [CommandMatch] {
         let found = CommandMatcher.rank(query, recent: CommandMemory.recent)
@@ -30,9 +34,18 @@ struct CommandPaletteView: View {
                         Button { query = "" } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(Color.muted) }
                             .accessibilityLabel("Clear").frame(minWidth: 44, minHeight: 44)
                     }
+                    Button { listening ? stopDictation() : startDictation() } label: {
+                        Image(systemName: listening ? "stop.circle.fill" : "mic").foregroundStyle(listening ? Color.record : Color.mint)
+                            .symbolEffect(.pulse, isActive: dictation.recording)
+                    }
+                    .frame(minWidth: 44, minHeight: 44)
+                    .accessibilityLabel(LocalizedStringKey(listening ? "Stop listening" : "Say an action"))
+                    .accessibilityIdentifier("commands.voice")
                 }
                 .padding(.horizontal, 12).frame(minHeight: 48)
                 .background(Color.raised, in: RoundedRectangle(cornerRadius: Luz.Radius.cell, style: .continuous))
+                if dictation.recording { Label("Listening… say an action, for example “tempo ninety”", systemImage: "waveform").font(.caption).foregroundStyle(Color.record) }
+                if let error = dictation.error { Text(LocalizedStringKey(error)).font(.caption).foregroundStyle(Color.record) }
                 Text(query.isEmpty ? "Recent and suggested" : "Best matches").font(.caption.weight(.semibold)).foregroundStyle(Color.muted)
                 ScrollView {
                     VStack(spacing: 6) {
@@ -53,6 +66,35 @@ struct CommandPaletteView: View {
         .tint(.mint)
         .onAppear { focused = true }
         .presentationDetents([.medium, .large])
+        .onChange(of: dictation.text) { _, value in if !value.isEmpty { query = value } }
+        .onChange(of: listening) { _, now in
+            // When speech ends, a clear match runs at once (every action has one Undo);
+            // deleting a take still waits for a tap.
+            guard !now, !dictation.text.isEmpty, let best = matches.first, best.score >= 0.9, best.command != .deleteLastTake else { return }
+            run(best)
+        }
+        .onDisappear { stopDictation() }
+    }
+
+    private func startDictation() {
+        guard !listening else { return }
+        focused = false
+        guard session.ensureAudio() else { dictation.error = session.audio.error; return }
+        guard let lease = session.beginMicrophone(stop: { dictation.cancel() }) else { return }
+        microphoneLease = lease
+        let language = Locale.current.language.languageCode?.identifier == "ru" ? "ru-RU" : "en-US"
+        Task {
+            guard session.ownsMicrophone(lease) else { return }
+            let previousEngine = session.audio.captureEngine
+            await dictation.start(locale: language, audio: session.audio)
+            if session.audio.captureEngine !== previousEngine, session.audio.isPrepared { session.sync() }
+            if !dictation.recording { session.endMicrophone(lease); if microphoneLease == lease { microphoneLease = nil } }
+        }
+    }
+
+    private func stopDictation() {
+        dictation.stop()
+        if let lease = microphoneLease { microphoneLease = nil; session.endMicrophone(lease) }
     }
 
     private func detail(_ argument: CommandArgument?) -> String? {
