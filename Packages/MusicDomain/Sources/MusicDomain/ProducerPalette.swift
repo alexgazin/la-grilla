@@ -116,7 +116,7 @@ public enum PaletteEngine {
 
     /// Names given by the factory kit loader ("Dusty · Kick").
     static func isFactoryKitSound(_ name: String) -> Bool {
-        let prefixes = ["Pocket · ", "Dusty · ", "Coast · ", "808 Trap · ", "House · ", "Brushes · ", "World · ", NSLocalizedString("Pocket · %@", comment: "Pocket Kit sample").replacingOccurrences(of: "%@", with: "")]
+        let prefixes = FactoryDrumKit.allCases.map(\.samplePrefix) + [NSLocalizedString("Pocket · %@", comment: "Pocket Kit sample").replacingOccurrences(of: "%@", with: "")]
         return prefixes.contains { !$0.isEmpty && name.hasPrefix($0) }
     }
 
@@ -131,14 +131,15 @@ public enum PaletteEngine {
 
     /// The palette's drum kit as one-shot assets with their bytes, in pad order.
     public static func kit(_ palette: ProducerPalette) throws -> [(pad: Int, asset: SampleAsset, data: Data)] {
-        let prefix: String = switch palette.drumKit {
-        case .pocket: "Pocket · "; case .dusty: "Dusty · "; case .coast: "Coast · "
-        case .trap808: "808 Trap · "; case .house: "House · "; case .brushes: "Brushes · "; case .world: "World · "
-        }
-        return try Compiler.padNames.indices.map { pad in
-            let pcm = SamplePCM(rate: FactoryDrumKit.sampleRate, zones: [.init(pitch: 60, samples: try palette.drumKit.sample(pad: pad))])
+        try kit(palette.drumKit)
+    }
+
+    /// A factory kit as one-shot assets with their bytes, in pad order.
+    public static func kit(_ kit: FactoryDrumKit) throws -> [(pad: Int, asset: SampleAsset, data: Data)] {
+        try Compiler.padNames.indices.map { pad in
+            let pcm = SamplePCM(rate: FactoryDrumKit.sampleRate, zones: [.init(pitch: 60, samples: try kit.sample(pad: pad))])
             let data = try pcm.encode(kind: .oneShot)
-            let name = prefix + NSLocalizedString(Compiler.padNames[pad], comment: "Pad name")
+            let name = kit.samplePrefix + NSLocalizedString(Compiler.padNames[pad], comment: "Pad name")
             return (pad, try SampleAsset(kind: .oneShot, name: name, bytes: data), data)
         }
     }

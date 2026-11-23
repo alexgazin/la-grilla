@@ -9,6 +9,14 @@ enum FactoryInstrument: String, CaseIterable, Identifiable, Sendable {
     case electricPiano = "electric-piano"
     case marimba, vibraphone, organ
     case altoSax = "alto-sax", tenorSax = "tenor-sax", sopranoSax = "soprano-sax", baritoneSax = "baritone-sax"
+    /// Beat machine synths: 808s and basses, then leads, keys and pads (rendered on the device).
+    case sub808 = "synth-808-sub", punch808 = "synth-808-punch", dirty808 = "synth-808-dirty", logDrum = "synth-log-drum"
+    case reeseBass = "synth-reese-bass", acidBass = "synth-acid-bass", fingerBass = "synth-finger-bass", squareBass = "synth-square-bass"
+    case supersaw = "synth-supersaw", synthPluck = "synth-synth-pluck", bellKeys = "synth-bell-keys", lofiKeys = "synth-lofi-keys"
+    case synthBrass = "synth-synth-brass", stringPad = "synth-string-pad", choirPad = "synth-choir-pad", chipLead = "synth-chip-lead"
+
+    /// The on-device synth behind this instrument, if it is one.
+    var synth: FactorySynth? { rawValue.hasPrefix("synth-") ? FactorySynth(rawValue: String(rawValue.dropFirst(6))) : nil }
 
     var artwork: String { self == .ambientPad ? "instrument-ambient-pad" : (saxVoice == nil ? "instrument-" + id : "instrument-sax") }
 
@@ -27,7 +35,8 @@ enum FactoryInstrument: String, CaseIterable, Identifiable, Sendable {
     var id: String { rawValue }
 
     private var nameKey: String {
-        switch self {
+        if let synth { return synth.title }
+        return switch self {
         case .piano: "Acoustic piano"
         case .nylonGuitar: "Nylon guitar"
         case .flute: "Synth flute"
@@ -42,6 +51,7 @@ enum FactoryInstrument: String, CaseIterable, Identifiable, Sendable {
         case .tenorSax: "Tenor sax"
         case .sopranoSax: "Soprano sax"
         case .baritoneSax: "Baritone sax"
+        default: rawValue
         }
     }
 
@@ -79,6 +89,9 @@ extension SoundBankLibrary {
         let factoryDirectory = directory ?? Bundle.main.resourceURL?.appendingPathComponent("FactoryInstruments", isDirectory: true)
         if let timbre = ArrangerTimbre(rawValue: instrument.rawValue) {
             return try PreparedSound(name: instrument.displayName, instrumentData: timbre.sampleData(factoryDirectory: factoryDirectory), ringsOut: timbre == .gong)
+        }
+        if let synth = instrument.synth {
+            return try PreparedSound(name: instrument.displayName, kind: .instrument, pcm: synth.pcm())
         }
         if !instrument.isRecorded {
             return try PreparedSound(name: instrument.displayName, kind: .instrument, pcm: instrument.synthesize())
@@ -156,7 +169,7 @@ private extension FactoryInstrument {
                     let air = (white-previousNoise) * reed.breath * (0.4+exp(-22*t))
                     previousNoise=white
                     sample = (tone+air) * (1-exp(-t/reed.attack))
-                case .piano, .nylonGuitar, .flute, .bansuri, .gong, .ambientPad:
+                default:
                     throw SampleError.invalid
                 }
                 let attack = min(1, t * 350)

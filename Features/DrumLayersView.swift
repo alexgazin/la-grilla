@@ -53,6 +53,7 @@ struct DrumLayersView: View {
     private func beatTools(takes: [DrumTakes.Summary]) -> some View {
         Menu {
             Button("Variations of this beat…", systemImage: "wand.and.stars") { session.toolPatternID = pattern?.id; session.sheet = .variations }
+            Button("Beat machine…", systemImage: "square.grid.4x3.fill") { session.sheet = .beatMachine }
             Button("Starter grooves…", systemImage: "music.quarternote.3") { session.sheet = .grooves }
             Menu("Add a fill at the end", systemImage: "music.quarternote.3") {
                 ForEach(FillGenerator.Kind.allCases, id: \.self) { kind in

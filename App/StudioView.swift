@@ -73,6 +73,7 @@ struct StudioView: View {
         case .vj: StageVJView(session:session)
         case .help: HelpView(session:session)
         case .grooves: StarterGroovesView(session:session)
+        case .beatMachine: BeatMachineView(session:session)
         case .practicePlayer: PracticePlayerView(session:session)
         }}.safeAreaInset(edge:.bottom){if [.bass,.palettes,.lyrics,.harmony].contains(sheet){SheetMiniTransport(session:session)}}
         .modifier(SheetZoom(sheet:sheet,namespace:sheetZoom)).modifier(StudioQATypeSize()).scrollContentBackground(.hidden).tint(.mint).presentationDragIndicator(.visible).presentationBackground(Color.panel).presentationCornerRadius(Luz.Radius.sheet)}

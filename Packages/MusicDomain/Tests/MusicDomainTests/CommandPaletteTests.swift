@@ -44,6 +44,7 @@ struct CommandPaletteTests {
         ("ghjtrns", .projects), ("ассистент", .assistant), ("лаборатория гармонии", .harmony), ("палитра", .palettes),
         ("добавь мелодию", .addMelody), ("дублировать секцию", .duplicateSection), ("пиано ролл", .notes), ("луп", .loop),
         ("миди контроллер", .midiDevices), ("выступление", .perform), ("настройки баса", .bass), ("структура", .sections),
+        ("битмашина", .beatMachine), ("драм машина", .beatMachine), ("drum machine", .beatMachine), ("грувбокс", .beatMachine), ("808", .beatMachine),
     ])
     func plainQueriesFindTheirAction(query: String, command: CommandID) {
         #expect(top(query)?.command == command, "\(query) → \(String(describing: CommandMatcher.rank(query).prefix(3)))")

@@ -243,7 +243,7 @@ private struct InstrumentKeyboard: View {
             }.padding(.leading, 14)
             Spacer(minLength: 4)
             if let current {
-                Image(current.artwork).resizable().scaledToFill()
+                InstrumentArtwork(instrument: current)
                     .id(current.id).transition(Luz.Transition.replace(reduceMotion))
                     .frame(width: height * 1.2, height: height).clipped()
                     .mask(LinearGradient(stops: [.init(color: .clear, location: 0),
@@ -293,7 +293,7 @@ private struct InstrumentKeyboard: View {
         let selected = instrument.matches(name: track.instrumentSample?.name)
         return Button { choose(instrument, track: track) } label: {
             HStack(spacing: 8) {
-                Image(instrument.artwork).resizable().scaledToFill()
+                InstrumentArtwork(instrument: instrument)
                     .frame(width: compact ? 42 : 66, height: compact ? 42 : 72).clipped()
                 Text(instrument.displayName).font(.subheadline.weight(.semibold))
                     .foregroundStyle(Color.studioText).lineLimit(2)

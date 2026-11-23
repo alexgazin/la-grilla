@@ -131,7 +131,7 @@ struct SoundBankView: View {
                     Image(systemName: selected ? "checkmark.circle.fill" : "circle")
                         .foregroundStyle(selected ? Color.mint : Color.muted)
                     if case .included(let instrument) = choice {
-                        Image(instrument.artwork).resizable().scaledToFill()
+                        InstrumentArtwork(instrument: instrument)
                             .frame(width: 52, height: 52).clipShape(RoundedRectangle(cornerRadius:9,style:.continuous))
                             .accessibilityHidden(true)
                     }

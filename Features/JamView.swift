@@ -44,12 +44,13 @@ struct JamView: View {
             if session.recording || session.armed{recordingStatus}
             if steps {stepEditor.disabled(session.performance.contextActive)}else if dynamicType.isAccessibilitySize{accessiblePads}else{padGrid(height:(compact ? 264:312)-(compact && (session.recording || session.armed) ? 24:0)).disabled(session.performance.replaying).allowsHitTesting(!session.performance.replaying)}
             if !steps{HStack{Text("Touch to play · grid shapes the recording").font(.caption2).foregroundStyle(Color.muted);Spacer(minLength:4);RouteBadge(session:session)}.frame(maxWidth:.infinity,alignment:.leading)}
+            BeatMachineEntry{session.presentEditor(.beatMachine)}.disabled(session.performance.contextActive || session.recording || session.armed)
             // U12: an empty beat suggests how to start instead of showing nothing.
             if (drumPattern?.drums.isEmpty ?? true) && !session.recording && !session.armed {
                 EmptyStateCard(screen:"jam",symbol:"square.grid.2x2",message:"No beat yet. Record it on the pads or place hits on the steps.",actions:[
                     .init(title:"Record",symbol:"record.circle"){session.record()},
                     .init(title:"Steps",symbol:"square.grid.4x3.fill"){steps=true},
-                    .init(title:"Starter groove",symbol:"music.quarternote.3"){session.presentEditor(.grooves)}
+                    .init(title:"Beat machine",symbol:"square.grid.4x3.fill"){session.presentEditor(.beatMachine)}
                 ]).disabled(session.performance.contextActive)
             }
             // Musician feedback: every playing layer, with Mute, Solo and Clear in one place.

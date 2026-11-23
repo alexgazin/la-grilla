@@ -5,7 +5,7 @@ public enum CommandID: String, CaseIterable, Codable, Sendable {
     case play, record, undo, redo, loop
     case tempo, key, transpose, addSection, duplicateSection, addMelody, deleteLastTake
     case grid, jam, mixer, notes, voice, assistant, harmony, palettes, sections, bass, perform
-    case settings, projects, newProject, export, history, versions, trash, midiDevices, chordImport, lyrics, master, focusSection, practice, mood, doctor, earTraining, repeatLast, coNotes, vj, help, continueIdea, grooves, practicePlayer
+    case settings, projects, newProject, export, history, versions, trash, midiDevices, chordImport, lyrics, master, focusSection, practice, mood, doctor, earTraining, repeatLast, coNotes, vj, help, continueIdea, grooves, practicePlayer, beatMachine
 }
 
 /// What a command needs from the query.
@@ -123,6 +123,9 @@ public enum CommandCatalog {
               synonyms: ["help", "how", "tips", "справка", "помощь", "как пользоваться", "подсказки"]),
         .init(id: .continueIdea, title: "Continue for me", symbol: "arrow.forward.to.line", parameter: nil,
               synonyms: ["continue", "extend", "next part", "продолжи", "продолжить", "продолжи за меня", "следующая часть"]),
+        .init(id: .beatMachine, title: "Beat machine", symbol: "square.grid.4x3.fill", parameter: nil,
+              synonyms: ["beat machine", "drum machine", "groovebox", "beat maker", "sampler", "808", "hip hop beat", "trap beat", "sequencer",
+                         "битмашина", "драм машина", "драм-машина", "грувбокс", "битмейкер", "сделать бит", "секвенсор", "пресеты битов"]),
         .init(id: .grooves, title: "Starter grooves", symbol: "music.quarternote.3", parameter: nil,
               synonyms: ["grooves", "ready beat", "drum pattern", "groove", "готовый бит", "грув", "ритм по жанру", "стартовые грувы"]),
         .init(id: .practicePlayer, title: "Work out a song", symbol: "ear.badge.waveform", parameter: nil,
