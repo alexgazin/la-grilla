@@ -1461,3 +1461,9 @@
 "Delete take" = "Удалить дубль";
 "More for take %lld" = "Ещё для дубля %lld";
 "Take %lld · %lld" = "Дубль %lld · %lld";
+"LISTEN" = "ПОСЛУШАТЬ";
+"Listen to" = "Что слушать";
+"MIDI + beat" = "MIDI с битом";
+"Your recording exactly as it was captured." = "Твоя запись в точности такой, какой её записал микрофон.";
+"Only the recognised notes, on the melody sound. Nothing is added to the project until you apply the melody." = "Только распознанные ноты, звуком мелодии. В проект ничего не попадёт, пока не нажмёшь «Применить мелодию».";
+"The notes in the section with the beat, as they will sound in the song. Nothing is added to the project until you apply the melody." = "Ноты в секции вместе с битом — так они прозвучат в песне. В проект ничего не попадёт, пока не нажмёшь «Применить мелодию».";

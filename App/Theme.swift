@@ -278,6 +278,8 @@ struct StudioSegments<Value: Equatable>: View {
     let title: LocalizedStringKey
     @Binding var selection: Value
     let options: [(Value, LocalizedStringKey)]
+    /// Optional UI-test prefix: segment N gets "<identifier>.<N>".
+    var identifier: String? = nil
     @Namespace private var puck
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -321,6 +323,7 @@ struct StudioSegments<Value: Equatable>: View {
         }
         .buttonStyle(StudioQuietButtonStyle())
         .accessibilityAddTraits(selected ? .isSelected : [])
+        .accessibilityIdentifier(identifier.map { "\($0).\(index)" } ?? "")
     }
 }
 

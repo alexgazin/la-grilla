@@ -1459,3 +1459,9 @@
 "Delete take" = "Delete take";
 "More for take %lld" = "More for take %lld";
 "Take %lld · %lld" = "Take %lld · %lld";
+"LISTEN" = "LISTEN";
+"Listen to" = "Listen to";
+"MIDI + beat" = "MIDI + beat";
+"Your recording exactly as it was captured." = "Your recording exactly as it was captured.";
+"Only the recognised notes, on the melody sound. Nothing is added to the project until you apply the melody." = "Only the recognised notes, on the melody sound. Nothing is added to the project until you apply the melody.";
+"The notes in the section with the beat, as they will sound in the song. Nothing is added to the project until you apply the melody." = "The notes in the section with the beat, as they will sound in the song. Nothing is added to the project until you apply the melody.";

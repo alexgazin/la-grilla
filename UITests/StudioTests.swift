@@ -320,7 +320,7 @@ final class StudioTests: XCTestCase {
     }
     @MainActor func testVoiceFixtureAnalyzePreviewApplyUndoAndPortableExport() {
         let app=launch("voice-draft");XCTAssertTrue(app.staticTexts["voice.note-count"].waitForExistence(timeout:15));XCTAssertEqual(app.staticTexts["voice.note-count"].label,"3 notes")
-        app.swipeUp();app.buttons["voice.original"].tap();app.buttons["voice.instrument"].tap();app.swipeUp();app.swipeUp()
+        app.swipeUp();app.buttons["voice.play"].tap();app.buttons["voice.listen.2"].tap();app.swipeUp();app.swipeUp()
         XCTAssertTrue(app.buttons["voice.apply"].waitForExistence(timeout:5));app.buttons["voice.apply"].tap()
         XCTAssertTrue(app.buttons["Undo"].waitForExistence(timeout:5));app.buttons["Undo"].tap();app.buttons["Redo"].tap()
         app.buttons["export.open"].tap();app.buttons["format.project"].tap();app.buttons["export.confirm"].tap()
