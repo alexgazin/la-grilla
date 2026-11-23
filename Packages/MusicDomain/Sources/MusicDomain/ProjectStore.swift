@@ -13,8 +13,17 @@ public struct ProjectSummary: Equatable, Sendable, Identifiable {
     public let modified: Date
     public let schemaVersion: Int
     public let trackCount: Int
+    /// U33: the song's sections in order, for the preview in the project list.
+    public var sections: [SectionPreview] = []
     public var length: Int { bars * barTicks }
     public var keyName: String { Chord.roots[keyRoot] + " " + NSLocalizedString(minor ? "minor" : "major", comment: "Key mode") }
+}
+
+/// U33 · One block of the form strip shown on a project card.
+public struct SectionPreview: Equatable, Sendable {
+    public let name: String
+    public let bars: Int
+    public let color: Int?
 }
 
 private struct ProjectSummaryDocument: Decodable {
@@ -22,7 +31,7 @@ private struct ProjectSummaryDocument: Decodable {
     private enum Keys: String, CodingKey {
         case id, name, bpm, keyRoot, minor, revision, modified, schemaVersion, sections, tracks, performanceTakes
     }
-    private enum SectionKeys: String, CodingKey { case start, length }
+    private enum SectionKeys: String, CodingKey { case start, length, name, color }
     private enum TakeKeys: String, CodingKey { case source }
 
     init(from decoder: Decoder) throws {
@@ -45,12 +54,16 @@ private struct ProjectSummaryDocument: Decodable {
         var sections = try value.nestedUnkeyedContainer(forKey: .sections)
         guard let sectionCount = sections.count, (1...maximumSections).contains(sectionCount) else { throw MusicError.invalidProject }
         var end = 0
+        var previews: [SectionPreview] = []
         while !sections.isAtEnd {
             let section = try sections.nestedContainer(keyedBy: SectionKeys.self)
             let start = try section.decode(Int.self, forKey: .start)
             let length = try section.decode(Int.self, forKey: .length)
             guard start == end, length > 0, length <= songTickLimit,
                   length % barTicks == 0, length <= songTickLimit - end else { throw MusicError.invalidProject }
+            let title = (try? section.decodeIfPresent(String.self, forKey: .name)) ?? nil
+            let color = (try? section.decodeIfPresent(Int.self, forKey: .color)) ?? nil
+            previews.append(SectionPreview(name: String((title ?? "").prefix(120)), bars: length / barTicks, color: color))
             end += length
         }
         // A future frozen source must not appear compatible merely because the
@@ -71,7 +84,7 @@ private struct ProjectSummaryDocument: Decodable {
         }
         summary = ProjectSummary(id: id, name: name, bpm: bpm, keyRoot: keyRoot, minor: minor,
                                  bars: end / barTicks, revision: revision, modified: modified,
-                                 schemaVersion: version, trackCount: trackCount)
+                                 schemaVersion: version, trackCount: trackCount, sections: previews)
     }
 }
 

@@ -2187,3 +2187,19 @@
 "Add to favorites" = "В избранное";
 "Start with a beat" = "Начать с бита";
 "Makes a project at the genre's tempo in the key below and opens its beat to hear and change." = "Создаёт проект в темпе жанра и в тональности ниже и открывает его бит, чтобы послушать и поменять.";
+
+/* Comfort, master words */
+"One" = "Раз";
+"Two" = "Два";
+"Three" = "Три";
+"Four" = "Четыре";
+"Feel the beat (haptics on every beat)" = "Чувствовать долю (вибрация на каждой доле)";
+"Count in out loud before a take" = "Отсчёт голосом перед дублем";
+"Show what plays as captions" = "Подписи: что сейчас звучит";
+"High-contrast grid" = "Контрастная сетка";
+"Louder" = "Громче";
+"Quieter" = "Тише";
+"Brighter" = "Ярче";
+"Warmer" = "Теплее";
+"More space" = "Больше простора";
+"Drier" = "Суше";

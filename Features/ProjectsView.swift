@@ -58,7 +58,7 @@ struct ProjectsView: View {
             Menu{Picker("Sort by",selection:$orderRaw){ForEach(ProjectOrdering.allCases,id:\.rawValue){order in Text(LocalizedStringKey(order.title)).tag(order.rawValue)}}}label:{Image(systemName:"arrow.up.arrow.down").frame(width:44,height:44)}.accessibilityLabel("Sort projects").accessibilityIdentifier("project.sort")}
         if session.entries.count>3{HStack(spacing:8){Image(systemName:"magnifyingglass").foregroundStyle(Color.muted).accessibilityHidden(true);TextField("Search by name, tempo or key",text:$query).textFieldStyle(.plain).accessibilityIdentifier("project.search");if !query.isEmpty{Button{query=""}label:{Image(systemName:"xmark.circle.fill").foregroundStyle(Color.muted)}.accessibilityLabel("Clear")}}.padding(.horizontal,12).frame(minHeight:44).background(Color.panel,in:Capsule(style:.continuous)).overlay{Capsule(style:.continuous).strokeBorder(Color.outline.opacity(0.8),lineWidth:0.75)}}
         ForEach(visibleEntries){entry in
-            if let p=entry.summary {HStack(spacing:14){VStack(spacing:3){ForEach(0..<3){row in HStack(spacing:2){ForEach(0..<4){bar in RoundedRectangle(cornerRadius:1,style:.continuous).fill((row==0 ? Color.harmony:row==1 ? Color.drums:Color.bass).opacity(row==2 && p.trackCount<3 ? 0.08:0.6)).frame(width:8,height:row==0 ? 12:4)}}}}.frame(width:48,height:48).background(Color.raised,in:RoundedRectangle(cornerRadius:7,style:.continuous))
+            if let p=entry.summary {HStack(spacing:14){ProjectFormThumbnail(summary:p,hidden:privateIDs.contains(entry.id)).frame(width:48,height:48).background(Color.raised,in:RoundedRectangle(cornerRadius:7,style:.continuous))
                 Button{open(entry.id)}label:{VStack(alignment:.leading,spacing:6){HStack(spacing:4){if privateIDs.contains(entry.id){Image(systemName:"lock.fill").font(.caption).foregroundStyle(Color.muted).accessibilityLabel("Private")};Text(privateIDs.contains(entry.id) ? NSLocalizedString("Private project",comment:"Hidden name"):p.name).font(.system(.body,weight:.medium)).foregroundStyle(.primary)};Text("\(Int(p.bpm)) BPM · \(MusicalNotation.pitchClassName(p.keyRoot,keyRoot:p.keyRoot,minor:p.minor,spelling:PitchSpelling(rawValue:spellingValue) ?? .automatic)+" "+NSLocalizedString(p.minor ? "minor":"major",comment:"Key mode")) · \(p.length/barTicks) bars").font(.system(.caption)).foregroundStyle(Color.muted);Text(p.modified,style:.relative).font(.system(.caption2)).foregroundStyle(Color.muted)}}.buttonStyle(StudioQuietButtonStyle()).accessibilityIdentifier("project.open."+entry.id.uuidString);Spacer();Menu{Button("Open"){open(entry.id)};Button(privateIDs.contains(entry.id) ? "Stop hiding":"Hide behind Face ID",systemImage:privateIDs.contains(entry.id) ? "lock.open":"lock"){togglePrivate(entry.id)};Button(pinned.contains(entry.id) ? "Unpin":"Pin to top",systemImage:pinned.contains(entry.id) ? "pin.slash":"pin"){togglePin(entry.id)};Button("Rename"){renameID=entry.id;name=p.name};Button("Duplicate"){Task{await session.duplicateStored(entry.id)}};Button("Delete",role:.destructive){deleting=entry.id}}label:{Image(systemName:"ellipsis").foregroundStyle(Color.muted).frame(width:44,height:44)}}.padding(.vertical,8).overlay(alignment:.bottom){Rectangle().fill(Color.raised).frame(height:1)}
                 .luzScrollDepth().luzEntrance(session.entries.firstIndex(where:{$0.id==entry.id}) ?? 0)
             }else{VStack(alignment:.leading,spacing:8){Label("Project needs recovery",systemImage:"exclamationmark.triangle");Text(LocalizedStringKey(entry.error ?? "Could not read project")).font(.caption).foregroundStyle(Color.muted);Button("Retry"){Task{await session.openStored(entry.id)}};if entry.hasBackup{Button("Recover last working copy"){Task{await session.recover(entry.id)}}}}.padding()}
@@ -203,5 +203,32 @@ private struct RecentlyDeletedList: View {
                 }
             }
         }
+    }
+}
+
+/// U33 · The song's form at a glance: one coloured block per section, as wide as its bars,
+/// with chord, beat and bass rows. Private projects show a neutral tile.
+private struct ProjectFormThumbnail: View {
+    let summary: ProjectSummary
+    let hidden: Bool
+    var body: some View {
+        Canvas { context, size in
+            let sections = hidden || summary.sections.isEmpty ? [SectionPreview(name: "", bars: max(1, summary.bars), color: nil)] : summary.sections
+            let total = Double(max(1, sections.reduce(0) { $0 + $1.bars }))
+            let inset = 6.0, width = size.width - inset * 2
+            var x = inset
+            for preview in sections {
+                let w = max(2, width * Double(preview.bars) / total)
+                var section = MusicDomain.Section(name: preview.name.isEmpty ? "?" : preview.name, length: barTicks)
+                section.color = preview.color
+                let tint = hidden ? Color.muted : SongFormStyle.color(for: section)
+                let rows: [(Double, Double, Double)] = [(10, 11, 0.85), (24, 5, 0.6), (33, 5, summary.trackCount < 3 ? 0.15 : 0.45)]
+                for (y, h, alpha) in rows {
+                    context.fill(Path(roundedRect: CGRect(x: x, y: y, width: max(1, w - 2), height: h), cornerRadius: 1.5), with: .color(tint.opacity(alpha)))
+                }
+                x += w
+            }
+        }
+        .accessibilityHidden(true)
     }
 }

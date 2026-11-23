@@ -15,6 +15,16 @@
 			"isa" = "PBXBuildFile";
 			"fileRef" = "2A75615F95238FEBBA7EA4F2";
 		};
+		"561B691A049B9D1DC2E41C24" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "App/ComfortCompanions.swift";
+			"sourceTree" = "SOURCE_ROOT";
+		};
+		"58232607B8A972171C296D00" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "561B691A049B9D1DC2E41C24";
+		};
 		"5A9B3E8218CBCFC89995E5DB" = {
 			"isa" = "PBXFileReference";
 			"lastKnownFileType" = "sourcecode.swift";
@@ -109,6 +119,7 @@
 			"isa" = "PBXGroup";
 			"children" = (
 				"2A75615F95238FEBBA7EA4F2",
+				"561B691A049B9D1DC2E41C24",
 				"5A9B3E8218CBCFC89995E5DB",
 				"4B25EAF2511363FC25748C69",
 				"93DF114FFA953E365D2E236E",
@@ -1525,6 +1536,7 @@
 			"buildActionMask" = 2147483647;
 			"files" = (
 				"469B936F4918A75C4DBC701F",
+				"58232607B8A972171C296D00",
 				"4389F449C20F4539F3940DDE",
 				"46F26FACCB07A642D19775B6",
 				"D9F5D983A6FBAFEDF6B3AB97",

@@ -124,3 +124,37 @@ struct SoundSearchTests {
         #expect(recent.ids.filter { $0 == "a" }.count <= 1)
     }
 }
+
+struct ProjectPreviewTests {
+    @Test func summaryCarriesTheFormForTheCardPreview() async throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("preview-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let store = ProjectStore(root: folder)
+        var project = Project.demo()
+        try SectionEditing.append(name: "Chorus", bars: 8, to: &project)
+        project.sections[1].color = 2
+        _ = try await store.save(project)
+        let summary = try #require(await store.summary(project.id).summary)
+        #expect(summary.sections == [SectionPreview(name: "Verse", bars: 4, color: nil), SectionPreview(name: "Chorus", bars: 8, color: 2)])
+        #expect(summary.bars == 12)
+    }
+}
+
+struct MasterTweakTests {
+    @Test func wordsMoveTheMasterInSmallBoundedSteps() throws {
+        var project = Project.demo()
+        let start = project.master
+        MasterTweak.louder.apply(to: &project)
+        #expect(project.master == start + 1.5)
+        for _ in 0..<20 { MasterTweak.louder.apply(to: &project) }
+        #expect(project.master == 6)
+        MasterTweak.brighter.apply(to: &project); MasterTweak.warmer.apply(to: &project)
+        #expect(project.masterEQ?.bands[3].gain == 0.5 && project.masterEQ?.bands[0].gain == 1.5)
+        for _ in 0..<12 { MasterTweak.moreSpace.apply(to: &project) }
+        #expect(project.masterFX?.delayWet == 0.5)
+        try project.validate()
+        let top = CommandMatcher.rank("сделай громче").first?.command
+        #expect(top == .louder)
+        #expect(CommandMatcher.rank("теплее").first?.command == .warmer)
+    }
+}

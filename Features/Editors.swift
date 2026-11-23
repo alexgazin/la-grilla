@@ -139,6 +139,10 @@ struct SettingsView: View {
     @AppStorage("studio.visualMetronome") private var visualMetronome=false
     @AppStorage("studio.leftHanded") private var leftHanded=false
     @AppStorage("studio.recordLock") private var recordLock=false
+    @AppStorage("studio.hapticBeats") private var hapticBeats=false
+    @AppStorage("studio.voiceCountIn") private var voiceCountIn=false
+    @AppStorage("studio.hitCaptions") private var hitCaptions=false
+    @AppStorage("studio.gridContrast") private var gridContrast=false
     @AppStorage("studio.showSeconds") private var showSeconds=false
     @State private var settingsFile:URL?
     @State private var importingSettings=false
@@ -186,6 +190,11 @@ struct SettingsView: View {
             Toggle("Lock the screen while recording",isOn:$recordLock).accessibilityIdentifier("settings.record-lock")
             Toggle("Show time in minutes and seconds",isOn:$showSeconds).accessibilityIdentifier("settings.show-seconds")
             Toggle("Suggest the next step",isOn:Binding(get:{!nextStepOff},set:{nextStepOff = !$0})).accessibilityIdentifier("settings.next-step")
+            // U41 · U43 · U57 · U59
+            Toggle("Feel the beat (haptics on every beat)",isOn:$hapticBeats).accessibilityIdentifier("settings.haptic-beats")
+            Toggle("Count in out loud before a take",isOn:$voiceCountIn).accessibilityIdentifier("settings.voice-count-in")
+            Toggle("Show what plays as captions",isOn:$hitCaptions).accessibilityIdentifier("settings.hit-captions")
+            Toggle("High-contrast grid",isOn:$gridContrast).accessibilityIdentifier("settings.grid-contrast")
         }
         audioSettings
         Section("Backup"){BackupRows(session:session)

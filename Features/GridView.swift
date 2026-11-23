@@ -65,6 +65,8 @@ struct GridView: View {
     @State private var barWidth: CGFloat = 96
     /// U48: a double tap on a section chip renames it.
     @State private var renamingSection: UUID?
+    /// U59: stronger contrast for the grid.
+    @AppStorage("studio.gridContrast") private var gridContrast = false
     @State private var renameText = ""
     @State private var selection: ChordSelection?
     @State private var dragStart: Int?
@@ -111,7 +113,7 @@ struct GridView: View {
         return clipMode ? min(64,max(base+4,resized)):base
     }
     var body: some View {
-        gridBody.renameAlert("Rename section",item:$renamingSection,text:$renameText,limit:120){id,name in
+        gridBody.contrast(gridContrast ? 1.35 : 1).saturation(gridContrast ? 1.15 : 1).renameAlert("Rename section",item:$renamingSection,text:$renameText,limit:120){id,name in
             session.edit{p in if let i=p.sections.firstIndex(where:{$0.id==id}){p.sections[i].name=name}}
         }
     }

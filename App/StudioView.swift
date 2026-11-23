@@ -37,6 +37,7 @@ struct StudioView: View {
         .background{StudioKeyCommands(session:session)}
         .overlay(alignment:.top){if visualMetronome && session.audio.playing{VisualMetronome(session:session).allowsHitTesting(false)}}
         .background{BarAnnouncer(audio:session.audio)}
+        .overlay(alignment:.bottom){ComfortCompanions(session:session)}
         .overlay(alignment:.top){if let toast=session.toast{Label(LocalizedStringKey(toast),systemImage:toast=="Undo" ? "arrow.uturn.backward":toast=="Redo" ? "arrow.uturn.forward":"checkmark.circle").font(.subheadline.weight(.semibold)).padding(.horizontal,16).padding(.vertical,10).modifier(StudioNavigationSurface()).padding(.top,8).transition(Luz.Transition.drop(reduceMotion)).accessibilityAddTraits(.updatesFrequently).allowsHitTesting(false)}}
         .animation(reduceMotion ? .easeOut(duration:0.15):Luz.Motion.morph,value:session.toast)
         .sheet(item:$session.sheet,onDismiss:{if let url=session.exportedURL{session.shareURL=url;session.exportedURL=nil}}){sheet in Group{switch sheet {

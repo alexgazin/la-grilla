@@ -525,6 +525,11 @@ import Observation
         case .grooves: presentEditor(.grooves)
         case .beatMachine: presentEditor(.beatMachine)
         case .tuner: presentEditor(.tuner)
+        case .louder, .quieter, .brighter, .warmer, .moreSpace:
+            // I61: mastering in words, one Undo each.
+            let tweak: MasterTweak = switch id { case .louder: .louder; case .quieter: .quieter; case .brighter: .brighter; case .warmer: .warmer; default: .moreSpace }
+            edit { tweak.apply(to: &$0) }
+            showToast(tweak.title)
         case .markers: presentEditor(.markers)
         case .dynamics: presentEditor(.dynamics)
         case .practicePlayer: presentEditor(.practicePlayer)

@@ -5,7 +5,7 @@ public enum CommandID: String, CaseIterable, Codable, Sendable {
     case play, record, undo, redo, loop
     case tempo, key, transpose, addSection, duplicateSection, addMelody, deleteLastTake
     case grid, jam, mixer, notes, voice, assistant, harmony, palettes, sections, bass, perform
-    case settings, projects, newProject, export, history, versions, trash, midiDevices, chordImport, lyrics, master, focusSection, practice, mood, doctor, earTraining, repeatLast, coNotes, vj, help, continueIdea, grooves, practicePlayer, beatMachine, tuner, markers, dynamics
+    case settings, projects, newProject, export, history, versions, trash, midiDevices, chordImport, lyrics, master, focusSection, practice, mood, doctor, earTraining, repeatLast, coNotes, vj, help, continueIdea, grooves, practicePlayer, beatMachine, tuner, markers, dynamics, louder, quieter, brighter, warmer, moreSpace
 }
 
 /// What a command needs from the query.
@@ -126,6 +126,16 @@ public enum CommandCatalog {
         .init(id: .beatMachine, title: "Beat machine", symbol: "square.grid.4x3.fill", parameter: nil,
               synonyms: ["beat machine", "drum machine", "groovebox", "beat maker", "sampler", "808", "hip hop beat", "trap beat", "sequencer",
                          "битмашина", "драм машина", "драм-машина", "грувбокс", "битмейкер", "сделать бит", "секвенсор", "пресеты битов"]),
+        .init(id: .louder, title: "Louder", symbol: "speaker.plus", parameter: nil,
+              synonyms: ["louder", "make it louder", "volume up", "громче", "сделай громче", "погромче", "прибавь громкость"]),
+        .init(id: .quieter, title: "Quieter", symbol: "speaker.minus", parameter: nil,
+              synonyms: ["quieter", "softer", "volume down", "тише", "сделай тише", "потише", "убавь громкость"]),
+        .init(id: .brighter, title: "Brighter", symbol: "sun.max", parameter: nil,
+              synonyms: ["brighter", "more highs", "crisper", "ярче", "сделай ярче", "больше верхов", "звонче"]),
+        .init(id: .warmer, title: "Warmer", symbol: "flame", parameter: nil,
+              synonyms: ["warmer", "more low end", "softer highs", "теплее", "сделай теплее", "больше низов", "мягче"]),
+        .init(id: .moreSpace, title: "More space", symbol: "sparkles", parameter: nil,
+              synonyms: ["more space", "more echo", "wider", "больше простора", "больше эха", "просторнее", "объёмнее"]),
         .init(id: .tuner, title: "Tuner", symbol: "tuningfork", parameter: nil,
               synonyms: ["tuner", "tune guitar", "tune", "pitch", "тюнер", "настроить гитару", "настройка гитары", "строй", "настроить"]),
         .init(id: .markers, title: "Markers", symbol: "flag", parameter: nil,
