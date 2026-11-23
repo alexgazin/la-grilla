@@ -561,6 +561,8 @@ struct GridView: View {
             }
         })
         .contextMenu {
+            // U29: hear the chord without changing anything.
+            if let event{Button("Hear this chord",systemImage:"speaker.wave.2"){session.audio.preview(event.chord)}}
             Button("Change by voice",systemImage:"mic"){session.editByVoice(at:slice.timelineTick)}
             if let event {
                 Button("Delete chord",role:.destructive) {
