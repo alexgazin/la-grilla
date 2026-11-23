@@ -174,6 +174,7 @@ struct MixerView: View {
                 Toggle("Limiter at −1 dBFS", isOn: Binding(get: { session.project.masterFX?.limiter == true }, set: { on in
                     session.edit { p in var fx = p.masterFX ?? MasterFX(); fx.limiter = on ? true : nil; p.masterFX = fx }
                 }))
+                Button("Prepare for release…", systemImage: "gauge.with.dots.needle.67percent") { session.presentEditor(.master) }
             } label: { headingLabel(track: nil, color: color) }
                 .accessibilityIdentifier("mixer.master-menu")
                 .disabled(session.performance.contextActive)

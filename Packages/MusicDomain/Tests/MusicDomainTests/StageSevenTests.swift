@@ -56,3 +56,45 @@ struct DAWPackageTests {
         #expect(extras[0].data.starts(with: Array("MThd".utf8)))
     }
 }
+
+struct MasterAssistantTests {
+    @Test func aQuietMixIsRaisedToTheTargetWithTheLimiterOnlyWhenPeaksNeedIt() {
+        let quiet = LoudnessMeter.Measurement(integratedLUFS: -20, samplePeak: pow(10, -10.0 / 20))
+        let lift = MasterAssistant.suggest(measured: quiet, currentMaster: -3, target: .streaming)
+        #expect(lift.master == 3 && lift.predictedLUFS == -14 && lift.advice == "louder")
+        #expect(lift.limiter == false && lift.limiterReduction == 0)
+        let peaky = LoudnessMeter.Measurement(integratedLUFS: -18, samplePeak: pow(10, -2.0 / 20))
+        let limited = MasterAssistant.suggest(measured: peaky, currentMaster: -3, target: .streaming)
+        #expect(limited.limiter && limited.limiterReduction == 3)
+    }
+
+    @Test func tooLoudStopsAtSixDecibelsOfLimitingAndQuietTargetsLowerTheMaster() {
+        let dense = LoudnessMeter.Measurement(integratedLUFS: -20, samplePeak: 1)
+        let club = MasterAssistant.suggest(measured: dense, currentMaster: -3, target: .club)
+        #expect(club.advice == "tooLoud" && club.limiterReduction == 6 && club.predictedLUFS < MasterTarget.club.lufs)
+        let loud = LoudnessMeter.Measurement(integratedLUFS: -10, samplePeak: pow(10, -1.5 / 20))
+        let apple = MasterAssistant.suggest(measured: loud, currentMaster: 0, target: .appleMusic)
+        #expect(apple.master == -6 && apple.advice == "quieter" && !apple.limiter)
+        #expect(MasterAssistant.suggest(measured: .init(integratedLUFS: -200, samplePeak: 0), currentMaster: -3, target: .streaming).advice == "silent")
+    }
+}
+
+struct HarmonyExplainerTests {
+    @Test(arguments: [
+        (0, Quality.major, false, "I", "tonic"), (9, .minor, false, "vi", "tonic"), (5, .major, false, "IV", "subdominant"),
+        (7, .seventh, false, "V", "dominant"), (10, .major, false, "♭VII", "borrowed"), (2, .minor, false, "ii", "subdominant"),
+        (9, .minor, true, "i", "tonic"), (2, .minor, true, "iv", "subdominant"), (4, .major, true, "V", "dominant"), (5, .major, true, "VI", "tonic"),
+    ])
+    func degreesAndFunctions(root: Int, quality: Quality, minor: Bool, degree: String, function: String) {
+        let key = minor ? 9 : 0
+        let result = HarmonyExplainer.explain(Chord(root: root, quality: quality), previous: nil, keyRoot: key, minor: minor)
+        #expect(result.degree == degree, "\(root)\(quality.rawValue) → \(result.degree)")
+        #expect(result.function == function)
+        #expect(!result.text.isEmpty)
+    }
+
+    @Test func rootMotionIsNamed() {
+        let toC = HarmonyExplainer.explain(Chord(root: 0), previous: Chord(root: 7, quality: .seventh), keyRoot: 0, minor: false)
+        #expect(toC.text.contains("up a fourth"))
+    }
+}

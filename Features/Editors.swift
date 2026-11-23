@@ -4,6 +4,8 @@ import MusicDomain
 import UniformTypeIdentifiers
 struct ChordEditor: View {
     @Bindable var session: Session; let selection: ChordSelection
+    /// The chord just before this one in its pattern (for I16's root-motion note).
+    private var previousChord:Chord?{session.project.patterns.first{$0.id==selection.patternID}?.chords.filter{$0.tick<selection.tick}.max{$0.tick<$1.tick}?.chord}
     @AppStorage("studio.pitchSpelling") private var spellingValue = PitchSpelling.automatic.rawValue
     @AppStorage("studio.showDegrees") private var showDegrees = false
     private var spelling:PitchSpelling { PitchSpelling(rawValue:spellingValue) ?? .automatic }
@@ -23,6 +25,8 @@ struct ChordEditor: View {
             }.foregroundStyle(Color.harmony)
                 // Luz: the symbol and its notes morph as the chord changes (inversion, octave, quality).
                 .contentTransition(.interpolate).animation(Luz.Motion.morph,value:chord)
+            // I16: why this chord sounds the way it does in this key, after the chord before it.
+            ChordWhyRow(chord:chord,previous:previousChord,keyRoot:session.project.keyRoot,minor:session.project.minor)
             HStack{TextField("Chord symbol",text:$text).focused($focusedField,equals:.symbol).textInputAutocapitalization(.never).autocorrectionDisabled().textFieldStyle(.roundedBorder).frame(minHeight:44).onSubmit{parse()}.accessibilityIdentifier("chord.symbol");Button{parse()}label:{Text("Set").frame(minWidth:44,minHeight:44).contentShape(Rectangle())}.accessibilityIdentifier("chord.set-symbol")}.luzShake(error)
             if let error{Text(LocalizedStringKey(error)).font(.caption).foregroundStyle(Color.record).accessibilityIdentifier("chord.error").transition(Luz.Transition.pop(reduceMotion))}
             SmallHeading(text:"ROOT")
@@ -95,6 +99,30 @@ struct ChordEditor: View {
         let revision=session.project.revision
         session.edit{p in guard let i=p.patterns.firstIndex(where:{$0.id==selection.patternID})else{throw HarmonyError.stale};p.patterns[i].chords.removeAll(where:{$0.tick<selection.tick+duration && $0.tick+$0.duration>selection.tick});p.patterns[i].chords.append(ChordEvent(tick:selection.tick,duration:duration,chord:chord))}
         if session.project.revision>revision{dismiss()}
+    }
+}
+/// I16 · "Why it sounds": degree, function and the root motion from the chord before.
+struct ChordWhyRow: View {
+    let chord: Chord
+    let previous: Chord?
+    let keyRoot: Int
+    let minor: Bool
+    @State private var open = false
+    var body: some View {
+        let why = HarmonyExplainer.explain(chord, previous: previous, keyRoot: keyRoot, minor: minor)
+        DisclosureGroup(isExpanded: $open) {
+            Text(verbatim: why.sentences.map { NSLocalizedString($0, comment: "Why it sounds") }.joined(separator: " ")).font(.callout).foregroundStyle(Color.studioText).fixedSize(horizontal: false, vertical: true).padding(.top, 6)
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "questionmark.circle").accessibilityHidden(true)
+                Text("Why it sounds like this")
+                Spacer()
+                Text(verbatim: why.degree).font(.callout.monospaced().weight(.semibold))
+                Text(LocalizedStringKey(why.function.capitalized)).font(.caption).foregroundStyle(Color.muted)
+            }.frame(minHeight: 44)
+        }
+        .font(.subheadline).tint(.harmony)
+        .accessibilityIdentifier("chord.why")
     }
 }
 struct SettingsView: View {
