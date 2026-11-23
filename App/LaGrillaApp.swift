@@ -10,7 +10,13 @@ import MusicDomain
         if let index=ProcessInfo.processInfo.arguments.firstIndex(of:"--appearance"),ProcessInfo.processInfo.arguments.count>index+1{appearance=ProcessInfo.processInfo.arguments[index+1]=="light" ? 1:2}
         await session.bootstrap()
         if !ProcessInfo.processInfo.arguments.contains("--uitesting") { LocalDiagnostics.shared.start() }
-        if LaunchRequest.take() == .newBeat { session.openTrackBuilder() }
+        // UI fixture: behave as if Siri or Shortcuts had just run an intent.
+        if ProcessInfo.processInfo.arguments.contains("--uitesting"), let index = ProcessInfo.processInfo.arguments.firstIndex(of: "--launch-intent"),
+           ProcessInfo.processInfo.arguments.count > index + 1, let kind = LaunchRequest.Kind(rawValue: ProcessInfo.processInfo.arguments[index + 1]) {
+            LaunchRequest.post(LaunchRequest(kind: kind, bpm: kind == .newBeat ? 92 : nil))
+        }
+        if let request = LaunchRequest.take() { await session.handleLaunch(request) }
+        Task { await ProjectSpotlight.refresh() }
         if let index=ProcessInfo.processInfo.arguments.firstIndex(of:"--screen"),ProcessInfo.processInfo.arguments.count>index+1 {
             let target=ProcessInfo.processInfo.arguments[index+1]
             if target=="midi" || target=="midi-mapped" {
@@ -49,7 +55,7 @@ import MusicDomain
             };if target.hasPrefix("voice"){session.sheet = .voice};if target.hasPrefix("assistant"){session.sheet = .assistant};if target.hasPrefix("harmony"){session.sheet = .harmony};if target=="settings"{session.sheet = .settings};if target=="jam"{session.tab=1};if target=="mixer"{session.tab=2};if target=="projects"{session.sheet = .projects};if target.hasPrefix("export"){session.exportPreset=target=="export-wav" ? "wav":target=="export-stems" ? "stems":"midi";session.sheet = .export}
         }
     }.onOpenURL{url in Task{await session.importProject(url)}}
-    .onReceive(NotificationCenter.default.publisher(for:.laGrillaLaunchRequest).receive(on:RunLoop.main)){_ in if LaunchRequest.take() == .newBeat{session.openTrackBuilder()}}
+    .onReceive(NotificationCenter.default.publisher(for:.laGrillaLaunchRequest).receive(on:RunLoop.main)){_ in if let request=LaunchRequest.take(){Task{await session.handleLaunch(request)}}}
     .onChange(of:phase){_,value in session.sceneChanged(value)}
     .onReceive(NotificationCenter.default.publisher(for:AVAudioSession.interruptionNotification).receive(on:RunLoop.main)){n in
         let type=n.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt

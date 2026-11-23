@@ -1581,3 +1581,15 @@
 "Edit sections" = "Секции песни";
 "Bass settings" = "Настройки баса";
 "Pre-chorus" = "Предприпев";
+"Opens La Grilla in the track builder, with a tempo and key if you give them." = "Открывает La Grilla в конструкторе трека — с темпом и тональностью, если ты их назовёшь.";
+"Tempo (BPM)" = "Темп (BPM)";
+"Open a project" = "Открыть проект";
+"Opens one of your La Grilla projects." = "Открывает один из твоих проектов La Grilla.";
+"Project" = "Проект";
+"Record an idea" = "Записать идею";
+"Opens La Grilla ready to hum a melody into MIDI." = "Открывает La Grilla, чтобы сразу напеть мелодию в MIDI.";
+"Export my song" = "Экспортировать песню";
+"Opens the export of your current La Grilla project." = "Открывает экспорт текущего проекта La Grilla.";
+"Record idea" = "Записать идею";
+"Open project" = "Открыть проект";
+"Export song" = "Экспорт песни";

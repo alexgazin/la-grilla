@@ -1579,3 +1579,15 @@
 "Edit sections" = "Edit sections";
 "Bass settings" = "Bass settings";
 "Pre-chorus" = "Pre-chorus";
+"Opens La Grilla in the track builder, with a tempo and key if you give them." = "Opens La Grilla in the track builder, with a tempo and key if you give them.";
+"Tempo (BPM)" = "Tempo (BPM)";
+"Open a project" = "Open a project";
+"Opens one of your La Grilla projects." = "Opens one of your La Grilla projects.";
+"Project" = "Project";
+"Record an idea" = "Record an idea";
+"Opens La Grilla ready to hum a melody into MIDI." = "Opens La Grilla ready to hum a melody into MIDI.";
+"Export my song" = "Export my song";
+"Opens the export of your current La Grilla project." = "Opens the export of your current La Grilla project.";
+"Record idea" = "Record idea";
+"Open project" = "Open project";
+"Export song" = "Export song";

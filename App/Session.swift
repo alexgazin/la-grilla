@@ -404,6 +404,20 @@ import Observation
         edit{p in var restored=version;restored.id=id;restored.name=p.name;p=restored}
         showToast("Restored")
     }
+    /// U3 · A request left by Siri, Shortcuts or Spotlight.
+    func handleLaunch(_ request:LaunchRequest) async {
+        switch request.kind {
+        case .newBeat:
+            var parts:[String]=[]
+            if let bpm=request.bpm{parts.append("\(bpm) BPM")}
+            if let root=request.keyRoot{parts.append(Chord.roots[(root%12+12)%12]+(request.minor == true ? " minor":" major"))}
+            openTrackBuilder(idea:parts.joined(separator:", "))
+        case .openProject:
+            if let id=request.projectID{sheet=nil;await openStored(id)}
+        case .recordIdea: presentEditor(.voice)
+        case .export: finishTake();exportTake=nil;sheet = .export
+        }
+    }
     /// U4 · U13 · Runs a command from the search field or the quick bar. Commands with a
     /// missing value open the place where it is set.
     func run(_ id:CommandID,_ argument:CommandArgument?=nil) {
