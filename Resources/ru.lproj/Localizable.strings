@@ -1741,3 +1741,11 @@
 "Sort projects" = "Сортировка проектов";
 "Unpin" = "Открепить";
 "Pin to top" = "Закрепить сверху";
+"Copy music" = "Скопировать музыку";
+"Copy chords" = "Скопировать аккорды";
+"Copy the beat" = "Скопировать бит";
+"Copy the melody" = "Скопировать мелодию";
+"Paste copied music" = "Вставить скопированное";
+"There is no music of that kind in this section." = "В этой секции нет такой музыки.";
+"Copied" = "Скопировано";
+"Pasted" = "Вставлено";

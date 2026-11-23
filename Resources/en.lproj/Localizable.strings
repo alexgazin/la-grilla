@@ -1739,3 +1739,11 @@
 "Sort projects" = "Sort projects";
 "Unpin" = "Unpin";
 "Pin to top" = "Pin to top";
+"Copy music" = "Copy music";
+"Copy chords" = "Copy chords";
+"Copy the beat" = "Copy the beat";
+"Copy the melody" = "Copy the melody";
+"Paste copied music" = "Paste copied music";
+"There is no music of that kind in this section." = "There is no music of that kind in this section.";
+"Copied" = "Copied";
+"Pasted" = "Pasted";

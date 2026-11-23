@@ -426,6 +426,13 @@ struct SectionsView: View {
         Picker("Filter sweep",selection:Binding(get:{sweepTag(section.filterSweep)},set:{tag in let id=section.id,value=sweep(tag);session.edit{p in if let i=p.sections.firstIndex(where:{$0.id==id}){p.sections[i].filterSweep=value}};actions=nil})){
             Text("None").tag(0);Text("Open up").tag(1);Text("Close down").tag(2);Text("Rise").tag(3);Text("Drop in").tag(4)
         }.accessibilityIdentifier("section.filter-sweep")
+        // U32: copy this section's music to another project (or paste what was copied).
+        Menu("Copy music"){
+            Button("Copy chords"){copyMusic(.chords,section)}
+            Button("Copy the beat"){copyMusic(.beat,section)}
+            Button("Copy the melody"){copyMusic(.melody,section)}
+        }.accessibilityIdentifier("section.copy")
+        Button("Paste copied music"){pasteMusic(into:section)}.disabled(!UIPasteboard.general.contains(pasteboardTypes:[MusicClipboard.pasteboardType])).accessibilityIdentifier("section.paste")
         Button("Move earlier"){move(section.id,by:-1);actions=nil}.disabled(session.project.sections.first?.id==section.id).accessibilityIdentifier("section.earlier")
         Button("Move later"){move(section.id,by:1);actions=nil}.disabled(session.project.sections.last?.id==section.id).accessibilityIdentifier("section.later")
         if session.project.sections.count>1{Button("Delete section",role:.destructive){pendingDelete=section.id;actions=nil}.accessibilityIdentifier("section.delete")}
@@ -435,6 +442,17 @@ struct SectionsView: View {
     }
     private func sweep(_ tag:Int)->FilterSweep?{[nil,FilterSweep.openUp,.closeDown,.riseUp,.dropIn][max(0,min(4,tag))]}
     private func sweepTag(_ value:FilterSweep?)->Int{[FilterSweep.openUp,.closeDown,.riseUp,.dropIn].firstIndex{$0==value}.map{$0+1} ?? 0}
+    private func copyMusic(_ kind:MusicClipboard.Kind,_ section:MusicDomain.Section){
+        guard let value=MusicClipboard.copy(kind,section:section,from:session.project),let data=try? JSONEncoder().encode(value) else{session.message="There is no music of that kind in this section.";actions=nil;return}
+        UIPasteboard.general.setData(data,forPasteboardType:MusicClipboard.pasteboardType)
+        session.showToast("Copied");actions=nil
+    }
+    private func pasteMusic(into section:MusicDomain.Section){
+        guard let data=UIPasteboard.general.data(forPasteboardType:MusicClipboard.pasteboardType),let value=try? JSONDecoder().decode(MusicClipboard.self,from:data)else{actions=nil;return}
+        let id=section.id
+        session.edit{p in guard let target=p.sections.first(where:{$0.id==id})else{return};try value.paste(into:target,project:&p)}
+        session.showToast("Pasted");actions=nil
+    }
     private func finishAction(){
         if let id=pendingRename,let section=session.project.sections.first(where:{$0.id==id}){name=section.name;editing=id}
         if let id=pendingDelete,session.project.sections.contains(where:{$0.id==id}){deleting=id}
