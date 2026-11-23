@@ -30,6 +30,7 @@ struct StudioView: View {
         .background(Color.ink).foregroundStyle(Color.studioText)
         .overlay{if AudioRuntimeQA.enabled{AudioRuntimeQAView(session:session)}}
         .background{UndoGestureInstaller(undo:{session.gestureUndo(false)},redo:{session.gestureUndo(true)}).frame(width:0,height:0).accessibilityHidden(true)}
+        .background{StudioKeyCommands(session:session)}
         .overlay(alignment:.top){if let toast=session.toast{Label(LocalizedStringKey(toast),systemImage:toast=="Undo" ? "arrow.uturn.backward":toast=="Redo" ? "arrow.uturn.forward":"checkmark.circle").font(.subheadline.weight(.semibold)).padding(.horizontal,16).padding(.vertical,10).modifier(StudioNavigationSurface()).padding(.top,8).transition(Luz.Transition.drop(reduceMotion)).accessibilityAddTraits(.updatesFrequently).allowsHitTesting(false)}}
         .animation(reduceMotion ? .easeOut(duration:0.15):Luz.Motion.morph,value:session.toast)
         .sheet(item:$session.sheet,onDismiss:{if let url=session.exportedURL{session.shareURL=url;session.exportedURL=nil}}){sheet in Group{switch sheet {
@@ -58,7 +59,8 @@ struct StudioView: View {
         case .melodyIdeas: MelodyIdeasView(session:session)
         case .lyrics: LyricsView(session:session)
         case .master: MasterAssistView(session:session)
-        }}.modifier(SheetZoom(sheet:sheet,namespace:sheetZoom)).modifier(StudioQATypeSize()).scrollContentBackground(.hidden).tint(.mint).presentationDragIndicator(.visible).presentationBackground(Color.panel).presentationCornerRadius(Luz.Radius.sheet)}
+        }}.safeAreaInset(edge:.bottom){if [.bass,.palettes,.lyrics,.harmony].contains(sheet){SheetMiniTransport(session:session)}}
+        .modifier(SheetZoom(sheet:sheet,namespace:sheetZoom)).modifier(StudioQATypeSize()).scrollContentBackground(.hidden).tint(.mint).presentationDragIndicator(.visible).presentationBackground(Color.panel).presentationCornerRadius(Luz.Radius.sheet)}
         .sheet(isPresented:Binding(get:{session.shareURL != nil},set:{if !$0 {session.shareURL=nil}}),onDismiss:{session.finishSharing()}){if let url=session.shareURL{ShareView(url:url)}}
         .alert("La Grilla",isPresented:Binding(get:{session.message != nil},set:{if !$0{session.message=nil}})){Button("OK"){session.message=nil}}message:{Text(LocalizedStringKey(session.message ?? ""))}
         // U16: a late route (Bluetooth, AirPlay, a measured delay over 60 ms) is named before recording.
@@ -233,7 +235,31 @@ private struct TransportReadout: View {
 }
 
 /// Bar:beat for the landscape sidebar, isolated from the shell body.
-private struct CompactPosition: View {
+/// U21 · U23 · Play, stop and undo without closing an editor sheet.
+struct SheetMiniTransport: View {
+    @Bindable var session: Session
+    var body: some View {
+        HStack(spacing: 4) {
+            IconButton(symbol: "arrow.uturn.backward", label: "Undo") { session.undo() }
+                .disabled(!session.history.canUndo || session.recording || session.armed).accessibilityIdentifier("sheet.undo")
+            IconButton(symbol: "arrow.uturn.forward", label: "Redo") { session.redo() }
+                .disabled(!session.history.canRedo || session.recording || session.armed).accessibilityIdentifier("sheet.redo")
+            Spacer(minLength: 4)
+            CompactPosition(audio: session.audio).foregroundStyle(Color.muted)
+            Button { session.togglePlay() } label: {
+                Image(systemName: session.audio.playing ? "stop.fill" : "play.fill").font(.headline).contentTransition(.symbolEffect(.replace))
+                    .frame(width: 52, height: 44)
+            }
+            .buttonStyle(StudioActionStyle(color: .mint, prominent: !session.audio.playing))
+            .disabled(session.harmonyPreview)
+            .accessibilityLabel(LocalizedStringKey(session.audio.playing ? "Stop" : "Play"))
+            .accessibilityIdentifier("sheet.play")
+        }
+        .padding(.horizontal, 12).padding(.vertical, 6)
+        .background(.bar)
+    }
+}
+struct CompactPosition: View {
     let audio: AudioController
     var body: some View {
         Text(String(format:"%02d:%d",Int(audio.tick)/barTicks+1,Int(audio.tick)%barTicks/ppq+1)).font(StudioTypography.index).monospacedDigit()
@@ -250,5 +276,26 @@ private struct SheetZoom: ViewModifier {
         case .projects, .export, .settings, .perform: content.luzZoomDestination(sheet, in: namespace)
         default: content
         }
+    }
+}
+
+/// U28 · A hardware keyboard on iPhone: space plays, R records, L loops, 1–3 switch tabs,
+/// ⌘Z / ⇧⌘Z undo and redo, F focuses the section. Hold ⌘ to see them.
+private struct StudioKeyCommands: View {
+    @Bindable var session: Session
+    var body: some View {
+        Group {
+            Button("Play or stop") { session.togglePlay() }.keyboardShortcut(.space, modifiers: [])
+            Button("Record drums") { session.tab = 1; session.record() }.keyboardShortcut("r", modifiers: [])
+            Button("Loop on or off") { session.setLoop(enabled: !session.loop) }.keyboardShortcut("l", modifiers: [])
+            Button("Focus on this section") { session.toggleFocus() }.keyboardShortcut("f", modifiers: [])
+            Button("Undo") { session.undo() }.keyboardShortcut("z", modifiers: .command)
+            Button("Redo") { session.redo() }.keyboardShortcut("z", modifiers: [.command, .shift])
+            Button("Open Grid") { session.tab = 0 }.keyboardShortcut("1", modifiers: .command)
+            Button("Open Jam") { session.tab = 1 }.keyboardShortcut("2", modifiers: .command)
+            Button("Open Mixer") { session.tab = 2 }.keyboardShortcut("3", modifiers: .command)
+        }
+        .frame(width: 0, height: 0).opacity(0).accessibilityHidden(true)
+        .disabled(session.sheet != nil)
     }
 }

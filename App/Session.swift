@@ -406,6 +406,12 @@ import Observation
     }
     /// Stage 3 tools (variations, comping) work on this pattern.
     var toolPatternID:UUID?
+    /// U22 · Focus: loop exactly the selected section (again to leave).
+    var focused:Bool{loop && loopRange == section.start..<section.start+section.length}
+    func toggleFocus(){
+        if focused{setLoop(enabled:false);showToast("Focus off")}
+        else{select(section);setLoop(bars:max(1,section.length/barTicks),enabled:true);showToast("Focus on the section")}
+    }
     /// U3 · A request left by Siri, Shortcuts or Spotlight.
     func handleLaunch(_ request:LaunchRequest) async {
         switch request.kind {
@@ -478,6 +484,7 @@ import Observation
         case .chordImport: presentEditor(.chordImport)
         case .lyrics: presentEditor(.lyrics)
         case .master: presentEditor(.master)
+        case .focusSection: toggleFocus()
         }
     }
     /// U8 · Bring back a deleted track, take or clip in one Undo step.

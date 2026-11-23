@@ -240,6 +240,11 @@ struct GridView: View {
                 ForEach(session.displayProject.sections){section in sectionChip(section)}
                 Button{session.presentEditor(.sections)}label:{Image(systemName:"plus").frame(width:44,height:44).foregroundStyle(Color.muted)}
                     .buttonStyle(StudioQuietButtonStyle())
+                // U22: loop only the selected section while working on it.
+                Button{session.toggleFocus()}label:{Image(systemName:session.focused ? "scope":"circle.dashed").frame(width:44,height:44).foregroundStyle(session.focused ? Color.mint:Color.muted)}
+                    .buttonStyle(StudioQuietButtonStyle()).disabled(editingLocked)
+                    .accessibilityLabel(LocalizedStringKey(session.focused ? "Leave focus" : "Focus on this section"))
+                    .accessibilityIdentifier("grid.focus")
             }.padding(.horizontal,16)
         }.padding(.bottom,8)
     }
