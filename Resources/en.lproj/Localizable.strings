@@ -2218,3 +2218,7 @@
 "Play %@ like this" = "Play %@ like this";
 "Put a beat in this section first; its first bar becomes the assignment." = "Put a beat in this section first; its first bar becomes the assignment.";
 "Assignment saved" = "Assignment saved";
+
+/* 808 slides */
+"Slide into the next note" = "Slide into the next note";
+"Notes follow the song's key. Tap a step for a note, tap it again to pick its pitch, length and a slide into the next note." = "Notes follow the song's key. Tap a step for a note, tap it again to pick its pitch, length and a slide into the next note.";

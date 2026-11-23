@@ -320,11 +320,18 @@ struct BeatMachineView: View {
                     bassKey("arrow.down.to.line", "Octave down") { draft.transposeBass(step: step, by: -12) }
                     bassKey("arrow.up.to.line", "Octave up") { draft.transposeBass(step: step, by: 12) }
                     Spacer()
+                    let sliding = draft.bassNotes.first(where: { $0.step == step })?.slide == true
+                    Button { draft.toggleSlide(step: step); Luz.Haptics.selection() } label: {
+                        Image(systemName: "arrow.up.right").font(.subheadline.weight(.semibold)).frame(width: 40, height: 36)
+                    }
+                    .buttonStyle(StudioActionStyle(color: .bass, prominent: sliding))
+                    .accessibilityLabel("Slide into the next note").accessibilityAddTraits(sliding ? .isSelected : [])
+                    .accessibilityIdentifier("beat.bass.slide")
                     bassKey("minus", "Shorter") { if let note = draft.bassNotes.first(where: { $0.step == step }) { draft.setBassLength(step: step, note.length - 1) } }
                     bassKey("plus", "Longer") { if let note = draft.bassNotes.first(where: { $0.step == step }) { draft.setBassLength(step: step, note.length + 1) } }
                 }
             }
-            Text("Notes follow the song's key. Tap a step for a note, tap it again to pick its pitch and length.").font(.caption).foregroundStyle(Color.muted)
+            Text("Notes follow the song's key. Tap a step for a note, tap it again to pick its pitch, length and a slide into the next note.").font(.caption).foregroundStyle(Color.muted)
         }
     }
 
@@ -689,6 +696,10 @@ private struct BassCell: View {
             if let label {
                 Text(verbatim: label).font(.system(size: 11, weight: .bold, design: .monospaced)).foregroundStyle(Color.ink)
                     .lineLimit(1).minimumScaleFactor(0.5).padding(.horizontal, 1)
+            }
+            if let note, note.slide, note.step + note.length - 1 == step {
+                Image(systemName: "arrow.up.right").font(.system(size: 11, weight: .heavy)).foregroundStyle(Color.ink)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing).padding(2)
             }
         }
         .frame(maxWidth: .infinity).frame(height: 34)

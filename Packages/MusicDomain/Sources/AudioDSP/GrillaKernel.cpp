@@ -53,7 +53,7 @@ struct Snapshot {
     }
 };
 struct MixSnapshot {EQDesk eq{};std::atomic<int> state{0};std::atomic<uint64_t> revision{0};int musicRevision=-1;std::array<float,Buses> gain{},pan{};float filter=0,delay=0;};
-struct Voice { bool on=false; int pitch=0,track=0,pad=-1,instrument=0; double phase=0,age=0,duration=0; float velocity=0,level=0;int sourceKey=-1;bool keyDown=false;bool outputAllowed=true;int outputChannel=-1,outputPitch=0;uint32_t outputEpoch=0;uint64_t outputEndFrame=0;int presetVersion=1;double phaseStep=0,decayStep=1,decay=1;uint64_t ageFrames=0;float lastSample=0;double playbackRatio=1,attack=0.004,toneAlpha=1;float toneState=0;std::array<double,4> partials{};
+struct Voice { bool on=false; int pitch=0,track=0,pad=-1,instrument=0; double phase=0,age=0,duration=0; float velocity=0,level=0;int sourceKey=-1;bool keyDown=false;bool outputAllowed=true;int outputChannel=-1,outputPitch=0;uint32_t outputEpoch=0;uint64_t outputEndFrame=0;int presetVersion=1;double phaseStep=0,decayStep=1,decay=1;uint64_t ageFrames=0;float lastSample=0;double playbackRatio=1,attack=0.004,toneAlpha=1;double glideStep=1;int glideFrames=0;float toneState=0;std::array<double,4> partials{};
     const LGSampleBank *sample=nullptr;
     LGSampleZone zone{};
     double sampleCursor=0;
@@ -77,6 +77,8 @@ static float synthFrame(Voice &v,double bend){
 }
 
 static float sampleFrame(Voice& voice,double bend=1){
+    // Beat machine 808 slides: the playing note bends to the next pitch.
+    if(voice.glideFrames>0){voice.playbackRatio*=voice.glideStep;voice.glideFrames--;}
     const auto &zone=voice.zone;
     constexpr int crossfade=256;
     auto &cursor=voice.sampleCursor;
@@ -204,6 +206,7 @@ struct LGKernel {
         if(inside){if(!rampApplied||std::abs(value-rampLast)>1e-4f){fx.prepare(value,delayTarget.load(),bpm);rampLast=value;rampApplied=true;}}
         else if(rampApplied){fx.prepare(filterTarget.load(),delayTarget.load(),bpm);rampApplied=false;}
     }
+    std::array<std::atomic<float>,MaxTracks> glideTime{};
     std::array<std::atomic<int>,MaxTracks> synthOn{},synthWave{};std::array<std::atomic<float>,MaxTracks> synthCutoff{},synthResonance{},synthAttack{},synthDecay{},synthSustain{},synthRelease{};
     void releaseVoice(Voice &v){if(v.synth){v.noteEnd=std::min(v.noteEnd,v.age);v.duration=std::min(v.duration,v.age+v.sR);}else v.duration=std::min(v.duration,v.age+0.008);}
     std::atomic<int> clockOut{0};bool clockRunning=false;double clockNext=0;
@@ -357,6 +360,18 @@ struct LGKernel {
     }
     void silence(bool all=false){for(auto &v:voices)if(all||v.sourceKey<0){if(!all)retire(v);endOutput(v);v.on=false;}if(all){sustain.fill(false);for(auto &tail:retirements)tail.remaining=0;layoutFadeRemaining=0;}}
     Voice *trigger(int pitch,int velocity,int track,int pad,int instrument,double duration,bool output=true){
+        // A sampled melodic track with a glide slides a still-sounding note to the new pitch
+        // instead of starting another one (overlapping notes = a slide).
+        if(pad<0&&track>=0&&track<MaxTracks){
+            const float glide=glideTime[size_t(track)].load(std::memory_order_relaxed);
+            if(glide>0)for(auto &x:voices)if(x.on&&x.track==track&&x.pad<0&&x.sample&&!x.synth&&x.age<x.duration-0.012){
+                const double target=double(x.sample->rate)/sr*std::exp2(double(pitch-x.zone.pitch)/12);
+                const int frames=std::max(1,int(double(glide)*sr));
+                x.glideStep=std::pow(target/x.playbackRatio,1.0/frames);x.glideFrames=frames;
+                x.pitch=pitch;x.duration=x.age+duration;x.velocity=std::max(x.velocity,float(velocity/127.0));
+                return &x;
+            }
+        }
         if(pad==2)for(auto &v:voices)if(v.on&&v.pad==3){if(v.presetVersion>=2){retire(v);endOutput(v);v.on=false;}else{v.duration=std::min(v.duration,v.age+0.004);}}
         if(pad>=0&&track>=0&&track<MaxTracks){
             const int group=choke[track][pad].load(std::memory_order_relaxed);
@@ -687,6 +702,10 @@ int lg_filter_automation(LGKernel*k,const LGFilterRamp*ramps,int count){
     k->rampCount.store(0,std::memory_order_release);
     for(int i=0;i<count;i++){k->rampStart[size_t(i)].store(ramps[i].start,std::memory_order_relaxed);k->rampEnd[size_t(i)].store(ramps[i].end,std::memory_order_relaxed);k->rampFrom[size_t(i)].store(ramps[i].from,std::memory_order_relaxed);k->rampTo[size_t(i)].store(ramps[i].to,std::memory_order_relaxed);}
     k->rampCount.store(count,std::memory_order_release);return 1;
+}
+int lg_glide(LGKernel*k,int track,float seconds){
+    if(!k||track<0||track>=MaxTracks||!std::isfinite(seconds)||seconds<0||seconds>0.5f)return 0;
+    k->glideTime[size_t(track)].store(seconds,std::memory_order_relaxed);return 1;
 }
 int lg_synth(LGKernel*k,int track,const LGSynthPatch*p){
     if(!k||track<0||track>=MaxTracks)return 0;

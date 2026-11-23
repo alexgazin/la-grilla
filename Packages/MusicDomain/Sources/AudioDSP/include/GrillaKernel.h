@@ -74,6 +74,8 @@ typedef struct { int32_t start, end; float from, to; } LGFilterRamp;
 // resonance 0...0.9) and an ADSR envelope in seconds. NULL turns it off.
 typedef struct { int32_t wave; float cutoff, resonance, attack, decay, sustain, release; } LGSynthPatch;
 int lg_synth(LGKernel *k, int track, const LGSynthPatch *patch);
+/// Beat machine: seconds an overlapping note slides on a sampled melodic track (0 = no slide).
+int lg_glide(LGKernel *k, int track, float seconds);
 int lg_filter_automation(LGKernel *k, const LGFilterRamp *ramps, int count);
 // I16: live pitch bend (-12...+12 semitones) and modulation (0...1 = vibrato
 // up to ±0.5 semitone at 5.5 Hz) for the voices of the track with `identity`.

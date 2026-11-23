@@ -142,7 +142,7 @@ extension BeatPreset {
         BeatPreset("trap-dark", "Dark Trap", .trap, bpm: 145, kit: .trap808, bass: .dirty808, [
             (0, "X.......X.x.....|X......xX......."), (1, "........X.......|........X......."),
             (2, "xxx.xxx.xxx.x4x.|x.x.x.x.x.x.33x."), (3, "......x.........|................")],
-            bassLine: "0:0:8 8:0:2 10:-1:4 16:0:7 23:1:1 24:-4:8"),
+            bassLine: "0:0:8:s 8:0:2 10:-1:4 16:0:7:s 23:1:1 24:-4:8"),
         BeatPreset("trap-melodic", "Melodic Trap", .trap, bpm: 150, kit: .trap808, [
             (0, "X.....x.........|X.....x...x....."), (1, "........X.......|........X......."),
             (2, "x.x.x.x.x.x.x.x.|x.x.x.x.x.x.3.3."), (5, "...x..........x.|...x............")],
@@ -155,11 +155,11 @@ extension BeatPreset {
         BeatPreset("drill-uk", "UK Drill", .drill, bpm: 142, kit: .drill, [
             (0, "X.........X.....|..X.......X....."), (1, "........X.......|........X.....x."),
             (2, "x..x..x.x.x..x..|x..x..x.x..x.x.x"), (5, "...........x....|................")],
-            bassLine: "0:0:3 3:7:3 6:0:4 10:-2:6 16:0:3 19:3:3 22:5:4 26:3:6"),
+            bassLine: "0:0:3:s 3:7:3 6:0:4 10:-2:6:s 16:0:3:s 19:3:3:s 22:5:4 26:3:6"),
         BeatPreset("drill-ny", "NY Drill", .drill, bpm: 144, kit: .drill, [
             (0, "X..x......X..x..|X..x....X......."), (1, "........X.......|........X..x...."),
             (2, "x.xx.x.xx.x.x.x.|x.xx.x.x.x.xx.x."), (3, "..............x.|................")],
-            bassLine: "0:0:3 3:0:3 10:-2:3 13:0:3 16:0:3 19:0:3 24:3:4 28:2:4"),
+            bassLine: "0:0:3 3:0:3 10:-2:3:s 13:0:3 16:0:3 19:0:3 24:3:4:s 28:2:4"),
         // Boom bap
         BeatPreset("boombap-classic", "Boom Bap", .boomBap, bpm: 90, swing: 0.58, kit: .boomBap, bass: .fingerBass, [
             (0, "X.....x...X.....|X.x.......X..x.."), (1, "....X.......X...|....X.......X..o"),
@@ -365,7 +365,9 @@ public struct BassStep: Equatable, Sendable {
     public var step: Int
     public var semitones: Int
     public var length: Int
-    public init(step: Int, semitones: Int, length: Int) { self.step = step; self.semitones = semitones; self.length = length }
+    /// The note slides into the next one (808 glide).
+    public var slide: Bool
+    public init(step: Int, semitones: Int, length: Int, slide: Bool = false) { self.step = step; self.semitones = semitones; self.length = length; self.slide = slide }
 }
 
 /// The beat being shaped in the beat machine. Changes stay here until Apply.
@@ -398,12 +400,23 @@ public struct BeatDraft: Equatable, Sendable {
         steps = 16; grid = [:]; bassNotes = []
     }
 
+    /// "step:semitones:length" with an optional ":s" for a slide into the next note.
     public static func parseBass(_ text: String, steps: Int) -> [BassStep] {
         text.split(separator: " ").compactMap { token in
-            let parts = token.split(separator: ":").compactMap { Int($0) }
-            guard parts.count == 3, (0..<steps).contains(parts[0]), semitoneRange.contains(parts[1]), parts[2] >= 1 else { return nil }
-            return BassStep(step: parts[0], semitones: parts[1], length: min(parts[2], steps - parts[0]))
+            let fields = token.split(separator: ":")
+            let slide = fields.count == 4 && fields[3] == "s"
+            let parts = fields.prefix(3).compactMap { Int($0) }
+            guard parts.count == 3, fields.count == 3 || slide, (0..<steps).contains(parts[0]), semitoneRange.contains(parts[1]), parts[2] >= 1 else { return nil }
+            return BassStep(step: parts[0], semitones: parts[1], length: min(parts[2], steps - parts[0]), slide: slide)
         }.sorted { $0.step < $1.step }
+    }
+
+    public var hasSlides: Bool { bassNotes.contains(where: \.slide) }
+
+    /// Turns the slide of the note that starts at `step` on or off.
+    public mutating func toggleSlide(step: Int) {
+        guard let index = bassNotes.firstIndex(where: { $0.step == step }) else { return }
+        bassNotes[index].slide.toggle()
     }
 
     public var bars: Int { steps / 16 }
@@ -537,10 +550,15 @@ public struct BeatDraft: Equatable, Sendable {
 
     public func bassEvents(keyRoot: Int, minor songMinor: Bool) -> [NoteEvent] {
         let root = Self.bassRoot(keyRoot: keyRoot)
-        return bassNotes.map { note in
+        return bassNotes.enumerated().map { index, note in
             let start = note.step * 240 + Self.swingOffset(note.step, swing: swing)
             let end = min(length, (note.step + note.length) * 240 + Self.swingOffset(note.step + note.length, swing: swing))
             let pitch = max(0, min(127, root + Self.fitted(note.semitones, writtenMinor: minor, songMinor: songMinor)))
+            // A slide holds on into the next note so the engine bends instead of re-striking.
+            if note.slide, index + 1 < bassNotes.count {
+                let next = bassNotes[index + 1].step * 240 + Self.swingOffset(bassNotes[index + 1].step, swing: swing)
+                return NoteEvent(tick: start, duration: max(30, min(length - start, next - start + 60)), pitch: pitch, velocity: 108)
+            }
             return NoteEvent(tick: start, duration: max(30, end - start - 12), pitch: pitch, velocity: 108)
         }
     }
@@ -619,6 +637,8 @@ public enum BeatMachine {
             }
             result.tracks[track].instrumentSample = bass
             result.tracks[track].synth = nil
+            // Slides need the engine's glide on the 808 track.
+            result.tracks[track].glide = draft.hasSlides ? 0.07 : nil
             if options.muteChordBass {
                 for other in result.tracks.indices where result.tracks[other].role == .bass { result.tracks[other].mute = true }
             }

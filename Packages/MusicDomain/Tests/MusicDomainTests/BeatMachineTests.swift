@@ -211,3 +211,25 @@ struct BeatMachineTests {
         }
     }
 }
+
+struct EightOhEightSlideTests {
+    @Test func slidesOverlapTheNextNoteAndTurnOnTheTrackGlide() throws {
+        let preset = try #require(BeatPreset.preset("drill-uk"))
+        var draft = BeatDraft(preset)
+        #expect(draft.hasSlides && draft.bassNotes[0].slide)
+        let events = draft.bassEvents(keyRoot: 0, minor: true)
+        #expect(events[0].tick + events[0].duration > events[1].tick, "A slide holds into the next note")
+        #expect(events[1].tick + events[1].duration < events[2].tick, "A plain note ends before the next")
+        let kit = Dictionary(uniqueKeysWithValues: try PaletteEngine.kit(.drill).map { ($0.pad, $0.asset) })
+        let bass = try FactorySynth.sub808.asset().asset
+        let song = try BeatMachine.candidate(Project.demo(), draft: draft, scope: .song, kit: kit, bass: bass)
+        let track = try #require(BeatMachine.bassTrack(in: song))
+        #expect(song.tracks[track].glide == 0.07)
+        for index in draft.bassNotes.indices where draft.bassNotes[index].slide { draft.toggleSlide(step: draft.bassNotes[index].step) }
+        #expect(!draft.hasSlides)
+        let plain = try BeatMachine.candidate(song, draft: draft, scope: .song, kit: kit, bass: bass)
+        #expect(plain.tracks[track].glide == nil)
+        var invalid = Project.demo(); invalid.tracks[1].glide = 0.1
+        #expect(throws: MusicError.self) { try invalid.validate() }
+    }
+}

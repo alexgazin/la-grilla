@@ -2220,3 +2220,7 @@
 "Play %@ like this" = "Сыграй %@ вот так";
 "Put a beat in this section first; its first bar becomes the assignment." = "Сначала поставьте бит в эту секцию: его первый такт станет заданием.";
 "Assignment saved" = "Задание сохранено";
+
+/* 808 slides */
+"Slide into the next note" = "Скольжение в следующую ноту";
+"Notes follow the song's key. Tap a step for a note, tap it again to pick its pitch, length and a slide into the next note." = "Ноты идут в тональности песни. Нажмите шаг, чтобы поставить ноту, нажмите ещё раз, чтобы выбрать высоту, длину и скольжение в следующую ноту.";

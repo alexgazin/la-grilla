@@ -158,5 +158,10 @@ public extension Project {
             } else { _ = lg_synth(kernel, Int32(index), nil) }
         }
         if tracks.count < masterBus { for index in tracks.count..<masterBus { _ = lg_synth(kernel, Int32(index), nil) } }
+        // Beat machine: 808 slides.
+        for index in 0..<masterBus {
+            let glide = index < tracks.count && tracks[index].role == .melody ? Float(tracks[index].glide ?? 0) : 0
+            _ = lg_glide(kernel, Int32(index), glide)
+        }
     }
 }
