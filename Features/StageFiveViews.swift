@@ -110,15 +110,17 @@ struct ChordImportView: View {
     }
 
     private var textPanel: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        // Older SDKs run the picker's label outside the main actor: read state first.
+        let busy = reading
+        return VStack(alignment: .leading, spacing: 10) {
             Text("Paste chords or a songbook page, or take them from a photo. Chord lines are found among the lyrics; | marks bars, |: :| and x2 repeat.")
                 .font(.caption).foregroundStyle(Color.muted).fixedSize(horizontal: false, vertical: true)
             TextEditor(text: $text).font(.body.monospaced()).frame(minHeight: 140).scrollContentBackground(.hidden)
                 .padding(8).background(Color.raised, in: RoundedRectangle(cornerRadius: Luz.Radius.cell, style: .continuous))
                 .accessibilityIdentifier("chords.text")
             PhotosPicker(selection: $photo, matching: .images) {
-                HStack { if reading { ProgressView() }; Label("Read chords from a photo", systemImage: "camera.viewfinder") }.frame(maxWidth: .infinity, minHeight: 48)
-            }.buttonStyle(StudioActionStyle(color: .mint, prominent: false)).disabled(reading).accessibilityIdentifier("chords.photo")
+                HStack { if busy { ProgressView() }; Label("Read chords from a photo", systemImage: "camera.viewfinder") }.frame(maxWidth: .infinity, minHeight: 48)
+            }.buttonStyle(StudioActionStyle(color: .mint, prominent: false)).disabled(busy).accessibilityIdentifier("chords.photo")
         }
     }
 
