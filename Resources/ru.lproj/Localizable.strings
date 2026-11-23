@@ -965,7 +965,6 @@
 
 "This section request includes instructions the offline arranger cannot play yet." = "В описании секций есть пожелания, которые локальный аранжировщик пока не умеет озвучивать.";
 
-"Give each part a bar count. The song can contain up to 64 bars in total." = "Укажи длину каждой части в тактах. Максимальная длина всей композиции — 128 такта.";
 
 "Enter a chord progression for each part, for example A, Bb, C, D." = "Укажи последовательность аккордов для каждой части, например A, Bb, C, D.";
 
@@ -2108,3 +2107,26 @@
 "Slow string ensemble pad." = "Медленный пэд струнного ансамбля.";
 "Airy “ah” choir pad." = "Воздушный хоровой пэд на «а».";
 "Pulse-wave lead from old game consoles." = "Лид на импульсной волне из старых приставок.";
+
+/* Song form table */
+"Build by parts in a table" = "Задать части таблицей";
+"No need to guess a format: set each part's bars and chords, then the order." = "Не нужно угадывать формат: укажите такты и аккорды каждой части, потом порядок.";
+"Order" = "Порядок";
+"Add a part" = "Добавить часть";
+"Remove a part" = "Убрать часть";
+"Not played offline yet, so left out: %@. The rest of the description is used." = "Локальный аранжировщик это пока не играет, поэтому пропущено: %@. Остальное из описания учтено.";
+"Back to one loop" = "Вернуться к одному лупу";
+"The whole song can be up to 64 bars. Shorten a part or play it fewer times." = "Вся песня — до 64 тактов. Укоротите часть или играйте её реже.";
+"Suggested chords" = "Предложенные аккорды";
+"Part name, for example Verse" = "Название части, например Куплет";
+"Change or remove this chord" = "Изменить или убрать аккорд";
+"Add a chord" = "Добавить аккорд";
+"Fill in the parts as a table" = "Заполнить части таблицей";
+"Each part can be 1 to 64 bars, and the whole song up to 64 bars." = "Часть может длиться от 1 до 64 тактов, вся песня — до 64 тактов.";
+"Strings" = "Струнные";
+"Brass" = "Духовые";
+"Vocals" = "Вокал";
+"Organ" = "Орган";
+"Tempo change" = "Смена темпа";
+"Church mode" = "Церковный лад";
+"Second key" = "Вторая тональность";

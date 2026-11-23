@@ -963,7 +963,6 @@
 
 "This section request includes instructions the offline arranger cannot play yet." = "This section request includes instructions the offline arranger cannot play yet.";
 
-"Give each part a bar count. The song can contain up to 64 bars in total." = "Give each part a bar count. The song can contain up to 128 bars in total.";
 
 "Enter a chord progression for each part, for example A, Bb, C, D." = "Enter a chord progression for each part, for example A, Bb, C, D.";
 
@@ -2106,3 +2105,26 @@
 "Slow string ensemble pad." = "Slow string ensemble pad.";
 "Airy “ah” choir pad." = "Airy “ah” choir pad.";
 "Pulse-wave lead from old game consoles." = "Pulse-wave lead from old game consoles.";
+
+/* Song form table */
+"Build by parts in a table" = "Build by parts in a table";
+"No need to guess a format: set each part's bars and chords, then the order." = "No need to guess a format: set each part's bars and chords, then the order.";
+"Order" = "Order";
+"Add a part" = "Add a part";
+"Remove a part" = "Remove a part";
+"Not played offline yet, so left out: %@. The rest of the description is used." = "Not played offline yet, so left out: %@. The rest of the description is used.";
+"Back to one loop" = "Back to one loop";
+"The whole song can be up to 64 bars. Shorten a part or play it fewer times." = "The whole song can be up to 64 bars. Shorten a part or play it fewer times.";
+"Suggested chords" = "Suggested chords";
+"Part name, for example Verse" = "Part name, for example Verse";
+"Change or remove this chord" = "Change or remove this chord";
+"Add a chord" = "Add a chord";
+"Fill in the parts as a table" = "Fill in the parts as a table";
+"Each part can be 1 to 64 bars, and the whole song up to 64 bars." = "Each part can be 1 to 64 bars, and the whole song up to 64 bars.";
+"Strings" = "Strings";
+"Brass" = "Brass";
+"Vocals" = "Vocals";
+"Organ" = "Organ";
+"Tempo change" = "Tempo change";
+"Church mode" = "Church mode";
+"Second key" = "Second key";

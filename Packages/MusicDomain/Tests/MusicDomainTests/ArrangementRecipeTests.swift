@@ -49,6 +49,6 @@ struct ArrangementRecipeTests {
             let dry = try TrackBrief().suggesting(ExpressiveBriefTests.ambient + negative)
             #expect(dry.songForm?.fadeBars == 0 && dry.songForm?.longDelay == false)
         }
-        #expect(throws: SongFormError.self) { try TrackBrief().suggesting(en + " Modulate to A minor.") }
+        #expect(try TrackBrief().suggesting(en + " Modulate to A minor.").songForm?.skipped == ["Modulation", "Second key"], "Listed, not refused")
     }
 }

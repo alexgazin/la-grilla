@@ -82,6 +82,14 @@ struct AssistantView:View {
                                 catch { self.error=error.localizedDescription }
                             }.accessibilityIdentifier("assistant.review-offline")
                         }
+                        // Musician feedback: when the wording is not understood, a table is one tap away.
+                        if SongFormBrief.recognizes(input) {
+                            Button("Fill in the parts as a table") {
+                                var brief = TrackBrief()
+                                brief.songForm = SongFormBrief.starter(keyRoot: brief.root, minor: brief.minor)
+                                session.openTrackBuilder(idea: "", suggestion: brief)
+                            }.frame(minHeight:44).accessibilityIdentifier("assistant.table")
+                        }
                         if error==SketchError.requiresEmpty.localizedDescription{Button("Create an empty project"){session.endHarmonyPreview();session.sheet = .newProject}.frame(minHeight:44).accessibilityIdentifier("assistant.sketch.empty-project")}
                         if Arrangement.harmony(session.project,section:session.section).isEmpty{
                             Button("Try a chord progression"){useProgressionExample()}.frame(minHeight:44).accessibilityIdentifier("assistant.empty-harmony-example")

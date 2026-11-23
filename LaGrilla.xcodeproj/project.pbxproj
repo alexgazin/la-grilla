@@ -1162,6 +1162,12 @@
 			"path" = "UITests/SongEditUITests.swift";
 			"sourceTree" = "SOURCE_ROOT";
 		};
+		"78E26EE72BD1A44B19443820" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "UITests/SongFormTableUITests.swift";
+			"sourceTree" = "SOURCE_ROOT";
+		};
 		"803BADE408A707556BF0A363" = {
 			"isa" = "PBXFileReference";
 			"lastKnownFileType" = "sourcecode.swift";
@@ -1229,6 +1235,7 @@
 				"7AB0A957D41402ED44864770",
 				"4695D06B2C9D204FBB750CB5",
 				"E22CA5DE727C10EF590D24A6",
+				"78E26EE72BD1A44B19443820",
 				"803BADE408A707556BF0A363",
 				"0917D5538CBCB0223C082004",
 				"8BAABB63DC72068DF5977847",
@@ -1790,6 +1797,10 @@
 			"isa" = "PBXBuildFile";
 			"fileRef" = "E22CA5DE727C10EF590D24A6";
 		};
+		"D9D696D8E3A67E6FE18A419A" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "78E26EE72BD1A44B19443820";
+		};
 		"506EB14FB6338F65A51C68C0" = {
 			"isa" = "PBXBuildFile";
 			"fileRef" = "803BADE408A707556BF0A363";
@@ -1905,6 +1916,7 @@
 				"2AA4DDE7108A4144C8FF84E5",
 				"FFC1356B79FD59D645DEA08F",
 				"AB5F1E061A894D206C10689D",
+				"D9D696D8E3A67E6FE18A419A",
 				"506EB14FB6338F65A51C68C0",
 				"A724528A4056C809B3D292C6",
 				"5C37BD3C07C1BE325B246BDA",

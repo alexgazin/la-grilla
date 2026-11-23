@@ -96,9 +96,17 @@ struct TrackBuilderView: View {
                     }
                 } header: { Text("Describe the track") }
                 if let form = Binding($brief.songForm) {
-                    SongFormEditor(form: form, previewing: session.harmonyPreview ? previewPart : nil,
+                    SongFormEditor(form: form, keyRoot: brief.root, minor: brief.minor,
+                                   previewing: session.harmonyPreview ? previewPart : nil,
                                    canPreview: !unreviewedIdea && preparation == nil,
-                                   play: { position in listen(part: position) })
+                                   play: { position in listen(part: position) },
+                                   close: { acceptedIdea = trimmedIdea; brief.songForm = nil })
+                } else {
+                    // Musician feedback: a table instead of guessing the wording.
+                    Section {
+                        Button { startTable() } label: { Label("Build by parts in a table", systemImage: "tablecells") }
+                            .accessibilityIdentifier("builder.table")
+                    } footer: { Text("No need to guess a format: set each part's bars and chords, then the order.") }
                 }
                 Section {
                     Menu {
@@ -299,6 +307,10 @@ struct TrackBuilderView: View {
             brief.songForm?.proposedTempo = false
         })
     }
+    private func startTable() {
+        acceptedIdea = trimmedIdea; feedback = nil
+        brief.songForm = SongFormBrief.starter(keyRoot: brief.root, minor: brief.minor)
+    }
     private func install(_ next:TrackBrief) {
         history.removeAll()
         if next != brief { programmaticChange=next; brief=next }
@@ -437,29 +449,73 @@ enum ArrangementExample: String, CaseIterable, Identifiable {
 
 private struct SongFormEditor: View {
     @Binding var form: SongFormBrief
+    let keyRoot: Int
+    let minor: Bool
     var previewing: Int?
     var canPreview: Bool
     let play: (Int) -> Void
+    let close: () -> Void
+
+    private func orderText(_ order: [Int]) -> String { order.map { form.title($0) }.joined(separator: " · ") }
 
     var body: some View {
         Section {
+            if form.arrangement == .groove {
+                Menu {
+                    ForEach(SongFormBrief.orderChoices(parts: form.parts.count), id: \.self) { choice in
+                        Button { form.setOrder(choice) } label: {
+                            if choice == form.order { Label(orderText(choice), systemImage: "checkmark") } else { Text(verbatim: orderText(choice)) }
+                        }
+                    }
+                } label: {
+                    LabeledContent("Order") { Text(verbatim: orderText(form.order)).monospaced() }
+                }.accessibilityIdentifier("builder.order")
+            }
             ForEach(form.order.indices, id: \.self) { position in
                 let source = form.order[position]
                 let start = 1 + form.order.prefix(position).reduce(0) { $0 + form.parts[$1].bars }
-                SongFormPartEditor(form: $form, position: position, source: source, start: start,
+                SongFormPartEditor(form: $form, keyRoot: keyRoot, minor: minor, position: position, source: source, start: start,
                                    previewing: previewing == position, canPreview: canPreview, play: play)
+            }
+            if form.arrangement == .groove {
+                HStack(spacing: 12) {
+                    Button { form.addPart() } label: { Label("Add a part", systemImage: "plus.circle") }
+                        .disabled(form.parts.count >= SongFormBrief.maximumParts || form.order.count >= 8)
+                        .accessibilityIdentifier("builder.add-part")
+                    Spacer()
+                    if form.parts.count > 1 {
+                        Menu {
+                            ForEach(form.parts.indices, id: \.self) { index in
+                                Button(role: .destructive) { form.removePart(index) } label: { Text(verbatim: form.title(index)) }
+                            }
+                        } label: { Label("Remove a part", systemImage: "minus.circle") }
+                            .accessibilityIdentifier("builder.remove-part")
+                    }
+                }.buttonStyle(.borderless)
+            }
+            if let skipped = form.skipped, !skipped.isEmpty {
+                let names = skipped.map { NSLocalizedString($0, comment: "Skipped wish") }.joined(separator: ", ")
+                Label(String(format: NSLocalizedString("Not played offline yet, so left out: %@. The rest of the description is used.", comment: "Song form"), names),
+                      systemImage: "info.circle")
+                    .font(.footnote).foregroundStyle(Color.muted).accessibilityIdentifier("builder.skipped")
             }
             if form.arrangement == .ambient {
                 Toggle("Long delay", isOn: $form.longDelay).accessibilityIdentifier("builder.delay")
             }
+            Button(role: .destructive, action: close) { Label("Back to one loop", systemImage: "arrow.uturn.backward") }
+                .accessibilityIdentifier("builder.close-table")
         } header: {
             HStack { Text("Song form"); Spacer(); Text("\(form.totalBars) bars") }
+        } footer: {
+            if form.totalBars > 64 { Text("The whole song can be up to 64 bars. Shorten a part or play it fewer times.").foregroundStyle(Color.record) }
         }
     }
 }
 
 private struct SongFormPartEditor: View {
     @Binding var form: SongFormBrief
+    let keyRoot: Int
+    let minor: Bool
     let position: Int
     let source: Int
     let start: Int
@@ -474,7 +530,7 @@ private struct SongFormPartEditor: View {
     private func title(at index: Int) -> String {
         let key: String
         switch form.parts[index].role {
-        case .groove: return String(format:"%c",65 + index)
+        case .groove: return form.title(index)
         case .fluteIntro: key = "Flute intro"
         case .developingBeat: key = "Main groove"
         case .arpeggio: key = "Arpeggio"
@@ -484,6 +540,20 @@ private struct SongFormPartEditor: View {
         case .keysOutro: key = "Closing keys"
         }
         return NSLocalizedString(key,comment:"Song section")
+    }
+
+    private var chordsBinding: Binding<String> {
+        Binding(get: { form.parts[source].chordText }, set: { text in
+            form.parts[source].chordText = text
+            form.parts[source].proposedChords = nil
+        })
+    }
+
+    private var nameBinding: Binding<String> {
+        Binding(get: { form.parts[source].name ?? "" }, set: { text in
+            let trimmed = String(text.trimmingCharacters(in: .whitespacesAndNewlines).prefix(40))
+            form.parts[source].name = trimmed.isEmpty ? nil : String(text.prefix(40))
+        })
     }
 
     private var barsBinding: Binding<Int> {
@@ -530,11 +600,15 @@ private struct SongFormPartEditor: View {
                             .accessibilityIdentifier(identifier+"chords")
                     }
                 } else if part.role != .fluteIntro && part.role != .gong {
-                    TextField("Chords",text:$form.parts[source].chordText)
+                    TextField("Chords",text:chordsBinding)
                         .textInputAutocapitalization(.never).autocorrectionDisabled()
                         .accessibilityLabel("Chords").accessibilityIdentifier(identifier+"chords")
+                    ChordPicker(text: chordsBinding, keyRoot: keyRoot, minor: minor, identifier: identifier)
+                    if part.proposedChords == true { Text("Suggested chords").font(.footnote).foregroundStyle(Color.muted) }
                 }
                 if part.role == .groove {
+                    TextField("Part name, for example Verse", text: nameBinding)
+                        .accessibilityIdentifier(identifier+"name")
                     Toggle("Quieter part",isOn:$form.parts[source].relaxed)
                 }
                 if part.role == .keysOutro {
@@ -550,5 +624,46 @@ private struct SongFormPartEditor: View {
                 }
             }
         }.padding(.vertical,4)
+    }
+}
+
+/// Tap-to-pick chords of the key next to the typed list: no format to guess.
+private struct ChordPicker: View {
+    @Binding var text: String
+    let keyRoot: Int
+    let minor: Bool
+    let identifier: String
+
+    private var chords: [String] { text.split { $0 == "," || $0.isWhitespace }.map(String.init) }
+    private var palette: [String] { SongFormBrief.diatonic(keyRoot: keyRoot, minor: minor).map { MusicalNotation.chordSymbol($0, keyRoot: keyRoot, minor: minor) } }
+
+    private func write(_ list: [String]) { text = list.joined(separator: ", ") }
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 6) {
+                ForEach(Array(chords.enumerated()), id: \.offset) { index, chord in
+                    Menu {
+                        ForEach(palette, id: \.self) { symbol in
+                            Button(symbol) { var list = chords; list[index] = symbol; write(list) }
+                        }
+                        Button("Remove", systemImage: "trash", role: .destructive) { var list = chords; list.remove(at: index); write(list) }
+                    } label: {
+                        Text(verbatim: chord).font(.subheadline.weight(.semibold)).padding(.horizontal, 10).frame(minHeight: 36)
+                            .background(Color.harmony.opacity(0.18), in: Capsule()).foregroundStyle(Color.harmony)
+                    }
+                    .accessibilityLabel(Text(verbatim: chord)).accessibilityHint("Change or remove this chord")
+                    .accessibilityIdentifier(identifier + "chord.\(index)")
+                }
+                Menu {
+                    ForEach(palette, id: \.self) { symbol in Button(symbol) { write(chords + [symbol]) } }
+                } label: {
+                    Image(systemName: "plus").font(.subheadline.weight(.bold)).frame(width: 44, height: 36)
+                        .background(Color.raised, in: Capsule()).foregroundStyle(Color.studioText)
+                }
+                .disabled(chords.count >= 64)
+                .accessibilityLabel("Add a chord").accessibilityIdentifier(identifier + "chord.add")
+            }
+        }
     }
 }
