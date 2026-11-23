@@ -44,6 +44,13 @@ struct JamView: View {
             if session.recording || session.armed{recordingStatus}
             if steps {stepEditor.disabled(session.performance.contextActive)}else if dynamicType.isAccessibilitySize{accessiblePads}else{padGrid(height:(compact ? 264:312)-(compact && (session.recording || session.armed) ? 24:0)).disabled(session.performance.replaying).allowsHitTesting(!session.performance.replaying)}
             if !steps{Text("Touch to play · grid shapes the recording").font(.caption2).foregroundStyle(Color.muted).frame(maxWidth:.infinity,alignment:.leading)}
+            // U12: an empty beat suggests how to start instead of showing nothing.
+            if (drumPattern?.drums.isEmpty ?? true) && !session.recording && !session.armed {
+                EmptyStateCard(screen:"jam",symbol:"square.grid.2x2",message:"No beat yet. Record it on the pads or place hits on the steps.",actions:[
+                    .init(title:"Record",symbol:"record.circle"){session.record()},
+                    .init(title:"Steps",symbol:"square.grid.4x3.fill"){steps=true}
+                ]).disabled(session.performance.contextActive)
+            }
             // Musician feedback: every playing layer, with Mute, Solo and Clear in one place.
             DrumLayersView(session:session,pattern:drumPattern,bar:steps ? stepBar:nil)
             if session.audio.wirelessOutput{Text("For tighter timing, use the speaker or wired headphones.").font(.caption2).foregroundStyle(Color.drums).frame(maxWidth:.infinity,alignment:.leading)}

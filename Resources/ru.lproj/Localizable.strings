@@ -1546,3 +1546,7 @@
 "Something else now plays in that spot. Clear it first, then restore." = "На этом месте теперь звучит другое. Сначала освободи его, потом восстанавливай.";
 "This song already has 8 tracks. Delete one to restore this track." = "В песне уже 8 дорожек. Удали одну, чтобы вернуть эту.";
 "Hear and return to any recent edit, keep named versions of the song, or bring back deleted tracks, takes and clips." = "Послушай и верни любую недавнюю правку, сохрани версии песни или верни удалённые дорожки, дубли и клипы.";
+"No beat yet. Record it on the pads or place hits on the steps." = "Бита пока нет. Запиши его на пэдах или расставь удары по шагам.";
+"Record" = "Записать";
+"Hum to MIDI" = "Напеть в MIDI";
+"No notes yet. Hum the melody, play it on the keyboard (top left), or tap the grid to draw a note." = "Нот пока нет. Напой мелодию, сыграй её на клавишах (слева вверху) или нарисуй ноту касанием сетки.";

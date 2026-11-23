@@ -64,6 +64,12 @@ struct PianoRollView: View {
                 controls.padding(.horizontal,16)
                 if let clip,let pattern,clip.offset != 0 || clip.length != pattern.length{Text("Editing the source pattern updates every loop of this clip.").font(.caption).foregroundStyle(Color.muted).padding(.horizontal,16)}
                 if let pattern {
+                    // U12: an empty part offers ways to start right above the roll.
+                    if (pattern.notes ?? []).isEmpty {
+                        EmptyStateCard(screen:"notes",symbol:"music.note",message:"No notes yet. Hum the melody, play it on the keyboard (top left), or tap the grid to draw a note.",actions:[
+                            .init(title:"Hum to MIDI",symbol:"mic"){session.sheet = .voice}
+                        ],compact:true).padding(.horizontal,16)
+                    }
                     if listMode {eventList(pattern).frame(height:dynamicType.isAccessibilitySize ? 280:nil)} else {roll(pattern)}
                     if let note {NoteInspector(session:session,patternID:pattern.id,note:note,snap:snap,spelling:spelling)
                         .transition(.move(edge:.bottom).combined(with:.opacity))}

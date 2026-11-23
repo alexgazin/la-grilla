@@ -1544,3 +1544,7 @@
 "Something else now plays in that spot. Clear it first, then restore." = "Something else now plays in that spot. Clear it first, then restore.";
 "This song already has 8 tracks. Delete one to restore this track." = "This song already has 8 tracks. Delete one to restore this track.";
 "Hear and return to any recent edit, keep named versions of the song, or bring back deleted tracks, takes and clips." = "Hear and return to any recent edit, keep named versions of the song, or bring back deleted tracks, takes and clips.";
+"No beat yet. Record it on the pads or place hits on the steps." = "No beat yet. Record it on the pads or place hits on the steps.";
+"Record" = "Record";
+"Hum to MIDI" = "Hum to MIDI";
+"No notes yet. Hum the melody, play it on the keyboard (top left), or tap the grid to draw a note." = "No notes yet. Hum the melody, play it on the keyboard (top left), or tap the grid to draw a note.";

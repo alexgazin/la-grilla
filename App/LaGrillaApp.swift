@@ -21,6 +21,12 @@ import MusicDomain
             if target=="assistant-song-edit", let demo=try? SongEditDemo.project(name:NSLocalizedString("Two choruses",comment:"Song edit demo project")) {
                 await session.open(demo)
             }
+            // U12 fixtures: a blank song to check the empty-screen hints.
+            if target=="empty-jam" || target=="empty-notes" {
+                await session.open(Project(name:"Blank"))
+                if target=="empty-jam"{session.tab=1}
+                else{session.edit{try $0.addMelody()};session.sheet = .notes}
+            }
             if target.hasPrefix("perform") {
                 session.edit{p in try p.duplicateSection(p.sections[0].id,name:"Chorus")}
                 session.sheet = .perform
