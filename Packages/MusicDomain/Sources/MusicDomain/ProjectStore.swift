@@ -89,7 +89,7 @@ public actor ProjectStore {
     }
     public let root: URL
     public init(root: URL) { self.root = root }
-    private func package(_ id: UUID) -> URL { root.appendingPathComponent(id.uuidString).appendingPathExtension("grilla") }
+    func package(_ id: UUID) -> URL { root.appendingPathComponent(id.uuidString).appendingPathExtension("grilla") }
     @discardableResult public func save(_ project: Project) throws -> Int {
         try project.validate()
         for asset in project.referencedSamples { _ = try sampleURL(asset, projectID: project.id) }

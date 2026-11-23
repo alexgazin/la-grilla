@@ -90,7 +90,7 @@ import Observation
     private let runtimeTraceStart=ProcessInfo.processInfo.systemUptime
     let personalKits: PersonalKitStore
     let store: ProjectStore
-    enum Sheet: String, Identifiable {case projects, newProject, trackBuilder, export, settings, gettingStarted, bass, sections, notes, harmony, assistant, voice, perform, midiDevices, palettes; var id: String { rawValue }}
+    enum Sheet: String, Identifiable {case projects, newProject, trackBuilder, export, settings, gettingStarted, bass, sections, notes, harmony, assistant, voice, perform, midiDevices, palettes, history, versions; var id: String { rawValue }}
     private static var qaProjectStoreID:UUID? {
         let arguments=ProcessInfo.processInfo.arguments
         guard arguments.contains("--uitesting"),let index=arguments.firstIndex(of:"--project-store-id"),arguments.indices.contains(index+1)else{return nil}
@@ -375,6 +375,35 @@ import Observation
     }
     func undo() {if performance.contextActive{Task{await leavePerformance();undo()};return};guard !recording && !armed else {return}; mixerGesture=false;withHistoryTransaction{h,p in h.undo(&p)};restoreGeneratedLoop();sync();scheduleSave()}
     func redo() {if performance.contextActive{Task{await leavePerformance();redo()};return};guard !recording && !armed else {return}; mixerGesture=false;withHistoryTransaction{h,p in h.redo(&p)};restoreGeneratedLoop();sync();scheduleSave()}
+    /// U6 · Jump several states back (positive) or forward (negative) in one action.
+    func jumpHistory(_ steps:Int) {
+        guard steps != 0 else{return}
+        if performance.contextActive{Task{await leavePerformance();jumpHistory(steps)};return}
+        guard !recording && !armed else{message="Finish the drum take before editing the project.";return}
+        endHarmonyPreview();mixerGesture=false
+        let moved=withHistoryTransaction{h,p in steps>0 ? h.undo(&p,steps:steps):h.redo(&p,steps:-steps)}
+        guard moved else{return}
+        restoreGeneratedLoop();sync();scheduleSave();showToast("Restored")
+    }
+    /// U6 · U7 · Hear another state of this song (a history point or a saved version)
+    /// without changing the project. Stop with `endHarmonyPreview()`.
+    func previewSnapshot(_ snapshot:Project) {
+        guard !performance.contextActive else{message="Return to editing before changing the source project.";return}
+        finishTake();guard ensureAudio()else{return}
+        var candidate=snapshot;candidate.id=project.id;candidate.revision=project.revision
+        do{try candidate.validate()}catch{message=error.localizedDescription;return}
+        guard candidate.length>0 else{return}
+        auditionDraft(candidate,range:0..<candidate.length,loop:true)
+    }
+    /// U7 · Replace the song with a saved version in one Undo step. The current state is
+    /// saved as a version first, so restoring never loses work.
+    func restoreVersion(_ version:Project,keepingCurrentAs name:String) async {
+        endHarmonyPreview()
+        do{_ = try await store.saveVersion(project,name:name)}catch{message=error.localizedDescription;return}
+        let id=project.id
+        edit{p in var restored=version;restored.id=id;restored.name=p.name;p=restored}
+        showToast("Restored")
+    }
     func scheduleSave() {saveTask?.cancel();saveTask = Task {try? await Task.sleep(for:.milliseconds(700));guard !Task.isCancelled else{return};await save()} }
     func save() async {
         // Scene/background notifications may arrive while the catalogue is

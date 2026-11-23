@@ -510,6 +510,26 @@ public struct History: Sendable {
     }
     public mutating func undo(_ project: inout Project) { guard let revision=project.nextRevision,var p = past.last else { return };past.removeLast(); future.append(project); p.revision = revision; p.modified = Date(); project = p;fullyValidatedProject=nil }
     public mutating func redo(_ project: inout Project) { guard let revision=project.nextRevision,var p = future.last else { return };future.removeLast(); past.append(project); p.revision = revision; p.modified = Date(); project = p;fullyValidatedProject=nil }
+    /// U6 · Visual history: earlier states, oldest first (each carries its own `modified` time).
+    public var earlierStates: [Project] { past }
+    /// Undone states that Redo would bring back, nearest first.
+    public var laterStates: [Project] { future.reversed() }
+    /// Jumps `steps` states back in one action. Every skipped state stays reachable by Redo.
+    @discardableResult public mutating func undo(_ project: inout Project, steps: Int) -> Bool {
+        guard steps > 0, steps <= past.count, let revision = project.nextRevision else { return false }
+        var current = project
+        for _ in 0..<steps { let previous = past.removeLast(); future.append(current); current = previous }
+        current.revision = revision; current.modified = Date(); project = current; fullyValidatedProject = nil
+        return true
+    }
+    /// Jumps `steps` undone states forward in one action.
+    @discardableResult public mutating func redo(_ project: inout Project, steps: Int) -> Bool {
+        guard steps > 0, steps <= future.count, let revision = project.nextRevision else { return false }
+        var current = project
+        for _ in 0..<steps { let next = future.removeLast(); past.append(current); current = next }
+        current.revision = revision; current.modified = Date(); project = current; fullyValidatedProject = nil
+        return true
+    }
 }
 
 public enum ProjectDocument {

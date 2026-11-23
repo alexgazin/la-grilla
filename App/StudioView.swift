@@ -47,6 +47,8 @@ struct StudioView: View {
         case .perform: PerformView(session:session)
         case .midiDevices: MIDIDevicesView(session:session)
         case .palettes: PaletteView(session:session)
+        case .history: HistoryView(session:session)
+        case .versions: VersionsView(session:session)
         }}.modifier(SheetZoom(sheet:sheet,namespace:sheetZoom)).modifier(StudioQATypeSize()).scrollContentBackground(.hidden).tint(.mint).presentationDragIndicator(.visible).presentationBackground(Color.panel).presentationCornerRadius(Luz.Radius.sheet)}
         .sheet(isPresented:Binding(get:{session.shareURL != nil},set:{if !$0 {session.shareURL=nil}}),onDismiss:{session.finishSharing()}){if let url=session.shareURL{ShareView(url:url)}}
         .alert("La Grilla",isPresented:Binding(get:{session.message != nil},set:{if !$0{session.message=nil}})){Button("OK"){session.message=nil}}message:{Text(LocalizedStringKey(session.message ?? ""))}
@@ -70,8 +72,10 @@ struct StudioView: View {
     private var compactHeader:some View {HStack(spacing:4){
         IconButton(symbol:"square.stack.3d.up",label:"Projects",color:.mint){session.sheet = .projects}.luzZoomSource(Session.Sheet.projects,in:sheetZoom)
         Button{session.presentEditor(.settings)}label:{VStack(alignment:.leading,spacing:4){Text(session.displayProject.name).font(.headline).lineLimit(1);Text("\(Int(session.displayProject.bpm)) BPM · \(displayedKeyName)").font(.caption).foregroundStyle(Color.muted)}}.buttonStyle(StudioQuietButtonStyle()).frame(maxWidth:.infinity,alignment:.leading)
-        IconButton(symbol:"arrow.uturn.backward",label:"Undo"){session.undo()}.disabled(!session.history.canUndo || session.recording || session.armed)
-        IconButton(symbol:"arrow.uturn.forward",label:"Redo"){session.redo()}.disabled(!session.history.canRedo || session.recording || session.armed)
+        HStack(spacing:0){
+            IconButton(symbol:"arrow.uturn.backward",label:"Undo"){session.undo()}.disabled(!session.history.canUndo || session.recording || session.armed)
+            IconButton(symbol:"arrow.uturn.forward",label:"Redo"){session.redo()}.disabled(!session.history.canRedo || session.recording || session.armed)
+        }.contextMenu{historyMenu}
         IconButton(symbol:"square.and.arrow.up",label:"Export"){session.finishTake();session.exportTake=nil;session.sheet = .export}.luzZoomSource(Session.Sheet.export,in:sheetZoom).accessibilityIdentifier("export.open")
     }.padding(.horizontal,8).frame(minHeight:58).background(Color.panel)}
     private var compactSidebar:some View {VStack(spacing:4){
@@ -81,6 +85,10 @@ struct StudioView: View {
         tab("square.grid.3x3","Grid",0);tab("square.grid.2x2","Jam",1);tab("slider.vertical.3","Mixer",2)
         Spacer(minLength:0)
     }.padding(.top,6).frame(width:104).background(Color.panel)}
+    @ViewBuilder private var historyMenu:some View {
+        Button("Edit history",systemImage:"clock.arrow.circlepath"){session.sheet = .history}
+        Button("Song versions",systemImage:"bookmark"){session.sheet = .versions}
+    }
     private var saveColor: Color {
         if session.saveError != nil { return .record }
         return session.saving || session.savedRevision != session.project.revision ? .muted : .mint
@@ -118,6 +126,8 @@ struct StudioView: View {
                 IconButton(symbol:"arrow.uturn.forward",label:"Redo"){session.redo()}
                     .disabled(!session.history.canRedo || session.recording || session.armed).opacity(session.history.canRedo ? 1:0.3)
             }.background(Color.panel,in:RoundedRectangle(cornerRadius:Luz.Radius.card,style:.continuous))
+                // U6 · U7: a long press on Undo/Redo opens the history and the song versions.
+                .contextMenu{historyMenu}
             IconButton(symbol:"square.and.arrow.up",label:"Export"){session.finishTake();session.exportTake=nil;session.sheet = .export}
                 .background(Color.raised,in:RoundedRectangle(cornerRadius:Luz.Radius.card,style:.continuous)).luzZoomSource(Session.Sheet.export,in:sheetZoom).accessibilityIdentifier("export.open")
         }.padding(.horizontal,12).padding(.top,8).padding(.bottom,6)

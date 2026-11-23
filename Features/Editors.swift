@@ -103,6 +103,11 @@ struct SettingsView: View {
     @AppStorage("studio.showDegrees") private var showDegrees = false
     @Bindable var session: Session
     var body: some View {NavigationStack{Form{
+        Section("This project"){
+            Button{session.sheet = .history}label:{Label("Edit history",systemImage:"clock.arrow.circlepath")}.accessibilityIdentifier("settings.history")
+            Button{session.sheet = .versions}label:{Label("Song versions",systemImage:"bookmark")}.accessibilityIdentifier("settings.versions")
+            Text("Hear and return to any recent edit, or keep named versions of the song.").font(.caption).foregroundStyle(.secondary)
+        }
         Section("App preferences"){
             Picker("Theme",selection:$appearance){Text("System").tag(0);Text("Light").tag(1);Text("Dark").tag(2)}.pickerStyle(.menu).accessibilityIdentifier("settings.theme")
             Button{if let url=URL(string:UIApplication.openSettingsURLString){UIApplication.shared.open(url)}}label:{Label("Language and permissions",systemImage:"arrow.up.forward.app")}.accessibilityIdentifier("settings.system")
