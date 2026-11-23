@@ -333,6 +333,10 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
     public var editLog:[String]?
     /// U8: tracks, takes and clips deleted in the last 30 days (see ProjectTrash). Nil in older files.
     public var recentlyDeleted:[DeletedItem]?
+    /// I47: notes for co-authors, optionally on a section. Nil in older files.
+    public var notes:[ProjectNote]?
+    /// I48: how others may use this song when it is shared ("all-rights", "cc-by", "cc-by-nc"). Nil = not set.
+    public var license:String?
     /// Legacy register for implicit root bass. To change it in an existing project,
     /// use MusicalEditing.setBassRegister: explicit rootBassPitch values are absolute
     /// and must be shifted atomically as well; raw field assignment does not do that.
@@ -368,6 +372,8 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
         guard (performanceTakes ?? []).count<=1 else{throw MusicError.limit}
         if let log=editLog{guard log.count<=32,log.allSatisfy({$0.count<=300}) else{throw MusicError.invalidProject}}
         guard sections.allSatisfy({($0.lyrics?.count ?? 0)<=4000 && (-6...6).contains($0.transpose ?? 0)}),patterns.allSatisfy({($0.notes ?? []).allSatisfy{($0.syllable?.count ?? 0)<=32}})else{throw MusicError.invalidProject}
+        if let notes{guard notes.count<=200,Set(notes.map(\.id)).count==notes.count,notes.allSatisfy({!$0.text.isEmpty && $0.text.count<=1000 && $0.author.count<=60})else{throw MusicError.invalidProject}}
+        if let license{guard ["all-rights","cc-by","cc-by-nc"].contains(license)else{throw MusicError.invalidProject}}
         if let trash=recentlyDeleted{guard trash.count<=ProjectTrash.itemLimit,Set(trash.map(\.id)).count==trash.count,trash.allSatisfy({$0.name.count<=200 && $0.deletedAt.timeIntervalSinceReferenceDate.isFinite})else{throw MusicError.invalidProject}}
         for track in tracks{try track.dynamics?.validate();try track.synth?.validate();if track.synth != nil,track.role == .drums{throw MusicError.invalidProject}
             if let muted=track.mutedPads,track.role != .drums || Set(muted).count != muted.count || !muted.allSatisfy({(0..<16).contains($0)}){throw MusicError.invalidProject}}

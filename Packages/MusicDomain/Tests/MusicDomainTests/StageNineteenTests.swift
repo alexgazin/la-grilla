@@ -80,3 +80,25 @@ struct DailyAndStatsTests {
         #expect(EarTraining.questions(Project(name: "Empty")).isEmpty)
     }
 }
+
+struct NotesAndLicenseTests {
+    @Test func notesFromBothCoAuthorsSurviveAMerge() throws {
+        var base = Project.demo(); base.notes = nil
+        var mine = base, theirs = base
+        mine.notes = [ProjectNote(author: "Me", text: "Louder kick here", sectionID: base.sections[0].id)]
+        theirs.notes = [ProjectNote(author: "Andrey", text: "Try a minor chord in bar 3")]
+        let merged = try ProjectMerge.merge(base: base, mine: mine, theirs: theirs).project
+        #expect(Set(merged.notes?.map(\.author) ?? []) == ["Me", "Andrey"])
+        try merged.validate()
+    }
+
+    @Test func licenseIsOneOfTheOfferedValues() throws {
+        var project = Project.demo()
+        project.license = SongLicense.attribution.rawValue
+        try project.validate()
+        project.license = "anything"
+        #expect(throws: MusicError.self) { try project.validate() }
+        let decoded = try ProjectDocument.decode(JSONEncoder().encode(Project.demo()))
+        #expect(decoded.license == nil && decoded.notes == nil)
+    }
+}

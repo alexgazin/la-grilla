@@ -168,3 +168,25 @@ public enum WhatsNew {
         return last != currentBuild
     }
 }
+
+/// I47 · A note for a co-author, optionally pinned to a section; travels in the package
+/// and merges by id with a co-author's copy.
+public struct ProjectNote: Codable, Equatable, Identifiable, Sendable {
+    public var id: UUID = UUID()
+    public var author: String
+    public var text: String
+    public var sectionID: UUID?
+    public var created: Date
+    public var resolved: Bool?
+    public init(author: String, text: String, sectionID: UUID? = nil, created: Date = Date()) {
+        self.author = author; self.text = text; self.sectionID = sectionID; self.created = created
+    }
+}
+
+/// I48 · Sharing licences offered when a song leaves the device.
+public enum SongLicense: String, CaseIterable, Sendable {
+    case allRights = "all-rights", attribution = "cc-by", nonCommercial = "cc-by-nc"
+    public var title: String {
+        switch self { case .allRights: "Listen only (all rights reserved)"; case .attribution: "Remix with credit (CC BY)"; case .nonCommercial: "Remix with credit, not for sale (CC BY-NC)" }
+    }
+}

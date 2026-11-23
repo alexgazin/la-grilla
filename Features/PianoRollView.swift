@@ -658,6 +658,8 @@ private struct NoteToolsMenu: View {
     var body: some View {
         Menu {
             Button("Melody ideas…", systemImage: "wand.and.stars") { session.toolPatternID = patternID; session.sheet = .melodyIdeas }
+            // I7: simpler, busier or swung versions of this part.
+            Button("Variations of this part…", systemImage: "dial.medium") { session.toolPatternID = patternID; session.sheet = .variations }
             Button("Lyrics…", systemImage: "text.quote") { session.sheet = .lyrics }
             // I28: a harmony line on a new track, a third or sixth away in the key.
             Menu("Second voice", systemImage: "music.note.list") {

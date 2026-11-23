@@ -183,12 +183,38 @@ struct CompView: View {
 struct FormTemplatesView: View {
     @Bindable var session: Session
     @Environment(\.dismiss) private var dismiss
+    @State private var starts = ""
+    @State private var end = ""
+
+    /// "0:00 0:15 1:02" → seconds.
+    private func seconds(_ text: String) -> [Double] {
+        text.split(whereSeparator: { $0 == " " || $0 == "," }).compactMap { part in
+            let pieces = part.split(separator: ":").compactMap { Double($0) }
+            return pieces.count == 2 ? pieces[0] * 60 + pieces[1] : pieces.first
+        }
+    }
+    private var timedBars: [Int] { FormFromTimings.bars(starts: seconds(starts), end: seconds(end).first ?? 0, bpm: session.project.bpm) }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
                 Text("An empty song gets exactly these sections. A song with music keeps it: sections are renamed in order and the rest are added after.")
                     .font(.caption).foregroundStyle(Color.muted).fixedSize(horizontal: false, vertical: true)
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("LIKE A REFERENCE SONG").font(.caption.weight(.semibold)).tracking(1.2).foregroundStyle(Color.muted)
+                    TextField("Where parts start, e.g. 0:00 0:15 0:47", text: $starts).textFieldStyle(.roundedBorder).keyboardType(.numbersAndPunctuation)
+                        .accessibilityIdentifier("form.starts")
+                    TextField("Song length, e.g. 3:20", text: $end).textFieldStyle(.roundedBorder).keyboardType(.numbersAndPunctuation)
+                        .accessibilityIdentifier("form.end")
+                    if !timedBars.isEmpty {
+                        Text(verbatim: timedBars.map(String.init).joined(separator: " + ") + " = \(timedBars.reduce(0, +))").font(.caption.monospacedDigit()).foregroundStyle(Color.muted)
+                    }
+                    Button { applyTimings() } label: { Text("Use these lengths").frame(maxWidth: .infinity, minHeight: 44) }
+                        .buttonStyle(StudioActionStyle(color: .mint, prominent: false)).disabled(timedBars.isEmpty || session.recording || session.armed)
+                        .accessibilityIdentifier("form.timings")
+                    Text("Tempo comes from this song (\(Int(session.project.bpm)) BPM). Lengths round to whole phrases; up to 64 bars in all.").font(.caption2).foregroundStyle(Color.muted)
+                }
+                .padding(12).background(Color.panel, in: RoundedRectangle(cornerRadius: Luz.Radius.card, style: .continuous))
                 ForEach(Array(FormTemplate.all.enumerated()), id: \.element.id) { index, template in
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
@@ -219,6 +245,17 @@ struct FormTemplatesView: View {
         .navigationTitle("Structure from a template").navigationBarTitleDisplayMode(.inline)
     }
 
+    private func applyTimings() {
+        var total = 0
+        let sections: [(name: String, bars: Int)] = timedBars.enumerated().compactMap { index, bars in
+            guard total + bars <= 64 else { return nil }
+            total += bars
+            return (String(format: NSLocalizedString("Part %lld", comment: "Section name"), index + 1), bars)
+        }
+        session.edit { try FormEditing.apply(sections, to: &$0) }
+        session.showToast("Structure applied")
+        dismiss()
+    }
     private func apply(_ template: FormTemplate) {
         let sections = template.sections
         session.edit { try FormEditing.apply(sections, to: &$0) }

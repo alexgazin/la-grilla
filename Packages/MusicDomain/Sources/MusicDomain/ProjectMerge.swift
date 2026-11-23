@@ -33,6 +33,9 @@ public enum ProjectMerge {
         result.masterFX = pick(b.masterFX, mine.masterFX, theirs.masterFX, twoWay, &report)
         result.masterEQ = pick(b.masterEQ, mine.masterEQ, theirs.masterEQ, twoWay, &report)
         result.sections = list(base.map(\.sections), mine.sections, theirs.sections, &report, combine: nil)
+        // I47: both sides' notes are kept; the same note edited on both keeps the newer resolution.
+        let mergedNotes = list(base?.notes ?? [], mine.notes ?? [], theirs.notes ?? [], &report, combine: nil)
+        result.notes = mergedNotes.isEmpty ? nil : mergedNotes
         result.patterns = list(base.map(\.patterns), mine.patterns, theirs.patterns, &report) { o, m, t, r in
             var p = m
             p.length = pick(o?.length ?? m.length, m.length, t.length, o == nil, &r)
