@@ -341,6 +341,10 @@ struct SectionsView: View {
                         .buttonStyle(StudioActionStyle(prominent: false))
                         .disabled(editingLocked || remainingBars == 0 || session.project.sections.count >= maximumSections)
                         .accessibilityIdentifier("sections.add")
+                    NavigationLink { FormTemplatesView(session: session) } label: { Label("Structure from a template", systemImage: "rectangle.split.3x1") }
+                        .buttonStyle(StudioActionStyle(color: .mint, prominent: false))
+                        .disabled(editingLocked)
+                        .accessibilityIdentifier("form.open")
                     HStack(spacing: 4) {
                         IconButton(symbol: "arrow.uturn.backward", label: "Undo") { session.undo() }
                             .disabled(editingLocked || !session.history.canUndo)

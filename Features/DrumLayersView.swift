@@ -17,6 +17,11 @@ struct DrumLayersView: View {
     private var layers: [DrumLayers.Layer] { DrumLayers.layers(in: pattern, track: track) }
     private var locked: Bool { session.performance.contextActive || session.recording || session.armed }
 
+    /// "Take 2", or "Fill 3" / "Comp 4" for generated takes.
+    static func title(_ take: DrumTakes.Summary) -> LocalizedStringKey {
+        switch take.label { case "Fill": "Fill \(take.number)"; case "Comp": "Comp \(take.number)"; default: "Take \(take.number)" }
+    }
+
     var body: some View {
         let layers = layers
         let takes = DrumTakes.takes(in: pattern)
@@ -26,6 +31,7 @@ struct DrumLayersView: View {
                 HStack {
                     SmallHeading(text: "LAYERS")
                     Spacer(minLength: 8)
+                    beatTools(takes: takes).disabled(locked)
                     DrumLayerActions.clearBeatMenu(session: session, pattern: pattern, bar: bar, layers: layers)
                         .disabled(locked)
                 }
@@ -41,6 +47,25 @@ struct DrumLayersView: View {
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("jam.layers")
         }
+    }
+
+    /// Stage 3: variations of the beat, an automatic fill at the end, comping takes.
+    private func beatTools(takes: [DrumTakes.Summary]) -> some View {
+        Menu {
+            Button("Variations of this beat…", systemImage: "wand.and.stars") { session.toolPatternID = pattern?.id; session.sheet = .variations }
+            Menu("Add a fill at the end", systemImage: "music.quarternote.3") {
+                ForEach(FillGenerator.Kind.allCases, id: \.self) { kind in
+                    Button(LocalizedStringKey(kind.title)) { DrumLayerActions.addFill(session: session, pattern: pattern, kind: kind) }
+                }
+            }
+            if takes.count >= 2 {
+                Button("Build the best take…", systemImage: "rectangle.stack.badge.play") { session.toolPatternID = pattern?.id; session.sheet = .comp }
+            }
+        } label: {
+            Label("Beat tools", systemImage: "wand.and.stars").labelStyle(.iconOnly).font(.body.weight(.semibold))
+                .foregroundStyle(Color.mint).frame(width: 44, height: 44).contentShape(Rectangle())
+        }
+        .accessibilityIdentifier("jam.beat-tools")
     }
 
     /// Recorded takes stay separate from the programmed beat: delete or mute only the
@@ -72,7 +97,7 @@ struct DrumLayersView: View {
             HStack(spacing: 6) {
                 Image(systemName: "record.circle").font(.caption).foregroundStyle(take.muted ? Color.muted : Color.record).frame(width: 14).accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 1) {
-                    Text("Take \(take.number)").font(.subheadline.weight(.semibold))
+                    Text(Self.title(take)).font(.subheadline.weight(.semibold))
                         .foregroundStyle(take.muted ? Color.muted : Color.studioText)
                         .strikethrough(take.muted, color: Color.muted)
                     Text("\(take.hits) hits").font(.caption2.monospacedDigit()).foregroundStyle(Color.muted)
@@ -155,7 +180,7 @@ struct DrumLayersMenu: View {
                         Button(take.muted ? "Unmute" : "Mute", systemImage: take.muted ? "speaker.wave.2" : "speaker.slash") { DrumLayerActions.setTakeMuted(session: session, pattern: pattern, take: take.id, muted: !take.muted) }
                         Button("Keep in the beat", systemImage: "checkmark.circle") { DrumLayerActions.keepTake(session: session, pattern: pattern, take: take.id) }
                         Button("Delete take", systemImage: "trash", role: .destructive) { DrumLayerActions.deleteTake(session: session, pattern: pattern, take: take.id) }
-                    } label: { Label("Take \(take.number) · \(take.hits)", systemImage: take.muted ? "speaker.slash" : "record.circle") }
+                    } label: { Label(DrumLayersView.title(take), systemImage: take.muted ? "speaker.slash" : "record.circle") }
                 }
                 Divider()
             }
@@ -223,6 +248,15 @@ struct DrumLayersMenu: View {
             guard let i = p.patterns.firstIndex(where: { $0.id == id }) else { return }
             change(&p.patterns[i])
         }
+    }
+    /// I8 · A fill in the last two beats of the pattern, as its own take.
+    static func addFill(session: Session, pattern: Pattern?, kind: FillGenerator.Kind) {
+        guard let id = pattern?.id else { return }
+        session.edit { p in
+            guard let i = p.patterns.firstIndex(where: { $0.id == id }) else { return }
+            guard FillGenerator.add(kind, beats: 2, endingAt: p.patterns[i].length, to: &p.patterns[i]) != nil else { throw MusicError.tooDense }
+        }
+        Luz.Haptics.success()
     }
     /// The deleted take goes to Recently deleted (U8), so it can come back after a relaunch.
     static func deleteTake(session: Session, pattern: Pattern?, take: UUID) {

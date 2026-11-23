@@ -90,7 +90,7 @@ import Observation
     private let runtimeTraceStart=ProcessInfo.processInfo.systemUptime
     let personalKits: PersonalKitStore
     let store: ProjectStore
-    enum Sheet: String, Identifiable {case projects, newProject, trackBuilder, export, settings, gettingStarted, bass, sections, notes, harmony, assistant, voice, perform, midiDevices, palettes, history, versions, trash, commands; var id: String { rawValue }}
+    enum Sheet: String, Identifiable {case projects, newProject, trackBuilder, export, settings, gettingStarted, bass, sections, notes, harmony, assistant, voice, perform, midiDevices, palettes, history, versions, trash, commands, variations, comp; var id: String { rawValue }}
     private static var qaProjectStoreID:UUID? {
         let arguments=ProcessInfo.processInfo.arguments
         guard arguments.contains("--uitesting"),let index=arguments.firstIndex(of:"--project-store-id"),arguments.indices.contains(index+1)else{return nil}
@@ -404,6 +404,8 @@ import Observation
         edit{p in var restored=version;restored.id=id;restored.name=p.name;p=restored}
         showToast("Restored")
     }
+    /// Stage 3 tools (variations, comping) work on this pattern.
+    var toolPatternID:UUID?
     /// U3 · A request left by Siri, Shortcuts or Spotlight.
     func handleLaunch(_ request:LaunchRequest) async {
         switch request.kind {
