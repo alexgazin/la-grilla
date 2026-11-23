@@ -77,7 +77,10 @@ public enum MIDIExporter {
     public static func data(_ project: Project, range: Range<Int>? = nil) throws -> Data {
         try project.validate(); let range = range ?? 0..<project.length
         guard range.lowerBound >= 0, range.upperBound <= project.length, !range.isEmpty else { throw MusicError.invalidProject }
-        let markers=project.sections.filter{$0.start<range.upperBound && $0.start+$0.length>range.lowerBound}.map{MIDIMarker(tick:max(0,$0.start-range.lowerBound),text:$0.name)}
+        let sectionMarkers=project.sections.filter{$0.start<range.upperBound && $0.start+$0.length>range.lowerBound}.map{MIDIMarker(tick:max(0,$0.start-range.lowerBound),text:$0.name)}
+        // I39: the musician's own markers travel with the MIDI file.
+        let noteMarkers=(project.markers ?? []).filter{range.contains($0.tick)}.map{MIDIMarker(tick:$0.tick-range.lowerBound,text:String($0.text.prefix(200)))}
+        let markers=(sectionMarkers+noteMarkers).sorted{$0.tick<$1.tick}
         return try sequence(project,notes:Compiler.notes(project,range:range),duration:range.count,markers:markers)
     }
     public static func sequence(_ project:Project,notes:[CompiledNote],duration:Int,markers:[MIDIMarker]=[],controls:[MIDIControl]=[])throws->Data {

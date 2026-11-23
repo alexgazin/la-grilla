@@ -90,7 +90,7 @@ import Observation
     private let runtimeTraceStart=ProcessInfo.processInfo.systemUptime
     let personalKits: PersonalKitStore
     let store: ProjectStore
-    enum Sheet: String, Identifiable {case projects, newProject, trackBuilder, export, settings, gettingStarted, bass, sections, notes, harmony, assistant, voice, perform, midiDevices, palettes, history, versions, trash, commands, variations, comp, chordImport, melodyIdeas, lyrics, master, mood, doctor, earTraining, whatsNew, coNotes, vj, help, grooves, practicePlayer, beatMachine; var id: String { rawValue }}
+    enum Sheet: String, Identifiable {case projects, newProject, trackBuilder, export, settings, gettingStarted, bass, sections, notes, harmony, assistant, voice, perform, midiDevices, palettes, history, versions, trash, commands, variations, comp, chordImport, melodyIdeas, lyrics, master, mood, doctor, earTraining, whatsNew, coNotes, vj, help, grooves, practicePlayer, beatMachine, tuner, markers, dynamics; var id: String { rawValue }}
     private static var qaProjectStoreID:UUID? {
         let arguments=ProcessInfo.processInfo.arguments
         guard arguments.contains("--uitesting"),let index=arguments.firstIndex(of:"--project-store-id"),arguments.indices.contains(index+1)else{return nil}
@@ -345,7 +345,8 @@ import Observation
         mixerGesture=false
         guard !performance.contextActive else{message="Return to editing before changing the source project.";return}
         guard !recording && !armed else {message = "Finish the drum take before editing the project.";return}
-        do {try withHistoryTransaction{h,p in try h.apply(&p,change)}; sync(); scheduleSave()} catch {message = error.localizedDescription}
+        // I39: markers stay with their place in a section when the form changes.
+        do {try withHistoryTransaction{h,p in try h.apply(&p){q in let before=q;try change(&q);MarkerEditing.remap(from:before,to:&q)}}; sync(); scheduleSave()} catch {message = error.localizedDescription}
     }
     var mixerGesture = false
     func mixerEdit(_ change: (inout Project) throws -> Void) {
@@ -521,6 +522,9 @@ import Observation
         case .help: presentEditor(.help)
         case .grooves: presentEditor(.grooves)
         case .beatMachine: presentEditor(.beatMachine)
+        case .tuner: presentEditor(.tuner)
+        case .markers: presentEditor(.markers)
+        case .dynamics: presentEditor(.dynamics)
         case .practicePlayer: presentEditor(.practicePlayer)
         case .continueIdea:
             let current=section

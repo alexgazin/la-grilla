@@ -10,6 +10,9 @@ struct JamView: View {
     @State private var showGuide=false
     @State private var selectedPad = 0
     @State private var stepBar = 0
+    /// I24: step resolution, remembered on this device.
+    @AppStorage("jam.stepDivision") private var stepDivisionRaw = StepDivision.sixteenth.rawValue
+    private var stepDivision: StepDivision { StepDivision(rawValue: stepDivisionRaw) ?? .sixteenth }
     @State private var velocity = 100.0
     @State private var pressed: Set<Int> = []
     /// Luz: the last hit's velocity per pad scales its light.
@@ -167,20 +170,20 @@ struct JamView: View {
     }
     var stepEditor: some View {
         VStack(spacing:16){
-            HStack{Menu{ForEach(0..<16,id:\.self){i in Button(LocalizedStringKey(Compiler.padNames[i])){selectedPad=i}}}label:{Label(LocalizedStringKey(Compiler.padNames[selectedPad]),systemImage:"waveform").font(.subheadline.weight(.semibold)).foregroundStyle(Color.drums).frame(minHeight:44)};Spacer();Picker("Bar",selection:$stepBar){ForEach(0..<(drumPattern?.length ?? barTicks)/barTicks,id:\.self){i in Text("Bar \(i+1)").tag(i)}}.frame(width:dynamicType.isAccessibilitySize ? 150:110)}
+            HStack{Menu{ForEach(0..<16,id:\.self){i in Button(LocalizedStringKey(Compiler.padNames[i])){selectedPad=i}}}label:{Label(LocalizedStringKey(Compiler.padNames[selectedPad]),systemImage:"waveform").font(.subheadline.weight(.semibold)).foregroundStyle(Color.drums).frame(minHeight:44)};Spacer();Menu{ForEach(StepDivision.allCases){division in Button{stepDivisionRaw=division.rawValue}label:{if division==stepDivision{Label(division.title,systemImage:"checkmark")}else{Text(verbatim:division.title)}}}}label:{Text(verbatim:stepDivision.title).font(.subheadline.monospacedDigit().weight(.semibold)).foregroundStyle(Color.drums).frame(minWidth:52,minHeight:44)}.accessibilityLabel("Step size").accessibilityValue(Text(verbatim:stepDivision.title)).accessibilityIdentifier("jam.step-division");Picker("Bar",selection:$stepBar){ForEach(0..<(drumPattern?.length ?? barTicks)/barTicks,id:\.self){i in Text("Bar \(i+1)").tag(i)}}.frame(width:dynamicType.isAccessibilitySize ? 150:110)}
             Picker("Step view",selection:$lanes){Text("Lanes").tag(true);Text("One pad").tag(false)}.pickerStyle(.segmented).accessibilityIdentifier("jam.step-view")
-            if lanes{DrumLanesView(pattern:drumPattern,bar:stepBar,selectedPad:$selectedPad,audio:session.audio,origin:drumClipStart,mutedPads:Set(session.displayProject.tracks.first{$0.role == .drums}?.mutedPads ?? []),toggle:{pad,tick in toggleStep(tick,pad:pad)},adjust:{pad,tick,change in adjustStep(pad:pad,tick:tick,change:change)}).transition(Luz.Transition.replace(reduceMotion))}else{singlePadSteps.transition(Luz.Transition.replace(reduceMotion))}
+            if lanes{DrumLanesView(pattern:drumPattern,bar:stepBar,selectedPad:$selectedPad,audio:session.audio,origin:drumClipStart,mutedPads:Set(session.displayProject.tracks.first{$0.role == .drums}?.mutedPads ?? []),toggle:{pad,tick in toggleStep(tick,pad:pad)},adjust:{pad,tick,change in adjustStep(pad:pad,tick:tick,change:change)},division:stepDivision).transition(Luz.Transition.replace(reduceMotion))}else{singlePadSteps.transition(Luz.Transition.replace(reduceMotion))}
             VStack(alignment:.leading,spacing:8){HStack{SmallHeading(text:"VELOCITY");Spacer();Text(String(Int(velocity))).font(.system(.caption, design: .monospaced)).foregroundStyle(Color.drums).monospacedDigit()};Slider(value:$velocity,in:1...127,step:1).tint(.drums);Button("Apply velocity to this bar"){guard let id=drumPattern?.id else{return};session.edit{p in if let i=p.patterns.firstIndex(where:{$0.id==id}){for n in p.patterns[i].drums.indices where p.patterns[i].drums[n].pad==selectedPad && p.patterns[i].drums[n].tick/barTicks==stepBar{p.patterns[i].drums[n].velocity=Int(velocity)}}}}.font(.caption).frame(minHeight:44)}
         }.animation(reduceMotion ? .easeOut(duration:0.15):Luz.Motion.morph,value:lanes).padding(14).modifier(StudioSurface())
     }
     private var singlePadSteps:some View {
-        LazyVGrid(columns:Array(repeating:GridItem(.flexible(),spacing:6),count:4),spacing:10){ForEach(0..<16,id:\.self){step in
-                let tick=stepBar*barTicks+step*240
+        LazyVGrid(columns:Array(repeating:GridItem(.flexible(),spacing:6),count:min(8,max(3,stepDivision.perBeat == 2 ? 4:stepDivision.perBeat))),spacing:10){ForEach(0..<stepDivision.steps,id:\.self){step in
+                let tick=stepDivision.tick(bar:stepBar,step:step)
                 let exists=drumPattern?.drums.contains(where:{$0.pad==selectedPad && $0.tick==tick}) ?? false
                 Button{toggleStep(tick);Luz.Haptics.selection()}label:{VStack(spacing:9){Text(String(step+1)).font(StudioTypography.index);RoundedRectangle(cornerRadius:3,style:.continuous).fill(exists ? Color.ink.opacity(0.55):Color.drums.opacity(0.35)).frame(height:26)}.foregroundStyle(exists ? Color.ink:Color.muted).padding(8).frame(height:61)
                     // Luz lit step: an active step glows in the drum colour; every fourth step marks the beat.
-                    .litInstrument(.drums,isDown:exists,radius:Luz.Radius.cell,intensity:step%4==0 ? 1:0.75)
-                    .overlay{StepPlayhead(audio:session.audio,tick:tick,origin:drumClipStart,length:drumPattern?.length ?? barTicks)}}.buttonStyle(StudioQuietButtonStyle(plate:false)).accessibilityLabel("Step \(step+1)").accessibilityValue(LocalizedStringKey(exists ? "On":"Off")).accessibilityIdentifier("jam.step.\(step)")
+                    .litInstrument(.drums,isDown:exists,radius:Luz.Radius.cell,intensity:step%stepDivision.perBeat==0 ? 1:0.75)
+                    .overlay{StepPlayhead(audio:session.audio,tick:tick,origin:drumClipStart,length:drumPattern?.length ?? barTicks,unit:stepDivision.ticks)}}.buttonStyle(StudioQuietButtonStyle(plate:false)).accessibilityLabel("Step \(step+1)").accessibilityValue(LocalizedStringKey(exists ? "On":"Off")).accessibilityIdentifier("jam.step.\(step)")
             }}
     }
     func toggleStep(_ tick: Int,pad:Int?=nil){let selectedPad=pad ?? self.selectedPad;guard let pattern=drumPattern else{return};session.edit{p in guard let i=p.patterns.firstIndex(where:{$0.id==pattern.id})else{return};if p.patterns[i].drums.contains(where:{$0.pad==selectedPad && $0.tick==tick}){p.patterns[i].drums.removeAll(where:{$0.pad==selectedPad && $0.tick==tick});DrumTakes.pruneEmpty(&p.patterns[i])}else{p.patterns[i].drums.append(DrumEvent(tick:tick,pad:selectedPad,velocity:Int(velocity)))}}}
@@ -269,9 +272,10 @@ private struct StepPlayhead:View {
     let tick:Int
     let origin:Int
     let length:Int
+    var unit=240
     var body:some View {
         let position=length>0 ? ((Int(audio.tick)-origin)%length+length)%length:0
-        let playing=audio.playing && length>0 && position/240==tick/240
+        let playing=audio.playing && length>0 && position/unit==tick/unit
         RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous).strokeBorder(Color.mint,lineWidth:1.5)
             .opacity(playing ? 1:0).allowsHitTesting(false).accessibilityHidden(true)
             .transaction{$0.animation=nil}

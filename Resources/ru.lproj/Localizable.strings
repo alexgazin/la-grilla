@@ -2137,3 +2137,31 @@
 "The sketch could not start. Stop other playback and try again." = "Эскиз не запустился. Остановите другое воспроизведение и попробуйте ещё раз.";
 "Playing · bar %lld of %lld" = "Играет · такт %lld из %lld";
 "Stop sketch" = "Остановить эскиз";
+
+/* Tuner, markers, dynamics */
+"Tuner" = "Тюнер";
+"Markers" = "Маркеры";
+"Song dynamics" = "Динамика песни";
+"Chromatic" = "Хроматический";
+"Reference A4" = "Эталон A4";
+"Open Settings" = "Открыть настройки";
+"Play one string or note at a time. The tuner listens only while this screen is open." = "Играйте по одной струне или ноте. Тюнер слушает микрофон, только пока открыт этот экран.";
+"Listening…" = "Слушаю…";
+"Starting the microphone…" = "Включаю микрофон…";
+"In tune" = "Строит";
+"Flat: tune up" = "Ниже: подтяните";
+"Sharp: tune down" = "Выше: ослабьте";
+"The tuner needs the microphone. Allow it for La Grilla in Settings." = "Тюнеру нужен микрофон. Разрешите его для La Grilla в Настройках.";
+"Audio could not start." = "Звук не запустился.";
+"Add vocals here" = "Здесь добавить вокал";
+"Add" = "Добавить";
+"The marker goes at the playhead, bar %@." = "Маркер встанет на позицию воспроизведения, такт %@.";
+"No markers yet. Pin a note to a place in the song: what to change, where the vocals start." = "Маркеров пока нет. Прикрепите заметку к месту в песне: что поменять, где вступает вокал.";
+"Moves the playhead here" = "Переносит позицию воспроизведения сюда";
+"In this song" = "В этой песне";
+"The same parts, thinned and filled so the song breathes: a sparse intro, a lighter verse, a full chorus with a crash, a contrasting bridge." = "Те же партии, где‑то реже, где‑то плотнее, чтобы песня дышала: разреженное интро, лёгкий куплет, полный припев с крэшем, контрастный бридж.";
+"Leave as is" = "Оставить как есть";
+"With dynamics" = "С динамикой";
+"Chords and locked tracks stay. Nothing changes until you apply." = "Аккорды и закреплённые дорожки остаются. Пока не примените, ничего не меняется.";
+"Apply dynamics" = "Применить динамику";
+"Step size" = "Размер шага";

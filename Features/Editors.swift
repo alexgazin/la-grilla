@@ -208,6 +208,9 @@ struct SettingsView: View {
             Button{session.sheet = .versions}label:{Label("Song versions",systemImage:"bookmark")}.accessibilityIdentifier("settings.versions")
             Button{session.sheet = .trash}label:{Label("Recently deleted",systemImage:"trash")}.accessibilityIdentifier("settings.trash")
             Button{session.sheet = .coNotes}label:{Label("Notes for co-authors",systemImage:"note.text")}.accessibilityIdentifier("settings.notes")
+            Button{session.sheet = .markers}label:{Label("Markers",systemImage:"flag")}.accessibilityIdentifier("settings.markers")
+            Button{session.sheet = .dynamics}label:{Label("Song dynamics",systemImage:"chart.line.uptrend.xyaxis")}.accessibilityIdentifier("settings.dynamics")
+            Button{session.sheet = .tuner}label:{Label("Tuner",systemImage:"tuningfork")}.accessibilityIdentifier("settings.tuner")
             // I48: how others may use the song when it is shared.
             Picker("When shared",selection:Binding(get:{session.project.license ?? ""},set:{value in session.edit{$0.license=value.isEmpty ? nil:value}})){
                 Text("Not set").tag("")

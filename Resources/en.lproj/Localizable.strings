@@ -2135,3 +2135,31 @@
 "The sketch could not start. Stop other playback and try again." = "The sketch could not start. Stop other playback and try again.";
 "Playing · bar %lld of %lld" = "Playing · bar %lld of %lld";
 "Stop sketch" = "Stop sketch";
+
+/* Tuner, markers, dynamics */
+"Tuner" = "Tuner";
+"Markers" = "Markers";
+"Song dynamics" = "Song dynamics";
+"Chromatic" = "Chromatic";
+"Reference A4" = "Reference A4";
+"Open Settings" = "Open Settings";
+"Play one string or note at a time. The tuner listens only while this screen is open." = "Play one string or note at a time. The tuner listens only while this screen is open.";
+"Listening…" = "Listening…";
+"Starting the microphone…" = "Starting the microphone…";
+"In tune" = "In tune";
+"Flat: tune up" = "Flat: tune up";
+"Sharp: tune down" = "Sharp: tune down";
+"The tuner needs the microphone. Allow it for La Grilla in Settings." = "The tuner needs the microphone. Allow it for La Grilla in Settings.";
+"Audio could not start." = "Audio could not start.";
+"Add vocals here" = "Add vocals here";
+"Add" = "Add";
+"The marker goes at the playhead, bar %@." = "The marker goes at the playhead, bar %@.";
+"No markers yet. Pin a note to a place in the song: what to change, where the vocals start." = "No markers yet. Pin a note to a place in the song: what to change, where the vocals start.";
+"Moves the playhead here" = "Moves the playhead here";
+"In this song" = "In this song";
+"The same parts, thinned and filled so the song breathes: a sparse intro, a lighter verse, a full chorus with a crash, a contrasting bridge." = "The same parts, thinned and filled so the song breathes: a sparse intro, a lighter verse, a full chorus with a crash, a contrasting bridge.";
+"Leave as is" = "Leave as is";
+"With dynamics" = "With dynamics";
+"Chords and locked tracks stay. Nothing changes until you apply." = "Chords and locked tracks stay. Nothing changes until you apply.";
+"Apply dynamics" = "Apply dynamics";
+"Step size" = "Step size";

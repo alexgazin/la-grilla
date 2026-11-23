@@ -15,6 +15,8 @@ struct DrumLanesView: View {
     let toggle: (_ pad: Int, _ tick: Int) -> Void
     /// I25 · I27: chance and ratchet of a lit step (touch and hold the step).
     var adjust: ((_ pad: Int, _ tick: Int, _ change: StepAdjust) -> Void)? = nil
+    /// I24: straight or triplet steps.
+    var division: StepDivision = .sixteenth
     enum StepAdjust { case chance(Int?), ratchet(Int?) }
 
     static let corePads = [0, 1, 2, 3]
@@ -36,7 +38,7 @@ struct DrumLanesView: View {
         VStack(spacing: 6) {
             HStack(spacing: 0) {
                 Color.clear.frame(width: Self.labelWidth, height: 1)
-                LaneTicker(audio: audio, bar: bar, origin: origin, length: pattern?.length ?? barTicks)
+                LaneTicker(audio: audio, bar: bar, origin: origin, length: pattern?.length ?? barTicks, division: division)
             }
             ForEach(lanes, id: \.self) { pad in
                 row(pad, hits: hits, marks: marks)
@@ -64,11 +66,11 @@ struct DrumLanesView: View {
                 .accessibilityAddTraits(selected ? .isSelected : [])
                 .accessibilityIdentifier("jam.lane.\(pad)")
             Spacer(minLength: 4).frame(maxWidth: 4)
-            HStack(spacing: 2) {
-                ForEach(0..<16, id: \.self) { step in
-                    let tick = bar * barTicks + step * 240
+            HStack(spacing: division.steps > 16 ? 1 : 2) {
+                ForEach(0..<division.steps, id: \.self) { step in
+                    let tick = division.tick(bar: bar, step: step)
                     cell(pad: pad, step: step, tick: tick, velocity: hits["\(pad).\(tick)"], selected: selected, mark: marks["\(pad).\(tick)"])
-                        .padding(.leading, step > 0 && step % 4 == 0 ? 4 : 0)
+                        .padding(.leading, step > 0 && step % division.perBeat == 0 ? (division.steps > 16 ? 3 : 4) : 0)
                 }
             }
             .opacity(muted ? 0.4 : 1)
@@ -80,7 +82,7 @@ struct DrumLanesView: View {
         let level = Double(velocity ?? 0) / 127
         return Button { toggle(pad, tick); Luz.Haptics.selection() } label: {
             RoundedRectangle(cornerRadius: 5, style: .continuous)
-                .fill(on ? Color.drums.opacity(0.45 + 0.55 * level) : Color.raised.opacity(step % 4 == 0 ? 1 : 0.6))
+                .fill(on ? Color.drums.opacity(0.45 + 0.55 * level) : Color.raised.opacity(step % division.perBeat == 0 ? 1 : 0.6))
                 .overlay {
                     RoundedRectangle(cornerRadius: 5, style: .continuous)
                         .strokeBorder(selected && !on ? Color.drums.opacity(0.35) : .clear, lineWidth: 1)
@@ -122,15 +124,16 @@ private struct LaneTicker: View {
     let bar: Int
     let origin: Int
     let length: Int
+    var division: StepDivision = .sixteenth
 
     var body: some View {
         let position = length > 0 ? ((Int(audio.tick) - origin) % length + length) % length : -1
-        let current = audio.playing && position / barTicks == bar ? (position % barTicks) / 240 : -1
-        HStack(spacing: 2) {
-            ForEach(0..<16, id: \.self) { step in
-                Capsule().fill(step == current ? Color.mint : Color.muted.opacity(step % 4 == 0 ? 0.55 : 0.2))
+        let current = audio.playing && position / barTicks == bar ? (position % barTicks) / division.ticks : -1
+        HStack(spacing: division.steps > 16 ? 1 : 2) {
+            ForEach(0..<division.steps, id: \.self) { step in
+                Capsule().fill(step == current ? Color.mint : Color.muted.opacity(step % division.perBeat == 0 ? 0.55 : 0.2))
                     .frame(maxWidth: .infinity).frame(height: 3)
-                    .padding(.leading, step > 0 && step % 4 == 0 ? 4 : 0)
+                    .padding(.leading, step > 0 && step % division.perBeat == 0 ? (division.steps > 16 ? 3 : 4) : 0)
             }
         }
         .transaction { $0.animation = nil }

@@ -1,6 +1,7 @@
 import AVFoundation
 import MusicDomain
 import SwiftUI
+import UIKit
 
 /// Beat machine · A groovebox inside the song: pick a genre and a ready beat, change
 /// the kit and the 808, tap steps and pads, hear it with the song's chords, then put
@@ -529,6 +530,12 @@ private struct GenreArt: View {
     var body: some View {
         VStack(spacing: 6) {
             ZStack {
+                // A cover from the asset catalog when the app has one, else the drawn tile.
+                if let cover = UIImage(named: "genre-" + genre.rawValue) {
+                    Image(uiImage: cover).resizable().scaledToFill()
+                        .frame(width: 76, height: 76)
+                        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                } else {
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
                     .fill(LinearGradient(colors: [Color(hue: genre.hues.0, saturation: 0.7, brightness: 0.85), Color(hue: genre.hues.1, saturation: 0.85, brightness: 0.4)],
                                          startPoint: .topLeading, endPoint: .bottomTrailing))
@@ -541,6 +548,7 @@ private struct GenreArt: View {
                 }
                 Image(systemName: genre.symbol).font(.system(size: 28, weight: .bold)).foregroundStyle(.white)
                     .shadow(color: .black.opacity(0.25), radius: 4, y: 2)
+                }
             }
             .frame(width: 76, height: 76)
             .overlay { RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(selected ? Color.mint : .clear, lineWidth: 3) }
