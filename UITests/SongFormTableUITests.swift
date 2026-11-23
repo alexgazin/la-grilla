@@ -29,9 +29,9 @@ final class SongFormTableUITests: XCTestCase {
         let chords = app.textFields["builder.part.0.chords"]
         XCTAssertTrue(chords.waitForExistence(timeout: 5))
         let before = chords.value as? String ?? ""
-        let add = app.buttons["builder.part.0.chord.add"]
-        for _ in 0..<6 where !add.isHittable { app.swipeUp() }
-        add.tap()
+        let addChord = app.buttons["builder.part.0.chord.add"]
+        for _ in 0..<6 where !addChord.isHittable { app.swipeUp() }
+        addChord.tap()
         let choice = app.buttons["Dm"]
         XCTAssertTrue(choice.waitForExistence(timeout: 5), "C major offers its own chords")
         choice.tap()
