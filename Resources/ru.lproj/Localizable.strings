@@ -1949,3 +1949,10 @@
 "Private project" = "Приватный проект";
 "Stop hiding" = "Перестать скрывать";
 "Hide behind Face ID" = "Скрыть за Face ID";
+"Work out a song" = "Подобрать песню";
+"Load a song to work out its chords or melody. The studio stops while this plays." = "Загрузи песню, чтобы подобрать аккорды или мелодию. Пока она играет, студия молчит.";
+"Loop from" = "Повтор с";
+"to" = "до";
+"Speed" = "Скорость";
+"Pitch" = "Высота";
+"Changes apply on the next loop." = "Изменения вступают со следующего повтора.";

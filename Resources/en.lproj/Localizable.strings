@@ -1947,3 +1947,10 @@
 "Private project" = "Private project";
 "Stop hiding" = "Stop hiding";
 "Hide behind Face ID" = "Hide behind Face ID";
+"Work out a song" = "Work out a song";
+"Load a song to work out its chords or melody. The studio stops while this plays." = "Load a song to work out its chords or melody. The studio stops while this plays.";
+"Loop from" = "Loop from";
+"to" = "to";
+"Speed" = "Speed";
+"Pitch" = "Pitch";
+"Changes apply on the next loop." = "Changes apply on the next loop.";

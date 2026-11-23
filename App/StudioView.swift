@@ -73,6 +73,7 @@ struct StudioView: View {
         case .vj: StageVJView(session:session)
         case .help: HelpView(session:session)
         case .grooves: StarterGroovesView(session:session)
+        case .practicePlayer: PracticePlayerView(session:session)
         }}.safeAreaInset(edge:.bottom){if [.bass,.palettes,.lyrics,.harmony].contains(sheet){SheetMiniTransport(session:session)}}
         .modifier(SheetZoom(sheet:sheet,namespace:sheetZoom)).modifier(StudioQATypeSize()).scrollContentBackground(.hidden).tint(.mint).presentationDragIndicator(.visible).presentationBackground(Color.panel).presentationCornerRadius(Luz.Radius.sheet)}
         .sheet(isPresented:Binding(get:{session.shareURL != nil},set:{if !$0 {session.shareURL=nil}}),onDismiss:{session.finishSharing()}){if let url=session.shareURL{ShareView(url:url)}}
