@@ -1677,3 +1677,17 @@
 "Use this idea" = "Взять эту идею";
 "It replaces the notes of this part. One Undo brings them back." = "Она заменит ноты партии. Один Undo вернёт их.";
 "Melody ideas" = "Идеи мелодии";
+"Lyrics" = "Текст песни";
+"Lyrics…" = "Текст песни…";
+"Words for “%@”. One line per phrase; type hyphens to split syllables your way (лю-бовь)." = "Слова для «%@». Одна строка — одна фраза; дефисом можно разбить слоги по-своему (лю-бовь).";
+"Every note has a syllable." = "У каждой ноты есть слог.";
+"%lld syllables more than notes." = "Слогов больше, чем нот: %lld.";
+"%lld notes without words." = "Нот без слов: %lld.";
+"Save and place under the notes" = "Сохранить и разложить по нотам";
+"Add a melody track to place the words under notes." = "Добавь дорожку мелодии, чтобы разложить слова по нотам.";
+"Save words" = "Сохранить слова";
+"Words travel with the project and are written into MIDI as lyrics." = "Слова хранятся в проекте и пишутся в MIDI как текст песни.";
+"Words placed" = "Слова разложены";
+"Words saved" = "Слова сохранены";
+"For a DAW: stems, MIDI, README" = "Для DAW: стемы, MIDI, README";
+"One zip for Logic, GarageBand, Ableton, FL Studio or Reaper: every track as an aligned WAV from bar 1, song.mid with tempo, key and section markers, and a README with what to do." = "Один zip для Logic, GarageBand, Ableton, FL Studio или Reaper: каждая дорожка — выровненный WAV с первого такта, song.mid с темпом, тональностью и маркерами секций и README с инструкцией.";

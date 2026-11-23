@@ -1675,3 +1675,17 @@
 "Use this idea" = "Use this idea";
 "It replaces the notes of this part. One Undo brings them back." = "It replaces the notes of this part. One Undo brings them back.";
 "Melody ideas" = "Melody ideas";
+"Lyrics" = "Lyrics";
+"Lyrics…" = "Lyrics…";
+"Words for “%@”. One line per phrase; type hyphens to split syllables your way (лю-бовь)." = "Words for “%@”. One line per phrase; type hyphens to split syllables your way (лю-бовь).";
+"Every note has a syllable." = "Every note has a syllable.";
+"%lld syllables more than notes." = "%lld syllables more than notes.";
+"%lld notes without words." = "%lld notes without words.";
+"Save and place under the notes" = "Save and place under the notes";
+"Add a melody track to place the words under notes." = "Add a melody track to place the words under notes.";
+"Save words" = "Save words";
+"Words travel with the project and are written into MIDI as lyrics." = "Words travel with the project and are written into MIDI as lyrics.";
+"Words placed" = "Words placed";
+"Words saved" = "Words saved";
+"For a DAW: stems, MIDI, README" = "For a DAW: stems, MIDI, README";
+"One zip for Logic, GarageBand, Ableton, FL Studio or Reaper: every track as an aligned WAV from bar 1, song.mid with tempo, key and section markers, and a README with what to do." = "One zip for Logic, GarageBand, Ableton, FL Studio or Reaper: every track as an aligned WAV from bar 1, song.mid with tempo, key and section markers, and a README with what to do.";

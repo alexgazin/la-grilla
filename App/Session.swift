@@ -90,7 +90,7 @@ import Observation
     private let runtimeTraceStart=ProcessInfo.processInfo.systemUptime
     let personalKits: PersonalKitStore
     let store: ProjectStore
-    enum Sheet: String, Identifiable {case projects, newProject, trackBuilder, export, settings, gettingStarted, bass, sections, notes, harmony, assistant, voice, perform, midiDevices, palettes, history, versions, trash, commands, variations, comp, chordImport, melodyIdeas; var id: String { rawValue }}
+    enum Sheet: String, Identifiable {case projects, newProject, trackBuilder, export, settings, gettingStarted, bass, sections, notes, harmony, assistant, voice, perform, midiDevices, palettes, history, versions, trash, commands, variations, comp, chordImport, melodyIdeas, lyrics; var id: String { rawValue }}
     private static var qaProjectStoreID:UUID? {
         let arguments=ProcessInfo.processInfo.arguments
         guard arguments.contains("--uitesting"),let index=arguments.firstIndex(of:"--project-store-id"),arguments.indices.contains(index+1)else{return nil}
@@ -476,6 +476,7 @@ import Observation
         case .trash: presentEditor(.trash)
         case .midiDevices: presentEditor(.midiDevices)
         case .chordImport: presentEditor(.chordImport)
+        case .lyrics: presentEditor(.lyrics)
         }
     }
     /// U8 · Bring back a deleted track, take or clip in one Undo step.
@@ -1036,10 +1037,10 @@ import Observation
         }catch{if let written{await retainUnopenedProject(written)}else{message=error.localizedDescription}}
     }
     enum ExportFormat:String,CaseIterable,Identifiable {
-        case midi,wav,stems,project,aac,video
+        case midi,wav,stems,project,aac,video,daw
         var id:String{rawValue}
-        var title:String{switch self{case .midi:"Standard MIDI";case .wav:"Stereo WAV";case .stems:"Aligned stems";case .project:"Portable project";case .aac:"AAC for sharing";case .video:"Video for social"}}
-        var fileExtension:String{switch self{case .midi:"mid";case .wav:"wav";case .stems:"zip";case .project:"grillapack";case .aac:"m4a";case .video:"mp4"}}
+        var title:String{switch self{case .midi:"Standard MIDI";case .wav:"Stereo WAV";case .stems:"Aligned stems";case .project:"Portable project";case .aac:"AAC for sharing";case .video:"Video for social";case .daw:"For a DAW: stems, MIDI, README"}}
+        var fileExtension:String{switch self{case .midi:"mid";case .wav:"wav";case .stems,.daw:"zip";case .project:"grillapack";case .aac:"m4a";case .video:"mp4"}}
     }
     func export(format:ExportFormat,settings:WAVSettings,range:Range<Int>,tracks:Set<UUID>,performance:PerformanceTake?=nil) {
         if performance != nil && format != .midi && format != .wav && format != .aac{exportError="Choose WAV or MIDI for a performance.";return}
@@ -1060,6 +1061,10 @@ import Observation
                     let receipt:RenderReceipt;if let performance{receipt=try await OfflineRenderer.renderPerformance(performance,to:url,settings:settings,samples:samples,progress:progress)}else{receipt=try await OfflineRenderer.render(snapshot,to:url,settings:settings,range:range,samples:samples,progress:progress)}
                     if receipt.clipped{exportWarning="Clipping was detected. Lower track or master gain for a cleaner export."}
                 case .stems:_ = try await StemExporter.render(snapshot,to:url,settings:settings,range:range,selected:tracks,samples:samples,progress:progress)
+                case .daw:
+                    // I14: every track as an aligned stem, plus song.mid and a README.
+                    let extras=try DAWPackage.extras(snapshot,range:range,settings:settings)
+                    _ = try await StemExporter.render(snapshot,to:url,settings:settings,range:range,selected:nil,samples:samples,extras:extras,progress:progress)
                 case .aac:
                     let wav=folder.appendingPathComponent("mix.wav")
                     let receipt:RenderReceipt;if let performance{receipt=try await OfflineRenderer.renderPerformance(performance,to:wav,settings:settings,samples:samples,progress:progress)}else{receipt=try await OfflineRenderer.render(snapshot,to:wav,settings:settings,range:range,samples:samples,progress:progress)}

@@ -43,7 +43,7 @@ struct ExportView:View {
         .onDisappear{if session.exportInProgress{session.cancelExport()}}
     }
     private func symbol(_ format:Session.ExportFormat)->String {
-        switch format{case .midi:"pianokeys";case .wav:"waveform";case .stems:"square.stack.3d.up";case .project:"folder";case .aac:"music.note";case .video:"film"}
+        switch format{case .midi:"pianokeys";case .wav:"waveform";case .stems:"square.stack.3d.up";case .project:"folder";case .aac:"music.note";case .video:"film";case .daw:"shippingbox"}
     }
     private var audioSettings:some View {VStack(alignment:.leading,spacing:14){
         HStack{Text("Sample rate");Spacer();Picker("Sample rate",selection:$sampleRate){Text("44.1 kHz").tag(44100);Text("48 kHz").tag(48000)}.pickerStyle(.menu)}
@@ -63,6 +63,7 @@ struct ExportView:View {
         case .project:"A portable copy of the entire project, including notes, source recordings, sections and mixer settings. Import creates a separate project."
         case .aac:"A compact AAC file (.m4a, 256 kbps) of the same stereo mix as WAV, ready for messages and sharing."
         case .video:"A vertical 1080×1920 video (.mp4) of the same mix with a playhead moving over your song, ready for stories and reels."
+        case .daw:"One zip for Logic, GarageBand, Ableton, FL Studio or Reaper: every track as an aligned WAV from bar 1, song.mid with tempo, key and section markers, and a README with what to do."
         }
     }
 }

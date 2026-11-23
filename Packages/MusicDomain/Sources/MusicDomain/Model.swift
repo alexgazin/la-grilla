@@ -247,6 +247,8 @@ public struct NoteEvent: Codable, Equatable, Identifiable, Sendable {
     public var id:UUID=UUID()
     public var tick:Int;public var duration:Int;public var pitch:Int;public var velocity:Int
     public var confidence:Double?
+    /// I9: the syllable sung on this note. Nil in older files.
+    public var syllable:String?
     public init(tick:Int,duration:Int=ppq,pitch:Int=60,velocity:Int=100,confidence:Double?=nil){self.tick=tick;self.duration=duration;self.pitch=pitch;self.velocity=velocity;self.confidence=confidence}
     public var name:String{Chord.roots[(pitch%12+12)%12]+String(pitch/12-1)}
 }
@@ -299,6 +301,8 @@ public struct Section: Codable, Equatable, Identifiable, Sendable {
     public var color: Int?
     /// I36: master filter sweep across this section (from → to, −1 low-pass … 0 open … 1 high-pass).
     public var filterSweep: FilterSweep?
+    /// I9: the words of this section, one line per phrase. Nil in older files.
+    public var lyrics: String?
     public init(name: String, start: Int = 0, length: Int) { self.name = name; self.start = start; self.length = length }
 }
 public struct Project: Codable, Equatable, Identifiable, Sendable {
@@ -357,6 +361,7 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
               Set(tracks.map(\.id)).count == tracks.count else { throw MusicError.invalidProject }
         guard (performanceTakes ?? []).count<=1 else{throw MusicError.limit}
         if let log=editLog{guard log.count<=32,log.allSatisfy({$0.count<=300}) else{throw MusicError.invalidProject}}
+        guard sections.allSatisfy({($0.lyrics?.count ?? 0)<=4000}),patterns.allSatisfy({($0.notes ?? []).allSatisfy{($0.syllable?.count ?? 0)<=32}})else{throw MusicError.invalidProject}
         if let trash=recentlyDeleted{guard trash.count<=ProjectTrash.itemLimit,Set(trash.map(\.id)).count==trash.count,trash.allSatisfy({$0.name.count<=200 && $0.deletedAt.timeIntervalSinceReferenceDate.isFinite})else{throw MusicError.invalidProject}}
         for track in tracks{try track.dynamics?.validate();try track.synth?.validate();if track.synth != nil,track.role == .drums{throw MusicError.invalidProject}
             if let muted=track.mutedPads,track.role != .drums || Set(muted).count != muted.count || !muted.allSatisfy({(0..<16).contains($0)}){throw MusicError.invalidProject}}

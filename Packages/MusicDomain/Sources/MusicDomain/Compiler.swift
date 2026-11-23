@@ -1,6 +1,8 @@
 import Foundation
 public struct CompiledNote: Equatable, Sendable {
     public var tick: Int; public var duration: Int; public var pitch: Int; public var velocity: Int; public var track: Int; public var pad: Int = -1;public var instrument:Int=0
+    /// I9: a sung syllable, written to MIDI as a lyric event.
+    public var lyric: String? = nil
 }
 public enum Compiler {
     public static let drumMap = [36,38,42,46,39,37,45,47,50,49,51,54,56,75,70,82]
@@ -29,7 +31,7 @@ public enum Compiler {
                     } else if track.role == .melody {
                         for note in pattern.notes ?? [] {
                             let local=cycle+note.tick;let start=max(0,local);let end=min(clip.length,local+note.duration)
-                            if end>start{result.append(CompiledNote(tick:clip.start+start,duration:end-start,pitch:note.pitch,velocity:note.velocity,track:index,instrument:3))}
+                            if end>start{var compiled=CompiledNote(tick:clip.start+start,duration:end-start,pitch:note.pitch,velocity:note.velocity,track:index,instrument:3);if local>=0{compiled.lyric=note.syllable};result.append(compiled)}
                         }
                     } else {
                         let mutedTakes = Set((pattern.drumTakes ?? []).filter { $0.muted == true }.map(\.id))
@@ -89,6 +91,7 @@ public enum MIDIExporter {
             var events = [Event(tick: 0, priority: -1, bytes: meta(3,Array(t.displayName.utf8)))]
             for control in controls where control.track==i {events.append(Event(tick:control.tick,priority:1,bytes:[UInt8(0xb0|channel),UInt8(control.number),UInt8(control.value)]))}
             for n in notes where n.track == i {
+                if let lyric = n.lyric, !lyric.isEmpty { events.append(Event(tick: n.tick, priority: 1, bytes: meta(5, Array(lyric.utf8.prefix(64))))) }
                 events.append(Event(tick: n.tick, priority: 2, bytes: [UInt8(0x90|channel),UInt8(n.pitch),UInt8(n.velocity)]))
                 events.append(Event(tick: n.tick+n.duration, priority: 0, bytes: [UInt8(0x80|channel),UInt8(n.pitch),0]))
             }
