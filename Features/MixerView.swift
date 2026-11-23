@@ -603,7 +603,7 @@ private struct MixPresetMenu: View {
 }
 
 /// I63: a live master spectrum (30 Hz–16 kHz, 24 bands), drawn while audio plays.
-private struct MasterSpectrum: View {
+struct MasterSpectrum: View {
     let audio: AudioController
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var body: some View {

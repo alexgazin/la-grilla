@@ -1900,3 +1900,8 @@
 "Red" = "Красный";
 "Lock the screen while recording" = "Блокировать экран во время записи";
 "Show time in minutes and seconds" = "Показывать время в минутах и секундах";
+"Stage visuals" = "Визуализация для сцены";
+"Export settings" = "Экспорт настроек";
+"Import settings" = "Импорт настроек";
+"%lld settings imported" = "Импортировано настроек: %lld";
+"This file is not a La Grilla settings file." = "Это не файл настроек La Grilla.";

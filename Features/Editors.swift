@@ -140,6 +140,8 @@ struct SettingsView: View {
     @AppStorage("studio.leftHanded") private var leftHanded=false
     @AppStorage("studio.recordLock") private var recordLock=false
     @AppStorage("studio.showSeconds") private var showSeconds=false
+    @State private var settingsFile:URL?
+    @State private var importingSettings=false
     @AppStorage("nextStep.off") private var nextStepOff=false
     @State private var temporaryBytes:Int64=StorageUsage.bytes(of:FileManager.default.temporaryDirectory)
     private func clearTemporary(){
@@ -186,7 +188,15 @@ struct SettingsView: View {
             Toggle("Suggest the next step",isOn:Binding(get:{!nextStepOff},set:{nextStepOff = !$0})).accessibilityIdentifier("settings.next-step")
         }
         audioSettings
-        Section("Backup"){BackupRows(session:session)}
+        Section("Backup"){BackupRows(session:session)
+            // I67: settings travel as a small file (never project data).
+            Button{if let url=try? SettingsTransfer.export(){settingsFile=url}}label:{Label("Export settings",systemImage:"square.and.arrow.up")}.accessibilityIdentifier("settings.export-settings")
+            Button{importingSettings=true}label:{Label("Import settings",systemImage:"square.and.arrow.down")}.accessibilityIdentifier("settings.import-settings")
+        }
+        .sheet(isPresented:Binding(get:{settingsFile != nil},set:{if !$0{settingsFile=nil}})){if let url=settingsFile{ShareView(url:url)}}
+        .fileImporter(isPresented:$importingSettings,allowedContentTypes:[.json]){result in
+            if case .success(let url)=result{do{let count=try SettingsTransfer.importFile(url);session.showToast(String(format:NSLocalizedString("%lld settings imported",comment:"Settings transfer"),count))}catch{session.message="This file is not a La Grilla settings file."}}
+        }
         // U62: how much room songs and temporary files take, and clearing the temporary ones.
         Section("Storage"){
             LabeledContent("Songs and versions",value:ByteCountFormatter.string(fromByteCount:StorageUsage.bytes(of:session.store.root),countStyle:.file))

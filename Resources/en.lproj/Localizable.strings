@@ -1898,3 +1898,8 @@
 "Red" = "Red";
 "Lock the screen while recording" = "Lock the screen while recording";
 "Show time in minutes and seconds" = "Show time in minutes and seconds";
+"Stage visuals" = "Stage visuals";
+"Export settings" = "Export settings";
+"Import settings" = "Import settings";
+"%lld settings imported" = "%lld settings imported";
+"This file is not a La Grilla settings file." = "This file is not a La Grilla settings file.";

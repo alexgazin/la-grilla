@@ -5,7 +5,7 @@ public enum CommandID: String, CaseIterable, Codable, Sendable {
     case play, record, undo, redo, loop
     case tempo, key, transpose, addSection, duplicateSection, addMelody, deleteLastTake
     case grid, jam, mixer, notes, voice, assistant, harmony, palettes, sections, bass, perform
-    case settings, projects, newProject, export, history, versions, trash, midiDevices, chordImport, lyrics, master, focusSection, practice, mood, doctor, earTraining, repeatLast, coNotes
+    case settings, projects, newProject, export, history, versions, trash, midiDevices, chordImport, lyrics, master, focusSection, practice, mood, doctor, earTraining, repeatLast, coNotes, vj
 }
 
 /// What a command needs from the query.
@@ -117,6 +117,8 @@ public enum CommandCatalog {
               synonyms: ["repeat", "again", "repeat last", "повторить", "ещё раз", "повтори последнее", "то же самое"]),
         .init(id: .coNotes, title: "Notes for co-authors", symbol: "note.text", parameter: nil,
               synonyms: ["notes", "comments", "co-author", "заметки", "комментарии", "соавтор", "заметки для соавтора"]),
+        .init(id: .vj, title: "Stage visuals", symbol: "sparkles.tv", parameter: nil,
+              synonyms: ["visuals", "vj", "visualizer", "stage screen", "визуализация", "визуализатор", "вид для сцены", "вджей"]),
         .init(id: .midiDevices, title: "MIDI devices", symbol: "pianokeys.inverse", parameter: nil,
               synonyms: ["midi", "controller", "keyboard", "миди", "контроллер", "миди устройства"]),
     ]
