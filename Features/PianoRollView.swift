@@ -657,6 +657,7 @@ private struct NoteToolsMenu: View {
     let selected: UUID?
     var body: some View {
         Menu {
+            Button("Melody ideas…", systemImage: "wand.and.stars") { session.toolPatternID = patternID; session.sheet = .melodyIdeas }
             Button("Humanize timing and velocity") { apply { notes, ids, length in NoteTools.humanize(notes, ids: ids, timing: 18, velocity: 10, seed: UInt64(session.project.revision) &+ 1, length: length) } }
             Button("Legato") { apply { notes, ids, length in NoteTools.legato(notes, ids: ids, length: length) } }
             Button("Staccato") { apply { notes, ids, _ in NoteTools.staccato(notes, ids: ids) } }

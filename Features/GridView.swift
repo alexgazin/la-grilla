@@ -165,6 +165,8 @@ struct GridView: View {
                 Button{addFirstChord()}label:{Label("Add first chord",systemImage:"plus").frame(maxWidth:.infinity,minHeight:44)}.accessibilityIdentifier("grid.empty-chord")
                 Button{session.tab=1}label:{Label("Play a beat",systemImage:"square.grid.2x2.fill").frame(maxWidth:.infinity,minHeight:44)}.accessibilityIdentifier("grid.empty-jam")
             }.buttonStyle(StudioQuietButtonStyle()).font(.subheadline.weight(.medium)).foregroundStyle(Color.mint)
+            Button{session.presentEditor(.chordImport)}label:{Label("Chords from a song or photo",systemImage:"camera.viewfinder").frame(maxWidth:.infinity,minHeight:44)}
+                .buttonStyle(StudioQuietButtonStyle()).font(.subheadline.weight(.medium)).foregroundStyle(Color.mint).accessibilityIdentifier("grid.empty-chord-import")
         }.padding(12).modifier(StudioSurface()).disabled(editingLocked)
     }
     private func addFirstChord(){
