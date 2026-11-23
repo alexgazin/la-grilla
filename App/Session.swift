@@ -1488,7 +1488,7 @@ import Observation
             coalescedMusicEdit{$0.patterns[1].drums[0].velocity=128};mixerGesture=false
             let invalidVelocityRejected=project==working
             saveTask?.cancel()
-            let root=await store.root
+            let root=store.root
             let manifest=root.appendingPathComponent(sourceID.uuidString).appendingPathExtension("grilla").appendingPathComponent("manifest.json")
             let originalBytes=try Data(contentsOf:manifest)
             guard var future=try JSONSerialization.jsonObject(with:originalBytes) as? [String:Any]else{throw MusicError.invalidProject}

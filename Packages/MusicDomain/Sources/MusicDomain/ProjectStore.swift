@@ -87,7 +87,8 @@ public actor ProjectStore {
             return NSLocalizedString(key, comment: "Project rename")
         }
     }
-    public let root: URL
+    /// Immutable, so it is read without awaiting the actor (Swift 6.1 and later).
+    public nonisolated let root: URL
     public init(root: URL) { self.root = root }
     func package(_ id: UUID) -> URL { root.appendingPathComponent(id.uuidString).appendingPathExtension("grilla") }
     @discardableResult public func save(_ project: Project) throws -> Int {
