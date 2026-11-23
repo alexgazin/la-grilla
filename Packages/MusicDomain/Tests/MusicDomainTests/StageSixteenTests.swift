@@ -125,3 +125,31 @@ struct EndingAndVariationTests {
         #expect(copyNotes.count > before.count)
     }
 }
+
+struct ChanceAndRatchetCompileTests {
+    @Test func chanceStepsPlayAboutAsOftenAsSetAndTheSameEveryTime() throws {
+        var project = Project(name: "Chance", bars: 1)
+        project.tracks[1].clips[0].length = 64 * barTicks   // 64 passes of a one-bar beat
+        project.sections[0].length = 64 * barTicks
+        project.patterns[0].length = barTicks
+        project.tracks[0].clips[0].length = 64 * barTicks
+        var hit = DrumEvent(tick: 0, pad: 1); hit.probability = 50
+        project.patterns[1].drums = [hit]
+        try project.validate()
+        let first = Compiler.notes(project).filter { $0.pad == 1 }.map(\.tick)
+        #expect(first == Compiler.notes(project).filter { $0.pad == 1 }.map(\.tick))
+        #expect((20...44).contains(first.count), "\(first.count) of 64")
+    }
+
+    @Test func ratchetsCompileToRepeatedFadingHits() throws {
+        var project = Project(name: "Ratchet", bars: 1)
+        var hit = DrumEvent(tick: 480, pad: 2, velocity: 100); hit.ratchet = 4
+        project.patterns[1].drums = [hit]
+        try project.validate()
+        let notes = Compiler.notes(project).filter { $0.pad == 2 }
+        #expect(notes.map(\.tick) == [480, 540, 600, 660])
+        #expect(notes.map(\.velocity) == [100, 86, 72, 58])
+        hit.ratchet = 7; project.patterns[1].drums = [hit]
+        #expect(throws: MusicError.self) { try project.validate() }
+    }
+}

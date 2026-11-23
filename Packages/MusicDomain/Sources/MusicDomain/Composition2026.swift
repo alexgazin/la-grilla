@@ -204,3 +204,15 @@ public extension SectionEditing {
         project = candidate
     }
 }
+
+/// I25 · A deterministic 0…99 roll per hit, pass and clip: the same hits drop out every
+/// time the song plays and when it is exported.
+public enum StepChance {
+    public static func roll(_ id: UUID, pass: Int, clip: UUID) -> Int {
+        func fold(_ uuid: UUID) -> UInt64 {
+            withUnsafeBytes(of: uuid.uuid) { raw in raw.reduce(UInt64(1469598103934665603)) { ($0 ^ UInt64($1)) &* 1099511628211 } }
+        }
+        var random = SeededRandom(seed: fold(id) ^ (fold(clip) &* 31) ^ UInt64(bitPattern: Int64(pass)) &* 0x9E3779B97F4A7C15)
+        return Int(random.next() % 100)
+    }
+}

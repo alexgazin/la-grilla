@@ -13,6 +13,9 @@ struct DrumLanesView: View {
     /// Layers silenced in the Layers panel: shown dimmed with a crossed speaker.
     var mutedPads: Set<Int> = []
     let toggle: (_ pad: Int, _ tick: Int) -> Void
+    /// I25 · I27: chance and ratchet of a lit step (touch and hold the step).
+    var adjust: ((_ pad: Int, _ tick: Int, _ change: StepAdjust) -> Void)? = nil
+    enum StepAdjust { case chance(Int?), ratchet(Int?) }
 
     static let corePads = [0, 1, 2, 3]
     private static let labelWidth: CGFloat = 58
@@ -28,20 +31,22 @@ struct DrumLanesView: View {
         let lanes = Self.lanes(for: pattern, bar: bar, selected: selectedPad)
         let hits = Dictionary((pattern?.drums ?? []).filter { $0.tick / barTicks == bar }.map { ("\($0.pad).\($0.tick)", $0.velocity) },
                               uniquingKeysWith: max)
+        let marks = Dictionary((pattern?.drums ?? []).filter { $0.tick / barTicks == bar && ($0.probability != nil || $0.ratchet != nil) }
+            .map { ("\($0.pad).\($0.tick)", ($0.probability, $0.ratchet)) }, uniquingKeysWith: { a, _ in a })
         VStack(spacing: 6) {
             HStack(spacing: 0) {
                 Color.clear.frame(width: Self.labelWidth, height: 1)
                 LaneTicker(audio: audio, bar: bar, origin: origin, length: pattern?.length ?? barTicks)
             }
             ForEach(lanes, id: \.self) { pad in
-                row(pad, hits: hits)
+                row(pad, hits: hits, marks: marks)
             }
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("jam.lanes")
     }
 
-    private func row(_ pad: Int, hits: [String: Int]) -> some View {
+    private func row(_ pad: Int, hits: [String: Int], marks: [String: (Int?, Int?)]) -> some View {
         let selected = pad == selectedPad
         let muted = mutedPads.contains(pad)
         return HStack(spacing: 0) {
@@ -62,7 +67,7 @@ struct DrumLanesView: View {
             HStack(spacing: 2) {
                 ForEach(0..<16, id: \.self) { step in
                     let tick = bar * barTicks + step * 240
-                    cell(pad: pad, step: step, tick: tick, velocity: hits["\(pad).\(tick)"], selected: selected)
+                    cell(pad: pad, step: step, tick: tick, velocity: hits["\(pad).\(tick)"], selected: selected, mark: marks["\(pad).\(tick)"])
                         .padding(.leading, step > 0 && step % 4 == 0 ? 4 : 0)
                 }
             }
@@ -70,7 +75,7 @@ struct DrumLanesView: View {
         }
     }
 
-    private func cell(pad: Int, step: Int, tick: Int, velocity: Int?, selected: Bool) -> some View {
+    private func cell(pad: Int, step: Int, tick: Int, velocity: Int?, selected: Bool, mark: (Int?, Int?)? = nil) -> some View {
         let on = velocity != nil
         let level = Double(velocity ?? 0) / 127
         return Button { toggle(pad, tick); Luz.Haptics.selection() } label: {
@@ -81,9 +86,30 @@ struct DrumLanesView: View {
                         .strokeBorder(selected && !on ? Color.drums.opacity(0.35) : .clear, lineWidth: 1)
                 }
                 .frame(maxWidth: .infinity).frame(height: 46)
+                .overlay {
+                    // A chance step is outlined with dashes; a ratchet shows ×N.
+                    if let mark {
+                        if mark.0 != nil { RoundedRectangle(cornerRadius: 5, style: .continuous).strokeBorder(Color.ink.opacity(0.7), style: StrokeStyle(lineWidth: 1.5, dash: [3, 2])) }
+                        if let times = mark.1 { Text(verbatim: "×\(times)").font(.system(size: 11, weight: .bold)).foregroundStyle(Color.ink) }
+                    }
+                }
                 .contentShape(Rectangle())
         }
         .buttonStyle(StudioQuietButtonStyle(plate: false))
+        .contextMenu {
+            if on, let adjust {
+                Menu("Chance") {
+                    ForEach([100, 75, 50, 25], id: \.self) { percent in
+                        Button("\(percent)%") { adjust(pad, tick, .chance(percent == 100 ? nil : percent)) }
+                    }
+                }
+                Menu("Ratchet") {
+                    ForEach([1, 2, 3, 4], id: \.self) { times in
+                        Button(times == 1 ? "Once" : "×\(times)") { adjust(pad, tick, .ratchet(times == 1 ? nil : times)) }
+                    }
+                }
+            }
+        }
         .accessibilityLabel(Text("\(Text(LocalizedStringKey(Compiler.padNames[pad]))), step \(step + 1)"))
         .accessibilityValue(LocalizedStringKey(on ? "On" : "Off"))
         .accessibilityIdentifier(selected ? "jam.step.\(step)" : "jam.lane.\(pad).\(step)")

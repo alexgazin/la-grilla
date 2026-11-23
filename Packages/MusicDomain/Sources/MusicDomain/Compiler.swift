@@ -35,8 +35,14 @@ public enum Compiler {
                         }
                     } else {
                         let mutedTakes = Set((pattern.drumTakes ?? []).filter { $0.muted == true }.map(\.id))
+                        let pass = (cycle + clip.offset) / max(1, pattern.length)
                         for drum in pattern.drums where !(drum.take.map(mutedTakes.contains) ?? false) && cycle + drum.tick >= 0 && cycle + drum.tick < clip.length && (0..<16).contains(drum.pad) && !track.isPadMuted(drum.pad) {
-                            result.append(CompiledNote(tick: clip.start + cycle + drum.tick, duration: 120, pitch: drumMap[drum.pad], velocity: drum.velocity, track: index, pad: drum.pad,instrument:1))
+                            // I25: a chance step plays on some passes — the same ones every time (live = export).
+                            if let chance = drum.probability, StepChance.roll(drum.id, pass: pass, clip: clip.id) >= chance { continue }
+                            // I27: a ratchet repeats inside its sixteenth.
+                            for hit in drum.ratchet.map({ Ratchet.expand(drum, times: $0) }) ?? [drum] where cycle + hit.tick < clip.length {
+                                result.append(CompiledNote(tick: clip.start + cycle + hit.tick, duration: 120, pitch: drumMap[drum.pad], velocity: hit.velocity, track: index, pad: drum.pad,instrument:1))
+                            }
                         }
                     }
                 }

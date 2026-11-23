@@ -241,6 +241,10 @@ public struct DrumEvent: Codable, Equatable, Identifiable, Sendable {
     /// The recorded take this hit came from; nil = programmed (steps, pads outside
     /// recording, generators). Absent in older files.
     public var take: UUID?
+    /// I25: percent chance (1…99) that the hit plays on a given pass; nil = always.
+    public var probability: Int?
+    /// I27: the hit repeats 2…4 times inside its sixteenth, fading; nil = once.
+    public var ratchet: Int?
     public init(tick: Int, pad: Int, velocity: Int = 100) { self.tick = tick; self.pad = pad; self.velocity = velocity }
 }
 public struct NoteEvent: Codable, Equatable, Identifiable, Sendable {
@@ -412,7 +416,7 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
             for e in p.notes ?? [] {
                 guard e.tick>=0,e.tick<p.length,e.duration>0,e.duration<=p.length,e.tick+e.duration<=p.length,(0...127).contains(e.pitch),(1...127).contains(e.velocity),e.confidence==nil || (e.confidence!.isFinite && (0...1).contains(e.confidence!))else{throw MusicError.invalidProject}
             }
-            for e in p.drums { guard e.tick >= 0, e.tick < p.length, (0..<16).contains(e.pad), (1...127).contains(e.velocity) else { throw MusicError.invalidProject } }
+            for e in p.drums { guard e.tick >= 0, e.tick < p.length, (0..<16).contains(e.pad), (1...127).contains(e.velocity), (1...99).contains(e.probability ?? 50), (2...4).contains(e.ratchet ?? 2) else { throw MusicError.invalidProject } }
         }
         for t in tracks {
             try t.equalizer?.validate()

@@ -128,6 +128,15 @@ struct JamView: View {
             Button{session.hit(pad)}label:{HStack(spacing:10){Text(String(format:"%02d",pad+1)).font(.caption.monospaced()).foregroundStyle(Color.drums).accessibilityHidden(true);Text(LocalizedStringKey(Compiler.padNames[pad])).font(.headline);Spacer(minLength:0)}.frame(maxWidth:.infinity,minHeight:72).padding(12).background(Color.panel,in:RoundedRectangle(cornerRadius:Luz.Radius.card,style:.continuous)).overlay{RoundedRectangle(cornerRadius:Luz.Radius.card,style:.continuous).strokeBorder(Color.drums.opacity(0.3),lineWidth:0.8)}}.buttonStyle(StudioQuietButtonStyle()).foregroundStyle(Color.studioText)
         }}
     }.frame(minHeight:240).disabled(session.performance.replaying)}
+    /// I25 · I27: set a lit step's chance or ratchet (one Undo).
+    private func adjustStep(pad:Int,tick:Int,change:DrumLanesView.StepAdjust){
+        guard let id=drumPattern?.id else{return}
+        session.edit{p in
+            guard let i=p.patterns.firstIndex(where:{$0.id==id}),let e=p.patterns[i].drums.firstIndex(where:{$0.pad==pad && $0.tick==tick})else{return}
+            switch change{case .chance(let value):p.patterns[i].drums[e].probability=value;case .ratchet(let value):p.patterns[i].drums[e].ratchet=value}
+        }
+        Luz.Haptics.selection()
+    }
     /// U40: a left-handed player gets the pads mirrored (pad 1 on the right).
     @AppStorage("studio.leftHanded") private var leftHanded = false
     private func padGrid(height:CGFloat)->some View {padGridBody(height:height).environment(\.layoutDirection,leftHanded ? .rightToLeft:.leftToRight)}
@@ -158,7 +167,7 @@ struct JamView: View {
         VStack(spacing:16){
             HStack{Menu{ForEach(0..<16,id:\.self){i in Button(LocalizedStringKey(Compiler.padNames[i])){selectedPad=i}}}label:{Label(LocalizedStringKey(Compiler.padNames[selectedPad]),systemImage:"waveform").font(.subheadline.weight(.semibold)).foregroundStyle(Color.drums).frame(minHeight:44)};Spacer();Picker("Bar",selection:$stepBar){ForEach(0..<(drumPattern?.length ?? barTicks)/barTicks,id:\.self){i in Text("Bar \(i+1)").tag(i)}}.frame(width:dynamicType.isAccessibilitySize ? 150:110)}
             Picker("Step view",selection:$lanes){Text("Lanes").tag(true);Text("One pad").tag(false)}.pickerStyle(.segmented).accessibilityIdentifier("jam.step-view")
-            if lanes{DrumLanesView(pattern:drumPattern,bar:stepBar,selectedPad:$selectedPad,audio:session.audio,origin:drumClipStart,mutedPads:Set(session.displayProject.tracks.first{$0.role == .drums}?.mutedPads ?? [])){pad,tick in toggleStep(tick,pad:pad)}.transition(Luz.Transition.replace(reduceMotion))}else{singlePadSteps.transition(Luz.Transition.replace(reduceMotion))}
+            if lanes{DrumLanesView(pattern:drumPattern,bar:stepBar,selectedPad:$selectedPad,audio:session.audio,origin:drumClipStart,mutedPads:Set(session.displayProject.tracks.first{$0.role == .drums}?.mutedPads ?? []),toggle:{pad,tick in toggleStep(tick,pad:pad)},adjust:{pad,tick,change in adjustStep(pad:pad,tick:tick,change:change)}).transition(Luz.Transition.replace(reduceMotion))}else{singlePadSteps.transition(Luz.Transition.replace(reduceMotion))}
             VStack(alignment:.leading,spacing:8){HStack{SmallHeading(text:"VELOCITY");Spacer();Text(String(Int(velocity))).font(.system(.caption, design: .monospaced)).foregroundStyle(Color.drums).monospacedDigit()};Slider(value:$velocity,in:1...127,step:1).tint(.drums);Button("Apply velocity to this bar"){guard let id=drumPattern?.id else{return};session.edit{p in if let i=p.patterns.firstIndex(where:{$0.id==id}){for n in p.patterns[i].drums.indices where p.patterns[i].drums[n].pad==selectedPad && p.patterns[i].drums[n].tick/barTicks==stepBar{p.patterns[i].drums[n].velocity=Int(velocity)}}}}.font(.caption).frame(minHeight:44)}
         }.animation(reduceMotion ? .easeOut(duration:0.15):Luz.Motion.morph,value:lanes).padding(14).modifier(StudioSurface())
     }

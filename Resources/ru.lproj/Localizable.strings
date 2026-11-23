@@ -1872,3 +1872,7 @@
 "Songs and versions" = "Песни и версии";
 "Temporary files" = "Временные файлы";
 "Clear temporary files" = "Очистить временные файлы";
+"Chance" = "Вероятность";
+"Ratchet" = "Рэтчет";
+"Once" = "Один раз";
+"%lld%%" = "%lld%%";
