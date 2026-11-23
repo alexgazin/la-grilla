@@ -5,7 +5,7 @@ public enum CommandID: String, CaseIterable, Codable, Sendable {
     case play, record, undo, redo, loop
     case tempo, key, transpose, addSection, duplicateSection, addMelody, deleteLastTake
     case grid, jam, mixer, notes, voice, assistant, harmony, palettes, sections, bass, perform
-    case settings, projects, newProject, export, history, versions, trash, midiDevices, chordImport, lyrics, master, focusSection
+    case settings, projects, newProject, export, history, versions, trash, midiDevices, chordImport, lyrics, master, focusSection, practice
 }
 
 /// What a command needs from the query.
@@ -104,6 +104,8 @@ public enum CommandCatalog {
               synonyms: ["master", "mastering", "loudness", "lufs", "release", "мастеринг", "громкость трека", "к выпуску", "подготовить к выпуску", "мастер"]),
         .init(id: .focusSection, title: "Focus on this section", symbol: "scope", parameter: nil,
               synonyms: ["focus", "focus section", "loop section", "фокус", "фокус на секции", "зациклить секцию", "только эта секция"]),
+        .init(id: .practice, title: "Practice slower", symbol: "tortoise", parameter: nil,
+              synonyms: ["practice", "slower", "slow down", "практика", "медленнее", "замедлить", "потренироваться", "разучить"]),
         .init(id: .midiDevices, title: "MIDI devices", symbol: "pianokeys.inverse", parameter: nil,
               synonyms: ["midi", "controller", "keyboard", "миди", "контроллер", "миди устройства"]),
     ]

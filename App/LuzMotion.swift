@@ -203,7 +203,8 @@ extension View {
 /// that drifts slowly. Static under Reduce Motion and Increase Contrast.
 struct LuzAurora: View {
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
-    private var reduceMotion: Bool { systemReduceMotion || Luz.uiTesting }
+    /// U63: Low Power Mode keeps the backdrop still (the sound never changes).
+    private var reduceMotion: Bool { systemReduceMotion || Luz.uiTesting || ProcessInfo.processInfo.isLowPowerModeEnabled }
     @Environment(\.colorSchemeContrast) private var contrast
     @Environment(\.colorScheme) private var scheme
 

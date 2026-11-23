@@ -406,6 +406,14 @@ import Observation
     }
     /// Stage 3 tools (variations, comping) work on this pattern.
     var toolPatternID:UUID?
+    /// U44 · Practice: hear the selected section slower, looping; the song does not change.
+    var practicing=false
+    func togglePractice(rate:Double=0.75){
+        if practicing{practicing=false;endHarmonyPreview();return}
+        previewAssistant(Practice.slowed(project,rate:rate),wholeSong:false,sectionID:section.id)
+        practicing=harmonyPreview
+        if practicing{showToast(String(format:NSLocalizedString("Practice at %lld%%",comment:"Practice"),Int(rate*100)))}
+    }
     /// U22 · Focus: loop exactly the selected section (again to leave).
     var focused:Bool{loop && loopRange == section.start..<section.start+section.length}
     func toggleFocus(){
@@ -485,6 +493,7 @@ import Observation
         case .lyrics: presentEditor(.lyrics)
         case .master: presentEditor(.master)
         case .focusSection: toggleFocus()
+        case .practice: togglePractice()
         }
     }
     /// U8 · Bring back a deleted track, take or clip in one Undo step.
@@ -762,6 +771,7 @@ import Observation
         audio.audition(candidate,range:range,loop:loop);syncMIDI()
     }
     func endHarmonyPreview(){
+        practicing=false
         guard harmonyPreview else{return};restorePreviewTransport();sync()
     }
     private func restorePreviewTransport(){

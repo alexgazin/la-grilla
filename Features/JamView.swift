@@ -128,7 +128,10 @@ struct JamView: View {
             Button{session.hit(pad)}label:{HStack(spacing:10){Text(String(format:"%02d",pad+1)).font(.caption.monospaced()).foregroundStyle(Color.drums).accessibilityHidden(true);Text(LocalizedStringKey(Compiler.padNames[pad])).font(.headline);Spacer(minLength:0)}.frame(maxWidth:.infinity,minHeight:72).padding(12).background(Color.panel,in:RoundedRectangle(cornerRadius:Luz.Radius.card,style:.continuous)).overlay{RoundedRectangle(cornerRadius:Luz.Radius.card,style:.continuous).strokeBorder(Color.drums.opacity(0.3),lineWidth:0.8)}}.buttonStyle(StudioQuietButtonStyle()).foregroundStyle(Color.studioText)
         }}
     }.frame(minHeight:240).disabled(session.performance.replaying)}
-    private func padGrid(height:CGFloat)->some View {
+    /// U40: a left-handed player gets the pads mirrored (pad 1 on the right).
+    @AppStorage("studio.leftHanded") private var leftHanded = false
+    private func padGrid(height:CGFloat)->some View {padGridBody(height:height).environment(\.layoutDirection,leftHanded ? .rightToLeft:.leftToRight)}
+    private func padGridBody(height:CGFloat)->some View {
         GeometryReader{geo in
             let side=max(44,min((geo.size.width-24)/4,(geo.size.height-24)/4))
             LazyVGrid(columns:Array(repeating:GridItem(.flexible(),spacing:8),count:4),spacing:8){ForEach(0..<16,id:\.self){pad in

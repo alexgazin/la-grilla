@@ -115,6 +115,7 @@ struct GridView: View {
                         arrangementHeader
                         sectionChips
                         if !hasMusicalEvents{emptyProjectGuide.padding(.horizontal,16).padding(.bottom,14)}
+                        else{NextStepCard(session:session).padding(.horizontal,16).padding(.bottom,10)}
                         if clipMode{clipControls.padding(.horizontal,16).padding(.bottom,8)}
                         HStack(spacing:0){
                             VStack(spacing:0){Color.ink.frame(height:28);trackLabel(.harmony,height:harmonyHeight);trackLabel(.drums,height:drumHeight);if showsRootBassLane { trackLabel(.bass,height:bassHeight) };ForEach(session.displayProject.tracks.filter{$0.role == .melody}){track in melodyTrackLabel(track)}}.frame(width:gutter)
@@ -695,5 +696,34 @@ struct ChordTile: View {
             .overlay{RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous).strokeBorder(Color.harmony.opacity(chord == nil ? 0.2:0.4),lineWidth:0.75)}
             .overlay{if let audio,let playRange{PlayingHighlight(audio:audio,range:playRange,color:.harmony)}}
             .clipShape(RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous))
+    }
+}
+
+/// U45 · One quiet suggestion for the next step; "Not now" hides it for this song.
+struct NextStepCard: View {
+    @Bindable var session: Session
+    @AppStorage("nextStep.hidden") private var hiddenRaw = ""
+    @AppStorage("nextStep.off") private var off = false
+    var body: some View {
+        let key = session.project.id.uuidString
+        // UI tests check other screens; the hint shows there only when asked for.
+        let allowed = !Luz.uiTesting || ProcessInfo.processInfo.arguments.contains("--next-step")
+        if allowed, !off, !session.performance.contextActive, !session.recording, !hiddenRaw.contains(key), let step = NextStepAdvisor.suggest(session.project) {
+            HStack(spacing: 10) {
+                Image(systemName: "lightbulb").foregroundStyle(Color.mint).accessibilityHidden(true)
+                Text(LocalizedStringKey(step.message)).font(.caption).foregroundStyle(Color.studioText).fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 4)
+                Button { session.run(step.command) } label: { Text("Go").font(.caption.weight(.semibold)).padding(.horizontal, 10).frame(minHeight: 44) }
+                    .buttonStyle(StudioActionStyle(color: .mint, prominent: true)).fixedSize().accessibilityIdentifier("next-step.go")
+                Menu {
+                    Button("Not now") { hiddenRaw = String((hiddenRaw + "," + key).suffix(4000)) }
+                    Button("Stop suggesting") { off = true }
+                } label: { Image(systemName: "xmark").font(.caption).foregroundStyle(Color.muted).frame(width: 44, height: 44) }
+                    .accessibilityLabel("Hide the suggestion")
+            }
+            .padding(.horizontal, 12).padding(.vertical, 4)
+            .background(Color.panel, in: RoundedRectangle(cornerRadius: Luz.Radius.card, style: .continuous))
+            .accessibilityElement(children: .contain).accessibilityIdentifier("next-step")
+        }
     }
 }

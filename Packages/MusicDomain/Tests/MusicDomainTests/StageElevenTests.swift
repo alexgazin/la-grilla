@@ -55,3 +55,39 @@ struct MusicClipboardTests {
         #expect(MusicClipboard.copy(.melody, section: source.sections[0], from: source) == nil)
     }
 }
+
+struct SolfegeTests {
+    @Test func notesReadAsSolfegeWhileChordsKeepLetters() {
+        #expect(MusicalNotation.pitchClassName(9, keyRoot: 0, minor: false, spelling: .solfege) == "La")
+        #expect(MusicalNotation.pitchClassName(10, keyRoot: 5, minor: false, spelling: .solfege) == "Si♭")
+        #expect(MusicalNotation.noteName(60, keyRoot: 0, minor: false, spelling: .solfege) == "Do4")
+        #expect(MusicalNotation.noteName(71, keyRoot: 7, minor: false, spelling: .solfege) == "Si4")
+        #expect(MusicalNotation.chordSymbol(Chord(root: 9, quality: .m7), keyRoot: 0, minor: false, spelling: .solfege) == "Am7")
+    }
+}
+
+struct NextStepTests {
+    @Test func suggestionsFollowWhatTheSongHas() throws {
+        var project = Project(name: "Blank")
+        #expect(NextStepAdvisor.suggest(project)?.command == .jam)
+        project.patterns[1].drums = [DrumEvent(tick: 0, pad: 0)]
+        #expect(NextStepAdvisor.suggest(project)?.command == .chordImport)
+        project.patterns[0].chords = [ChordEvent(tick: 0, chord: Chord(root: 0))]
+        #expect(NextStepAdvisor.suggest(project)?.command == .voice)
+        try project.addMelody()
+        let id = project.tracks[2].clips[0].patternID
+        project.patterns[project.patterns.firstIndex { $0.id == id }!].notes = [NoteEvent(tick: 0, duration: 480, pitch: 64, velocity: 90)]
+        #expect(NextStepAdvisor.suggest(project)?.command == .addSection)
+        try project.duplicateSection(project.sections[0].id, name: "Chorus")
+        #expect(NextStepAdvisor.suggest(project)?.command == .lyrics)
+        project.sections[0].lyrics = "la la"
+        #expect(NextStepAdvisor.suggest(project)?.command == .master)
+    }
+
+    @Test func practiceSlowsWithinTheTempoLimits() {
+        var song = Project.demo(); song.bpm = 60
+        #expect(Practice.slowed(song, rate: 0.75).bpm == 45)
+        #expect(Practice.slowed(song, rate: 0.5).bpm == 40)
+        #expect(Practice.slowed(song, rate: 0.5).patterns == song.patterns)
+    }
+}

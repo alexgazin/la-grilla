@@ -2,6 +2,7 @@ import SwiftUI
 import MusicDomain
 struct StudioView: View {
     @Bindable var session: Session
+    @AppStorage("studio.visualMetronome") private var visualMetronome=false
     @AppStorage("studio.pitchSpelling") private var spellingValue=PitchSpelling.automatic.rawValue
     @Namespace private var tabPuck
     /// Sheets grow out of the control that opened them (Luz zoom transitions).
@@ -31,6 +32,7 @@ struct StudioView: View {
         .overlay{if AudioRuntimeQA.enabled{AudioRuntimeQAView(session:session)}}
         .background{UndoGestureInstaller(undo:{session.gestureUndo(false)},redo:{session.gestureUndo(true)}).frame(width:0,height:0).accessibilityHidden(true)}
         .background{StudioKeyCommands(session:session)}
+        .overlay(alignment:.top){if visualMetronome && session.audio.playing{VisualMetronome(session:session).allowsHitTesting(false)}}
         .overlay(alignment:.top){if let toast=session.toast{Label(LocalizedStringKey(toast),systemImage:toast=="Undo" ? "arrow.uturn.backward":toast=="Redo" ? "arrow.uturn.forward":"checkmark.circle").font(.subheadline.weight(.semibold)).padding(.horizontal,16).padding(.vertical,10).modifier(StudioNavigationSurface()).padding(.top,8).transition(Luz.Transition.drop(reduceMotion)).accessibilityAddTraits(.updatesFrequently).allowsHitTesting(false)}}
         .animation(reduceMotion ? .easeOut(duration:0.15):Luz.Motion.morph,value:session.toast)
         .sheet(item:$session.sheet,onDismiss:{if let url=session.exportedURL{session.shareURL=url;session.exportedURL=nil}}){sheet in Group{switch sheet {
@@ -297,5 +299,22 @@ private struct StudioKeyCommands: View {
         }
         .frame(width: 0, height: 0).opacity(0).accessibilityHidden(true)
         .disabled(session.sheet != nil)
+    }
+}
+
+/// U56 · A beat you can see: a bar at the top lights on every beat, brighter on the first.
+private struct VisualMetronome: View {
+    let session: Session
+    var body: some View {
+        let position = Int(session.audio.tick)
+        let beat = (position % barTicks) / ppq
+        let phase = Double(position % ppq) / Double(ppq)
+        Rectangle()
+            .fill(beat == 0 ? Color.mint : Color.harmony)
+            .opacity(max(0, 1 - phase * 2.5))
+            .frame(height: beat == 0 ? 8 : 5)
+            .ignoresSafeArea(edges: .top)
+            .transaction { $0.animation = nil }
+            .accessibilityHidden(true)
     }
 }

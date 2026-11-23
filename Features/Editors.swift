@@ -127,6 +127,9 @@ struct ChordWhyRow: View {
 }
 struct SettingsView: View {
     @AppStorage("studio.appearance") private var appearance=0
+    @AppStorage("studio.visualMetronome") private var visualMetronome=false
+    @AppStorage("studio.leftHanded") private var leftHanded=false
+    @AppStorage("nextStep.off") private var nextStepOff=false
     @AppStorage("studio.pitchSpelling") private var spellingValue = PitchSpelling.automatic.rawValue
     @AppStorage("studio.showDegrees") private var showDegrees = false
     @Bindable var session: Session
@@ -145,7 +148,7 @@ struct SettingsView: View {
                 .disabled(session.recording || session.armed || session.performance.contextActive)
         }
         Section("Musical notation"){
-            Picker("Note names",selection:$spellingValue){Text("Auto (key)").tag(PitchSpelling.automatic.rawValue).accessibilityIdentifier("settings.spelling-option.automatic");Text("Sharps").tag(PitchSpelling.sharps.rawValue).accessibilityIdentifier("settings.spelling-option.sharps");Text("Flats").tag(PitchSpelling.flats.rawValue).accessibilityIdentifier("settings.spelling-option.flats")}.pickerStyle(.navigationLink).accessibilityIdentifier("settings.pitch-spelling")
+            Picker("Note names",selection:$spellingValue){Text("Auto (key)").tag(PitchSpelling.automatic.rawValue).accessibilityIdentifier("settings.spelling-option.automatic");Text("Sharps").tag(PitchSpelling.sharps.rawValue).accessibilityIdentifier("settings.spelling-option.sharps");Text("Flats").tag(PitchSpelling.flats.rawValue).accessibilityIdentifier("settings.spelling-option.flats");Text("Do Re Mi").tag(PitchSpelling.solfege.rawValue).accessibilityIdentifier("settings.spelling-option.solfege")}.pickerStyle(.navigationLink).accessibilityIdentifier("settings.pitch-spelling")
             HStack {
                 Text("Show scale degrees")
                 Spacer()
@@ -156,7 +159,11 @@ struct SettingsView: View {
         Section("Transport"){Toggle("Loop",isOn:Binding(get:{session.loop},set:{session.setLoop(enabled:$0)}));Picker("Loop length",selection:Binding(get:{session.loopBars},set:{session.setLoop(bars:$0)})){ForEach(session.loopLengthOptions,id:\.self){n in Text("\(n) bars").tag(n)}}}
         Section("MIDI"){Button("MIDI devices"){session.sheet = .midiDevices}}
         Section("Timing"){LatencyCalibrationRow(session:session)}
-        Section("Metronome"){MetronomeSettingsRows(audio:session.audio)}
+        Section("Metronome"){MetronomeSettingsRows(audio:session.audio);Toggle("Visual metronome",isOn:$visualMetronome).accessibilityIdentifier("settings.visual-metronome")}
+        Section("Comfort"){
+            Toggle("Left-handed pads",isOn:$leftHanded).accessibilityIdentifier("settings.left-handed")
+            Toggle("Suggest the next step",isOn:Binding(get:{!nextStepOff},set:{nextStepOff = !$0})).accessibilityIdentifier("settings.next-step")
+        }
         audioSettings
         Section("Backup"){BackupRows(session:session)}
         Section("This project"){
