@@ -262,7 +262,9 @@ public struct DrumTake: Codable, Equatable, Identifiable, Sendable {
     public var id: UUID
     public var number: Int
     public var muted: Bool?
-    public init(id: UUID = UUID(), number: Int, muted: Bool? = nil) { self.id = id; self.number = number; self.muted = muted }
+    /// What made the take when it was not recorded: "Fill" (I8) or "Comp" (I3). Nil = recorded.
+    public var label: String?
+    public init(id: UUID = UUID(), number: Int, muted: Bool? = nil, label: String? = nil) { self.id = id; self.number = number; self.muted = muted; self.label = label }
 }
 public struct Clip: Codable, Equatable, Identifiable, Sendable {
     public var id: UUID = UUID(); public var patternID: UUID;public var sourceAssetID:UUID?; public var start: Int; public var length: Int; public var offset: Int = 0
@@ -391,7 +393,7 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
         var end = 0
         for s in sections { guard s.start == end, s.length > 0, s.length <= songTickLimit, s.length % barTicks == 0, !s.name.isEmpty, s.name.count <= 120 else { throw MusicError.invalidProject }; end += s.length }
         for p in patterns {
-            if let takes=p.drumTakes{guard takes.count<=64,Set(takes.map(\.id)).count==takes.count,takes.allSatisfy({$0.number>0})else{throw MusicError.invalidProject}}
+            if let takes=p.drumTakes{guard takes.count<=64,Set(takes.map(\.id)).count==takes.count,takes.allSatisfy({$0.number>0 && ($0.label?.count ?? 0)<=40})else{throw MusicError.invalidProject}}
             guard p.length >= barTicks, p.length % barTicks == 0, p.length <= length, p.chords.count <= 256, p.drums.count <= 4096, (p.notes ?? []).count <= 4096 else { throw MusicError.invalidProject }
             var end = 0
             for e in p.chords.sorted(by: {$0.tick < $1.tick}) {

@@ -43,7 +43,7 @@ private struct ProjectSummaryDocument: Decodable {
         let tracks = try value.nestedUnkeyedContainer(forKey: .tracks)
         guard let trackCount = tracks.count, (2...8).contains(trackCount) else { throw MusicError.invalidProject }
         var sections = try value.nestedUnkeyedContainer(forKey: .sections)
-        guard let sectionCount = sections.count, (1...8).contains(sectionCount) else { throw MusicError.invalidProject }
+        guard let sectionCount = sections.count, (1...maximumSections).contains(sectionCount) else { throw MusicError.invalidProject }
         var end = 0
         while !sections.isAtEnd {
             let section = try sections.nestedContainer(keyedBy: SectionKeys.self)
