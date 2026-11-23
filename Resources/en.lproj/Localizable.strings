@@ -1893,3 +1893,8 @@
 "Use these lengths" = "Use these lengths";
 "Tempo comes from this song (%lld BPM). Lengths round to whole phrases; up to 64 bars in all." = "Tempo comes from this song (%lld BPM). Lengths round to whole phrases; up to 64 bars in all.";
 "Part %lld" = "Part %lld";
+"By role" = "By role";
+"Gold" = "Gold";
+"Red" = "Red";
+"Lock the screen while recording" = "Lock the screen while recording";
+"Show time in minutes and seconds" = "Show time in minutes and seconds";

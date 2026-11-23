@@ -1115,6 +1115,8 @@ import Observation
                 case .wav:
                     let receipt:RenderReceipt;if let performance{receipt=try await OfflineRenderer.renderPerformance(performance,to:url,settings:settings,samples:samples,progress:progress)}else{receipt=try await OfflineRenderer.render(snapshot,to:url,settings:settings,range:range,samples:samples,progress:progress)}
                     if receipt.clipped{exportWarning="Clipping was detected. Lower track or master gain for a cleaner export."}
+                    // I51: title, artist and tempo/key inside the file.
+                    try? WAVMetadata.write(url,title:snapshot.name,artist:UserDefaults.standard.string(forKey:"notes.author"),comment:"\(Int(snapshot.bpm.rounded())) BPM · \(snapshot.keyName)")
                 case .stems:_ = try await StemExporter.render(snapshot,to:url,settings:settings,range:range,selected:tracks,samples:samples,progress:progress)
                 case .ringtone:
                     // I50: the first 30 seconds of the chosen range as an iPhone ringtone (AAC in .m4r).

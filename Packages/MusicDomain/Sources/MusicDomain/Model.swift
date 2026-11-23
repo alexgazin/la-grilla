@@ -296,6 +296,8 @@ public struct Track: Codable, Equatable, Identifiable, Sendable {
     /// Drum layers (pads) silenced in playback and export while their hits stay in the
     /// pattern. Nil or empty = every pad plays; absent in older files.
     public var mutedPads: [Int]?
+    /// U47: colour chosen for this track (0 harmony, 1 drums, 2 bass, 3 mint, 4 red); nil = by role.
+    public var color: Int?
     public init(role: TrackRole) { self.role = role }
     public func isPadMuted(_ pad: Int) -> Bool { mutedPads?.contains(pad) == true }
 }
@@ -376,6 +378,7 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
         if let license{guard ["all-rights","cc-by","cc-by-nc"].contains(license)else{throw MusicError.invalidProject}}
         if let trash=recentlyDeleted{guard trash.count<=ProjectTrash.itemLimit,Set(trash.map(\.id)).count==trash.count,trash.allSatisfy({$0.name.count<=200 && $0.deletedAt.timeIntervalSinceReferenceDate.isFinite})else{throw MusicError.invalidProject}}
         for track in tracks{try track.dynamics?.validate();try track.synth?.validate();if track.synth != nil,track.role == .drums{throw MusicError.invalidProject}
+            if let color=track.color,!(0..<5).contains(color){throw MusicError.invalidProject}
             if let muted=track.mutedPads,track.role != .drums || Set(muted).count != muted.count || !muted.allSatisfy({(0..<16).contains($0)}){throw MusicError.invalidProject}}
         guard sections.allSatisfy({$0.color.map{(0...3).contains($0)} ?? true}),sections.allSatisfy({$0.filterSweep?.isValid ?? true}) else{throw MusicError.invalidProject}
         try midi?.validate(self)

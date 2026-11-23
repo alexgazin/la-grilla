@@ -23,7 +23,7 @@ struct ArrangementClipFace: View {
     let width: CGFloat
     let height: CGFloat
     let resizing: Bool
-    private var color: Color { Color.track(track.role) }
+    private var color: Color { Color.track(track) }
     var body: some View {
         VStack(alignment:.leading,spacing:5) {
             if width>=62 {
@@ -125,7 +125,7 @@ struct ArrangementClipInspector: View {
                         Text("Clips repeat their source pattern when extended. Musical content is never overwritten by a drop.").font(.caption).foregroundStyle(Color.muted)
                     }
                 } else {Text("This clip or section no longer exists.")}
-            }.tint(track.map{Color.track($0.role)} ?? .mint)
+            }.tint(track.map{Color.track($0)} ?? .mint)
                 .navigationTitle("Clip settings").navigationBarTitleDisplayMode(.inline)
                 .toolbar{ToolbarItem(placement:.confirmationAction){Button("Done"){dismiss()}}}
         }.onAppear{if let clip,clip.start%barTicks != 0 || clip.length%barTicks != 0{grid=clip.start%ppq==0 && clip.length%ppq==0 ? ppq:240}}

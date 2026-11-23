@@ -102,7 +102,7 @@ private struct InstrumentKeyboard: View {
                             Text(error).font(.caption).foregroundStyle(Color.record).padding(.horizontal)
                         }
                         if chordStrip {
-                            ChordStrip(keyRoot: session.project.keyRoot, minor: session.project.minor, color: Color.track(track.role)) { pitch, down in key(pitch, down: down, track: track) }
+                            ChordStrip(keyRoot: session.project.keyRoot, minor: session.project.minor, color: Color.track(track)) { pitch, down in key(pitch, down: down, track: track) }
                                 .padding(.horizontal, 10)
                         }
                         keybedRow(track, width: geometry.size.width)
@@ -192,7 +192,7 @@ private struct InstrumentKeyboard: View {
         InstrumentKeybed(root: root, octaves: KeyboardLayout.octaves(requested: octaveSetting, width: available, size: size),
                          keyRoot: session.project.keyRoot, minor: session.project.minor, scaleOnly: scaleOnly,
                          gridColumns: columns,
-                         color: Color.track(track.role),
+                         color: Color.track(track),
                          play: { pitch, down in key(pitch, down: down, track: track) })
             .id(surfaceID)
         }.padding(.horizontal, 10).padding(.bottom, 10)
@@ -253,7 +253,7 @@ private struct InstrumentKeyboard: View {
                     .accessibilityHidden(true)
             } else {
                 Image(systemName: "waveform").font(.system(size: 44, weight: .light))
-                    .foregroundStyle(Color.track(track.role)).padding(.trailing, 22).accessibilityHidden(true)
+                    .foregroundStyle(Color.track(track)).padding(.trailing, 22).accessibilityHidden(true)
             }
         }.frame(maxWidth: .infinity).frame(height: height)
             .animation(Luz.Motion.morph, value: current?.id)

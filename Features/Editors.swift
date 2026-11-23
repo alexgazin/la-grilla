@@ -138,6 +138,8 @@ struct SettingsView: View {
     @AppStorage("studio.appearance") private var appearance=0
     @AppStorage("studio.visualMetronome") private var visualMetronome=false
     @AppStorage("studio.leftHanded") private var leftHanded=false
+    @AppStorage("studio.recordLock") private var recordLock=false
+    @AppStorage("studio.showSeconds") private var showSeconds=false
     @AppStorage("nextStep.off") private var nextStepOff=false
     @State private var temporaryBytes:Int64=StorageUsage.bytes(of:FileManager.default.temporaryDirectory)
     private func clearTemporary(){
@@ -179,6 +181,8 @@ struct SettingsView: View {
         Section("Metronome"){MetronomeSettingsRows(audio:session.audio);Toggle("Visual metronome",isOn:$visualMetronome).accessibilityIdentifier("settings.visual-metronome")}
         Section("Comfort"){
             Toggle("Left-handed pads",isOn:$leftHanded).accessibilityIdentifier("settings.left-handed")
+            Toggle("Lock the screen while recording",isOn:$recordLock).accessibilityIdentifier("settings.record-lock")
+            Toggle("Show time in minutes and seconds",isOn:$showSeconds).accessibilityIdentifier("settings.show-seconds")
             Toggle("Suggest the next step",isOn:Binding(get:{!nextStepOff},set:{nextStepOff = !$0})).accessibilityIdentifier("settings.next-step")
         }
         audioSettings

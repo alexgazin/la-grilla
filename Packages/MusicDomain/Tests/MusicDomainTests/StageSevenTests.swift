@@ -98,3 +98,18 @@ struct HarmonyExplainerTests {
         #expect(toC.text.contains("up a fourth"))
     }
 }
+
+struct WAVMetadataTests {
+    @Test func titleArtistAndTempoAreWrittenAndTheAudioStays() async throws {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("Meta-\(UUID().uuidString).wav")
+        defer { try? FileManager.default.removeItem(at: url) }
+        _ = try await OfflineRenderer.render(Project.demo(), to: url, settings: WAVSettings(sampleRate: 44_100, bitDepth: 16, tailSeconds: 0), range: 0..<barTicks)
+        let before = try Data(contentsOf: url)
+        try WAVMetadata.write(url, title: "First light", artist: "Andrey", comment: "120 BPM · C major")
+        let fields = try WAVMetadata.read(url)
+        #expect(fields["INAM"] == "First light" && fields["IART"] == "Andrey" && fields["ICMT"] == "120 BPM · C major")
+        let after = try Data(contentsOf: url)
+        #expect(after.count > before.count)
+        #expect(after[44..<before.count] == before[44..<before.count])
+    }
+}

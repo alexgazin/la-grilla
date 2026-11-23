@@ -4,6 +4,7 @@ import MusicDomain
 struct StudioView: View {
     @Bindable var session: Session
     @AppStorage("studio.visualMetronome") private var visualMetronome=false
+    @AppStorage("studio.recordLock") private var recordLock=false
     @AppStorage("studio.pitchSpelling") private var spellingValue=PitchSpelling.automatic.rawValue
     @Namespace private var tabPuck
     /// Sheets grow out of the control that opened them (Luz zoom transitions).
@@ -23,9 +24,10 @@ struct StudioView: View {
             if verticalSize == .compact {
                 HStack(spacing:0){VStack(spacing:0){compactHeader;workspaceStage};compactSidebar}
             }else{
-                header
+                // U42: with the recording lock on, only the instrument and Stop respond while recording.
+                header.disabled(recordLock && session.recording).opacity(recordLock && session.recording ? 0.45:1)
                 workspaceStage
-                QuickBar(session:session)
+                QuickBar(session:session).disabled(recordLock && session.recording)
                 console
             }
         }.animation(reduceMotion ? nil:Luz.Motion.morph,value:session.saveError).animation(reduceMotion ? nil:Luz.Motion.morph,value:session.audio.error)
@@ -108,7 +110,7 @@ struct StudioView: View {
     private var compactSidebar:some View {VStack(spacing:4){
         Button{session.togglePlay()}label:{Image(systemName:session.audio.playing ? "stop.fill":"play.fill").font(.title2.weight(.semibold)).contentTransition(.symbolEffect(.replace))}.buttonStyle(TransportKeyStyle(isOn:session.audio.playing,diameter:52)).accessibilityLabel(session.audio.playing ? "Stop":"Play")
         HStack(spacing:0){IconButton(symbol:"backward.end.fill",label:"Return to start"){session.rewind()};IconButton(symbol:session.recording ? "stop.circle.fill":"record.circle",label:session.recording ? "Finish drum take":"Record drums",color:.record){session.record()}.disabled(session.performance.contextActive).opacity(session.performance.contextActive ? 0.35:1)}
-        HStack(spacing:0){IconButton(symbol:"repeat",label:"Toggle loop",color:session.loop ? .mint:.muted){session.setLoop(enabled:!session.loop)}.disabled(session.performance.contextActive).opacity(session.performance.contextActive ? 0.35:1);Button{if session.performance.contextActive{session.sheet = .perform}}label:{CompactPosition(audio:session.audio).frame(minWidth:44,minHeight:44)}.accessibilityIdentifier("perform.transport").accessibilityValue(Text(verbatim:session.runtimeTraceReport))}
+        HStack(spacing:0){IconButton(symbol:"repeat",label:"Toggle loop",color:session.loop ? .mint:.muted){session.setLoop(enabled:!session.loop)}.disabled(session.performance.contextActive).opacity(session.performance.contextActive ? 0.35:1);Button{if session.performance.contextActive{session.sheet = .perform}}label:{CompactPosition(audio:session.audio,bpm:session.project.bpm).frame(minWidth:44,minHeight:44)}.accessibilityIdentifier("perform.transport").accessibilityValue(Text(verbatim:session.runtimeTraceReport))}
         tab("square.grid.3x3","Grid",0);tab("square.grid.2x2","Jam",1);tab("slider.vertical.3","Mixer",2)
         Spacer(minLength:0)
     }.padding(.top,6).frame(width:104).background(Color.panel)}
@@ -254,7 +256,7 @@ struct SheetMiniTransport: View {
             IconButton(symbol: "arrow.uturn.forward", label: "Redo") { session.redo() }
                 .disabled(!session.history.canRedo || session.recording || session.armed).accessibilityIdentifier("sheet.redo")
             Spacer(minLength: 4)
-            CompactPosition(audio: session.audio).foregroundStyle(Color.muted)
+            CompactPosition(audio: session.audio, bpm: session.project.bpm).foregroundStyle(Color.muted)
             Button { session.togglePlay() } label: {
                 Image(systemName: session.audio.playing ? "stop.fill" : "play.fill").font(.headline).contentTransition(.symbolEffect(.replace))
                     .frame(width: 52, height: 44)
@@ -270,7 +272,16 @@ struct SheetMiniTransport: View {
 }
 struct CompactPosition: View {
     let audio: AudioController
+    var bpm: Double = 120
+    /// U68: minutes and seconds instead of bar and beat.
+    @AppStorage("studio.showSeconds") private var showSeconds=false
     var body: some View {
+        if showSeconds, audio.sampleRate > 0 {
+            let seconds = Int(Double(audio.tick) / Double(ppq) * 60 / max(1, bpm))
+            Text(String(format:"%d:%02d", seconds / 60, seconds % 60)).font(StudioTypography.index).monospacedDigit()
+        } else { barBeat }
+    }
+    private var barBeat: some View {
         Text(String(format:"%02d:%d",Int(audio.tick)/barTicks+1,Int(audio.tick)%barTicks/ppq+1)).font(StudioTypography.index).monospacedDigit()
     }
 }

@@ -128,7 +128,7 @@ struct MixerView: View {
     /// `tight`: compact height; the per-track sound slot moves out (it stays on the Jam
     /// screen and the grid's track labels) and the pan row is shorter.
     private func channel(index: Int, track: Track?, height: CGFloat, tight: Bool = false) -> some View {
-        let color = track.map { Color.track($0.role) } ?? .mint
+        let color = track.map { Color.track($0) } ?? .mint
         let gain = track?.gain ?? session.displayProject.master
         return VStack(spacing: 0) {
             channelHeading(track: track, color: color)
@@ -165,6 +165,14 @@ struct MixerView: View {
                     session.edit { p in if let i = p.tracks.firstIndex(where: { $0.id == id }) { p.tracks[i].locked = p.tracks[i].locked == true ? nil : true } }
                 }
                 dynamicsMenu(track)
+                // U47: a colour of your own for this track.
+                Picker("Colour", selection: Binding(get: { track.color ?? -1 }, set: { value in
+                    let id = track.id
+                    session.edit { p in if let i = p.tracks.firstIndex(where: { $0.id == id }) { p.tracks[i].color = value < 0 ? nil : value } }
+                })) {
+                    Text("By role").tag(-1)
+                    ForEach(Array(["Gold", "Coral", "Violet", "Mint", "Red"].enumerated()), id: \.offset) { index, name in Text(LocalizedStringKey(name)).tag(index) }
+                }
             } label: { headingLabel(track: track, color: color) }
                 .accessibilityIdentifier("mixer.track-menu.\(track.role.rawValue)")
                 .disabled(session.performance.contextActive)

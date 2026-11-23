@@ -1895,3 +1895,8 @@
 "Use these lengths" = "Взять эти длины";
 "Tempo comes from this song (%lld BPM). Lengths round to whole phrases; up to 64 bars in all." = "Темп берётся из этой песни (%lld BPM). Длины округляются до целых фраз; всего до 64 тактов.";
 "Part %lld" = "Часть %lld";
+"By role" = "По роли";
+"Gold" = "Золотой";
+"Red" = "Красный";
+"Lock the screen while recording" = "Блокировать экран во время записи";
+"Show time in minutes and seconds" = "Показывать время в минутах и секундах";

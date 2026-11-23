@@ -46,6 +46,11 @@ extension Color {
     static func track(_ role: TrackRole) -> Color {
         role == .harmony ? .harmony : role == .drums ? .drums : role == .bass ? .bass : .mint
     }
+    /// U47: the five track colours a person can choose (all meet the Luz contrast tokens).
+    static let trackPalette: [Color] = [.harmony, .drums, .bass, .mint, .record]
+    static func track(_ track: Track) -> Color {
+        track.color.flatMap { trackPalette.indices.contains($0) ? trackPalette[$0] : nil } ?? Color.track(track.role)
+    }
 }
 
 enum StudioMetrics {
