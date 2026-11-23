@@ -43,7 +43,7 @@ targets:
         INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight
         TARGETED_DEVICE_FAMILY: '1'
         MARKETING_VERSION: '1.0.0'
-        CURRENT_PROJECT_VERSION: '50'
+        CURRENT_PROJECT_VERSION: '51'
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
   LaGrillaUITests:
     type: bundle.ui-testing
