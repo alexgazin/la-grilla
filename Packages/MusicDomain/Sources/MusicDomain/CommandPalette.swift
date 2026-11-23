@@ -5,13 +5,13 @@ public enum CommandID: String, CaseIterable, Codable, Sendable {
     case play, record, undo, redo, loop
     case tempo, key, transpose, addSection, duplicateSection, addMelody, deleteLastTake
     case grid, jam, mixer, notes, voice, assistant, harmony, palettes, sections, bass, perform
-    case settings, projects, newProject, export, history, versions, trash, midiDevices, chordImport, lyrics, master, focusSection, practice, mood, doctor, earTraining
+    case settings, projects, newProject, export, history, versions, trash, midiDevices, chordImport, lyrics, master, focusSection, practice, mood, doctor, earTraining, repeatLast
 }
 
 /// What a command needs from the query.
 public enum CommandParameter: Sendable, Equatable { case bpm, key, semitones, sectionName }
 
-public enum CommandArgument: Equatable, Sendable {
+public enum CommandArgument: Equatable, Sendable, Codable {
     case bpm(Int)
     case key(root: Int, minor: Bool)
     case semitones(Int)
@@ -28,7 +28,7 @@ public struct CommandDescriptor: Sendable, Equatable, Identifiable {
     public let synonyms: [String]
 }
 
-public struct CommandMatch: Equatable, Sendable {
+public struct CommandMatch: Equatable, Sendable, Codable {
     public let command: CommandID
     public let argument: CommandArgument?
     public let score: Double
@@ -113,6 +113,8 @@ public enum CommandCatalog {
               synonyms: ["check song", "check arrangement", "problems", "проверить песню", "проверка", "что не так", "ошибки в аранжировке"]),
         .init(id: .earTraining, title: "Ear training", symbol: "ear", parameter: nil,
               synonyms: ["ear training", "guess chord", "quiz", "тренировка слуха", "угадай аккорд", "слух", "сольфеджио"]),
+        .init(id: .repeatLast, title: "Repeat the last action", symbol: "arrow.clockwise", parameter: nil,
+              synonyms: ["repeat", "again", "repeat last", "повторить", "ещё раз", "повтори последнее", "то же самое"]),
         .init(id: .midiDevices, title: "MIDI devices", symbol: "pianokeys.inverse", parameter: nil,
               synonyms: ["midi", "controller", "keyboard", "миди", "контроллер", "миди устройства"]),
     ]

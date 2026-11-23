@@ -162,3 +162,45 @@ public enum Ratchet {
         }
     }
 }
+
+/// I23 · A composed ending: one more bar on the home chord with a final hit; the song
+/// then plays once instead of looping.
+public enum EndingGenerator {
+    public static func append(to project: inout Project, name: String = "Ending") throws {
+        var candidate = project
+        try SectionEditing.append(name: name, bars: 1, to: &candidate)
+        guard let section = candidate.sections.last else { throw MusicError.invalidProject }
+        let tonic = Chord(root: candidate.keyRoot, quality: candidate.minor ? .minor : .major)
+        for track in candidate.tracks {
+            guard let clip = track.clips.first(where: { $0.start == section.start }),
+                  let index = candidate.patterns.firstIndex(where: { $0.id == clip.patternID }) else { continue }
+            switch track.role {
+            case .harmony: candidate.patterns[index].chords = [ChordEvent(tick: 0, duration: barTicks, chord: tonic, velocity: 92)]
+            case .drums: candidate.patterns[index].drums = [DrumEvent(tick: 0, pad: 0, velocity: 118), DrumEvent(tick: 0, pad: 9, velocity: 112)]
+            default: break
+            }
+        }
+        candidate.hasComposedEnding = true
+        try candidate.validate()
+        project = candidate
+    }
+}
+
+/// I40 · Repeat a section with a fill in its last two beats.
+public extension SectionEditing {
+    static func duplicateWithVariation(_ sectionID: UUID, name: String, in project: inout Project) throws {
+        var candidate = project
+        try duplicate(sectionID, name: name, in: &candidate)
+        guard let source = candidate.sections.firstIndex(where: { $0.id == sectionID }), source + 1 < candidate.sections.count else { throw MusicError.invalidProject }
+        let copy = candidate.sections[source + 1]
+        if let drums = candidate.tracks.first(where: { $0.role == .drums }),
+           let clip = drums.clips.first(where: { $0.start == copy.start }),
+           let index = candidate.patterns.firstIndex(where: { $0.id == clip.patternID }) {
+            // A copy shares no pattern with its source, so the fill changes only the copy.
+            let shared = candidate.tracks.flatMap(\.clips).filter { $0.patternID == clip.patternID }.count > 1
+            if !shared { FillGenerator.add(.snare, beats: 2, endingAt: candidate.patterns[index].length, to: &candidate.patterns[index]) }
+        }
+        try candidate.validate()
+        project = candidate
+    }
+}

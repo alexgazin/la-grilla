@@ -1847,3 +1847,10 @@
 "Suggest a song name" = "Suggest a song name";
 "Lead sheet (MusicXML)" = "Lead sheet (MusicXML)";
 "A lead sheet for notation apps (MuseScore, Sibelius, Dorico, Finale): the melody with chord symbols, lyrics and section marks." = "A lead sheet for notation apps (MuseScore, Sibelius, Dorico, Finale): the melody with chord symbols, lyrics and section marks.";
+"Duplicate with a fill" = "Duplicate with a fill";
+"Add an ending" = "Add an ending";
+"Ending" = "Ending";
+"Ending added" = "Ending added";
+"Ringtone (30 s)" = "Ringtone (30 s)";
+"The first 30 seconds of the chosen bars as an iPhone ringtone (.m4r). In Files, share it to GarageBand or set it in Settings › Sounds." = "The first 30 seconds of the chosen bars as an iPhone ringtone (.m4r). In Files, share it to GarageBand or set it in Settings › Sounds.";
+"Repeat the last action" = "Repeat the last action";

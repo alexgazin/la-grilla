@@ -391,6 +391,11 @@ struct SectionsView: View {
                         .buttonStyle(StudioActionStyle(prominent: false))
                         .disabled(editingLocked || remainingBars == 0 || session.project.sections.count >= maximumSections)
                         .accessibilityIdentifier("sections.add")
+                    // I23: one more bar on the home chord with a final hit; the song then plays once.
+                    Button { session.edit { try EndingGenerator.append(to: &$0, name: NSLocalizedString("Ending", comment: "Section name")) }; session.showToast("Ending added") } label: { Label("Add an ending", systemImage: "flag.checkered") }
+                        .buttonStyle(StudioActionStyle(color: .mint, prominent: false))
+                        .disabled(editingLocked || remainingBars == 0 || session.project.sections.count >= maximumSections)
+                        .accessibilityIdentifier("sections.ending")
                     NavigationLink { FormTemplatesView(session: session) } label: { Label("Structure from a template", systemImage: "rectangle.split.3x1") }
                         .buttonStyle(StudioActionStyle(color: .mint, prominent: false))
                         .disabled(editingLocked)
@@ -440,6 +445,8 @@ struct SectionsView: View {
     private func actionList(_ section:MusicDomain.Section)->some View {NavigationStack{List{
         Button("Rename"){pendingRename=section.id;actions=nil}
         Button("Duplicate"){session.edit{try SectionEditing.duplicate(section.id,name:section.name=="Verse" ? "Chorus":String((section.name+" copy").prefix(120)),in:&$0)};actions=nil}
+        // I40: the same section again with a snare fill at the end of the copy.
+        Button("Duplicate with a fill"){session.edit{try SectionEditing.duplicateWithVariation(section.id,name:String((section.name+" 2").prefix(120)),in:&$0)};actions=nil}.accessibilityIdentifier("section.duplicate-fill")
             .disabled(session.project.sections.count>=maximumSections || session.project.length+section.length>songTickLimit).accessibilityIdentifier("section.duplicate")
         Picker("Colour",selection:Binding(get:{section.color ?? -1},set:{value in let id=section.id;session.edit{p in if let i=p.sections.firstIndex(where:{$0.id==id}){p.sections[i].color=value<0 ? nil:value}};actions=nil})){
             Text("Automatic").tag(-1)

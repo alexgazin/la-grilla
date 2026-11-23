@@ -1849,3 +1849,10 @@
 "Suggest a song name" = "Предложить название";
 "Lead sheet (MusicXML)" = "Лид-шит (MusicXML)";
 "A lead sheet for notation apps (MuseScore, Sibelius, Dorico, Finale): the melody with chord symbols, lyrics and section marks." = "Лид-шит для нотных редакторов (MuseScore, Sibelius, Dorico, Finale): мелодия с аккордами, текстом и метками секций.";
+"Duplicate with a fill" = "Дублировать со сбивкой";
+"Add an ending" = "Добавить концовку";
+"Ending" = "Концовка";
+"Ending added" = "Концовка добавлена";
+"Ringtone (30 s)" = "Рингтон (30 с)";
+"The first 30 seconds of the chosen bars as an iPhone ringtone (.m4r). In Files, share it to GarageBand or set it in Settings › Sounds." = "Первые 30 секунд выбранных тактов как рингтон для iPhone (.m4r). В «Файлах» передай его в GarageBand или выбери в Настройках › Звуки.";
+"Repeat the last action" = "Повторить последнее действие";

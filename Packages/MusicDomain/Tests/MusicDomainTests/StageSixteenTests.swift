@@ -101,3 +101,27 @@ struct SectionTransposeTests {
         #expect(throws: MusicError.self) { try project.validate() }
     }
 }
+
+struct EndingAndVariationTests {
+    @Test func anEndingAddsOneBarOnTheHomeChordAndPlaysOnce() throws {
+        var project = Project.demo(); project.keyRoot = 9; project.minor = true
+        try EndingGenerator.append(to: &project)
+        #expect(project.sections.last?.name == "Ending" && project.sections.last?.length == barTicks)
+        #expect(project.hasComposedEnding == true)
+        let last = project.sections.last!
+        let chords = Arrangement.harmony(project, section: last)
+        #expect(chords.map(\.chord.symbol) == ["Am"])
+    }
+
+    @Test func aVariedCopyGetsAFillAndTheSourceStaysTheSame() throws {
+        var project = Project.demo()
+        let source = project.sections[0].id
+        let before = Compiler.notes(project, range: 0..<project.sections[0].length)
+        try SectionEditing.duplicateWithVariation(source, name: "Verse 2", in: &project)
+        #expect(project.sections.count == 2)
+        #expect(Compiler.notes(project, range: 0..<project.sections[0].length) == before)
+        let copyStart = project.sections[1].start
+        let copyNotes = Compiler.notes(project, range: copyStart..<copyStart + project.sections[1].length)
+        #expect(copyNotes.count > before.count)
+    }
+}

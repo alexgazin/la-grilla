@@ -17,6 +17,12 @@ enum CommandMemory {
         UserDefaults.standard.set(list.prefix(8).map(\.rawValue), forKey: recentKey)
     }
 
+    /// U65: the last action with its value, for Repeat.
+    static var lastRun: CommandMatch? {
+        get { UserDefaults.standard.data(forKey: "commands.lastRun").flatMap { try? JSONDecoder().decode(CommandMatch.self, from: $0) } }
+        set { UserDefaults.standard.set(newValue.flatMap { try? JSONEncoder().encode($0) }, forKey: "commands.lastRun") }
+    }
+
     /// Pinned actions as a comma-separated string, so views can observe it with @AppStorage.
     static func pinned(_ raw: String) -> [CommandID] { raw.split(separator: ",").compactMap { CommandID(rawValue: String($0)) } }
     static func raw(_ list: [CommandID]) -> String { list.prefix(pinnedLimit).map(\.rawValue).joined(separator: ",") }

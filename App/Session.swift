@@ -16,7 +16,7 @@ import Observation
         return controller
     }()
     var displayProject:Project{performance.contextActive ? (performance.runtimeProject ?? project):(drumPlayback ?? project)}
-    var selectedSection: UUID?{didSet{if selectedSection != oldValue{noteClipID=nil;drumClipID=nil}}}; var tab = 0; var loop = true; var loopBars = 4; var metronome = false
+    var selectedSection: UUID?{didSet{if selectedSection != oldValue{noteClipID=nil;drumClipID=nil;rememberWorkspace()}}}; var tab = 0{didSet{if tab != oldValue{rememberWorkspace()}}}; var loop = true; var loopBars = 4; var metronome = false
     var quantize: Quantize = .sixteenth; var overdub = true; var countIn = true
     /// I06/I07: how far recorded hits move to the grid (1 = fully) and swing (0.5 = straight).
     var quantizeStrength = 1.0; var swing = 0.5
@@ -451,7 +451,10 @@ import Observation
     /// U4 · U13 · Runs a command from the search field or the quick bar. Commands with a
     /// missing value open the place where it is set.
     func run(_ id:CommandID,_ argument:CommandArgument?=nil) {
+        // U65: Repeat runs the last action with its value again (⌘Y).
+        if id == .repeatLast { if let last=CommandMemory.lastRun, last.command != .repeatLast { run(last.command,last.argument) }; return }
         CommandMemory.remember(id)
+        CommandMemory.lastRun=CommandMatch(command:id,argument:argument,score:1)
         switch id {
         case .play: togglePlay()
         case .record: tab=1;record()
@@ -509,6 +512,7 @@ import Observation
         case .focusSection: toggleFocus()
         case .practice: togglePractice()
         case .mood: presentEditor(.mood)
+        case .repeatLast: break
         case .doctor: presentEditor(.doctor)
         case .earTraining: presentEditor(.earTraining)
         }
@@ -956,8 +960,21 @@ import Observation
     }
     private func activateProject(_ p:Project,savedRevision:Int,samples:SampleLibrary=SampleLibrary()){
         audio.samples = samples
-        project=p;history=History();noteTrackID=nil;noteClipID=nil;drumClipID=nil;selectedSection=p.sections[0].id;self.savedRevision=savedRevision;restoreGeneratedLoop();audio.seek(0);sync();sheet=nil
+        restoringWorkspace=true
+        project=p;history=History();noteTrackID=nil;noteClipID=nil;drumClipID=nil;selectedSection=p.sections[0].id;self.savedRevision=savedRevision
+        // U36: come back to the same screen and section of this song.
+        if !Luz.uiTesting,let saved=UserDefaults.standard.string(forKey:"workspace."+p.id.uuidString)?.split(separator:"|"),saved.count==2 {
+            if let value=Int(saved[0]),(0...2).contains(value){tab=value}
+            if let id=UUID(uuidString:String(saved[1])),p.sections.contains(where:{$0.id==id}){selectedSection=id}
+        }
+        restoringWorkspace=false
+        restoreGeneratedLoop();audio.seek(section.start);sync();sheet=nil
         UserDefaults.standard.set(p.id.uuidString,forKey:lastProjectKey)
+    }
+    @ObservationIgnored private var restoringWorkspace=false
+    private func rememberWorkspace(){
+        guard !restoringWorkspace,let id=selectedSection else{return}
+        UserDefaults.standard.set("\(tab)|\(id.uuidString)",forKey:"workspace."+project.id.uuidString)
     }
     @discardableResult func create(name: String,bpm: Double,root: Int,minor: Bool,bars: Int,template:ProjectTemplate = .empty) async -> Bool {
         do {
@@ -1074,10 +1091,10 @@ import Observation
         }catch{if let written{await retainUnopenedProject(written)}else{message=error.localizedDescription}}
     }
     enum ExportFormat:String,CaseIterable,Identifiable {
-        case midi,wav,stems,project,aac,video,daw,musicxml
+        case midi,wav,stems,project,aac,video,daw,musicxml,ringtone
         var id:String{rawValue}
-        var title:String{switch self{case .midi:"Standard MIDI";case .wav:"Stereo WAV";case .stems:"Aligned stems";case .project:"Portable project";case .aac:"AAC for sharing";case .video:"Video for social";case .daw:"For a DAW: stems, MIDI, README";case .musicxml:"Lead sheet (MusicXML)"}}
-        var fileExtension:String{switch self{case .midi:"mid";case .wav:"wav";case .stems,.daw:"zip";case .project:"grillapack";case .aac:"m4a";case .video:"mp4";case .musicxml:"musicxml"}}
+        var title:String{switch self{case .midi:"Standard MIDI";case .wav:"Stereo WAV";case .stems:"Aligned stems";case .project:"Portable project";case .aac:"AAC for sharing";case .video:"Video for social";case .daw:"For a DAW: stems, MIDI, README";case .musicxml:"Lead sheet (MusicXML)";case .ringtone:"Ringtone (30 s)"}}
+        var fileExtension:String{switch self{case .midi:"mid";case .wav:"wav";case .stems,.daw:"zip";case .project:"grillapack";case .aac:"m4a";case .video:"mp4";case .musicxml:"musicxml";case .ringtone:"m4r"}}
     }
     func export(format:ExportFormat,settings:WAVSettings,range:Range<Int>,tracks:Set<UUID>,performance:PerformanceTake?=nil) {
         if performance != nil && format != .midi && format != .wav && format != .aac{exportError="Choose WAV or MIDI for a performance.";return}
@@ -1098,6 +1115,14 @@ import Observation
                     let receipt:RenderReceipt;if let performance{receipt=try await OfflineRenderer.renderPerformance(performance,to:url,settings:settings,samples:samples,progress:progress)}else{receipt=try await OfflineRenderer.render(snapshot,to:url,settings:settings,range:range,samples:samples,progress:progress)}
                     if receipt.clipped{exportWarning="Clipping was detected. Lower track or master gain for a cleaner export."}
                 case .stems:_ = try await StemExporter.render(snapshot,to:url,settings:settings,range:range,selected:tracks,samples:samples,progress:progress)
+                case .ringtone:
+                    // I50: the first 30 seconds of the chosen range as an iPhone ringtone (AAC in .m4r).
+                    let seconds=Int((30*snapshot.bpm/60*Double(ppq)).rounded(.down))
+                    let short=range.lowerBound..<min(range.upperBound,range.lowerBound+max(barTicks,seconds))
+                    let wav=folder.appendingPathComponent("ringtone.wav")
+                    _ = try await OfflineRenderer.render(snapshot,to:wav,settings:WAVSettings(sampleRate:settings.sampleRate,bitDepth:settings.bitDepth,tailSeconds:0.5),range:short,samples:samples,progress:progress)
+                    try await Task.detached(priority:.userInitiated){try AACEncoder.encode(wav:wav,to:url)}.value
+                    try? FileManager.default.removeItem(at:wav)
                 case .musicxml:
                     // I49: melody, chord symbols, lyrics and section marks for notation apps.
                     try MusicXMLExporter.data(snapshot).write(to:url,options:.atomic)

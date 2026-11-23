@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import MusicDomain
 struct StudioView: View {
     @Bindable var session: Session
@@ -33,6 +34,7 @@ struct StudioView: View {
         .background{UndoGestureInstaller(undo:{session.gestureUndo(false)},redo:{session.gestureUndo(true)}).frame(width:0,height:0).accessibilityHidden(true)}
         .background{StudioKeyCommands(session:session)}
         .overlay(alignment:.top){if visualMetronome && session.audio.playing{VisualMetronome(session:session).allowsHitTesting(false)}}
+        .background{BarAnnouncer(audio:session.audio)}
         .overlay(alignment:.top){if let toast=session.toast{Label(LocalizedStringKey(toast),systemImage:toast=="Undo" ? "arrow.uturn.backward":toast=="Redo" ? "arrow.uturn.forward":"checkmark.circle").font(.subheadline.weight(.semibold)).padding(.horizontal,16).padding(.vertical,10).modifier(StudioNavigationSurface()).padding(.top,8).transition(Luz.Transition.drop(reduceMotion)).accessibilityAddTraits(.updatesFrequently).allowsHitTesting(false)}}
         .animation(reduceMotion ? .easeOut(duration:0.15):Luz.Motion.morph,value:session.toast)
         .sheet(item:$session.sheet,onDismiss:{if let url=session.exportedURL{session.shareURL=url;session.exportedURL=nil}}){sheet in Group{switch sheet {
@@ -296,6 +298,7 @@ private struct StudioKeyCommands: View {
             Button("Focus on this section") { session.toggleFocus() }.keyboardShortcut("f", modifiers: [])
             Button("Undo") { session.undo() }.keyboardShortcut("z", modifiers: .command)
             Button("Redo") { session.redo() }.keyboardShortcut("z", modifiers: [.command, .shift])
+            Button("Repeat the last action") { session.run(.repeatLast) }.keyboardShortcut("y", modifiers: .command)
             Button("Open Grid") { session.tab = 0 }.keyboardShortcut("1", modifiers: .command)
             Button("Open Jam") { session.tab = 1 }.keyboardShortcut("2", modifiers: .command)
             Button("Open Mixer") { session.tab = 2 }.keyboardShortcut("3", modifiers: .command)
@@ -319,5 +322,20 @@ private struct VisualMetronome: View {
             .ignoresSafeArea(edges: .top)
             .transaction { $0.animation = nil }
             .accessibilityHidden(true)
+    }
+}
+
+/// U58 · With VoiceOver on, each new bar is announced while playing (at most once per bar).
+private struct BarAnnouncer: View {
+    let audio: AudioController
+    @State private var announced = -1
+    var body: some View {
+        let bar = audio.playing ? Int(audio.tick) / barTicks + 1 : -1
+        Color.clear.frame(width: 0, height: 0).accessibilityHidden(true)
+            .onChange(of: bar) { _, value in
+                guard value > 0, value != announced, UIAccessibility.isVoiceOverRunning else { return }
+                announced = value
+                UIAccessibility.post(notification: .announcement, argument: String(format: NSLocalizedString("Bar %lld", comment: "VoiceOver position"), value))
+            }
     }
 }
