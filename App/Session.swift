@@ -239,9 +239,12 @@ import Observation
         if !backgrounded,UIApplication.shared.applicationState == .active{syncMIDI()}
         else{suspendIdleAudio()}
     }
+    @ObservationIgnored private var takeSavedOnLeave=false
     func sceneChanged(_ phase:ScenePhase){
         runtimeTrace("scene.\(phase).before");defer{runtimeTrace("scene.\(phase).after")}
-        if phase == .active{backgrounded=false;if ready{_ = ensureAudio();syncMIDI()};return}
+        if phase == .active{backgrounded=false;if ready{_ = ensureAudio();syncMIDI()};if takeSavedOnLeave{takeSavedOnLeave=false;showToast("Your take was kept when the app went to the background")};return}
+        // U66: leaving the app mid-recording keeps the take as it is.
+        if recording{takeSavedOnLeave=true}
         finishTake();Task{await save()}
         if phase == .background{backgrounded=true;stopMicrophone?();microphoneOwner=nil;stopMicrophone=nil;if harmonyPreview{endHarmonyPreview()};suspendIdleAudio();backupInBackground()}
     }
