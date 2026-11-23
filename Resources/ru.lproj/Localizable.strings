@@ -2130,3 +2130,10 @@
 "Tempo change" = "Смена темпа";
 "Church mode" = "Церковный лад";
 "Second key" = "Вторая тональность";
+
+/* Track builder preview */
+"The description changed: Listen and Create read it first." = "Описание изменилось: «Послушать» и «Создать» сначала его прочитают.";
+"Check the description above, then try again." = "Проверьте описание выше и попробуйте ещё раз.";
+"The sketch could not start. Stop other playback and try again." = "Эскиз не запустился. Остановите другое воспроизведение и попробуйте ещё раз.";
+"Playing · bar %lld of %lld" = "Играет · такт %lld из %lld";
+"Stop sketch" = "Остановить эскиз";

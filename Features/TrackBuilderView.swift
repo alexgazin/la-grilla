@@ -22,6 +22,11 @@ struct TrackBuilderView: View {
     @AppStorage("studio.builder.interpretWithApple") private var interpretWithApple = false
     @State private var interpreting: Task<Void,Never>?
     @State private var saving = false
+    /// The plan a running preparation was started from; a later onChange for the same plan keeps it.
+    @State private var preparingBrief: TrackBrief?
+    /// Listen or Create pressed while the description still had to be read: continue after it.
+    @State private var afterReview: AfterReview?
+    private enum AfterReview { case listen(Int?), save }
     @Environment(\.scenePhase) private var phase
     @FocusState private var editing: Bool
 
@@ -46,11 +51,11 @@ struct TrackBuilderView: View {
                     Section {
                         ArrangementScorePreview(brief: brief, session: session,
                                                 playingPart: session.harmonyPreview ? previewPart : nil,
-                                                canPreview: !unreviewedIdea && preparation == nil,
+                                                canPreview: preparation == nil,
                                                 play: { listen(part: $0) })
                             .listRowInsets(EdgeInsets()).listRowBackground(Color.panel)
                         ArrangementTakePicker(selection: takeBinding)
-                            .disabled(unreviewedIdea || (preparation != nil && preparingScope == nil))
+                            .disabled(preparation != nil && preparingScope == nil)
                     }
                 }
                 Section {
@@ -98,7 +103,7 @@ struct TrackBuilderView: View {
                 if let form = Binding($brief.songForm) {
                     SongFormEditor(form: form, keyRoot: brief.root, minor: brief.minor,
                                    previewing: session.harmonyPreview ? previewPart : nil,
-                                   canPreview: !unreviewedIdea && preparation == nil,
+                                   canPreview: preparation == nil,
                                    play: { position in listen(part: position) },
                                    close: { acceptedIdea = trimmedIdea; brief.songForm = nil })
                 } else {
@@ -208,15 +213,26 @@ struct TrackBuilderView: View {
                         Text(verbatim:preview.project.patterns.flatMap(\.chords).map(\.chord.symbol).joined(separator:"  ·  "))
                             .font(.subheadline.monospaced()).foregroundStyle(Color.harmony)
                     }
+                    // Musician feedback: the button always answers — it reads a changed description,
+                    // shows the preparation, then playback with the bar that is playing.
                     Button { listen() } label: {
-                        Label(LocalizedStringKey(session.harmonyPreview && previewPart == nil ? "Stop preview" : "Listen to sketch"),
-                              systemImage:session.harmonyPreview && previewPart == nil ? "stop.fill":"play.fill")
-                    }.disabled(unreviewedIdea || preparation != nil).accessibilityIdentifier("builder.preview")
-                    if preparation != nil && !saving { ProgressView("Preparing instruments…") }
-                    if let problem { Text(problem).font(.footnote).foregroundStyle(Color.record) }
+                        HStack {
+                            if preparation != nil && preparingScope?.part == nil && !saving { ProgressView().padding(.trailing, 4) }
+                            else { Image(systemName: session.harmonyPreview && previewPart == nil ? "stop.fill" : "play.fill") }
+                            Text(LocalizedStringKey(preparation != nil && preparingScope?.part == nil && !saving ? "Preparing instruments…"
+                                                    : session.harmonyPreview && previewPart == nil ? "Stop sketch" : "Listen to sketch"))
+                        }
+                    }.disabled(preparation != nil || interpreting != nil).accessibilityIdentifier("builder.preview")
+                    if session.harmonyPreview && previewPart == nil, let preview {
+                        SketchPlayhead(session: session, length: preview.project.length)
+                    }
+                    if unreviewedIdea && preparation == nil {
+                        Text("The description changed: Listen and Create read it first.").font(.footnote).foregroundStyle(Color.muted)
+                    }
+                    if let problem { Text(problem).font(.footnote).foregroundStyle(Color.record).accessibilityIdentifier("builder.problem") }
                     Button(action:save) {
                         Label(LocalizedStringKey(session.editingArrangementCopy ? "Create arrangement copy" : "Create editable track"),systemImage:"square.grid.3x3.fill")
-                    }.disabled(unreviewedIdea || preparation != nil).accessibilityIdentifier("builder.create")
+                    }.disabled(preparation != nil || interpreting != nil).accessibilityIdentifier("builder.create")
                 } footer: { Text("Creates a separate editable project.") }
             }
             .disabled(saving || interpreting != nil)
@@ -253,7 +269,7 @@ struct TrackBuilderView: View {
                     // Keep the audible take running until the new instruments are ready.
                     listen(part: scope.part, restart: true)
                 }
-            } else {
+            } else if preparation == nil || preparingBrief != new {
                 invalidatePreview()
             }
         }
@@ -358,6 +374,29 @@ struct TrackBuilderView: View {
                 }
             }
             interpreting=nil
+            resumeAfterReview()
+        }
+    }
+    /// True when the plan matches the description; otherwise reads it first. Local reading is
+    /// immediate; Apple Intelligence continues with `next` when it answers.
+    private func reviewThen(_ next: AfterReview) -> Bool {
+        guard unreviewedIdea else { return true }
+        guard interpreting == nil else { afterReview = next; return false }
+        interpret()
+        if interpreting != nil { afterReview = next; return false }
+        if unreviewedIdea {
+            problem = feedback ?? NSLocalizedString("Check the description above, then try again.", comment: "Track builder")
+            return false
+        }
+        return true
+    }
+    private func resumeAfterReview() {
+        guard let next = afterReview else { return }
+        afterReview = nil
+        guard !unreviewedIdea else { problem = feedback; return }
+        switch next {
+        case .listen(let part): listen(part: part)
+        case .save: save()
         }
     }
     private func suggestLocally(_ text:String) {
@@ -380,6 +419,7 @@ struct TrackBuilderView: View {
         let sourcePrompt = trimmedIdea
         let title = name.trimmingCharacters(in: .whitespacesAndNewlines)
         let projectName = title.isEmpty ? NSLocalizedString("New sketch",comment:"Project name") : title
+        preparingBrief = snapshot
         preparation = Task { @MainActor in
             do {
                 let ready: PreparedTrackDraft
@@ -395,12 +435,14 @@ struct TrackBuilderView: View {
                     problem = error.localizedDescription
                 }
             }
-            if !Task.isCancelled { preparation=nil; preparingScope=nil }
+            if !Task.isCancelled { preparation=nil; preparingScope=nil; preparingBrief=nil }
         }
     }
     private func listen(part: Int? = nil, restart: Bool = false) {
-        guard !unreviewedIdea, preparation == nil, !saving else { return }
-        editing=false; problem=nil
+        guard !saving else { return }
+        editing=false
+        guard reviewThen(.listen(part)), preparation == nil else { return }
+        problem=nil
         if !restart && session.harmonyPreview && previewPart == part {
             session.endHarmonyPreview(); previewPart=nil; return
         }
@@ -410,13 +452,21 @@ struct TrackBuilderView: View {
                 let section = ready.project.sections[index]
                 return section.start..<(section.start + section.length)
             }
-            session.previewNewTrack(ready, range: range)
-            previewPart = part
-            problem=session.audio.error
+            if session.previewNewTrack(ready, range: range) {
+                previewPart = part
+                Luz.Haptics.transportStart()
+            } else {
+                previewPart = nil
+                problem = session.audio.error ?? session.message
+                    ?? NSLocalizedString("The sketch could not start. Stop other playback and try again.", comment: "Track builder")
+                session.message = nil
+            }
         }
     }
     private func save() {
-        editing=false; problem=nil
+        editing=false
+        guard reviewThen(.save) else { return }
+        problem=nil
         prepare { ready in
             saving=true
             let created = await session.saveGeneratedTrack(ready)
@@ -665,5 +715,21 @@ private struct ChordPicker: View {
                 .accessibilityLabel("Add a chord").accessibilityIdentifier(identifier + "chord.add")
             }
         }
+    }
+}
+
+/// The bar the sketch preview is playing, so a silent route still shows that it plays.
+private struct SketchPlayhead: View {
+    let session: Session
+    let length: Int
+    var body: some View {
+        let bars = max(1, length / barTicks)
+        let bar = min(bars, max(1, Int(session.audio.tick) / barTicks + 1))
+        VStack(alignment: .leading, spacing: 4) {
+            ProgressView(value: Double(bar), total: Double(bars)).tint(Color.mint)
+            Text("Playing · bar \(bar) of \(bars)").font(.footnote.monospacedDigit()).foregroundStyle(Color.muted)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("builder.playhead")
     }
 }

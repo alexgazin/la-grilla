@@ -2128,3 +2128,10 @@
 "Tempo change" = "Tempo change";
 "Church mode" = "Church mode";
 "Second key" = "Second key";
+
+/* Track builder preview */
+"The description changed: Listen and Create read it first." = "The description changed: Listen and Create read it first.";
+"Check the description above, then try again." = "Check the description above, then try again.";
+"The sketch could not start. Stop other playback and try again." = "The sketch could not start. Stop other playback and try again.";
+"Playing · bar %lld of %lld" = "Playing · bar %lld of %lld";
+"Stop sketch" = "Stop sketch";

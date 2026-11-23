@@ -780,25 +780,28 @@ import Observation
         do{try candidate.validate()}catch{message=error.localizedDescription;return}
         auditionDraft(candidate, range:rangeOverride ?? (wholeSong ? 0..<candidate.length:section.start..<section.start+section.length), loop:loopOverride ?? true)
     }
-    func previewNewTrack(_ draft: PreparedTrackDraft, range: Range<Int>? = nil) {
+    /// Plays a prepared draft; false (with `message` or `audio.error` set) when it cannot start.
+    @discardableResult func previewNewTrack(_ draft: PreparedTrackDraft, range: Range<Int>? = nil) -> Bool {
         let candidate = draft.project
-        guard !performance.contextActive, candidate.id != project.id, ensureAudio() else { return }
+        guard !performance.contextActive else { message = "Return to editing before changing the source project."; return false }
+        guard candidate.id != project.id, ensureAudio() else { return false }
         let bounds = range ?? 0..<candidate.length
         guard !bounds.isEmpty, bounds.lowerBound >= 0, bounds.upperBound <= candidate.length else {
             message = MusicError.invalidProject.localizedDescription
-            return
+            return false
         }
         finishTake()
         let loops = draft.loops && range == nil
         audio.refreshClock()
         if !harmonyPreview { previewPosition = Int(audio.tick); previewPlaying = audio.playing }
-        guard audio.audition(candidate, range: bounds, loop: loops, samples: draft.samples, restart: true) else { return }
+        guard audio.audition(candidate, range: bounds, loop: loops, samples: draft.samples, restart: true) else { return false }
         previewingNewTrack = true
         draftTailStart = nil
         draftEndTick = loops ? nil : bounds.upperBound
         harmonyPreview = true
         if runtimeTraceEnabled { runtimeTrace("draft.preview-start range=\(bounds.lowerBound)..<\(bounds.upperBound)") }
         syncMIDI()
+        return true
     }
     private func auditionDraft(_ candidate:Project, range:Range<Int>, loop:Bool) {
         if !harmonyPreview{previewPosition=Int(audio.tick);previewPlaying=audio.playing;harmonyPreview=true}
