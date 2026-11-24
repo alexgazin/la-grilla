@@ -42,6 +42,7 @@ struct EqualizerView: View {
                         Toggle("EQ on",isOn:Binding(get:{eq.enabled},set:{value in update { $0.enabled=value }}))
                             .fixedSize().tint(.mint)
                     }
+                    MIDILearningRow(session: session)
                     presetMenu
                     response
                     Picker("Band",selection:$selected) {
@@ -57,7 +58,7 @@ struct EqualizerView: View {
             .toolbar { ToolbarItem(placement:.confirmationAction){Button("Done"){dismiss()}} }
         }
         .tint(.mint)
-        .onDisappear { session.mixerGesture=false; session.endHarmonyPreview() }
+        .onDisappear { session.mixerGesture=false; session.midi.learning=nil; session.endHarmonyPreview() }
         .onChange(of:compare){ _,_ in if session.harmonyPreview { playComparison() } }
         .onChange(of:session.performance.contextActive){ _,active in if active { dismiss() } }
         .onChange(of:session.project.tracks.map(\.id)){ _,_ in

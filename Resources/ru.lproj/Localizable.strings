@@ -2432,3 +2432,15 @@
 "Synth release" = "Затухание синтезатора";
 "EQ low" = "Эквалайзер: низ";
 "EQ high" = "Эквалайзер: верх";
+"Hold to hear, everywhere" = "Удержание — прослушивание";
+"Hold a chord, a note, a sound, a beat or a song picture: it plays while you hold and nothing changes." = "Удержите аккорд, ноту, звук, бит или картинку песни — звучит, пока держите, и ничего не меняется.";
+"Slice a loop your way" = "Нарезка лупа по-своему";
+"See the cuts on the waveform, move or add them, hear each slice, then put them on pads 1–16." = "Разрезы видны на волне: сдвиньте или добавьте, послушайте каждый срез и разложите на пэды 1–16.";
+"Unsaved changes come back" = "Несохранённое возвращается";
+"After a crash La Grilla offers to restore what you did since the last save, with one Undo." = "После сбоя La Grilla предложит вернуть сделанное после последнего сохранения — одной отменой.";
+"Your own 808 and MIDI learn" = "Свой 808 и MIDI learn";
+"Play the bass line with your own sound in Beat machine; hold a synth or EQ knob to assign a MIDI control." = "Басовая партия своим звуком в битмашине; удержите ручку синтезатора или эквалайзера, чтобы назначить MIDI.";
+"Compare at the same loudness" = "Сравнение при равной громкости";
+"EQ with and without, matched within half a decibel, so louder never sounds better by accident." = "Эквалайзер «с / без» выровнен в пределах полудецибела: громче — не значит лучше.";
+"Eco mode and hints" = "Эко-режим и подсказки";
+"Low Power Mode calms the screen, never the sound; Assistant and new songs suggest words to start with." = "В энергосбережении успокаивается экран, а не звук; «Помощник» и новые песни подсказывают, с чего начать.";

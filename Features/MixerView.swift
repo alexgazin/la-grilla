@@ -717,6 +717,7 @@ private struct SynthEditorView: View {
                 if let track {
                     Toggle("Use the synth", isOn: Binding(get: { track.synth != nil }, set: { on in commit(on ? patch : nil) }))
                         .accessibilityIdentifier("synth.enabled")
+                    MIDILearningRow(session: session)
                     if track.instrumentSample != nil {
                         Text("This track plays an imported instrument. Choose a built-in sound to hear the synth.").font(.caption).foregroundStyle(Color.muted)
                     }
@@ -753,7 +754,7 @@ private struct SynthEditorView: View {
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
         }
         .onAppear { if let synth = track?.synth { patch = synth } }
-        .onDisappear { if let index { session.audio.previewSynth(track: index, session.project.tracks[index].synth) } }
+        .onDisappear { session.midi.learning = nil; if let index { session.audio.previewSynth(track: index, session.project.tracks[index].synth) } }
     }
 
     private func seconds(_ value: Double) -> String { value < 1 ? String(format: "%.0f ms", value * 1000) : String(format: "%.2f s", value) }
@@ -814,6 +815,24 @@ private struct SoundingDot: View {
 }
 
 /// I52 · "Assign MIDI" on a knob: the next controller moved on a connected device controls it.
+/// I52 · While a knob waits for a controller, the sheet itself says so and offers a way out
+/// (the studio's toast sits under an open sheet).
+struct MIDILearningRow: View {
+    let session: Session
+    var body: some View {
+        if let target = session.midi.learning {
+            VStack(alignment: .leading, spacing: 6) {
+                Label("Move a knob on your MIDI controller", systemImage: "pianokeys.inverse").font(.callout.weight(.semibold))
+                Text(LocalizedStringKey(target.title)).font(.caption).foregroundStyle(Color.muted)
+                Button("Cancel learn") { session.midi.learning = nil; session.midi.learningTrack = nil }.frame(minHeight: 44)
+                    .accessibilityIdentifier("midi.learning.cancel")
+            }
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("midi.learning")
+        }
+    }
+}
+
 struct MIDIAssignButton: View {
     let session: Session
     let target: MIDIMapping.Target

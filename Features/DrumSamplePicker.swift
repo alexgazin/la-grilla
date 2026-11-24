@@ -136,6 +136,19 @@ struct DrumSamplePicker: View {
             case .failure(let failure): error = failure.localizedDescription
             }
         }
+        // UI-test fixture: a loop of eight hits (four loud, four quiet) opens in the slice editor.
+        .task {
+            guard Luz.uiTesting, ProcessInfo.processInfo.arguments.contains("--slicer-fixture"), slicing == nil else { return }
+            let rate = 48_000
+            var samples = [Int16](repeating: 0, count: 2 * rate)
+            for hit in 0..<8 {
+                let start = hit * rate / 4, loud = hit % 2 == 0
+                for i in 0..<2400 { samples[start + i] = Int16(Double(loud ? 20_000 : 3_000) * exp(-Double(i) / 400) * (i % 20 < 10 ? 1 : -1)) }
+            }
+            let url = FileManager.default.temporaryDirectory.appendingPathComponent("slicer-fixture.wav")
+            try? SliceMarkers.previewWAV(samples, 0..<samples.count, rate: rate).write(to: url)
+            slicing = SlicedLoop(url: url)
+        }
         .sheet(item: $slicing) { loop in
             LoopSlicerView(url: loop.url) { sounds in
                 prepare { sounds.prefix(16).enumerated().map { (pad: Optional($0.offset), sound: $0.element) } }

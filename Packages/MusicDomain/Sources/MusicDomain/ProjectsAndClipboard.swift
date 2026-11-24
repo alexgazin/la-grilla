@@ -162,12 +162,12 @@ public enum StorageUsage {
 public enum WhatsNew {
     public struct Item: Equatable, Sendable { public let symbol: String; public let title: String; public let detail: String; public let command: CommandID? }
     public static let items: [Item] = [
-        .init(symbol: "hand.point.up.left", title: "A tour of the studio", detail: "Five steps on a demo song: pads, a chord, a hummed melody, the mixer and export. Settings → Show me around.", command: .settings),
-        .init(symbol: "checkmark.circle", title: "Select several clips", detail: "In Grid, Select: duplicate, move, colour, mute or delete them with one Undo.", command: .grid),
-        .init(symbol: "waveform.badge.mic", title: "An instrument from any sound", detail: "Record or import one note and play it on every key; voice treatment for recorded sounds.", command: nil),
-        .init(symbol: "point.topleft.down.to.point.bottomright.curvepath", title: "Automation and spaces", detail: "Write level and pan moves while playing; room, hall, plate and spring reverb.", command: .mixer),
-        .init(symbol: "hand.tap", title: "Hold to hear", detail: "Hold a template, beat, groove or palette to hear four bars before choosing.", command: .newProject),
-        .init(symbol: "slider.horizontal.below.square.filled.and.square", title: "Simple or full, compact or large", detail: "Show only the essentials, choose the density, or reach everything with one hand.", command: .settings),
+        .init(symbol: "hand.tap", title: "Hold to hear, everywhere", detail: "Hold a chord, a note, a sound, a beat or a song picture: it plays while you hold and nothing changes.", command: .grid),
+        .init(symbol: "scissors", title: "Slice a loop your way", detail: "See the cuts on the waveform, move or add them, hear each slice, then put them on pads 1–16.", command: .jam),
+        .init(symbol: "arrow.uturn.backward.circle", title: "Unsaved changes come back", detail: "After a crash La Grilla offers to restore what you did since the last save, with one Undo.", command: nil),
+        .init(symbol: "pianokeys", title: "Your own 808 and MIDI learn", detail: "Play the bass line with your own sound in Beat machine; hold a synth or EQ knob to assign a MIDI control.", command: .beatMachine),
+        .init(symbol: "speaker.wave.2", title: "Compare at the same loudness", detail: "EQ with and without, matched within half a decibel, so louder never sounds better by accident.", command: .mixer),
+        .init(symbol: "leaf", title: "Eco mode and hints", detail: "Low Power Mode calms the screen, never the sound; Assistant and new songs suggest words to start with.", command: .settings),
     ]
     /// Shown when the build changed since it was last shown (never on a fresh install's first launch).
     public static func shouldShow(lastShownBuild: String?, currentBuild: String) -> Bool {

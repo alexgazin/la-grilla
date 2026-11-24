@@ -2430,3 +2430,15 @@
 "Synth release" = "Synth release";
 "EQ low" = "EQ low";
 "EQ high" = "EQ high";
+"Hold to hear, everywhere" = "Hold to hear, everywhere";
+"Hold a chord, a note, a sound, a beat or a song picture: it plays while you hold and nothing changes." = "Hold a chord, a note, a sound, a beat or a song picture: it plays while you hold and nothing changes.";
+"Slice a loop your way" = "Slice a loop your way";
+"See the cuts on the waveform, move or add them, hear each slice, then put them on pads 1–16." = "See the cuts on the waveform, move or add them, hear each slice, then put them on pads 1–16.";
+"Unsaved changes come back" = "Unsaved changes come back";
+"After a crash La Grilla offers to restore what you did since the last save, with one Undo." = "After a crash La Grilla offers to restore what you did since the last save, with one Undo.";
+"Your own 808 and MIDI learn" = "Your own 808 and MIDI learn";
+"Play the bass line with your own sound in Beat machine; hold a synth or EQ knob to assign a MIDI control." = "Play the bass line with your own sound in Beat machine; hold a synth or EQ knob to assign a MIDI control.";
+"Compare at the same loudness" = "Compare at the same loudness";
+"EQ with and without, matched within half a decibel, so louder never sounds better by accident." = "EQ with and without, matched within half a decibel, so louder never sounds better by accident.";
+"Eco mode and hints" = "Eco mode and hints";
+"Low Power Mode calms the screen, never the sound; Assistant and new songs suggest words to start with." = "Low Power Mode calms the screen, never the sound; Assistant and new songs suggest words to start with.";
