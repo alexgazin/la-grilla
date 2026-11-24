@@ -337,6 +337,21 @@ struct DAWProjectTests {
         #expect(xml.contains("channel=\"9\" key=\"36\""))
     }
 
+    @Test func recordedAudioTracksGoOverAsAudioTracksWithTheirStems() throws {
+        var project = try song()
+        let vocals = try AudioTrackEditing.addTrack(named: "Lead vocal", to: &project)
+        let data = AudioTakeReader.caf([0, 0.1, 0.2, 0.1], rate: 48000)
+        let record = AudioAssetRecord(sha256: try AssetIntegrity.sha256(data), byteCount: data.count, sampleRate: 48000, duration: 4.0 / 48000)
+        project.audioAssets = [record]
+        project.audioTracks![0].clips = [AudioClip(assetID: record.id, start: 0, offset: 0, duration: 4.0 / 48000)]
+        _ = vocals
+        let xml = DAWProject.projectXML(project, stems: DAWProject.stems(project), settings: WAVSettings(), version: "test")
+        let file = String(format: "%02d", project.tracks.count + 1) + "-audio.wav"
+        #expect(DAWProject.audioStems(project).map(\.file) == [file])
+        #expect(xml.contains("name=\"Lead vocal\"") && xml.contains("<File path=\"\(file)\"/>"))
+        #expect(try validate(xml, schema: "Project.xsd").ok)
+    }
+
     @Test func aRangeStartsAtBeatZero() throws {
         let project = try song()
         let range = QuickTrack.sectionBars * barTicks..<project.length
@@ -344,5 +359,146 @@ struct DAWProjectTests {
         #expect(xml.contains("<Marker time=\"0.000000\" name=\"Chorus\"/>"))
         #expect(!xml.contains("name=\"Verse\"/>"))
         #expect(try validate(xml, schema: "Project.xsd").ok)
+    }
+}
+
+@Suite("54 · Audio tracks")
+struct AudioTrackTests {
+    private func take(seconds: Double = 4, rate: Double = 48000) throws -> (record: AudioAssetRecord, data: Data) {
+        let samples = (0..<Int(seconds * rate)).map { Float(sin(Double($0) / rate * 2 * .pi * 220) * 0.3) }
+        let data = AudioTakeReader.caf(samples, rate: rate)
+        let record = AudioAssetRecord(sha256: try AssetIntegrity.sha256(data), byteCount: data.count, sampleRate: rate, duration: Double(samples.count) / rate)
+        try AssetIntegrity.validate(data, record: record)
+        return (record, data)
+    }
+
+    @Test func aTakeIsPlacedWithLatencySkippedAndTheSongBecomesSchema16() throws {
+        var project = try emptyProject(bpm: 120, bars: 8)
+        #expect(project.schemaVersion == Project.currentSchemaVersion && !project.hasAudioTracks)
+        let track = try AudioTrackEditing.addTrack(named: "Vocals", to: &project)
+        let (record, _) = try take()
+        let clip = try AudioTrackEditing.place(record, on: track, at: barTicks, latency: 0.012, in: &project)
+        #expect(project.schemaVersion == Project.audioSchemaVersion)
+        try project.validate()
+        let placed = try #require(project.audioTracks?.first?.clips.first)
+        #expect(placed.id == clip && placed.start == barTicks && abs(placed.offset - 0.012) < 1e-9 && abs(placed.duration - (4 - 0.012)) < 1e-9)
+        #expect(project.audioAssets?.map(\.id) == [record.id])
+        // Removing the track takes the song back to the current schema and drops the recording.
+        AudioTrackEditing.removeTrack(track, from: &project)
+        #expect(project.audioTracks == nil && project.audioAssets == nil && project.schemaVersion == Project.currentSchemaVersion)
+        try project.validate()
+    }
+
+    @Test func clipsMoveTrimDuplicateAndDeleteWithinTheirTake() throws {
+        var project = try emptyProject(bpm: 120, bars: 8)
+        let track = try AudioTrackEditing.addTrack(named: "Guitar", to: &project)
+        let (record, _) = try take(seconds: 4)
+        let clip = try AudioTrackEditing.place(record, on: track, at: 0, latency: 0, in: &project)
+        try AudioTrackEditing.move(clip, by: barTicks, in: &project)
+        try AudioTrackEditing.trimStart(clip, by: 0.5, in: &project)   // 0.5 s = 960 ticks at 120 BPM
+        var moved = try #require(project.audioTracks?[0].clips.first)
+        #expect(moved.start == barTicks + 960 && moved.offset == 0.5 && moved.duration == 3.5)
+        try AudioTrackEditing.trimEnd(clip, by: 1, in: &project)
+        moved = try #require(project.audioTracks?[0].clips.first)
+        #expect(moved.duration == 2.5)
+        try AudioTrackEditing.trimEnd(clip, by: -10, in: &project)   // never past the take's end
+        #expect(project.audioTracks?[0].clips.first?.duration == 3.5)
+        #expect(throws: AudioTrackError.outsideSong) { try AudioTrackEditing.move(clip, by: -10 * barTicks, in: &project) }
+        try AudioTrackEditing.setGain(clip, to: 40, in: &project)
+        try AudioTrackEditing.setFades(clip, fadeIn: 0.1, fadeOut: 9, in: &project)
+        moved = try #require(project.audioTracks?[0].clips.first)
+        #expect(moved.gain == 12 && moved.fadeIn == 0.1 && moved.fadeOut == 1.75)
+        let copy = try AudioTrackEditing.duplicate(clip, by: 2 * barTicks, in: &project)
+        #expect(project.audioTracks?[0].clips.count == 2)
+        try project.validate()
+        AudioTrackEditing.delete(clip, from: &project)
+        #expect(project.audioAssets?.count == 1, "the copy still uses the take")
+        AudioTrackEditing.delete(copy, from: &project)
+        #expect(project.audioAssets == nil)
+    }
+
+    @Test func theKernelPlaysClipsRelativeToTheRangeAndSoloIsShared() throws {
+        var project = try emptyProject(bpm: 120, bars: 8)
+        let track = try AudioTrackEditing.addTrack(named: "Vocals", to: &project)
+        let (record, _) = try take(seconds: 4)
+        _ = try AudioTrackEditing.place(record, on: track, at: barTicks, latency: 0, in: &project)   // bar 2, 4 s = 2 bars
+        let whole = AudioTrackEditing.kernelClips(project)
+        #expect(whole == [.init(lane: 0, assetID: record.id, startTick: Double(barTicks), endTick: Double(3 * barTicks), offset: 0, gain: 0, fadeIn: 0, fadeOut: 0)])
+        // From bar 3: the clip is already 2 s in.
+        let later = AudioTrackEditing.kernelClips(project, range: 2 * barTicks..<8 * barTicks)
+        #expect(later.count == 1 && later[0].startTick == 0 && later[0].endTick == Double(barTicks) && abs(later[0].offset - 2) < 1e-9)
+        #expect(AudioTrackEditing.kernelClips(project, range: 4 * barTicks..<8 * barTicks).isEmpty)
+        // A soloed MIDI track silences the audio track; soloing the audio track brings it back.
+        let audio = try #require(project.audioTracks?.first)
+        #expect(AudioTrackEditing.audible(audio, in: project))
+        project.tracks[0].solo = true
+        #expect(!AudioTrackEditing.audible(audio, in: project))
+        AudioTrackEditing.setMix(track, solo: true, in: &project)
+        #expect(AudioTrackEditing.audible(try #require(project.audioTracks?.first), in: project))
+    }
+
+    @Test func aSchema16SongRoundTripsAndTooManyTracksAreRefused() throws {
+        var project = try emptyProject(bpm: 100, bars: 4)
+        for name in ["A", "B", "C", "D"] { _ = try AudioTrackEditing.addTrack(named: name, to: &project) }
+        #expect(throws: AudioTrackError.tooManyTracks) { try AudioTrackEditing.addTrack(named: "E", to: &project) }
+        let decoded = try ProjectDocument.decode(JSONEncoder().encode(project))
+        #expect(decoded.schemaVersion == Project.audioSchemaVersion && decoded.audioTracks?.count == 4)
+        // A schema-16 file without audio tracks opens as the current schema.
+        var plain = try emptyProject(); plain.schemaVersion = Project.audioSchemaVersion
+        #expect(try ProjectDocument.decode(JSONEncoder().encode(plain)).schemaVersion == Project.currentSchemaVersion)
+        // A clip pointing at a recording the song does not have is invalid.
+        project.audioTracks![0].clips = [AudioClip(assetID: UUID(), start: 0, offset: 0, duration: 1)]
+        #expect(throws: (any Error).self) { try project.validate() }
+    }
+
+    @Test func storedTakesReadBackInEitherByteOrder() throws {
+        let samples: [Float] = [0, 0.25, -0.5, 1, -1, 0.125]
+        let little = AudioTakeReader.caf(samples, rate: 44100)
+        let read = try AudioTakeReader.samples(little)
+        #expect(read.samples == samples && read.rate == 44100)
+        // The same take written big-endian (flags without the little-endian bit).
+        var big = [UInt8](little)
+        let flags = 8 + 12 + 12   // "caff" header, "desc" header, then rate (8) + "lpcm" (4)
+        big[flags + 3] = 1
+        let dataStart = big.count - samples.count * 4
+        for index in samples.indices { let p = dataStart + index * 4; big[p..<p + 4].reverse() }
+        #expect(try AudioTakeReader.samples(Data(big)).samples == samples)
+        #expect(throws: (any Error).self) { try AudioTakeReader.samples(Data("nope".utf8)) }
+    }
+}
+
+@Suite("54 · Audio tracks in exports")
+struct AudioTrackExportTests {
+    private func song() throws -> (project: Project, takes: AudioTakeLibrary, track: UUID) {
+        var project = try emptyProject(bpm: 120, bars: 2)
+        let track = try AudioTrackEditing.addTrack(named: "Vocals", to: &project)
+        let samples = (0..<48000).map { Float(sin(Double($0) / 48000 * 2 * .pi * 440) * 0.5) }
+        let data = AudioTakeReader.caf(samples, rate: 48000)
+        let record = AudioAssetRecord(sha256: try AssetIntegrity.sha256(data), byteCount: data.count, sampleRate: 48000, duration: 1)
+        _ = try AudioTrackEditing.place(record, on: track, at: 0, latency: 0, in: &project)
+        var takes = AudioTakeLibrary(); takes.insert(record.id, samples: samples, rate: 48000)
+        return (project, takes, track)
+    }
+    private func render(_ project: Project, takes: AudioTakeLibrary, isolated: UUID? = nil) async throws -> RenderReceipt {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("audio-\(UUID().uuidString).wav")
+        defer { try? FileManager.default.removeItem(at: url) }
+        return try await OfflineRenderer.render(project, to: url, settings: WAVSettings(tailSeconds: 0), isolatedTrack: isolated, takes: takes)
+    }
+
+    @Test func theMixdownCarriesTheRecording() async throws {
+        let (project, takes, track) = try song()
+        let mix = try await render(project, takes: takes)
+        #expect(mix.peak > 0.05, "the 440 Hz take is in the mix: \(mix.peak)")
+        let stem = try await render(project, takes: takes, isolated: track)
+        #expect(stem.peak > 0.05, "its own stem has it")
+        let drums = try await render(project, takes: takes, isolated: project.tracks[1].id)
+        #expect(drums.peak < 0.001, "another track's stem does not")
+        var muted = project; AudioTrackEditing.setMix(track, mute: true, in: &muted)
+        #expect(try await render(muted, takes: takes).peak < 0.001)
+    }
+
+    @Test func aMissingRecordingFailsInsteadOfDisappearing() async throws {
+        let (project, _, _) = try song()
+        await #expect(throws: ExportError.self) { try await render(project, takes: AudioTakeLibrary()) }
     }
 }

@@ -338,6 +338,8 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
     public var masterFX:MasterFX?;public var performanceTakes:[PerformanceTake]?
     public var performanceTake:PerformanceTake?{get{performanceTakes?.first}set{performanceTakes=newValue.map{[$0]}}}
     public var audioAssets:[AudioAssetRecord]?
+    /// 54: recorded audio tracks (schema 16 when present). Nil in older files.
+    public var audioTracks:[AudioTrack]?
     public var midi:MIDISettings?
     /// I41: the last phrase edits applied to this project (newest last, at most 32).
     public var editLog:[String]?
@@ -380,7 +382,7 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
         p.tracks.append(Track(role: .bass)); return p
     }
     public func validate() throws {
-        guard schemaVersion == Self.currentSchemaVersion else { throw MusicError.unsupportedSchema }
+        guard schemaVersion == requiredSchemaVersion else { throw MusicError.unsupportedSchema }
         guard (0...Self.maximumRevision).contains(revision),bpm.isFinite, (40...240).contains(bpm), (0..<12).contains(keyRoot), !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, name.count <= 120,
               (1...maximumSections).contains(sections.count), (barTicks...songTickLimit).contains(length), tracks.count >= 2, tracks.count <= 8,
               bassGate.isFinite, (0.1...1).contains(bassGate), (-1...1).contains(bassOctave), master.isFinite, (-61...6).contains(master),
@@ -406,7 +408,8 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
         try masterEQ?.validate()
         try masterFX?.validate();try performanceTake?.validate()
         if let take=performanceTake{guard (take.source.audioAssets ?? []).allSatisfy({asset in (audioAssets ?? []).contains(asset)})else{throw MusicError.invalidProject}}
-        guard (audioAssets ?? []).count<=8 else{throw MusicError.tooDense}
+        guard (audioAssets ?? []).count<=AudioTrackEditing.maximumTakes else{throw MusicError.tooDense}
+        try AudioTrackEditing.validate(self)
         for asset in audioAssets ?? []{try asset.validate()}
         let samples = referencedSamples
         guard samples.count <= 48 else { throw SampleError.limit }
@@ -589,7 +592,7 @@ public enum ProjectDocument {
     }
     private static func checkSchemaHeaders(_ value:[String:Any],depth:Int=0)throws {
         guard depth<2,let version=value["schemaVersion"] as? Int else{throw MusicError.invalidProject}
-        guard (1...Project.currentSchemaVersion).contains(version)else{throw MusicError.unsupportedSchema}
+        guard (1...Project.newestSchemaVersion).contains(version)else{throw MusicError.unsupportedSchema}
         // Check a frozen source before decoding its newer chord vocabulary too.
         for take in value["performanceTakes"] as? [[String:Any]] ?? [] {
             if let source=take["source"] as? [String:Any]{try checkSchemaHeaders(source,depth:depth+1)}
@@ -597,9 +600,11 @@ public enum ProjectDocument {
     }
     private static func migrated(_ value:Project)throws->Project {
         var p=value
-        guard (1...Project.currentSchemaVersion).contains(p.schemaVersion)else{throw MusicError.unsupportedSchema}
+        guard (1...Project.newestSchemaVersion).contains(p.schemaVersion)else{throw MusicError.unsupportedSchema}
         // Schemas through 10 only knew the two original renderer versions.
         // New palettes require 11 so an older app rejects the document safely.
+        // 54: schema 16 marks songs with audio tracks; without them the song is the current schema.
+        if p.schemaVersion==Project.audioSchemaVersion,!p.hasAudioTracks{p.schemaVersion=Project.currentSchemaVersion}
         if p.schemaVersion<11,!p.tracks.allSatisfy({(1...2).contains($0.presetVersion)}){throw MusicError.invalidProject}
         if p.schemaVersion==1 {p.schemaVersion=2;for i in p.patterns.indices{if p.patterns[i].notes==nil{p.patterns[i].notes=[]}}}
         if p.schemaVersion==2{p.schemaVersion=3}

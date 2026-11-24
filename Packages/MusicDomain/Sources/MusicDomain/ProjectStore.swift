@@ -38,7 +38,7 @@ private struct ProjectSummaryDocument: Decodable {
     init(from decoder: Decoder) throws {
         let value = try decoder.container(keyedBy: Keys.self)
         let version = try value.decode(Int.self, forKey: .schemaVersion)
-        guard (1...Project.currentSchemaVersion).contains(version) else { throw MusicError.unsupportedSchema }
+        guard (1...Project.newestSchemaVersion).contains(version) else { throw MusicError.unsupportedSchema }
         let id = try value.decode(UUID.self, forKey: .id)
         let name = try value.decode(String.self, forKey: .name)
         let bpm = try value.decode(Double.self, forKey: .bpm)
@@ -76,7 +76,7 @@ private struct ProjectSummaryDocument: Decodable {
                 let take = try takes.nestedContainer(keyedBy: TakeKeys.self)
                 let source = try take.nestedContainer(keyedBy: Keys.self, forKey: .source)
                 let sourceVersion = try source.decode(Int.self, forKey: .schemaVersion)
-                guard (1...Project.currentSchemaVersion).contains(sourceVersion) else { throw MusicError.unsupportedSchema }
+                guard (1...Project.newestSchemaVersion).contains(sourceVersion) else { throw MusicError.unsupportedSchema }
                 if source.contains(.performanceTakes), try !source.decodeNil(forKey: .performanceTakes) {
                     let nested = try source.nestedUnkeyedContainer(forKey: .performanceTakes)
                     guard nested.isAtEnd else { throw MusicError.invalidProject }

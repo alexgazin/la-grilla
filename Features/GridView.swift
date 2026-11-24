@@ -115,7 +115,7 @@ struct GridView: View {
         let tracks = session.displayProject.tracks
         return tracks.contains { $0.role == .bass } || !tracks.contains { $0.role == .melody }
     }
-    private var musicHeight:CGFloat{harmonyHeight+drumHeight+(showsRootBassLane ? bassHeight : 0)+CGFloat(session.displayProject.tracks.filter{$0.role == .melody}.count)*melodyHeight}
+    private var musicHeight:CGFloat{harmonyHeight+drumHeight+(showsRootBassLane ? bassHeight : 0)+CGFloat(session.displayProject.tracks.filter{$0.role == .melody}.count+(session.displayProject.audioTracks?.count ?? 0))*melodyHeight}
     private var editingLocked:Bool{session.performance.contextActive || session.recording || session.armed || pinchReference != nil}
     private var hasMusicalEvents:Bool {
         session.displayProject.patterns.contains{!$0.chords.isEmpty || !$0.drums.isEmpty || !($0.notes ?? []).isEmpty}
@@ -146,7 +146,7 @@ struct GridView: View {
                         if voiceOverOn || ProcessInfo.processInfo.arguments.contains("--voiceover-table"){GridAccessibleTable(session:session).padding(.horizontal,16).padding(.bottom,10)}
                         if clipMode{clipControls.padding(.horizontal,16).padding(.bottom,8)}
                         HStack(spacing:0){
-                            VStack(spacing:0){Color.ink.frame(height:28);trackLabel(.harmony,height:harmonyHeight);trackLabel(.drums,height:drumHeight);if showsRootBassLane { trackLabel(.bass,height:bassHeight) };ForEach(session.displayProject.tracks.filter{$0.role == .melody}){track in melodyTrackLabel(track)}}.frame(width:gutter)
+                            VStack(spacing:0){Color.ink.frame(height:28);trackLabel(.harmony,height:harmonyHeight);trackLabel(.drums,height:drumHeight);if showsRootBassLane { trackLabel(.bass,height:bassHeight) };ForEach(session.displayProject.tracks.filter{$0.role == .melody}){track in melodyTrackLabel(track)};ForEach(Array((session.displayProject.audioTracks ?? []).enumerated()),id:\.element.id){lane,track in audioTrackLabel(track,lane:lane)}}.frame(width:gutter)
                             ScrollView(.horizontal,showsIndicators:true){ZStack(alignment:.topLeading){
                                 timeline
                                 GridPlayhead(audio:session.audio,barWidth:barWidth,height:musicHeight)
@@ -594,6 +594,8 @@ struct GridView: View {
                         Button("+ Add root bass", systemImage:"waveform") { session.presentEditor(.bass) }.accessibilityIdentifier("bass.open")
                     }
                     Button("Voice",systemImage:"waveform.badge.mic"){session.presentEditor(.voice)}.accessibilityIdentifier("voice.open")
+                    // 54: record a voice or an instrument as audio over the song.
+                    Button("Record audio",systemImage:"mic.circle"){session.presentEditor(.audioTracks)}.accessibilityIdentifier("audio.open")
                     Button("Perform",systemImage:"waveform.path"){session.finishTake();session.sheet = .perform}.accessibilityIdentifier("perform.open")
                     Button("MIDI devices",systemImage:"pianokeys"){session.presentEditor(.midiDevices)}.accessibilityIdentifier("midi.open")
                     // 54: lessons with exercises checked on your song, and assignments for students.
@@ -634,7 +636,7 @@ struct GridView: View {
         }.buttonStyle(StudioQuietButtonStyle())
     }
     @ViewBuilder var timeline: some View {
-        if clipMode{clipTimeline}else{VStack(spacing:0) { ruler; harmonyLane; drumLane; if showsRootBassLane { bassLane };ForEach(session.displayProject.tracks.filter{$0.role == .melody}){t in melodyLane(t)} }}
+        if clipMode{clipTimeline}else{VStack(spacing:0) { ruler; harmonyLane; drumLane; if showsRootBassLane { bassLane };ForEach(session.displayProject.tracks.filter{$0.role == .melody}){t in melodyLane(t)};ForEach(session.displayProject.audioTracks ?? []){t in audioLane(t)} }}
     }
     var ruler: some View {
         HStack(spacing:0) {
@@ -737,6 +739,33 @@ struct GridView: View {
                 }
             }
         }.frame(height:melodyHeight).contentShape(Rectangle()).onTapGesture{session.openNotes(track.id)}.accessibilityLabel("Edit \(track.displayName)")
+    }
+    /// 54 · A recorded audio track: its takes as blocks where they play; tap to record or edit.
+    func audioLane(_ track:AudioTrack)->some View {
+        ZStack(alignment:.topLeading){gridBackground(height:melodyHeight)
+            Canvas{context,_ in
+                let bpm=session.displayProject.bpm
+                for clip in track.clips{
+                    let x=CGFloat(clip.start)/CGFloat(barTicks)*barWidth,width=max(4,CGFloat(clip.end(bpm:bpm)-clip.start)/CGFloat(barTicks)*barWidth)
+                    let rect=CGRect(x:x+1,y:10,width:width-2,height:melodyHeight-20)
+                    context.fill(Path(roundedRect:rect,cornerRadius:6),with:.color(Color.record.opacity(track.mute ? 0.15:0.35)))
+                    context.stroke(Path(roundedRect:rect,cornerRadius:6),with:.color(Color.record.opacity(0.8)),lineWidth:1)
+                }
+            }
+        }.frame(height:melodyHeight).contentShape(Rectangle()).onTapGesture{session.presentEditor(.audioTracks)}
+            .accessibilityElement().accessibilityLabel(Text(verbatim:track.name)).accessibilityValue(Text(String(format:NSLocalizedString("%d takes",comment:"Audio lane"),track.clips.count)))
+            .accessibilityAddTraits(.isButton).accessibilityIdentifier("grid.audio.\(track.id.uuidString)")
+    }
+    private func audioTrackLabel(_ track:AudioTrack,lane:Int)->some View {
+        Button{session.presentEditor(.audioTracks)}label:{
+            VStack(alignment:.leading,spacing:6){
+                Image(systemName:"mic.fill").font(.system(.subheadline,weight:.medium)).foregroundStyle(Color.record)
+                Text(verbatim:track.name).font(.system(.caption2,weight:.semibold)).lineLimit(2).foregroundStyle(Color.studioText)
+            }.frame(maxWidth:.infinity,maxHeight:.infinity,alignment:.leading).padding(.leading,12).frame(width:gutter,height:melodyHeight)
+                .background(Color.ink)
+                .overlay(alignment:.trailing){TrackLevelBar(level:session.audio.audioMeter(lane),color:Color.record).padding(.vertical,12)}
+                .overlay(alignment:.bottom){Rectangle().fill(Color.outline.opacity(0.4)).frame(height:0.5)}
+        }.buttonStyle(StudioQuietButtonStyle()).accessibilityIdentifier("grid.audio-track.\(lane)")
     }
     func gridBackground(height: CGFloat)->some View {
         Canvas{context,size in

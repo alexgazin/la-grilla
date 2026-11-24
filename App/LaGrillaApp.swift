@@ -32,6 +32,7 @@ import MusicDomain
                 session.sheet = .midiDevices;session.togglePlay()
                 if target=="midi-mapped"{session.midi.learning = .filter;try? await Task.sleep(for:.milliseconds(500));session.midi.sendFixture()}
             }
+            if target=="audio-tracks"{await session.installAudioFixture();session.sheet = .audioTracks}
             if target=="assistant-song-edit", let demo=try? SongEditDemo.project(name:NSLocalizedString("Two choruses",comment:"Song edit demo project")) {
                 await session.open(demo)
             }

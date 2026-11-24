@@ -1,6 +1,7 @@
 #include "Convolution.hpp"
 #include "VoiceChain.hpp"
 #include <memory>
+#include <new>
 #include "GrillaKernel.h"
 #include "PerformanceFX.hpp"
 #include "PerformanceRuntime.hpp"
@@ -172,7 +173,19 @@ struct OutputTimingMeter {
         return false;
     }
 };
+// 54 · Audio tracks.
+constexpr int MaxAudioLanes=4, MaxAudioClips=128;
+struct LGAudioBuffer { std::vector<float> samples; int32_t rate=48000; std::atomic<int> references{1}; };
+struct AudioClipSlot { LGAudioClip clip{}; LGAudioBuffer *buffer=nullptr; float gain=1; };
+struct AudioSnapshot {
+    std::atomic<int> state{0}; uint64_t sequence=0; int count=0, laneCount=0;
+    std::array<AudioClipSlot,MaxAudioClips> clips{}; std::array<float,MaxAudioLanes> gain{}, panLeft{}, panRight{};
+    void release(){for(int i=0;i<count;i++){lg_audio_release(clips[size_t(i)].buffer);clips[size_t(i)].buffer=nullptr;}count=0;}
+    ~AudioSnapshot(){release();}
+};
 struct LGKernel {
+    std::array<AudioSnapshot,3> audioSlots; int audioCurrent=-1; std::atomic<uint64_t> audioSerial{0};
+    std::array<std::atomic<float>,MaxAudioLanes> audioMeters{}; std::array<float,MaxAudioLanes> audioSmooth{};
     LGMIDIHub *renderHub=nullptr;uint64_t hostNow=0,outputState=0;
     OutputTimingMeter outputTiming;
     double sr; PerformanceFX fx;PerformanceRuntime performance;std::array<float,Buses> capturedGain{},capturedPan{};float capturedFilter=0,capturedDelay=0;std::atomic<float> filterTarget{0},delayTarget{0}; std::array<Snapshot,3> slots; int current=-1;
@@ -978,6 +991,13 @@ void lg_render_midi(LGKernel*k,LGMIDIHub*hub,uint64_t hostTime,double hostTicksP
     int request=k->current>=0?k->countRequest.exchange(0):0;if(request>0)k->counting=request;
     unsigned rd=k->read.load(),wr=k->write.load(std::memory_order_acquire);
     float peak[Buses]={};const float ramp=float(1-std::exp(-1/(k->sr*0.005)));
+    // 54: adopt the newest audio-clip layout; the old one goes back to the control thread.
+    {int chosen=-1;uint64_t best=k->audioCurrent>=0?k->audioSlots[size_t(k->audioCurrent)].sequence:0;
+     for(int i=0;i<3;i++)if(i!=k->audioCurrent&&k->audioSlots[size_t(i)].state.load(std::memory_order_acquire)==2&&k->audioSlots[size_t(i)].sequence>best){best=k->audioSlots[size_t(i)].sequence;chosen=i;}
+     if(chosen>=0){int ready=2;if(k->audioSlots[size_t(chosen)].state.compare_exchange_strong(ready,3,std::memory_order_acq_rel)){
+         if(k->audioCurrent>=0)k->audioSlots[size_t(k->audioCurrent)].state.store(0,std::memory_order_release);
+         k->audioCurrent=chosen;}}}
+    float audioPeak[MaxAudioLanes]={};
     for(int f=0;f<frames;f++){
         k->hostNow=hostTime+uint64_t(double(f)*hostPerSample);
         // Release old gates before scheduling a retrigger at this same sample.
@@ -1073,6 +1093,33 @@ void lg_render_midi(LGKernel*k,LGMIDIHub*hub,uint64_t hostTime,double hostTicksP
             left+=amp*k->panLeft[t];right+=amp*k->panRight[t];peak[t]=std::max(peak[t],std::abs(amp));
             send+=amp*k->reverbSend[t].load(std::memory_order_relaxed);
         }
+        if(k->audioCurrent>=0&&k->active&&k->current>=0){
+            const auto &a=k->audioSlots[size_t(k->audioCurrent)];
+            if(a.count>0){
+                const double tick=k->position.load(std::memory_order_relaxed),secondsPerTick=60.0/(k->slots[k->current].bpm*960);
+                float lanes[MaxAudioLanes]={};
+                for(int i=0;i<a.count;i++){
+                    const auto &slot=a.clips[size_t(i)];const auto &c=slot.clip;
+                    if(tick<c.startTick||tick>=c.endTick)continue;
+                    const double into=(tick-c.startTick)*secondsPerTick,until=(c.endTick-tick)*secondsPerTick;
+                    const auto &buffer=*slot.buffer;const double position=(c.offsetSeconds+into)*buffer.rate;
+                    const int64_t index=int64_t(position);
+                    if(index<0||index+1>=int64_t(buffer.samples.size()))continue;
+                    const float fraction=float(position-double(index));
+                    const float value=buffer.samples[size_t(index)]+(buffer.samples[size_t(index+1)]-buffer.samples[size_t(index)])*fraction;
+                    double envelope=std::min(1.0,std::min(into,until)/0.002);
+                    if(c.fadeInSeconds>0)envelope=std::min(envelope,into/c.fadeInSeconds);
+                    if(c.fadeOutSeconds>0)envelope=std::min(envelope,until/c.fadeOutSeconds);
+                    lanes[c.lane]+=value*slot.gain*float(envelope);
+                }
+                for(int lane=0;lane<a.laneCount;lane++){
+                    k->audioSmooth[size_t(lane)]+=(a.gain[size_t(lane)]-k->audioSmooth[size_t(lane)])*ramp;
+                    const float amp=lanes[lane]*k->audioSmooth[size_t(lane)];
+                    left+=amp*a.panLeft[size_t(lane)];right+=amp*a.panRight[size_t(lane)];
+                    audioPeak[lane]=std::max(audioPeak[lane],std::abs(amp));
+                }
+            }
+        }
         {auto *room=k->space.load(std::memory_order_acquire);
          if(room!=k->spaceSeen){if(room)room->reset();k->spaceSeen=room;}
          if(room){if(room->active(send))room->process(send,left,right);}
@@ -1089,6 +1136,7 @@ void lg_render_midi(LGKernel*k,LGMIDIHub*hub,uint64_t hostTime,double hostTicksP
         k->rendered++;k->performance.advance(k->active);
     }
     for(int t=0;t<Buses;t++)k->meters[t].store(std::max(peak[t],k->meters[t].load()*float(std::exp(-double(frames)/(k->sr*0.12)))));
+    for(int lane=0;lane<MaxAudioLanes;lane++)k->audioMeters[size_t(lane)].store(std::max(audioPeak[lane],k->audioMeters[size_t(lane)].load()*float(std::exp(-double(frames)/(k->sr*0.12)))));
     k->performance.publish();k->clock.store(k->rendered);k->playing.store(k->active?1:0);
 }
 double lg_tick(LGKernel*k){return k->position.load();}uint64_t lg_clock(LGKernel*k){return k->clock.load();}
@@ -1106,3 +1154,44 @@ int lg_overflows(LGKernel*k){return k->overflow.load();}
 void lg_render(LGKernel*k,float*l,float*r,int frames){lg_render_midi(k,nullptr,0,0,l,r,frames);}
 
 }
+
+// 54 · Audio tracks (control thread).
+LGAudioBuffer *lg_audio_create(const float *mono,int32_t frames,int32_t rate){
+    if(!mono||frames<2||frames>48000*600||rate<8000||rate>192000)return nullptr;
+    for(int32_t i=0;i<frames;i++)if(!std::isfinite(mono[i]))return nullptr;
+    auto *buffer=new(std::nothrow) LGAudioBuffer();if(!buffer)return nullptr;
+    try{buffer->samples.assign(mono,mono+frames);}catch(...){delete buffer;return nullptr;}
+    buffer->rate=rate;return buffer;
+}
+void lg_audio_release(LGAudioBuffer *buffer){if(buffer&&buffer->references.fetch_sub(1,std::memory_order_acq_rel)==1)delete buffer;}
+int lg_audio_submit(LGKernel *k,const LGAudioClip *clips,LGAudioBuffer *const *buffers,int32_t count,const LGTrackMix *lanes,int32_t laneCount){
+    if(!k||count<0||count>MaxAudioClips||laneCount<0||laneCount>MaxAudioLanes||(count>0&&(!clips||!buffers))||(laneCount>0&&!lanes))return 0;
+    for(int32_t i=0;i<count;i++){
+        const auto &c=clips[i];
+        if(!buffers[i]||c.lane<0||c.lane>=laneCount||!std::isfinite(c.startTick)||!std::isfinite(c.endTick)||c.startTick<0||c.endTick<=c.startTick||c.endTick>491520
+           ||!std::isfinite(c.offsetSeconds)||c.offsetSeconds<0||!std::isfinite(c.gainDB)||c.gainDB< -60||c.gainDB>12
+           ||!std::isfinite(c.fadeInSeconds)||!std::isfinite(c.fadeOutSeconds)||c.fadeInSeconds<0||c.fadeOutSeconds<0)return 0;
+    }
+    for(int32_t i=0;i<laneCount;i++)if(!std::isfinite(lanes[i].gainDB)||!std::isfinite(lanes[i].pan)||lanes[i].pan< -1||lanes[i].pan>1)return 0;
+    for(auto &slot:k->audioSlots){
+        int expected=0;if(!slot.state.compare_exchange_strong(expected,1)){expected=2;if(!slot.state.compare_exchange_strong(expected,1))continue;}
+        slot.release();
+        for(int32_t i=0;i<count;i++){
+            buffers[i]->references.fetch_add(1,std::memory_order_relaxed);
+            slot.clips[size_t(i)]={clips[i],buffers[i],std::pow(10.f,std::clamp(clips[i].gainDB,-60.f,12.f)/20)};
+        }
+        slot.count=count;slot.laneCount=laneCount;
+        for(int32_t i=0;i<laneCount;i++){
+            slot.gain[size_t(i)]=mixGain(lanes[i].gainDB,lanes[i].audible);
+            const float angle=(std::clamp(lanes[i].pan,-1.f,1.f)+1)*float(Pi/4);
+            slot.panLeft[size_t(i)]=std::cos(angle);slot.panRight[size_t(i)]=std::sin(angle);
+        }
+        slot.sequence=k->audioSerial.fetch_add(1)+1;
+        slot.state.store(2,std::memory_order_release);
+        // Layouts the audio thread has given back free their takes here, off the audio thread.
+        for(auto &other:k->audioSlots)if(&other!=&slot&&other.state.load(std::memory_order_acquire)==0)other.release();
+        return 1;
+    }
+    return 0;
+}
+float lg_audio_meter(LGKernel *k,int lane){return k&&lane>=0&&lane<MaxAudioLanes?k->audioMeters[size_t(lane)].load():0;}

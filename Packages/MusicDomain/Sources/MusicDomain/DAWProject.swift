@@ -20,6 +20,11 @@ public enum DAWProject {
         project.tracks.enumerated().map { Stem(trackIndex: $0.offset, file: String(format: "%02d", $0.offset + 1) + "-" + $0.element.role.rawValue + ".wav") }
     }
 
+    /// 54: the stems of recorded audio tracks, numbered after the instrument tracks ("05-audio.wav" …).
+    public static func audioStems(_ project: Project) -> [(track: AudioTrack, file: String)] {
+        (project.audioTracks ?? []).enumerated().map { ($0.element, String(format: "%02d", project.tracks.count + $0.offset + 1) + "-audio.wav") }
+    }
+
     /// project.xml and metadata.xml for the package, added next to the stems.
     public static func entries(_ project: Project, range: Range<Int>? = nil, settings: WAVSettings, version: String) -> [ProjectArchive.Entry] {
         [.init("project.xml", Data(projectXML(project, range: range, stems: stems(project), settings: settings, version: version).utf8)),
@@ -44,18 +49,19 @@ public enum DAWProject {
         let songBeats = beats(range.count)
         let seconds = Double(range.count) / Double(ppq) * 60 / project.bpm
         let audioSeconds = seconds + max(0, settings.tailSeconds)
-        let anySolo = project.tracks.contains(where: \.solo)
+        let anySolo = project.tracks.contains(where: \.solo) || (project.audioTracks ?? []).contains(where: \.solo)
         let notes = Compiler.notes(project, range: range)
 
         var structure: [String] = []
         var lanes: [String] = []
         // The master is allocated first so every track can send to its channel.
         let master = id(), masterID = id()
-        func channel(_ track: Track?, role: String, destination: String?, channelID fixed: String? = nil) -> [String] {
+        func channel(_ track: Track?, role: String, destination: String?, channelID fixed: String? = nil, audio: AudioTrack? = nil) -> [String] {
             let channelID = fixed ?? id()
-            let gain = track.map { pow(10, $0.gain / 20) } ?? pow(10, project.master / 20)
-            let pan = track.map { ($0.pan + 1) / 2 } ?? 0.5
-            let muted = track.map { $0.mute || (anySolo && !$0.solo) } ?? false
+            var gain = track.map { pow(10, $0.gain / 20) } ?? pow(10, project.master / 20)
+            var pan = track.map { ($0.pan + 1) / 2 } ?? 0.5
+            var muted = track.map { $0.mute || (anySolo && !$0.solo) } ?? false
+            if let audio { gain = pow(10, audio.gain / 20); pan = (audio.pan + 1) / 2; muted = !AudioTrackEditing.audible(audio, in: project) }
             var attributes = "audioChannels=\"2\" role=\"\(role)\" solo=\"false\" id=\"\(channelID)\""
             if let destination { attributes = "audioChannels=\"2\" destination=\"\(destination)\" role=\"\(role)\" solo=\"false\" id=\"\(channelID)\"" }
             return ["      <Channel \(attributes)>",
@@ -106,6 +112,28 @@ public enum DAWProject {
                       "          </Clip>",
                       "        </Clips>",
                       "      </Lanes>"]
+        }
+        // 54: recorded audio tracks as audio tracks with their stems.
+        if !stems.isEmpty {
+            for (track, file) in audioStems(project) {
+                let audioTrack = id()
+                structure.append("    <Track contentType=\"audio\" loaded=\"true\" id=\"\(audioTrack)\" name=\"\(escape(track.name))\" color=\"#FF858D\">")
+                structure += channel(nil, role: "regular", destination: masterID, audio: track)
+                structure.append("    </Track>")
+                lanes += ["      <Lanes track=\"\(audioTrack)\" id=\"\(id())\">",
+                          "        <Clips id=\"\(id())\">",
+                          "          <Clip time=\"0.0\" duration=\"\(songBeats)\" playStart=\"0.0\" name=\"\(escape(file))\">",
+                          "            <Warps contentTimeUnit=\"seconds\" timeUnit=\"beats\" id=\"\(id())\">",
+                          "              <Audio algorithm=\"stretch\" channels=\"2\" duration=\"\(number(audioSeconds))\" sampleRate=\"\(Int(settings.sampleRate))\" id=\"\(id())\">",
+                          "                <File path=\"\(escape(file))\"/>",
+                          "              </Audio>",
+                          "              <Warp time=\"0.0\" contentTime=\"0.0\"/>",
+                          "              <Warp time=\"\(songBeats)\" contentTime=\"\(number(seconds))\"/>",
+                          "            </Warps>",
+                          "          </Clip>",
+                          "        </Clips>",
+                          "      </Lanes>"]
+            }
         }
         structure.append("    <Track contentType=\"audio notes\" loaded=\"true\" id=\"\(master)\" name=\"Master\">")
         structure += channel(nil, role: "master", destination: nil, channelID: masterID)

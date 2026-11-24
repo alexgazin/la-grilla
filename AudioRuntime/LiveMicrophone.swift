@@ -299,12 +299,15 @@ private final class InputResources:@unchecked Sendable {
         audio: AudioController,
         delay: Double,
         duration: Double,
+        maximum: Double = 30,
         schedule: (@MainActor (Double) -> Double?)? = nil,
         scheduleDuration: (@MainActor () -> Double?)? = nil,
         receiver: (AVAudioFormat) throws -> LiveInputReceiver,
         onFailure: @escaping @MainActor @Sendable (String) -> Void
     ) throws {
-        guard delay.isFinite,(0...30).contains(delay),duration.isFinite,duration>0 else{throw LiveInputError.invalidSamples}
+        guard delay.isFinite,(0...30).contains(delay),duration.isFinite,duration>0,maximum.isFinite,(1...120).contains(maximum) else{throw LiveInputError.invalidSamples}
+        // 54: voice-to-MIDI keeps 30 s; audio-track takes may run to two minutes.
+        let limit=maximum
         guard let engine=audio.captureEngine,engine.isRunning else{throw LiveInputError.outputUnavailable}
         let session=AVAudioSession.sharedInstance()
         let lease=try InputSessionOwnership.acquire(session)
@@ -348,7 +351,7 @@ private final class InputResources:@unchecked Sendable {
             guard usable(hardware),usable(format)else{throw LiveInputSetupFailure(LiveInputError.notReady,routes:routes)}
             guard format.commonFormat == .pcmFormatFloat32,let mono=AVAudioFormat(commonFormat:.pcmFormatFloat32,sampleRate:format.sampleRate,channels:1,interleaved:false)else{throw LiveInputSetupFailure(LiveInputError.unsupportedFormat,routes:routes)}
             routeDiagnostics=routes
-            let ring=try InputRingHandle(rate:format.sampleRate,limit:min(30,max(0.2,duration)))
+            let ring=try InputRingHandle(rate:format.sampleRate,limit:min(limit,max(0.2,duration)))
             let worker=InputDrain(ring:ring,format:mono,receiver:try receiver(mono),onFailure:InputNotifications.forward(onFailure))
             let resources=InputResources(engine:engine,ring:ring,worker:worker,lease:lease,restoreOutput:{[weak audio] in
                 if let audio {
@@ -374,8 +377,8 @@ private final class InputResources:@unchecked Sendable {
             if let schedule{guard let value=schedule(delay)else{throw LiveInputError.invalidSamples};chosenDelay=value}else{chosenDelay=delay}
             guard chosenDelay.isFinite,chosenDelay>=delay,chosenDelay<=600 else{throw LiveInputError.invalidSamples}
             let chosenDuration:Double
-            if let scheduleDuration{guard let value=scheduleDuration()else{throw LiveInputError.invalidSamples};chosenDuration=value}else{chosenDuration=min(30,duration)}
-            guard chosenDuration.isFinite,chosenDuration>0,chosenDuration<=min(30,duration)else{throw LiveInputError.invalidSamples}
+            if let scheduleDuration{guard let value=scheduleDuration()else{throw LiveInputError.invalidSamples};chosenDuration=value}else{chosenDuration=min(limit,duration)}
+            guard chosenDuration.isFinite,chosenDuration>0,chosenDuration<=min(limit,duration)else{throw LiveInputError.invalidSamples}
             self.duration=chosenDuration
             startHostTime=mach_absolute_time()+UInt64(max(0.05,chosenDelay)*ticksPerSecond)
             guard lg_input_arm_limit(ring.pointer,startHostTime,UInt64(ceil(sampleRate*chosenDuration))) != 0 else{throw LiveInputError.invalidSamples}

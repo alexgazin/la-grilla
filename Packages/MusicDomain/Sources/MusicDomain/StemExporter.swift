@@ -1,19 +1,30 @@
 import Foundation
 public enum StemExporter {
-    public static func render(_ project:Project,to destination:URL,settings:WAVSettings=WAVSettings(),range:Range<Int>?=nil,selected:Set<UUID>?=nil,samples:SampleLibrary=SampleLibrary(),extras:[ProjectArchive.Entry]=[],progress:@Sendable(Double)->Void={_ in})async throws->URL {
+    public static func render(_ project:Project,to destination:URL,settings:WAVSettings=WAVSettings(),range:Range<Int>?=nil,selected:Set<UUID>?=nil,samples:SampleLibrary=SampleLibrary(),takes:AudioTakeLibrary=AudioTakeLibrary(),extras:[ProjectArchive.Entry]=[],progress:@Sendable(Double)->Void={_ in})async throws->URL {
         try project.validate();let tracks=project.tracks.filter{selected == nil || selected!.contains($0.id)}
-        guard !tracks.isEmpty else{throw ExportError.invalidSettings}
+        // 54: recorded audio tracks get stems of their own after the instrument tracks.
+        let audioTracks=(project.audioTracks ?? []).filter{selected == nil || selected!.contains($0.id)}
+        guard !tracks.isEmpty || !audioTracks.isEmpty else{throw ExportError.invalidSettings}
+        let total=Double(tracks.count+audioTracks.count+1)
         let folder=destination.deletingLastPathComponent().appendingPathComponent("stems-"+UUID().uuidString)
         try FileManager.default.createDirectory(at:folder,withIntermediateDirectories:true)
         defer{try? FileManager.default.removeItem(at:folder)}
         var files:[(name:String,url:URL)]=[];var info:[[String:Any]]=[]
-        let anySolo=project.tracks.contains(where:\.solo)
+        let anySolo=project.tracks.contains(where:\.solo) || (project.audioTracks ?? []).contains(where:\.solo)
         for (index,track) in tracks.enumerated(){
             try Task.checkCancellation()
             let name=String(format:"%02d",index+1)+"-"+track.role.rawValue+".wav";let url=folder.appendingPathComponent(name)
-            let receipt=try await OfflineRenderer.render(project,to:url,settings:settings,range:range,isolatedTrack:track.id,samples:samples){value in progress((Double(index)+value)/Double(tracks.count+1))}
+            let receipt=try await OfflineRenderer.render(project,to:url,settings:settings,range:range,isolatedTrack:track.id,samples:samples,takes:takes){value in progress((Double(index)+value)/total)}
             let normalizedGain=try settings.normalizeStemsDBFS.map{try WAVNormalizer.normalize(url,targetDBFS:$0)} ?? 0
             files.append((name,url));info.append(["file":name,"trackID":track.id.uuidString,"role":track.role.rawValue,"name":track.displayName,"gainDB":track.gain,"pan":track.pan,"audible":!track.mute && (!anySolo || track.solo),"frames":receipt.frames,"peak":receipt.peak,"clipped":receipt.clipped,"normalizedGainDB":normalizedGain])
+        }
+        for (offset,track) in audioTracks.enumerated(){
+            try Task.checkCancellation()
+            let index=tracks.count+offset
+            let name=String(format:"%02d",index+1)+"-audio.wav";let url=folder.appendingPathComponent(name)
+            let receipt=try await OfflineRenderer.render(project,to:url,settings:settings,range:range,isolatedTrack:track.id,samples:samples,takes:takes){value in progress((Double(index)+value)/total)}
+            let normalizedGain=try settings.normalizeStemsDBFS.map{try WAVNormalizer.normalize(url,targetDBFS:$0)} ?? 0
+            files.append((name,url));info.append(["file":name,"trackID":track.id.uuidString,"role":"audio","name":track.name,"gainDB":track.gain,"pan":track.pan,"audible":AudioTrackEditing.audible(track,in:project),"frames":receipt.frames,"peak":receipt.peak,"clipped":receipt.clipped,"normalizedGainDB":normalizedGain])
         }
         let manifest:[String:Any] = ["format":"La Grilla aligned stems","version":1,"tempoBPM":project.bpm,"key":project.keyName,"ppq":ppq,"timeSignature":"4/4","sampleRate":settings.sampleRate,"bitDepth":settings.bitDepth,"channels":2,"tailSeconds":settings.tailSeconds,"startTick":range?.lowerBound ?? 0,"endTick":range?.upperBound ?? project.length,"projectRevision":project.revision,"masterGainApplied":false,"peakNormalizedDBFS":settings.normalizeStemsDBFS as Any,"muteSoloApplied":true,"mixNote":"Track gain/pan applied. Master gain excluded. Output protection/PCM rounding can prevent an exact sum when clipping occurs.","tracks":info]
         try Task.checkCancellation();try ProjectArchive.writeFiles(files,extras:[.init("manifest.json",try JSONSerialization.data(withJSONObject:manifest,options:[.sortedKeys,.prettyPrinted]))]+extras,to:destination);progress(1);return destination
