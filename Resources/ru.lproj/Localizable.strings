@@ -2404,3 +2404,16 @@
 "Without EQ" = "Без эквалайзера";
 "Without EQ plays at the same loudness, so you hear the tone, not the level." = "«Без эквалайзера» звучит с той же громкостью, поэтому слышна разница тембра, а не уровня.";
 "Silent" = "Тишина";
+"%lld slices" = "Срезов: %lld";
+"Cut %lld" = "Разрез %lld";
+"Discard" = "Отказаться";
+"Loop waveform" = "Форма волны лупа";
+"Minimum interval %lld ms" = "Минимальный интервал %lld мс";
+"Nothing changes in the song until you apply. One Undo restores the whole change." = "Песня не изменится, пока вы не нажмёте «Применить». Одна отмена вернёт всё как было.";
+"Nothing is created until you tap Create." = "Ничего не создаётся, пока вы не нажмёте «Создать».";
+"Put on pads 1–%lld" = "Разложить на пэды 1–%lld";
+"Sensitivity" = "Чувствительность";
+"Slice a loop" = "Нарезать луп";
+"Tap the waveform to add a cut, drag a cut to move it, touch and hold a cut to remove it. Tap a slice to hear it." = "Коснитесь волны, чтобы добавить разрез, тяните разрез, чтобы сдвинуть, удерживайте, чтобы удалить. Коснитесь среза, чтобы послушать.";
+"This file has no sound to slice." = "В этом файле нет звука для нарезки.";
+"Reading the loop…" = "Читаю луп…";

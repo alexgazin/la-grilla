@@ -126,6 +126,24 @@ actor DrumSamplePreparation {
         }
     }
 
+    /// I6: the loop's samples for the slice editor.
+    func loopSamples(_ url: URL) throws -> (samples: [Int16], rate: Int, name: String) {
+        let loop = try importSample(url)
+        let pcm = try SamplePCM.decode(loop.data, asset: loop.asset)
+        guard let zone = pcm.zones.first, !zone.samples.isEmpty else { throw SampleError.invalid }
+        return (zone.samples, pcm.rate, url.deletingPathExtension().lastPathComponent)
+    }
+
+    /// I6: one-shots cut at hand-placed markers.
+    func slices(_ samples: [Int16], rate: Int, markers: SliceMarkers, name: String) throws -> [PreparedSound] {
+        try markers.ranges(rate: rate).filter { $0.count >= 32 }.enumerated().map { index, range in
+            try Task.checkCancellation()
+            let shot = TransientSlicer.oneShot(samples, range, rate: rate)
+            return try PreparedSound(name: String(name.prefix(40)) + " · \(index + 1)", kind: .oneShot,
+                                     pcm: SamplePCM(rate: rate, zones: [.init(pitch: 60, samples: shot)]))
+        }
+    }
+
     /// I76: the loop's tempo, offered after slicing so the song can follow it.
     func loopTempo(_ url: URL) throws -> Double? {
         let loop = try importSample(url)

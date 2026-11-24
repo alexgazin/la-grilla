@@ -140,6 +140,12 @@ struct DrumLayersView: View {
                     .strikethrough(layer.muted, color: Color.muted)
                 Text("\(layer.hits) hits").font(.caption2.monospacedDigit()).foregroundStyle(Color.muted)
             }
+            // U27: drag a pad onto another row to swap their hits and sounds (one Undo).
+            .contentShape(Rectangle())
+            .draggable(PadEditing.dragPayload(layer.pad)) {
+                Label(LocalizedStringKey(Compiler.padNames[layer.pad]), systemImage: "square.grid.2x2.fill").padding(8).background(Color.panel, in: Capsule())
+            }
+            .accessibilityIdentifier("jam.layer.drag.\(layer.pad)")
             Spacer(minLength: 4)
             Button { DrumLayerActions.toggleMute(session: session, pad: layer.pad) } label: {
                 Image(systemName: layer.muted ? "speaker.slash.fill" : "speaker.wave.2.fill")
@@ -163,6 +169,15 @@ struct DrumLayersView: View {
         }
         .disabled(locked)
         .frame(minHeight: 44)
+        .contentShape(Rectangle())
+        .dropDestination(for: String.self) { items, _ in
+            guard !locked, let from = items.compactMap(PadEditing.pad(fromDrag:)).first, from != layer.pad,
+                  let track = session.project.tracks.first(where: { $0.role == .drums })?.id else { return false }
+            let revision = session.project.revision
+            session.edit { try PadEditing.swap(from, layer.pad, track: track, in: &$0) }
+            if session.project.revision > revision { Luz.Haptics.success(); return true }
+            return false
+        }
     }
 }
 

@@ -12,6 +12,9 @@ struct AssistantView:View {
     @State private var input=""
     @State private var generatedInput=""
     @State private var proposal:AssistantProposal?
+    /// U69: what was asked before (newest last), kept on this iPhone.
+    @AppStorage("assistant.recentPrompts") private var recentPromptsRaw="[]"
+    private var recentPrompts:[String]{(try? JSONDecoder().decode([String].self,from:Data(recentPromptsRaw.utf8))) ?? []}
     @State private var candidate:Project?
     @State private var proposalSource:Project?
     // Build 45: an edit of the open project described in words.
@@ -65,6 +68,8 @@ struct AssistantView:View {
                             if value != generatedInput{cancelGeneration();proposal=nil;candidate=nil;proposalSource=nil;clearSongEdit();usedUnavailableAIFallback=false}
                             session.endHarmonyPreview()
                         }
+                    // U69: hints from what you asked before and phrases the assistant understands.
+                    if proposal==nil,songEditPlan==nil,input.count<40{QueryHintsRow(hints:assistantHints,identifier:"assistant.hint"){input=$0}}
                     // Right under the text, so it stays above the keyboard while typing.
                     Button{generate()}label:{Label("Review command",systemImage:"sparkles")}.buttonStyle(StudioActionStyle()).disabled(input.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty || dictation.requesting || dictation.recording || dictation.finalizing || generationTask != nil).accessibilityIdentifier("assistant.generate").id(Self.generateAnchor)
                     dictationToolbar
@@ -113,7 +118,7 @@ struct AssistantView:View {
                     if let songEditPlan,let songEditSource{
                         SongEditReview(session:session,plan:songEditPlan,source:songEditSource,candidate:songEditCandidate,
                                        choose:{reviewSongEdit(songEditPlan.choosing($0),source:songEditSource)},
-                                       recalculate:{generate()},apply:{applySongEdit(songEditPlan)})
+                                       recalculate:{generate()},apply:{applySongEdit(songEditPlan)},discard:{clearSongEdit()})
                             .transition(Luz.Transition.rise(reduceMotion))
                     }
                 }
@@ -261,10 +266,13 @@ struct AssistantView:View {
             AssistantHarmonyReview(proposal:proposal,source:source,candidate:candidate)
             if !proposal.assumptions.isEmpty{SmallHeading(text:"ASSUMPTIONS");ForEach(proposal.assumptions,id:\.self){Text($0).font(.caption).foregroundStyle(Color.muted)}}
             ForEach(proposal.warnings,id:\.self){Label($0,systemImage:"exclamationmark.triangle").font(.caption).foregroundStyle(Color.studioText)}
-            HStack(spacing:10){Button{previewB=false;session.previewAssistant(source,wholeSong:proposal.changesWholeSong,sectionID:proposal.scopeSectionID)}label:{Text("A · Original").frame(maxWidth:.infinity,minHeight:48).background(session.harmonyPreview && !previewB ? Color.mint.opacity(0.2):Color.raised,in:RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous))}.accessibilityIdentifier("assistant.a");Button{previewB=true;session.previewAssistant(candidate,wholeSong:proposal.changesWholeSong,sectionID:proposal.scopeSectionID)}label:{Text("B · Proposal").frame(maxWidth:.infinity,minHeight:48).background(session.harmonyPreview && previewB ? Color.mint.opacity(0.2):Color.raised,in:RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous))}.accessibilityIdentifier("assistant.b")}
-            if session.harmonyPreview{Button("Stop preview"){session.endHarmonyPreview()}.frame(minHeight:44).accessibilityIdentifier("assistant.stop-preview")}
-            Button{apply(proposal)}label:{Text("Apply proposal")}.buttonStyle(StudioActionStyle()).accessibilityIdentifier("assistant.apply")
-            Text("One Undo restores the whole change.").font(.caption).foregroundStyle(Color.muted)
+            // U5: the same Listen → Apply → Discard block as every proposal screen.
+            ABAuditionBar(playing:session.harmonyPreview ? previewB:nil,
+                          playA:{previewB=false;session.previewAssistant(source,wholeSong:proposal.changesWholeSong,sectionID:proposal.scopeSectionID)},
+                          playB:{previewB=true;session.previewAssistant(candidate,wholeSong:proposal.changesWholeSong,sectionID:proposal.scopeSectionID)},
+                          stop:{session.endHarmonyPreview()},
+                          apply:{apply(proposal)},
+                          discard:{resetReview()})
         }
     }
     /// U19: the same request answered another way, as careful or as bold as the slider says.
@@ -346,6 +354,7 @@ struct AssistantView:View {
         MusicalNotation.chordSymbol(chord,keyRoot:project.keyRoot,minor:project.minor,spelling:PitchSpelling(rawValue:pitchSpelling) ?? .automatic)
     }
     func generate(_ distribution:ChordDistribution?=nil){
+        rememberPrompt(input)
         cancelGeneration();focused=false;session.endHarmonyPreview();ambiguous=false;generatedInput=input;proposal=nil;candidate=nil;proposalSource=nil;clearSongEdit();error=nil;generatedWithAI=false;usedUnavailableAIFallback=false;availabilityError=false
         let snapshot=session.project,scope=session.section.id
         ai.refresh(localeIdentifier:aiLanguage)
@@ -424,6 +433,15 @@ struct AssistantView:View {
         let snapshot=session.project
         do{let p=try template.proposal(for:snapshot);candidate=try p.candidate(for:snapshot);proposalSource=snapshot;proposal=p}
         catch{self.error=error.localizedDescription}
+    }
+    private var assistantHints:[String]{
+        QuerySuggestions.top(input,history:(session.project.editLog ?? [])+recentPrompts,examples:QuerySuggestions.assistantExamples(russian:Locale.current.language.languageCode?.identifier=="ru"))
+    }
+    private func rememberPrompt(_ text:String){
+        let prompt=text.trimmingCharacters(in:.whitespacesAndNewlines)
+        guard !prompt.isEmpty,prompt.count<=120 else{return}
+        let list=Array((recentPrompts.filter{$0.lowercased() != prompt.lowercased()}+[prompt]).suffix(20))
+        if let data=try? JSONEncoder().encode(list){recentPromptsRaw=String(decoding:data,as:UTF8.self)}
     }
     private func clearSongEdit(){songEditPlan=nil;songEditCandidate=nil;songEditSource=nil}
     private func reviewSongEdit(_ plan:SongEditPlan,source:Project){

@@ -242,3 +242,91 @@ struct EffectBypassTests {
         #expect(comparison.offsetDB > 0)
     }
 }
+
+@Suite("U69 field hints")
+struct QuerySuggestionsTests {
+    let examples = QuerySuggestions.assistantExamples(russian: false)
+
+    @Test func topFiveByPrefixWithHistoryFirst() {
+        let history = ["tempo 100", "add a verse", "tempo 80"]
+        let hints = QuerySuggestions.top("te", history: history, examples: examples)
+        #expect(hints == ["tempo 80", "tempo 100", "tempo 92"])
+        // A word inside the phrase matches too.
+        #expect(QuerySuggestions.top("chor", history: [], examples: examples).contains("add a chorus"))
+        // Never more than five, never the text itself, no repeats.
+        let many = QuerySuggestions.top("", history: (1...9).map { "tempo \($0)" } + ["tempo 9"], examples: examples)
+        #expect(many.count == 5 && Set(many).count == 5 && many.first == "tempo 9")
+        #expect(!QuerySuggestions.top("louder", history: [], examples: examples).contains("louder"))
+    }
+
+    @Test func russianExamplesAndNewNames() {
+        #expect(QuerySuggestions.top("доб", history: [], examples: QuerySuggestions.assistantExamples(russian: true)) == ["добавь припев"])
+        let all = QuerySuggestions.projectNames(existing: [], keyRoot: 9, minor: true, bpm: 90, seed: 3, russian: false, limit: 10)
+        #expect(!all.isEmpty)
+        let fresh = QuerySuggestions.projectNames(existing: [all[0].uppercased()], keyRoot: 9, minor: true, bpm: 90, seed: 3, russian: false, limit: 10)
+        #expect(!fresh.contains(all[0]))
+    }
+}
+
+@Suite("I6 slice markers")
+struct SliceMarkerTests {
+    /// Eight hits a quarter second apart at 48 kHz: loud on the beat, quiet in between.
+    func loop() -> [Int16] {
+        let rate = 48_000
+        var samples = [Int16](repeating: 0, count: 2 * rate)
+        for hit in 0..<8 {
+            let start = hit * rate / 4, loud = hit % 2 == 0
+            for i in 0..<2400 { samples[start + i] = Int16(Double(loud ? 20_000 : 3_000) * exp(-Double(i) / 400) * (i % 20 < 10 ? 1 : -1)) }
+        }
+        return samples
+    }
+
+    @Test func sensitivityAndIntervalChooseTheHits() {
+        let samples = loop()
+        let all = SliceMarkers.detect(samples, rate: 48_000, sensitivity: 1)
+        #expect(all.frames.count == 8)
+        let strong = SliceMarkers.detect(samples, rate: 48_000, sensitivity: 0)
+        #expect(strong.frames.count == 4, "only the loud hits: \(strong.frames)")
+        let spaced = SliceMarkers.detect(samples, rate: 48_000, sensitivity: 1, minimumGap: 0.4)
+        #expect(spaced.frames.count == 4)
+        #expect(all.ranges(rate: 48_000).count == 8 && all.ranges(rate: 48_000).last?.upperBound == samples.count)
+    }
+
+    @Test func markersAreAddedRemovedAndMovedSafely() {
+        var markers = SliceMarkers(frames: [0, 12_000, 24_000], length: 48_000)
+        let added = markers.add(30_000)
+        #expect(added && markers.frames == [0, 12_000, 24_000, 30_000])
+        let tooClose = markers.add(30_010)
+        #expect(!tooClose, "too close to another marker")
+        markers.move(1, to: 40_000)
+        #expect(markers.frames[1] == 24_000 - SliceMarkers.spacing, "never past the next marker")
+        let removed = markers.remove(at: 0)
+        #expect(removed && markers.frames.count == 3)
+        var one = SliceMarkers(frames: [100], length: 48_000)
+        let removedLast = one.remove(at: 0)
+        #expect(!removedLast && one.frames == [100])
+        #expect(markers.slice(containing: 35_000) == 2)
+        let wav = SliceMarkers.previewWAV(loop(), 0..<1000, rate: 48_000)
+        #expect(wav.count == 44 + 2000 && String(decoding: wav.prefix(4), as: UTF8.self) == "RIFF")
+    }
+}
+
+@Suite("U27 pad drag")
+struct PadDragTests {
+    @Test func aDraggedPadIsReadBackAndNothingElseIs() {
+        #expect(PadEditing.pad(fromDrag: PadEditing.dragPayload(4)) == 4)
+        #expect(PadEditing.pad(fromDrag: "grilla-pad:16") == nil)
+        #expect(PadEditing.pad(fromDrag: "grid.clip.123") == nil)
+        #expect(PadEditing.pad(fromDrag: "grilla-pad:x") == nil)
+    }
+
+    @Test func droppingPadOneOnPadFiveSwapsTheirHits() throws {
+        var project = Project.demo()
+        let drums = try #require(project.tracks.first { $0.role == .drums })
+        let before = project.patterns.flatMap(\.drums).filter { $0.pad == 0 }.count
+        let from = try #require(PadEditing.pad(fromDrag: PadEditing.dragPayload(0)))
+        try PadEditing.swap(from, 4, track: drums.id, in: &project)
+        #expect(project.patterns.flatMap(\.drums).filter { $0.pad == 4 }.count == before)
+        #expect(project.patterns.flatMap(\.drums).filter { $0.pad == 0 }.isEmpty)
+    }
+}

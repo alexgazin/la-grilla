@@ -117,6 +117,13 @@ public struct MusicClipboard: Codable, Equatable, Sendable {
 
 /// U27 · Swap two pads: their hits, sounds, edits and mute state trade places.
 public enum PadEditing {
+    /// U27 · What a dragged pad carries (a plain string, so it never leaves the app as data).
+    public static func dragPayload(_ pad: Int) -> String { "grilla-pad:\(pad)" }
+    /// The pad a drop carries, or nil for anything else.
+    public static func pad(fromDrag text: String) -> Int? {
+        guard text.hasPrefix("grilla-pad:"), let pad = Int(text.dropFirst("grilla-pad:".count)), (0..<16).contains(pad) else { return nil }
+        return pad
+    }
     public static func swap(_ a: Int, _ b: Int, track trackID: UUID, in project: inout Project) throws {
         guard a != b, (0..<16).contains(a), (0..<16).contains(b),
               let index = project.tracks.firstIndex(where: { $0.id == trackID && $0.role == .drums }) else { throw MusicError.invalidProject }

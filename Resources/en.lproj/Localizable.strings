@@ -2402,3 +2402,16 @@
 "Without EQ" = "Without EQ";
 "Without EQ plays at the same loudness, so you hear the tone, not the level." = "Without EQ plays at the same loudness, so you hear the tone, not the level.";
 "Silent" = "Silent";
+"%lld slices" = "%lld slices";
+"Cut %lld" = "Cut %lld";
+"Discard" = "Discard";
+"Loop waveform" = "Loop waveform";
+"Minimum interval %lld ms" = "Minimum interval %lld ms";
+"Nothing changes in the song until you apply. One Undo restores the whole change." = "Nothing changes in the song until you apply. One Undo restores the whole change.";
+"Nothing is created until you tap Create." = "Nothing is created until you tap Create.";
+"Put on pads 1–%lld" = "Put on pads 1–%lld";
+"Sensitivity" = "Sensitivity";
+"Slice a loop" = "Slice a loop";
+"Tap the waveform to add a cut, drag a cut to move it, touch and hold a cut to remove it. Tap a slice to hear it." = "Tap the waveform to add a cut, drag a cut to move it, touch and hold a cut to remove it. Tap a slice to hear it.";
+"This file has no sound to slice." = "This file has no sound to slice.";
+"Reading the loop…" = "Reading the loop…";

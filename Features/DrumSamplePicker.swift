@@ -34,6 +34,9 @@ struct DrumSamplePicker: View {
     @State private var error: String?
     @State private var loopTempo: Double?
     @State private var loopURL: URL?
+    /// I6: the loop opened in the slice editor.
+    @State private var slicing: SlicedLoop?
+    struct SlicedLoop: Identifiable { let id = UUID(); let url: URL }
 
     private var track: Track? {
         guard session.project.id == sourceID else { return nil }
@@ -124,16 +127,20 @@ struct DrumSamplePicker: View {
             case .success(let picked):
                 loopTempo = nil
                 Task {
-                    guard let url = try? await AudioExtraction.wavIfNeeded(picked) else { return }
+                    guard let url = try? await AudioExtraction.wavIfNeeded(picked) else { error = NSLocalizedString("This file has no sound to slice.", comment: "Loop slicer"); return }
                     loopURL = url
+                    // I6: the cuts are shown and can be changed before the pads are filled.
+                    slicing = SlicedLoop(url: url)
                     loopTempo = try? await DrumSamplePreparation.shared.loopTempo(url)
-                }
-                prepare {
-                    let slices = try await DrumSamplePreparation.shared.importSlices(try await AudioExtraction.wavIfNeeded(picked))
-                    return slices.prefix(16).enumerated().map { (pad: Optional($0.offset), sound: $0.element) }
                 }
             case .failure(let failure): error = failure.localizedDescription
             }
+        }
+        .sheet(item: $slicing) { loop in
+            LoopSlicerView(url: loop.url) { sounds in
+                prepare { sounds.prefix(16).enumerated().map { (pad: Optional($0.offset), sound: $0.element) } }
+            }
+            .presentationDetents([.large])
         }
         .sheet(item: $libraryTarget) { target in
             PadSampleLibraryView(session: session, pad: target.id) { sound in

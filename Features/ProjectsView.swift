@@ -144,6 +144,8 @@ struct NewProjectView: View {
                 }
                 Section {
                     TextField("Project name", text: $name).accessibilityIdentifier("project.name")
+                    // U69: name ideas from the key and tempo, without names already used.
+                    if name.isEmpty { QueryHintsRow(hints: nameIdeas, identifier: "project.name-idea") { name = $0 } }
                     Stepper("\(Int(bpm)) BPM", value: $bpm, in: 40...240).accessibilityIdentifier("project.tempo")
                     Picker("Key", selection: $root) {
                         ForEach(0..<12, id: \.self) { i in Text(MusicalNotation.pitchClassName(i,keyRoot:i,minor:minor,spelling:PitchSpelling(rawValue:spellingValue) ?? .automatic)).tag(i) }
@@ -175,6 +177,10 @@ struct NewProjectView: View {
         }
         .presentationDetents([.large])
         .interactiveDismissDisabled(creating)
+    }
+    private var nameIdeas: [String] {
+        QuerySuggestions.projectNames(existing: session.entries.compactMap(\.summary).map(\.name), keyRoot: root, minor: minor, bpm: bpm,
+                                      seed: UInt64(session.entries.count), russian: Locale.current.language.languageCode?.identifier == "ru")
     }
     private func startWithBeat(_ genre: BeatPreset.Genre) {
         guard !creating, let preset = BeatPreset.presets(genre).first else { return }

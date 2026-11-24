@@ -229,6 +229,8 @@ struct TrackBuilderView: View {
                     if session.harmonyPreview && previewPart == nil, let preview {
                         SketchPlayhead(session: session, length: preview.project.length)
                     }
+                    // U5: the same promise as every listening block.
+                    Text("Nothing is created until you tap Create.").font(.footnote).foregroundStyle(Color.muted)
                     if unreviewedIdea && preparation == nil {
                         Text("The description changed: Listen and Create read it first.").font(.footnote).foregroundStyle(Color.muted)
                     }
