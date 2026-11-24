@@ -142,7 +142,9 @@ enum PluginHost {
         engine.connect(previous, to: engine.mainMixerNode, format: format)
         try engine.start()
         defer { player.stop(); engine.stop() }
-        player.scheduleFile(input, at: nil)
+        // The completion-handler form: the async one would wait for the file to finish playing,
+        // which in offline rendering only happens while we render below.
+        player.scheduleFile(input, at: nil, completionHandler: nil)
         player.play()
         let processed = url.deletingLastPathComponent().appendingPathComponent("effects-\(UUID().uuidString).wav")
         let output = try AVAudioFile(forWriting: processed, settings: input.fileFormat.settings, commonFormat: format.commonFormat, interleaved: format.isInterleaved)

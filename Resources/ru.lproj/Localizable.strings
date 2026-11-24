@@ -2684,3 +2684,12 @@
 "Bounce again" = "Перевести ещё раз";
 "No Audio Unit plugins were found. Install AUv3 instruments and effects from the App Store; they appear here." = "Плагины Audio Unit не найдены. Установите инструменты и эффекты AUv3 из App Store — они появятся здесь.";
 "This plugin has no screen of its own. Its sound is still used." = "У этого плагина нет своего экрана. Его звук всё равно используется.";
+"Pick a genre: a verse and a chorus with beat, 808, chords and melody, then a 15-second clip to post." = "Выберите жанр: куплет и припев с битом, 808, аккордами и мелодией, а потом ролик на 15 секунд для соцсетей.";
+"Record audio over the song" = "Запись звука поверх песни";
+"Sing or play on up to four audio tracks; move, trim and balance every take." = "Пойте или играйте на четырёх аудиодорожках; каждый дубль можно сдвинуть, обрезать и выровнять по громкости.";
+"Remix links" = "Ссылки для ремикса";
+"Share a link that opens your song in La Grilla for someone to make their version, with your name on it." = "Поделитесь ссылкой: она откроет песню в La Grilla, чтобы кто-то сделал свою версию с вашим именем.";
+"Ten short lessons checked on your own song, and assignments to send to students." = "Десять коротких уроков с проверкой на вашей песне и задания для учеников.";
+"Plugins and DAWproject" = "Плагины и DAWproject";
+"AUv3 effects after the mix, instruments bounced to audio, and projects for Cubase, Studio One and Bitwig." = "Эффекты AUv3 после микса, инструменты с переводом в аудио и проекты для Cubase, Studio One и Bitwig.";
+"The same musical challenge for everyone each week, checked on your song." = "Каждую неделю — один музыкальный челлендж для всех, с проверкой на вашей песне.";
