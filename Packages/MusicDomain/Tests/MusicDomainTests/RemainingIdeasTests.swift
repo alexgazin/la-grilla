@@ -177,3 +177,38 @@ struct ReverbSpaceTests {
         #expect(ReverbSpace.allCases.map(\.rawValue) == [1, 2, 3, 4], "Kernel space numbers")
     }
 }
+
+struct MelodicSamplerTests {
+    private func sine(_ frequency: Double, seconds: Double, rate: Double = 48_000, lead: Int = 4800) -> [Float] {
+        [Float](repeating: 0, count: lead) + (0..<Int(seconds * rate)).map { Float(0.5 * sin(2 * Double.pi * frequency * Double($0) / rate)) }
+    }
+
+    @Test func soundIsTrimmedResampledAndItsPitchFound() throws {
+        let raw = sine(220 * pow(2, 7.0 / 1200), seconds: 1.5)      // A3, 7 cents sharp, after silence
+        let prepared = MelodicSampler.prepare(raw, rate: 48_000)
+        #expect(abs(prepared.count - Int(1.5 * 32_000)) < 64, "Silence trimmed, resampled to 32 kHz")
+        #expect(abs((prepared.map { abs($0) }.max() ?? 0) - 0.891) < 0.01)
+        let root = try #require(MelodicSampler.detectRoot(prepared, rate: Double(MelodicSampler.rate)))
+        #expect(root.pitch == 57 && abs(root.cents - 7) < 3)
+        let long = MelodicSampler.prepare(sine(440, seconds: 12), rate: 48_000)
+        #expect(long.count == Int(MelodicSampler.maxSeconds) * MelodicSampler.rate)
+        #expect(MelodicSampler.prepare([Float](repeating: 0, count: 1000), rate: 48_000).isEmpty)
+    }
+
+    @Test func theInstrumentIsOneZoneAtItsRoot() throws {
+        let prepared = MelodicSampler.prepare(sine(440, seconds: 2), rate: 48_000)
+        let ringing = try MelodicSampler.instrument(prepared, root: 69, shape: .init(attack: 0.05, ringsOut: true))
+        #expect(ringing.zones.count == 1 && ringing.zones[0].pitch == 69 && ringing.zones[0].loopStart == 0)
+        #expect(ringing.zones[0].samples.prefix(10).allSatisfy { abs($0) < 300 }, "The fade-in starts silent")
+        let held = try MelodicSampler.instrument(prepared, root: 69, shape: .init(attack: 0.005, ringsOut: false))
+        let loop = held.zones[0].loopStart
+        #expect(loop > 0 && loop <= held.zones[0].samples.count - 1024)
+        let data = try held.encode(kind: .instrument)
+        let asset = try SampleAsset(kind: .instrument, name: MelodicSampler.name(root: 69), bytes: data)
+        #expect(asset.name.hasSuffix("A4"))
+        #expect(try SamplePCM.decode(data, asset: asset).zones[0].loopStart == loop)
+        let rings = try ringing.encode(kind: .instrument)
+        _ = try SampleAsset(kind: .instrument, name: "Bell", bytes: rings, ringsOut: true)
+        #expect(throws: SampleError.self) { try MelodicSampler.instrument([0.1, 0.2], root: 60, shape: .init()) }
+    }
+}

@@ -79,6 +79,14 @@ struct SoundBankView: View {
                         }
                     }
                 }
+                // I31: an instrument from one recorded or imported sound.
+                Section {
+                    NavigationLink {
+                        MelodicSamplerView(session: session, trackID: trackID, projectID: projectID, revision: revision) { dismiss() }
+                    } label: { Label("Instrument from a sound", systemImage: "waveform.badge.mic") }
+                    .accessibilityIdentifier("sound-bank.sampler")
+                    .disabled(applying || importing)
+                } footer: { Text("Record or import one note; it plays on every key.") }
                 Section {
                     Button { showImporter = true } label: { Label("Import SoundFont", systemImage: "square.and.arrow.down") }
                         .disabled(importing || applying).accessibilityIdentifier("sound-bank.import")
