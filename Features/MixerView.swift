@@ -249,6 +249,8 @@ struct MixerView: View {
                 Button("Prepare for release…", systemImage: "gauge.with.dots.needle.67percent") { session.presentEditor(.master) }
                 // I58: a starting mix by role (one Undo).
                 Button("Balance by role", systemImage: "slider.horizontal.3") { session.mixerImmediate { RoleBalance.apply(to: &$0) } }
+                // 54: AUv3 effects after the mix and instrument plugins.
+                Button("Plugins…", systemImage: "puzzlepiece.extension") { session.presentEditor(.plugins) }.accessibilityIdentifier("mixer.plugins")
             } label: { headingLabel(track: nil, color: color) }
                 .accessibilityIdentifier("mixer.master-menu")
                 .disabled(session.performance.contextActive)

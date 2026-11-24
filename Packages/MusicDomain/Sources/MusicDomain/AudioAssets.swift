@@ -2,7 +2,7 @@ import Foundation
 import AudioDSP
 
 public struct AudioAssetRecord:Codable,Equatable,Identifiable,Sendable {
-    public enum Origin:String,Codable,Sendable{case microphone,syntheticFixture}
+    public enum Origin:String,Codable,Sendable{case microphone,syntheticFixture,plugin}
     public var origin:Origin;public var recordedAt:Date?;public var inputLatencySeconds:Double?;public var tempoBPM:Double?
     public var id:UUID
     public var sha256:String;public var byteCount:Int;public var sampleRate:Double;public var duration:Double
@@ -10,12 +10,12 @@ public struct AudioAssetRecord:Codable,Equatable,Identifiable,Sendable {
     public init(id:UUID=UUID(),sha256:String,byteCount:Int,sampleRate:Double,duration:Double,origin:Origin = .microphone,recordedAt:Date?=nil,inputLatencySeconds:Double?=nil,tempoBPM:Double?=nil){self.origin=origin;self.recordedAt=recordedAt;self.inputLatencySeconds=inputLatencySeconds;self.tempoBPM=tempoBPM;self.id=id;self.sha256=sha256;self.byteCount=byteCount;self.sampleRate=sampleRate;self.duration=duration}
     public func validate()throws {
         guard recordedAt==nil || recordedAt!.timeIntervalSinceReferenceDate.isFinite,inputLatencySeconds==nil || (inputLatencySeconds!.isFinite && (0...2).contains(inputLatencySeconds!)),tempoBPM==nil || (tempoBPM!.isFinite && (40...240).contains(tempoBPM!))else{throw MusicError.invalidProject}
-        guard sha256.utf8.count==64,sha256.utf8.allSatisfy({(48...57).contains($0)||(97...102).contains($0)}),(64...12_000_000).contains(byteCount),sampleRate.isFinite,[44100.0,48000.0].contains(sampleRate),duration.isFinite,(0.05...30.25).contains(duration)else{throw MusicError.invalidProject}
+        guard sha256.utf8.count==64,sha256.utf8.allSatisfy({(48...57).contains($0)||(97...102).contains($0)}),(64...32_000_000).contains(byteCount),sampleRate.isFinite,[44100.0,48000.0].contains(sampleRate),duration.isFinite,(0.05...30.25).contains(duration)else{throw MusicError.invalidProject}
     }
 }
 public enum AssetIntegrity {
     public static func sha256(_ data:Data)throws->String {
-        guard data.count<=16_000_000 else{throw ExportError.archiveTooLarge}
+        guard data.count<=40_000_000 else{throw ExportError.archiveTooLarge}
         var output=[CChar](repeating:0,count:65)
         let success=data.withUnsafeBytes{bytes in lg_sha256(bytes.baseAddress?.assumingMemoryBound(to:UInt8.self),Int32(data.count),&output)}
         guard success==1 else{throw ExportError.invalidArchive}

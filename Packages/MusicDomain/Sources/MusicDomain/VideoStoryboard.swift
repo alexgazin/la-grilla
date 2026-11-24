@@ -16,8 +16,13 @@ public struct VideoStoryboard: Sendable {
     public let sections: [Band]
     public let title: String
     public let subtitle: String
+    /// Tracks in the song (one level bar each in the "Levels" style).
+    public let trackCount: Int
     private let range: Range<Int>
     private let musicSeconds: Double
+    struct Event: Sendable { let tick, duration, track, pad, velocity: Int }
+    /// Notes and hits in song ticks, for the animated styles.
+    let events: [Event]
 
     /// `seconds` is the audio file's duration (music plus any tail).
     public init(project: Project, range: Range<Int>, seconds: Double, fps: Int = 30) {
@@ -33,6 +38,8 @@ public struct VideoStoryboard: Sendable {
         let lanes = max(1, project.tracks.count), lane = m.height / Double(lanes)
         var blocks: [Block] = []
         let notes = Compiler.notes(project, range: range)
+        trackCount = project.tracks.count
+        events = notes.prefix(12000).map { Event(tick: $0.tick + range.lowerBound, duration: $0.duration, track: $0.track, pad: $0.pad, velocity: $0.velocity) }
         for (index, track) in project.tracks.enumerated() {
             let own = notes.filter { $0.track == index }
             guard !own.isEmpty else { continue }

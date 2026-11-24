@@ -15,10 +15,17 @@ struct ExportView:View {
     @State private var lastBar=4
     @State private var tracks:Set<UUID>=[]
     @State private var normalizeStems=false
+    /// 54: a social clip of about 15, 30 or 60 seconds from the chorus, or the whole range.
+    @State private var clip:ShareClip.Length = .whole
+    @AppStorage("video.style") private var videoStyle=VideoStyle.map.rawValue
+    @AppStorage("video.credit") private var videoCredit=true
     private var take:PerformanceTake?{session.exportTake}
     private var project:Project{take?.source ?? session.project}
     private var formats:[Session.ExportFormat]{take==nil ? Session.ExportFormat.allCases:[.wav,.aac,.midi]}
-    private var range:Range<Int>{scope==1 ? session.section.start..<session.section.start+session.section.length : scope==2 ? (firstBar-1)*barTicks..<lastBar*barTicks : 0..<session.project.length}
+    private var range:Range<Int>{
+        if format == .video,clip != .whole,take==nil{return ShareClip.range(project,length:clip)}
+        return scope==1 ? session.section.start..<session.section.start+session.section.length : scope==2 ? (firstBar-1)*barTicks..<lastBar*barTicks : 0..<session.project.length
+    }
     var body:some View {
         NavigationStack {
             ScrollView {VStack(alignment:.leading,spacing:18){
@@ -26,27 +33,44 @@ struct ExportView:View {
                 LazyVGrid(columns:[GridItem(.flexible()),GridItem(.flexible())],spacing:10){ForEach(formats){option in
                     Button{if format != option{Luz.Haptics.selection()};withAnimation(Luz.Motion.snap){format=option}}label:{VStack(spacing:6){Image(systemName:symbol(option)).font(StudioTypography.icon).accessibilityHidden(true);Text(LocalizedStringKey(option.title)).font(StudioTypography.action).multilineTextAlignment(.center)}.frame(maxWidth:.infinity,minHeight:72).foregroundStyle(format==option ? Color.ink:Color.studioText).background(format==option ? Color.mint:Color.panel,in:RoundedRectangle(cornerRadius:Luz.Radius.card,style:.continuous))}.buttonStyle(StudioQuietButtonStyle(radius:Luz.Radius.card)).accessibilityIdentifier("format."+option.rawValue)
                 }}.disabled(session.exportInProgress)
-                if format != .project && take==nil {
+                if format == .video && take==nil {videoSettings}
+                if format != .project && take==nil && !(format == .video && clip != .whole) {
                     StudioSegments(title:"Range",selection:$scope,options:[(0,"Entire song"),(1,"Selected section"),(2,"Bars")]).disabled(session.exportInProgress)
                     if scope==2 {VStack{Stepper("From bar \(firstBar)",value:$firstBar,in:1...lastBar);Stepper("Through bar \(lastBar)",value:$lastBar,in:firstBar...max(1,session.project.length/barTicks))}.font(.system(.subheadline)).disabled(session.exportInProgress)}
                 }
-                if format == .wav || format == .stems || format == .aac || format == .video {audioSettings}
+                if format == .wav || format == .stems || format == .aac || format == .video || format == .dawproject {audioSettings}
                 if format == .stems {VStack(alignment:.leading,spacing:10){SmallHeading(text:"TRACKS");ForEach(project.tracks){t in Toggle(t.displayName,isOn:Binding(get:{tracks.contains(t.id)},set:{on in if on{tracks.insert(t.id)}else{tracks.remove(t.id)}})).tint(.mint)}}.disabled(session.exportInProgress)}
                 if let error=session.exportError {Text(LocalizedStringKey(error)).font(.system(.caption)).foregroundStyle(Color.record).accessibilityIdentifier("export.error")}
                 if format == .stems && tracks.isEmpty {Text("Select at least one track.").font(.caption).foregroundStyle(Color.muted)}
                 Text(description).font(.system(.caption)).foregroundStyle(Color.muted).lineSpacing(4)
                 HStack{Text("\(project.tracks.count) tracks");Spacer();Text("\(Int(project.bpm)) BPM · 4/4")}.font(.system(.caption,design:.monospaced)).foregroundStyle(Color.muted)
                 if session.exportInProgress {VStack(alignment:.leading,spacing:8){ProgressView(value:session.exportProgress).tint(.mint);Text("\(Int(session.exportProgress*100))%").luzNumeric(session.exportProgress).animation(.snappy,value:Int(session.exportProgress*100)).font(.system(.caption,design:.monospaced))}.accessibilityIdentifier("export.progress")}
-                Button{lastFormat=format.rawValue;session.export(format:format,settings:WAVSettings(sampleRate:sampleRate,bitDepth:bits,tailSeconds:tail,normalizeStemsDBFS:format == .stems && normalizeStems ? -1:nil),range:range,tracks:tracks,performance:take)}label:{HStack{if session.exportInProgress{ProgressView()};Text(LocalizedStringKey(session.exportInProgress ? "Exporting…":format == .midi ? "Export MIDI":"Export"));Image(systemName:"arrow.up.right")}}.buttonStyle(StudioActionStyle()).accessibilityIdentifier("export.confirm").disabled(session.exportInProgress || (format == .stems && tracks.isEmpty))
+                Button{lastFormat=format.rawValue;session.videoStyle=VideoStyle(rawValue:videoStyle) ?? .map;session.videoCredit=videoCredit;session.export(format:format,settings:WAVSettings(sampleRate:sampleRate,bitDepth:bits,tailSeconds:tail,normalizeStemsDBFS:format == .stems && normalizeStems ? -1:nil),range:range,tracks:tracks,performance:take)}label:{HStack{if session.exportInProgress{ProgressView()};Text(LocalizedStringKey(session.exportInProgress ? "Exporting…":format == .midi ? "Export MIDI":"Export"));Image(systemName:"arrow.up.right")}}.buttonStyle(StudioActionStyle()).accessibilityIdentifier("export.confirm").disabled(session.exportInProgress || (format == .stems && tracks.isEmpty))
+                // 54: share the song as a link others open with "Make your version".
+                if take==nil{RemixShareSection(session:session)}
             }.padding(18)}.background(Color.ink)
             .navigationTitle("Export").navigationBarTitleDisplayMode(.inline)
             .toolbar{ToolbarItem(placement:.cancellationAction){Button("Cancel"){session.cancelExport();session.sheet=nil}}}
         }.presentationDetents([.large])
-        .onAppear{if take != nil{tail=0};if let preset=session.exportPreset,let selected=Session.ExportFormat(rawValue:preset){format=selected;session.exportPreset=nil}else if !Luz.uiTesting,take==nil,let last=Session.ExportFormat(rawValue:lastFormat){format=last};lastBar=session.project.length/barTicks;tracks=Set(project.tracks.map(\.id))}
+        .onAppear{if take != nil{tail=0};if let preset=session.exportClip{clip=preset;session.exportClip=nil};if let preset=session.exportPreset,let selected=Session.ExportFormat(rawValue:preset){format=selected;session.exportPreset=nil}else if !Luz.uiTesting,take==nil,let last=Session.ExportFormat(rawValue:lastFormat){format=last};lastBar=session.project.length/barTicks;tracks=Set(project.tracks.map(\.id))}
         .onDisappear{if session.exportInProgress{session.cancelExport()}}
     }
+    /// 54: how long the clip is, what it shows and whether it carries the credit.
+    private var videoSettings:some View {
+        VStack(alignment:.leading,spacing:12){
+            StudioSegments(title:"Clip",selection:$clip,options:ShareClip.Length.allCases.map{($0,LocalizedStringKey($0.title))},identifier:"export.clip")
+            if clip != .whole {
+                Text(String(format:NSLocalizedString("From the chorus: %d bars, about %d s.",comment:"Video clip"),ShareClip.range(project,length:clip).count/barTicks,
+                            Int(ShareClip.seconds(project,range:ShareClip.range(project,length:clip)).rounded())))
+                    .font(.caption).foregroundStyle(Color.muted).accessibilityIdentifier("export.clip-summary")
+            }
+            StudioSegments(title:"Picture",selection:Binding(get:{VideoStyle(rawValue:videoStyle) ?? .map},set:{videoStyle=$0.rawValue}),
+                           options:VideoStyle.allCases.map{($0,LocalizedStringKey($0.title))},identifier:"export.video-style")
+            Toggle("Show “Made with La Grilla”",isOn:$videoCredit).accessibilityIdentifier("export.credit")
+        }.disabled(session.exportInProgress)
+    }
     private func symbol(_ format:Session.ExportFormat)->String {
-        switch format{case .midi:"pianokeys";case .wav:"waveform";case .stems:"square.stack.3d.up";case .project:"folder";case .aac:"music.note";case .video:"film";case .daw:"shippingbox";case .musicxml:"music.note.list";case .ringtone:"bell"}
+        switch format{case .midi:"pianokeys";case .wav:"waveform";case .stems:"square.stack.3d.up";case .project:"folder";case .aac:"music.note";case .video:"film";case .daw:"shippingbox";case .dawproject:"square.stack.3d.forward.dottedline";case .musicxml:"music.note.list";case .ringtone:"bell"}
     }
     private var audioSettings:some View {VStack(alignment:.leading,spacing:14){
         HStack{Text("Sample rate");Spacer();Picker("Sample rate",selection:$sampleRate){Text("44.1 kHz").tag(44100);Text("48 kHz").tag(48000)}.pickerStyle(.menu)}
@@ -68,6 +92,7 @@ struct ExportView:View {
         case .video:"A vertical 1080×1920 video (.mp4) of the same mix with a playhead moving over your song, ready for stories and reels."
         case .ringtone:"The first 30 seconds of the chosen bars as an iPhone ringtone (.m4r). In Files, share it to GarageBand or set it in Settings › Sounds."
         case .musicxml:"A lead sheet for notation apps (MuseScore, Sibelius, Dorico, Finale): the melody with chord symbols, lyrics and section marks."
+        case .dawproject:"An open project for Cubase 14, Studio One, Bitwig, and Cubasis or n-Track on iPad: every part as notes and as aligned audio, with tempo, levels and section markers."
         case .daw:"One zip for Logic, GarageBand, Ableton, FL Studio or Reaper: every track as an aligned WAV from bar 1, song.mid with tempo, key and section markers, and a README with what to do."
         }
     }

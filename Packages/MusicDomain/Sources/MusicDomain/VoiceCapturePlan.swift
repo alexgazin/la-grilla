@@ -11,7 +11,7 @@ public struct VoiceCapturePlan:Equatable,Sendable {
     public let duration:Double
     public static func make(project:Project,selectedSectionID:UUID,tick:Double,playing:Bool,loop:Bool,range:Range<Int>,minimumLead:Double,maximumDuration:Double=30)throws->VoiceCapturePlan {
         try project.validate()
-        guard tick.isFinite,minimumLead.isFinite,minimumLead>=0,minimumLead<=600,maximumDuration.isFinite,maximumDuration>0,maximumDuration<=30,range.lowerBound>=0,range.upperBound<=project.length,!range.isEmpty,
+        guard tick.isFinite,minimumLead.isFinite,minimumLead>=0,minimumLead<=600,maximumDuration.isFinite,maximumDuration>0,maximumDuration<=120,range.lowerBound>=0,range.upperBound<=project.length,!range.isEmpty,
               let selected=project.sections.first(where:{$0.id==selectedSectionID})else{throw MusicError.invalidProject}
         let speed=project.bpm/60*Double(ppq)
         let start:Int,delay:Double

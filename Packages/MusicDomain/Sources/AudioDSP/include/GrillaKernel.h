@@ -186,6 +186,16 @@ int lg_revision(LGKernel *k);
 float lg_meter(LGKernel *k, int track);
 /// U37 · How many times a pad (0…15) has sounded since the kernel started (wraps).
 uint32_t lg_pad_hits(LGKernel *k, int pad);
+// 54 · Audio tracks: recorded takes played from memory at song positions. Buffers are
+// immutable and reference-counted (create and release on the control thread); a submit
+// replaces every clip at once and the audio thread adopts it at the next block. Clips keep
+// their recorded speed when the tempo changes.
+typedef struct LGAudioBuffer LGAudioBuffer;
+typedef struct { int32_t lane; double startTick, endTick, offsetSeconds; float gainDB, fadeInSeconds, fadeOutSeconds; } LGAudioClip;
+LGAudioBuffer *lg_audio_create(const float *mono, int32_t frames, int32_t sampleRate);
+void lg_audio_release(LGAudioBuffer *buffer);
+int lg_audio_submit(LGKernel *k, const LGAudioClip *clips, LGAudioBuffer *const *buffers, int32_t count, const LGTrackMix *lanes, int32_t laneCount);
+float lg_audio_meter(LGKernel *k, int lane);
 // I63: copy the latest `count` (<= 4096) mono master samples for a spectrum
 // view. Lock-free; a concurrent block may tear the copy, which only affects
 // the picture. Returns the number of samples written.

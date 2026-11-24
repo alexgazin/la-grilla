@@ -25,7 +25,7 @@ struct SoundPaletteTests {
         previous.tracks[0].presetVersion = SoundPalette.bright.rawValue
         let migrated = try ProjectDocument.decode(JSONEncoder().encode(previous))
         #expect(migrated.schemaVersion == Project.currentSchemaVersion && migrated.tracks == previous.tracks)
-        var future=Project.demo();future.schemaVersion=Project.currentSchemaVersion+1
+        var future=Project.demo();future.schemaVersion=Project.newestSchemaVersion+1
         #expect(throws:MusicError.unsupportedSchema){try ProjectDocument.decode(JSONEncoder().encode(future))}
     }
 

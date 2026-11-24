@@ -94,7 +94,7 @@ import Observation
     private let runtimeTraceStart=ProcessInfo.processInfo.systemUptime
     let personalKits: PersonalKitStore
     let store: ProjectStore
-    enum Sheet: String, Identifiable {case projects, newProject, trackBuilder, export, settings, gettingStarted, bass, sections, notes, harmony, assistant, voice, perform, midiDevices, palettes, history, versions, trash, commands, variations, comp, chordImport, melodyIdeas, lyrics, master, mood, doctor, earTraining, whatsNew, coNotes, vj, help, grooves, practicePlayer, beatMachine, tuner, markers, dynamics, automation; var id: String { rawValue }}
+    enum Sheet: String, Identifiable {case projects, newProject, trackBuilder, export, settings, gettingStarted, bass, sections, notes, harmony, assistant, voice, perform, midiDevices, palettes, history, versions, trash, commands, variations, comp, chordImport, melodyIdeas, lyrics, master, mood, doctor, earTraining, whatsNew, coNotes, vj, help, grooves, practicePlayer, beatMachine, tuner, markers, dynamics, automation, course, audioTracks, plugins; var id: String { rawValue }}
     private static var qaProjectStoreID:UUID? {
         let arguments=ProcessInfo.processInfo.arguments
         guard arguments.contains("--uitesting"),let index=arguments.firstIndex(of:"--project-store-id"),arguments.indices.contains(index+1)else{return nil}
@@ -343,6 +343,9 @@ import Observation
         restorePreviewTransport()
         if let drumDraft{drumPlayback=try? drumDraft.candidate(for:project)}else{drumPlayback=nil}
         audio.submit(drumPlayback ?? project,loop:loop,range:loopRange);audio.metronome(metronome);syncMIDI()
+        // 54: an undo can bring back a clip whose take was let go; load it again.
+        if project.hasAudioTracks,audioTakesMissing,!loadingTakes{Task{await loadAudioTakes()}}
+        if project.masterPlugins != nil || !audio.masterSignature.isEmpty{syncMasterPlugins()}
     }
     /// Complete value mutations before publishing either observed property.
     /// A project willSet can synchronously render a view that reads history;
@@ -618,6 +621,9 @@ import Observation
             if let index=project.sections.firstIndex(where:{$0.id==current.id}),index+1<project.sections.count{select(project.sections[index+1])}
         case .doctor: presentEditor(.doctor)
         case .earTraining: presentEditor(.earTraining)
+        case .course: presentEditor(.course)
+        case .audioTracks: presentEditor(.audioTracks)
+        case .plugins: presentEditor(.plugins)
         }
     }
     /// U8 · Bring back a deleted track, take or clip in one Undo step.
@@ -1167,6 +1173,33 @@ import Observation
         } catch { message=error.localizedDescription; return false }
     }
 
+    /// 54 · Track in a minute: a new project in `genre` with beat, 808, chords, bass and melody as
+    /// a verse and a chorus, applied as one undoable edit so "Another one" can swap it.
+    var quickTrack:(genre:BeatPreset.Genre,seed:UInt32,projectID:UUID,revision:Int)?
+    /// The card offering a clip and "Another one" shows while the track is as it was made.
+    var quickTrackFresh:Bool{guard let quickTrack else{return false};return quickTrack.projectID==project.id && quickTrack.revision==project.revision}
+    @discardableResult func createQuickTrack(_ genre:BeatPreset.Genre,name:String,root:Int,minor:Bool,seed:UInt32=0) async -> Bool {
+        let title=name.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty ? NSLocalizedString(genre.title,comment:"Genre") : name
+        guard await create(name:title,bpm:QuickTrack.tempo(for:genre,seed:seed),root:root,minor:minor,bars:QuickTrack.sectionBars) else { return false }
+        return await fillQuickTrack(genre,seed:seed)
+    }
+    /// 54 · "Another one": back to the empty project, then a different beat and melody.
+    @discardableResult func anotherQuickTrack() async -> Bool {
+        guard let current=quickTrack,quickTrackFresh,history.canUndo else { return false }
+        undo()
+        return await fillQuickTrack(current.genre,seed:current.seed &+ 1)
+    }
+    private func fillQuickTrack(_ genre:BeatPreset.Genre,seed:UInt32) async -> Bool {
+        let base=project,id=project.id,revision=project.revision
+        do {
+            let result=try await Task.detached(priority:.userInitiated){try QuickTrack.make(from:base,genre:genre,seed:seed)}.value
+            try await applyPalette(result.project,kit:result.sounds,projectID:id,revision:revision)
+            quickTrack=(genre,seed,project.id,project.revision)
+            if let verse=project.sections.first{select(verse)}
+            return true
+        } catch { message=error.localizedDescription; return false }
+    }
+
     @discardableResult func saveGeneratedTrack(_ draft: PreparedTrackDraft) async -> Bool {
         await saveNewProject(draft.project, preparedDraft: draft)
     }
@@ -1273,15 +1306,19 @@ import Observation
         }catch{if let written{await retainUnopenedProject(written)}else{message=error.localizedDescription}}
     }
     enum ExportFormat:String,CaseIterable,Identifiable {
-        case midi,wav,stems,project,aac,video,daw,musicxml,ringtone
+        case midi,wav,stems,project,aac,video,daw,dawproject,musicxml,ringtone
         var id:String{rawValue}
-        var title:String{switch self{case .midi:"Standard MIDI";case .wav:"Stereo WAV";case .stems:"Aligned stems";case .project:"Portable project";case .aac:"AAC for sharing";case .video:"Video for social";case .daw:"For a DAW: stems, MIDI, README";case .musicxml:"Lead sheet (MusicXML)";case .ringtone:"Ringtone (30 s)"}}
-        var fileExtension:String{switch self{case .midi:"mid";case .wav:"wav";case .stems,.daw:"zip";case .project:"grillapack";case .aac:"m4a";case .video:"mp4";case .musicxml:"musicxml";case .ringtone:"m4r"}}
+        var title:String{switch self{case .midi:"Standard MIDI";case .wav:"Stereo WAV";case .stems:"Aligned stems";case .project:"Portable project";case .aac:"AAC for sharing";case .video:"Video for social";case .daw:"For a DAW: stems, MIDI, README";case .dawproject:"DAWproject (Cubase, Studio One, Bitwig)";case .musicxml:"Lead sheet (MusicXML)";case .ringtone:"Ringtone (30 s)"}}
+        var fileExtension:String{switch self{case .midi:"mid";case .wav:"wav";case .stems,.daw:"zip";case .dawproject:DAWProject.fileExtension;case .project:"grillapack";case .aac:"m4a";case .video:"mp4";case .musicxml:"musicxml";case .ringtone:"m4r"}}
     }
+    /// 54: the picture and credit of the next video export, and a clip length the export sheet opens with.
+    var videoStyle:VideoStyle = .map
+    var videoCredit=true
+    var exportClip:ShareClip.Length?
     func export(format:ExportFormat,settings:WAVSettings,range:Range<Int>,tracks:Set<UUID>,performance:PerformanceTake?=nil) {
         if performance != nil && format != .midi && format != .wav && format != .aac{exportError="Choose WAV or MIDI for a performance.";return}
         finishTake();cancelExport();exportGeneration+=1;let generation=exportGeneration
-        let snapshot=performance?.source ?? project;let samples=audio.samples;exportInProgress=true;exportProgress=0;exportWarning=nil
+        let snapshot=performance?.source ?? project;let samples=audio.samples;let takes=audio.takes;let effects=PluginEditing.activeMasterEffects(snapshot);exportInProgress=true;exportProgress=0;exportWarning=nil
         let folder=FileManager.default.temporaryDirectory.appendingPathComponent("GrillaExport-"+UUID().uuidString)
         let safe=String((performance?.name ?? snapshot.name).prefix(80)).components(separatedBy:CharacterSet(charactersIn:"/\\").union(.controlCharacters)).joined(separator:"-").trimmingCharacters(in:CharacterSet(charactersIn:". "))
         let url=folder.appendingPathComponent(safe.isEmpty ? "La Grilla":safe).appendingPathExtension(format.fileExtension)
@@ -1294,39 +1331,52 @@ import Observation
                 case .midi:let data=try await Task.detached(priority:.userInitiated){if let performance{return try PerformanceTimeline.midi(performance)};return try MIDIExporter.data(snapshot,range:range)}.value;try Task.checkCancellation();try data.write(to:url,options:.atomic)
                 case .project:try await store.portable(snapshot,to:url)
                 case .wav:
-                    let receipt:RenderReceipt;if let performance{receipt=try await OfflineRenderer.renderPerformance(performance,to:url,settings:settings,samples:samples,progress:progress)}else{receipt=try await OfflineRenderer.render(snapshot,to:url,settings:settings,range:range,samples:samples,progress:progress)}
+                    let receipt:RenderReceipt;if let performance{receipt=try await OfflineRenderer.renderPerformance(performance,to:url,settings:settings,samples:samples,progress:progress)}else{receipt=try await OfflineRenderer.render(snapshot,to:url,settings:settings,range:range,samples:samples,takes:takes,progress:progress)}
                     if receipt.clipped{exportWarning="Clipping was detected. Lower track or master gain for a cleaner export."}
+                    // 54: the song's effect plugins process the mix, as heard live.
+                    if !effects.isEmpty{try await PluginHost.process(url,through:effects)}
                     // I51: title, artist and tempo/key inside the file.
                     try? WAVMetadata.write(url,title:snapshot.name,artist:UserDefaults.standard.string(forKey:"notes.author"),comment:"\(Int(snapshot.bpm.rounded())) BPM · \(snapshot.keyName)")
-                case .stems:_ = try await StemExporter.render(snapshot,to:url,settings:settings,range:range,selected:tracks,samples:samples,progress:progress)
+                case .stems:_ = try await StemExporter.render(snapshot,to:url,settings:settings,range:range,selected:tracks,samples:samples,takes:takes,progress:progress)
                 case .ringtone:
                     // I50: the first 30 seconds of the chosen range as an iPhone ringtone (AAC in .m4r).
                     let seconds=Int((30*snapshot.bpm/60*Double(ppq)).rounded(.down))
                     let short=range.lowerBound..<min(range.upperBound,range.lowerBound+max(barTicks,seconds))
                     let wav=folder.appendingPathComponent("ringtone.wav")
-                    _ = try await OfflineRenderer.render(snapshot,to:wav,settings:WAVSettings(sampleRate:settings.sampleRate,bitDepth:settings.bitDepth,tailSeconds:0.5),range:short,samples:samples,progress:progress)
+                    _ = try await OfflineRenderer.render(snapshot,to:wav,settings:WAVSettings(sampleRate:settings.sampleRate,bitDepth:settings.bitDepth,tailSeconds:0.5),range:short,samples:samples,takes:takes,progress:progress)
+                    // 54: the song's effect plugins process the mix, as heard live.
+                    if !effects.isEmpty{try await PluginHost.process(wav,through:effects)}
                     try await Task.detached(priority:.userInitiated){try AACEncoder.encode(wav:wav,to:url)}.value
                     try? FileManager.default.removeItem(at:wav)
                 case .musicxml:
                     // I49: melody, chord symbols, lyrics and section marks for notation apps.
                     try MusicXMLExporter.data(snapshot).write(to:url,options:.atomic)
+                case .dawproject:
+                    // 54: notes and aligned audio per track, tempo, levels and markers in the open format.
+                    let version=(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0")+" ("+(Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "")+")"
+                    let entries=DAWProject.entries(snapshot,range:range,settings:settings,version:version)
+                    _ = try await StemExporter.render(snapshot,to:url,settings:settings,range:range,selected:nil,samples:samples,takes:takes,extras:entries,progress:progress)
                 case .daw:
                     // I14: every track as an aligned stem, plus song.mid and a README.
                     let extras=try DAWPackage.extras(snapshot,range:range,settings:settings)
-                    _ = try await StemExporter.render(snapshot,to:url,settings:settings,range:range,selected:nil,samples:samples,extras:extras,progress:progress)
+                    _ = try await StemExporter.render(snapshot,to:url,settings:settings,range:range,selected:nil,samples:samples,takes:takes,extras:extras,progress:progress)
                 case .aac:
                     let wav=folder.appendingPathComponent("mix.wav")
-                    let receipt:RenderReceipt;if let performance{receipt=try await OfflineRenderer.renderPerformance(performance,to:wav,settings:settings,samples:samples,progress:progress)}else{receipt=try await OfflineRenderer.render(snapshot,to:wav,settings:settings,range:range,samples:samples,progress:progress)}
+                    let receipt:RenderReceipt;if let performance{receipt=try await OfflineRenderer.renderPerformance(performance,to:wav,settings:settings,samples:samples,progress:progress)}else{receipt=try await OfflineRenderer.render(snapshot,to:wav,settings:settings,range:range,samples:samples,takes:takes,progress:progress)}
                     if receipt.clipped{exportWarning="Clipping was detected. Lower track or master gain for a cleaner export."}
+                    // 54: the song's effect plugins process the mix, as heard live.
+                    if !effects.isEmpty{try await PluginHost.process(wav,through:effects)}
                     try await Task.detached(priority:.userInitiated){try AACEncoder.encode(wav:wav,to:url)}.value
                     try? FileManager.default.removeItem(at:wav)
                 case .video:
                     // I67: the same mix as WAV, then frames drawn offline and joined into an MP4.
                     let wav=folder.appendingPathComponent("mix.wav")
                     let half:@Sendable(Double)->Void={value in progress(value*0.5)}
-                    let receipt=try await OfflineRenderer.render(snapshot,to:wav,settings:settings,range:range,samples:samples,progress:half)
+                    let receipt=try await OfflineRenderer.render(snapshot,to:wav,settings:settings,range:range,samples:samples,takes:takes,progress:half)
                     if receipt.clipped{exportWarning="Clipping was detected. Lower track or master gain for a cleaner export."}
-                    try await Task.detached(priority:.userInitiated){try await VideoExporter.encode(wav:wav,project:snapshot,range:range,to:url,progress:progress)}.value
+                    let style=videoStyle,credit=videoCredit
+                    if !effects.isEmpty{try await PluginHost.process(wav,through:effects)}
+                    try await Task.detached(priority:.userInitiated){try await VideoExporter.encode(wav:wav,project:snapshot,range:range,to:url,style:style,credit:credit,progress:progress)}.value
                     try? FileManager.default.removeItem(at:wav)
                 }
                 try Task.checkCancellation();guard generation==exportGeneration else{return}
@@ -1364,6 +1414,184 @@ import Observation
         exportedFolder=nil
         if let warning=exportWarning{message=warning;exportWarning=nil}
     }
+    // MARK: 54 · Audio tracks
+
+    /// Takes the audio tracks use, decoded into the engine (and for exports); unused ones are let go.
+    @ObservationIgnored private var loadingTakes=false
+    /// Takes that could not be read (shown on the audio tracks screen, not retried on every sync).
+    private(set) var unreadableTakes:Set<UUID>=[]
+    func loadAudioTakes() async {
+        guard !loadingTakes else { return }
+        loadingTakes=true;defer{loadingTakes=false}
+        let projectID=project.id
+        let used=Set((project.audioTracks ?? []).flatMap{$0.clips.map(\.assetID)})
+        for record in (project.audioAssets ?? []) where used.contains(record.id) && !audio.hasTake(record.id) {
+            guard !unreadableTakes.contains(record.id) else { continue }
+            guard let url=try? await store.assetURL(record,projectID:projectID),project.id==projectID,
+                  let read=try? await Task.detached(priority:.userInitiated,operation:{try AudioTakeReader.samples(Data(contentsOf:url))}).value else { unreadableTakes.insert(record.id); continue }
+            audio.insertTake(record.id,samples:read.samples,rate:read.rate)
+        }
+        guard project.id==projectID else { return }
+        audio.retainTakes(used)
+        sync()
+    }
+    /// True while a take the song uses is not in the engine yet.
+    var audioTakesMissing:Bool { (project.audioTracks ?? []).contains{$0.clips.contains{!audio.hasTake($0.assetID) && !unreadableTakes.contains($0.assetID)}} }
+
+    @discardableResult func addAudioTrack() -> UUID? {
+        var made:UUID?
+        let name=String(format:NSLocalizedString("Audio %d",comment:"Audio track name"),(project.audioTracks?.count ?? 0)+1)
+        edit{made=try AudioTrackEditing.addTrack(named:name,to:&$0)}
+        return made
+    }
+    /// The compensation for this output: the calibrated value, else the system's round trip.
+    var recordingLatency:Double {
+        if let calibrated=routeLatency[currentRouteKey]{return max(0,calibrated/1000)}
+        let session=AVAudioSession.sharedInstance()
+        return max(0,min(0.5,session.inputLatency+session.outputLatency))
+    }
+    /// A finished take goes on its track where it was recorded, as one undoable edit.
+    func applyAudioTake(_ result:AudioTakeResult,trackID:UUID,startTick:Int,projectID:UUID,latency:Double?=nil) async -> Bool {
+        guard project.id==projectID,!recording,!armed,!performance.contextActive else { message=AssistantError.stale.localizedDescription; return false }
+        do {
+            try await store.writeAsset(result.data,record:result.record,projectID:projectID)
+            guard project.id==projectID else { await store.removeStagedAsset(result.record,projectID:projectID); return false }
+            var candidate=project
+            try AudioTrackEditing.place(result.record,on:trackID,at:startTick,latency:latency ?? recordingLatency,in:&candidate)
+            try withHistoryTransaction{h,p in try h.apply(&p){$0=candidate}}
+            audio.insertTake(result.record.id,samples:result.samples,rate:result.record.sampleRate)
+            sync();await save()
+            showToast("Take added")
+            return saveError==nil
+        } catch {
+            await store.removeStagedAsset(result.record,projectID:projectID)
+            message=error.localizedDescription;return false
+        }
+    }
+
+    /// UI tests: an audio track with a two-second synthetic take at bar 1 (there is no microphone in CI).
+    func installAudioFixture() async {
+        guard project.audioTracks == nil, let track=addAudioTrack() else { return }
+        // A 330 Hz tone with a short fade-out, spelled out so the type checker stays quick.
+        let count=96000
+        var samples=[Float](repeating:0,count:count)
+        for index in 0..<count {
+            let phase:Double=Double(index)/48000.0*2.0*Double.pi*330.0
+            let fade:Double=min(1.0,Double(count-index)/4800.0)
+            samples[index]=Float(sin(phase)*0.3*fade)
+        }
+        let data=AudioTakeReader.caf(samples,rate:48000)
+        guard let sha=try? AssetIntegrity.sha256(data) else { return }
+        let record=AudioAssetRecord(sha256:sha,byteCount:data.count,sampleRate:48000,duration:2,origin:.syntheticFixture)
+        _ = await applyAudioTake(AudioTakeResult(data:data,record:record,samples:samples),trackID:track,startTick:0,projectID:project.id,latency:0)
+    }
+
+    // MARK: 54 · Plugins (AUv3)
+
+    @ObservationIgnored private var buildingMasterChain=false
+    /// Connects the song's effect plugins after the mix when they change.
+    func syncMasterPlugins() {
+        let active=PluginEditing.activeMasterEffects(project)
+        let signature=active.map(\.id.uuidString)
+        guard !audio.masterChainCurrent(signature),!buildingMasterChain,audio.isPrepared else { return }
+        buildingMasterChain=true
+        Task{@MainActor in
+            defer{buildingMasterChain=false}
+            var units:[AVAudioUnit]=[]
+            for reference in active{
+                do{units.append(try await PluginHost.instantiateLive(reference))}
+                catch{message=String(format:NSLocalizedString("“%@”: %@",comment:"Plugin error"),reference.name,error.localizedDescription)}
+            }
+            audio.setMasterEffects(units,signature:signature)
+        }
+    }
+    /// The live instance of a master effect, for its own screen.
+    func liveMasterUnit(_ id:UUID)->AVAudioUnit?{
+        guard let index=PluginEditing.activeMasterEffects(project).firstIndex(where:{$0.id==id}),audio.masterUnits.indices.contains(index) else{return nil}
+        return audio.masterUnits[index]
+    }
+    var bounceProgress:Double?
+    /// Plays a MIDI track through an instrument plugin offline and puts the result on an audio
+    /// track (the source is muted; "Bounce again" replaces the take).
+    @discardableResult func bounce(trackID:UUID,plugin:PluginReference) async -> Bool {
+        let projectID=project.id
+        let notes=PluginEditing.bounceNotes(project,track:trackID)
+        guard !notes.isEmpty else{message=NSLocalizedString("This track has no notes to play.",comment:"Bounce");return false}
+        let seconds=AudioTrackEditing.seconds(ticks:project.length,bpm:project.bpm)+2
+        bounceProgress=0;defer{bounceProgress=nil}
+        do {
+            let samples=try await PluginHost.bounce(plugin,notes:notes,seconds:seconds,progress:{value in Task{@MainActor in self.bounceProgress=value}})
+            let data=AudioTakeReader.caf(samples,rate:48000)
+            let record=AudioAssetRecord(sha256:try AssetIntegrity.sha256(data),byteCount:data.count,sampleRate:48000,duration:Double(samples.count)/48000,origin:.plugin,recordedAt:Date())
+            guard project.id==projectID else{return false}
+            try await store.writeAsset(data,record:record,projectID:projectID)
+            var candidate=project
+            try PluginEditing.placeBounce(record,source:trackID,plugin:plugin,in:&candidate)
+            try withHistoryTransaction{h,p in try h.apply(&p){$0=candidate}}
+            audio.insertTake(record.id,samples:samples,rate:48000)
+            sync();await save()
+            showToast("Bounced to an audio track")
+            return saveError==nil
+        } catch { message=error.localizedDescription;return false }
+    }
+
+    // MARK: 54 · Harmony course and assignments
+
+    /// "Try it": an empty song in `root` with the lesson's exercise, checked as you write.
+    @discardableResult func startLesson(_ lesson:Lesson,root:Int) async -> Bool {
+        do {
+            let name=NSLocalizedString(lesson.title,comment:"Lesson")
+            return await saveNewProject(try HarmonyCourse.workspace(lesson,root:root,name:name))
+        } catch { message=error.localizedDescription; return false }
+    }
+    /// A teacher's assignment as a new song, then the export sheet to send its project file.
+    @discardableResult func shareAssignment(_ assignment:HarmonyAssignment,bars:Int=4) async -> Bool {
+        do {
+            let name=String(format:NSLocalizedString("Assignment: %@",comment:"Assignment project"),NSLocalizedString(assignment.title,comment:"Lesson"))
+            guard await saveNewProject(try assignment.project(name:name,bars:bars)) else { return false }
+            exportPreset=ExportFormat.project.rawValue;sheet = .export
+            return true
+        } catch { message=error.localizedDescription; return false }
+    }
+    /// The student signs the song and sends its project file back.
+    func submitAssignment(student:String) {
+        let name=student.trimmingCharacters(in:.whitespacesAndNewlines)
+        guard project.harmonyAssignment != nil,!name.isEmpty else { return }
+        edit{$0.harmonyAssignment?.student=String(name.prefix(60));$0.harmonyAssignment?.submittedAt=Date()}
+        exportPreset=ExportFormat.project.rawValue;sheet = .export
+    }
+    /// Results of students' songs this teacher has opened, newest first (kept on this iPhone).
+    private(set) var assignmentResults:[AssignmentResult]={
+        guard let data=UserDefaults.standard.data(forKey:"teacher.results"),let list=try? JSONDecoder().decode([AssignmentResult].self,from:data) else{return []}
+        return list
+    }()
+    func recordAssignmentResult(_ project:Project) {
+        guard let result=AssignmentResult(project) else { return }
+        assignmentResults.removeAll{$0.id==result.id}
+        assignmentResults.insert(result,at:0)
+        assignmentResults=Array(assignmentResults.prefix(200))
+        if let data=try? JSONEncoder().encode(assignmentResults){UserDefaults.standard.set(data,forKey:"teacher.results")}
+    }
+    func clearAssignmentResults(){assignmentResults=[];UserDefaults.standard.removeObject(forKey:"teacher.results")}
+
+    /// 54 · "Make your version": the song in a remix link becomes a new project of its own,
+    /// with the original title and author kept as its credit.
+    func openRemix(_ url:URL) async {
+        guard let payload=RemixLink.payload(from:url) else { message=RemixLink.Failure.damaged.localizedDescription; return }
+        do {
+            let project=try await Task.detached(priority:.userInitiated){try RemixLink.project(from:payload)}.value
+            guard await saveNewProject(project) else { return }
+            let credit=project.remixOf
+            showToast(credit?.author.map{String(format:NSLocalizedString("Your version of “%@” by %@",comment:"Remix opened"),credit?.title ?? "",$0)}
+                      ?? String(format:NSLocalizedString("Your version of “%@”",comment:"Remix opened"),credit?.title ?? project.name))
+        } catch { message=error.localizedDescription }
+    }
+    /// 54 · The link that shares this song for others to make their version.
+    func remixLink(author:String?) throws -> URL {
+        let name=author?.trimmingCharacters(in:.whitespacesAndNewlines) ?? ""
+        return try RemixLink.link(project,author:name.isEmpty ? nil:name)
+    }
+
     func importProject(_ url:URL) async {
         guard let token=beginProjectChange()else{return}
         importing=true;defer{importing=false;endProjectChange(token)}
@@ -1388,6 +1616,8 @@ import Observation
             try await projectChangeBoundary(token,expected:expected,stage:"candidate.saved")
             activateProject(installed,savedRevision:installed.revision,samples:samples)
             await refreshLibraryEntry(installed.id,validated:true)
+            // 54: a student's song sent back is scored for the teacher.
+            recordAssignmentResult(installed)
         }catch{if let written{await retainUnopenedProject(written)}else{message=error.localizedDescription}}
     }
     /// I78: bring a co-author's edited copy into the open project as one Undo.

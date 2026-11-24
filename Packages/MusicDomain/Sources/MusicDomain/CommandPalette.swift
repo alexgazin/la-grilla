@@ -5,7 +5,7 @@ public enum CommandID: String, CaseIterable, Codable, Sendable {
     case play, record, undo, redo, loop
     case tempo, key, transpose, addSection, duplicateSection, addMelody, deleteLastTake
     case grid, jam, mixer, notes, voice, assistant, harmony, palettes, sections, bass, perform
-    case settings, projects, newProject, export, history, versions, trash, midiDevices, chordImport, lyrics, master, focusSection, practice, mood, doctor, earTraining, repeatLast, coNotes, vj, help, continueIdea, grooves, practicePlayer, beatMachine, tuner, markers, dynamics, louder, quieter, brighter, warmer, moreSpace
+    case settings, projects, newProject, export, history, versions, trash, midiDevices, chordImport, lyrics, master, focusSection, practice, mood, doctor, earTraining, repeatLast, coNotes, vj, help, continueIdea, grooves, practicePlayer, beatMachine, tuner, markers, dynamics, louder, quieter, brighter, warmer, moreSpace, course, audioTracks, plugins
 }
 
 /// What a command needs from the query.
@@ -136,6 +136,12 @@ public enum CommandCatalog {
               synonyms: ["warmer", "more low end", "softer highs", "теплее", "сделай теплее", "больше низов", "мягче"]),
         .init(id: .moreSpace, title: "More space", symbol: "sparkles", parameter: nil,
               synonyms: ["more space", "more echo", "wider", "больше простора", "больше эха", "просторнее", "объёмнее"]),
+        .init(id: .audioTracks, title: "Record audio", symbol: "mic.circle", parameter: nil,
+              synonyms: ["record audio", "record vocals", "audio track", "record guitar", "sing over", "записать голос", "записать вокал", "аудиодорожка", "записать гитару", "запись звука", "спеть"]),
+        .init(id: .plugins, title: "Plugins (AUv3)", symbol: "puzzlepiece.extension", parameter: nil,
+              synonyms: ["plugins", "auv3", "audio unit", "effect plugin", "instrument plugin", "bounce", "плагины", "плагин", "эффект", "инструмент", "аудиоюнит"]),
+        .init(id: .course, title: "Harmony course", symbol: "graduationcap", parameter: nil,
+              synonyms: ["course", "lessons", "learn harmony", "theory", "assignment", "teacher", "курс", "уроки", "теория", "гармония", "задание", "учитель", "научиться"]),
         .init(id: .tuner, title: "Tuner", symbol: "tuningfork", parameter: nil,
               synonyms: ["tuner", "tune guitar", "tune", "pitch", "тюнер", "настроить гитару", "настройка гитары", "строй", "настроить"]),
         .init(id: .markers, title: "Markers", symbol: "flag", parameter: nil,

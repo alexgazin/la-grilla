@@ -23,7 +23,7 @@ struct LGInput {
     LGInput(double r,uint32_t c,uint64_t s,double t,uint64_t l):rate(r),ticksPerSecond(t),capacity(c),start(s),maximumLimit(l),limit(l),samples(new float[c]){}
 };
 extern "C" LGInput *lg_input_create(double rate,uint32_t capacity,uint64_t start,double ticks,uint64_t limit){
-    if(!std::isfinite(rate)||rate<8000||rate>192000||capacity<64||capacity>1048576||!std::isfinite(ticks)||ticks<=0||!limit||limit>uint64_t(rate*30.25))return nullptr;
+    if(!std::isfinite(rate)||rate<8000||rate>192000||capacity<64||capacity>1048576||!std::isfinite(ticks)||ticks<=0||!limit||limit>uint64_t(rate*120.25))return nullptr;
     try{return new LGInput(rate,capacity,start,ticks,limit);}catch(...){return nullptr;}
 }
 extern "C" void lg_input_destroy(LGInput *input){delete input;}

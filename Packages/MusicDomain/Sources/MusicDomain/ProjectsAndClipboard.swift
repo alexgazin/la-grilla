@@ -162,12 +162,12 @@ public enum StorageUsage {
 public enum WhatsNew {
     public struct Item: Equatable, Sendable { public let symbol: String; public let title: String; public let detail: String; public let command: CommandID? }
     public static let items: [Item] = [
-        .init(symbol: "hand.tap", title: "Hold to hear, everywhere", detail: "Hold a chord, a note, a sound, a beat or a song picture: it plays while you hold and nothing changes.", command: .grid),
-        .init(symbol: "scissors", title: "Slice a loop your way", detail: "See the cuts on the waveform, move or add them, hear each slice, then put them on pads 1–16.", command: .jam),
-        .init(symbol: "arrow.uturn.backward.circle", title: "Unsaved changes come back", detail: "After a crash La Grilla offers to restore what you did since the last save, with one Undo.", command: nil),
-        .init(symbol: "pianokeys", title: "Your own 808 and MIDI learn", detail: "Play the bass line with your own sound in Beat machine; in the synth or EQ, Assign a MIDI knob.", command: .beatMachine),
-        .init(symbol: "speaker.wave.2", title: "Compare at the same loudness", detail: "EQ with and without, matched within half a decibel, so louder never sounds better by accident.", command: .mixer),
-        .init(symbol: "leaf", title: "Eco mode and hints", detail: "Low Power Mode calms the screen, never the sound; Assistant and new songs suggest words to start with.", command: .settings),
+        .init(symbol: "bolt.fill", title: "Track in a minute", detail: "Pick a genre: a verse and a chorus with beat, 808, chords and melody, then a 15-second clip to post.", command: .newProject),
+        .init(symbol: "mic.circle", title: "Record audio over the song", detail: "Sing or play on up to four audio tracks; move, trim and balance every take.", command: .audioTracks),
+        .init(symbol: "link", title: "Remix links", detail: "Share a link that opens your song in La Grilla for someone to make their version, with your name on it.", command: .export),
+        .init(symbol: "graduationcap", title: "Harmony course", detail: "Ten short lessons checked on your own song, and assignments to send to students.", command: .course),
+        .init(symbol: "puzzlepiece.extension", title: "Plugins and DAWproject", detail: "AUv3 effects after the mix, instruments bounced to audio, and projects for Cubase, Studio One and Bitwig.", command: .plugins),
+        .init(symbol: "flag.checkered", title: "Challenge of the week", detail: "The same musical challenge for everyone each week, checked on your song.", command: .projects),
     ]
     /// Shown when the build changed since it was last shown (never on a fresh install's first launch).
     public static func shouldShow(lastShownBuild: String?, currentBuild: String) -> Bool {

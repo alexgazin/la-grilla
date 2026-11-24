@@ -22,7 +22,9 @@ void operator delete[](void *p,std::size_t)noexcept{std::free(p);}
 int main(){
     assert(!lg_input_create(0,256,0,1e9,100));
     assert(!lg_input_create(48000,0,0,1e9,100));
-    assert(!lg_input_create(48000,256,0,1e9,48000*31));
+    // 54: audio-track takes run to two minutes (voice-to-MIDI still asks for 30 s itself).
+    assert(!lg_input_create(48000,256,0,1e9,48000*121));
+    {auto *twoMinutes=lg_input_create(48000,256,0,1e9,48000*120);assert(twoMinutes);lg_input_destroy(twoMinutes);}
     auto *prepared=lg_input_create(8000,128,UINT64_MAX,8000,64);assert(prepared);
     float preflight[64]={};const float *preflightChannel[1]={preflight};
     assert(lg_input_push(prepared,preflightChannel,1,64,0,100)==0);

@@ -87,7 +87,7 @@ private final class VoiceConversionInput:@unchecked Sendable {
 
 /// AVAudioFile and converter are confined to the input drain's serial worker.
 /// The original capture remains mono 48 kHz Float32 CAF regardless of input route.
-private final class VoicePCMSink:@unchecked Sendable {
+final class VoicePCMSink:@unchecked Sendable {
     private var file:AVAudioFile?
     private let converter:AVAudioConverter?
     private let outputFormat:AVAudioFormat

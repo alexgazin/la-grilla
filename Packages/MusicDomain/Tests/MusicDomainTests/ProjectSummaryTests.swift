@@ -82,12 +82,12 @@ struct ProjectSummaryTests {
         let broken = try await store.listSummaries()
         #expect(broken.count == 1 && broken[0].summary == nil && broken[0].error != nil && broken[0].hasBackup)
         var future = try json(project)
-        future["schemaVersion"] = Project.currentSchemaVersion + 1
+        future["schemaVersion"] = Project.newestSchemaVersion + 1
         try write(future, to: url)
         let unsupported = await store.summary(project.id)
         #expect(unsupported.summary == nil && unsupported.error == MusicError.unsupportedSchema.localizedDescription)
         var nested = try json(project)
-        nested["performanceTakes"] = [["source": ["schemaVersion": Project.currentSchemaVersion + 1]]]
+        nested["performanceTakes"] = [["source": ["schemaVersion": Project.newestSchemaVersion + 1]]]
         try write(nested, to: url)
         let futureSource = await store.summary(project.id)
         #expect(futureSource.summary == nil && futureSource.error == MusicError.unsupportedSchema.localizedDescription)

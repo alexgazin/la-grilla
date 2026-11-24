@@ -144,7 +144,7 @@ struct ChordCatalogTests {
     @Test func futureSchemaIsRejectedBeforeUnknownChordVocabularyIsDecoded() throws {
         let project=Project.demo()
         var future=try JSONSerialization.jsonObject(with:JSONEncoder().encode(project)) as! [String:Any]
-        future["schemaVersion"]=Project.currentSchemaVersion+1
+        future["schemaVersion"]=Project.newestSchemaVersion+1
         var patterns=future["patterns"] as! [[String:Any]],chords=patterns[0]["chords"] as! [[String:Any]]
         var chord=chords[0]["chord"] as! [String:Any];chord["quality"]="future-chord-type";chords[0]["chord"]=chord;patterns[0]["chords"]=chords;future["patterns"]=patterns
         var parent=project;parent.performanceTake=PerformanceTake(source:project,sampleRate:48000,durationFrames:48000,events:[PerformanceEvent(frame:0,kind:.section,sectionID:project.sections[0].id)])

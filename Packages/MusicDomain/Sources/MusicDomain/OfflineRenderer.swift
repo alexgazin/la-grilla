@@ -43,16 +43,16 @@ public enum OfflineRenderer {
         try take.validate();return try await render(take.source,to:url,settings:settings,performance:take,samples:samples,progress:progress)
     }
     /// Compiles an immutable value snapshot; the live AVAudioEngine is never touched.
-    public static func render(_ project: Project, to url: URL, settings: WAVSettings = WAVSettings(), range requested: Range<Int>? = nil, isolatedTrack: UUID? = nil, performance:PerformanceTake?=nil, samples: SampleLibrary = SampleLibrary(), progress: @Sendable (Double) -> Void = { _ in }) async throws -> RenderReceipt {
+    public static func render(_ project: Project, to url: URL, settings: WAVSettings = WAVSettings(), range requested: Range<Int>? = nil, isolatedTrack: UUID? = nil, performance:PerformanceTake?=nil, samples: SampleLibrary = SampleLibrary(), takes: AudioTakeLibrary = AudioTakeLibrary(), progress: @Sendable (Double) -> Void = { _ in }) async throws -> RenderReceipt {
         try Task.checkCancellation(); try project.validate(); try settings.validate()
         let range = requested ?? 0..<project.length
         guard range.lowerBound >= 0, range.upperBound <= project.length, !range.isEmpty else { throw ExportError.invalidRange }
         if let performance{try performance.validate();guard isolatedTrack==nil,project==performance.source,requested==nil else{throw ExportError.invalidSettings}}
-        if let isolatedTrack, !project.tracks.contains(where: {$0.id == isolatedTrack}) { throw ExportError.invalidSettings }
+        if let isolatedTrack, !project.tracks.contains(where: {$0.id == isolatedTrack}), !(project.audioTracks ?? []).contains(where: {$0.id == isolatedTrack}) { throw ExportError.invalidSettings }
         guard let kernel = lg_create(Double(settings.sampleRate)) else { throw ExportError.renderUnavailable }
         defer { lg_destroy(kernel) }
         for (index,track) in project.tracks.enumerated(){_ = lg_preset_version(kernel,Int32(index),Int32(track.presetVersion))}
-        let anySolo=project.tracks.contains(where: \.solo)
+        let anySolo=project.tracks.contains(where: \.solo) || (project.audioTracks ?? []).contains(where: \.solo)
         let audible=Set(project.tracks.enumerated().filter { _,track in !track.mute && (!anySolo || track.solo) && (isolatedTrack == nil || track.id==isolatedTrack) }.map(\.offset))
         let compiled = Compiler.notes(project, range: range).filter{performance != nil || audible.contains($0.track)}
         let notes = compiled.map { LGNote(tick: Int32($0.tick), duration: Int32($0.duration), pitch: Int32($0.pitch), velocity: Int32($0.velocity), track: Int32($0.track), pad: Int32($0.pad),instrument:Int32($0.instrument)) }
@@ -65,7 +65,9 @@ public enum OfflineRenderer {
             }
         }
         guard submitted != 0 else { throw ExportError.renderUnavailable }
-        let solo = project.tracks.contains(where: \.solo)
+        let solo = project.tracks.contains(where: \.solo) || (project.audioTracks ?? []).contains(where: \.solo)
+        // 54: recorded audio tracks play with the song (not in performance replays).
+        if performance == nil { guard AudioTakeLibrary.submit(project, range: range, kernel: kernel, takes: takes, isolated: isolatedTrack) else { throw ExportError.renderUnavailable } }
         for (index, track) in project.tracks.enumerated() {
             let audible = !track.mute && (!solo || track.solo) && (isolatedTrack == nil || isolatedTrack == track.id)
             lg_mix(kernel, Int32(index), Float(track.gain), Float(track.pan), audible ? 1 : 0)

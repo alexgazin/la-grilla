@@ -9,14 +9,17 @@ import MusicDomain
 enum VideoExporter {
     enum Failure: Error { case writer, pixels }
 
+    /// 54: `style` picks the picture (note map, pads or levels); `credit` adds "Made with La Grilla".
     static func encode(wav: URL, project: Project, range: Range<Int>, to url: URL, fps: Int = 30,
+                       style: VideoStyle = .map, credit: Bool = true,
                        progress: @escaping @Sendable (Double) -> Void) async throws {
         let audio = AVURLAsset(url: wav)
         let seconds = try await audio.load(.duration).seconds
         let board = VideoStoryboard(project: project, range: range, seconds: seconds, fps: fps)
+        let roles = project.tracks.map(\.role)
         let silent = url.deletingLastPathComponent().appendingPathComponent("frames-\(UUID().uuidString).mov")
         defer { try? FileManager.default.removeItem(at: silent) }
-        try await writeFrames(board, to: silent, progress: progress)
+        try await writeFrames(board, style: style, credit: credit, roles: roles, to: silent, progress: progress)
         try await mux(video: silent, audio: audio, to: url)
     }
 
@@ -24,7 +27,8 @@ enum VideoExporter {
 
     private static let width = Int(VideoStoryboard.width), height = Int(VideoStoryboard.height)
 
-    private static func writeFrames(_ board: VideoStoryboard, to url: URL, progress: @escaping @Sendable (Double) -> Void) async throws {
+    private static func writeFrames(_ board: VideoStoryboard, style: VideoStyle, credit: Bool, roles: [TrackRole], to url: URL,
+                                    progress: @escaping @Sendable (Double) -> Void) async throws {
         let writer = try AVAssetWriter(outputURL: url, fileType: .mov)
         let input = AVAssetWriterInput(mediaType: .video, outputSettings: [
             AVVideoCodecKey: AVVideoCodecType.h264, AVVideoWidthKey: width, AVVideoHeightKey: height,
@@ -37,7 +41,7 @@ enum VideoExporter {
         writer.add(input)
         guard writer.startWriting() else { throw writer.error ?? Failure.writer }
         writer.startSession(atSourceTime: .zero)
-        guard let background = backgroundImage(board) else { throw Failure.pixels }
+        guard let background = backgroundImage(board, style: style, credit: credit, roles: roles) else { throw Failure.pixels }
         for frame in 0..<board.frames {
             try Task.checkCancellation()
             while !input.isReadyForMoreMediaData { try await Task.sleep(for: .milliseconds(4)) }
@@ -50,7 +54,11 @@ enum VideoExporter {
                                               bytesPerRow: CVPixelBufferGetBytesPerRow(pixels), space: CGColorSpace(name: CGColorSpace.sRGB)!,
                                               bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue) else { return false }
                 context.draw(background, in: CGRect(x: 0, y: 0, width: width, height: height))
-                drawPlayhead(board, frame: frame, in: context)
+                switch style {
+                case .map: drawPlayhead(board, frame: frame, in: context)
+                case .pads: drawPads(board, frame: frame, in: context); drawProgress(board, frame: frame, in: context)
+                case .levels: drawLevels(board, frame: frame, roles: roles, in: context); drawProgress(board, frame: frame, in: context)
+                }
                 return true
             }()
             CVPixelBufferUnlockBaseAddress(pixels, [])
@@ -77,7 +85,7 @@ enum VideoExporter {
     }
     private static let sectionColours: [UInt32] = [0xE5BE69, 0xB7BCEF, 0x85D6C3, 0xD8F780]
 
-    private static func backgroundImage(_ board: VideoStoryboard) -> CGImage? {
+    private static func backgroundImage(_ board: VideoStoryboard, style: VideoStyle, credit: Bool, roles: [TrackRole]) -> CGImage? {
         guard let context = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,
                                       space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue) else { return nil }
         context.setFillColor(colour(0x0C0E12)); context.fill(CGRect(x: 0, y: 0, width: width, height: height))
@@ -91,12 +99,70 @@ enum VideoExporter {
             context.addPath(CGPath(roundedRect: rect(band.x + 2, m.y - 110, max(2, band.width - 4), 64), cornerWidth: 14, cornerHeight: 14, transform: nil)); context.fillPath()
             if band.width > 90 { text(band.name, size: 28, weight: 0.3, colour: 0x0C0E12, x: band.x + 16, y: m.y - 92, in: context) }
         }
-        for block in board.blocks {
-            context.setFillColor(colour(roleColour(block.role), alpha: 0.9))
-            context.fill(rect(block.x, block.y, block.width, block.height))
+        switch style {
+        case .map:
+            for block in board.blocks {
+                context.setFillColor(colour(roleColour(block.role), alpha: 0.9))
+                context.fill(rect(block.x, block.y, block.width, block.height))
+            }
+        case .pads:
+            for pad in 0..<16 {
+                context.setFillColor(colour(0x232A33))
+                context.addPath(CGPath(roundedRect: padRect(pad), cornerWidth: 28, cornerHeight: 28, transform: nil)); context.fillPath()
+            }
+        case .levels:
+            for (index, role) in roles.enumerated() {
+                let bar = levelRect(index, count: roles.count, level: 1)
+                context.setFillColor(colour(0x232A33)); context.fill(bar)
+                text(NSLocalizedString(role.rawValue.capitalized, comment: "Track role"), size: 26, weight: 0.3, colour: 0xA8B2BE,
+                     x: bar.minX + 8, y: m.y + m.height + 16, in: context)
+            }
         }
-        text(NSLocalizedString("Made with La Grilla", comment: "Video credit"), size: 30, weight: 0, colour: 0x6F7B88, x: 60, y: 1780, in: context)
+        if credit { text(NSLocalizedString("Made with La Grilla", comment: "Video credit"), size: 30, weight: 0, colour: 0x6F7B88, x: 60, y: 1780, in: context) }
         return context.makeImage()
+    }
+
+    /// 54 · Pad `index` of the 4×4 grid (pad 0 bottom left, like the Jam screen).
+    private static func padRect(_ index: Int) -> CGRect {
+        let m = VideoStoryboard.map, gap = 18.0
+        let side = min((m.width - 3 * gap) / 4, (m.height - 3 * gap) / 4)
+        let left = m.x + (m.width - (4 * side + 3 * gap)) / 2, top = m.y + (m.height - (4 * side + 3 * gap)) / 2
+        let column = Double(index % 4), row = Double(3 - index / 4)
+        return rect(left + column * (side + gap), top + row * (side + gap), side, side)
+    }
+
+    private static func drawPads(_ board: VideoStoryboard, frame: Int, in context: CGContext) {
+        for (pad, brightness) in board.pads(frame: frame) {
+            context.setFillColor(colour(0xB7BCEF, alpha: CGFloat(0.25 + 0.75 * brightness)))
+            context.addPath(CGPath(roundedRect: padRect(pad), cornerWidth: 28, cornerHeight: 28, transform: nil)); context.fillPath()
+        }
+    }
+
+    /// 54 · Track `index`'s bar, `level` (0…1) of the full height, rising from the bottom.
+    private static func levelRect(_ index: Int, count: Int, level: Double) -> CGRect {
+        let m = VideoStoryboard.map, gap = 20.0
+        let width = (m.width - gap * Double(max(0, count - 1))) / Double(max(1, count))
+        let height = max(0, min(1, level)) * m.height
+        return rect(m.x + Double(index) * (width + gap), m.y + m.height - height, width, height)
+    }
+
+    private static func drawLevels(_ board: VideoStoryboard, frame: Int, roles: [TrackRole], in context: CGContext) {
+        for (index, level) in board.levels(frame: frame).enumerated() where level > 0 && index < roles.count {
+            context.setFillColor(colour(roleColour(roles[index]), alpha: 0.95))
+            context.fill(levelRect(index, count: roles.count, level: level))
+        }
+    }
+
+    /// 54 · A thin bar under the picture for the animated styles, with the current section outlined.
+    private static func drawProgress(_ board: VideoStoryboard, frame: Int, in context: CGContext) {
+        let m = VideoStoryboard.map, x = board.playheadX(frame: frame)
+        context.setFillColor(colour(0x2C343F)); context.fill(rect(m.x, m.y + m.height + 70, m.width, 10))
+        context.setFillColor(colour(0xFF858D)); context.fill(rect(m.x, m.y + m.height + 70, max(0, x - m.x), 10))
+        if let index = board.section(frame: frame) {
+            let band = board.sections[index]
+            context.setStrokeColor(colour(0xF3F5F0)); context.setLineWidth(4)
+            context.addPath(CGPath(roundedRect: rect(band.x + 2, m.y - 110, max(2, band.width - 4), 64), cornerWidth: 14, cornerHeight: 14, transform: nil)); context.strokePath()
+        }
     }
 
     private static func drawPlayhead(_ board: VideoStoryboard, frame: Int, in context: CGContext) {

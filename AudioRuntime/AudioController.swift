@@ -119,6 +119,54 @@ private enum AudioRender {
 }
 @MainActor @Observable final class AudioController {
     @ObservationIgnored var samples = SampleLibrary()
+    /// 54 · Decoded takes of audio tracks (exports read them) and their kernel buffers, made once
+    /// per take so a sync never copies a recording again.
+    @ObservationIgnored private(set) var takes = AudioTakeLibrary()
+    @ObservationIgnored private var liveTakes:[UUID:OpaquePointer]=[:]
+    @ObservationIgnored private var submittedAudio:(kernel:OpaquePointer,clips:[AudioTrackEditing.KernelClip],lanes:[[Float]])?
+    func insertTake(_ id:UUID,samples:[Float],rate:Double){
+        takes.insert(id,samples:samples,rate:rate)
+        if liveTakes[id]==nil,let buffer=samples.withUnsafeBufferPointer({lg_audio_create($0.baseAddress,Int32(clamping:$0.count),Int32(rate.rounded()))}){liveTakes[id]=buffer}
+        submittedAudio=nil
+    }
+    func retainTakes(_ ids:Set<UUID>){
+        takes.retainOnly(ids)
+        for (id,buffer) in liveTakes where !ids.contains(id){lg_audio_release(buffer);liveTakes[id]=nil}
+    }
+    func hasTake(_ id:UUID)->Bool{liveTakes[id] != nil}
+    /// Hands the audio clips to the kernel when they changed (missing takes wait for loading).
+    @discardableResult func submitAudio(_ p:Project)->Bool {
+        guard let k=handle?.pointer else{return false}
+        let clips=AudioTrackEditing.kernelClips(p).filter{liveTakes[$0.assetID] != nil}
+        let lanes=(p.audioTracks ?? []).prefix(AudioTrackEditing.maximumTracks).map{track in
+            LGTrackMix(gainDB:Float(track.gain),pan:Float(track.pan),audible:AudioTrackEditing.audible(track,in:p) ? 1:0)}
+        let signature=lanes.map{[$0.gainDB,$0.pan,Float($0.audible)]}
+        if let last=submittedAudio,last.kernel==k,last.clips==clips,last.lanes==signature{return true}
+        let kernelClips=clips.map{LGAudioClip(lane:Int32($0.lane),startTick:$0.startTick,endTick:$0.endTick,offsetSeconds:$0.offset,gainDB:Float($0.gain),fadeInSeconds:Float($0.fadeIn),fadeOutSeconds:Float($0.fadeOut))}
+        let pointers:[OpaquePointer?]=clips.map{liveTakes[$0.assetID]}
+        let ok=kernelClips.withUnsafeBufferPointer{c in pointers.withUnsafeBufferPointer{b in lanes.withUnsafeBufferPointer{l in
+            lg_audio_submit(k,c.baseAddress,b.baseAddress,Int32(kernelClips.count),l.baseAddress,Int32(lanes.count))}}}
+        guard ok==1 else{return false}
+        submittedAudio=(k,clips,signature);return true
+    }
+    func audioMeter(_ lane:Int)->Float{guard let k=handle?.pointer else{return 0};return lg_audio_meter(k,Int32(lane))}
+
+    /// 54 · Effect plugins after the whole mix: kernel → effects → mixer. `signature` names what
+    /// is connected so a sync only rebuilds the chain when the song's effects change.
+    @ObservationIgnored private(set) var masterUnits:[AVAudioUnit]=[]
+    @ObservationIgnored private(set) var masterSignature:[String]=[]
+    @ObservationIgnored private weak var masterEngine:AVAudioEngine?
+    func masterChainCurrent(_ signature:[String])->Bool{masterSignature==signature && masterEngine===engine && engine != nil}
+    func setMasterEffects(_ units:[AVAudioUnit],signature:[String]){
+        guard let engine,let source else{return}
+        let format=source.outputFormat(forBus:0)
+        engine.disconnectNodeOutput(source)
+        for unit in masterUnits where unit.engine===engine{engine.disconnectNodeOutput(unit);engine.detach(unit)}
+        var previous:AVAudioNode=source
+        for unit in units{engine.attach(unit);engine.connect(previous,to:unit,format:format);previous=unit}
+        engine.connect(previous,to:engine.mainMixerNode,format:format)
+        masterUnits=units;masterSignature=signature;masterEngine=engine
+    }
     enum InputPrimingPolicy:String {case platformDefault,outputOnly,sharedInputFirst}
     private let inputPriming:InputPrimingPolicy
     private(set) var inputPrimedAtStartup=false
@@ -538,7 +586,7 @@ private enum AudioRender {
         let compiled=musicCompilationCache.notes(p),layout=trackLayout(p)
         if compiled==submittedNotes,p.bpm==submittedBPM,range==submittedRange,loop==submittedLoop,p.id==submittedProject,layout==submittedLayout {
             sentRevisions[generation]=p.revision;routing[generation]=midiRouting(p)
-            if Int(lg_revision(k))==generation{appliedRevision=p.revision};return mix(p)
+            if Int(lg_revision(k))==generation{appliedRevision=p.revision};let mixed=mix(p);submitAudio(p);return mixed
         }
         let next=generation+1
         let notes = compiled.map { LGNote(tick: Int32($0.tick), duration: Int32($0.duration), pitch: Int32($0.pitch), velocity: Int32($0.velocity), track: Int32($0.track), pad: Int32($0.pad),instrument:Int32($0.instrument)) }
@@ -559,6 +607,7 @@ private enum AudioRender {
         generation=next;sentRevisions[next]=p.revision;routing[next]=midiRouting(p)
         pruneRouting(k)
         submittedNotes=compiled;submittedBPM=p.bpm;submittedRange=range;submittedLoop=loop;submittedProject=p.id;submittedLayout=layout
+        submitAudio(p)
         return true
     }
     private func pruneRouting(_ k:OpaquePointer){

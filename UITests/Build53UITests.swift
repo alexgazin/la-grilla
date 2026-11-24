@@ -153,7 +153,10 @@ final class Build53UITests: XCTestCase {
         app.buttons["commands.open"].tap()
         let field = app.textFields["commands.field"]; XCTAssertTrue(field.waitForExistence(timeout: 5))
         field.typeText("new project\n")
+        // The name section sits below "Track in a minute" and "Start with a beat" (build 54).
+        XCTAssertTrue(app.navigationBars["New project"].waitForExistence(timeout: 10))
         let idea = app.buttons["project.name-idea.0"]
+        for _ in 0..<5 where !(idea.exists && idea.isHittable) { app.swipeUp() }
         XCTAssertTrue(idea.waitForExistence(timeout: 10))
         let name = idea.label
         idea.tap()
