@@ -46,6 +46,10 @@ import Observation
     private var drumDraft:DrumRecordingDraft?;private var drumPlayback:Project?
     private var saveGeneration = 0
     var savedRevision = -1; var saving = false; var saveError: String?; var message: String?
+    /// U26: when the song last reached the disk, and how it was when it was opened.
+    var savedAt: Date?
+    var openedAt: Date?
+    @ObservationIgnored var openedSnapshot: Project?
     var entries: [ProjectStore.SummaryEntry] = []; var sheet: Sheet?; var shareURL: URL?; var exportedURL: URL?
     private struct LibraryLoadFailure {let revision:Int;let modified:Date;let error:String}
     @ObservationIgnored private var libraryLoadFailures:[UUID:LibraryLoadFailure]=[:]
@@ -401,6 +405,11 @@ import Observation
     }
     /// U7 · Replace the song with a saved version in one Undo step. The current state is
     /// saved as a version first, so restoring never loses work.
+    /// U26: back to how the song was when it was opened; the current state is kept as a version first.
+    func returnToOpened() async {
+        guard let snapshot=openedSnapshot,snapshot != project else{return}
+        await restoreVersion(snapshot,keepingCurrentAs:NSLocalizedString("Before going back",comment:"Version name"))
+    }
     func restoreVersion(_ version:Project,keepingCurrentAs name:String) async {
         endHarmonyPreview()
         do{_ = try await store.saveVersion(project,name:name)}catch{message=error.localizedDescription;return}
@@ -554,7 +563,7 @@ import Observation
         saving=true; let snapshot=project
         do {
             let writtenRevision=try await store.save(snapshot)
-            if project.id==snapshot.id {savedRevision=max(savedRevision,writtenRevision);saveError=nil}
+            if project.id==snapshot.id {savedRevision=max(savedRevision,writtenRevision);saveError=nil;savedAt=Date()}
             await refreshLibraryEntry(snapshot.id,validated:true)
         } catch {if project.id==snapshot.id {saveError=error.localizedDescription}}
         if generation==saveGeneration {saving=false}
@@ -1020,6 +1029,7 @@ import Observation
         audio.samples = samples
         restoringWorkspace=true
         project=p;history=History();noteTrackID=nil;noteClipID=nil;drumClipID=nil;selectedSection=p.sections[0].id;self.savedRevision=savedRevision
+        openedSnapshot=p;openedAt=Date();savedAt=savedRevision==p.revision ? Date():nil
         // U36: come back to the same screen and section of this song.
         if !Luz.uiTesting,let saved=UserDefaults.standard.string(forKey:"workspace."+p.id.uuidString)?.split(separator:"|"),saved.count==2 {
             if let value=Int(saved[0]),(0...2).contains(value){tab=value}

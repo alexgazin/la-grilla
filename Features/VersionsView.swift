@@ -122,8 +122,12 @@ struct VersionsView: View {
                     Label("Restore", systemImage: "clock.arrow.circlepath").frame(maxWidth: .infinity, minHeight: 44)
                 }.buttonStyle(StudioActionStyle()).disabled(busy || session.recording || session.armed).accessibilityIdentifier("versions.restore")
                 Menu {
+                    // U30 menu: version — Rename · … · Delete (last, red).
                     Button("Rename", systemImage: "pencil") { renameText = version.name; renaming = version }
+                        .accessibilityIdentifier("versions.menu.rename")
                     Button("Delete version", systemImage: "trash", role: .destructive) { deleting = version }
+                        .accessibilityIdentifier("versions.menu.delete")
+                    // U30 end
                 } label: {
                     Image(systemName: "ellipsis").frame(width: 44, height: 44).background(Color.raised, in: RoundedRectangle(cornerRadius: Luz.Radius.cell, style: .continuous))
                 }.accessibilityLabel(Text("More for \(version.name)")).accessibilityIdentifier("versions.more")

@@ -188,11 +188,15 @@ struct DrumLayersMenu: View {
             }
             ForEach(layers) { layer in
                 Menu {
+                    // U30 menu: pad row — Listen · … · Clear (last, red).
+                    Button("Hear the pad", systemImage: "speaker.wave.2") { if session.ensureAudio() { session.audio.pad(layer.pad) } }
+                        .accessibilityIdentifier("jam.layer-row.\(layer.pad).listen")
                     Button(layer.muted ? "Unmute" : "Mute", systemImage: layer.muted ? "speaker.wave.2" : "speaker.slash") {
                         DrumLayerActions.toggleMute(session: session, pad: layer.pad)
                     }
                     Button("Solo", systemImage: "headphones") { DrumLayerActions.solo(session: session, pad: layer.pad, among: layers.map(\.pad)) }
                     Button("Clear layer", systemImage: "trash", role: .destructive) { DrumLayerActions.clear(session: session, pattern: pattern, pad: layer.pad, bar: nil) }
+                    // U30 end
                 } label: {
                     Label { Text("\(Text(LocalizedStringKey(Compiler.padNames[layer.pad]))) · \(layer.hits)") }
                         icon: { Image(systemName: layer.muted ? "speaker.slash" : "speaker.wave.2") }
@@ -286,6 +290,9 @@ struct DrumLayersMenu: View {
     }
     static func layerMenu(session: Session, pattern: Pattern?, pad: Int, bar: Int?, hits: Int) -> some View {
         Menu {
+            // U30 menu: pad — Listen · … · Clear (last, red).
+            Button("Hear the pad", systemImage: "speaker.wave.2") { if session.ensureAudio() { session.audio.pad(pad) } }
+                .accessibilityIdentifier("jam.layer.\(pad).listen")
             if let bar {
                 Button("Clear in bar \(bar + 1)", systemImage: "eraser") { clear(session: session, pattern: pattern, pad: pad, bar: bar) }
             }
@@ -306,6 +313,7 @@ struct DrumLayersMenu: View {
             }
             Button("Clear layer", systemImage: "trash", role: .destructive) { clear(session: session, pattern: pattern, pad: pad, bar: nil) }
                 .disabled(hits == 0)
+            // U30 end
         } label: {
             Image(systemName: "ellipsis").foregroundStyle(Color.muted).frame(width: 44, height: 44).contentShape(Rectangle())
         }

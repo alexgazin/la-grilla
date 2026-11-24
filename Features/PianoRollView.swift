@@ -129,9 +129,11 @@ struct PianoRollView: View {
         if let sourceRecord{Button("Original voice",systemImage:"waveform"){pendingOriginal=sourceRecord;showTrackActions=false}.accessibilityIdentifier("notes.track.source")}
         if let track {
             if dynamicType.isAccessibilitySize {TrackSoundButton(session:session,trackID:track.id)}
+            // U30 menu: melody track — Rename · Duplicate · … · Delete (last, red).
             Button("Rename track",systemImage:"pencil"){pendingTrackRename=true;showTrackActions=false}.accessibilityIdentifier("notes.track.rename")
             Button("Duplicate track",systemImage:"plus.square.on.square"){session.duplicateMelody(track.id);showTrackActions=false}.disabled(session.project.tracks.count>=8).accessibilityIdentifier("notes.track.duplicate")
             Button("Delete track",systemImage:"trash",role:.destructive){session.deleteMelody(track.id);showTrackActions=false}.accessibilityIdentifier("notes.track.delete")
+            // U30 end
         }
     }.environment(\.defaultMinListRowHeight,52).navigationTitle("Track").navigationBarTitleDisplayMode(.inline)
         .toolbar{ToolbarItem(placement:.cancellationAction){Button("Cancel"){showTrackActions=false}}}}

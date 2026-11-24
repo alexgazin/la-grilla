@@ -504,19 +504,20 @@ struct SectionsView: View {
     private var remainingBars: Int { 64 - session.project.length / barTicks }
     private var editingLocked:Bool{session.performance.contextActive || session.recording || session.armed}
     private func actionList(_ section:MusicDomain.Section)->some View {NavigationStack{List{
-        Button("Rename"){pendingRename=section.id;actions=nil}
-        Button("Duplicate"){session.edit{try SectionEditing.duplicate(section.id,name:section.name=="Verse" ? "Chorus":String((section.name+" copy").prefix(120)),in:&$0)};actions=nil}
-        Button("Move earlier"){move(section.id,by:-1);actions=nil}.disabled(session.project.sections.first?.id==section.id).accessibilityIdentifier("section.earlier")
-        Button("Move later"){move(section.id,by:1);actions=nil}.disabled(session.project.sections.last?.id==section.id).accessibilityIdentifier("section.later")
-        if session.project.sections.count>1{Button("Delete section",role:.destructive){pendingDelete=section.id;actions=nil}.accessibilityIdentifier("section.delete")}
-        // I40: the same section again with a snare fill at the end of the copy.
-        Button("Continue for me"){let id=section.id;session.edit{try ContinueIdea.extend(id,name:NSLocalizedString("Continuation",comment:"Section name"),seed:UInt64(session.project.revision) &+ 1,in:&$0)};actions=nil}.accessibilityIdentifier("section.continue")
-        Button("Duplicate with a fill"){session.edit{try SectionEditing.duplicateWithVariation(section.id,name:String((section.name+" 2").prefix(120)),in:&$0)};actions=nil}.accessibilityIdentifier("section.duplicate-fill")
-            .disabled(session.project.sections.count>=maximumSections || session.project.length+section.length>songTickLimit).accessibilityIdentifier("section.duplicate")
+        // U30 menu: section — Listen · Rename · Duplicate · Colour · … · Delete (last, red).
+        Button("Hear this section"){session.select(section);if !session.focused{session.toggleFocus()};if !session.audio.playing{session.togglePlay()};actions=nil}.accessibilityIdentifier("section.listen")
+        Button("Rename"){pendingRename=section.id;actions=nil}.accessibilityIdentifier("section.rename")
+        Button("Duplicate"){session.edit{try SectionEditing.duplicate(section.id,name:section.name=="Verse" ? "Chorus":String((section.name+" copy").prefix(120)),in:&$0)};actions=nil}.accessibilityIdentifier("section.duplicate")
         Picker("Colour",selection:Binding(get:{section.color ?? -1},set:{value in let id=section.id;session.edit{p in if let i=p.sections.firstIndex(where:{$0.id==id}){p.sections[i].color=value<0 ? nil:value}};actions=nil})){
             Text("Automatic").tag(-1)
             ForEach(SongFormStyle.choices,id:\.index){choice in Label{Text(choice.name)}icon:{Image(systemName:"circle.fill").foregroundStyle(choice.color)}.tag(choice.index)}
         }.accessibilityIdentifier("section.color")
+        Button("Move earlier"){move(section.id,by:-1);actions=nil}.disabled(session.project.sections.first?.id==section.id).accessibilityIdentifier("section.earlier")
+        Button("Move later"){move(section.id,by:1);actions=nil}.disabled(session.project.sections.last?.id==section.id).accessibilityIdentifier("section.later")
+        // I56 / I40: continue the idea, or the same section again with a fill.
+        Button("Continue for me"){let id=section.id;session.edit{try ContinueIdea.extend(id,name:NSLocalizedString("Continuation",comment:"Section name"),seed:UInt64(session.project.revision) &+ 1,in:&$0)};actions=nil}.accessibilityIdentifier("section.continue")
+        Button("Duplicate with a fill"){session.edit{try SectionEditing.duplicateWithVariation(section.id,name:String((section.name+" 2").prefix(120)),in:&$0)};actions=nil}.accessibilityIdentifier("section.duplicate-fill")
+            .disabled(session.project.sections.count>=maximumSections || session.project.length+section.length>songTickLimit).accessibilityIdentifier("section.duplicate-fill")
         Picker("Filter sweep",selection:Binding(get:{sweepTag(section.filterSweep)},set:{tag in let id=section.id,value=sweep(tag);session.edit{p in if let i=p.sections.firstIndex(where:{$0.id==id}){p.sections[i].filterSweep=value}};actions=nil})){
             Text("None").tag(0);Text("Open up").tag(1);Text("Close down").tag(2);Text("Rise").tag(3);Text("Drop in").tag(4)
         }.accessibilityIdentifier("section.filter-sweep")
@@ -531,9 +532,11 @@ struct SectionsView: View {
             Button("Copy the melody"){copyMusic(.melody,section)}
         }.accessibilityIdentifier("section.copy")
         Button("Paste copied music"){pasteMusic(into:section)}.disabled(!UIPasteboard.general.contains(pasteboardTypes:[MusicClipboard.pasteboardType])).accessibilityIdentifier("section.paste")
+        if session.project.sections.count>1{Button("Delete section",role:.destructive){pendingDelete=section.id;actions=nil}.accessibilityIdentifier("section.delete")}
+        // U30 end
     }.environment(\.defaultMinListRowHeight,52).disabled(editingLocked).navigationTitle(section.name).navigationBarTitleDisplayMode(.inline)
         .toolbar{ToolbarItem(placement:.cancellationAction){Button("Cancel"){actions=nil}}}}
-        .presentationDetents([.medium,.large]).tint(.mint)
+        .presentationDetents([.large]).tint(.mint)
     }
     private func sweep(_ tag:Int)->FilterSweep?{[nil,FilterSweep.openUp,.closeDown,.riseUp,.dropIn][max(0,min(4,tag))]}
     private func sweepTag(_ value:FilterSweep?)->Int{[FilterSweep.openUp,.closeDown,.riseUp,.dropIn].firstIndex{$0==value}.map{$0+1} ?? 0}

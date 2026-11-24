@@ -179,13 +179,16 @@ struct MixerView: View {
         if let track {
             // I39: the heading opens a menu to lock the part against generators and phrase edits.
             Menu {
-                Button(track.locked == true ? "Unlock part" : "Lock part", systemImage: track.locked == true ? "lock.open" : "lock") {
+                // U30 menu: track — Listen · Rename · Duplicate · Colour · … · Delete (last, red).
+                Button(track.solo ? "Stop hearing it alone" : "Hear it alone", systemImage: "headphones") {
                     let id = track.id
-                    session.edit { p in if let i = p.tracks.firstIndex(where: { $0.id == id }) { p.tracks[i].locked = p.tracks[i].locked == true ? nil : true } }
-                }
-                dynamicsMenu(track)
-                Button("Automation…", systemImage: "point.topleft.down.to.point.bottomright.curvepath") {
-                    session.automationTrackID = track.id; session.presentEditor(.automation)
+                    session.mixerEdit { p in if let i = p.tracks.firstIndex(where: { $0.id == id }) { p.tracks[i].solo.toggle() } }
+                }.accessibilityIdentifier("mixer.track.listen")
+                Button("Rename…", systemImage: "pencil") { renameText = track.displayName; renamingTrack = track.id }
+                    .accessibilityIdentifier("mixer.track.rename")
+                if track.role == .melody {
+                    Button("Duplicate", systemImage: "plus.square.on.square") { session.duplicateMelody(track.id) }
+                        .disabled(session.project.tracks.count >= masterBus).accessibilityIdentifier("mixer.track.duplicate")
                 }
                 // U47: a colour of your own for this track.
                 Picker("Colour", selection: Binding(get: { track.color ?? -1 }, set: { value in
@@ -194,7 +197,20 @@ struct MixerView: View {
                 })) {
                     Text("By role").tag(-1)
                     ForEach(Array(["Gold", "Coral", "Violet", "Mint", "Red"].enumerated()), id: \.offset) { index, name in Text(LocalizedStringKey(name)).tag(index) }
+                }.accessibilityIdentifier("mixer.track.color")
+                Button(track.locked == true ? "Unlock part" : "Lock part", systemImage: track.locked == true ? "lock.open" : "lock") {
+                    let id = track.id
+                    session.edit { p in if let i = p.tracks.firstIndex(where: { $0.id == id }) { p.tracks[i].locked = p.tracks[i].locked == true ? nil : true } }
                 }
+                dynamicsMenu(track)
+                Button("Automation…", systemImage: "point.topleft.down.to.point.bottomright.curvepath") {
+                    session.automationTrackID = track.id; session.presentEditor(.automation)
+                }
+                if track.role == .melody, session.project.tracks.filter({ $0.role == .melody }).count > 1 {
+                    Button("Delete track", systemImage: "trash", role: .destructive) { session.deleteMelody(track.id) }
+                        .accessibilityIdentifier("mixer.track.delete")
+                }
+                // U30 end
             } label: { headingLabel(track: track, color: color) }
                 .accessibilityIdentifier("mixer.track-menu.\(track.role.rawValue)")
                 .disabled(session.performance.contextActive)

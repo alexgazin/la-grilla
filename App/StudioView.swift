@@ -11,6 +11,7 @@ struct StudioView: View {
     @Namespace private var sheetZoom
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorSchemeContrast) private var contrast
+    @State private var saveCard=false
     private var displayedKeyName:String{
         let project=session.displayProject
         let root=MusicalNotation.pitchClassName(project.keyRoot,keyRoot:project.keyRoot,minor:project.minor,spelling:PitchSpelling(rawValue:spellingValue) ?? .automatic)
@@ -148,11 +149,19 @@ struct StudioView: View {
                 HStack(spacing:6){
                     Text(session.displayProject.name).font(StudioTypography.title).tracking(-0.5).lineLimit(1)
                     // Luz: a status symbol, not colour alone.
-                    Image(systemName:session.saveError != nil ? "exclamationmark.triangle.fill":session.saving || session.savedRevision != session.project.revision ? "circle.dotted":"checkmark.circle.fill")
-                        .font(StudioTypography.index).foregroundStyle(saveColor)
-                        .contentTransition(.symbolEffect(.replace))
-                        .luzConfirm(session.savedRevision)
-                        .accessibilityLabel(LocalizedStringKey(session.saveError != nil ? "Save failed":session.saving ? "Saving…":session.savedRevision==session.project.revision ? "Saved on this iPhone":"Unsaved changes"))
+                    // U26: the status opens a card with the time, Save now, going back and a copy.
+                    Button{saveCard=true}label:{
+                        Image(systemName:session.saveError != nil ? "exclamationmark.triangle.fill":session.saving || session.savedRevision != session.project.revision ? "circle.dotted":"checkmark.circle.fill")
+                            .font(StudioTypography.index).foregroundStyle(saveColor)
+                            .contentTransition(.symbolEffect(.replace))
+                            .luzConfirm(session.savedRevision)
+                            .frame(minWidth:28,minHeight:28).contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(LocalizedStringKey(session.saveError != nil ? "Save failed":session.saving ? "Saving…":session.savedRevision==session.project.revision ? "Saved on this iPhone":"Unsaved changes"))
+                    .accessibilityHint(Text("Shows when the song was saved"))
+                    .accessibilityIdentifier("studio.save-status")
+                    .popover(isPresented:$saveCard){SaveCard(session:session).presentationCompactAdaptation(.popover)}
                 }
                 Button{session.presentEditor(.settings)}label:{
                     HStack(spacing:5){
