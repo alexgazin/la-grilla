@@ -65,6 +65,8 @@ struct GridView: View {
     @State private var barWidth: CGFloat = 96
     /// U48: a double tap on a section chip renames it.
     @State private var renamingSection: UUID?
+    /// The last chip tap: a second tap on the same section soon after is a double tap.
+    @State private var lastChipTap: (id: UUID, time: Date)?
     /// U59: stronger contrast for the grid.
     @AppStorage("studio.gridContrast") private var gridContrast = false
     @State private var renameText = ""
@@ -260,10 +262,19 @@ struct GridView: View {
             }.padding(.horizontal,16)
         }.padding(.bottom,8)
     }
+    /// One tap selects the section; a second tap on it within 0.4 s renames it (U48).
+    private func chipTapped(_ section:MusicDomain.Section,selected:Bool) {
+        let now=Date()
+        if let last=lastChipTap,last.id==section.id,now.timeIntervalSince(last.time)<0.4,!editingLocked {
+            lastChipTap=nil;renameText=section.name;renamingSection=section.id;return
+        }
+        lastChipTap=(section.id,now)
+        if !selected{Luz.Haptics.selection()};withAnimation(Luz.Motion.snap){session.select(section)}
+    }
     private func sectionChip(_ section:MusicDomain.Section)->some View {
         let selected=session.section.id==section.id
         let tint=SongFormStyle.color(for:section)
-        return Button{if !selected{Luz.Haptics.selection()};withAnimation(Luz.Motion.snap){session.select(section)}}label:{
+        return Button{chipTapped(section,selected:selected)}label:{
             HStack(spacing:8) {
                 // Luz: each section keeps its own colour; selection lifts the chip and outlines it.
                 RoundedRectangle(cornerRadius:1,style:.continuous).fill(tint.opacity(selected ? 1:0.5)).frame(width:3,height:14)
@@ -276,7 +287,6 @@ struct GridView: View {
                 .background(selected ? Color.lifted:Color.panel,in:RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous))
                 .overlay{RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous).strokeBorder(selected ? tint:Color.outline.opacity(0.65),lineWidth:selected ? 1.5:0.75)}
         }.buttonStyle(StudioQuietButtonStyle(radius:Luz.Radius.cell)).accessibilityIdentifier("grid.section.\(section.id)")
-            .simultaneousGesture(TapGesture(count:2).onEnded{guard !editingLocked else{return};renameText=section.name;renamingSection=section.id})
             .accessibilityAction(named:Text("Rename")){guard !editingLocked else{return};renameText=section.name;renamingSection=section.id}
             .accessibilityAddTraits(selected ? .isSelected:[])
             .modifier(ArrangementDragSource(payload:editingLocked ? nil:ArrangementDragPayload(project:session.project,sectionID:section.id).encoded()))

@@ -47,6 +47,7 @@ struct JamView: View {
             if session.recording || session.armed{recordingStatus}
             if steps {stepEditor.disabled(session.performance.contextActive)}else if dynamicType.isAccessibilitySize{accessiblePads}else{padGrid(height:(compact ? 264:312)-(compact && (session.recording || session.armed) ? 24:0)).disabled(session.performance.replaying).allowsHitTesting(!session.performance.replaying)}
             if !steps{HStack{Text("Touch to play · grid shapes the recording").font(.caption2).foregroundStyle(Color.muted);Spacer(minLength:4);RouteBadge(session:session)}.frame(maxWidth:.infinity,alignment:.leading)}
+            recordingGuide
             BeatMachineEntry{session.presentEditor(.beatMachine)}.disabled(session.performance.contextActive || session.recording || session.armed)
             CoachTipBanner(tips:steps ? [.stepHold,.stepSize]:[.beatMachine])
             // U12: an empty beat suggests how to start instead of showing nothing.
@@ -61,7 +62,6 @@ struct JamView: View {
             DrumLayersView(session:session,pattern:drumPattern,bar:steps ? stepBar:nil)
             if session.audio.wirelessOutput{Text("For tighter timing, use the speaker or wired headphones.").font(.caption2).foregroundStyle(Color.drums).frame(maxWidth:.infinity,alignment:.leading)}
             if let lesson=lessonID=="assignment" ? session.project.assignment.map(DrumLesson.assignment):DrumLesson.library.first(where:{$0.id==lessonID}){DrumLessonPanel(lesson:lesson,played:drumPattern?.drums ?? [],bars:min(4,max(1,(drumPattern?.length ?? barTicks)/barTicks))){lessonID=""}}
-            recordingGuide
             Spacer(minLength:0)
         }.padding(.horizontal,18).padding(.bottom,16)
     }

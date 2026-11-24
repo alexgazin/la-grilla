@@ -506,6 +506,9 @@ struct SectionsView: View {
     private func actionList(_ section:MusicDomain.Section)->some View {NavigationStack{List{
         Button("Rename"){pendingRename=section.id;actions=nil}
         Button("Duplicate"){session.edit{try SectionEditing.duplicate(section.id,name:section.name=="Verse" ? "Chorus":String((section.name+" copy").prefix(120)),in:&$0)};actions=nil}
+        Button("Move earlier"){move(section.id,by:-1);actions=nil}.disabled(session.project.sections.first?.id==section.id).accessibilityIdentifier("section.earlier")
+        Button("Move later"){move(section.id,by:1);actions=nil}.disabled(session.project.sections.last?.id==section.id).accessibilityIdentifier("section.later")
+        if session.project.sections.count>1{Button("Delete section",role:.destructive){pendingDelete=section.id;actions=nil}.accessibilityIdentifier("section.delete")}
         // I40: the same section again with a snare fill at the end of the copy.
         Button("Continue for me"){let id=section.id;session.edit{try ContinueIdea.extend(id,name:NSLocalizedString("Continuation",comment:"Section name"),seed:UInt64(session.project.revision) &+ 1,in:&$0)};actions=nil}.accessibilityIdentifier("section.continue")
         Button("Duplicate with a fill"){session.edit{try SectionEditing.duplicateWithVariation(section.id,name:String((section.name+" 2").prefix(120)),in:&$0)};actions=nil}.accessibilityIdentifier("section.duplicate-fill")
@@ -528,9 +531,6 @@ struct SectionsView: View {
             Button("Copy the melody"){copyMusic(.melody,section)}
         }.accessibilityIdentifier("section.copy")
         Button("Paste copied music"){pasteMusic(into:section)}.disabled(!UIPasteboard.general.contains(pasteboardTypes:[MusicClipboard.pasteboardType])).accessibilityIdentifier("section.paste")
-        Button("Move earlier"){move(section.id,by:-1);actions=nil}.disabled(session.project.sections.first?.id==section.id).accessibilityIdentifier("section.earlier")
-        Button("Move later"){move(section.id,by:1);actions=nil}.disabled(session.project.sections.last?.id==section.id).accessibilityIdentifier("section.later")
-        if session.project.sections.count>1{Button("Delete section",role:.destructive){pendingDelete=section.id;actions=nil}.accessibilityIdentifier("section.delete")}
     }.environment(\.defaultMinListRowHeight,52).disabled(editingLocked).navigationTitle(section.name).navigationBarTitleDisplayMode(.inline)
         .toolbar{ToolbarItem(placement:.cancellationAction){Button("Cancel"){actions=nil}}}}
         .presentationDetents([.medium,.large]).tint(.mint)

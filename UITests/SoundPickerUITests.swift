@@ -275,7 +275,8 @@ final class SoundPickerUITests:XCTestCase {
             let played = NSPredicate(format: "value != %@ AND value CONTAINS 'duration='", before)
             XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: played, object: preview)], timeout: 15), .completed)
             if preview.label == "Stop preview" { preview.tap() }
-            XCTAssertEqual(preview.label, "Audition beat")
+            let stopped = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label == 'Audition beat'"), object: preview)
+            XCTAssertEqual(XCTWaiter.wait(for: [stopped], timeout: 5), .completed, preview.label)
             let after = try XCTUnwrap(preview.value as? String)
             XCTAssertGreaterThan(try XCTUnwrap(field("duration", in: after).flatMap(Double.init)), 0)
             XCTAssertEqual(field("revision", in: after).flatMap(Int.init), revision, "Auditioning cannot edit the project")

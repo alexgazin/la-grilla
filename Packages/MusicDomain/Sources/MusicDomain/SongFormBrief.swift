@@ -132,6 +132,9 @@ public struct SongFormBrief: Codable, Equatable, Sendable {
     public static func recognizes(_ text: String) -> Bool {
         guard text.count <= 2000 else { return false }
         if matches(marker, text).count >= 2 { return true }
+        // "Song: Intro 4 bars: …; Chorus 8 bars: …" is the Assistant's own whole-song command,
+        // reviewed and applied in place; named sections only open the builder without it.
+        if !matches(#"^\s*(?:song|песня|структура|форма)\s*:"#, text).isEmpty { return false }
         return namedHeadings(text).count >= 2
             && (!matches(barsPattern, text).isEmpty || bareProgression(in: text) != nil || !matches(#"\b(?:аккорд|chord)"#, text).isEmpty)
     }

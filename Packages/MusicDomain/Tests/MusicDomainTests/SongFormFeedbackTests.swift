@@ -86,4 +86,11 @@ struct SongFormFeedbackTests {
         }
         #expect(SongFormBrief.diatonic(keyRoot: 9, minor: true).map(\.symbol) == ["Am", "Bdim", "C", "Dm", "Em", "F", "G"])
     }
+
+    @Test func theAssistantsSongCommandStaysWithTheAssistant() {
+        #expect(!SongFormBrief.recognizes("Song: Tempo 108; Key D minor; Intro 4 bars: Dm Gm A Dm; Chorus 8 bars: Dm Gm C F each 2 bars"))
+        #expect(!SongFormBrief.recognizes("Песня: интро 4 такта: Dm Gm A Dm; припев 8 тактов: Dm Gm C F"))
+        #expect(SongFormBrief.recognizes("Intro 4 bars: Dm Gm A Dm. Chorus 8 bars: Dm Gm C F."))
+        #expect(SongFormBrief.recognizes("Структура: Часть A — 8 тактов: Db Eb Cm Fm. Часть B — 8 тактов: Bbm Eb Ab Fm."))
+    }
 }

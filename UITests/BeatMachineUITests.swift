@@ -25,9 +25,17 @@ final class BeatMachineUITests: XCTestCase {
         // A kick on the third sixteenth: the step reports its new state.
         let step = app.buttons["beat.step.0.2"]
         XCTAssertTrue(step.waitForExistence(timeout: 5))
+        // Bring the row up first: a tap sent while XCTest is still scrolling only stops the scroll.
+        let window = app.windows.firstMatch.frame
+        for _ in 0..<6 {
+            let frame = step.frame
+            if step.isHittable, frame.minY > window.minY + 120, frame.maxY < window.maxY * 0.7 { break }
+            if frame.minY <= window.minY + 120 { app.swipeDown(velocity: .slow) } else { app.swipeUp(velocity: .slow) }
+        }
+        XCTAssertTrue(step.isHittable)
         XCTAssertEqual(step.value as? String, "Off")
         step.tap()
-        XCTAssertEqual(step.value as? String, "Hit")
+        wait(for: [expectation(for: NSPredicate(format: "value == 'Hit'"), evaluatedWith: step)], timeout: 3)
         let shot = XCTAttachment(screenshot: app.screenshot()); shot.name = "BeatMachine-pattern"; shot.lifetime = .keepAlways; add(shot)
 
         let play = app.buttons["beat.play"]

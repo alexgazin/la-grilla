@@ -21,8 +21,13 @@ final class SongFormTableUITests: XCTestCase {
         XCTAssertTrue(table.isHittable)
         table.tap()
         let order = app.buttons["builder.order"]
-        for _ in 0..<8 where !order.isHittable { app.swipeDown() }
         XCTAssertTrue(order.waitForExistence(timeout: 5))
+        // The table appears where the button was; scroll toward it rather than away from it.
+        let window = app.windows.firstMatch.frame
+        for _ in 0..<6 where !order.isHittable || order.frame.maxY > window.maxY - 120 {
+            if order.exists, order.frame.minY < window.minY + 120 { app.swipeDown(velocity: .slow) } else { app.swipeUp(velocity: .slow) }
+        }
+        XCTAssertTrue(order.isHittable)
         XCTAssertTrue(order.label.contains("A · B · A"), order.label)
 
         // Add a chord to part A by tapping it, not typing it.
