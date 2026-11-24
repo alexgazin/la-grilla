@@ -246,3 +246,47 @@ struct VoiceTreatmentTests {
         #expect(legacy.voice == nil)
     }
 }
+
+struct AssistantExplainTests {
+    @Test func reasonsComeFromTheProposalsOwnParameters() throws {
+        let demo = Project.demo()
+        let tempo = try AssistantEngine.propose("tempo 110", project: demo, sectionID: demo.sections[0].id)
+        let why = AssistantRationale.explain(tempo, project: demo, engine: .offline)
+        #expect(why.reasons.count >= 2 && why.reasons.count <= 3)
+        #expect(why.reasons[0].contains("110"))
+        #expect(why.reasons.last?.contains("offline") == true || why.reasons.last?.contains("iPhone") == true)
+        #expect(!AssistantVariation.canVary(tempo), "One exact answer")
+        #expect(throws: AssistantError.self) { try AssistantVariation.vary(tempo, project: demo, boldness: 0.5, attempt: 1) }
+
+        let chords = try AssistantEngine.propose("Am F C G", project: demo, sectionID: demo.sections[0].id, distribution: .stretch)
+        let chordWhy = AssistantRationale.explain(chords, project: demo, engine: .appleIntelligence)
+        #expect(chordWhy.reasons.contains { $0.contains("Am F C G") })
+        #expect(chordWhy.reasons.contains { $0.contains("C major") }, "It stays in the song's key")
+        #expect(chordWhy.engine.badge == "Apple Intelligence")
+    }
+
+    @Test func anotherWayFollowsBoldness() throws {
+        let blank = Project(name: "Blank")
+        let sketch = try AssistantEngine.propose("Create a house groove", project: blank, sectionID: blank.sections[0].id)
+        #expect(AssistantVariation.canVary(sketch))
+        let plan = try #require(sketch.operations.first?.sketch)
+        let careful = try AssistantVariation.vary(sketch, project: blank, boldness: 0, attempt: 1)
+        let carefulPlan = try #require(careful.operations.first?.sketch)
+        #expect(carefulPlan.seed != plan.seed && carefulPlan.bpm == plan.bpm)
+        let bold = try AssistantVariation.vary(sketch, project: blank, boldness: 1, attempt: 1)
+        #expect(try #require(bold.operations.first?.sketch).bpm != plan.bpm, "Bold also nudges the tempo")
+        let again = try AssistantVariation.vary(sketch, project: blank, boldness: 0, attempt: 2)
+        #expect(try #require(again.operations.first?.sketch).seed != carefulPlan.seed)
+        let why = AssistantRationale.explain(sketch, project: blank, engine: .offline)
+        #expect(why.reasons.first?.contains("House") == true)
+
+        let demo = Project.demo()
+        var styled = AssistantProposal(project: demo, scope: demo.sections[0].id,
+                                       operations: [AssistantOperation(.styleHarmony, sectionID: demo.sections[0].id, style: HarmonyStyle.expressive.rawValue)])
+        styled.assumptions = []
+        let gentle = try AssistantVariation.vary(styled, project: demo, boldness: 0, attempt: 1)
+        #expect([HarmonyStyle.gentle.rawValue, HarmonyStyle.voiceLeading.rawValue].contains(gentle.operations[0].style ?? ""))
+        let daring = try AssistantVariation.vary(styled, project: demo, boldness: 1, attempt: 1)
+        #expect(daring.operations[0].style == HarmonyStyle.reharmonize.rawValue, "Bold picks the other bold style")
+    }
+}
