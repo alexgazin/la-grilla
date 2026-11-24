@@ -35,7 +35,9 @@ final class BeatMachineUITests: XCTestCase {
         XCTAssertTrue(step.isHittable)
         XCTAssertEqual(step.value as? String, "Off")
         step.tap()
-        wait(for: [expectation(for: NSPredicate(format: "value == 'Hit'"), evaluatedWith: step)], timeout: 3)
+        let hit = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == 'Hit'"), object: step)
+        if XCTWaiter.wait(for: [hit], timeout: 3) != .completed { print(app.debugDescription) }
+        XCTAssertEqual(step.value as? String, "Hit")
         let shot = XCTAttachment(screenshot: app.screenshot()); shot.name = "BeatMachine-pattern"; shot.lifetime = .keepAlways; add(shot)
 
         let play = app.buttons["beat.play"]

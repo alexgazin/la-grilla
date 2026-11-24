@@ -76,10 +76,14 @@ final class IdeasBatchUITests: XCTestCase {
         let chip = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'grid.section.'")).firstMatch
         XCTAssertTrue(chip.waitForExistence(timeout: 5))
         chip.doubleTap()
-        let field = app.textFields["rename.field"]
+        // System alerts do not carry SwiftUI identifiers on their fields and buttons.
+        let alert = app.alerts["Rename section"]
+        if !alert.waitForExistence(timeout: 5) { print(app.debugDescription) }
+        XCTAssertTrue(alert.exists, "A double tap on a section opens Rename")
+        let field = alert.textFields.firstMatch
         XCTAssertTrue(field.waitForExistence(timeout: 5))
         field.clearAndType("Hook")
-        app.buttons["rename.save"].tap()
+        alert.buttons["Save"].tap()
         XCTAssertTrue(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'grid.section.' AND label CONTAINS 'Hook'")).firstMatch.waitForExistence(timeout: 5))
     }
 }

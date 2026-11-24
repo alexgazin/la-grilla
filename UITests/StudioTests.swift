@@ -299,8 +299,15 @@ final class StudioTests: XCTestCase {
     }
     @MainActor func testHarmonyProposalPreviewApplyAndUndo() {
         let app=launch();app.buttons["harmony.open"].tap();XCTAssertTrue(app.navigationBars["Harmony lab"].waitForExistence(timeout:5))
-        app.buttons["harmony.generate"].tap();app.swipeUp()
-        XCTAssertTrue(app.buttons["harmony.b"].waitForExistence(timeout:5));app.buttons["harmony.b"].tap();XCTAssertTrue(app.buttons["Stop preview"].exists)
+        let generate=app.buttons["harmony.generate"];XCTAssertTrue(generate.waitForExistence(timeout:5))
+        for _ in 0..<10 where !generate.isHittable{Thread.sleep(forTimeInterval:0.3)}
+        generate.tap()
+        let proposalB=app.buttons["harmony.b"]
+        // A tap during the sheet's entrance can be lost; one more tap, then the reason if still nothing.
+        if !proposalB.waitForExistence(timeout:3),generate.exists,generate.isHittable{generate.tap()}
+        if !proposalB.waitForExistence(timeout:5){print(app.debugDescription)}
+        XCTAssertTrue(proposalB.exists,"No proposal after Generate")
+        proposalB.tap();XCTAssertTrue(app.buttons["Stop preview"].waitForExistence(timeout:5))
         app.buttons["harmony.a"].tap();app.buttons["harmony.apply"].tap()
         XCTAssertTrue(app.buttons["Undo"].waitForExistence(timeout:5));app.buttons["Undo"].tap();XCTAssertTrue(app.buttons["Redo"].isEnabled)
     }

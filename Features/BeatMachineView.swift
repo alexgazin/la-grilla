@@ -257,7 +257,7 @@ struct BeatMachineView: View {
                     Button { withAnimation(.snappy(duration: 0.15)) { draft.toggle(pad: pad, step: step) }; Luz.Haptics.selection() } label: {
                         StepCell(hit: draft.hit(pad: pad, step: step), color: BeatPad.color(pad), downbeat: index % 4 == 0)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(StudioQuietButtonStyle(radius: 4, plate: false))
                     .contextMenu { stepMenu(pad: pad, step: step) }
                     .accessibilityLabel(Text(verbatim: "\(NSLocalizedString(Compiler.padNames[pad], comment: "Pad")) \(step + 1)"))
                     .accessibilityValue(LocalizedStringKey(Self.hitName(draft.hit(pad: pad, step: step))))
@@ -307,7 +307,7 @@ struct BeatMachineView: View {
                         BassCell(note: draft.bassNote(at: step), step: step, selected: bassStep != nil && draft.bassNote(at: step)?.step == bassStep,
                                  downbeat: index % 4 == 0, label: draft.bassNotes.first { $0.step == step }.map { noteName($0.semitones) })
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(StudioQuietButtonStyle(radius: 4, plate: false))
                     .accessibilityLabel(Text(verbatim: "808 \(step + 1)"))
                     .accessibilityValue(Text(verbatim: draft.bassNote(at: step).map { noteName($0.semitones) } ?? NSLocalizedString("Off", comment: "Step")))
                     .accessibilityIdentifier("beat.bass.\(step)")

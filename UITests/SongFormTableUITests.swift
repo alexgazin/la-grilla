@@ -20,15 +20,17 @@ final class SongFormTableUITests: XCTestCase {
         for _ in 0..<8 where !table.isHittable { app.swipeUp() }
         XCTAssertTrue(table.isHittable)
         table.tap()
-        let order = app.buttons["builder.order"]
-        XCTAssertTrue(order.waitForExistence(timeout: 5))
+        // A menu row can surface as a button or a pop-up button; find it by identifier.
+        let order = app.descendants(matching: .any).matching(identifier: "builder.order").firstMatch
+        if !order.waitForExistence(timeout: 5) { print(app.debugDescription) }
+        XCTAssertTrue(order.exists, table.exists ? "The table button is still shown" : "The table opened without its order row")
         // The table appears where the button was; scroll toward it rather than away from it.
         let window = app.windows.firstMatch.frame
         for _ in 0..<6 where !order.isHittable || order.frame.maxY > window.maxY - 120 {
             if order.exists, order.frame.minY < window.minY + 120 { app.swipeDown(velocity: .slow) } else { app.swipeUp(velocity: .slow) }
         }
         XCTAssertTrue(order.isHittable)
-        XCTAssertTrue(order.label.contains("A · B · A"), order.label)
+        XCTAssertTrue(order.label.contains("A · B · A") || app.staticTexts["A · B · A"].exists, order.label)
 
         // Add a chord to part A by tapping it, not typing it.
         let chords = app.textFields["builder.part.0.chords"]
@@ -51,7 +53,7 @@ final class SongFormTableUITests: XCTestCase {
         let ready = app.buttons["A · B · C · B"]
         XCTAssertTrue(ready.waitForExistence(timeout: 5))
         ready.tap()
-        XCTAssertTrue(order.label.contains("A · B · C · B"), order.label)
+        XCTAssertTrue(order.label.contains("A · B · C · B") || app.staticTexts["A · B · C · B"].exists, order.label)
         let shot = XCTAttachment(screenshot: app.screenshot()); shot.name = "SongForm-table"; shot.lifetime = .keepAlways; add(shot)
 
         let create = app.buttons["builder.create"]

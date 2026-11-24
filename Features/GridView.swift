@@ -287,6 +287,7 @@ struct GridView: View {
                 .background(selected ? Color.lifted:Color.panel,in:RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous))
                 .overlay{RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous).strokeBorder(selected ? tint:Color.outline.opacity(0.65),lineWidth:selected ? 1.5:0.75)}
         }.buttonStyle(StudioQuietButtonStyle(radius:Luz.Radius.cell)).accessibilityIdentifier("grid.section.\(section.id)")
+            .simultaneousGesture(TapGesture(count:2).onEnded{guard !editingLocked else{return};lastChipTap=nil;renameText=section.name;renamingSection=section.id})
             .accessibilityAction(named:Text("Rename")){guard !editingLocked else{return};renameText=section.name;renamingSection=section.id}
             .accessibilityAddTraits(selected ? .isSelected:[])
             .modifier(ArrangementDragSource(payload:editingLocked ? nil:ArrangementDragPayload(project:session.project,sectionID:section.id).encoded()))
