@@ -2265,3 +2265,5 @@
 "No movement yet" = "No movement yet";
 "Automation chart" = "Automation chart";
 "Add a point at the playhead" = "Add a point at the playhead";
+"MPE: slide and press each note" = "MPE: slide and press each note";
+"MPE controller (bend and pressure per note)" = "MPE controller (bend and pressure per note)";

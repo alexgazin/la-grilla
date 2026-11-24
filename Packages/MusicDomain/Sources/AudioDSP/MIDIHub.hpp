@@ -145,7 +145,7 @@ struct LGMIDIHub {
             const int status=p.status>>4,channel=p.status&15;
             if(status>=0xf){p.status=0;p.needed=0;continue;}
             if(!(routing&(1u<<channel)))continue;
-            if(status==8||status==9||status==11){LGMIDIEvent event{packet.time,slot,status==9&&p.data[1]==0?8:status,channel,p.data[0],p.data[1],int((routing>>16)&15),int((routing>>20)&3)};if(identity){int track=0,instrument=0;if(resolve(identity,track,instrument)){event.track=track;event.instrument=instrument;}}schedule(event,identity,packet.handle,packet.configuration,(routing & screenKeyboardRoute) != 0);}
+            if(status==8||status==9||status==11||status==13||status==14){LGMIDIEvent event{packet.time,slot,status==9&&p.data[1]==0?8:status,channel,p.data[0],status==13?0:p.data[1],int((routing>>16)&15),int((routing>>20)&3)};if(identity){int track=0,instrument=0;if(resolve(identity,track,instrument)){event.track=track;event.instrument=instrument;}}schedule(event,identity,packet.handle,packet.configuration,(routing & screenKeyboardRoute) != 0);}
         }
     }
     template<class Clear> void prepare(Clear clear){

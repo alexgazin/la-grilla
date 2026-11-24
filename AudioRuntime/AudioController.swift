@@ -665,6 +665,8 @@ private enum AudioRender {
     }
     /// I16: pitch bend (semitones) and modulation (0...1) for the track with `identity`.
     func pitchBend(identity: UInt64, semitones: Float, modulation: Float) { if let k = handle?.pointer { lg_pitch_bend(k, identity, semitones, modulation) } }
+    /// I54: MPE — channels 2…16 bend their own note by up to ±48 semitones; pressure per note.
+    func setMPE(_ on: Bool) { if let k = handle?.pointer { lg_mpe(k, on ? 1 : 0) } }
     /// I37: a lane being re-recorded stops reading so the hand on the control is heard.
     func suspendAutomation(track index: Int, parameter: AutomationLane.Parameter) {
         guard let k = handle?.pointer, (0..<masterBus).contains(index) else { return }

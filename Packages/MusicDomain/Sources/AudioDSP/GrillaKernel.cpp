@@ -465,12 +465,25 @@ struct LGKernel {
         startOutput(*v);return v;
     }
     void midiClear(int source,bool capture=true){
+        for(int channel=0;channel<16;channel++){keyBend[size_t((source*16+channel)&255)]=1.0;keyPressure[size_t((source*16+channel)&255)]=-1.f;}
         for(auto &v:voices)if(v.on&&v.sourceKey>=0&&v.sourceKey/16==source){endOutput(v);v.duration=std::min(v.duration,v.age+0.008);}
         for(int channel=0;channel<16;channel++)sustain[source*16+channel]=false;
         if(capture)performance.emit(13,-1,0,0,source);
     }
+    // I54 MPE: pitch bend and pressure per input channel (= per note on an MPE controller).
+    // Member channels bend ±48 semitones with MPE on; otherwise every channel bends ±2.
+    std::atomic<int> mpeOn{0};
+    std::array<double,256> keyBend=[]{std::array<double,256> a{};a.fill(1.0);return a;}();
+    std::array<float,256> keyPressure=[]{std::array<float,256> a{};a.fill(-1.f);return a;}();
     void midiEvent(const LGMIDIEvent &e,bool capture=true){
         const int key=e.source*16+e.channel;
+        if(e.status==14){
+            const int value=(((e.b&127)<<7)|(e.a&127))-8192;
+            const double range=(mpeOn.load(std::memory_order_relaxed)&&e.channel!=0)?48.0:2.0;
+            keyBend[size_t(key&255)]=std::exp2(double(value)/8192.0*range/12.0);return;
+        }
+        if(e.status==13){keyPressure[size_t(key&255)]=float(std::clamp(e.a,0,127))/127.f;return;}
+        if(e.status==9&&e.instrument!=1)keyPressure[size_t(key&255)]=-1.f;
         if(e.status==9){
             if(e.instrument==1){
                 constexpr int map[16]={36,38,42,46,39,37,45,47,50,49,51,54,56,75,70,82};int pad=-1;
@@ -772,6 +785,7 @@ int lg_track_automation(LGKernel*k,int track,int parameter,const LGAutomationPoi
     if(count>0)k->laneMask.fetch_or(bit,std::memory_order_acq_rel);else k->laneMask.fetch_and(~bit,std::memory_order_acq_rel);
     return 1;
 }
+void lg_mpe(LGKernel*k,int enabled){if(k)k->mpeOn.store(enabled?1:0,std::memory_order_relaxed);}
 int lg_glide(LGKernel*k,int track,float seconds){
     if(!k||track<0||track>=MaxTracks||!std::isfinite(seconds)||seconds<0||seconds>0.5f)return 0;
     k->glideTime[size_t(track)].store(seconds,std::memory_order_relaxed);return 1;
@@ -995,21 +1009,23 @@ void lg_render_midi(LGKernel*k,LGMIDIHub*hub,uint64_t hostTime,double hostTicksP
          if(mod!=0){k->vibratoPhase+=5.5/k->sr;if(k->vibratoPhase>=1)k->vibratoPhase-=1;}
          if(semis!=0||mod!=0){bentTrack=k->identityTrack(k->bendIdentity.load(std::memory_order_relaxed));bend=std::pow(2.0,(double(semis)+0.5*double(mod)*std::sin(2*Pi*k->vibratoPhase))/12);}}
         for(auto&v:k->voices)if(v.on){
-            const double voiceBend=v.track==bentTrack?bend:1.0;
+            const bool keyed=v.sourceKey>=0&&v.sourceKey<256;
+            const double voiceBend=(v.track==bentTrack?bend:1.0)*(keyed?k->keyBend[size_t(v.sourceKey)]:1.0);
+            const float expression=keyed&&k->keyPressure[size_t(v.sourceKey)]>=0?0.3f+0.7f*k->keyPressure[size_t(v.sourceKey)]:1.f;
             float sample=0;const double remaining=v.duration-v.age;
             if(remaining<=0){k->endOutput(v);v.on=false;continue;}
             if(v.synth){
                 sample=synthFrame(v,voiceBend)*float(std::min(1.,remaining/0.004));
                 v.age=double(++v.ageFrames)/k->sr;
                 v.lastSample=sample;v.level=std::abs(sample);
-                buses[v.track]+=sample;
+                buses[v.track]+=sample*expression;
                 continue;
             }
             if(v.sample){
                 sample=sampleFrame(v,voiceBend)*v.velocity*float(std::min(1.,v.age/0.001)*std::min(1.,remaining/0.008));
                 v.age=double(++v.ageFrames)/k->sr;
                 v.lastSample=sample;v.level=std::abs(sample);
-                buses[v.track]+=sample;
+                buses[v.track]+=sample*expression;
                 continue;
             }
             if(v.pad>=0){const auto &bank=v.presetVersion>=2&&k->kitFrames!=LegacyKitFrames?k->kitV2:k->kit;int frame=v.presetVersion>=3?int(double(v.ageFrames)*v.playbackRatio):v.presetVersion>=2?int(v.ageFrames):int(v.age*k->sr);if(frame>=int(bank[v.pad].size())){k->endOutput(v);v.on=false;continue;}sample=bank[v.pad][frame];if(v.presetVersion>=3){v.toneState+=float(v.toneAlpha)*(sample-v.toneState);sample=v.presetVersion==3?v.toneState:float((sample+0.65*(sample-v.toneState))*0.85);}}
@@ -1017,7 +1033,7 @@ void lg_render_midi(LGKernel*k,LGMIDIHub*hub,uint64_t hostTime,double hostTicksP
             double envelope=std::min(1.,v.age/(v.presetVersion>=3?v.attack:0.004))*std::min(1.,remaining/0.008);if(v.pad<0)envelope*=v.presetVersion>=2?v.decay:std::exp(-v.age*(v.instrument==2?1.5:0.7));
             sample*=float(envelope)*v.velocity;v.level=std::abs(sample);if(v.presetVersion>=2){v.age=double(++v.ageFrames)/k->sr;v.decay*=v.decayStep;}else{v.age+=1/k->sr;}
             v.lastSample=sample;
-            buses[v.track]+=sample;
+            buses[v.track]+=sample*expression;
         }
         for(auto &tail:k->retirements)if(tail.remaining>0){const float value=tail.sample*float(tail.remaining)/float(tail.total);buses[tail.track]+=value;--tail.remaining;}
         k->dynamics(buses);

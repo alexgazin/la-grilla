@@ -79,6 +79,9 @@ typedef struct { int32_t wave; float cutoff, resonance, attack, decay, sustain, 
 int lg_synth(LGKernel *k, int track, const LGSynthPatch *patch);
 /// Beat machine: seconds an overlapping note slides on a sampled melodic track (0 = no slide).
 int lg_glide(LGKernel *k, int track, float seconds);
+// I54: MPE — with it on, pitch bend on MIDI channels 2…16 bends only that channel's note by up to
+// ±48 semitones and channel pressure shapes its loudness; channel 1 and MPE off bend ±2.
+void lg_mpe(LGKernel *k, int enabled);
 int lg_filter_automation(LGKernel *k, const LGFilterRamp *ramps, int count);
 // I37: one automation lane of a track — parameter 0 is level in dB (−60…+6), 1 is pan (−1…1);
 // up to 64 points with strictly increasing ticks, linear between them, held outside. 0 clears.

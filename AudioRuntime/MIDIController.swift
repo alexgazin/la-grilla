@@ -199,12 +199,41 @@ private enum MIDICallbacks {
             keyboardConnection = (slot, handle, track.id)
         }
         guard let connection = keyboardConnection else { return false }
-        let bytes: [UInt8] = [down ? 0x90 : 0x80, UInt8(pitch), down ? UInt8(KeyboardPerformance.velocity) : 0]
+        // I54: with MPE each held note gets its own channel 2…16, centred before it starts.
+        var channel: UInt8 = 0
+        if mpeKeys {
+            if down {
+                channel = mpeChannels[pitch] ?? nextMPEChannel()
+                mpeChannels[pitch] = channel
+                let centre: [UInt8] = [0xE0 | channel, 0, 64]
+                _ = centre.withUnsafeBufferPointer { lg_midi_push(hub.pointer, connection.handle, mach_absolute_time(), $0.baseAddress, 3) }
+            } else { channel = mpeChannels.removeValue(forKey: pitch) ?? 0 }
+        }
+        let bytes: [UInt8] = [(down ? 0x90 : 0x80) | channel, UInt8(pitch), down ? UInt8(KeyboardPerformance.velocity) : 0]
         let accepted = bytes.withUnsafeBufferPointer {
             lg_midi_push(hub.pointer, connection.handle, mach_absolute_time(), $0.baseAddress, 3) != 0
         }
         if !accepted { releaseKeyboard() }
         return accepted
+    }
+
+    /// I54: on-screen MPE — a held note's own bend (semitones, ±48 range) and pressure (0…1).
+    var mpeKeys = false { didSet { if !mpeKeys { mpeChannels.removeAll() } } }
+    private var mpeChannels: [Int: UInt8] = [:]
+    private var mpeNext: UInt8 = 1
+    private func nextMPEChannel() -> UInt8 {
+        for _ in 0..<15 {
+            let candidate = mpeNext
+            mpeNext = mpeNext >= 15 ? 1 : mpeNext + 1
+            if !mpeChannels.values.contains(candidate) { return candidate }
+        }
+        return mpeNext
+    }
+    func keyExpression(_ pitch: Int, bend semitones: Double, pressure: Double) {
+        guard mpeKeys, let channel = mpeChannels[pitch], let connection = keyboardConnection else { return }
+        let value = Int((8192 + semitones / 48 * 8192).rounded()).clamped(0, 16383)
+        let bytes: [UInt8] = [0xE0 | channel, UInt8(value & 127), UInt8(value >> 7), 0xD0 | channel, UInt8((max(0, min(1, pressure)) * 127).rounded())]
+        _ = bytes.withUnsafeBufferPointer { lg_midi_push(hub.pointer, connection.handle, mach_absolute_time(), $0.baseAddress, Int32($0.count)) }
     }
 
     /// I17: the on-screen sustain pedal sends CC64 through the keybed's own
@@ -285,4 +314,8 @@ private enum MIDICallbacks {
         }
         if isFixture{let count=buffer.withUnsafeMutableBufferPointer{lg_midi_probe_pop(fixtureProbe.pointer,$0.baseAddress,Int32($0.count))};fixtureReceivedNotes+=buffer.prefix(Int(count)).filter{$0.status==9}.count}
     }
+}
+
+private extension Int {
+    func clamped(_ low: Int, _ high: Int) -> Int { Swift.min(high, Swift.max(low, self)) }
 }

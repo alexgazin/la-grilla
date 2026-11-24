@@ -5,6 +5,7 @@ import MusicDomain
 struct MIDIDevicesView:View {
     @Bindable var session:Session
     @State private var bluetooth=false
+    @AppStorage("keyboard.mpe") private var mpe=false
     @State private var target:MIDIMapping.Target = .filter
     @State private var mappingTrack:UUID?
     private var settings:MIDISettings{session.project.midi ?? MIDISettings()}
@@ -14,6 +15,8 @@ struct MIDIDevicesView:View {
             SwiftUI.Section {
                 if let error=midi.error{Text(LocalizedStringKey(error)).foregroundStyle(Color.record).accessibilityIdentifier("midi.error")}
                 Toggle("MIDI input",isOn:Binding(get:{settings.enabled},set:{value in edit{$0.enabled=value}})).accessibilityIdentifier("midi.enabled")
+                // I54: an MPE controller bends and presses each note on its own channel.
+                Toggle("MPE controller (bend and pressure per note)",isOn:Binding(get:{mpe},set:{on in mpe=on;session.audio.setMPE(on)})).accessibilityIdentifier("midi.mpe")
                 Text("Play this project's instruments from a USB or Bluetooth MIDI controller. Mappings are saved with this project.").font(.caption).foregroundStyle(.secondary)
                 if midi.isFixture{Text("Virtual MIDI QA source").font(.caption).foregroundStyle(Color.drums).accessibilityIdentifier("midi.fixture")}
             }
