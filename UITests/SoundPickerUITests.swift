@@ -251,6 +251,8 @@ final class SoundPickerUITests:XCTestCase {
     }
 
     @MainActor func testDustyAndCoastAuditionWithoutEditingThenLoadDistinctPads() throws {
+        // Two full auditions; the CI simulator answers queries slowly while one plays.
+        executionTimeAllowance = 300
         let app = launch(appearance: "dark")
         defer { app.terminate() }
         entry(app).tap()
