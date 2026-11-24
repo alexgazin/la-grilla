@@ -204,6 +204,13 @@ struct MixerView: View {
                 Toggle("Limiter at −1 dBFS", isOn: Binding(get: { session.project.masterFX?.limiter == true }, set: { on in
                     session.edit { p in var fx = p.masterFX ?? MasterFX(); fx.limiter = on ? true : nil; p.masterFX = fx }
                 }))
+                // I33: the space the reverb sends go into.
+                Picker("Reverb space", selection: Binding(get: { session.project.masterFX?.space?.rawValue ?? 0 }, set: { value in
+                    session.edit { p in var fx = p.masterFX ?? MasterFX(); fx.space = ReverbSpace(rawValue: value); p.masterFX = fx }
+                })) {
+                    Text("Classic").tag(0)
+                    ForEach(ReverbSpace.allCases, id: \.self) { space in Text(LocalizedStringKey(space.title)).tag(space.rawValue) }
+                }
                 Button("Prepare for release…", systemImage: "gauge.with.dots.needle.67percent") { session.presentEditor(.master) }
                 // I58: a starting mix by role (one Undo).
                 Button("Balance by role", systemImage: "slider.horizontal.3") { session.mixerImmediate { RoleBalance.apply(to: &$0) } }

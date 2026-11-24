@@ -164,3 +164,16 @@ struct TrackAutomationTests {
         #expect(throws: MusicError.self) { try project.validate() }
     }
 }
+
+struct ReverbSpaceTests {
+    @Test func theSpaceIsSavedWithTheMasterAndOlderFilesKeepTheClassicRoom() throws {
+        var project = Project.demo()
+        project.masterFX = MasterFX(space: .hall)
+        try project.validate()
+        let decoded = try JSONDecoder().decode(Project.self, from: JSONEncoder().encode(project))
+        #expect(decoded.masterFX?.space == .hall)
+        let legacy = try JSONDecoder().decode(MasterFX.self, from: Data(#"{"filter":0,"delayWet":0}"#.utf8))
+        #expect(legacy.space == nil)
+        #expect(ReverbSpace.allCases.map(\.rawValue) == [1, 2, 3, 4], "Kernel space numbers")
+    }
+}

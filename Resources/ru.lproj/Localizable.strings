@@ -2269,3 +2269,8 @@
 "Add a point at the playhead" = "Добавить точку у курсора";
 "MPE: slide and press each note" = "MPE: сдвиг и нажим для каждой ноты";
 "MPE controller (bend and pressure per note)" = "MPE-контроллер (бенд и нажим на каждую ноту)";
+"Reverb space" = "Пространство реверберации";
+"Room" = "Комната";
+"Hall" = "Зал";
+"Plate" = "Пластина";
+"Spring" = "Пружина";

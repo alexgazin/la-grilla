@@ -4,8 +4,15 @@ public struct MasterFX:Codable,Equatable,Sendable {
     public var filter:Double;public var delayWet:Double
     /// I59: master look-ahead limiter at -1 dBFS. Nil/false = off (older files).
     public var limiter:Bool?
-    public init(filter:Double=0,delayWet:Double=0,limiter:Bool?=nil){self.filter=filter;self.delayWet=delayWet;self.limiter=limiter}
+    /// I33: the space on the shared reverb send; nil = the classic room (older files).
+    public var space:ReverbSpace?
+    public init(filter:Double=0,delayWet:Double=0,limiter:Bool?=nil,space:ReverbSpace?=nil){self.filter=filter;self.delayWet=delayWet;self.limiter=limiter;self.space=space}
     public func validate()throws{guard filter.isFinite,(-1...1).contains(filter),delayWet.isFinite,(0...0.5).contains(delayWet)else{throw MusicError.invalidProject}}
+}
+/// I33 · Spaces for the reverb send, from impulse responses generated on the device.
+public enum ReverbSpace:Int,Codable,CaseIterable,Sendable {
+    case room=1,hall,plate,spring
+    public var title:String{switch self{case .room:"Room";case .hall:"Hall";case .plate:"Plate";case .spring:"Spring"}}
 }
 public struct PerformanceEvent:Codable,Equatable,Sendable {
     public enum Kind:Int,Codable,Sendable {case section=1,jump,repeatSize,filter,delay,gain,pan,pad,preview,midiNoteOn,midiNoteOff,midiSustain,midiClear}

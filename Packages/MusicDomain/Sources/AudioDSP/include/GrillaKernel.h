@@ -154,6 +154,10 @@ int lg_metronome_config(LGKernel *k, float gainDB, int accent, int sound);
 // reverbSend (0...1, I58) feeds a shared room reverb returned to the master.
 typedef struct { int32_t choke[16]; float sidechainDB, drive; int32_t crushBits; float reverbSend; } LGTrackDynamics;
 int lg_dynamics(LGKernel *k, const LGTrackDynamics *tracks, int count, int limiter, float ceilingDB);
+// I33: the space on the shared send — 0 the classic room (I58), 1 room, 2 hall, 3 plate, 4 spring:
+// impulse responses generated on the device (≤ 2 s), partitioned FFT convolution, 512 frames late.
+// The first use of a space prepares it on the calling (control) thread. Returns 0 if invalid.
+int lg_space(LGKernel *k, int space);
 // Frames of look-ahead delay the limiter adds while enabled (0 when off).
 int lg_limiter_latency(LGKernel *k);
 void lg_render(LGKernel *k, float *left, float *right, int frames);

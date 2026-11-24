@@ -64,6 +64,7 @@ public extension Project {
     func applyDynamics(to kernel: OpaquePointer, includeMaster: Bool = true) -> Bool {
         let values = tracks.prefix(masterBus).map { ($0.dynamics ?? TrackDynamics()).kernel }
         let limiter: Int32 = includeMaster && masterFX?.limiter == true ? 1 : 0
+        _ = lg_space(kernel, Int32(masterFX?.space?.rawValue ?? 0))
         return values.withUnsafeBufferPointer { lg_dynamics(kernel, $0.baseAddress, Int32($0.count), limiter, Self.limiterCeilingDB) } != 0
     }
 }
