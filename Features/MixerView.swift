@@ -13,6 +13,10 @@ struct MixerView: View {
     @Environment(\.colorSchemeContrast) private var contrast
     @State private var activeFader: Int?
     @State private var equalizer: EQDestination?
+    /// U60: simple mode keeps inserts and automation behind "Show more".
+    @AppStorage(InterfacePreferences.featureLevelKey) private var featureLevel = FeatureLevel.full.rawValue
+    @State private var showMore = false
+    private var advanced: Bool { showMore || (FeatureLevel(rawValue: featureLevel) ?? .full) == .full }
 
     var body: some View {
         Group {
@@ -24,6 +28,7 @@ struct MixerView: View {
             session.edit { p in if let i = p.tracks.firstIndex(where: { $0.id == id }) { p.tracks[i].name = name } }
         }
         .sheet(item:$synthTrack) { SynthEditorView(session: session, trackID: $0.id) }
+        .onAppear { StudioSignposts.endMixer() }
         .onDisappear { finishGesture() }
         .onChange(of: session.performance.replaying) { _, replaying in
             if replaying { finishGesture() }
@@ -68,6 +73,7 @@ struct MixerView: View {
             }.buttonStyle(StudioQuietButtonStyle()).accessibilityIdentifier("mixer.palettes")
                 .disabled(session.performance.contextActive)
             // I37: write level and pan moves into automation while playing.
+            if advanced {
             Button { session.automationRecording.toggle(); Luz.Haptics.selection() } label: {
                 Label("Automation", systemImage: session.automationRecording ? "record.circle.fill" : "record.circle")
                     .labelStyle(.iconOnly).font(.system(size: 18, weight: .medium))
@@ -80,6 +86,16 @@ struct MixerView: View {
             .accessibilityAddTraits(session.automationRecording ? .isSelected : [])
             .accessibilityIdentifier("mixer.automation")
             .disabled(session.performance.contextActive)
+            } else {
+                Button { withAnimation(Luz.Motion.morph) { showMore = true } } label: {
+                    Label("Show more", systemImage: "ellipsis.circle").labelStyle(.iconOnly).font(.system(size: 18, weight: .medium))
+                        .frame(width: 44, height: 44)
+                        .background(Color.raised.opacity(0.55), in: RoundedRectangle(cornerRadius: StudioMetrics.controlRadius, style: .continuous))
+                }
+                .buttonStyle(StudioQuietButtonStyle())
+                .accessibilityLabel("Show more")
+                .accessibilityIdentifier("mixer.show-more")
+            }
             MixPresetMenu(session: session)
             VStack(spacing: 5) {
                 Image(systemName: "headphones")
@@ -156,7 +172,7 @@ struct MixerView: View {
                 soundSlot(track: track, color: color)
                     .frame(height: 56)
             }
-            eqButton(track)
+            if advanced { eqButton(track) }
             gainReadout(index: index, gain: gain, color: color)
                 .padding(.vertical, tight ? 0 : 4)
             fader(index: index, track: track, gain: gain, color: color)
@@ -202,9 +218,11 @@ struct MixerView: View {
                     let id = track.id
                     session.edit { p in if let i = p.tracks.firstIndex(where: { $0.id == id }) { p.tracks[i].locked = p.tracks[i].locked == true ? nil : true } }
                 }
-                dynamicsMenu(track)
-                Button("Automation…", systemImage: "point.topleft.down.to.point.bottomright.curvepath") {
-                    session.automationTrackID = track.id; session.presentEditor(.automation)
+                if advanced {
+                    dynamicsMenu(track)
+                    Button("Automation…", systemImage: "point.topleft.down.to.point.bottomright.curvepath") {
+                        session.automationTrackID = track.id; session.presentEditor(.automation)
+                    }
                 }
                 if track.role == .melody, session.project.tracks.filter({ $0.role == .melody }).count > 1 {
                     Button("Delete track", systemImage: "trash", role: .destructive) { session.deleteMelody(track.id) }
@@ -477,7 +495,7 @@ struct MixerView: View {
             ForEach(Array(session.displayProject.tracks.enumerated()), id: \.element.id) { index, track in
                 SwiftUI.Section(track.displayName) {
                     TrackSoundButton(session: session, trackID: track.id)
-                    eqButton(track)
+                    if advanced { eqButton(track) }
                     gainReadout(index: index, gain: track.gain, color: .track(track.role), largeType: true)
                     Slider(value: gainBinding(index), in: -61...6, step: 1,
                            onEditingChanged: { _ in session.mixerGesture = false })
@@ -498,7 +516,7 @@ struct MixerView: View {
                 .listRowBackground(Color.panel)
             }
             SwiftUI.Section("Master") {
-                eqButton(nil)
+                if advanced { eqButton(nil) }
                 gainReadout(index: masterBus, gain: session.displayProject.master, color: .mint, largeType: true)
                 Slider(value: gainBinding(masterBus), in: -61...6, step: 1,
                        onEditingChanged: { _ in session.mixerGesture = false })

@@ -99,7 +99,7 @@ struct ArrangementScorePreview: View {
             } else if let error {
                 Text(verbatim: error).font(.footnote).foregroundStyle(Color.record)
             } else {
-                ProgressView("Preparing score…").font(.caption)
+                LoadingSkeleton(rows: 4, caption: "Preparing score…").font(.caption)
             }
         }
         .padding(.horizontal, 12).padding(.top, 4).padding(.bottom, 12)

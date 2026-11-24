@@ -48,6 +48,8 @@ extension Color {
     }
     /// U47: the five track colours a person can choose (all meet the Luz contrast tokens).
     static let trackPalette: [Color] = [.harmony, .drums, .bass, .mint, .record]
+    /// U31: clip colours (ClipEditing.clipColorCount of them).
+    static let clipPalette: [Color] = [.harmony, .drums, .bass, .mint, .record, .yellow]
     static func track(_ track: Track) -> Color {
         track.color.flatMap { trackPalette.indices.contains($0) ? trackPalette[$0] : nil } ?? Color.track(track.role)
     }

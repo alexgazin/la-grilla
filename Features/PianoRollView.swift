@@ -9,7 +9,8 @@ struct PianoRollView: View {
     private func noteName(_ pitch:Int)->String{MusicalNotation.noteName(pitch,keyRoot:session.project.keyRoot,minor:session.project.minor,spelling:spelling)}
     @Environment(\.dynamicTypeSize) private var dynamicType
     @Environment(\.dismiss) private var dismiss
-    @State private var selected:UUID?
+    /// U64: the selected note lives in the session, so rotation or a re-layout never drops it.
+    private var selected:UUID?{get{session.selectedNoteID}nonmutating set{session.selectedNoteID=newValue}}
     @State private var clipboard:NoteEvent?
     @State private var snap=240
     @State private var barWidth:CGFloat=240
@@ -87,6 +88,7 @@ struct PianoRollView: View {
             }
         }.tint(.mint).alert("Rename track",isPresented:$renaming){TextField("Track name",text:$trackName);Button("Save"){if let id=track?.id{let name=String(trackName.trimmingCharacters(in:.whitespacesAndNewlines).prefix(40));if !name.isEmpty{session.edit{p in if let i=p.tracks.firstIndex(where:{$0.id==id}){p.tracks[i].name=name}}}}};Button("Cancel",role:.cancel){}}
         .onChange(of:dynamicType,initial:true){_,size in if size.isAccessibilitySize || UIAccessibility.isVoiceOverRunning{listMode=true}}
+        .onAppear{StudioSignposts.endPianoRoll()}
         .onChange(of:session.noteTrackID){_,_ in selected=nil}
         .onChange(of:session.noteClipID){_,_ in selected=nil}
         .sheet(item:$original){record in SourceRecordingView(session:session,record:record)}

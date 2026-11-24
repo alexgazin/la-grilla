@@ -15,7 +15,8 @@ int main(){
         FFT fft(PartitionedConvolver::FFTSize);
         std::vector<float> impulse(3000),input(9000);
         uint32_t state=7;auto noise=[&]{state=state*1664525u+1013904223u;return float(int32_t(state>>8)-(1<<23))/float(1<<23);};
-        for(auto &v:impulse)v=noise()*0.1f;for(auto &v:input)v=noise();
+        for(auto &v:impulse){v=noise()*0.1f;}
+        for(auto &v:input){v=noise();}
         PartitionedConvolver convolver(fft,impulse);
         double worst=0;
         for(int i=0;i<int(input.size());i++){

@@ -277,6 +277,10 @@ public struct Clip: Codable, Equatable, Identifiable, Sendable {
     /// I34: alternative patterns for this clip (not including the current one),
     /// one to three. Nil in older files.
     public var variants: [UUID]?
+    /// U31: a muted clip stays in place but is not played. Nil in older files.
+    public var muted: Bool?
+    /// U31: a clip colour (0 ..< ClipEditing.clipColorCount); nil uses the track's colour.
+    public var color: Int?
     public init(patternID: UUID, start: Int, length: Int) { self.patternID = patternID; self.start = start; self.length = length }
 }
 public struct Track: Codable, Equatable, Identifiable, Sendable {
@@ -446,6 +450,7 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
             for c in t.clips.sorted(by: {$0.start < $1.start}) {
                 guard c.start >= end, c.start < length, c.length > 0, c.length <= length, c.start + c.length <= length, c.offset >= 0, let p = patterns.first(where: {$0.id == c.patternID}), c.offset < p.length else { throw MusicError.invalidProject }
                 if let asset=c.sourceAssetID{guard (audioAssets ?? []).contains(where:{$0.id==asset})else{throw MusicError.invalidProject}}
+                if let color=c.color{guard (0..<6).contains(color) else{throw MusicError.invalidProject}}
                 if let v=c.variants{guard (1...3).contains(v.count),Set(v).count==v.count,!v.contains(c.patternID),v.allSatisfy({id in patterns.contains{$0.id==id}})else{throw MusicError.invalidProject}}
                 end = c.start + c.length
             }

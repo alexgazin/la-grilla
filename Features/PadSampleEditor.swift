@@ -71,7 +71,7 @@ struct PadSampleEditor: View {
                         Button("Reset sample edits") { update(source.initialEdit) }
                             .font(.subheadline).disabled(edit == source.initialEdit || applying)
                     } else if failure == nil {
-                        ProgressView("Preparing samples…").frame(maxWidth: .infinity)
+                        LoadingSkeleton(caption: "Preparing samples…").frame(maxWidth: .infinity)
                     }
                     if let failure { Text(failure).foregroundStyle(Color.record) }
                 }

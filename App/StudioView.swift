@@ -5,6 +5,8 @@ struct StudioView: View {
     @Bindable var session: Session
     @AppStorage("studio.visualMetronome") private var visualMetronome=false
     @AppStorage("studio.recordLock") private var recordLock=false
+    /// U14 · One-hand reach: the top buttons move into the bottom panel.
+    @AppStorage("studio.oneHand") private var oneHand=false
     @AppStorage("studio.pitchSpelling") private var spellingValue=PitchSpelling.automatic.rawValue
     @Namespace private var tabPuck
     /// Sheets grow out of the control that opened them (Luz zoom transitions).
@@ -12,28 +14,41 @@ struct StudioView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorSchemeContrast) private var contrast
     @State private var saveCard=false
+    @State private var prewarm=false
     private var displayedKeyName:String{
         let project=session.displayProject
         let root=MusicalNotation.pitchClassName(project.keyRoot,keyRoot:project.keyRoot,minor:project.minor,spelling:PitchSpelling(rawValue:spellingValue) ?? .automatic)
         return root+" "+NSLocalizedString(project.minor ? "minor":"major",comment:"Key mode")
     }
     @Environment(\.verticalSizeClass) private var verticalSize
+    /// U39: compact, normal or large bars and tabs.
+    @Environment(\.studioDensity) private var density
     var body: some View {
         VStack(spacing:0){
             if let error=session.audio.error {LuzNotice(kind:.danger,symbol:"speaker.slash",text:LocalizedStringKey(error),actions:[("Retry",{_ = session.ensureAudio()})]).padding(.horizontal,8).padding(.top,6).transition(Luz.Transition.drop(reduceMotion))}
             if let error=session.saveError {LuzNotice(kind:.danger,text:LocalizedStringKey(error),actions:[("Retry",{Task{await session.save()}}),("Save copy",{Task{await session.saveCopy()}})]).padding(.horizontal,8).padding(.top,6).transition(Luz.Transition.drop(reduceMotion))}
-            if verticalSize == .compact {
-                HStack(spacing:0){VStack(spacing:0){compactHeader;workspaceStage};compactSidebar}
-            }else{
-                // U42: with the recording lock on, only the instrument and Stop respond while recording.
-                header.disabled(recordLock && session.recording).opacity(recordLock && session.recording ? 0.45:1)
-                workspaceStage
-                QuickBar(session:session).disabled(recordLock && session.recording)
-                console
+            // U64: one layout that changes shape on rotation, so the workspace (its selection,
+            // scroll, zoom and open sheets) is the same view in portrait and landscape.
+            let landscape=verticalSize == .compact
+            (landscape ? AnyLayout(HStackLayout(spacing:0)):AnyLayout(VStackLayout(spacing:0))){
+                VStack(spacing:0){
+                    if landscape{compactHeader}
+                    // U42: with the recording lock on, only the instrument and Stop respond while recording.
+                    else{header.disabled(recordLock && session.recording).opacity(recordLock && session.recording ? 0.45:1)}
+                    tourCard
+                    workspaceStage
+                    if !landscape{
+                        QuickBar(session:session).disabled(recordLock && session.recording)
+                        console
+                    }
+                }
+                if landscape{compactSidebar}
             }
         }.animation(reduceMotion ? nil:Luz.Motion.morph,value:session.saveError).animation(reduceMotion ? nil:Luz.Motion.morph,value:session.audio.error)
         .background(Color.ink).foregroundStyle(Color.studioText)
         .overlay{if AudioRuntimeQA.enabled{AudioRuntimeQAView(session:session)}}
+        // U20: UI tests read the launch time from here.
+        .overlay(alignment:.topLeading){if Luz.uiTesting{Text(verbatim:"\(session.launchMilliseconds)").font(.caption2).foregroundStyle(Color.clear).frame(width:2,height:2).clipped().allowsHitTesting(false).accessibilityIdentifier("studio.launch-ms")}}
         .background{UndoGestureInstaller(undo:{session.gestureUndo(false)},redo:{session.gestureUndo(true)}).frame(width:0,height:0).accessibilityHidden(true)}
         .background{StudioKeyCommands(session:session)}
         .overlay(alignment:.top){if visualMetronome && session.audio.playing{VisualMetronome(session:session).allowsHitTesting(false)}}
@@ -41,13 +56,27 @@ struct StudioView: View {
         .overlay(alignment:.bottom){ComfortCompanions(session:session)}
         .overlay(alignment:.top){if let toast=session.toast{Label(LocalizedStringKey(toast),systemImage:toast=="Undo" ? "arrow.uturn.backward":toast=="Redo" ? "arrow.uturn.forward":"checkmark.circle").font(.subheadline.weight(.semibold)).padding(.horizontal,16).padding(.vertical,10).modifier(StudioNavigationSurface()).padding(.top,8).transition(Luz.Transition.drop(reduceMotion)).accessibilityAddTraits(.updatesFrequently).allowsHitTesting(false)}}
         .animation(reduceMotion ? .easeOut(duration:0.15):Luz.Motion.morph,value:session.toast)
+        // U11: opening Voice, Mixer and Export finishes those tour steps.
+        .onChange(of:session.sheet){_,sheet in if sheet == .voice{session.tourEvent(.voiceOpened)}else if sheet == .export{session.tourEvent(.exportOpened)}}
+        .onChange(of:session.tab){_,tab in if tab == 2{StudioSignposts.beginMixer();session.tourEvent(.mixerOpened)}}
+        // U49: build the mixer and piano roll once out of sight, shortly after launch.
+        .background{if prewarm{SheetPrewarm(session:session)}}
+        .task{
+            guard !Luz.uiTesting || ProcessInfo.processInfo.arguments.contains("--prewarm") else{return}
+            try? await Task.sleep(for:.seconds(1.5))
+            guard session.sheet == nil,!session.audio.playing else{return}
+            prewarm=true
+            try? await Task.sleep(for:.milliseconds(400))
+            prewarm=false
+        }
+        .animation(reduceMotion ? nil:Luz.Motion.morph,value:session.tour)
         .sheet(item:$session.sheet,onDismiss:{if let url=session.exportedURL{session.shareURL=url;session.exportedURL=nil}}){sheet in VStack(spacing:0){Group{switch sheet {
         case .projects: ProjectsView(session:session)
         case .trackBuilder: TrackBuilderView(session:session)
         case .newProject: NewProjectView(session:session)
         case .export: ExportView(session:session)
         case .settings: SettingsView(session:session)
-        case .gettingStarted: GettingStartedView{session.sheet=nil}
+        case .gettingStarted: GettingStartedView(close:{session.sheet=nil},tour:{Task{await session.startTour()}})
         case .bass: BassView(session:session)
         case .sections: SectionsView(session:session)
         case .notes: PianoRollView(session:session)
@@ -134,17 +163,17 @@ struct StudioView: View {
         Button("Song versions",systemImage:"bookmark"){session.sheet = .versions}
         Button("Recently deleted",systemImage:"trash"){session.sheet = .trash}
     }
+    @ViewBuilder private var tourCard:some View{
+        if let tour=session.tour{DemoTourCard(session:session,tour:tour).transition(Luz.Transition.drop(reduceMotion))}
+    }
     private var saveColor: Color {
         if session.saveError != nil { return .record }
         return session.saving || session.savedRevision != session.project.revision ? .muted : .mint
     }
     var header: some View {
         HStack(spacing:8){
-            Button{session.sheet = .projects}label:{
-                StudioMark().frame(width:44,height:44)
-                    .background(Color.panel,in:RoundedRectangle(cornerRadius:Luz.Radius.card,style:.continuous))
-                    .overlay{RoundedRectangle(cornerRadius:Luz.Radius.card,style:.continuous).strokeBorder(Color.outline.opacity(0.7),lineWidth:0.75)}
-            }.buttonStyle(StudioQuietButtonStyle()).luzZoomSource(Session.Sheet.projects,in:sheetZoom).accessibilityLabel("Projects")
+            if !oneHand{projectsButton}
+
             VStack(alignment:.leading,spacing:0){
                 HStack(spacing:6){
                     Text(session.displayProject.name).font(StudioTypography.title).tracking(-0.5).lineLimit(1)
@@ -173,19 +202,37 @@ struct StudioView: View {
                         .frame(minHeight:44,alignment:.leading).contentShape(Rectangle())
                 }.buttonStyle(StudioQuietButtonStyle()).luzZoomSource(Session.Sheet.settings,in:sheetZoom)
             }.frame(maxWidth:.infinity,alignment:.leading)
-            HStack(spacing:0){
-                IconButton(symbol:"arrow.uturn.backward",label:"Undo"){session.undo()}
-                    .disabled(!session.history.canUndo || session.recording || session.armed).opacity(session.history.canUndo ? 1:0.3)
-                IconButton(symbol:"arrow.uturn.forward",label:"Redo"){session.redo()}
-                    .disabled(!session.history.canRedo || session.recording || session.armed).opacity(session.history.canRedo ? 1:0.3)
-            }.background(Color.panel,in:RoundedRectangle(cornerRadius:Luz.Radius.card,style:.continuous))
-                // U6 · U7: a long press on Undo/Redo opens the history and the song versions.
-                .contextMenu{historyMenu}
-            IconButton(symbol:"magnifyingglass",label:"Search actions"){session.sheet = .commands}
-                .keyboardShortcut("k",modifiers:.command).accessibilityIdentifier("commands.open")
-            IconButton(symbol:"square.and.arrow.up",label:"Export"){session.finishTake();session.exportTake=nil;session.sheet = .export}
-                .background(Color.raised,in:RoundedRectangle(cornerRadius:Luz.Radius.card,style:.continuous)).luzZoomSource(Session.Sheet.export,in:sheetZoom).accessibilityIdentifier("export.open")
-        }.padding(.horizontal,12).padding(.top,8).padding(.bottom,6)
+            if !oneHand{headerActions}
+        }.padding(.horizontal,12).padding(.top,density.space(8)).padding(.bottom,density.space(6))
+    }
+    private var projectsButton:some View{
+        Button{session.sheet = .projects}label:{
+            StudioMark().frame(width:44,height:44)
+                .background(Color.panel,in:RoundedRectangle(cornerRadius:Luz.Radius.card,style:.continuous))
+                .overlay{RoundedRectangle(cornerRadius:Luz.Radius.card,style:.continuous).strokeBorder(Color.outline.opacity(0.7),lineWidth:0.75)}
+        }.buttonStyle(StudioQuietButtonStyle()).luzZoomSource(Session.Sheet.projects,in:sheetZoom).accessibilityLabel("Projects")
+    }
+    @ViewBuilder private var headerActions:some View{
+        HStack(spacing:0){
+            IconButton(symbol:"arrow.uturn.backward",label:"Undo"){session.undo()}
+                .disabled(!session.history.canUndo || session.recording || session.armed).opacity(session.history.canUndo ? 1:0.3)
+            IconButton(symbol:"arrow.uturn.forward",label:"Redo"){session.redo()}
+                .disabled(!session.history.canRedo || session.recording || session.armed).opacity(session.history.canRedo ? 1:0.3)
+        }.background(Color.panel,in:RoundedRectangle(cornerRadius:Luz.Radius.card,style:.continuous))
+            // U6 · U7: a long press on Undo/Redo opens the history and the song versions.
+            .contextMenu{historyMenu}
+        IconButton(symbol:"magnifyingglass",label:"Search actions"){session.sheet = .commands}
+            .keyboardShortcut("k",modifiers:.command).accessibilityIdentifier("commands.open")
+        IconButton(symbol:"square.and.arrow.up",label:"Export"){session.finishTake();session.exportTake=nil;session.sheet = .export}
+            .background(Color.raised,in:RoundedRectangle(cornerRadius:Luz.Radius.card,style:.continuous)).luzZoomSource(Session.Sheet.export,in:sheetZoom).accessibilityIdentifier("export.open")
+    }
+    /// U14 · In one-hand mode the projects, Undo/Redo, search and export buttons sit above the transport.
+    private var oneHandBar:some View{
+        HStack(spacing:8){
+            projectsButton
+            Spacer(minLength:0)
+            headerActions
+        }.padding(.horizontal,12).padding(.top,8).accessibilityElement(children:.contain).accessibilityIdentifier("studio.one-hand-bar")
     }
     var transport: some View {
         HStack(spacing:4){
@@ -205,14 +252,15 @@ struct StudioView: View {
                 .disabled(session.performance.contextActive).opacity(session.performance.contextActive ? 0.35:1)
             IconButton(symbol:"repeat",label:"Toggle loop",color:.muted,isOn:session.loop){session.setLoop(enabled:!session.loop)}
                 .disabled(session.performance.contextActive).opacity(session.performance.contextActive ? 0.35:1)
-        }.padding(.horizontal,12).padding(.top,10).padding(.bottom,8)
+        }.padding(.horizontal,12).padding(.top,density.space(10)).padding(.bottom,density.space(8))
     }
     private var console: some View {
         VStack(spacing:0){
+            if oneHand{oneHandBar}
             transport
             Rectangle().fill(Color.outline.opacity(0.65)).frame(height:0.5).padding(.horizontal,12).accessibilityHidden(true)
             HStack(spacing:4){tab("square.grid.3x3","Grid",0);tab("square.grid.2x2","Jam",1);tab("slider.vertical.3","Mixer",2)}
-                .padding(6)
+                .padding(density.space(6))
         }.modifier(StudioNavigationSurface(solid:session.tab == 1)).padding(.horizontal,8).padding(.top,6).padding(.bottom,4)
     }
     func tab(_ symbol:String,_ label:LocalizedStringKey,_ index:Int)->some View {
@@ -228,7 +276,7 @@ struct StudioView: View {
                     .contentTransition(.symbolEffect(.replace))
                 Text(label).font(StudioTypography.label)
             }.foregroundStyle(selected ? Color.studioText:Color.muted)
-                .frame(maxWidth:.infinity,minHeight:44)
+                .frame(maxWidth:.infinity,minHeight:density.height)
                 .background{
                     // Luz: one puck slides to the selected tab.
                     if selected{

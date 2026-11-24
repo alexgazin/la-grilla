@@ -19,6 +19,8 @@ struct PaletteView: View {
     @State private var previewB = false
     @State private var baseRevision = -1
     @State private var palette: ProducerPalette?
+    /// U67: a held card plays four bars; its release is not a tap.
+    @State private var heldCard = false
 
     private var section: MusicDomain.Section { session.section }
     private var range: Range<Int> { section.start..<(section.start + section.length) }
@@ -32,13 +34,14 @@ struct PaletteView: View {
                     Text(String(format: NSLocalizedString("Compares %@ at the same tempo, notes and start. Levels are matched; the master stays yours.", comment: "Palettes"), section.name))
                         .font(.caption).foregroundStyle(Color.muted).accessibilityIdentifier("palettes.scope")
                     ForEach(ProducerPalette.Style.allCases, id: \.self) { style in
-                        PaletteCard(style: style, selected: selected == style) { choose(style) }
+                        PaletteCard(style: style, selected: selected == style) { if heldCard { heldCard = false } else { choose(style) } }
+                            .holdToPreview(suppressTap: $heldCard, start: { holdPalette(style) }, stop: { session.endHarmonyPreview() })
                             .luzScrollDepth()
                             .luzEntrance(ProducerPalette.Style.allCases.firstIndex(of: style) ?? 0)
                     }
                     missingSounds
                     keepList
-                    if loading { ProgressView("Matching levels on this section…").accessibilityIdentifier("palettes.loading").transition(Luz.Transition.pop(reduceMotion)) }
+                    if loading { LoadingSkeleton(rows: 4, caption: "Matching levels on this section…").accessibilityIdentifier("palettes.loading").transition(Luz.Transition.pop(reduceMotion)) }
                     if let error { Text(LocalizedStringKey(error)).font(.callout).foregroundStyle(Color.record).accessibilityIdentifier("palettes.error").transition(Luz.Transition.pop(reduceMotion)) }
                     // Luz: the review rises in once the levels are matched.
                     if let result, !loading { review(result).transition(Luz.Transition.rise(reduceMotion)) }
@@ -127,6 +130,17 @@ struct PaletteView: View {
         case .legacy: NSLocalizedString("Original", comment: "Sound palette")
         default: NSLocalizedString("Classic", comment: "Sound palette")
         }
+    }
+
+    /// U67 · Four bars of the section with this palette, at once (levels are matched only on choosing).
+    private func holdPalette(_ style: ProducerPalette.Style) -> Bool {
+        do {
+            let palette = ProducerPalette.make(style, seed: 1)
+            let sounds = try PaletteEngine.kit(palette)
+            let assets = Dictionary(uniqueKeysWithValues: sounds.map { ($0.pad, $0.asset) })
+            let candidate = try PaletteEngine.candidate(session.project, palette: palette, keep: keep, kit: assets)
+            return session.holdPreview(candidate, range: HoldPreview.range(candidate, from: section.start), samples: try session.paletteLibrary(sounds))
+        } catch { return false }
     }
 
     private func choose(_ style: ProducerPalette.Style) {

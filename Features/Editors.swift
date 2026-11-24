@@ -98,7 +98,7 @@ struct ChordEditor: View {
         guard session.project.patterns.contains(where:{$0.id==selection.patternID})else{error=HarmonyError.stale.localizedDescription;return}
         let revision=session.project.revision
         session.edit{p in guard let i=p.patterns.firstIndex(where:{$0.id==selection.patternID})else{throw HarmonyError.stale};p.patterns[i].chords.removeAll(where:{$0.tick<selection.tick+duration && $0.tick+$0.duration>selection.tick});p.patterns[i].chords.append(ChordEvent(tick:selection.tick,duration:duration,chord:chord))}
-        if session.project.revision>revision{dismiss()}
+        if session.project.revision>revision{session.tourEvent(.chordChanged);dismiss()}
     }
 }
 /// I16 · "Why it sounds": degree, function and the root motion from the chord before.
@@ -139,6 +139,12 @@ struct SettingsView: View {
     @AppStorage("studio.visualMetronome") private var visualMetronome=false
     @AppStorage("studio.leftHanded") private var leftHanded=false
     @AppStorage("studio.recordLock") private var recordLock=false
+    @AppStorage("studio.oneHand") private var oneHand=false
+    /// U60 · U39: how much to show and how big.
+    @AppStorage(InterfacePreferences.featureLevelKey) private var featureLevel=FeatureLevel.full.rawValue
+    @AppStorage(InterfacePreferences.densityKey) private var densityValue=InterfaceDensity.normal.rawValue
+    @State private var showMore=false
+    private var advanced:Bool{showMore || (FeatureLevel(rawValue:featureLevel) ?? .full) == .full}
     @AppStorage("studio.hapticBeats") private var hapticBeats=false
     @AppStorage("studio.voiceCountIn") private var voiceCountIn=false
     @AppStorage("studio.hitCaptions") private var hitCaptions=false
@@ -169,6 +175,10 @@ struct SettingsView: View {
     var body: some View {NavigationStack{Form{
         Section("App preferences"){
             Picker("Theme",selection:$appearance){Text("System").tag(0);Text("Light").tag(1);Text("Dark").tag(2)}.pickerStyle(.menu).accessibilityIdentifier("settings.theme")
+            Picker("Interface",selection:$featureLevel){ForEach(FeatureLevel.allCases,id:\.self){level in Text(LocalizedStringKey(level.title)).tag(level.rawValue)}}
+                .pickerStyle(.menu).accessibilityIdentifier("settings.feature-level")
+            Picker("Density",selection:$densityValue){ForEach(InterfaceDensity.allCases,id:\.self){density in Text(LocalizedStringKey(density.title)).tag(density.rawValue)}}
+                .pickerStyle(.menu).accessibilityIdentifier("settings.density")
             Button{if let url=URL(string:UIApplication.openSettingsURLString){UIApplication.shared.open(url)}}label:{Label("Language and permissions",systemImage:"arrow.up.forward.app")}.accessibilityIdentifier("settings.system")
             Text("Change this app’s language and permissions in iOS Settings. Available options depend on your device.").font(.caption).foregroundStyle(.secondary)
         }
@@ -190,12 +200,21 @@ struct SettingsView: View {
             Text("Names and degrees change the display, not the sound. Auto keeps the chord spelling you entered and otherwise follows the key. Minor degrees use the natural minor scale.").font(.caption).foregroundStyle(.secondary)
         }
         Section("Transport"){Toggle("Loop",isOn:Binding(get:{session.loop},set:{session.setLoop(enabled:$0)}));Picker("Loop length",selection:Binding(get:{session.loopBars},set:{session.setLoop(bars:$0)})){ForEach(session.loopLengthOptions,id:\.self){n in Text("\(n) bars").tag(n)}}}
-        Section("MIDI"){Button("MIDI devices"){session.sheet = .midiDevices}}
-        Section("Timing"){LatencyCalibrationRow(session:session)}
+        // U60: simple mode keeps MIDI, timing and backup behind "Show more".
+        if advanced{
+            Section("MIDI"){Button("MIDI devices"){session.sheet = .midiDevices}.accessibilityIdentifier("settings.midi")}
+            Section("Timing"){LatencyCalibrationRow(session:session)}
+        }else{
+            Section{
+                Button{withAnimation(Luz.Motion.morph){showMore=true}}label:{Label("Show more",systemImage:"ellipsis.circle")}.accessibilityIdentifier("settings.show-more")
+            }footer:{Text("Simple mode hides MIDI devices, timing, backup and mixer inserts. Your songs keep everything.")}
+        }
         Section("Metronome"){MetronomeSettingsRows(audio:session.audio);Toggle("Visual metronome",isOn:$visualMetronome).accessibilityIdentifier("settings.visual-metronome")}
         Section("Comfort"){
             Toggle("Left-handed pads",isOn:$leftHanded).accessibilityIdentifier("settings.left-handed")
             Toggle("Lock the screen while recording",isOn:$recordLock).accessibilityIdentifier("settings.record-lock")
+            // U14: the top buttons move into the bottom panel, within reach of a thumb.
+            Toggle("One-hand reach",isOn:$oneHand).accessibilityIdentifier("settings.one-hand")
             Toggle("Show time in minutes and seconds",isOn:$showSeconds).accessibilityIdentifier("settings.show-seconds")
             Toggle("Suggest the next step",isOn:Binding(get:{!nextStepOff},set:{nextStepOff = !$0})).accessibilityIdentifier("settings.next-step")
             // U41 · U43 · U57 · U59
@@ -206,15 +225,7 @@ struct SettingsView: View {
             Button("Show gesture tips again"){UserDefaults.standard.removeObject(forKey:CoachTip.storageKey);session.showToast("Tips will show again")}.accessibilityIdentifier("settings.tips-reset")
         }
         audioSettings
-        Section("Backup"){BackupRows(session:session)
-            // I67: settings travel as a small file (never project data).
-            Button{if let url=try? SettingsTransfer.export(){settingsFile=url}}label:{Label("Export settings",systemImage:"square.and.arrow.up")}.accessibilityIdentifier("settings.export-settings")
-            Button{importingSettings=true}label:{Label("Import settings",systemImage:"square.and.arrow.down")}.accessibilityIdentifier("settings.import-settings")
-        }
-        .sheet(isPresented:Binding(get:{settingsFile != nil},set:{if !$0{settingsFile=nil}})){if let url=settingsFile{ShareView(url:url)}}
-        .fileImporter(isPresented:$importingSettings,allowedContentTypes:[.json]){result in
-            if case .success(let url)=result{do{let count=try SettingsTransfer.importFile(url);session.showToast(String(format:NSLocalizedString("%lld settings imported",comment:"Settings transfer"),count))}catch{session.message="This file is not a La Grilla settings file."}}
-        }
+        if advanced{backupSection}
         // U62: how much room songs and temporary files take, and clearing the temporary ones.
         Section("Storage"){
             LabeledContent("Songs and versions",value:ByteCountFormatter.string(fromByteCount:StorageUsage.bytes(of:session.store.root),countStyle:.file))
@@ -250,6 +261,8 @@ struct SettingsView: View {
         }
         Section("About La Grilla"){
             Button("Getting started"){session.sheet = .gettingStarted}.accessibilityIdentifier("settings.help")
+            // U11: the demo song and the five-step tour, again.
+            Button{Task{await session.startTour()}}label:{Label("Show me around",systemImage:"hand.point.up.left")}.accessibilityIdentifier("settings.tour")
             LabeledContent("Version",value:"\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "") (\(Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? ""))")
             Link("Privacy policy",destination:URL(string:"https://github.com/alexgazin/la-grilla/blob/main/docs/privacy/"+(Locale.current.language.languageCode?.identifier=="ru" ? "ru":"en")+".md")!)
             Link("Support",destination:URL(string:"https://github.com/alexgazin/la-grilla/issues")!)
@@ -264,6 +277,17 @@ struct SettingsView: View {
         // Project tools and notation need a full working viewport. A medium
         // Form only exposed preferences/tempo and deferred the key actions.
         .presentationDetents([.large])}
+    private var backupSection:some View{
+        Section("Backup"){BackupRows(session:session)
+            // I67: settings travel as a small file (never project data).
+            Button{if let url=try? SettingsTransfer.export(){settingsFile=url}}label:{Label("Export settings",systemImage:"square.and.arrow.up")}.accessibilityIdentifier("settings.export-settings")
+            Button{importingSettings=true}label:{Label("Import settings",systemImage:"square.and.arrow.down")}.accessibilityIdentifier("settings.import-settings")
+        }
+        .sheet(isPresented:Binding(get:{settingsFile != nil},set:{if !$0{settingsFile=nil}})){if let url=settingsFile{ShareView(url:url)}}
+        .fileImporter(isPresented:$importingSettings,allowedContentTypes:[.json]){result in
+            if case .success(let url)=result{do{let count=try SettingsTransfer.importFile(url);session.showToast(String(format:NSLocalizedString("%lld settings imported",comment:"Settings transfer"),count))}catch{session.message="This file is not a La Grilla settings file."}}
+        }
+    }
     private var audioSettings:some View {
         Section("Audio"){
             LabeledContent("Sample rate",value:"\(Int(session.audio.sampleRate)) Hz")

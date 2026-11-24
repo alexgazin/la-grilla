@@ -63,7 +63,7 @@ struct PadSampleLibraryView: View {
                     .disabled(working)
                 }
                 if let error { Label(error, systemImage: "exclamationmark.circle").foregroundStyle(Color.record) }
-                if working { ProgressView("Preparing samples…") }
+                if working { LoadingSkeleton(caption: "Preparing samples…") }
                 if !filtered.isEmpty {
                     Section("My samples") { ForEach(filtered, id: \.id) { sample in row(sample) } }
                 }

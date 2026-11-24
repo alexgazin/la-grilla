@@ -49,7 +49,7 @@ struct ProjectsView: View {
         if !Luz.uiTesting || ProcessInfo.processInfo.arguments.contains("--daily"){DailyIdeaCard(session:session)}
         Button{showImport=true}label:{Label("Import project",systemImage:"square.and.arrow.down").font(.system(.subheadline,weight:.medium)).frame(maxWidth:.infinity,minHeight:44)}.buttonStyle(StudioQuietButtonStyle()).tint(.mint).accessibilityIdentifier("project.import")
         Button{guard !openingExample else{return};openingExample=true;Task{_ = await session.openExample();openingExample=false}}label:{Label("Open an example",systemImage:"music.note.list").frame(maxWidth:.infinity,minHeight:44)}.buttonStyle(StudioQuietButtonStyle()).tint(.mint).accessibilityIdentifier("project.example")
-        if openingExample{ProgressView("Opening example…")}
+        if openingExample{LoadingSkeleton(rows: 2, caption: "Opening example…")}
         Button{mergeImport=true;showImport=true}label:{Label("Merge a co-author's copy",systemImage:"arrow.triangle.merge").frame(maxWidth:.infinity,minHeight:44)}.buttonStyle(StudioQuietButtonStyle()).accessibilityIdentifier("project.merge-copy")
         Text("Brings their edits of a shared .grillapack into the open project. One Undo reverts it.").font(.caption).foregroundStyle(Color.muted)
         Text("Opens a separate copy. Your current project is saved first.").font(.caption).foregroundStyle(Color.muted)
@@ -86,6 +86,8 @@ struct NewProjectView: View {
     @State private var minor = false
     @State private var bars = 4
     @State private var template:ProjectTemplate = .empty
+    /// U67: a held template or beat plays four bars; its release is not a tap.
+    @State private var heldCard=false
     @State private var creating = false
     @State private var creationError:String?
     var body: some View {
@@ -107,7 +109,7 @@ struct NewProjectView: View {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 8) {
                             ForEach(BeatPreset.Genre.allCases) { genre in
-                                Button { startWithBeat(genre) } label: {
+                                Button { if heldCard { heldCard = false } else { startWithBeat(genre) } } label: {
                                     VStack(spacing: 4) {
                                         Image(systemName: genre.symbol).font(.title3.weight(.bold)).foregroundStyle(.white)
                                             .frame(width: 56, height: 56)
@@ -119,6 +121,10 @@ struct NewProjectView: View {
                                 .buttonStyle(.plain).disabled(creating)
                                 .accessibilityLabel(LocalizedStringKey(genre.title))
                                 .accessibilityIdentifier("project.quick.\(genre.rawValue)")
+                                .holdToPreview(suppressTap: $heldCard, start: {
+                                    guard let beat = try? HoldPreview.beat(genre, root: root, minor: minor), let library = try? session.paletteLibrary(beat.kit) else { return false }
+                                    return session.holdPreview(beat.project, range: HoldPreview.range(beat.project), samples: library)
+                                }, stop: { session.endHarmonyPreview() })
                             }
                         }.padding(.vertical, 4)
                     }
@@ -178,8 +184,12 @@ struct NewProjectView: View {
         }
     }
     private func templateButton(_ option:ProjectTemplate,title:LocalizedStringKey)->some View {
-        Button{template=option}label:{Text(title).frame(maxWidth:.infinity,minHeight:44).foregroundStyle(template==option ? Color.ink:Color.studioText).background(template==option ? Color.mint:Color.raised,in:RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous))}
+        Button{if heldCard{heldCard=false}else{template=option}}label:{Text(title).frame(maxWidth:.infinity,minHeight:44).foregroundStyle(template==option ? Color.ink:Color.studioText).background(template==option ? Color.mint:Color.raised,in:RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous))}
             .buttonStyle(StudioQuietButtonStyle()).accessibilityIdentifier("project.template."+option.rawValue)
+            .holdToPreview(suppressTap:$heldCard,start:{
+                guard option != .empty,let preview=try? HoldPreview.template(option,bpm:bpm,root:root,minor:minor) else{return false}
+                return session.holdPreview(preview,range:HoldPreview.range(preview))
+            },stop:{session.endHarmonyPreview()})
             .accessibilityAddTraits(template==option ? .isSelected:[])
     }
 }

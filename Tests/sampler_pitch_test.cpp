@@ -14,7 +14,8 @@ double frequency(const std::vector<float>&v,int from,int count,double rate){
     double first=-1,last=-1;int crossings=0;
     for(int i=from+1;i<from+count;i++)if(v[size_t(i-1)]<0&&v[size_t(i)]>=0){
         const double t=i-1+v[size_t(i-1)]/(v[size_t(i-1)]-v[size_t(i)]);
-        if(first<0)first=t;last=t;crossings++;
+        if(first<0){first=t;}
+        last=t;crossings++;
     }
     return crossings>1?(crossings-1)*rate/(last-first):0;
 }

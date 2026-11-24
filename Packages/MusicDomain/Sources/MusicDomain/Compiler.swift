@@ -16,7 +16,7 @@ public enum Compiler {
         let range = range ?? 0..<project.length
         var result: [CompiledNote] = []
         for (index, track) in project.tracks.enumerated() where track.role != .bass {
-            for clip in track.clips {
+            for clip in track.clips where clip.muted != true {
                 guard let pattern = project.patterns.first(where: {$0.id == clip.patternID}), pattern.length > 0 else { continue }
                 for cycle in stride(from: -clip.offset, to: clip.length, by: pattern.length) {
                     if track.role == .harmony {

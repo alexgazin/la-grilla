@@ -81,6 +81,7 @@ struct StarterGroovesView: View {
     @Bindable var session: Session
     @State private var selected = StarterGrooves.all[0].id
     @State private var source = Source.groove
+    @State private var heldCard = false
     enum Source: Hashable { case current, groove }
 
     private var groove: StarterGrooves.Groove { StarterGrooves.all.first { $0.id == selected } ?? StarterGrooves.all[0] }
@@ -97,7 +98,7 @@ struct StarterGroovesView: View {
                     Text("One bar, repeated across the section. Our own patterns: use them freely.").font(.caption).foregroundStyle(Color.muted)
                     LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
                         ForEach(Array(StarterGrooves.all.enumerated()), id: \.element.id) { index, item in
-                            Button { selected = item.id; if session.harmonyPreview { play() } } label: {
+                            Button { if heldCard { heldCard = false; return }; selected = item.id; if session.harmonyPreview { play() } } label: {
                                 VStack(spacing: 4) {
                                     Text(LocalizedStringKey(item.title)).font(.headline)
                                     Text("\(item.bpm) BPM").font(.caption.monospacedDigit()).foregroundStyle(Color.muted)
@@ -107,6 +108,12 @@ struct StarterGroovesView: View {
                             .buttonStyle(StudioQuietButtonStyle())
                             .accessibilityAddTraits(selected == item.id ? .isSelected : [])
                             .accessibilityIdentifier("grooves.item.\(index)")
+                            // U67: holding a groove plays it in this section for four bars.
+                            .holdToPreview(suppressTap: $heldCard, start: {
+                                var project = session.project
+                                guard (try? item.clipboard.paste(into: session.section, project: &project)) != nil else { return false }
+                                return session.holdPreview(project, range: HoldPreview.range(project, from: session.section.start))
+                            }, stop: { session.endHarmonyPreview() })
                         }
                     }
                     AuditionBar(screen: "grooves", source: $source, sources: [(.current, "As it is"), (.groove, "This groove")],

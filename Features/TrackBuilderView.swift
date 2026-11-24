@@ -95,7 +95,7 @@ struct TrackBuilderView: View {
                     Button(action:interpret) {
                         Label("Suggest settings",systemImage:"wand.and.stars")
                     }.disabled(trimmedIdea.isEmpty || interpreting != nil).accessibilityIdentifier("builder.suggest")
-                    if interpreting != nil { ProgressView("Suggesting settings…") }
+                    if interpreting != nil { LoadingSkeleton(rows: 2, caption: "Suggesting settings…") }
                     if let feedback {
                         Text(feedback).font(.footnote).foregroundStyle(Color.muted)
                     } else if unreviewedIdea {

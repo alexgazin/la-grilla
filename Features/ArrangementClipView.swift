@@ -23,7 +23,8 @@ struct ArrangementClipFace: View {
     let width: CGFloat
     let height: CGFloat
     let resizing: Bool
-    private var color: Color { Color.track(track) }
+    var selected = false
+    private var color: Color { clip.color.flatMap { Color.clipPalette.indices.contains($0) ? Color.clipPalette[$0] : nil } ?? Color.track(track) }
     var body: some View {
         VStack(alignment:.leading,spacing:5) {
             if width>=62 {
@@ -50,7 +51,15 @@ struct ArrangementClipFace: View {
             }
         }.padding(width<62 ? 3:9).frame(width:width,height:height,alignment:.topLeading)
             .background(color.opacity(resizing ? 0.2:0.1),in:RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous))
-            .overlay{RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous).stroke(resizing ? Color.mint:color.opacity(0.4),lineWidth:resizing ? 2:1)}
+            .overlay{RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous).stroke(resizing || selected ? Color.mint:color.opacity(0.4),lineWidth:resizing || selected ? 2:1)}
+            // U31: a muted clip is dimmed with a symbol; a selected one shows a check.
+            .opacity(clip.muted == true ? 0.45:1)
+            .overlay(alignment:.topTrailing){
+                HStack(spacing:3){
+                    if clip.muted == true{Image(systemName:"speaker.slash.fill")}
+                    if selected{Image(systemName:"checkmark.circle.fill").foregroundStyle(Color.mint)}
+                }.font(.system(.caption2,weight:.semibold)).foregroundStyle(Color.muted).padding(4)
+            }
             .contentShape(Rectangle())
     }
 }

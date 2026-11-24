@@ -177,8 +177,8 @@ struct MelodicSamplerView: View {
         Task {
             defer { working = false }
             do {
-                let sound = voice.map { VoiceTreatment.apply(samples, rate: MelodicSampler.rate, preset: $0) } ?? samples
-                let pcm = try MelodicSampler.instrument(sound, root: root, shape: shape)
+                let treated = voice.map { VoiceTreatment.apply(samples, rate: MelodicSampler.rate, preset: $0) } ?? samples
+                let pcm = try MelodicSampler.instrument(treated, root: root, shape: shape)
                 let data = try pcm.encode(kind: .instrument)
                 let sound = try PreparedSound(name: MelodicSampler.name(root: root, label: name), instrumentData: data, ringsOut: ringsOut)
                 try await session.assignSounds([(pad: nil, sound: sound)], trackID: trackID, projectID: projectID, revision: revision)

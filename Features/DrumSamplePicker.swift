@@ -86,7 +86,7 @@ struct DrumSamplePicker: View {
                 } header: { Text("Factory kits") }
                 footer: { Text("Audition the same beat with each kit. Loading replaces the 16 pad sounds in one undoable edit.") }
                     .disabled(!editable)
-                if busy { ProgressView("Preparing samples…") }
+                if busy { LoadingSkeleton(caption: "Preparing samples…") }
                 if let error { Label(error, systemImage: "exclamationmark.circle").foregroundStyle(Color.record) }
                 Section {
                     ForEach(Compiler.padNames.indices, id: \.self) { padRow($0) }

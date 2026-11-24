@@ -50,7 +50,7 @@ import Observation
     var savedAt: Date?
     var openedAt: Date?
     @ObservationIgnored var openedSnapshot: Project?
-    var entries: [ProjectStore.SummaryEntry] = []; var sheet: Sheet?; var shareURL: URL?; var exportedURL: URL?
+    var entries: [ProjectStore.SummaryEntry] = []; var sheet: Sheet?{didSet{if oldValue == .notes,sheet != .notes{selectedNoteID=nil};if sheet == .notes,oldValue != .notes{StudioSignposts.beginPianoRoll()}}}; var shareURL: URL?; var exportedURL: URL?
     private struct LibraryLoadFailure {let revision:Int;let modified:Date;let error:String}
     @ObservationIgnored private var libraryLoadFailures:[UUID:LibraryLoadFailure]=[:]
     private struct ProjectIdentity:Equatable {let id:UUID;let revision:Int}
@@ -202,6 +202,7 @@ import Observation
             do{try audio.prepare();sync()}
             catch{audio.error=error.localizedDescription;runtimeTrace("bootstrap.audio.failure \(error.localizedDescription)")}
             runtimeTrace("bootstrap.prepare.after")
+            launchMilliseconds=LaunchClock.elapsedMilliseconds()
             ready=true
             runtimeTrace("bootstrap.ready")
         }
@@ -374,6 +375,26 @@ import Observation
     }
     /// I90: short confirmation shown over the studio.
     var toast:String?
+    /// U11 · The demo tour, while it runs.
+    var tour:DemoTour?
+    /// Incremented by the tour's "Show me" on the chord step; Grid opens a chord.
+    var tourChordRequest=0
+    /// U64 · The note selected in the piano roll (kept across rotation and re-layout).
+    var selectedNoteID:UUID?
+    /// U20 · Milliseconds from the app starting to the studio being ready.
+    private(set) var launchMilliseconds=0
+    func tourEvent(_ event:TourEvent){
+        guard var current=tour,!current.finished else{return}
+        if current.observe(event){Luz.Haptics.success()}
+        tour=current
+    }
+    /// U11 · Opens the demo song and starts the five-step tour on it.
+    func startTour()async{
+        sheet=nil
+        guard await openExample() else{return}
+        tab=0
+        tour=DemoTour()
+    }
     func showToast(_ text:String){toast=text;Task{@MainActor in try? await Task.sleep(for:.seconds(1.2));if toast==text{toast=nil}}}
     /// Undo or redo from a gesture; true when something changed.
     func gestureUndo(_ forward:Bool)->Bool {
@@ -778,6 +799,7 @@ import Observation
         guard audio.pad(pad,velocity:strength) else{return false}
         lastPadVelocity=strength
         acceptedPadHits+=1
+        if tour != nil{tourEvent(.padHit)}
         if let touchTime,touchTime.isFinite{lastPadDispatchMilliseconds=max(0,(ProcessInfo.processInfo.systemUptime-touchTime)*1000)}
         if recording || armed {
             audio.refreshClock()
@@ -857,6 +879,19 @@ import Observation
     private func auditionDraft(_ candidate:Project, range:Range<Int>, loop:Bool) {
         if !harmonyPreview{previewPosition=Int(audio.tick);previewPlaying=audio.playing;harmonyPreview=true}
         audio.audition(candidate,range:range,loop:loop);syncMIDI()
+    }
+    /// U67 · Plays four bars of any project (a template, style, beat or palette) while a card is
+    /// held. Nothing is saved; `endHarmonyPreview()` returns the transport to where it was.
+    @discardableResult func holdPreview(_ candidate:Project,range:Range<Int>,samples:SampleLibrary?=nil)->Bool{
+        guard !performance.contextActive,!recording,!armed else{return false}
+        finishTake();guard ensureAudio()else{return false}
+        guard !range.isEmpty,range.lowerBound>=0,range.upperBound<=candidate.length,(try? candidate.validate()) != nil else{return false}
+        audio.refreshClock()
+        if !harmonyPreview{previewPosition=Int(audio.tick);previewPlaying=audio.playing;harmonyPreview=true}
+        guard audio.audition(candidate,range:range,loop:true,samples:samples,restart:true)else{restorePreviewTransport();return false}
+        previewingNewTrack=candidate.id != project.id
+        syncMIDI()
+        return true
     }
     func endHarmonyPreview(){
         practicing=false
