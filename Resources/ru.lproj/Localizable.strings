@@ -2615,3 +2615,5 @@
 "Roots falling by fifths sound inevitable: vi – ii – V – I goes A – D – G – C in C major." = "Корни, падающие по квинтам, звучат неизбежно: vi – ii – V – I в до мажоре — это A – D – G – C.";
 "Keep falling and you pass through every chord of the key." = "Продолжайте падать — и пройдёте через все аккорды тональности.";
 "vi – ii – V – I, a bar each." = "vi – ii – V – I, по такту на каждый.";
+"DAWproject (Cubase, Studio One, Bitwig)" = "DAWproject (Cubase, Studio One, Bitwig)";
+"An open project for Cubase 14, Studio One, Bitwig, and Cubasis or n-Track on iPad: every part as notes and as aligned audio, with tempo, levels and section markers." = "Открытый проект для Cubase 14, Studio One, Bitwig, а на iPad — для Cubasis и n-Track: каждая партия и нотами, и выровненным аудио, с темпом, уровнями и маркерами частей.";

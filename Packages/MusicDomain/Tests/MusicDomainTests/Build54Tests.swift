@@ -284,3 +284,65 @@ struct HarmonyCourseTests {
         #expect(ExerciseRule.inversion.isMet(by: song))
     }
 }
+
+@Suite("54 · DAWproject export")
+struct DAWProjectTests {
+    private static let fixtures = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+        .deletingLastPathComponent().appendingPathComponent("Fixtures/dawproject")
+
+    /// Runs xmllint against the official schema (present on macOS and in the Linux CI image).
+    private func validate(_ xml: String, schema: String) throws -> (ok: Bool, output: String) {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("dawproject-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let file = folder.appendingPathComponent("file.xml")
+        try Data(xml.utf8).write(to: file)
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/xmllint")
+        process.arguments = ["--noout", "--schema", Self.fixtures.appendingPathComponent(schema).path, file.path]
+        let pipe = Pipe(); process.standardError = pipe; process.standardOutput = pipe
+        try process.run(); process.waitUntilExit()
+        return (process.terminationStatus == 0, String(decoding: pipe.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self))
+    }
+
+    private func song() throws -> Project {
+        let base = try emptyProject(bpm: QuickTrack.tempo(for: .funk, seed: 1), bars: QuickTrack.sectionBars)
+        var project = try QuickTrack.make(from: base, genre: .funk, seed: 1).project
+        project.name = "Sunday <funk> & \"friends\""
+        project.markers = [Marker(tick: barTicks * 2, text: "horns")]
+        project.remixOf = RemixCredit(title: "Original", author: "Ana", license: "cc-by")
+        return project
+    }
+
+    @Test func theProjectAndMetadataMatchTheOfficialSchema() throws {
+        let project = try song()
+        let settings = WAVSettings(sampleRate: 48000, bitDepth: 24, tailSeconds: 2)
+        let xml = DAWProject.projectXML(project, stems: DAWProject.stems(project), settings: settings, version: "1.0 (54)")
+        let checked = try validate(xml, schema: "Project.xsd")
+        #expect(checked.ok, "\(checked.output)")
+        let meta = try validate(DAWProject.metadataXML(project), schema: "MetaData.xsd")
+        #expect(meta.ok, "\(meta.output)")
+    }
+
+    @Test func everyNoteTempoMarkerAndStemIsThere() throws {
+        let project = try song()
+        let xml = DAWProject.projectXML(project, stems: DAWProject.stems(project), settings: WAVSettings(), version: "test")
+        #expect(xml.contains("unit=\"bpm\" value=\"\(DAWProject.number(project.bpm))\""))
+        #expect(xml.components(separatedBy: "<Note ").count - 1 == Compiler.notes(project).count)
+        #expect(xml.contains("name=\"Verse\"") && xml.contains("name=\"Chorus\"") && xml.contains("name=\"horns\""))
+        for stem in DAWProject.stems(project) { #expect(xml.contains("<File path=\"\(stem.file)\"/>")) }
+        #expect(xml.contains("Sunday &lt;funk&gt; &amp; &quot;friends&quot;") == false, "the song name is not a track name")
+        #expect(DAWProject.metadataXML(project).contains("<Title>Sunday &lt;funk&gt; &amp; &quot;friends&quot;</Title>"))
+        // Drum hits use General MIDI drum keys on channel 10.
+        #expect(xml.contains("channel=\"9\" key=\"36\""))
+    }
+
+    @Test func aRangeStartsAtBeatZero() throws {
+        let project = try song()
+        let range = QuickTrack.sectionBars * barTicks..<project.length
+        let xml = DAWProject.projectXML(project, range: range, stems: [], settings: WAVSettings(), version: "test")
+        #expect(xml.contains("<Marker time=\"0.000000\" name=\"Chorus\"/>"))
+        #expect(!xml.contains("name=\"Verse\"/>"))
+        #expect(try validate(xml, schema: "Project.xsd").ok)
+    }
+}

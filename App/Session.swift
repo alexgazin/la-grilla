@@ -1301,10 +1301,10 @@ import Observation
         }catch{if let written{await retainUnopenedProject(written)}else{message=error.localizedDescription}}
     }
     enum ExportFormat:String,CaseIterable,Identifiable {
-        case midi,wav,stems,project,aac,video,daw,musicxml,ringtone
+        case midi,wav,stems,project,aac,video,daw,dawproject,musicxml,ringtone
         var id:String{rawValue}
-        var title:String{switch self{case .midi:"Standard MIDI";case .wav:"Stereo WAV";case .stems:"Aligned stems";case .project:"Portable project";case .aac:"AAC for sharing";case .video:"Video for social";case .daw:"For a DAW: stems, MIDI, README";case .musicxml:"Lead sheet (MusicXML)";case .ringtone:"Ringtone (30 s)"}}
-        var fileExtension:String{switch self{case .midi:"mid";case .wav:"wav";case .stems,.daw:"zip";case .project:"grillapack";case .aac:"m4a";case .video:"mp4";case .musicxml:"musicxml";case .ringtone:"m4r"}}
+        var title:String{switch self{case .midi:"Standard MIDI";case .wav:"Stereo WAV";case .stems:"Aligned stems";case .project:"Portable project";case .aac:"AAC for sharing";case .video:"Video for social";case .daw:"For a DAW: stems, MIDI, README";case .dawproject:"DAWproject (Cubase, Studio One, Bitwig)";case .musicxml:"Lead sheet (MusicXML)";case .ringtone:"Ringtone (30 s)"}}
+        var fileExtension:String{switch self{case .midi:"mid";case .wav:"wav";case .stems,.daw:"zip";case .dawproject:DAWProject.fileExtension;case .project:"grillapack";case .aac:"m4a";case .video:"mp4";case .musicxml:"musicxml";case .ringtone:"m4r"}}
     }
     /// 54: the picture and credit of the next video export, and a clip length the export sheet opens with.
     var videoStyle:VideoStyle = .map
@@ -1342,6 +1342,11 @@ import Observation
                 case .musicxml:
                     // I49: melody, chord symbols, lyrics and section marks for notation apps.
                     try MusicXMLExporter.data(snapshot).write(to:url,options:.atomic)
+                case .dawproject:
+                    // 54: notes and aligned audio per track, tempo, levels and markers in the open format.
+                    let version=(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0")+" ("+(Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "")+")"
+                    let entries=DAWProject.entries(snapshot,range:range,settings:settings,version:version)
+                    _ = try await StemExporter.render(snapshot,to:url,settings:settings,range:range,selected:nil,samples:samples,extras:entries,progress:progress)
                 case .daw:
                     // I14: every track as an aligned stem, plus song.mid and a README.
                     let extras=try DAWPackage.extras(snapshot,range:range,settings:settings)

@@ -38,7 +38,7 @@ struct ExportView:View {
                     StudioSegments(title:"Range",selection:$scope,options:[(0,"Entire song"),(1,"Selected section"),(2,"Bars")]).disabled(session.exportInProgress)
                     if scope==2 {VStack{Stepper("From bar \(firstBar)",value:$firstBar,in:1...lastBar);Stepper("Through bar \(lastBar)",value:$lastBar,in:firstBar...max(1,session.project.length/barTicks))}.font(.system(.subheadline)).disabled(session.exportInProgress)}
                 }
-                if format == .wav || format == .stems || format == .aac || format == .video {audioSettings}
+                if format == .wav || format == .stems || format == .aac || format == .video || format == .dawproject {audioSettings}
                 if format == .stems {VStack(alignment:.leading,spacing:10){SmallHeading(text:"TRACKS");ForEach(project.tracks){t in Toggle(t.displayName,isOn:Binding(get:{tracks.contains(t.id)},set:{on in if on{tracks.insert(t.id)}else{tracks.remove(t.id)}})).tint(.mint)}}.disabled(session.exportInProgress)}
                 if let error=session.exportError {Text(LocalizedStringKey(error)).font(.system(.caption)).foregroundStyle(Color.record).accessibilityIdentifier("export.error")}
                 if format == .stems && tracks.isEmpty {Text("Select at least one track.").font(.caption).foregroundStyle(Color.muted)}
@@ -70,7 +70,7 @@ struct ExportView:View {
         }.disabled(session.exportInProgress)
     }
     private func symbol(_ format:Session.ExportFormat)->String {
-        switch format{case .midi:"pianokeys";case .wav:"waveform";case .stems:"square.stack.3d.up";case .project:"folder";case .aac:"music.note";case .video:"film";case .daw:"shippingbox";case .musicxml:"music.note.list";case .ringtone:"bell"}
+        switch format{case .midi:"pianokeys";case .wav:"waveform";case .stems:"square.stack.3d.up";case .project:"folder";case .aac:"music.note";case .video:"film";case .daw:"shippingbox";case .dawproject:"square.stack.3d.forward.dottedline";case .musicxml:"music.note.list";case .ringtone:"bell"}
     }
     private var audioSettings:some View {VStack(alignment:.leading,spacing:14){
         HStack{Text("Sample rate");Spacer();Picker("Sample rate",selection:$sampleRate){Text("44.1 kHz").tag(44100);Text("48 kHz").tag(48000)}.pickerStyle(.menu)}
@@ -92,6 +92,7 @@ struct ExportView:View {
         case .video:"A vertical 1080×1920 video (.mp4) of the same mix with a playhead moving over your song, ready for stories and reels."
         case .ringtone:"The first 30 seconds of the chosen bars as an iPhone ringtone (.m4r). In Files, share it to GarageBand or set it in Settings › Sounds."
         case .musicxml:"A lead sheet for notation apps (MuseScore, Sibelius, Dorico, Finale): the melody with chord symbols, lyrics and section marks."
+        case .dawproject:"An open project for Cubase 14, Studio One, Bitwig, and Cubasis or n-Track on iPad: every part as notes and as aligned audio, with tempo, levels and section markers."
         case .daw:"One zip for Logic, GarageBand, Ableton, FL Studio or Reaper: every track as an aligned WAV from bar 1, song.mid with tempo, key and section markers, and a README with what to do."
         }
     }
