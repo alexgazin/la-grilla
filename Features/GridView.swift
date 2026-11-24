@@ -63,6 +63,13 @@ struct GridView: View {
     @AppStorage("studio.pitchSpelling") private var pitchSpelling="automatic"
     @AppStorage("studio.showDegrees") private var showDegrees=false
     @State private var barWidth: CGFloat = 96
+    /// U48: a double tap on a section chip renames it.
+    @State private var renamingSection: UUID?
+    /// The last chip tap: a second tap on the same section soon after is a double tap.
+    @State private var lastChipTap: (id: UUID, time: Date)?
+    /// U59: stronger contrast for the grid.
+    @AppStorage("studio.gridContrast") private var gridContrast = false
+    @State private var renameText = ""
     @State private var selection: ChordSelection?
     @State private var dragStart: Int?
     @State private var viewport=CGSize(width:440,height:630)
@@ -81,6 +88,9 @@ struct GridView: View {
     @State private var pendingClipInspector:ClipEditorSelection?
     @State private var targetTrack:UUID?
     @State private var resizeDraft:ClipResizeDraft?
+    /// U31 · "Select": taps add clips (or a section's clips) to a batch for one action.
+    @State private var selecting=false
+    @State private var picked:Set<UUID>=[]
     private struct ClipResizeDraft {let payload:ArrangementDragPayload;let originalLength:Int;var length:Int;let start:Int}
     private struct TimelineGeometry:Equatable {
         var offset:CGFloat=0
@@ -88,11 +98,13 @@ struct GridView: View {
         var contentWidth:CGFloat=0
     }
     private let gutter:CGFloat=56
-    private var laneScale:CGFloat{min(1.35,max(0.78,(viewport.height-155)/324))}
+    @Environment(\.studioDensity) private var density
+    /// U39: compact lanes are a little lower, large ones a little taller.
+    private var laneScale:CGFloat{min(1.35,max(0.78,(viewport.height-155)/324))*(1+(CGFloat(density.spacing)-1)/2)}
     private var harmonyHeight:CGFloat{132*laneScale}
     private var drumHeight:CGFloat{100*laneScale}
     private var bassHeight:CGFloat{92*laneScale}
-    private var melodyHeight:CGFloat{64}
+    private var melodyHeight:CGFloat{64*(1+(CGFloat(density.spacing)-1)/2)}
     private var showsRootBassLane: Bool {
         let tracks = session.displayProject.tracks
         return tracks.contains { $0.role == .bass } || !tracks.contains { $0.role == .melody }
@@ -108,6 +120,11 @@ struct GridView: View {
         return clipMode ? min(64,max(base+4,resized)):base
     }
     var body: some View {
+        gridBody.contrast(gridContrast ? 1.35 : 1).saturation(gridContrast ? 1.15 : 1).renameAlert("Rename section",item:$renamingSection,text:$renameText,limit:120){id,name in
+            session.edit{p in if let i=p.sections.firstIndex(where:{$0.id==id}){p.sections[i].name=name}}
+        }
+    }
+    private var gridBody: some View {
         GeometryReader{geometry in
             VStack(spacing:0){
                 ScrollView(.vertical,showsIndicators:false){
@@ -115,6 +132,8 @@ struct GridView: View {
                         arrangementHeader
                         sectionChips
                         if !hasMusicalEvents{emptyProjectGuide.padding(.horizontal,16).padding(.bottom,14)}
+                        else{NextStepCard(session:session).padding(.horizontal,16).padding(.bottom,10)}
+                        CoachTipBanner(tips:[.pinchGrid,.renameSection,.undoHistory]).padding(.horizontal,16).padding(.bottom,10)
                         if clipMode{clipControls.padding(.horizontal,16).padding(.bottom,8)}
                         HStack(spacing:0){
                             VStack(spacing:0){Color.ink.frame(height:28);trackLabel(.harmony,height:harmonyHeight);trackLabel(.drums,height:drumHeight);if showsRootBassLane { trackLabel(.bass,height:bassHeight) };ForEach(session.displayProject.tracks.filter{$0.role == .melody}){track in melodyTrackLabel(track)}}.frame(width:gutter)
@@ -147,8 +166,11 @@ struct GridView: View {
                 tools.padding(.horizontal,12).padding(.vertical,7)
             }.onAppear{configureViewport(geometry.size)}.onChange(of:geometry.size){_,size in cancelTimelineGesture();configureViewport(size)}.onChange(of:session.project.id){_,_ in
                 cancelTimelineGesture();zoomed=false;timelinePosition.scrollTo(edge:.leading);configureViewport(geometry.size)
-            }.onChange(of:session.displayProject.length){_,_ in cancelTimelineGesture();configureViewport(geometry.size)}.onChange(of:clipMode){_,_ in cancelTimelineGesture()}
-        }.sheet(item:$selection){selection in ChordEditor(session:session,selection:selection).presentationDetents([.large]).presentationDragIndicator(.visible).presentationBackground(Color.panel)}
+            }.onChange(of:session.displayProject.length){_,_ in cancelTimelineGesture();configureViewport(geometry.size)}.onChange(of:clipMode){_,mode in cancelTimelineGesture();if !mode{selecting=false;picked=[]}}
+            .onChange(of:session.project.revision){_,_ in let existing=Set(session.project.tracks.flatMap(\.clips).map(\.id));picked.formIntersection(existing)}
+        }.onChange(of:session.pendingTourChord){_,pending in if pending{openTourChord()}}
+        .onAppear{if session.pendingTourChord{openTourChord()}}
+        .sheet(item:$selection){selection in ChordEditor(session:session,selection:selection).presentationDetents([.large]).presentationDragIndicator(.visible).presentationBackground(Color.panel)}
             .sheet(item:$clipSelection,onDismiss:openPendingClipEditor){choice in ArrangementClipInspector(session:session,selection:choice){pendingClipEditor=choice;clipSelection=nil}.presentationDragIndicator(.visible).presentationBackground(Color.panel)}
             .sheet(isPresented:$showClipList,onDismiss:{if let choice=pendingClipInspector{pendingClipInspector=nil;clipSelection=choice}}){clipList}
     }
@@ -165,7 +187,22 @@ struct GridView: View {
                 Button{addFirstChord()}label:{Label("Add first chord",systemImage:"plus").frame(maxWidth:.infinity,minHeight:44)}.accessibilityIdentifier("grid.empty-chord")
                 Button{session.tab=1}label:{Label("Play a beat",systemImage:"square.grid.2x2.fill").frame(maxWidth:.infinity,minHeight:44)}.accessibilityIdentifier("grid.empty-jam")
             }.buttonStyle(StudioQuietButtonStyle()).font(.subheadline.weight(.medium)).foregroundStyle(Color.mint)
+            Button{session.presentEditor(.chordImport)}label:{Label("Chords from a song or photo",systemImage:"camera.viewfinder").frame(maxWidth:.infinity,minHeight:44)}
+                .buttonStyle(StudioQuietButtonStyle()).font(.subheadline.weight(.medium)).foregroundStyle(Color.mint).accessibilityIdentifier("grid.empty-chord-import")
         }.padding(12).modifier(StudioSurface()).disabled(editingLocked)
+    }
+    /// U11 · The tour asked for a chord: open it once Grid has settled on screen.
+    private func openTourChord(){
+        session.pendingTourChord=false
+        DispatchQueue.main.asyncAfter(deadline:.now()+0.35){openFirstChord()}
+    }
+    /// U11 · "Show me" on the chord step opens the first chord of this section.
+    private func openFirstChord(){
+        guard let track=session.project.tracks.first(where:{$0.role == .harmony}),
+              let clip=track.clips.first(where:{$0.start<session.section.start+session.section.length && $0.start+$0.length>session.section.start}) ?? track.clips.first,
+              let pattern=session.project.patterns.first(where:{$0.id==clip.patternID}) else{addFirstChord();return}
+        guard let event=pattern.chords.sorted(by:{$0.tick<$1.tick}).first else{addFirstChord();return}
+        selection=ChordSelection(id:event.id,patternID:pattern.id,tick:event.tick,chord:event.chord,duration:event.duration)
     }
     private func addFirstChord(){
         guard let track=session.project.tracks.first(where:{$0.role == .harmony}),
@@ -238,13 +275,28 @@ struct GridView: View {
                 ForEach(session.displayProject.sections){section in sectionChip(section)}
                 Button{session.presentEditor(.sections)}label:{Image(systemName:"plus").frame(width:44,height:44).foregroundStyle(Color.muted)}
                     .buttonStyle(StudioQuietButtonStyle())
+                // U22: loop only the selected section while working on it.
+                Button{session.toggleFocus()}label:{Image(systemName:session.focused ? "scope":"circle.dashed").frame(width:44,height:44).foregroundStyle(session.focused ? Color.mint:Color.muted)}
+                    .buttonStyle(StudioQuietButtonStyle()).disabled(editingLocked)
+                    .accessibilityLabel(LocalizedStringKey(session.focused ? "Leave focus" : "Focus on this section"))
+                    .accessibilityIdentifier("grid.focus")
             }.padding(.horizontal,16)
         }.padding(.bottom,8)
+    }
+    /// One tap selects the section; a second tap on it within 0.4 s renames it (U48).
+    private func chipTapped(_ section:MusicDomain.Section,selected:Bool) {
+        if selecting{pickSection(section);return}
+        let now=Date()
+        if let last=lastChipTap,last.id==section.id,now.timeIntervalSince(last.time)<0.4,!editingLocked {
+            lastChipTap=nil;renameText=section.name;renamingSection=section.id;return
+        }
+        lastChipTap=(section.id,now)
+        if !selected{Luz.Haptics.selection()};withAnimation(Luz.Motion.snap){session.select(section)}
     }
     private func sectionChip(_ section:MusicDomain.Section)->some View {
         let selected=session.section.id==section.id
         let tint=SongFormStyle.color(for:section)
-        return Button{if !selected{Luz.Haptics.selection()};withAnimation(Luz.Motion.snap){session.select(section)}}label:{
+        return Button{chipTapped(section,selected:selected)}label:{
             HStack(spacing:8) {
                 // Luz: each section keeps its own colour; selection lifts the chip and outlines it.
                 RoundedRectangle(cornerRadius:1,style:.continuous).fill(tint.opacity(selected ? 1:0.5)).frame(width:3,height:14)
@@ -257,11 +309,65 @@ struct GridView: View {
                 .background(selected ? Color.lifted:Color.panel,in:RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous))
                 .overlay{RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous).strokeBorder(selected ? tint:Color.outline.opacity(0.65),lineWidth:selected ? 1.5:0.75)}
         }.buttonStyle(StudioQuietButtonStyle(radius:Luz.Radius.cell)).accessibilityIdentifier("grid.section.\(section.id)")
+            .simultaneousGesture(TapGesture(count:2).onEnded{guard !editingLocked else{return};lastChipTap=nil;renameText=section.name;renamingSection=section.id})
+            .accessibilityAction(named:Text("Rename")){guard !editingLocked else{return};renameText=section.name;renamingSection=section.id}
             .accessibilityAddTraits(selected ? .isSelected:[])
             .modifier(ArrangementDragSource(payload:editingLocked ? nil:ArrangementDragPayload(project:session.project,sectionID:section.id).encoded()))
             .dropDestination(for:String.self){items,_ in session.reorderSection(drop:items,onto:section.id)}
     }
-    private var clipControls:some View {
+    @ViewBuilder private var clipControls:some View {
+        if selecting{selectionBar}else{clipOptions}
+    }
+    /// U31 · The action bar for the selected clips: every action is one edit (one Undo).
+    private var selectionBar:some View {
+        HStack(spacing:4) {
+            Text(String(format:NSLocalizedString("%lld selected",comment:"Selected clips"),Int64(picked.count))).font(.system(.caption,weight:.semibold)).monospacedDigit()
+                .foregroundStyle(Color.studioText).accessibilityIdentifier("grid.select.count")
+            Spacer(minLength:2)
+            IconButton(symbol:"plus.square.on.square",label:"Duplicate",color:.mint){batch(.duplicate)}.disabled(picked.isEmpty).accessibilityIdentifier("grid.batch.duplicate")
+            Menu{
+                Button("One bar earlier",systemImage:"arrow.left"){batch(.move(bars:-1))}.accessibilityIdentifier("grid.batch.move.earlier")
+                Button("One bar later",systemImage:"arrow.right"){batch(.move(bars:1))}.accessibilityIdentifier("grid.batch.move.later")
+            }label:{Image(systemName:"arrow.left.and.right").font(StudioTypography.icon).frame(width:44,height:44)}
+                .disabled(picked.isEmpty).accessibilityLabel("Move").accessibilityIdentifier("grid.batch.move")
+            Menu{
+                Button("Track colour"){batch(.color(nil))}
+                ForEach(0..<ClipEditing.clipColorCount,id:\.self){index in
+                    Button{batch(.color(index))}label:{Label(String(format:NSLocalizedString("Colour %lld",comment:"Clip colour"),Int64(index+1)),systemImage:"circle.fill")}
+                        .tint(Color.clipPalette[index]).accessibilityIdentifier("grid.batch.color.\(index)")
+                }
+            }label:{Image(systemName:"paintpalette").font(StudioTypography.icon).frame(width:44,height:44)}
+                .disabled(picked.isEmpty).accessibilityLabel("Colour").accessibilityIdentifier("grid.batch.color")
+            IconButton(symbol:allPickedMuted ? "speaker.wave.2":"speaker.slash",label:allPickedMuted ? "Unmute":"Mute",color:.mint){batch(.mute(!allPickedMuted))}
+                .disabled(picked.isEmpty).accessibilityIdentifier("grid.batch.mute")
+            IconButton(symbol:"trash",label:"Delete",color:.record){batch(.delete)}.disabled(picked.isEmpty).accessibilityIdentifier("grid.batch.delete")
+            Button("Done"){withAnimation(Luz.Motion.snap){selecting=false;picked=[]}}.font(.system(.caption,weight:.semibold)).frame(minHeight:44)
+                .accessibilityIdentifier("grid.select.done")
+        }.foregroundStyle(Color.mint)
+    }
+    private var allPickedMuted:Bool{
+        let clips=session.project.tracks.flatMap(\.clips).filter{picked.contains($0.id)}
+        return !clips.isEmpty && clips.allSatisfy{$0.muted == true}
+    }
+    private func batch(_ action:ClipBatchAction){
+        guard !editingLocked,!picked.isEmpty else{return}
+        let revision=session.project.revision
+        session.edit{try ClipEditing.batch(action,ids:picked,in:&$0)}
+        guard session.project.revision>revision else{return}
+        Luz.Haptics.selection()
+        switch action{
+        case .delete,.duplicate: picked=[]
+        default: break
+        }
+    }
+    /// In select mode a section chip adds the clips that play in that section.
+    private func pickSection(_ section:MusicDomain.Section){
+        let range=section.start..<(section.start+section.length)
+        let ids=session.project.tracks.filter{$0.role != .bass}.flatMap(\.clips).filter{$0.start<range.upperBound && $0.start+$0.length>range.lowerBound}.map(\.id)
+        if Set(ids).isSubset(of:picked){picked.subtract(ids)}else{picked.formUnion(ids)}
+        Luz.Haptics.selection()
+    }
+    private var clipOptions:some View {
         HStack(spacing:10) {
             Menu {
                 Picker("Clip snap",selection:$clipSnap){Text("1 bar").tag(barTicks);Text("1 beat").tag(ppq);Text("1/16").tag(240)}
@@ -271,6 +377,8 @@ struct GridView: View {
             Spacer(minLength:4)
             Text(LocalizedStringKey(clipSnap==barTicks ? "1 bar":clipSnap==ppq ? "1 beat":"1/16")).font(.system(.caption2, design: .monospaced)).foregroundStyle(Color.muted)
             IconButton(symbol:"list.bullet",label:"Clip list",color:.mint){showClipList=true}.accessibilityIdentifier("grid.clips.list")
+            Button{withAnimation(Luz.Motion.snap){selecting=true;picked=[]}}label:{Label("Select",systemImage:"checkmark.circle").font(.system(.caption,weight:.semibold)).frame(minHeight:44)}
+                .disabled(editingLocked).accessibilityIdentifier("grid.select")
         }.foregroundStyle(Color.mint)
     }
     private var clipTimeline:some View {
@@ -316,7 +424,7 @@ struct GridView: View {
         let clipHeight=max(44,height-12)
         let corner=ArrangementClipTouchLayout.resizeCorner(in:CGRect(x:0,y:0,width:width,height:clipHeight))
         return ZStack(alignment:.bottomTrailing) {
-            ArrangementClipFace(notes:notes,track:track,clip:clip,width:width,height:clipHeight,resizing:draft != nil)
+            ArrangementClipFace(notes:notes,track:track,clip:clip,width:width,height:clipHeight,resizing:draft != nil,selected:picked.contains(clip.id))
                 .background(Color.panel,in:RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous))
                 .overlay{if draft == nil{PlayingHighlight(audio:session.audio,range:clip.start..<(clip.start+clip.length),color:Color.track(track.role),fill:false)}}
                 .allowsHitTesting(false).accessibilityHidden(true)
@@ -326,7 +434,7 @@ struct GridView: View {
                     .allowsHitTesting(false).accessibilityHidden(true)
             }
             ArrangementClipControl(label:track.displayName,value:String(format:NSLocalizedString("%.2f bars",comment:"Clip length"),Double(clip.length)/Double(barTicks)),hint:"\(NSLocalizedString("Clip position",comment:"Song timeline position")): \(MusicalPosition(tick:clip.start).arrangementAccessibilityDescription)",identifier:"grid.clip.\(clip.id)",enabled:!editingLocked,makePayload:{point in
-                guard !editingLocked,resizeDraft==nil,clipSelection==nil,selection==nil,!showClipList,session.sheet==nil else{
+                guard !selecting,!editingLocked,resizeDraft==nil,clipSelection==nil,selection==nil,!showClipList,session.sheet==nil else{
                     ArrangementDragDiagnostics.record("payload rejected locked=\(editingLocked) resizing=\(resizeDraft != nil) inspector=\(clipSelection != nil) chordEditor=\(selection != nil) list=\(showClipList) sheet=\(String(describing:session.sheet))")
                     return nil
                 }
@@ -337,9 +445,13 @@ struct GridView: View {
                 ArrangementDragDiagnostics.record("payload clip=\(clip.id) revision=\(session.project.revision) anchor=\(point) grabOffset=\(offset) start=\(current.start) length=\(current.length) barWidth=\(barWidth)")
                 return ArrangementDragPayload(project:session.project,trackID:track.id,clipID:clip.id,grabOffset:offset).encoded()
             },resize:{state,translation in
+                guard !selecting else{return}
                 resizeClip(trackID:track.id,clipID:clip.id,state:state,translation:translation)
             },activate:{
-                clipSelection=ClipEditorSelection(trackID:track.id,clipID:clip.id)
+                if selecting{
+                    if picked.contains(clip.id){picked.remove(clip.id)}else{picked.insert(clip.id)}
+                    Luz.Haptics.selection()
+                }else{clipSelection=ClipEditorSelection(trackID:track.id,clipID:clip.id)}
             }).frame(width:width,height:clipHeight)
         }.frame(width:width,height:clipHeight)
             .offset(x:CGFloat(clip.start)/CGFloat(barTicks)*barWidth+3,y:6)
@@ -553,6 +665,8 @@ struct GridView: View {
             }
         })
         .contextMenu {
+            // U29: hear the chord without changing anything.
+            if let event{Button("Hear this chord",systemImage:"speaker.wave.2"){session.audio.preview(event.chord)}}
             Button("Change by voice",systemImage:"mic"){session.editByVoice(at:slice.timelineTick)}
             if let event {
                 Button("Delete chord",role:.destructive) {
@@ -688,5 +802,34 @@ struct ChordTile: View {
             .overlay{RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous).strokeBorder(Color.harmony.opacity(chord == nil ? 0.2:0.4),lineWidth:0.75)}
             .overlay{if let audio,let playRange{PlayingHighlight(audio:audio,range:playRange,color:.harmony)}}
             .clipShape(RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous))
+    }
+}
+
+/// U45 · One quiet suggestion for the next step; "Not now" hides it for this song.
+struct NextStepCard: View {
+    @Bindable var session: Session
+    @AppStorage("nextStep.hidden") private var hiddenRaw = ""
+    @AppStorage("nextStep.off") private var off = false
+    var body: some View {
+        let key = session.project.id.uuidString
+        // UI tests check other screens; the hint shows there only when asked for.
+        let allowed = !Luz.uiTesting || ProcessInfo.processInfo.arguments.contains("--next-step")
+        if allowed, !off, !session.performance.contextActive, !session.recording, !hiddenRaw.contains(key), let step = NextStepAdvisor.suggest(session.project) {
+            HStack(spacing: 10) {
+                Image(systemName: "lightbulb").foregroundStyle(Color.mint).accessibilityHidden(true)
+                Text(LocalizedStringKey(step.message)).font(.caption).foregroundStyle(Color.studioText).fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 4)
+                Button { session.run(step.command) } label: { Text("Go").font(.caption.weight(.semibold)).padding(.horizontal, 10).frame(minHeight: 44) }
+                    .buttonStyle(StudioActionStyle(color: .mint, prominent: true)).fixedSize().accessibilityIdentifier("next-step.go")
+                Menu {
+                    Button("Not now") { hiddenRaw = String((hiddenRaw + "," + key).suffix(4000)) }
+                    Button("Stop suggesting") { off = true }
+                } label: { Image(systemName: "xmark").font(.caption).foregroundStyle(Color.muted).frame(width: 44, height: 44) }
+                    .accessibilityLabel("Hide the suggestion")
+            }
+            .padding(.horizontal, 12).padding(.vertical, 4)
+            .background(Color.panel, in: RoundedRectangle(cornerRadius: Luz.Radius.card, style: .continuous))
+            .accessibilityElement(children: .contain).accessibilityIdentifier("next-step")
+        }
     }
 }

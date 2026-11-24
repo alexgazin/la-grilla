@@ -47,10 +47,15 @@ struct AppStartView: View {
             showWelcome = !welcomeCompleted && respectsWelcome
         }
         .sheet(isPresented: $showWelcome, onDismiss: { welcomeCompleted = true }) {
-            GettingStartedView {
+            GettingStartedView(close: {
                 welcomeCompleted = true
                 showWelcome = false
-            }
+            }, tour: {
+                // U11: the demo song with the five-step tour.
+                welcomeCompleted = true
+                showWelcome = false
+                Task { await session.startTour() }
+            })
             .presentationDragIndicator(.visible)
             .presentationBackground(Color.panel)
         }

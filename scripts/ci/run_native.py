@@ -126,6 +126,19 @@ def run(arguments):
                 os.killpg(process.pid, number)
             except ProcessLookupError:
                 pass
+            except PermissionError:
+                # Darwin answers EPERM when every process left in the group is a
+                # zombie (the leader exited and is not reaped yet). Reap the leader
+                # and try once more; a group that is truly gone is not an error.
+                if process.poll() is None:
+                    raise
+                try:
+                    os.killpg(process.pid, number)
+                except (ProcessLookupError, PermissionError):
+                    pass
+                else:
+                    if number == signal.SIGKILL:
+                        state["groupKillDelivered"] = True
             else:
                 if number == signal.SIGKILL:
                     state["groupKillDelivered"] = True

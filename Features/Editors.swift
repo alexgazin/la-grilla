@@ -4,6 +4,8 @@ import MusicDomain
 import UniformTypeIdentifiers
 struct ChordEditor: View {
     @Bindable var session: Session; let selection: ChordSelection
+    /// The chord just before this one in its pattern (for I16's root-motion note).
+    private var previousChord:Chord?{session.project.patterns.first{$0.id==selection.patternID}?.chords.filter{$0.tick<selection.tick}.max{$0.tick<$1.tick}?.chord}
     @AppStorage("studio.pitchSpelling") private var spellingValue = PitchSpelling.automatic.rawValue
     @AppStorage("studio.showDegrees") private var showDegrees = false
     private var spelling:PitchSpelling { PitchSpelling(rawValue:spellingValue) ?? .automatic }
@@ -23,6 +25,8 @@ struct ChordEditor: View {
             }.foregroundStyle(Color.harmony)
                 // Luz: the symbol and its notes morph as the chord changes (inversion, octave, quality).
                 .contentTransition(.interpolate).animation(Luz.Motion.morph,value:chord)
+            // I16: why this chord sounds the way it does in this key, after the chord before it.
+            ChordWhyRow(chord:chord,previous:previousChord,keyRoot:session.project.keyRoot,minor:session.project.minor)
             HStack{TextField("Chord symbol",text:$text).focused($focusedField,equals:.symbol).textInputAutocapitalization(.never).autocorrectionDisabled().textFieldStyle(.roundedBorder).frame(minHeight:44).onSubmit{parse()}.accessibilityIdentifier("chord.symbol");Button{parse()}label:{Text("Set").frame(minWidth:44,minHeight:44).contentShape(Rectangle())}.accessibilityIdentifier("chord.set-symbol")}.luzShake(error)
             if let error{Text(LocalizedStringKey(error)).font(.caption).foregroundStyle(Color.record).accessibilityIdentifier("chord.error").transition(Luz.Transition.pop(reduceMotion))}
             SmallHeading(text:"ROOT")
@@ -94,17 +98,87 @@ struct ChordEditor: View {
         guard session.project.patterns.contains(where:{$0.id==selection.patternID})else{error=HarmonyError.stale.localizedDescription;return}
         let revision=session.project.revision
         session.edit{p in guard let i=p.patterns.firstIndex(where:{$0.id==selection.patternID})else{throw HarmonyError.stale};p.patterns[i].chords.removeAll(where:{$0.tick<selection.tick+duration && $0.tick+$0.duration>selection.tick});p.patterns[i].chords.append(ChordEvent(tick:selection.tick,duration:duration,chord:chord))}
-        if session.project.revision>revision{dismiss()}
+        if session.project.revision>revision{session.tourEvent(.chordChanged);dismiss()}
+    }
+}
+/// I16 · "Why it sounds": degree, function and the root motion from the chord before.
+struct ChordWhyRow: View {
+    let chord: Chord
+    let previous: Chord?
+    let keyRoot: Int
+    let minor: Bool
+    @State private var open = false
+    var body: some View {
+        let why = HarmonyExplainer.explain(chord, previous: previous, keyRoot: keyRoot, minor: minor)
+        DisclosureGroup(isExpanded: $open) {
+            // I30: how to play it on guitar and ukulele (x = not played).
+            HStack(spacing: 16) {
+                ForEach(ChordShapes.Instrument.allCases, id: \.self) { instrument in
+                    if let shape = ChordShapes.shape(for: chord, on: instrument) {
+                        Text("\(Text(LocalizedStringKey(instrument == .guitar ? "Guitar" : "Ukulele"))): \(Text(verbatim: shape.frets.map { $0 < 0 ? "x" : String($0) }.joined(separator: " ")))")
+                            .font(.caption.monospaced())
+                    }
+                }
+            }.padding(.top, 6).accessibilityIdentifier("chord.shapes")
+            Text(verbatim: why.sentences.map { NSLocalizedString($0, comment: "Why it sounds") }.joined(separator: " ")).font(.callout).foregroundStyle(Color.studioText).fixedSize(horizontal: false, vertical: true).padding(.top, 6)
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "questionmark.circle").accessibilityHidden(true)
+                Text("Why it sounds like this")
+                Spacer()
+                Text(verbatim: why.degree).font(.callout.monospaced().weight(.semibold))
+                Text(LocalizedStringKey(why.function.capitalized)).font(.caption).foregroundStyle(Color.muted)
+            }.frame(minHeight: 44)
+        }
+        .font(.subheadline).tint(.harmony)
+        .accessibilityIdentifier("chord.why")
     }
 }
 struct SettingsView: View {
     @AppStorage("studio.appearance") private var appearance=0
+    @AppStorage("studio.visualMetronome") private var visualMetronome=false
+    @AppStorage("studio.leftHanded") private var leftHanded=false
+    @AppStorage("studio.recordLock") private var recordLock=false
+    @AppStorage("studio.oneHand") private var oneHand=false
+    /// U60 · U39: how much to show and how big.
+    @AppStorage(InterfacePreferences.featureLevelKey) private var featureLevel=FeatureLevel.full.rawValue
+    @AppStorage(InterfacePreferences.densityKey) private var densityValue=InterfaceDensity.normal.rawValue
+    @State private var showMore=false
+    private var advanced:Bool{showMore || (FeatureLevel(rawValue:featureLevel) ?? .full) == .full}
+    @AppStorage("studio.hapticBeats") private var hapticBeats=false
+    @AppStorage("studio.voiceCountIn") private var voiceCountIn=false
+    @AppStorage("studio.hitCaptions") private var hitCaptions=false
+    @AppStorage("studio.gridContrast") private var gridContrast=false
+    @AppStorage("studio.showSeconds") private var showSeconds=false
+    @State private var settingsFile:URL?
+    @State private var importingSettings=false
+    @AppStorage("nextStep.off") private var nextStepOff=false
+    @State private var temporaryBytes:Int64=StorageUsage.bytes(of:FileManager.default.temporaryDirectory)
+    private func clearTemporary(){
+        let folder=FileManager.default.temporaryDirectory
+        for url in (try? FileManager.default.contentsOfDirectory(at:folder,includingPropertiesForKeys:nil)) ?? [] where url.lastPathComponent.hasPrefix("GrillaExport-") || url.lastPathComponent.hasPrefix("Loudness-") || url.lastPathComponent.hasPrefix("stems-") {
+            try? FileManager.default.removeItem(at:url)
+        }
+        temporaryBytes=StorageUsage.bytes(of:folder)
+    }
     @AppStorage("studio.pitchSpelling") private var spellingValue = PitchSpelling.automatic.rawValue
     @AppStorage("studio.showDegrees") private var showDegrees = false
     @Bindable var session: Session
+    private func makeAssignment(){
+        let section=session.section
+        guard let drums=session.project.tracks.first(where:{$0.role == .drums}) else{return}
+        let pattern=Arrangement.materialize(session.project,track:drums,section:section)
+        guard let task=Assignment.from(pattern.drums,title:String(format:NSLocalizedString("Play %@ like this",comment:"Assignment title"),section.name)) else{session.message="Put a beat in this section first; its first bar becomes the assignment.";return}
+        session.edit{$0.assignment=task}
+        session.showToast("Assignment saved")
+    }
     var body: some View {NavigationStack{Form{
         Section("App preferences"){
             Picker("Theme",selection:$appearance){Text("System").tag(0);Text("Light").tag(1);Text("Dark").tag(2)}.pickerStyle(.menu).accessibilityIdentifier("settings.theme")
+            Picker("Interface",selection:$featureLevel){ForEach(FeatureLevel.allCases,id:\.self){level in Text(LocalizedStringKey(level.title)).tag(level.rawValue)}}
+                .pickerStyle(.menu).accessibilityIdentifier("settings.feature-level")
+            Picker("Density",selection:$densityValue){ForEach(InterfaceDensity.allCases,id:\.self){density in Text(LocalizedStringKey(density.title)).tag(density.rawValue)}}
+                .pickerStyle(.menu).accessibilityIdentifier("settings.density")
             Button{if let url=URL(string:UIApplication.openSettingsURLString){UIApplication.shared.open(url)}}label:{Label("Language and permissions",systemImage:"arrow.up.forward.app")}.accessibilityIdentifier("settings.system")
             Text("Change this app’s language and permissions in iOS Settings. Available options depend on your device.").font(.caption).foregroundStyle(.secondary)
         }
@@ -117,7 +191,7 @@ struct SettingsView: View {
                 .disabled(session.recording || session.armed || session.performance.contextActive)
         }
         Section("Musical notation"){
-            Picker("Note names",selection:$spellingValue){Text("Auto (key)").tag(PitchSpelling.automatic.rawValue).accessibilityIdentifier("settings.spelling-option.automatic");Text("Sharps").tag(PitchSpelling.sharps.rawValue).accessibilityIdentifier("settings.spelling-option.sharps");Text("Flats").tag(PitchSpelling.flats.rawValue).accessibilityIdentifier("settings.spelling-option.flats")}.pickerStyle(.navigationLink).accessibilityIdentifier("settings.pitch-spelling")
+            Picker("Note names",selection:$spellingValue){Text("Auto (key)").tag(PitchSpelling.automatic.rawValue).accessibilityIdentifier("settings.spelling-option.automatic");Text("Sharps").tag(PitchSpelling.sharps.rawValue).accessibilityIdentifier("settings.spelling-option.sharps");Text("Flats").tag(PitchSpelling.flats.rawValue).accessibilityIdentifier("settings.spelling-option.flats");Text("Do Re Mi").tag(PitchSpelling.solfege.rawValue).accessibilityIdentifier("settings.spelling-option.solfege")}.pickerStyle(.navigationLink).accessibilityIdentifier("settings.pitch-spelling")
             HStack {
                 Text("Show scale degrees")
                 Spacer()
@@ -126,13 +200,69 @@ struct SettingsView: View {
             Text("Names and degrees change the display, not the sound. Auto keeps the chord spelling you entered and otherwise follows the key. Minor degrees use the natural minor scale.").font(.caption).foregroundStyle(.secondary)
         }
         Section("Transport"){Toggle("Loop",isOn:Binding(get:{session.loop},set:{session.setLoop(enabled:$0)}));Picker("Loop length",selection:Binding(get:{session.loopBars},set:{session.setLoop(bars:$0)})){ForEach(session.loopLengthOptions,id:\.self){n in Text("\(n) bars").tag(n)}}}
-        Section("MIDI"){Button("MIDI devices"){session.sheet = .midiDevices}}
-        Section("Timing"){LatencyCalibrationRow(session:session)}
-        Section("Metronome"){MetronomeSettingsRows(audio:session.audio)}
+        // U60: simple mode keeps MIDI, timing and backup behind "Show more".
+        if advanced{
+            Section("MIDI"){Button("MIDI devices"){session.sheet = .midiDevices}.accessibilityIdentifier("settings.midi")}
+            Section("Timing"){LatencyCalibrationRow(session:session)}
+        }else{
+            Section{
+                Button{withAnimation(Luz.Motion.morph){showMore=true}}label:{Label("Show more",systemImage:"ellipsis.circle")}.accessibilityIdentifier("settings.show-more")
+            }footer:{Text("Simple mode hides MIDI devices, timing, backup and mixer inserts. Your songs keep everything.")}
+        }
+        Section("Metronome"){MetronomeSettingsRows(audio:session.audio);Toggle("Visual metronome",isOn:$visualMetronome).accessibilityIdentifier("settings.visual-metronome")}
+        Section("Comfort"){
+            Toggle("Left-handed pads",isOn:$leftHanded).accessibilityIdentifier("settings.left-handed")
+            Toggle("Lock the screen while recording",isOn:$recordLock).accessibilityIdentifier("settings.record-lock")
+            // U14: the top buttons move into the bottom panel, within reach of a thumb.
+            Toggle("One-hand reach",isOn:$oneHand).accessibilityIdentifier("settings.one-hand")
+            Toggle("Show time in minutes and seconds",isOn:$showSeconds).accessibilityIdentifier("settings.show-seconds")
+            Toggle("Suggest the next step",isOn:Binding(get:{!nextStepOff},set:{nextStepOff = !$0})).accessibilityIdentifier("settings.next-step")
+            // U41 · U43 · U57 · U59
+            Toggle("Feel the beat (haptics on every beat)",isOn:$hapticBeats).accessibilityIdentifier("settings.haptic-beats")
+            Toggle("Count in out loud before a take",isOn:$voiceCountIn).accessibilityIdentifier("settings.voice-count-in")
+            Toggle("Show what plays as captions",isOn:$hitCaptions).accessibilityIdentifier("settings.hit-captions")
+            Toggle("High-contrast grid",isOn:$gridContrast).accessibilityIdentifier("settings.grid-contrast")
+            Button("Show gesture tips again"){UserDefaults.standard.removeObject(forKey:CoachTip.storageKey);session.showToast("Tips will show again")}.accessibilityIdentifier("settings.tips-reset")
+        }
         audioSettings
-        Section("Backup"){BackupRows(session:session)}
+        if advanced{backupSection}
+        // U62: how much room songs and temporary files take, and clearing the temporary ones.
+        Section("Storage"){
+            LabeledContent("Songs and versions",value:ByteCountFormatter.string(fromByteCount:StorageUsage.bytes(of:session.store.root),countStyle:.file))
+            LabeledContent("Temporary files",value:ByteCountFormatter.string(fromByteCount:temporaryBytes,countStyle:.file))
+            Button("Clear temporary files"){clearTemporary()}.accessibilityIdentifier("settings.clear-temporary").disabled(session.exportInProgress)
+        }
+        Section("This project"){
+            Button{session.sheet = .history}label:{Label("Edit history",systemImage:"clock.arrow.circlepath")}.accessibilityIdentifier("settings.history")
+            Button{session.sheet = .versions}label:{Label("Song versions",systemImage:"bookmark")}.accessibilityIdentifier("settings.versions")
+            Button{session.sheet = .trash}label:{Label("Recently deleted",systemImage:"trash")}.accessibilityIdentifier("settings.trash")
+            Button{session.sheet = .coNotes}label:{Label("Notes for co-authors",systemImage:"note.text")}.accessibilityIdentifier("settings.notes")
+            Button{session.sheet = .markers}label:{Label("Markers",systemImage:"flag")}.accessibilityIdentifier("settings.markers")
+            Button{session.sheet = .dynamics}label:{Label("Song dynamics",systemImage:"chart.line.uptrend.xyaxis")}.accessibilityIdentifier("settings.dynamics")
+            Button{session.sheet = .tuner}label:{Label("Tuner",systemImage:"tuningfork")}.accessibilityIdentifier("settings.tuner")
+            // I43: the teacher's beat becomes the lesson a student plays back and is scored on.
+            if session.project.assignment == nil {
+                Button{makeAssignment()}label:{Label("Make an assignment from this beat",systemImage:"graduationcap")}.accessibilityIdentifier("settings.assignment")
+            } else {
+                Button(role:.destructive){session.edit{$0.assignment=nil}}label:{Label("Remove the assignment",systemImage:"graduationcap")}.accessibilityIdentifier("settings.assignment-remove")
+            }
+            // I48: how others may use the song when it is shared.
+            Picker("When shared",selection:Binding(get:{session.project.license ?? ""},set:{value in session.edit{$0.license=value.isEmpty ? nil:value}})){
+                Text("Not set").tag("")
+                ForEach(SongLicense.allCases,id:\.rawValue){license in Text(LocalizedStringKey(license.title)).tag(license.rawValue)}
+            }.pickerStyle(.menu).accessibilityIdentifier("settings.license")
+            // I59: offline name ideas from the key and tempo.
+            Menu{
+                ForEach(SongNames.suggestions(keyRoot:session.project.keyRoot,minor:session.project.minor,bpm:session.project.bpm,seed:UInt64(session.project.revision),russian:Locale.current.language.languageCode?.identifier=="ru"),id:\.self){name in
+                    Button(name){session.edit{$0.name=name}}
+                }
+            }label:{Label("Suggest a song name",systemImage:"textformat.alt")}.accessibilityIdentifier("settings.names")
+            Text("Hear and return to any recent edit, keep named versions of the song, or bring back deleted tracks, takes and clips.").font(.caption).foregroundStyle(.secondary)
+        }
         Section("About La Grilla"){
             Button("Getting started"){session.sheet = .gettingStarted}.accessibilityIdentifier("settings.help")
+            // U11: the demo song and the five-step tour, again.
+            Button{Task{await session.startTour()}}label:{Label("Show me around",systemImage:"hand.point.up.left")}.accessibilityIdentifier("settings.tour")
             LabeledContent("Version",value:"\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "") (\(Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? ""))")
             Link("Privacy policy",destination:URL(string:"https://github.com/alexgazin/la-grilla/blob/main/docs/privacy/"+(Locale.current.language.languageCode?.identifier=="ru" ? "ru":"en")+".md")!)
             Link("Support",destination:URL(string:"https://github.com/alexgazin/la-grilla/issues")!)
@@ -147,6 +277,17 @@ struct SettingsView: View {
         // Project tools and notation need a full working viewport. A medium
         // Form only exposed preferences/tempo and deferred the key actions.
         .presentationDetents([.large])}
+    private var backupSection:some View{
+        Section("Backup"){BackupRows(session:session)
+            // I67: settings travel as a small file (never project data).
+            Button{if let url=try? SettingsTransfer.export(){settingsFile=url}}label:{Label("Export settings",systemImage:"square.and.arrow.up")}.accessibilityIdentifier("settings.export-settings")
+            Button{importingSettings=true}label:{Label("Import settings",systemImage:"square.and.arrow.down")}.accessibilityIdentifier("settings.import-settings")
+        }
+        .sheet(isPresented:Binding(get:{settingsFile != nil},set:{if !$0{settingsFile=nil}})){if let url=settingsFile{ShareView(url:url)}}
+        .fileImporter(isPresented:$importingSettings,allowedContentTypes:[.json]){result in
+            if case .success(let url)=result{do{let count=try SettingsTransfer.importFile(url);session.showToast(String(format:NSLocalizedString("%lld settings imported",comment:"Settings transfer"),count))}catch{session.message="This file is not a La Grilla settings file."}}
+        }
+    }
     private var audioSettings:some View {
         Section("Audio"){
             LabeledContent("Sample rate",value:"\(Int(session.audio.sampleRate)) Hz")
@@ -180,7 +321,7 @@ struct BassView: View {
         guard on != enabled else{return}
         session.edit{project in
             if on{guard project.tracks.count<8 else{throw MusicError.trackLimit};project.tracks.append(Track(role:.bass))}
-            else if let id=project.tracks.first(where:{$0.role == .bass})?.id{try project.deleteTrack(id)}
+            else if let id=project.tracks.first(where:{$0.role == .bass})?.id{try ProjectTrash.deleteTrack(id,in:&project)}
         }
     })}
     var body:some View {NavigationStack{Form{
@@ -335,6 +476,15 @@ struct SectionsView: View {
                         .buttonStyle(StudioActionStyle(prominent: false))
                         .disabled(editingLocked || remainingBars == 0 || session.project.sections.count >= maximumSections)
                         .accessibilityIdentifier("sections.add")
+                    // I23: one more bar on the home chord with a final hit; the song then plays once.
+                    Button { session.edit { try EndingGenerator.append(to: &$0, name: NSLocalizedString("Ending", comment: "Section name")) }; session.showToast("Ending added") } label: { Label("Add an ending", systemImage: "flag.checkered") }
+                        .buttonStyle(StudioActionStyle(color: .mint, prominent: false))
+                        .disabled(editingLocked || remainingBars == 0 || session.project.sections.count >= maximumSections)
+                        .accessibilityIdentifier("sections.ending")
+                    NavigationLink { FormTemplatesView(session: session) } label: { Label("Structure from a template", systemImage: "rectangle.split.3x1") }
+                        .buttonStyle(StudioActionStyle(color: .mint, prominent: false))
+                        .disabled(editingLocked)
+                        .accessibilityIdentifier("form.open")
                     HStack(spacing: 4) {
                         IconButton(symbol: "arrow.uturn.backward", label: "Undo") { session.undo() }
                             .disabled(editingLocked || !session.history.canUndo)
@@ -378,25 +528,53 @@ struct SectionsView: View {
     private var remainingBars: Int { 64 - session.project.length / barTicks }
     private var editingLocked:Bool{session.performance.contextActive || session.recording || session.armed}
     private func actionList(_ section:MusicDomain.Section)->some View {NavigationStack{List{
-        Button("Rename"){pendingRename=section.id;actions=nil}
-        Button("Duplicate"){session.edit{try SectionEditing.duplicate(section.id,name:section.name=="Verse" ? "Chorus":String((section.name+" copy").prefix(120)),in:&$0)};actions=nil}
-            .disabled(session.project.sections.count>=maximumSections || session.project.length+section.length>songTickLimit).accessibilityIdentifier("section.duplicate")
+        // U30 menu: section — Listen · Rename · Duplicate · Colour · … · Delete (last, red).
+        Button("Hear this section"){session.select(section);if !session.focused{session.toggleFocus()};if !session.audio.playing{session.togglePlay()};actions=nil}.accessibilityIdentifier("section.listen")
+        Button("Rename"){pendingRename=section.id;actions=nil}.accessibilityIdentifier("section.rename")
+        Button("Duplicate"){session.edit{try SectionEditing.duplicate(section.id,name:section.name=="Verse" ? "Chorus":String((section.name+" copy").prefix(120)),in:&$0)};actions=nil}.accessibilityIdentifier("section.duplicate")
         Picker("Colour",selection:Binding(get:{section.color ?? -1},set:{value in let id=section.id;session.edit{p in if let i=p.sections.firstIndex(where:{$0.id==id}){p.sections[i].color=value<0 ? nil:value}};actions=nil})){
             Text("Automatic").tag(-1)
             ForEach(SongFormStyle.choices,id:\.index){choice in Label{Text(choice.name)}icon:{Image(systemName:"circle.fill").foregroundStyle(choice.color)}.tag(choice.index)}
         }.accessibilityIdentifier("section.color")
+        Button("Move earlier"){move(section.id,by:-1);actions=nil}.disabled(session.project.sections.first?.id==section.id).accessibilityIdentifier("section.earlier")
+        Button("Move later"){move(section.id,by:1);actions=nil}.disabled(session.project.sections.last?.id==section.id).accessibilityIdentifier("section.later")
+        // I56 / I40: continue the idea, or the same section again with a fill.
+        Button("Continue for me"){let id=section.id;session.edit{try ContinueIdea.extend(id,name:NSLocalizedString("Continuation",comment:"Section name"),seed:UInt64(session.project.revision) &+ 1,in:&$0)};actions=nil}.accessibilityIdentifier("section.continue")
+        Button("Duplicate with a fill"){session.edit{try SectionEditing.duplicateWithVariation(section.id,name:String((section.name+" 2").prefix(120)),in:&$0)};actions=nil}.accessibilityIdentifier("section.duplicate-fill")
+            .disabled(session.project.sections.count>=maximumSections || session.project.length+section.length>songTickLimit).accessibilityIdentifier("section.duplicate-fill")
         Picker("Filter sweep",selection:Binding(get:{sweepTag(section.filterSweep)},set:{tag in let id=section.id,value=sweep(tag);session.edit{p in if let i=p.sections.firstIndex(where:{$0.id==id}){p.sections[i].filterSweep=value}};actions=nil})){
             Text("None").tag(0);Text("Open up").tag(1);Text("Close down").tag(2);Text("Rise").tag(3);Text("Drop in").tag(4)
         }.accessibilityIdentifier("section.filter-sweep")
-        Button("Move earlier"){move(section.id,by:-1);actions=nil}.disabled(session.project.sections.first?.id==section.id).accessibilityIdentifier("section.earlier")
-        Button("Move later"){move(section.id,by:1);actions=nil}.disabled(session.project.sections.last?.id==section.id).accessibilityIdentifier("section.later")
+        // I22: this section in another key (drums stay).
+        Picker("Key of this section",selection:Binding(get:{section.transpose ?? 0},set:{value in let id=section.id;session.edit{p in if let i=p.sections.firstIndex(where:{$0.id==id}){p.sections[i].transpose=value==0 ? nil:value}};actions=nil})){
+            ForEach(-6...6,id:\.self){value in Text(value==0 ? NSLocalizedString("As the song",comment:"Section key"):String(format:"%+d",value)).tag(value)}
+        }.accessibilityIdentifier("section.key")
+        // U32: copy this section's music to another project (or paste what was copied).
+        Menu("Copy music"){
+            Button("Copy chords"){copyMusic(.chords,section)}
+            Button("Copy the beat"){copyMusic(.beat,section)}
+            Button("Copy the melody"){copyMusic(.melody,section)}
+        }.accessibilityIdentifier("section.copy")
+        Button("Paste copied music"){pasteMusic(into:section)}.disabled(!UIPasteboard.general.contains(pasteboardTypes:[MusicClipboard.pasteboardType])).accessibilityIdentifier("section.paste")
         if session.project.sections.count>1{Button("Delete section",role:.destructive){pendingDelete=section.id;actions=nil}.accessibilityIdentifier("section.delete")}
+        // U30 end
     }.environment(\.defaultMinListRowHeight,52).disabled(editingLocked).navigationTitle(section.name).navigationBarTitleDisplayMode(.inline)
         .toolbar{ToolbarItem(placement:.cancellationAction){Button("Cancel"){actions=nil}}}}
-        .presentationDetents([.medium,.large]).tint(.mint)
+        .presentationDetents([.large]).tint(.mint)
     }
     private func sweep(_ tag:Int)->FilterSweep?{[nil,FilterSweep.openUp,.closeDown,.riseUp,.dropIn][max(0,min(4,tag))]}
     private func sweepTag(_ value:FilterSweep?)->Int{[FilterSweep.openUp,.closeDown,.riseUp,.dropIn].firstIndex{$0==value}.map{$0+1} ?? 0}
+    private func copyMusic(_ kind:MusicClipboard.Kind,_ section:MusicDomain.Section){
+        guard let value=MusicClipboard.copy(kind,section:section,from:session.project),let data=try? JSONEncoder().encode(value) else{session.message="There is no music of that kind in this section.";actions=nil;return}
+        UIPasteboard.general.setData(data,forPasteboardType:MusicClipboard.pasteboardType)
+        session.showToast("Copied");actions=nil
+    }
+    private func pasteMusic(into section:MusicDomain.Section){
+        guard let data=UIPasteboard.general.data(forPasteboardType:MusicClipboard.pasteboardType),let value=try? JSONDecoder().decode(MusicClipboard.self,from:data)else{actions=nil;return}
+        let id=section.id
+        session.edit{p in guard let target=p.sections.first(where:{$0.id==id})else{return};try value.paste(into:target,project:&p)}
+        session.showToast("Pasted");actions=nil
+    }
     private func finishAction(){
         if let id=pendingRename,let section=session.project.sections.first(where:{$0.id==id}){name=section.name;editing=id}
         if let id=pendingDelete,session.project.sections.contains(where:{$0.id==id}){deleting=id}

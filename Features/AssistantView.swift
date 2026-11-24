@@ -28,6 +28,9 @@ struct AssistantView:View {
     @State private var ai=AIComposerController()
     @State private var mode:AssistantMode = .automatic
     @State private var generatedWithAI=false
+    /// U19: how far "Another way" may move from the first answer (0 careful … 1 bold).
+    @AppStorage("assistant.boldness") private var boldness=0.5
+    @State private var variationAttempt=0
     @State private var usedUnavailableAIFallback=false
     @State private var availabilityError=false
     @State private var generationID=0
@@ -81,6 +84,14 @@ struct AssistantView:View {
                                 do { session.openTrackBuilder(idea:input,suggestion:try TrackBrief().suggesting(input)) }
                                 catch { self.error=error.localizedDescription }
                             }.accessibilityIdentifier("assistant.review-offline")
+                        }
+                        // Musician feedback: when the wording is not understood, a table is one tap away.
+                        if SongFormBrief.recognizes(input) {
+                            Button("Fill in the parts as a table") {
+                                var brief = TrackBrief()
+                                brief.songForm = SongFormBrief.starter(keyRoot: brief.root, minor: brief.minor)
+                                session.openTrackBuilder(idea: "", suggestion: brief)
+                            }.frame(minHeight:44).accessibilityIdentifier("assistant.table")
                         }
                         if error==SketchError.requiresEmpty.localizedDescription{Button("Create an empty project"){session.endHarmonyPreview();session.sheet = .newProject}.frame(minHeight:44).accessibilityIdentifier("assistant.sketch.empty-project")}
                         if Arrangement.harmony(session.project,section:session.section).isEmpty{
@@ -222,7 +233,15 @@ struct AssistantView:View {
     }
     func review(_ proposal:AssistantProposal,source:Project,candidate:Project)->some View {
         VStack(alignment:.leading,spacing:14){
-            SmallHeading(text:"PROPOSAL")
+            HStack{
+                SmallHeading(text:"PROPOSAL")
+                Spacer()
+                // U19: who built this proposal.
+                CapsuleLabel(text:generatedWithAI ? "APPLE INTELLIGENCE":"OFFLINE BUILDER",color:generatedWithAI ? .harmony:.mint)
+                    .accessibilityIdentifier("assistant.engine-badge")
+            }
+            AssistantWhy(rationale:AssistantRationale.explain(proposal,project:source,engine:generatedWithAI ? .appleIntelligence:.offline),
+                         canVary:AssistantVariation.canVary(proposal),boldness:$boldness){anotherWay(proposal,source:source)}
             if usedUnavailableAIFallback && !ai.available {
                 Text("Reviewed with Commands because on-device AI is unavailable.")
                     .font(.caption).foregroundStyle(Color.muted)
@@ -247,6 +266,16 @@ struct AssistantView:View {
             Button{apply(proposal)}label:{Text("Apply proposal")}.buttonStyle(StudioActionStyle()).accessibilityIdentifier("assistant.apply")
             Text("One Undo restores the whole change.").font(.caption).foregroundStyle(Color.muted)
         }
+    }
+    /// U19: the same request answered another way, as careful or as bold as the slider says.
+    private func anotherWay(_ current:AssistantProposal,source:Project){
+        variationAttempt+=1
+        do{
+            let next=try AssistantVariation.vary(current,project:source,boldness:boldness,attempt:variationAttempt)
+            session.endHarmonyPreview()
+            candidate=try next.candidate(for:source);proposal=next;error=nil
+            Luz.Haptics.selection()
+        }catch{self.error=error.localizedDescription}
     }
     private func reusedPartsContainEmptySections(_ proposal:AssistantProposal,source:Project,role:TrackRole)->Bool {
         let parts=proposal.operations.filter{$0.type == .arrangeSong}.flatMap{$0.sections ?? []}
@@ -597,5 +626,42 @@ private struct SongFormTemplateMenu: View {
         } label: {
             Label("Song form template", systemImage: "rectangle.split.3x1").frame(minHeight: 44)
         }.accessibilityIdentifier("assistant.form-template")
+    }
+}
+
+/// U19 · "Why this" (reasons from the proposal's parameters), how bold another answer may be,
+/// and "Another way" for requests with more than one good answer.
+struct AssistantWhy: View {
+    let rationale: AssistantRationale
+    let canVary: Bool
+    @Binding var boldness: Double
+    let another: () -> Void
+    @State private var open = true
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            DisclosureGroup(isExpanded: $open) {
+                VStack(alignment: .leading, spacing: 6) {
+                    ForEach(Array(rationale.reasons.enumerated()), id: \.offset) { index, reason in
+                        Label { Text(verbatim: reason).font(.subheadline).fixedSize(horizontal: false, vertical: true) } icon: { Image(systemName: "\(index + 1).circle") }
+                            .accessibilityIdentifier("assistant.why.\(index)")
+                    }
+                }.padding(.top, 6)
+            } label: {
+                Text("Why this").font(.subheadline.weight(.semibold)).accessibilityIdentifier("assistant.why")
+            }
+            if canVary {
+                HStack(spacing: 8) {
+                    Text("Careful").font(.caption).foregroundStyle(Color.muted)
+                    Slider(value: $boldness, in: 0...1).accessibilityLabel(Text("How boldly to change")).accessibilityIdentifier("assistant.boldness")
+                    Text("Bold").font(.caption).foregroundStyle(Color.muted)
+                }
+                Button { another() } label: { Label("Another way", systemImage: "dice").frame(maxWidth: .infinity, minHeight: 44) }
+                    .buttonStyle(StudioActionStyle(prominent: false)).accessibilityIdentifier("assistant.another")
+            } else {
+                Text("This request has one exact answer.").font(.caption).foregroundStyle(Color.muted)
+            }
+        }
+        .padding(12).modifier(StudioSurface())
     }
 }

@@ -53,8 +53,14 @@ private struct InstrumentKeyboard: View {
     @AppStorage("keyboard.arpRate") private var arpRate = 0              // I15: 0 off, else step ticks
     @AppStorage("keyboard.arpMode") private var arpMode = 0
     @AppStorage("keyboard.arpOctaves") private var arpOctaves = 1
+    /// I29: the custom pattern (mode 4) and the player's saved patterns.
+    @AppStorage("keyboard.arpPattern") private var arpPatternText = ArpPattern.presets[0].encoded
+    @AppStorage("keyboard.arpPatterns") private var arpLibraryRaw = "[]"
+    @State private var editingPattern = false
     @State private var arpHeld: [Int] = []
     @AppStorage("keyboard.bendStrips") private var bendStrips = false   // I16
+    /// I54: MPE — each finger bends and presses its own note (also for connected MPE controllers).
+    @AppStorage("keyboard.mpe") private var mpeKeys = false
     /// I30: step input writes an eighth note per key at a cursor that advances when all keys are up.
     @State private var stepCursor: Int?
     @State private var stepHeld: Set<Int> = []
@@ -102,7 +108,7 @@ private struct InstrumentKeyboard: View {
                             Text(error).font(.caption).foregroundStyle(Color.record).padding(.horizontal)
                         }
                         if chordStrip {
-                            ChordStrip(keyRoot: session.project.keyRoot, minor: session.project.minor, color: Color.track(track.role)) { pitch, down in key(pitch, down: down, track: track) }
+                            ChordStrip(keyRoot: session.project.keyRoot, minor: session.project.minor, color: Color.track(track)) { pitch, down in key(pitch, down: down, track: track) }
                                 .padding(.horizontal, 10)
                         }
                         keybedRow(track, width: geometry.size.width)
@@ -123,6 +129,8 @@ private struct InstrumentKeyboard: View {
                         .accessibilityLabel("Sound banks").disabled(loading != nil || take != nil)
                 }
             }
+            .sheet(isPresented: $editingPattern) { ArpPatternEditor(text: $arpPatternText, libraryRaw: $arpLibraryRaw) }
+            .onAppear { session.midi.mpeKeys = mpeKeys; if mpeKeys { session.audio.setMPE(true) } }
             .sheet(isPresented: $soundBanks) {
                 if let track {
                     SoundBankView(session: session, trackID: track.id,
@@ -192,7 +200,9 @@ private struct InstrumentKeyboard: View {
         InstrumentKeybed(root: root, octaves: KeyboardLayout.octaves(requested: octaveSetting, width: available, size: size),
                          keyRoot: session.project.keyRoot, minor: session.project.minor, scaleOnly: scaleOnly,
                          gridColumns: columns,
-                         color: Color.track(track.role),
+                         color: Color.track(track),
+                         mpe: mpeKeys && arpRate == 0,
+                         expression: { pitch, bend, pressure in session.midi.keyExpression(pitch, bend: bend, pressure: pressure) },
                          play: { pitch, down in key(pitch, down: down, track: track) })
             .id(surfaceID)
         }.padding(.horizontal, 10).padding(.bottom, 10)
@@ -204,21 +214,27 @@ private struct InstrumentKeyboard: View {
             Toggle("Isomorphic grid", isOn: Binding(get: { isomorphic }, set: { resetKeys(); isomorphic = $0 }))
             Picker("Octaves", selection: Binding(get: { octaveSetting }, set: { resetKeys(); octaveSetting = $0 })) {
                 Text("Automatic").tag(0); Text(verbatim: "1").tag(1); Text(verbatim: "2").tag(2); Text(verbatim: "3").tag(3)
-            }
+            }.pickerStyle(.menu)
             Picker("Key size", selection: Binding(get: { keySize }, set: { resetKeys(); keySize = $0 })) {
                 Text("Small").tag(0); Text("Medium").tag(1); Text("Large").tag(2)
-            }
+            }.pickerStyle(.menu)
             Toggle("Bend and modulation strips", isOn: Binding(get: { bendStrips }, set: { resetKeys(); bendStrips = $0 }))
+            Toggle("MPE: slide and press each note", isOn: Binding(get: { mpeKeys }, set: { resetKeys(); mpeKeys = $0; session.midi.mpeKeys = $0; session.audio.setMPE($0) }))
+                .accessibilityIdentifier("keyboard.mpe")
             Picker("Arpeggiator", selection: Binding(get: { arpRate }, set: { resetKeys(); arpRate = $0 })) {
                 Text("Off").tag(0); Text(verbatim: "1/8").tag(480); Text(verbatim: "1/16").tag(240); Text(verbatim: "1/16T").tag(160); Text(verbatim: "1/32").tag(120)
-            }
+            }.pickerStyle(.menu)
             if arpRate > 0 {
                 Picker("Arpeggio order", selection: Binding(get: { arpMode }, set: { resetKeys(); arpMode = $0 })) {
                     Text("Up").tag(0); Text("Down").tag(1); Text("Up and down").tag(2); Text("As played").tag(3)
+                    Text("My pattern").tag(ArpPattern.kernelMode)
+                }.pickerStyle(.menu)
+                if arpMode == ArpPattern.kernelMode {
+                    Button("Edit pattern…", systemImage: "square.grid.3x3") { resetKeys(); editingPattern = true }
                 }
                 Picker("Arpeggio octaves", selection: Binding(get: { arpOctaves }, set: { resetKeys(); arpOctaves = $0 })) {
                     Text(verbatim: "1").tag(1); Text(verbatim: "2").tag(2); Text(verbatim: "3").tag(3)
-                }
+                }.pickerStyle(.menu)
             }
         } label: {
             Image(systemName: isomorphic ? "square.grid.4x3.fill" : "rectangle.split.3x1").foregroundStyle(isomorphic ? Color.mint : Color.muted).frame(minWidth: 44, minHeight: 44)
@@ -243,7 +259,7 @@ private struct InstrumentKeyboard: View {
             }.padding(.leading, 14)
             Spacer(minLength: 4)
             if let current {
-                Image(current.artwork).resizable().scaledToFill()
+                InstrumentArtwork(instrument: current)
                     .id(current.id).transition(Luz.Transition.replace(reduceMotion))
                     .frame(width: height * 1.2, height: height).clipped()
                     .mask(LinearGradient(stops: [.init(color: .clear, location: 0),
@@ -253,7 +269,7 @@ private struct InstrumentKeyboard: View {
                     .accessibilityHidden(true)
             } else {
                 Image(systemName: "waveform").font(.system(size: 44, weight: .light))
-                    .foregroundStyle(Color.track(track.role)).padding(.trailing, 22).accessibilityHidden(true)
+                    .foregroundStyle(Color.track(track)).padding(.trailing, 22).accessibilityHidden(true)
             }
         }.frame(maxWidth: .infinity).frame(height: height)
             .animation(Luz.Motion.morph, value: current?.id)
@@ -293,7 +309,7 @@ private struct InstrumentKeyboard: View {
         let selected = instrument.matches(name: track.instrumentSample?.name)
         return Button { choose(instrument, track: track) } label: {
             HStack(spacing: 8) {
-                Image(instrument.artwork).resizable().scaledToFill()
+                InstrumentArtwork(instrument: instrument)
                     .frame(width: compact ? 42 : 66, height: compact ? 42 : 72).clipped()
                 Text(instrument.displayName).font(.subheadline.weight(.semibold))
                     .foregroundStyle(Color.studioText).lineLimit(2)
@@ -333,6 +349,9 @@ private struct InstrumentKeyboard: View {
         if arpRate > 0 {
             // I15: held keys feed the kernel arpeggiator on the transport grid (live only).
             if down { if !arpHeld.contains(pitch) { arpHeld.append(pitch) } } else { arpHeld.removeAll { $0 == pitch } }
+            if arpMode == ArpPattern.kernelMode {
+                session.audio.arpPattern((ArpPattern(name: "Custom", encoded: arpPatternText) ?? ArpPattern.presets[0]).codes)
+            }
             session.audio.arp(identity: MIDIController.trackIdentity(track.id), pitches: arpHeld, step: arpRate, mode: arpMode, octaves: arpOctaves)
             return
         }
@@ -475,12 +494,17 @@ private struct InstrumentKeybed: UIViewRepresentable {
     var gridColumns = 0
     /// Luz: held keys light up in the track's colour.
     var color: Color = .mint
+    /// I54: each finger keeps its note; sliding sideways bends it, the spot on the key presses it.
+    var mpe = false
+    var expression: ((Int, Double, Double) -> Void)? = nil
     let play: (Int, Bool) -> Void
 
     func makeUIView(context: Context) -> KeybedView { KeybedView() }
 
     func updateUIView(_ view: KeybedView, context: Context) {
         view.play = play
+        view.mpe = mpe
+        view.expression = expression
         view.accent = UIColor(color)
         if gridColumns > 0 { view.configureGrid(base: root, columns: gridColumns, keyRoot: keyRoot, minor: minor) }
         else { view.configure(root: root, octaves: octaves, keyRoot: keyRoot, minor: minor, scaleOnly: scaleOnly) }
@@ -492,6 +516,11 @@ private struct InstrumentKeybed: UIViewRepresentable {
 private final class KeybedView: UIView, MusicalTouchSurface {
     var play: ((Int, Bool) -> Void)?
     var accent = UIColor(Color.mint)
+    /// I54 MPE: a touch keeps the key it started on; sideways movement bends that note
+    /// (one key width = one semitone, up to ±12) and the depth on the key is its pressure.
+    var mpe = false
+    var expression: ((Int, Double, Double) -> Void)?
+    private var contactStarts = [ObjectIdentifier: CGPoint]()
     private var configuration: [Int] = []
     private var whiteKeys = [UIButton]()
     private var blackKeys = [(after: Int, button: UIButton)]()
@@ -647,8 +676,18 @@ private final class KeybedView: UIView, MusicalTouchSurface {
         let before = heldNotes
         for touch in touches {
             let id = ObjectIdentifier(touch), point = touch.location(in: self)
-            if releasing { contactPitches.removeValue(forKey: id) }
-            else { contactPitches[id] = subviews.reversed().first { $0.frame.contains(point) }?.tag }
+            if releasing { contactPitches.removeValue(forKey: id); contactStarts.removeValue(forKey: id) }
+            else if mpe, let pitch = contactPitches[id], let start = contactStarts[id] {
+                let keyWidth = max(1, subviews.first { $0.tag == pitch }?.bounds.width ?? 40)
+                let bend = max(-12, min(12, Double((point.x - start.x) / keyWidth)))
+                let pressure = touch.maximumPossibleForce > 0 && touch.force > 0
+                    ? Double(touch.force / touch.maximumPossibleForce)
+                    : Double(max(0.15, min(1, point.y / max(1, bounds.height))))
+                expression?(pitch, bend, pressure)
+            } else {
+                contactPitches[id] = subviews.reversed().first { $0.frame.contains(point) }?.tag
+                if mpe { contactStarts[id] = point }
+            }
         }
         let after = heldNotes
         for pitch in before.subtracting(after) { change(pitch, held: false) }

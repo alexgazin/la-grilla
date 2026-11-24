@@ -1,2 +1,3 @@
 /* English descriptions are provided in Info.plist. */
 "NSMotionUsageDescription" = "Use phone tilt to control the live filter or master volume when you enable it.";
+"NSFaceIDUsageDescription" = "Open projects you chose to hide behind Face ID.";

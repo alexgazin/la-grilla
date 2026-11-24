@@ -19,13 +19,7 @@ struct FactoryDrumKitPanel: View {
             StudioSegments(title: "Factory kits", selection: $kit,
                            options: [(.pocket, "Pocket"), (.dusty, "Dusty"), (.coast, "Coast")])
             Picker("More kits", selection: $kit) {
-                Text("Pocket").tag(FactoryDrumKit.pocket)
-                Text("Dusty").tag(FactoryDrumKit.dusty)
-                Text("Coast").tag(FactoryDrumKit.coast)
-                Text("808 Trap").tag(FactoryDrumKit.trap808)
-                Text("House").tag(FactoryDrumKit.house)
-                Text("Brushes").tag(FactoryDrumKit.brushes)
-                Text("World").tag(FactoryDrumKit.world)
+                ForEach(FactoryDrumKit.allCases, id: \.self) { kit in Text(verbatim: kit.title).tag(kit) }
             }.pickerStyle(.menu).accessibilityIdentifier("pad-samples.more-kits")
             Text(description)
                 .font(.subheadline)
@@ -87,17 +81,7 @@ struct FactoryDrumKitPanel: View {
         return Duration.seconds(lastAuditionSeconds).formatted(.units(allowed: [.seconds], width: .wide))
     }
 
-    private var description: LocalizedStringKey {
-        switch kit {
-        case .pocket: "Balanced kick, crisp hats and short percussion."
-        case .dusty: "Dry kick, grainy snare and softened cymbals."
-        case .coast: "Deep kick, layered clap and metallic hats."
-        case .trap808: "Long 808 kick with a glide, tight snare and fast hats."
-        case .house: "Punchy kick, big clap and bright open hats."
-        case .brushes: "Felt kick, brushed snare and a warm ride."
-        case .world: "Frame drum, congas, darbuka-style tek and bells."
-        }
-    }
+    private var description: LocalizedStringKey { LocalizedStringKey(kit.brief) }
 
     private var applyTitle: LocalizedStringKey {
         switch kit {
@@ -108,6 +92,7 @@ struct FactoryDrumKitPanel: View {
         case .house: "Load House Kit"
         case .brushes: "Load Brushes Kit"
         case .world: "Load World Kit"
+        default: "Load \(kit.title) kit"
         }
     }
 

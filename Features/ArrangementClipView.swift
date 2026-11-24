@@ -23,7 +23,8 @@ struct ArrangementClipFace: View {
     let width: CGFloat
     let height: CGFloat
     let resizing: Bool
-    private var color: Color { Color.track(track.role) }
+    var selected = false
+    private var color: Color { clip.color.flatMap { Color.clipPalette.indices.contains($0) ? Color.clipPalette[$0] : nil } ?? Color.track(track) }
     var body: some View {
         VStack(alignment:.leading,spacing:5) {
             if width>=62 {
@@ -50,7 +51,15 @@ struct ArrangementClipFace: View {
             }
         }.padding(width<62 ? 3:9).frame(width:width,height:height,alignment:.topLeading)
             .background(color.opacity(resizing ? 0.2:0.1),in:RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous))
-            .overlay{RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous).stroke(resizing ? Color.mint:color.opacity(0.4),lineWidth:resizing ? 2:1)}
+            .overlay{RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous).stroke(resizing || selected ? Color.mint:color.opacity(0.4),lineWidth:resizing || selected ? 2:1)}
+            // U31: a muted clip is dimmed with a symbol; a selected one shows a check.
+            .opacity(clip.muted == true ? 0.45:1)
+            .overlay(alignment:.topTrailing){
+                HStack(spacing:3){
+                    if clip.muted == true{Image(systemName:"speaker.slash.fill")}
+                    if selected{Image(systemName:"checkmark.circle.fill").foregroundStyle(Color.mint)}
+                }.font(.system(.caption2,weight:.semibold)).foregroundStyle(Color.muted).padding(4)
+            }
             .contentShape(Rectangle())
     }
 }
@@ -118,14 +127,16 @@ struct ArrangementClipInspector: View {
                         } header: { Text("Variants") } footer: { Text("Try another take of this part and switch back any time.") }
                     }
                     SwiftUI.Section {
+                        // U30 menu: clip — Duplicate · … · Delete (last, red).
                         Button("Duplicate clip"){commit{try ClipEditing.copy($0,to:selection.trackID,start:clip.start+clip.length,snap:240,in:&$1)}}.frame(minHeight:44).accessibilityIdentifier("clip.duplicate")
-                        Button("Delete clip",role:.destructive){commit{try ClipEditing.delete($0,in:&$1)};if self.clip==nil{dismiss()}}.frame(minHeight:44).accessibilityIdentifier("clip.delete")
+                        Button("Delete clip",role:.destructive){commit{payload,project in guard let track=payload.sourceTrackID else{throw ClipEditingError.missing};try ProjectTrash.deleteClip(payload.objectID,track:track,in:&project)};if self.clip==nil{dismiss()}}.frame(minHeight:44).accessibilityIdentifier("clip.delete")
+                        // U30 end
                     }
                     SwiftUI.Section {
                         Text("Clips repeat their source pattern when extended. Musical content is never overwritten by a drop.").font(.caption).foregroundStyle(Color.muted)
                     }
                 } else {Text("This clip or section no longer exists.")}
-            }.tint(track.map{Color.track($0.role)} ?? .mint)
+            }.tint(track.map{Color.track($0)} ?? .mint)
                 .navigationTitle("Clip settings").navigationBarTitleDisplayMode(.inline)
                 .toolbar{ToolbarItem(placement:.confirmationAction){Button("Done"){dismiss()}}}
         }.onAppear{if let clip,clip.start%barTicks != 0 || clip.length%barTicks != 0{grid=clip.start%ppq==0 && clip.length%ppq==0 ? ppq:240}}

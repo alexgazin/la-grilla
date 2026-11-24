@@ -251,6 +251,8 @@ final class SoundPickerUITests:XCTestCase {
     }
 
     @MainActor func testDustyAndCoastAuditionWithoutEditingThenLoadDistinctPads() throws {
+        // Two full auditions; the CI simulator answers queries slowly while one plays.
+        executionTimeAllowance = 300
         let app = launch(appearance: "dark")
         defer { app.terminate() }
         entry(app).tap()
@@ -274,8 +276,10 @@ final class SoundPickerUITests:XCTestCase {
             preview.tap()
             let played = NSPredicate(format: "value != %@ AND value CONTAINS 'duration='", before)
             XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: played, object: preview)], timeout: 15), .completed)
-            if preview.label == "Stop preview" { preview.tap() }
-            XCTAssertEqual(preview.label, "Audition beat")
+            // The short audition ends by itself; tapping on a stale "Stop preview" label could
+            // start it again on a slow simulator, where one accessibility query can take 20 s.
+            let stopped = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label == 'Audition beat'"), object: preview)
+            XCTAssertEqual(XCTWaiter.wait(for: [stopped], timeout: 60), .completed, preview.label)
             let after = try XCTUnwrap(preview.value as? String)
             XCTAssertGreaterThan(try XCTUnwrap(field("duration", in: after).flatMap(Double.init)), 0)
             XCTAssertEqual(field("revision", in: after).flatMap(Int.init), revision, "Auditioning cannot edit the project")
@@ -283,7 +287,7 @@ final class SoundPickerUITests:XCTestCase {
             load.tap()
             for (pad, name) in [(0, "Kick"), (1, "Snare")] {
                 let assigned = app.buttons.matching(NSPredicate(format: "identifier == %@ AND value == %@", "pad-samples.library.\(pad)", "\(kit) · \(name)")).firstMatch
-                XCTAssertTrue(assigned.waitForExistence(timeout: 15))
+                XCTAssertTrue(assigned.waitForExistence(timeout: 30))
             }
             XCTAssertEqual(field("revision", in: preview.value as? String ?? "").flatMap(Int.init), revision + 1)
         }

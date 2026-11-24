@@ -57,13 +57,21 @@ struct PadSampleEditor: View {
                                 .frame(minHeight: 44).disabled(applying)
                                 .accessibilityIdentifier("pad-editor.headroom")
                         }
+                        // I32: voice treatment of the trimmed sound (EQ, compressor, de-esser, soft tuning).
+                        Picker("Voice treatment", selection: Binding(get: { edit.voice?.rawValue ?? 0 }, set: { value in
+                            var next = edit; next.voice = VoicePreset(rawValue: value); update(next)
+                        })) {
+                            Text("None").tag(0)
+                            ForEach(VoicePreset.allCases, id: \.self) { preset in Text(LocalizedStringKey(preset.title)).tag(preset.rawValue) }
+                        }
+                        .disabled(applying).accessibilityIdentifier("pad-editor.voice")
                         // I52: cut the silence before and after the hit in one step.
                         Button("Trim silence") { update(source.autoTrim()) }
                             .font(.subheadline).disabled(applying).accessibilityIdentifier("pad-editor.trim-silence")
                         Button("Reset sample edits") { update(source.initialEdit) }
                             .font(.subheadline).disabled(edit == source.initialEdit || applying)
                     } else if failure == nil {
-                        ProgressView("Preparing samples…").frame(maxWidth: .infinity)
+                        LoadingSkeleton(caption: "Preparing samples…").frame(maxWidth: .infinity)
                     }
                     if let failure { Text(failure).foregroundStyle(Color.record) }
                 }

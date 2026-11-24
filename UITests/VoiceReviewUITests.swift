@@ -48,13 +48,19 @@ final class VoiceReviewUITests:XCTestCase {
         XCTAssertEqual(app.staticTexts["voice.fixture-source"].label,source)
         XCTAssertEqual(app.staticTexts["voice.fixture-pitch"].label,"61")
         XCTAssertEqual(app.staticTexts["voice.note-count"].label,"3 notes")
-        let instrument=app.buttons["voice.instrument"];reveal(instrument,in:app,up:false);instrument.tap()
+        // Listen panel: pick "MIDI + beat", one explicit Play/Stop button.
+        let beat=app.buttons["voice.listen.2"];reveal(beat,in:app,up:false);beat.tap()
+        let play=app.buttons["voice.play"];reveal(play,in:app);XCTAssertEqual(play.label,"Play");play.tap()
         XCTAssertEqual(app.staticTexts["voice.fixture-transport"].label,"PLAYING")
         let preview=app.staticTexts["voice.fixture-preview"]
-        XCTAssertEqual(XCTWaiter.wait(for:[XCTNSPredicateExpectation(predicate:NSPredicate(format:"label == 'PREVIEW'"),object:preview)],timeout:5),.completed,"Instrument tap must start the reviewed candidate before testing Stop")
-        let stop=app.buttons["voice.stop-preview"];reveal(stop,in:app);stop.tap()
+        XCTAssertEqual(XCTWaiter.wait(for:[XCTNSPredicateExpectation(predicate:NSPredicate(format:"label == 'PREVIEW'"),object:preview)],timeout:5),.completed,"Play must start the reviewed candidate before testing Stop")
+        XCTAssertEqual(play.label,"Stop")
+        // Switching to the notes alone keeps the audition running.
+        app.buttons["voice.listen.1"].tap()
+        XCTAssertEqual(preview.label,"PREVIEW");XCTAssertEqual(play.label,"Stop")
+        play.tap()
         XCTAssertEqual(XCTWaiter.wait(for:[XCTNSPredicateExpectation(predicate:NSPredicate(format:"label == 'ORIGINAL'"),object:preview)],timeout:5),.completed)
-        XCTAssertFalse(stop.exists)
+        XCTAssertEqual(play.label,"Play")
         XCTAssertEqual(app.staticTexts["voice.fixture-transport"].label,"PLAYING")
         XCTAssertEqual(app.staticTexts["voice.fixture-source"].label,source)
         XCTAssertEqual(app.staticTexts["voice.fixture-pitch"].label,"61")

@@ -9,7 +9,8 @@ struct PianoRollView: View {
     private func noteName(_ pitch:Int)->String{MusicalNotation.noteName(pitch,keyRoot:session.project.keyRoot,minor:session.project.minor,spelling:spelling)}
     @Environment(\.dynamicTypeSize) private var dynamicType
     @Environment(\.dismiss) private var dismiss
-    @State private var selected:UUID?
+    /// U64: the selected note lives in the session, so rotation or a re-layout never drops it.
+    private var selected:UUID?{get{session.selectedNoteID}nonmutating set{session.selectedNoteID=newValue}}
     @State private var clipboard:NoteEvent?
     @State private var snap=240
     @State private var barWidth:CGFloat=240
@@ -64,6 +65,12 @@ struct PianoRollView: View {
                 controls.padding(.horizontal,16)
                 if let clip,let pattern,clip.offset != 0 || clip.length != pattern.length{Text("Editing the source pattern updates every loop of this clip.").font(.caption).foregroundStyle(Color.muted).padding(.horizontal,16)}
                 if let pattern {
+                    // U12: an empty part offers ways to start right above the roll.
+                    if (pattern.notes ?? []).isEmpty {
+                        EmptyStateCard(screen:"notes",symbol:"music.note",message:"No notes yet. Hum the melody, play it on the keyboard (top left), or tap the grid to draw a note.",actions:[
+                            .init(title:"Hum to MIDI",symbol:"mic"){session.sheet = .voice}
+                        ],compact:true).padding(.horizontal,16)
+                    }
                     if listMode {eventList(pattern).frame(height:dynamicType.isAccessibilitySize ? 280:nil)} else {roll(pattern)}
                     if let note {NoteInspector(session:session,patternID:pattern.id,note:note,snap:snap,spelling:spelling)
                         .transition(.move(edge:.bottom).combined(with:.opacity))}
@@ -81,6 +88,7 @@ struct PianoRollView: View {
             }
         }.tint(.mint).alert("Rename track",isPresented:$renaming){TextField("Track name",text:$trackName);Button("Save"){if let id=track?.id{let name=String(trackName.trimmingCharacters(in:.whitespacesAndNewlines).prefix(40));if !name.isEmpty{session.edit{p in if let i=p.tracks.firstIndex(where:{$0.id==id}){p.tracks[i].name=name}}}}};Button("Cancel",role:.cancel){}}
         .onChange(of:dynamicType,initial:true){_,size in if size.isAccessibilitySize || UIAccessibility.isVoiceOverRunning{listMode=true}}
+        .onAppear{StudioSignposts.endPianoRoll()}
         .onChange(of:session.noteTrackID){_,_ in selected=nil}
         .onChange(of:session.noteClipID){_,_ in selected=nil}
         .sheet(item:$original){record in SourceRecordingView(session:session,record:record)}
@@ -123,9 +131,11 @@ struct PianoRollView: View {
         if let sourceRecord{Button("Original voice",systemImage:"waveform"){pendingOriginal=sourceRecord;showTrackActions=false}.accessibilityIdentifier("notes.track.source")}
         if let track {
             if dynamicType.isAccessibilitySize {TrackSoundButton(session:session,trackID:track.id)}
+            // U30 menu: melody track — Rename · Duplicate · … · Delete (last, red).
             Button("Rename track",systemImage:"pencil"){pendingTrackRename=true;showTrackActions=false}.accessibilityIdentifier("notes.track.rename")
             Button("Duplicate track",systemImage:"plus.square.on.square"){session.duplicateMelody(track.id);showTrackActions=false}.disabled(session.project.tracks.count>=8).accessibilityIdentifier("notes.track.duplicate")
             Button("Delete track",systemImage:"trash",role:.destructive){session.deleteMelody(track.id);showTrackActions=false}.accessibilityIdentifier("notes.track.delete")
+            // U30 end
         }
     }.environment(\.defaultMinListRowHeight,52).navigationTitle("Track").navigationBarTitleDisplayMode(.inline)
         .toolbar{ToolbarItem(placement:.cancellationAction){Button("Cancel"){showTrackActions=false}}}}
@@ -651,6 +661,16 @@ private struct NoteToolsMenu: View {
     let selected: UUID?
     var body: some View {
         Menu {
+            Button("Melody ideas…", systemImage: "wand.and.stars") { session.toolPatternID = patternID; session.sheet = .melodyIdeas }
+            // I7: simpler, busier or swung versions of this part.
+            Button("Variations of this part…", systemImage: "dial.medium") { session.toolPatternID = patternID; session.sheet = .variations }
+            Button("Lyrics…", systemImage: "text.quote") { session.sheet = .lyrics }
+            // I28: a harmony line on a new track, a third or sixth away in the key.
+            Menu("Second voice", systemImage: "music.note.list") {
+                ForEach(Harmonizer.Interval.allCases, id: \.self) { interval in
+                    Button(LocalizedStringKey(interval.title)) { session.addSecondVoice(patternID: patternID, interval: interval) }
+                }
+            }
             Button("Humanize timing and velocity") { apply { notes, ids, length in NoteTools.humanize(notes, ids: ids, timing: 18, velocity: 10, seed: UInt64(session.project.revision) &+ 1, length: length) } }
             Button("Legato") { apply { notes, ids, length in NoteTools.legato(notes, ids: ids, length: length) } }
             Button("Staccato") { apply { notes, ids, _ in NoteTools.staccato(notes, ids: ids) } }

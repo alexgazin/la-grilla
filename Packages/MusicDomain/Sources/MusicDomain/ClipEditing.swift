@@ -334,3 +334,91 @@ public enum SectionEditing {
         try ClipEditing.finish(&candidate);project=candidate
     }
 }
+
+/// U31 · One action on several selected clips at once, as one edit (all or nothing).
+public enum ClipBatchAction: Equatable, Sendable {
+    /// Copies the whole selection right after itself, keeping each clip on its track.
+    case duplicate
+    /// Moves every selected clip to Recently deleted.
+    case delete
+    /// Shifts the selection by whole bars (negative = earlier).
+    case move(bars: Int)
+    /// Sets the clip colour (nil = the track's colour).
+    case color(Int?)
+    /// Mutes or unmutes the clips.
+    case mute(Bool)
+}
+
+extension ClipEditing {
+    /// Number of clip colours the arrangement offers.
+    public static let clipColorCount = 6
+
+    /// Applies `action` to the clips with `ids`. Throws without changing `project` if any clip is
+    /// missing, belongs to the derived bass, or a clip would overlap content or leave the song.
+    public static func batch(_ action: ClipBatchAction, ids: Set<UUID>, in project: inout Project, now: Date = Date()) throws {
+        try project.validate()
+        guard !ids.isEmpty else { return }
+        var located: [(track: Int, clip: Clip)] = []
+        for (index, track) in project.tracks.enumerated() {
+            for clip in track.clips where ids.contains(clip.id) {
+                guard track.role != .bass else { throw ClipEditingError.derivedBass }
+                located.append((index, clip))
+            }
+        }
+        guard located.count == ids.count else { throw ClipEditingError.missing }
+        var candidate = project
+        switch action {
+        case .delete:
+            for item in located {
+                try ProjectTrash.deleteClip(item.clip.id, track: candidate.tracks[item.track].id, in: &candidate, now: now)
+            }
+            project = candidate
+            return
+        case let .color(color):
+            if let color { guard (0..<clipColorCount).contains(color) else { throw ClipEditingError.invalidDrag } }
+            set(ids, in: &candidate) { $0.color = color }
+        case let .mute(muted):
+            set(ids, in: &candidate) { $0.muted = muted ? true : nil }
+        case .duplicate:
+            let start = located.map(\.clip.start).min() ?? 0
+            let end = located.map { $0.clip.start + $0.clip.length }.max() ?? 0
+            try place(located, shift: end - start, copy: true, in: &candidate)
+        case let .move(bars):
+            guard bars != 0 else { return }
+            try place(located, shift: bars * barTicks, copy: false, in: &candidate)
+        }
+        try finish(&candidate)
+        project = candidate
+    }
+
+    private static func set(_ ids: Set<UUID>, in project: inout Project, _ change: (inout Clip) -> Void) {
+        for track in project.tracks.indices {
+            for clip in project.tracks[track].clips.indices where ids.contains(project.tracks[track].clips[clip].id) {
+                change(&project.tracks[track].clips[clip])
+            }
+        }
+    }
+
+    /// Removes the clips (unless copying), then puts each one `shift` ticks later on its own track.
+    private static func place(_ located: [(track: Int, clip: Clip)], shift: Int, copy: Bool, in candidate: inout Project) throws {
+        let moving = Set(located.map(\.clip.id))
+        if !copy {
+            for track in candidate.tracks.indices { candidate.tracks[track].clips.removeAll { moving.contains($0.id) } }
+        }
+        for item in located.sorted(by: { $0.clip.start < $1.clip.start }) {
+            var clip = item.clip
+            let start = clip.start + shift
+            guard start >= 0, clip.length <= songTickLimit - start else { throw ClipEditingError.bounds }
+            if copy {
+                guard let original = candidate.patterns.first(where: { $0.id == clip.patternID }) else { throw ClipEditingError.missing }
+                let pattern = cloned(original)
+                candidate.patterns.append(pattern)
+                clip.id = UUID(); clip.patternID = pattern.id; clip.variants = nil
+            }
+            try extend(start + clip.length, allowed: true, project: &candidate)
+            try available(start..<start + clip.length, track: item.track, project: &candidate)
+            clip.start = start
+            candidate.tracks[item.track].clips.append(clip)
+        }
+    }
+}

@@ -1,3 +1,4 @@
+import MusicDomain
 import SwiftUI
 
 /// I87 · A short, skippable first-session intro of real app actions. Pages
@@ -6,7 +7,11 @@ import SwiftUI
 /// systems use the studio surface. It can always be opened from Settings.
 struct GettingStartedView: View {
     let close: () -> Void
+    /// U11 · Opens the demo song with the five-step tour.
+    var tour: (() -> Void)? = nil
     @State private var page = 0
+    /// U60 · Simple or full studio, chosen on the first launch (Settings can change it).
+    @AppStorage(InterfacePreferences.featureLevelKey) private var featureLevel = FeatureLevel.full.rawValue
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
     private struct Page: Identifiable {
@@ -41,12 +46,17 @@ struct GettingStartedView: View {
                 }
                 .tabViewStyle(.page(indexDisplayMode: .always))
                 .indexViewStyle(.page(backgroundDisplayMode: .always))
-                .frame(minHeight: 260)
+                .frame(minHeight: 220)
                 .accessibilityIdentifier("welcome.pages")
+                levelChoice.padding(.horizontal, 24)
                 VStack(spacing: 10) {
                     Text("Your projects save automatically on this iPhone. Microphone access is requested only when you record or dictate.")
                         .font(.callout).foregroundStyle(Color.muted).frame(maxWidth: .infinity, alignment: .leading)
                     Button(action: close) { Text("Start creating") }.buttonStyle(StudioActionStyle()).accessibilityIdentifier("welcome.start")
+                    if let tour {
+                        Button(action: tour) { Label("Show me how it all works", systemImage: "hand.point.up.left") }
+                            .buttonStyle(StudioActionStyle(color: .mint, prominent: false)).accessibilityIdentifier("welcome.tour")
+                    }
                     Text("Find this guide again in Settings → Getting started.").font(.caption).foregroundStyle(Color.muted)
                 }.padding(.horizontal, 24).padding(.bottom, 16)
             }
@@ -62,6 +72,32 @@ struct GettingStartedView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Skip", action: close).accessibilityIdentifier("welcome.skip") } }
         }.tint(.mint)
+    }
+}
+
+extension GettingStartedView {
+    /// U60 · "Simple" hides the advanced panels until "Show more"; "Full" shows everything.
+    var levelChoice: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("How much to show?").font(.subheadline.weight(.semibold))
+            HStack(spacing: 8) {
+                ForEach(FeatureLevel.allCases, id: \.self) { level in
+                    let chosen = featureLevel == level.rawValue
+                    Button { featureLevel = level.rawValue; Luz.Haptics.selection() } label: {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Label(LocalizedStringKey(level.title), systemImage: chosen ? "checkmark.circle.fill" : "circle").font(.subheadline.weight(.semibold))
+                            Text(LocalizedStringKey(level.detail)).font(.caption2).foregroundStyle(Color.muted).lineLimit(3).multilineTextAlignment(.leading)
+                        }
+                        .frame(maxWidth: .infinity, minHeight: 64, alignment: .topLeading).padding(10)
+                        .background(Color.panel.opacity(0.85), in: RoundedRectangle(cornerRadius: Luz.Radius.card, style: .continuous))
+                        .overlay { RoundedRectangle(cornerRadius: Luz.Radius.card, style: .continuous).strokeBorder(chosen ? Color.mint : Color.outline.opacity(0.6), lineWidth: chosen ? 1.5 : 0.75) }
+                    }
+                    .buttonStyle(StudioQuietButtonStyle())
+                    .accessibilityAddTraits(chosen ? .isSelected : [])
+                    .accessibilityIdentifier("welcome.level.\(level.rawValue)")
+                }
+            }
+        }
     }
 }
 

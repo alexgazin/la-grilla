@@ -53,7 +53,7 @@ struct TrackSoundButton:View {
                     if !compact {
                         Image(systemName:"waveform").font(.system(.body, weight: .medium))
                             .frame(width:32,height:32)
-                            .background(Color.track(track.role).opacity(0.1),in:RoundedRectangle(cornerRadius:8,style:.continuous))
+                            .background(Color.track(track).opacity(0.1),in:RoundedRectangle(cornerRadius:8,style:.continuous))
                     }
                     VStack(alignment:.leading,spacing:3){
                         Text("Sound").font(compact ? .system(.caption2, weight: .medium):.caption).foregroundStyle(Color.muted)
@@ -66,8 +66,8 @@ struct TrackSoundButton:View {
                     .padding(.horizontal,compact ? 7:12)
                     .padding(.vertical,compact ? 0:4)
                     .background(Color.panel,in:RoundedRectangle(cornerRadius:StudioMetrics.controlRadius,style:.continuous))
-                    .overlay{RoundedRectangle(cornerRadius:StudioMetrics.controlRadius,style:.continuous).stroke(Color.track(track.role).opacity(0.4),lineWidth:0.5)}
-            }.buttonStyle(StudioQuietButtonStyle()).foregroundStyle(Color.track(track.role))
+                    .overlay{RoundedRectangle(cornerRadius:StudioMetrics.controlRadius,style:.continuous).stroke(Color.track(track).opacity(0.4),lineWidth:0.5)}
+            }.buttonStyle(StudioQuietButtonStyle()).foregroundStyle(Color.track(track))
                 .disabled(locked)
                 .accessibilityLabel(String(format:NSLocalizedString("Sound for %@",comment:"Track sound"),track.displayName))
                 .accessibilityValue(TrackSoundNames.current(track))
@@ -111,8 +111,8 @@ struct TrackSoundPicker:View {
                 if let track {
                     HStack(alignment:.center,spacing:14){
                         Image(systemName:track.role == .drums ? "square.grid.2x2.fill":"pianokeys")
-                            .font(.system(size:23,weight:.medium)).foregroundStyle(Color.track(track.role))
-                            .frame(width:52,height:52).background(Color.track(track.role).opacity(0.1),in:RoundedRectangle(cornerRadius:Luz.Radius.card,style:.continuous))
+                            .font(.system(size:23,weight:.medium)).foregroundStyle(Color.track(track))
+                            .frame(width:52,height:52).background(Color.track(track).opacity(0.1),in:RoundedRectangle(cornerRadius:Luz.Radius.card,style:.continuous))
                         VStack(alignment:.leading,spacing:6){
                             Text(track.displayName).font(.title2.weight(.semibold)).foregroundStyle(Color.studioText)
                             Text(TrackSoundNames.current(track))
@@ -136,16 +136,16 @@ struct TrackSoundPicker:View {
                     VStack(alignment:.leading,spacing:10){
                         HStack(spacing:8){
                             Image(systemName:error != nil ? "exclamationmark.circle":sounding ? "speaker.wave.2.fill":"speaker")
-                                .font(.system(.footnote, weight: .medium)).foregroundStyle(error != nil ? Color.record:Color.track(track.role)).frame(width:18)
+                                .font(.system(.footnote, weight: .medium)).foregroundStyle(error != nil ? Color.record:Color.track(track)).frame(width:18)
                             Text(LocalizedStringKey(error != nil ? "Preview":sounding ? "PLAYING":"Ready"))
                                 .font(.system(.caption,design:.monospaced,weight:.medium)).foregroundStyle(Color.muted)
                             Spacer(minLength:0)
                             Text(LocalizedStringKey(TrackSoundNames.title(selectedVersion,role:track.role)))
-                                .font(.caption.weight(.semibold)).foregroundStyle(Color.track(track.role)).multilineTextAlignment(.trailing)
+                                .font(.caption.weight(.semibold)).foregroundStyle(Color.track(track)).multilineTextAlignment(.trailing)
                         }.frame(minHeight:24).accessibilityIdentifier("sound.preview.status")
                         Button{if sounding{stopPreview()}else{startPreview()}}label:{
                             Label(LocalizedStringKey(sounding ? "Stop preview":"Hear sound"),systemImage:sounding ? "stop.fill":"speaker.wave.2.fill")
-                        }.buttonStyle(StudioActionStyle(color:Color.track(track.role),prominent:false))
+                        }.buttonStyle(StudioActionStyle(color:Color.track(track),prominent:false))
                             .disabled(!canChange).accessibilityIdentifier("sound.preview")
                             .accessibilityValue(Text(verbatim:session.runtimeTraceEnabled ? session.runtimeTraceReport:""))
                         Text("Preview follows your track and master levels.")
@@ -203,7 +203,7 @@ struct TrackSoundPicker:View {
         }label:{
             HStack(spacing:12){
                 Image(systemName:selected ? "checkmark.circle.fill":"circle")
-                    .font(.title3).foregroundStyle(selected ? Color.track(track.role):Color.muted)
+                    .font(.title3).foregroundStyle(selected ? Color.track(track):Color.muted)
                 VStack(alignment:.leading,spacing:5){
                     Text(LocalizedStringKey(TrackSoundNames.title(palette.rawValue,role:track.role)))
                         .font(.headline).foregroundStyle(Color.studioText)
@@ -212,8 +212,8 @@ struct TrackSoundPicker:View {
                 }
                 Spacer(minLength:0)
             }.frame(maxWidth:.infinity,minHeight:72,alignment:.leading).padding(.horizontal,14).padding(.vertical,10)
-                .background(selected ? Color.track(track.role).opacity(0.1):Color.clear)
-                .overlay(alignment:.leading){Rectangle().fill(selected ? Color.track(track.role):Color.clear).frame(width:3)}
+                .background(selected ? Color.track(track).opacity(0.1):Color.clear)
+                .overlay(alignment:.leading){Rectangle().fill(selected ? Color.track(track):Color.clear).frame(width:3)}
         }.buttonStyle(StudioQuietButtonStyle()).disabled(!canChange)
             .accessibilityAddTraits(selected ? [.isSelected]:[])
             .accessibilityIdentifier("sound.palette.\(palette.rawValue)")

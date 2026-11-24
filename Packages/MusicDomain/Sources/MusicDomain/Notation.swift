@@ -3,7 +3,8 @@ import Foundation
 /// A display preference. Explicit sharps/flats override persisted chord writing
 /// visually; Auto honors it and falls back to the project key for legacy data.
 public enum PitchSpelling: String, CaseIterable, Sendable {
-    case automatic, sharps, flats
+    /// U38: solfège names (Do, Re, Mi… — До, Ре, Ми… in Russian) spelled like `automatic`.
+    case automatic, sharps, flats, solfege
 }
 
 public enum MusicalNotation {
@@ -22,7 +23,15 @@ public enum MusicalNotation {
         (minor ? minorFifths : majorFifths)[pc(keyRoot)] < 0
     }
 
+    private static let solfegeSyllables = ["C": "Do", "D": "Re", "E": "Mi", "F": "Fa", "G": "Sol", "A": "La", "B": "Si"]
+    /// Replaces the letter of a written note with its solfège syllable (localized).
+    static func solfege(_ written: String) -> String {
+        guard let first = written.first, let syllable = solfegeSyllables[String(first)] else { return written }
+        return NSLocalizedString(syllable, comment: "Solfège note name") + written.dropFirst()
+    }
+
     public static func pitchClassName(_ pitchClass: Int, keyRoot: Int, minor: Bool, spelling: PitchSpelling = .automatic) -> String {
+        if spelling == .solfege { return solfege(pitchClassName(pitchClass, keyRoot: keyRoot, minor: minor, spelling: .automatic)) }
         let pitch = pc(pitchClass), root = pc(keyRoot)
         if spelling == .sharps { return sharps[pitch] }
         if spelling == .flats { return flats[pitch] }
@@ -41,6 +50,10 @@ public enum MusicalNotation {
     }
 
     public static func noteName(_ midiPitch: Int, keyRoot: Int, minor: Bool, spelling: PitchSpelling = .automatic) -> String {
+        if spelling == .solfege {
+            let written = noteName(midiPitch, keyRoot: keyRoot, minor: minor, spelling: .automatic)
+            return solfege(written)
+        }
         let name = pitchClassName(midiPitch, keyRoot: keyRoot, minor: minor, spelling: spelling)
         var octave = Int(floor(Double(midiPitch)/12))-1
         // C-flat and B-sharp belong to the written octave of their letter.
@@ -49,7 +62,9 @@ public enum MusicalNotation {
         return name + String(octave)
     }
 
-    public static func chordSymbol(_ chord: Chord, keyRoot: Int, minor: Bool, spelling: PitchSpelling = .automatic) -> String {
+    public static func chordSymbol(_ chord: Chord, keyRoot: Int, minor: Bool, spelling requested: PitchSpelling = .automatic) -> String {
+        // Chord symbols stay in letters: "Ля m7" reads worse than "Am7" even for solfège users.
+        let spelling: PitchSpelling = requested == .solfege ? .automatic : requested
         let root = rootName(chord,keyRoot:keyRoot,minor:minor,spelling:spelling)
         let suffix = chord.customIntervals.map { "{" + $0.map(String.init).joined(separator:",") + "}" } ?? chord.quality.rawValue
         let bassName = chord.slashBass.map { pitch in

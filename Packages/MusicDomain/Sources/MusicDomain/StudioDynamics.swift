@@ -64,6 +64,7 @@ public extension Project {
     func applyDynamics(to kernel: OpaquePointer, includeMaster: Bool = true) -> Bool {
         let values = tracks.prefix(masterBus).map { ($0.dynamics ?? TrackDynamics()).kernel }
         let limiter: Int32 = includeMaster && masterFX?.limiter == true ? 1 : 0
+        _ = lg_space(kernel, Int32(masterFX?.space?.rawValue ?? 0))
         return values.withUnsafeBufferPointer { lg_dynamics(kernel, $0.baseAddress, Int32($0.count), limiter, Self.limiterCeilingDB) } != 0
     }
 }
@@ -111,6 +112,7 @@ public extension Project {
     @discardableResult
     func applyAutomation(to kernel: OpaquePointer, rangeStart: Int = 0) -> Bool {
         let ramps = filterRamps(rangeStart: rangeStart)
+        applyTrackAutomation(to: kernel, rangeStart: rangeStart)
         return ramps.withUnsafeBufferPointer { lg_filter_automation(kernel, $0.baseAddress, Int32($0.count)) } != 0
     }
 }
@@ -158,5 +160,10 @@ public extension Project {
             } else { _ = lg_synth(kernel, Int32(index), nil) }
         }
         if tracks.count < masterBus { for index in tracks.count..<masterBus { _ = lg_synth(kernel, Int32(index), nil) } }
+        // Beat machine: 808 slides.
+        for index in 0..<masterBus {
+            let glide = index < tracks.count && tracks[index].role == .melody ? Float(tracks[index].glide ?? 0) : 0
+            _ = lg_glide(kernel, Int32(index), glide)
+        }
     }
 }

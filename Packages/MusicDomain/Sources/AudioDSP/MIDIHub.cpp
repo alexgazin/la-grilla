@@ -16,7 +16,7 @@ void lg_midi_configure(LGMIDIHub*h,uint32_t handle,int track,int instrument,int 
 }
 void lg_midi_configure_track(LGMIDIHub*h,uint32_t handle,uint64_t identity,int track,int instrument,int channels){if(identity)configureConnection(h,handle,identity,track,instrument,channels);}
 void lg_midi_configure_keyboard(LGMIDIHub*h,uint32_t handle,uint64_t identity,int track,int instrument){
-    if(identity)configureConnection(h,handle,identity,track,instrument,1,true);
+    if(identity)configureConnection(h,handle,identity,track,instrument,65535,true);
 }
 void lg_midi_disconnect(LGMIDIHub*h,int slot){if(!h||slot<0||slot>=16)return;h->connections[slot].handle.store(0,std::memory_order_release);h->panic.fetch_or(1u<<slot);}
 int lg_midi_push(LGMIDIHub*h,uint32_t handle,uint64_t time,const uint8_t*bytes,int count){

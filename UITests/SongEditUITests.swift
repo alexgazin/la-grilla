@@ -20,6 +20,23 @@ final class SongEditUITests: XCTestCase {
         XCTAssertTrue(element.isHittable, "\(element) is not reachable")
     }
 
+    /// Replaces the command text: a tap below the text puts the caret at its end, then the old
+    /// text is deleted. A long press for "Select All" is not reliable on the simulator.
+    @MainActor private func replaceText(_ input: XCUIElement, with text: String, in app: XCUIApplication) {
+        reveal(input, in: app)
+        for _ in 0..<3 {
+            input.coordinate(withNormalizedOffset: CGVector(dx: 0.97, dy: 0.95)).tap()
+            let focus = XCTNSPredicateExpectation(predicate: NSPredicate(format: "hasKeyboardFocus == true"), object: input)
+            guard XCTWaiter.wait(for: [focus], timeout: 3) == .completed else { continue }
+            let current = input.value as? String ?? ""
+            if current.isEmpty { break }
+            input.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: current.count))
+            if (input.value as? String ?? "").isEmpty { break }
+        }
+        input.typeText(text)
+        XCTAssertEqual(input.value as? String, text)
+    }
+
     @MainActor private func capture(_ name: String) {
         let shot = XCTAttachment(data: XCUIScreen.main.screenshot().pngRepresentation, uniformTypeIdentifier: "public.png")
         shot.name = name; shot.lifetime = .keepAlways; add(shot)
@@ -66,12 +83,7 @@ final class SongEditUITests: XCTestCase {
         let app = launch("en")
         XCTAssertTrue(app.descendants(matching: .any)["assistant.edit.op.0"].waitForExistence(timeout: 15))
         let input = app.textViews["assistant.input"]
-        reveal(input, in: app)
-        input.tap()
-        input.press(forDuration: 1.2)
-        if app.menuItems["Select All"].waitForExistence(timeout: 2) { app.menuItems["Select All"].tap() }
-        input.typeText(XCUIKeyboardKey.delete.rawValue)
-        input.typeText("Add a fill before the chorus")
+        replaceText(input, with: "Add a fill before the chorus", in: app)
         app.buttons["assistant.generate"].tap()
         let second = app.buttons["assistant.edit.choice.1"]
         XCTAssertTrue(second.waitForExistence(timeout: 10))
@@ -81,12 +93,7 @@ final class SongEditUITests: XCTestCase {
         reveal(second, in: app); second.tap()
         XCTAssertTrue(app.buttons["assistant.apply"].waitForExistence(timeout: 5))
         // Unsupported wording keeps the draft and names the fragment.
-        reveal(input, in: app)
-        input.tap()
-        input.press(forDuration: 1.2)
-        if app.menuItems["Select All"].waitForExistence(timeout: 2) { app.menuItems["Select All"].tap() }
-        input.typeText(XCUIKeyboardKey.delete.rawValue)
-        input.typeText("Add vocals to the second chorus")
+        replaceText(input, with: "Add vocals to the second chorus", in: app)
         app.buttons["assistant.generate"].tap()
         let problem = app.descendants(matching: .any)["assistant.edit.problem.0"]
         XCTAssertTrue(problem.waitForExistence(timeout: 10))

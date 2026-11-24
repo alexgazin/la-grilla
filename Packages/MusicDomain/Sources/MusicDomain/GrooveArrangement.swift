@@ -204,7 +204,7 @@ extension GrooveArrangement {
         var tick = 0
         for source in form.order {
             let length = form.parts[source].bars * barTicks
-            let label = ["A","B","C"][source]
+            let label = form.title(source)
             song.sections.append(Section(name: label, start: tick, length: length))
             for (track, pattern) in patternsByPart[source].enumerated() {
                 song.tracks[track].clips.append(Clip(patternID: pattern.id, start: tick, length: length))

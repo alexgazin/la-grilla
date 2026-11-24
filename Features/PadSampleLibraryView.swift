@@ -52,8 +52,18 @@ struct PadSampleLibraryView: View {
                 } footer: {
                     Text("Tap a sample to use it on this pad. Your library is available in every project.")
                 }
+                // I34: two to four sounds on this pad, by hit strength or in turn.
+                Section {
+                    NavigationLink {
+                        PadLayersBuilder(pad: pad, samples: samples) { sound in use(sound); dismiss() }
+                    } label: {
+                        Label("Layers on this pad", systemImage: "square.stack.3d.up")
+                    }
+                    .accessibilityIdentifier("pad-library.layers")
+                    .disabled(working)
+                }
                 if let error { Label(error, systemImage: "exclamationmark.circle").foregroundStyle(Color.record) }
-                if working { ProgressView("Preparing samples…") }
+                if working { LoadingSkeleton(caption: "Preparing samples…") }
                 if !filtered.isEmpty {
                     Section("My samples") { ForEach(filtered, id: \.id) { sample in row(sample) } }
                 }
@@ -92,11 +102,11 @@ struct PadSampleLibraryView: View {
             do { samples = try await DrumSamplePreparation.library.get().list() }
             catch { self.error = error.localizedDescription }
         }
-        .fileImporter(isPresented: $importing, allowedContentTypes: [.wav, .aiff]) { result in
+        .fileImporter(isPresented: $importing, allowedContentTypes: [.wav, .aiff, .audio, .movie]) { result in
             switch result {
             case .success(let url):
                 perform {
-                    _ = try await DrumSamplePreparation.shared.importAndKeep(url)
+                    _ = try await DrumSamplePreparation.shared.importAndKeep(try await AudioExtraction.wavIfNeeded(url))
                     samples = try await DrumSamplePreparation.library.get().list()
                     search = ""
                 }

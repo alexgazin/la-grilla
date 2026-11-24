@@ -194,6 +194,8 @@ private enum AudioRender {
         }
     }
     var isPrepared: Bool { engine?.isRunning == true }
+    /// U16: output port types of the current route, first first.
+    var outputPortTypes:[String]{AVAudioSession.sharedInstance().currentRoute.outputs.map{$0.portType.rawValue}}
     var wirelessOutput:Bool {
         AVAudioSession.sharedInstance().currentRoute.outputs.contains{[AVAudioSession.Port.bluetoothA2DP,.bluetoothHFP,.bluetoothLE,.airPlay].contains($0.portType)}
     }
@@ -204,6 +206,8 @@ private enum AudioRender {
     var retainedRoutingCount:Int {routing.count}
     /// Control-path diagnostic; no render callback consults the compiler cache.
     var musicCompilationCount:Int{musicCompilationCache.compileCount}
+    /// U37: compiled notes of a project from the shared cache (the playing project is already compiled).
+    func compiledNotes(_ p:Project)->[CompiledNote]{musicCompilationCache.notes(p)}
     var clock: UInt64 = 0
     var failureReport:String {
         let encoder=JSONEncoder();encoder.outputFormatting=[.sortedKeys]
@@ -653,8 +657,21 @@ private enum AudioRender {
         let values = pitches.prefix(16).map { Int32($0) }
         return values.withUnsafeBufferPointer { lg_arp(k, identity, $0.baseAddress, Int32($0.count), Int32(step), Int32(mode), Int32(octaves), Int32(velocity)) } != 0
     }
+    /// I29: the custom pattern played by arpeggio mode 4 (empty clears it).
+    @discardableResult func arpPattern(_ codes: [Int]) -> Bool {
+        guard let k = handle?.pointer else { return false }
+        let values = codes.prefix(16).map { Int32($0) }
+        return values.withUnsafeBufferPointer { lg_arp_pattern(k, $0.baseAddress, Int32($0.count)) } != 0
+    }
     /// I16: pitch bend (semitones) and modulation (0...1) for the track with `identity`.
     func pitchBend(identity: UInt64, semitones: Float, modulation: Float) { if let k = handle?.pointer { lg_pitch_bend(k, identity, semitones, modulation) } }
+    /// I54: MPE — channels 2…16 bend their own note by up to ±48 semitones; pressure per note.
+    func setMPE(_ on: Bool) { if let k = handle?.pointer { lg_mpe(k, on ? 1 : 0) } }
+    /// I37: a lane being re-recorded stops reading so the hand on the control is heard.
+    func suspendAutomation(track index: Int, parameter: AutomationLane.Parameter) {
+        guard let k = handle?.pointer, (0..<masterBus).contains(index) else { return }
+        _ = lg_track_automation(k, Int32(index), parameter == .level ? 0 : 1, nil, 0)
+    }
     /// I55: hear a synth patch while its knobs move, before the edit is committed.
     func previewSynth(track index: Int, _ patch: SynthPatch?) {
         guard let k = handle?.pointer, (0..<masterBus).contains(index) else { return }

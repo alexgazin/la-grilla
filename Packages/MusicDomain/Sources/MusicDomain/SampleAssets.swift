@@ -10,11 +10,14 @@ public struct SampleAsset: Codable, Equatable, Hashable, Sendable {
     public let name: String
     public let byteCount: Int
     public let sha256: String
+    /// I34: a one-shot holding 2…4 layers of one pad, chosen by velocity or in turn.
+    public let layers: PadLayerMode?
     public var relativePath: String { "Samples/" + id.uuidString + ".lgpcm" }
 
-    public init(kind: Kind, name: String, bytes: Data, id: UUID = UUID(), ringsOut: Bool = false) throws {
+    public init(kind: Kind, name: String, bytes: Data, id: UUID = UUID(), ringsOut: Bool = false, layers: PadLayerMode? = nil) throws {
         self.id = id
         self.kind = kind
+        self.layers = layers
         self.ringsOut = ringsOut ? true : nil
         self.name = String(name.trimmingCharacters(in: .whitespacesAndNewlines).prefix(120))
         byteCount = bytes.count
@@ -23,7 +26,7 @@ public struct SampleAsset: Codable, Equatable, Hashable, Sendable {
     }
 
     public func validate() throws {
-        guard (ringsOut != true || kind == .instrument), !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, name.count <= 120,
+        guard (ringsOut != true || kind == .instrument), (layers == nil || kind == .oneShot), !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, name.count <= 120,
               !name.unicodeScalars.contains(where: CharacterSet.controlCharacters.contains),
               (20...8_000_000).contains(byteCount), sha256.utf8.count == 64,
               sha256.utf8.allSatisfy({ (48...57).contains($0) || (97...102).contains($0) }) else {
@@ -34,7 +37,8 @@ public struct SampleAsset: Codable, Equatable, Hashable, Sendable {
 
 public extension Project {
     var referencedSamples: Set<SampleAsset> {
-        let allTracks = tracks + (performanceTake?.source.tracks ?? [])
+        // Deleted tracks keep their samples so they can come back (U8).
+        let allTracks = tracks + (performanceTake?.source.tracks ?? []) + (recentlyDeleted ?? []).compactMap(\.track)
         var result: Set<SampleAsset> = []
         for track in allTracks {
             if let sample = track.instrumentSample { result.insert(sample) }
@@ -50,9 +54,9 @@ public enum SampleError: Error, LocalizedError, Sendable {
 
     public var errorDescription: String? {
         let key: String = switch self {
-        case .invalid: "This sound sample is unsupported or damaged."
+        case .invalid: "This sound sample is unsupported or damaged. Try another file."
         case .unavailable: "A sound sample is missing. Restore it from a portable project."
-        case .limit: "This project has reached its sound sample limit."
+        case .limit: "This project has reached its sound sample limit. Empty Recently deleted or remove a sound."
         case .libraryLimit: "The pad sample library is full. Remove a sample to make room."
         case .stale: "The project changed while preparing this sound. Try again."
         }
@@ -80,8 +84,8 @@ public struct SamplePCM: Sendable {
 
     public init(rate: Int, zones: [Zone]) { self.rate = rate; self.zones = zones }
 
-    public func encode(kind: SampleAsset.Kind) throws -> Data {
-        try validate(kind: kind)
+    public func encode(kind: SampleAsset.Kind, layered: Bool = false) throws -> Data {
+        try validate(kind: kind, layered: layered)
         var data = Data("LGS1".utf8)
         data.little(UInt32(rate))
         data.little(UInt32(zones.count))
@@ -129,15 +133,19 @@ public struct SamplePCM: Sendable {
         }
         guard index == data.count else { throw SampleError.invalid }
         let pcm = Self(rate: rate, zones: zones)
-        try pcm.validate(kind: asset.kind)
+        try pcm.validate(kind: asset.kind, layered: asset.layers != nil)
         if asset.ringsOut == true && pcm.zones.contains(where: { $0.loopStart != 0 }) { throw SampleError.invalid }
         return pcm
     }
 
-    private func validate(kind: SampleAsset.Kind) throws {
+    private func validate(kind: SampleAsset.Kind, layered: Bool = false) throws {
         guard (8_000...48_000).contains(rate), (1...128).contains(zones.count),
-              (kind != .oneShot || zones.count == 1), zones.reduce(0, { $0 + $1.samples.count }) <= 3_999_000 else {
+              (kind != .oneShot || zones.count == 1 || layered), zones.reduce(0, { $0 + $1.samples.count }) <= 3_999_000 else {
             throw SampleError.invalid
+        }
+        if layered {
+            guard kind == .oneShot, PadLayers.counts.contains(zones.count),
+                  zones.enumerated().allSatisfy({ $0.offset == $0.element.pitch && $0.element.loopStart == 0 }) else { throw SampleError.invalid }
         }
         var previous = -1
         for zone in zones {
@@ -170,8 +178,13 @@ public final class PreparedSampleBank: @unchecked Sendable {
         }
         let handle = zones.withUnsafeBufferPointer { table in
             frames.withUnsafeBufferPointer { samples in
-                lg_sample_create_with_release(Int32(pcm.rate), table.baseAddress, Int32(table.count),
-                                              samples.baseAddress, Int32(samples.count), asset.ringsOut == true ? 1 : 0)
+                if let layers = asset.layers {
+                    lg_sample_create_layers(Int32(pcm.rate), table.baseAddress, Int32(table.count),
+                                            samples.baseAddress, Int32(samples.count), layers == .roundRobin ? 1 : 0)
+                } else {
+                    lg_sample_create_with_release(Int32(pcm.rate), table.baseAddress, Int32(table.count),
+                                                  samples.baseAddress, Int32(samples.count), asset.ringsOut == true ? 1 : 0)
+                }
             }
         }
         guard let handle else { throw SampleError.invalid }

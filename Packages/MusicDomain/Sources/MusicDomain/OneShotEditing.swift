@@ -10,13 +10,16 @@ public struct OneShotEdit: Codable, Equatable, Sendable {
     public var gainDB: Double
     public var fadeInFrames: Int
     public var fadeOutFrames: Int
+    /// I32: voice treatment of the trimmed sound; nil = none (older files).
+    public var voice: VoicePreset?
 
-    public init(startFrame: Int, endFrame: Int, gainDB: Double = 0, fadeInFrames: Int = 0, fadeOutFrames: Int = 0) {
+    public init(startFrame: Int, endFrame: Int, gainDB: Double = 0, fadeInFrames: Int = 0, fadeOutFrames: Int = 0, voice: VoicePreset? = nil) {
         self.startFrame = startFrame
         self.endFrame = endFrame
         self.gainDB = gainDB
         self.fadeInFrames = fadeInFrames
         self.fadeOutFrames = fadeOutFrames
+        self.voice = voice
     }
 
     func validate(frameCount: Int, sampleRate: Int) throws {
@@ -86,8 +89,17 @@ public struct OneShotSource: Sendable {
         try edit.validate(frameCount: frameCount, sampleRate: sampleRate)
         var output = [Int16]()
         output.reserveCapacity(edit.endFrame-edit.startFrame)
-        try forEachOutputSample(edit) { value in
-            output.append(Int16(clamping: Int(value.rounded())))
+        if let voice = edit.voice {
+            var floats: [Float] = []
+            floats.reserveCapacity(edit.endFrame-edit.startFrame)
+            try forEachOutputSample(edit) { floats.append(Float($0 / 32768)) }
+            floats = VoiceTreatment.apply(floats, rate: sampleRate, preset: voice)
+            guard floats.count >= OneShotEdit.minimumFrames else { throw SampleError.invalid }
+            output = floats.map { Int16(clamping: Int(($0 * 32767).rounded())) }
+        } else {
+            try forEachOutputSample(edit) { value in
+                output.append(Int16(clamping: Int(value.rounded())))
+            }
         }
         return SamplePCM(rate: sampleRate, zones: [.init(pitch: zone.pitch, samples: output)])
     }

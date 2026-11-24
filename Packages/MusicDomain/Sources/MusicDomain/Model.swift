@@ -241,12 +241,18 @@ public struct DrumEvent: Codable, Equatable, Identifiable, Sendable {
     /// The recorded take this hit came from; nil = programmed (steps, pads outside
     /// recording, generators). Absent in older files.
     public var take: UUID?
+    /// I25: percent chance (1…99) that the hit plays on a given pass; nil = always.
+    public var probability: Int?
+    /// I27: the hit repeats 2…4 times inside its sixteenth, fading; nil = once.
+    public var ratchet: Int?
     public init(tick: Int, pad: Int, velocity: Int = 100) { self.tick = tick; self.pad = pad; self.velocity = velocity }
 }
 public struct NoteEvent: Codable, Equatable, Identifiable, Sendable {
     public var id:UUID=UUID()
     public var tick:Int;public var duration:Int;public var pitch:Int;public var velocity:Int
     public var confidence:Double?
+    /// I9: the syllable sung on this note. Nil in older files.
+    public var syllable:String?
     public init(tick:Int,duration:Int=ppq,pitch:Int=60,velocity:Int=100,confidence:Double?=nil){self.tick=tick;self.duration=duration;self.pitch=pitch;self.velocity=velocity;self.confidence=confidence}
     public var name:String{Chord.roots[(pitch%12+12)%12]+String(pitch/12-1)}
 }
@@ -262,13 +268,19 @@ public struct DrumTake: Codable, Equatable, Identifiable, Sendable {
     public var id: UUID
     public var number: Int
     public var muted: Bool?
-    public init(id: UUID = UUID(), number: Int, muted: Bool? = nil) { self.id = id; self.number = number; self.muted = muted }
+    /// What made the take when it was not recorded: "Fill" (I8) or "Comp" (I3). Nil = recorded.
+    public var label: String?
+    public init(id: UUID = UUID(), number: Int, muted: Bool? = nil, label: String? = nil) { self.id = id; self.number = number; self.muted = muted; self.label = label }
 }
 public struct Clip: Codable, Equatable, Identifiable, Sendable {
     public var id: UUID = UUID(); public var patternID: UUID;public var sourceAssetID:UUID?; public var start: Int; public var length: Int; public var offset: Int = 0
     /// I34: alternative patterns for this clip (not including the current one),
     /// one to three. Nil in older files.
     public var variants: [UUID]?
+    /// U31: a muted clip stays in place but is not played. Nil in older files.
+    public var muted: Bool?
+    /// U31: a clip colour (0 ..< ClipEditing.clipColorCount); nil uses the track's colour.
+    public var color: Int?
     public init(patternID: UUID, start: Int, length: Int) { self.patternID = patternID; self.start = start; self.length = length }
 }
 public struct Track: Codable, Equatable, Identifiable, Sendable {
@@ -288,6 +300,12 @@ public struct Track: Codable, Equatable, Identifiable, Sendable {
     /// Drum layers (pads) silenced in playback and export while their hits stay in the
     /// pattern. Nil or empty = every pad plays; absent in older files.
     public var mutedPads: [Int]?
+    /// U47: colour chosen for this track (0 harmony, 1 drums, 2 bass, 3 mint, 4 red); nil = by role.
+    public var color: Int?
+    /// Beat machine: seconds an overlapping note slides to the next pitch (808 glide); nil = none.
+    public var glide: Double?
+    /// I37: recorded or drawn level and pan movement (one lane per parameter); nil = none.
+    public var automation: [AutomationLane]?
     public init(role: TrackRole) { self.role = role }
     public func isPadMuted(_ pad: Int) -> Bool { mutedPads?.contains(pad) == true }
 }
@@ -297,6 +315,10 @@ public struct Section: Codable, Equatable, Identifiable, Sendable {
     public var color: Int?
     /// I36: master filter sweep across this section (from → to, −1 low-pass … 0 open … 1 high-pass).
     public var filterSweep: FilterSweep?
+    /// I9: the words of this section, one line per phrase. Nil in older files.
+    public var lyrics: String?
+    /// I22: semitones this section is moved from the song's key (−6…+6); drums stay. Nil = the song's key.
+    public var transpose: Int?
     public init(name: String, start: Int = 0, length: Int) { self.name = name; self.start = start; self.length = length }
 }
 public struct Project: Codable, Equatable, Identifiable, Sendable {
@@ -319,6 +341,16 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
     public var midi:MIDISettings?
     /// I41: the last phrase edits applied to this project (newest last, at most 32).
     public var editLog:[String]?
+    /// U8: tracks, takes and clips deleted in the last 30 days (see ProjectTrash). Nil in older files.
+    public var recentlyDeleted:[DeletedItem]?
+    /// I47: notes for co-authors, optionally on a section. Nil in older files.
+    public var notes:[ProjectNote]?
+    /// I48: how others may use this song when it is shared ("all-rights", "cc-by", "cc-by-nc"). Nil = not set.
+    public var license:String?
+    /// I39: timeline markers with a note ("add vocals here"). Nil in older files.
+    public var markers:[Marker]?
+    /// I43: a teacher's beat to play back and score against. Nil in older files.
+    public var assignment:Assignment?
     /// Legacy register for implicit root bass. To change it in an existing project,
     /// use MusicalEditing.setBassRegister: explicit rootBassPitch values are absolute
     /// and must be shifted atomically as well; raw field assignment does not do that.
@@ -353,7 +385,16 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
               Set(tracks.map(\.id)).count == tracks.count else { throw MusicError.invalidProject }
         guard (performanceTakes ?? []).count<=1 else{throw MusicError.limit}
         if let log=editLog{guard log.count<=32,log.allSatisfy({$0.count<=300}) else{throw MusicError.invalidProject}}
+        guard sections.allSatisfy({($0.lyrics?.count ?? 0)<=4000 && (-6...6).contains($0.transpose ?? 0)}),patterns.allSatisfy({($0.notes ?? []).allSatisfy{($0.syllable?.count ?? 0)<=32}})else{throw MusicError.invalidProject}
+        if let notes{guard notes.count<=200,Set(notes.map(\.id)).count==notes.count,notes.allSatisfy({!$0.text.isEmpty && $0.text.count<=1000 && $0.author.count<=60})else{throw MusicError.invalidProject}}
+        if let license{guard ["all-rights","cc-by","cc-by-nc"].contains(license)else{throw MusicError.invalidProject}}
+        try assignment?.validate()
+        if let markers{guard markers.count<=Marker.limit,Set(markers.map(\.id)).count==markers.count,markers.allSatisfy({$0.tick>=0 && $0.tick<songTickLimit && !$0.text.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty && $0.text.count<=200})else{throw MusicError.invalidProject}}
+        if let trash=recentlyDeleted{guard trash.count<=ProjectTrash.itemLimit,Set(trash.map(\.id)).count==trash.count,trash.allSatisfy({$0.name.count<=200 && $0.deletedAt.timeIntervalSinceReferenceDate.isFinite})else{throw MusicError.invalidProject}}
         for track in tracks{try track.dynamics?.validate();try track.synth?.validate();if track.synth != nil,track.role == .drums{throw MusicError.invalidProject}
+            if let color=track.color,!(0..<5).contains(color){throw MusicError.invalidProject}
+            if let glide=track.glide,!glide.isFinite || !(0...0.5).contains(glide) || track.role != .melody{throw MusicError.invalidProject}
+            if let lanes=track.automation{guard !lanes.isEmpty,Set(lanes.map(\.parameter)).count==lanes.count else{throw MusicError.invalidProject};for lane in lanes{try lane.validate()}}
             if let muted=track.mutedPads,track.role != .drums || Set(muted).count != muted.count || !muted.allSatisfy({(0..<16).contains($0)}){throw MusicError.invalidProject}}
         guard sections.allSatisfy({$0.color.map{(0...3).contains($0)} ?? true}),sections.allSatisfy({$0.filterSweep?.isValid ?? true}) else{throw MusicError.invalidProject}
         try midi?.validate(self)
@@ -388,7 +429,7 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
         var end = 0
         for s in sections { guard s.start == end, s.length > 0, s.length <= songTickLimit, s.length % barTicks == 0, !s.name.isEmpty, s.name.count <= 120 else { throw MusicError.invalidProject }; end += s.length }
         for p in patterns {
-            if let takes=p.drumTakes{guard takes.count<=64,Set(takes.map(\.id)).count==takes.count,takes.allSatisfy({$0.number>0})else{throw MusicError.invalidProject}}
+            if let takes=p.drumTakes{guard takes.count<=64,Set(takes.map(\.id)).count==takes.count,takes.allSatisfy({$0.number>0 && ($0.label?.count ?? 0)<=40})else{throw MusicError.invalidProject}}
             guard p.length >= barTicks, p.length % barTicks == 0, p.length <= length, p.chords.count <= 256, p.drums.count <= 4096, (p.notes ?? []).count <= 4096 else { throw MusicError.invalidProject }
             var end = 0
             for e in p.chords.sorted(by: {$0.tick < $1.tick}) {
@@ -400,7 +441,7 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
             for e in p.notes ?? [] {
                 guard e.tick>=0,e.tick<p.length,e.duration>0,e.duration<=p.length,e.tick+e.duration<=p.length,(0...127).contains(e.pitch),(1...127).contains(e.velocity),e.confidence==nil || (e.confidence!.isFinite && (0...1).contains(e.confidence!))else{throw MusicError.invalidProject}
             }
-            for e in p.drums { guard e.tick >= 0, e.tick < p.length, (0..<16).contains(e.pad), (1...127).contains(e.velocity) else { throw MusicError.invalidProject } }
+            for e in p.drums { guard e.tick >= 0, e.tick < p.length, (0..<16).contains(e.pad), (1...127).contains(e.velocity), (1...99).contains(e.probability ?? 50), (2...4).contains(e.ratchet ?? 2) else { throw MusicError.invalidProject } }
         }
         for t in tracks {
             try t.equalizer?.validate()
@@ -409,6 +450,7 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
             for c in t.clips.sorted(by: {$0.start < $1.start}) {
                 guard c.start >= end, c.start < length, c.length > 0, c.length <= length, c.start + c.length <= length, c.offset >= 0, let p = patterns.first(where: {$0.id == c.patternID}), c.offset < p.length else { throw MusicError.invalidProject }
                 if let asset=c.sourceAssetID{guard (audioAssets ?? []).contains(where:{$0.id==asset})else{throw MusicError.invalidProject}}
+                if let color=c.color{guard (0..<6).contains(color) else{throw MusicError.invalidProject}}
                 if let v=c.variants{guard (1...3).contains(v.count),Set(v).count==v.count,!v.contains(c.patternID),v.allSatisfy({id in patterns.contains{$0.id==id}})else{throw MusicError.invalidProject}}
                 end = c.start + c.length
             }
@@ -461,12 +503,12 @@ public enum MusicError: Error, LocalizedError {
         let key = switch self {
         case .invalidChord: "Unrecognized chord. Choose a chord from the list."
         case .unsupportedSchema: "This project was made with a newer version. The original has been preserved."
-        case .limit: "A song can contain up to 8 sections and 64 bars."
-        case .assetLimit: "A project can keep up to eight source recordings."
+        case .limit: "A song can contain up to 16 sections and 128 bars. Remove or shorten a section first."
+        case .assetLimit: "A project can keep up to eight source recordings. Delete one to add another."
         case .revisionLimit: "This project has reached its revision limit. Save a copy to continue editing."
-        case .trackLimit: "A project can contain up to eight tracks."
-        case .tooDense: "This project has too many events."
-        case .invalidProject: "The project contains invalid musical data."
+        case .trackLimit: "A project can contain up to eight tracks. Delete one in the Mixer first."
+        case .tooDense: "This project has too many events. Shorten a part or remove some notes."
+        case .invalidProject: "The project contains invalid musical data. Undo the last change or reopen the project."
         }
         return NSLocalizedString(key, comment: "Project validation")
     }
@@ -510,6 +552,26 @@ public struct History: Sendable {
     }
     public mutating func undo(_ project: inout Project) { guard let revision=project.nextRevision,var p = past.last else { return };past.removeLast(); future.append(project); p.revision = revision; p.modified = Date(); project = p;fullyValidatedProject=nil }
     public mutating func redo(_ project: inout Project) { guard let revision=project.nextRevision,var p = future.last else { return };future.removeLast(); past.append(project); p.revision = revision; p.modified = Date(); project = p;fullyValidatedProject=nil }
+    /// U6 · Visual history: earlier states, oldest first (each carries its own `modified` time).
+    public var earlierStates: [Project] { past }
+    /// Undone states that Redo would bring back, nearest first.
+    public var laterStates: [Project] { future.reversed() }
+    /// Jumps `steps` states back in one action. Every skipped state stays reachable by Redo.
+    @discardableResult public mutating func undo(_ project: inout Project, steps: Int) -> Bool {
+        guard steps > 0, steps <= past.count, let revision = project.nextRevision else { return false }
+        var current = project
+        for _ in 0..<steps { let previous = past.removeLast(); future.append(current); current = previous }
+        current.revision = revision; current.modified = Date(); project = current; fullyValidatedProject = nil
+        return true
+    }
+    /// Jumps `steps` undone states forward in one action.
+    @discardableResult public mutating func redo(_ project: inout Project, steps: Int) -> Bool {
+        guard steps > 0, steps <= future.count, let revision = project.nextRevision else { return false }
+        var current = project
+        for _ in 0..<steps { let next = future.removeLast(); past.append(current); current = next }
+        current.revision = revision; current.modified = Date(); project = current; fullyValidatedProject = nil
+        return true
+    }
 }
 
 public enum ProjectDocument {

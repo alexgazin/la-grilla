@@ -20,15 +20,7 @@ extension DrumSamplePreparation {
     func factoryPreview(_ kit: FactoryDrumKit, pad: Int) throws -> Data { try kit.oneShotWAV(pad: pad) }
 
     nonisolated static func factoryName(_ kit: FactoryDrumKit, pad: Int) -> String {
-        let prefix: String = switch kit {
-        case .pocket: NSLocalizedString("Pocket · %@", comment: "Pocket Kit sample")
-        case .dusty: "Dusty · %@"
-        case .coast: "Coast · %@"
-        case .trap808: "808 Trap · %@"
-        case .house: "House · %@"
-        case .brushes: "Brushes · %@"
-        case .world: "World · %@"
-        }
+        let prefix = kit == .pocket ? NSLocalizedString("Pocket · %@", comment: "Pocket Kit sample") : kit.samplePrefix + "%@"
         return String(format: prefix, NSLocalizedString(Compiler.padNames[pad], comment: "Pad name"))
     }
 }

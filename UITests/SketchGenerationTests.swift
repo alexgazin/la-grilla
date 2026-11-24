@@ -58,7 +58,8 @@ final class SketchGenerationTests:XCTestCase {
         app.terminate();app.launch()
         XCTAssertTrue(transport.waitForExistence(timeout:15))
         XCTAssertEqual(state(transport),persisted)
-        XCTAssertTrue(app.staticTexts["Untitled"].exists)
+        // U35: a project created without a name is named by key, tempo and day.
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format:"label BEGINSWITH 'C major · 120 · '")).firstMatch.exists)
         XCTAssertEqual(chords.allElementsBoundByIndex.prefix(4).map(\.label),labels)
         XCTAssertEqual(number("loopRangeCount",in:current(transport)),8*3840)
         app.buttons["Play"].tap()
@@ -271,7 +272,9 @@ final class SketchGenerationTests:XCTestCase {
         }
     }
 
-    @MainActor func testChangingReviewedTextRequiresNewInterpretation() {
+    /// Musician feedback (build 47): Listen used to sit greyed out after the text changed,
+    /// so a tap did nothing. Now it reads the new text and plays, showing the bar.
+    @MainActor func testChangedTextIsReadWhenListening() {
         let app = launch()
         app.buttons["assistant.open"].tap()
         let editor = app.buttons["Build a track"]
@@ -294,11 +297,16 @@ final class SketchGenerationTests:XCTestCase {
         let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.97, dy: 0.55))
         let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.97, dy: 0.25))
         start.press(forDuration: 0.02, thenDragTo: end)
-        let create = app.buttons["builder.create"]
-        for _ in 0..<14 where !create.exists { app.swipeUp() }
-        XCTAssertTrue(create.exists)
-        XCTAssertFalse(create.isEnabled)
-        XCTAssertFalse(app.buttons["builder.preview"].isEnabled)
+        let preview = app.buttons["builder.preview"]
+        for _ in 0..<14 where !preview.isHittable { app.swipeUp() }
+        XCTAssertTrue(preview.isEnabled, "Listen answers even before the new text is suggested")
+        preview.tap()
+        wait(preview, timeout: 30) { preview.label.contains("Stop sketch") }
+        XCTAssertTrue(app.descendants(matching: .any)["builder.playhead"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.staticTexts["builder.unreviewed"].exists, "The new description was read")
+        keepScreenshot("Builder-listen-after-edit")
+        preview.tap()
+        wait(preview) { preview.label.contains("Listen to sketch") }
     }
 
     @MainActor func testGraphicScoreNightABAuditionsAndFinishesSection() {

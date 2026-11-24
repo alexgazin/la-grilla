@@ -1,9 +1,12 @@
+import LinkPresentation
 import SwiftUI
 import MusicDomain
 import UIKit
 struct ExportView:View {
     @Bindable var session:Session
     @State private var format:Session.ExportFormat = .midi
+    /// U61: the export sheet opens on the format used last time.
+    @AppStorage("export.lastFormat") private var lastFormat=Session.ExportFormat.midi.rawValue
     @State private var scope=0
     @State private var sampleRate=48000
     @State private var bits=24
@@ -34,16 +37,16 @@ struct ExportView:View {
                 Text(description).font(.system(.caption)).foregroundStyle(Color.muted).lineSpacing(4)
                 HStack{Text("\(project.tracks.count) tracks");Spacer();Text("\(Int(project.bpm)) BPM · 4/4")}.font(.system(.caption,design:.monospaced)).foregroundStyle(Color.muted)
                 if session.exportInProgress {VStack(alignment:.leading,spacing:8){ProgressView(value:session.exportProgress).tint(.mint);Text("\(Int(session.exportProgress*100))%").luzNumeric(session.exportProgress).animation(.snappy,value:Int(session.exportProgress*100)).font(.system(.caption,design:.monospaced))}.accessibilityIdentifier("export.progress")}
-                Button{session.export(format:format,settings:WAVSettings(sampleRate:sampleRate,bitDepth:bits,tailSeconds:tail,normalizeStemsDBFS:format == .stems && normalizeStems ? -1:nil),range:range,tracks:tracks,performance:take)}label:{HStack{if session.exportInProgress{ProgressView()};Text(LocalizedStringKey(session.exportInProgress ? "Exporting…":format == .midi ? "Export MIDI":"Export"));Image(systemName:"arrow.up.right")}}.buttonStyle(StudioActionStyle()).accessibilityIdentifier("export.confirm").disabled(session.exportInProgress || (format == .stems && tracks.isEmpty))
+                Button{lastFormat=format.rawValue;session.export(format:format,settings:WAVSettings(sampleRate:sampleRate,bitDepth:bits,tailSeconds:tail,normalizeStemsDBFS:format == .stems && normalizeStems ? -1:nil),range:range,tracks:tracks,performance:take)}label:{HStack{if session.exportInProgress{ProgressView()};Text(LocalizedStringKey(session.exportInProgress ? "Exporting…":format == .midi ? "Export MIDI":"Export"));Image(systemName:"arrow.up.right")}}.buttonStyle(StudioActionStyle()).accessibilityIdentifier("export.confirm").disabled(session.exportInProgress || (format == .stems && tracks.isEmpty))
             }.padding(18)}.background(Color.ink)
             .navigationTitle("Export").navigationBarTitleDisplayMode(.inline)
             .toolbar{ToolbarItem(placement:.cancellationAction){Button("Cancel"){session.cancelExport();session.sheet=nil}}}
         }.presentationDetents([.large])
-        .onAppear{if take != nil{tail=0};if let preset=session.exportPreset,let selected=Session.ExportFormat(rawValue:preset){format=selected;session.exportPreset=nil};lastBar=session.project.length/barTicks;tracks=Set(project.tracks.map(\.id))}
+        .onAppear{if take != nil{tail=0};if let preset=session.exportPreset,let selected=Session.ExportFormat(rawValue:preset){format=selected;session.exportPreset=nil}else if !Luz.uiTesting,take==nil,let last=Session.ExportFormat(rawValue:lastFormat){format=last};lastBar=session.project.length/barTicks;tracks=Set(project.tracks.map(\.id))}
         .onDisappear{if session.exportInProgress{session.cancelExport()}}
     }
     private func symbol(_ format:Session.ExportFormat)->String {
-        switch format{case .midi:"pianokeys";case .wav:"waveform";case .stems:"square.stack.3d.up";case .project:"folder";case .aac:"music.note";case .video:"film"}
+        switch format{case .midi:"pianokeys";case .wav:"waveform";case .stems:"square.stack.3d.up";case .project:"folder";case .aac:"music.note";case .video:"film";case .daw:"shippingbox";case .musicxml:"music.note.list";case .ringtone:"bell"}
     }
     private var audioSettings:some View {VStack(alignment:.leading,spacing:14){
         HStack{Text("Sample rate");Spacer();Picker("Sample rate",selection:$sampleRate){Text("44.1 kHz").tag(44100);Text("48 kHz").tag(48000)}.pickerStyle(.menu)}
@@ -63,11 +66,41 @@ struct ExportView:View {
         case .project:"A portable copy of the entire project, including notes, source recordings, sections and mixer settings. Import creates a separate project."
         case .aac:"A compact AAC file (.m4a, 256 kbps) of the same stereo mix as WAV, ready for messages and sharing."
         case .video:"A vertical 1080×1920 video (.mp4) of the same mix with a playhead moving over your song, ready for stories and reels."
+        case .ringtone:"The first 30 seconds of the chosen bars as an iPhone ringtone (.m4r). In Files, share it to GarageBand or set it in Settings › Sounds."
+        case .musicxml:"A lead sheet for notation apps (MuseScore, Sibelius, Dorico, Finale): the melody with chord symbols, lyrics and section marks."
+        case .daw:"One zip for Logic, GarageBand, Ableton, FL Studio or Reaper: every track as an aligned WAV from bar 1, song.mid with tempo, key and section markers, and a README with what to do."
         }
     }
 }
 struct ShareView:UIViewControllerRepresentable {
     let url:URL
-    func makeUIViewController(context:Context)->UIActivityViewController{UIActivityViewController(activityItems:[url],applicationActivities:nil)}
+    func makeUIViewController(context:Context)->UIActivityViewController{
+        // I45: a project file shows its song name and the app icon in the share sheet and AirDrop.
+        let item:Any=url.pathExtension.lowercased()=="grillapack" ? ProjectShareItem(url:url):url
+        return UIActivityViewController(activityItems:[item],applicationActivities:nil)
+    }
     func updateUIViewController(_ controller:UIActivityViewController,context:Context){}
+}
+
+/// The share sheet's preview card for a .grillapack: the song's name, "La Grilla project"
+/// and the app icon.
+final class ProjectShareItem:NSObject,UIActivityItemSource {
+    let url:URL
+    init(url:URL){self.url=url}
+    func activityViewControllerPlaceholderItem(_ controller:UIActivityViewController)->Any{url}
+    func activityViewController(_ controller:UIActivityViewController,itemForActivityType type:UIActivity.ActivityType?)->Any?{url}
+    func activityViewControllerLinkMetadata(_ controller:UIActivityViewController)->LPLinkMetadata?{
+        let metadata=LPLinkMetadata()
+        metadata.originalURL=url
+        metadata.url=url
+        metadata.title=url.deletingPathExtension().lastPathComponent
+        if let icon=Self.icon{metadata.iconProvider=NSItemProvider(object:icon);metadata.imageProvider=NSItemProvider(object:icon)}
+        return metadata
+    }
+    private static var icon:UIImage?{
+        guard let icons=Bundle.main.infoDictionary?["CFBundleIcons"] as? [String:Any],
+              let primary=icons["CFBundlePrimaryIcon"] as? [String:Any],
+              let files=primary["CFBundleIconFiles"] as? [String],let name=files.last else{return UIImage(named:"AppIcon")}
+        return UIImage(named:name)
+    }
 }

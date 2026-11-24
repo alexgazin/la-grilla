@@ -3,7 +3,7 @@ import Foundation
 extension Arrangement {
     public static func materialize(_ p:Project,track:Track,section:Section)->Pattern {
         var result=Pattern(length:section.length)
-        for c in track.clips {
+        for c in track.clips where c.muted != true {
             guard let pattern=p.patterns.first(where:{$0.id==c.patternID})else{continue}
             // Recorded takes travel with their hits, so each one stays separable.
             for take in pattern.drumTakes ?? [] where result.drumTakes?.contains(where:{$0.id==take.id}) != true {result.drumTakes=(result.drumTakes ?? [])+[take]}

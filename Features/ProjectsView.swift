@@ -1,4 +1,5 @@
 import SwiftUI
+import LocalAuthentication
 import MusicDomain
 import UniformTypeIdentifiers
 struct ProjectsView: View {
@@ -10,11 +11,33 @@ struct ProjectsView: View {
     @State private var deleting: UUID?;@State private var renameID: UUID?;@State private var name=""
     @State private var query=""
     @State private var deleted:[ProjectStore.TrashedProject]=[]
+    /// U34: order and pinned projects, kept on this device.
+    @AppStorage("projects.order") private var orderRaw=ProjectOrdering.modified.rawValue
+    @AppStorage("projects.pinned") private var pinnedRaw=""
+    private var pinned:Set<UUID>{Set(pinnedRaw.split(separator:",").compactMap{UUID(uuidString:String($0))})}
+    /// I65: projects hidden behind Face ID or the passcode (kept on this device).
+    @AppStorage("projects.private") private var privateRaw=""
+    private var privateIDs:Set<UUID>{Set(privateRaw.split(separator:",").compactMap{UUID(uuidString:String($0))})}
+    private func togglePrivate(_ id:UUID){var set=privateIDs;if set.contains(id){set.remove(id)}else{set.insert(id)};privateRaw=set.map(\.uuidString).sorted().joined(separator:",")}
+    private func open(_ id:UUID){
+        guard privateIDs.contains(id) else{Task{await session.openStored(id)};return}
+        let context=LAContext()
+        context.evaluatePolicy(.deviceOwnerAuthentication,localizedReason:NSLocalizedString("Open a private project",comment:"Face ID reason")){ok,_ in
+            if ok{Task{@MainActor in await session.openStored(id)}}
+        }
+    }
+    private func togglePin(_ id:UUID){var set=pinned;if set.contains(id){set.remove(id)}else{set.insert(id)};pinnedRaw=set.map(\.uuidString).sorted().joined(separator:",")}
+    private var ordered:[ProjectStore.SummaryEntry]{
+        let order=ProjectOrdering(rawValue:orderRaw) ?? .modified
+        let summaries=order.sorted(session.entries.compactMap(\.summary),pinned:pinned)
+        let rank=Dictionary(uniqueKeysWithValues:summaries.enumerated().map{($0.element.id,$0.offset)})
+        return session.entries.sorted{(rank[$0.id] ?? Int.max)<(rank[$1.id] ?? Int.max)}
+    }
     /// I74: match name, tempo or key ("90", "D minor", "ре минор").
     private var visibleEntries:[ProjectStore.SummaryEntry]{
         let text=query.trimmingCharacters(in:.whitespaces).lowercased()
-        guard !text.isEmpty else{return session.entries}
-        return session.entries.filter{entry in
+        guard !text.isEmpty else{return ordered}
+        return ordered.filter{entry in
             guard let p=entry.summary else{return false}
             let key=(Chord.roots[p.keyRoot]+" "+(p.minor ? "minor":"major")+" "+NSLocalizedString(p.minor ? "minor":"major",comment:"Key mode")).lowercased()
             return p.name.lowercased().contains(text) || "\(Int(p.bpm))".hasPrefix(text) || key.contains(text) || MusicalNotation.pitchClassName(p.keyRoot,keyRoot:p.keyRoot,minor:p.minor,spelling:.automatic).lowercased()==text
@@ -23,18 +46,20 @@ struct ProjectsView: View {
     var body: some View {NavigationStack{ScrollView{VStack(alignment:.leading,spacing:22){
         HStack{VStack(alignment:.leading,spacing:7){Text("Your next idea\nstarts here.").font(StudioTypography.display);Text("A little studio. A world of possibilities.").font(.system(.caption)).foregroundStyle(Color.muted)};Spacer();Image(systemName:"square.grid.3x3").font(.system(size:42,weight:.ultraLight)).foregroundStyle(Color.mint)}.padding(.vertical,15)
         Button{session.sheet = .newProject}label:{Label("New project",systemImage:"plus")}.buttonStyle(StudioActionStyle()).accessibilityIdentifier("project.new")
+        if !Luz.uiTesting || ProcessInfo.processInfo.arguments.contains("--daily"){DailyIdeaCard(session:session)}
         Button{showImport=true}label:{Label("Import project",systemImage:"square.and.arrow.down").font(.system(.subheadline,weight:.medium)).frame(maxWidth:.infinity,minHeight:44)}.buttonStyle(StudioQuietButtonStyle()).tint(.mint).accessibilityIdentifier("project.import")
         Button{guard !openingExample else{return};openingExample=true;Task{_ = await session.openExample();openingExample=false}}label:{Label("Open an example",systemImage:"music.note.list").frame(maxWidth:.infinity,minHeight:44)}.buttonStyle(StudioQuietButtonStyle()).tint(.mint).accessibilityIdentifier("project.example")
-        if openingExample{ProgressView("Opening example…")}
+        if openingExample{LoadingSkeleton(rows: 2, caption: "Opening example…")}
         Button{mergeImport=true;showImport=true}label:{Label("Merge a co-author's copy",systemImage:"arrow.triangle.merge").frame(maxWidth:.infinity,minHeight:44)}.buttonStyle(StudioQuietButtonStyle()).accessibilityIdentifier("project.merge-copy")
         Text("Brings their edits of a shared .grillapack into the open project. One Undo reverts it.").font(.caption).foregroundStyle(Color.muted)
         Text("Opens a separate copy. Your current project is saved first.").font(.caption).foregroundStyle(Color.muted)
         if session.projectChangeQAEnabled{Button{Task{await session.runProjectChangeQA()}}label:{Text(verbatim:"Run project change checks").frame(minHeight:44)}.accessibilityIdentifier("project.change-probe")}
-        HStack{SmallHeading(text:"ON THIS IPHONE");Spacer();Text("\(session.entries.count) projects").font(.system(.caption)).foregroundStyle(Color.muted)}
+        HStack{SmallHeading(text:"ON THIS IPHONE");Spacer();Text("\(session.entries.count) projects").font(.system(.caption)).foregroundStyle(Color.muted)
+            Menu{Picker("Sort by",selection:$orderRaw){ForEach(ProjectOrdering.allCases,id:\.rawValue){order in Text(LocalizedStringKey(order.title)).tag(order.rawValue)}}}label:{Image(systemName:"arrow.up.arrow.down").frame(width:44,height:44)}.accessibilityLabel("Sort projects").accessibilityIdentifier("project.sort")}
         if session.entries.count>3{HStack(spacing:8){Image(systemName:"magnifyingglass").foregroundStyle(Color.muted).accessibilityHidden(true);TextField("Search by name, tempo or key",text:$query).textFieldStyle(.plain).accessibilityIdentifier("project.search");if !query.isEmpty{Button{query=""}label:{Image(systemName:"xmark.circle.fill").foregroundStyle(Color.muted)}.accessibilityLabel("Clear")}}.padding(.horizontal,12).frame(minHeight:44).background(Color.panel,in:Capsule(style:.continuous)).overlay{Capsule(style:.continuous).strokeBorder(Color.outline.opacity(0.8),lineWidth:0.75)}}
         ForEach(visibleEntries){entry in
-            if let p=entry.summary {HStack(spacing:14){VStack(spacing:3){ForEach(0..<3){row in HStack(spacing:2){ForEach(0..<4){bar in RoundedRectangle(cornerRadius:1,style:.continuous).fill((row==0 ? Color.harmony:row==1 ? Color.drums:Color.bass).opacity(row==2 && p.trackCount<3 ? 0.08:0.6)).frame(width:8,height:row==0 ? 12:4)}}}}.frame(width:48,height:48).background(Color.raised,in:RoundedRectangle(cornerRadius:7,style:.continuous))
-                Button{Task{await session.openStored(entry.id)}}label:{VStack(alignment:.leading,spacing:6){Text(p.name).font(.system(.body,weight:.medium)).foregroundStyle(.primary);Text("\(Int(p.bpm)) BPM · \(MusicalNotation.pitchClassName(p.keyRoot,keyRoot:p.keyRoot,minor:p.minor,spelling:PitchSpelling(rawValue:spellingValue) ?? .automatic)+" "+NSLocalizedString(p.minor ? "minor":"major",comment:"Key mode")) · \(p.length/barTicks) bars").font(.system(.caption)).foregroundStyle(Color.muted);Text(p.modified,style:.relative).font(.system(.caption2)).foregroundStyle(Color.muted)}}.buttonStyle(StudioQuietButtonStyle()).accessibilityIdentifier("project.open."+entry.id.uuidString);Spacer();Menu{Button("Open"){Task{await session.openStored(entry.id)}};Button("Rename"){renameID=entry.id;name=p.name};Button("Duplicate"){Task{await session.duplicateStored(entry.id)}};Button("Delete",role:.destructive){deleting=entry.id}}label:{Image(systemName:"ellipsis").foregroundStyle(Color.muted).frame(width:44,height:44)}}.padding(.vertical,8).overlay(alignment:.bottom){Rectangle().fill(Color.raised).frame(height:1)}
+            if let p=entry.summary {HStack(spacing:14){ProjectFormThumbnail(summary:p,hidden:privateIDs.contains(entry.id)).frame(width:48,height:48).background(Color.raised,in:RoundedRectangle(cornerRadius:7,style:.continuous))
+                Button{open(entry.id)}label:{VStack(alignment:.leading,spacing:6){HStack(spacing:4){if privateIDs.contains(entry.id){Image(systemName:"lock.fill").font(.caption).foregroundStyle(Color.muted).accessibilityLabel("Private")};Text(privateIDs.contains(entry.id) ? NSLocalizedString("Private project",comment:"Hidden name"):p.name).font(.system(.body,weight:.medium)).foregroundStyle(.primary)};Text("\(Int(p.bpm)) BPM · \(MusicalNotation.pitchClassName(p.keyRoot,keyRoot:p.keyRoot,minor:p.minor,spelling:PitchSpelling(rawValue:spellingValue) ?? .automatic)+" "+NSLocalizedString(p.minor ? "minor":"major",comment:"Key mode")) · \(p.length/barTicks) bars").font(.system(.caption)).foregroundStyle(Color.muted);Text(p.modified,style:.relative).font(.system(.caption2)).foregroundStyle(Color.muted)}}.buttonStyle(StudioQuietButtonStyle()).accessibilityIdentifier("project.open."+entry.id.uuidString);Spacer();Menu{Button("Open"){open(entry.id)};Button(privateIDs.contains(entry.id) ? "Stop hiding":"Hide behind Face ID",systemImage:privateIDs.contains(entry.id) ? "lock.open":"lock"){togglePrivate(entry.id)};Button(pinned.contains(entry.id) ? "Unpin":"Pin to top",systemImage:pinned.contains(entry.id) ? "pin.slash":"pin"){togglePin(entry.id)};Button("Rename"){renameID=entry.id;name=p.name};Button("Duplicate"){Task{await session.duplicateStored(entry.id)}};Button("Delete",role:.destructive){deleting=entry.id}}label:{Image(systemName:"ellipsis").foregroundStyle(Color.muted).frame(width:44,height:44)}}.padding(.vertical,8).overlay(alignment:.bottom){Rectangle().fill(Color.raised).frame(height:1)}
                 .luzScrollDepth().luzEntrance(session.entries.firstIndex(where:{$0.id==entry.id}) ?? 0)
             }else{VStack(alignment:.leading,spacing:8){Label("Project needs recovery",systemImage:"exclamationmark.triangle");Text(LocalizedStringKey(entry.error ?? "Could not read project")).font(.caption).foregroundStyle(Color.muted);Button("Retry"){Task{await session.openStored(entry.id)}};if entry.hasBackup{Button("Recover last working copy"){Task{await session.recover(entry.id)}}}}.padding()}
         }
@@ -61,6 +86,8 @@ struct NewProjectView: View {
     @State private var minor = false
     @State private var bars = 4
     @State private var template:ProjectTemplate = .empty
+    /// U67: a held template or beat plays four bars; its release is not a tap.
+    @State private var heldCard=false
     @State private var creating = false
     @State private var creationError:String?
     var body: some View {
@@ -77,6 +104,31 @@ struct NewProjectView: View {
                     Text(LocalizedStringKey(template == .empty ? "Start empty, then add chords or record a beat.":"Editable chords, drums and root bass in your chosen key. A local starting point, not AI generation."))
                         .font(.caption).foregroundStyle(.secondary)
                 }
+                // U51: one tap makes a project at the genre's tempo and opens its beat in the beat machine.
+                Section {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(BeatPreset.Genre.allCases) { genre in
+                                Button { if heldCard { heldCard = false } else { startWithBeat(genre) } } label: {
+                                    VStack(spacing: 4) {
+                                        Image(systemName: genre.symbol).font(.title3.weight(.bold)).foregroundStyle(.white)
+                                            .frame(width: 56, height: 56)
+                                            .background(LinearGradient(colors: [Color(hue: genre.hues.0, saturation: 0.7, brightness: 0.8), Color(hue: genre.hues.1, saturation: 0.8, brightness: 0.4)],
+                                                                       startPoint: .topLeading, endPoint: .bottomTrailing), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                                        Text(LocalizedStringKey(genre.title)).font(.caption2.weight(.semibold)).lineLimit(1).frame(width: 72)
+                                    }
+                                }
+                                .buttonStyle(.plain).disabled(creating)
+                                .accessibilityLabel(LocalizedStringKey(genre.title))
+                                .accessibilityIdentifier("project.quick.\(genre.rawValue)")
+                                .holdToPreview(suppressTap: $heldCard, start: {
+                                    guard let beat = try? HoldPreview.beat(genre, root: root, minor: minor), let library = try? session.paletteLibrary(beat.kit) else { return false }
+                                    return session.holdPreview(beat.project, range: HoldPreview.range(beat.project), samples: library)
+                                }, stop: { session.endHarmonyPreview() })
+                            }
+                        }.padding(.vertical, 4)
+                    }
+                } header: { Text("Start with a beat") } footer: { Text("Makes a project at the genre's tempo in the key below and opens its beat to hear and change.") }
                 if let usual=StyleProfile.from(session.entries.compactMap(\.summary)) {
                     // I50: computed on this iPhone from your own projects.
                     Section {
@@ -119,9 +171,25 @@ struct NewProjectView: View {
         .presentationDetents([.large])
         .interactiveDismissDisabled(creating)
     }
+    private func startWithBeat(_ genre: BeatPreset.Genre) {
+        guard !creating, let preset = BeatPreset.presets(genre).first else { return }
+        creating = true; creationError = nil
+        Task {
+            let created = await session.create(name: name, bpm: Double(preset.bpm), root: root, minor: minor, bars: 8, template: .empty)
+            if created {
+                session.beatMachinePreset = preset.id
+                session.sheet = .beatMachine
+            } else if session.sheet == .newProject { creationError = session.message ?? session.saveError; session.message = nil }
+            creating = false
+        }
+    }
     private func templateButton(_ option:ProjectTemplate,title:LocalizedStringKey)->some View {
-        Button{template=option}label:{Text(title).frame(maxWidth:.infinity,minHeight:44).foregroundStyle(template==option ? Color.ink:Color.studioText).background(template==option ? Color.mint:Color.raised,in:RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous))}
+        Button{if heldCard{heldCard=false}else{template=option}}label:{Text(title).frame(maxWidth:.infinity,minHeight:44).foregroundStyle(template==option ? Color.ink:Color.studioText).background(template==option ? Color.mint:Color.raised,in:RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous))}
             .buttonStyle(StudioQuietButtonStyle()).accessibilityIdentifier("project.template."+option.rawValue)
+            .holdToPreview(suppressTap:$heldCard,start:{
+                guard option != .empty,let preview=try? HoldPreview.template(option,bpm:bpm,root:root,minor:minor) else{return false}
+                return session.holdPreview(preview,range:HoldPreview.range(preview))
+            },stop:{session.endHarmonyPreview()})
             .accessibilityAddTraits(template==option ? .isSelected:[])
     }
 }
@@ -145,5 +213,32 @@ private struct RecentlyDeletedList: View {
                 }
             }
         }
+    }
+}
+
+/// U33 · The song's form at a glance: one coloured block per section, as wide as its bars,
+/// with chord, beat and bass rows. Private projects show a neutral tile.
+private struct ProjectFormThumbnail: View {
+    let summary: ProjectSummary
+    let hidden: Bool
+    var body: some View {
+        Canvas { context, size in
+            let sections = hidden || summary.sections.isEmpty ? [SectionPreview(name: "", bars: max(1, summary.bars), color: nil)] : summary.sections
+            let total = Double(max(1, sections.reduce(0) { $0 + $1.bars }))
+            let inset = 6.0, width = size.width - inset * 2
+            var x = inset
+            for preview in sections {
+                let w = max(2, width * Double(preview.bars) / total)
+                var section = MusicDomain.Section(name: preview.name.isEmpty ? "?" : preview.name, length: barTicks)
+                section.color = preview.color
+                let tint = hidden ? Color.muted : SongFormStyle.color(for: section)
+                let rows: [(Double, Double, Double)] = [(10, 11, 0.85), (24, 5, 0.6), (33, 5, summary.trackCount < 3 ? 0.15 : 0.45)]
+                for (y, h, alpha) in rows {
+                    context.fill(Path(roundedRect: CGRect(x: x, y: y, width: max(1, w - 2), height: h), cornerRadius: 1.5), with: .color(tint.opacity(alpha)))
+                }
+                x += w
+            }
+        }
+        .accessibilityHidden(true)
     }
 }

@@ -5,12 +5,26 @@ import MusicDomain
     @State private var session = Session()
     @AppStorage("studio.appearance") private var appearance=0
     @Environment(\.scenePhase) private var phase
-    var body: some Scene {WindowGroup {AppStartView(session:session).modifier(StudioQATypeSize()).preferredColorScheme(appearance==1 ? .light:appearance==2 ? .dark:nil).tint(.mint).task {
+    init(){LaunchClock.mark();InterfacePreferences.prepareForTesting()}
+    var body: some Scene {WindowGroup {AppStartView(session:session).modifier(StudioDensityModifier()).modifier(StudioQATypeSize()).preferredColorScheme(appearance==1 ? .light:appearance==2 ? .dark:nil).tint(.mint).task {
         if ProcessInfo.processInfo.arguments.contains("--uitesting") && !ProcessInfo.processInfo.arguments.contains("--respect-appearance"){appearance=2}
         if let index=ProcessInfo.processInfo.arguments.firstIndex(of:"--appearance"),ProcessInfo.processInfo.arguments.count>index+1{appearance=ProcessInfo.processInfo.arguments[index+1]=="light" ? 1:2}
         await session.bootstrap()
         if !ProcessInfo.processInfo.arguments.contains("--uitesting") { LocalDiagnostics.shared.start() }
-        if LaunchRequest.take() == .newBeat { session.openTrackBuilder() }
+        // UI fixture: behave as if Siri or Shortcuts had just run an intent.
+        if ProcessInfo.processInfo.arguments.contains("--uitesting"), let index = ProcessInfo.processInfo.arguments.firstIndex(of: "--launch-intent"),
+           ProcessInfo.processInfo.arguments.count > index + 1, let kind = LaunchRequest.Kind(rawValue: ProcessInfo.processInfo.arguments[index + 1]) {
+            LaunchRequest.post(LaunchRequest(kind: kind, bpm: kind == .newBeat ? 92 : nil))
+        }
+        if let request = LaunchRequest.take() { await session.handleLaunch(request) }
+        Task { await ProjectSpotlight.refresh() }
+        // I55: a connected game controller plays the pads.
+        GamepadPads.shared.attach(session)
+        // U70: once after an update, show what is new in this build.
+        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? ""
+        let lastShown = UserDefaults.standard.string(forKey: "whatsNew.lastBuild")
+        if !ProcessInfo.processInfo.arguments.contains("--uitesting"), WhatsNew.shouldShow(lastShownBuild: lastShown, currentBuild: build), session.sheet == nil { session.sheet = .whatsNew }
+        UserDefaults.standard.set(build, forKey: "whatsNew.lastBuild")
         if let index=ProcessInfo.processInfo.arguments.firstIndex(of:"--screen"),ProcessInfo.processInfo.arguments.count>index+1 {
             let target=ProcessInfo.processInfo.arguments[index+1]
             if target=="midi" || target=="midi-mapped" {
@@ -20,6 +34,12 @@ import MusicDomain
             }
             if target=="assistant-song-edit", let demo=try? SongEditDemo.project(name:NSLocalizedString("Two choruses",comment:"Song edit demo project")) {
                 await session.open(demo)
+            }
+            // U12 fixtures: a blank song to check the empty-screen hints.
+            if target=="empty-jam" || target=="empty-notes" {
+                await session.open(Project(name:"Blank"))
+                if target=="empty-jam"{session.tab=1}
+                else{session.edit{try $0.addMelody()};session.sheet = .notes}
             }
             if target.hasPrefix("perform") {
                 session.edit{p in try p.duplicateSection(p.sections[0].id,name:"Chorus")}
@@ -43,7 +63,7 @@ import MusicDomain
             };if target.hasPrefix("voice"){session.sheet = .voice};if target.hasPrefix("assistant"){session.sheet = .assistant};if target.hasPrefix("harmony"){session.sheet = .harmony};if target=="settings"{session.sheet = .settings};if target=="jam"{session.tab=1};if target=="mixer"{session.tab=2};if target=="projects"{session.sheet = .projects};if target.hasPrefix("export"){session.exportPreset=target=="export-wav" ? "wav":target=="export-stems" ? "stems":"midi";session.sheet = .export}
         }
     }.onOpenURL{url in Task{await session.importProject(url)}}
-    .onReceive(NotificationCenter.default.publisher(for:.laGrillaLaunchRequest).receive(on:RunLoop.main)){_ in if LaunchRequest.take() == .newBeat{session.openTrackBuilder()}}
+    .onReceive(NotificationCenter.default.publisher(for:.laGrillaLaunchRequest).receive(on:RunLoop.main)){_ in if let request=LaunchRequest.take(){Task{await session.handleLaunch(request)}}}
     .onChange(of:phase){_,value in session.sceneChanged(value)}
     .onReceive(NotificationCenter.default.publisher(for:AVAudioSession.interruptionNotification).receive(on:RunLoop.main)){n in
         let type=n.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt

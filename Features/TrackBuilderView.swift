@@ -18,10 +18,17 @@ struct TrackBuilderView: View {
     @State private var acceptedIdea: String?
     @State private var history: [TrackBrief] = []
     @State private var programmaticChange: TrackBrief?
+    /// Bumped when "Build by parts in a table" opens the table, to scroll to it.
+    @State private var tableOpened = 0
     @State private var ai = AIComposerController()
     @AppStorage("studio.builder.interpretWithApple") private var interpretWithApple = false
     @State private var interpreting: Task<Void,Never>?
     @State private var saving = false
+    /// The plan a running preparation was started from; a later onChange for the same plan keeps it.
+    @State private var preparingBrief: TrackBrief?
+    /// Listen or Create pressed while the description still had to be read: continue after it.
+    @State private var afterReview: AfterReview?
+    private enum AfterReview { case listen(Int?), save }
     @Environment(\.scenePhase) private var phase
     @FocusState private var editing: Bool
 
@@ -41,16 +48,17 @@ struct TrackBuilderView: View {
 
     var body: some View {
         NavigationStack {
+            ScrollViewReader { scroller in
             Form {
                 if brief.songForm != nil {
                     Section {
                         ArrangementScorePreview(brief: brief, session: session,
                                                 playingPart: session.harmonyPreview ? previewPart : nil,
-                                                canPreview: !unreviewedIdea && preparation == nil,
+                                                canPreview: preparation == nil,
                                                 play: { listen(part: $0) })
                             .listRowInsets(EdgeInsets()).listRowBackground(Color.panel)
                         ArrangementTakePicker(selection: takeBinding)
-                            .disabled(unreviewedIdea || (preparation != nil && preparingScope == nil))
+                            .disabled(preparation != nil && preparingScope == nil)
                     }
                 }
                 Section {
@@ -87,7 +95,7 @@ struct TrackBuilderView: View {
                     Button(action:interpret) {
                         Label("Suggest settings",systemImage:"wand.and.stars")
                     }.disabled(trimmedIdea.isEmpty || interpreting != nil).accessibilityIdentifier("builder.suggest")
-                    if interpreting != nil { ProgressView("Suggesting settings…") }
+                    if interpreting != nil { LoadingSkeleton(rows: 2, caption: "Suggesting settings…") }
                     if let feedback {
                         Text(feedback).font(.footnote).foregroundStyle(Color.muted)
                     } else if unreviewedIdea {
@@ -96,9 +104,17 @@ struct TrackBuilderView: View {
                     }
                 } header: { Text("Describe the track") }
                 if let form = Binding($brief.songForm) {
-                    SongFormEditor(form: form, previewing: session.harmonyPreview ? previewPart : nil,
-                                   canPreview: !unreviewedIdea && preparation == nil,
-                                   play: { position in listen(part: position) })
+                    SongFormEditor(form: form, keyRoot: brief.root, minor: brief.minor,
+                                   previewing: session.harmonyPreview ? previewPart : nil,
+                                   canPreview: preparation == nil,
+                                   play: { position in listen(part: position) },
+                                   close: { acceptedIdea = trimmedIdea; brief.songForm = nil })
+                } else {
+                    // Musician feedback: a table instead of guessing the wording.
+                    Section {
+                        Button { startTable() } label: { Label("Build by parts in a table", systemImage: "tablecells") }
+                            .accessibilityIdentifier("builder.table")
+                    } footer: { Text("No need to guess a format: set each part's bars and chords, then the order.") }
                 }
                 Section {
                     Menu {
@@ -200,16 +216,32 @@ struct TrackBuilderView: View {
                         Text(verbatim:preview.project.patterns.flatMap(\.chords).map(\.chord.symbol).joined(separator:"  ·  "))
                             .font(.subheadline.monospaced()).foregroundStyle(Color.harmony)
                     }
+                    // Musician feedback: the button always answers — it reads a changed description,
+                    // shows the preparation, then playback with the bar that is playing.
                     Button { listen() } label: {
-                        Label(LocalizedStringKey(session.harmonyPreview && previewPart == nil ? "Stop preview" : "Listen to sketch"),
-                              systemImage:session.harmonyPreview && previewPart == nil ? "stop.fill":"play.fill")
-                    }.disabled(unreviewedIdea || preparation != nil).accessibilityIdentifier("builder.preview")
-                    if preparation != nil && !saving { ProgressView("Preparing instruments…") }
-                    if let problem { Text(problem).font(.footnote).foregroundStyle(Color.record) }
+                        HStack {
+                            if preparation != nil && preparingScope?.part == nil && !saving { ProgressView().padding(.trailing, 4) }
+                            else { Image(systemName: session.harmonyPreview && previewPart == nil ? "stop.fill" : "play.fill") }
+                            Text(LocalizedStringKey(preparation != nil && preparingScope?.part == nil && !saving ? "Preparing instruments…"
+                                                    : session.harmonyPreview && previewPart == nil ? "Stop sketch" : "Listen to sketch"))
+                        }
+                    }.disabled(preparation != nil || interpreting != nil).accessibilityIdentifier("builder.preview")
+                    if session.harmonyPreview && previewPart == nil, let preview {
+                        SketchPlayhead(session: session, length: preview.project.length)
+                    }
+                    if unreviewedIdea && preparation == nil {
+                        Text("The description changed: Listen and Create read it first.").font(.footnote).foregroundStyle(Color.muted)
+                    }
+                    if let problem { Text(problem).font(.footnote).foregroundStyle(Color.record).accessibilityIdentifier("builder.problem") }
                     Button(action:save) {
                         Label(LocalizedStringKey(session.editingArrangementCopy ? "Create arrangement copy" : "Create editable track"),systemImage:"square.grid.3x3.fill")
-                    }.disabled(unreviewedIdea || preparation != nil).accessibilityIdentifier("builder.create")
+                    }.disabled(preparation != nil || interpreting != nil).accessibilityIdentifier("builder.create")
                 } footer: { Text("Creates a separate editable project.") }
+            }
+            // The score appears above when the table opens; keep the table itself in view.
+            .onChange(of: tableOpened) { _, _ in
+                Task { @MainActor in withAnimation(Luz.Motion.snap) { scroller.scrollTo("builder.songform", anchor: .top) } }
+            }
             }
             .disabled(saving || interpreting != nil)
             .scrollDismissesKeyboard(.interactively)
@@ -245,7 +277,7 @@ struct TrackBuilderView: View {
                     // Keep the audible take running until the new instruments are ready.
                     listen(part: scope.part, restart: true)
                 }
-            } else {
+            } else if preparation == nil || preparingBrief != new {
                 invalidatePreview()
             }
         }
@@ -299,6 +331,11 @@ struct TrackBuilderView: View {
             brief.songForm?.proposedTempo = false
         })
     }
+    private func startTable() {
+        acceptedIdea = trimmedIdea; feedback = nil
+        brief.songForm = SongFormBrief.starter(keyRoot: brief.root, minor: brief.minor)
+        tableOpened += 1
+    }
     private func install(_ next:TrackBrief) {
         history.removeAll()
         if next != brief { programmaticChange=next; brief=next }
@@ -346,6 +383,29 @@ struct TrackBuilderView: View {
                 }
             }
             interpreting=nil
+            resumeAfterReview()
+        }
+    }
+    /// True when the plan matches the description; otherwise reads it first. Local reading is
+    /// immediate; Apple Intelligence continues with `next` when it answers.
+    private func reviewThen(_ next: AfterReview) -> Bool {
+        guard unreviewedIdea else { return true }
+        guard interpreting == nil else { afterReview = next; return false }
+        interpret()
+        if interpreting != nil { afterReview = next; return false }
+        if unreviewedIdea {
+            problem = feedback ?? NSLocalizedString("Check the description above, then try again.", comment: "Track builder")
+            return false
+        }
+        return true
+    }
+    private func resumeAfterReview() {
+        guard let next = afterReview else { return }
+        afterReview = nil
+        guard !unreviewedIdea else { problem = feedback; return }
+        switch next {
+        case .listen(let part): listen(part: part)
+        case .save: save()
         }
     }
     private func suggestLocally(_ text:String) {
@@ -368,6 +428,7 @@ struct TrackBuilderView: View {
         let sourcePrompt = trimmedIdea
         let title = name.trimmingCharacters(in: .whitespacesAndNewlines)
         let projectName = title.isEmpty ? NSLocalizedString("New sketch",comment:"Project name") : title
+        preparingBrief = snapshot
         preparation = Task { @MainActor in
             do {
                 let ready: PreparedTrackDraft
@@ -383,12 +444,14 @@ struct TrackBuilderView: View {
                     problem = error.localizedDescription
                 }
             }
-            if !Task.isCancelled { preparation=nil; preparingScope=nil }
+            if !Task.isCancelled { preparation=nil; preparingScope=nil; preparingBrief=nil }
         }
     }
     private func listen(part: Int? = nil, restart: Bool = false) {
-        guard !unreviewedIdea, preparation == nil, !saving else { return }
-        editing=false; problem=nil
+        guard !saving else { return }
+        editing=false
+        guard reviewThen(.listen(part)), preparation == nil else { return }
+        problem=nil
         if !restart && session.harmonyPreview && previewPart == part {
             session.endHarmonyPreview(); previewPart=nil; return
         }
@@ -398,13 +461,21 @@ struct TrackBuilderView: View {
                 let section = ready.project.sections[index]
                 return section.start..<(section.start + section.length)
             }
-            session.previewNewTrack(ready, range: range)
-            previewPart = part
-            problem=session.audio.error
+            if session.previewNewTrack(ready, range: range) {
+                previewPart = part
+                Luz.Haptics.transportStart()
+            } else {
+                previewPart = nil
+                problem = session.audio.error ?? session.message
+                    ?? NSLocalizedString("The sketch could not start. Stop other playback and try again.", comment: "Track builder")
+                session.message = nil
+            }
         }
     }
     private func save() {
-        editing=false; problem=nil
+        editing=false
+        guard reviewThen(.save) else { return }
+        problem=nil
         prepare { ready in
             saving=true
             let created = await session.saveGeneratedTrack(ready)
@@ -437,29 +508,73 @@ enum ArrangementExample: String, CaseIterable, Identifiable {
 
 private struct SongFormEditor: View {
     @Binding var form: SongFormBrief
+    let keyRoot: Int
+    let minor: Bool
     var previewing: Int?
     var canPreview: Bool
     let play: (Int) -> Void
+    let close: () -> Void
+
+    private func orderText(_ order: [Int]) -> String { order.map { form.title($0) }.joined(separator: " · ") }
 
     var body: some View {
         Section {
+            if form.arrangement == .groove {
+                Menu {
+                    ForEach(SongFormBrief.orderChoices(parts: form.parts.count), id: \.self) { choice in
+                        Button { form.setOrder(choice) } label: {
+                            if choice == form.order { Label(orderText(choice), systemImage: "checkmark") } else { Text(verbatim: orderText(choice)) }
+                        }
+                    }
+                } label: {
+                    LabeledContent("Order") { Text(verbatim: orderText(form.order)).monospaced() }
+                }.accessibilityIdentifier("builder.order").id("builder.songform")
+            }
             ForEach(form.order.indices, id: \.self) { position in
                 let source = form.order[position]
                 let start = 1 + form.order.prefix(position).reduce(0) { $0 + form.parts[$1].bars }
-                SongFormPartEditor(form: $form, position: position, source: source, start: start,
+                SongFormPartEditor(form: $form, keyRoot: keyRoot, minor: minor, position: position, source: source, start: start,
                                    previewing: previewing == position, canPreview: canPreview, play: play)
+            }
+            if form.arrangement == .groove {
+                HStack(spacing: 12) {
+                    Button { form.addPart() } label: { Label("Add a part", systemImage: "plus.circle") }
+                        .disabled(form.parts.count >= SongFormBrief.maximumParts || form.order.count >= 8)
+                        .accessibilityIdentifier("builder.add-part")
+                    Spacer()
+                    if form.parts.count > 1 {
+                        Menu {
+                            ForEach(form.parts.indices, id: \.self) { index in
+                                Button(role: .destructive) { form.removePart(index) } label: { Text(verbatim: form.title(index)) }
+                            }
+                        } label: { Label("Remove a part", systemImage: "minus.circle") }
+                            .accessibilityIdentifier("builder.remove-part")
+                    }
+                }.buttonStyle(.borderless)
+            }
+            if let skipped = form.skipped, !skipped.isEmpty {
+                let names = skipped.map { NSLocalizedString($0, comment: "Skipped wish") }.joined(separator: ", ")
+                Label(String(format: NSLocalizedString("Not played offline yet, so left out: %@. The rest of the description is used.", comment: "Song form"), names),
+                      systemImage: "info.circle")
+                    .font(.footnote).foregroundStyle(Color.muted).accessibilityIdentifier("builder.skipped")
             }
             if form.arrangement == .ambient {
                 Toggle("Long delay", isOn: $form.longDelay).accessibilityIdentifier("builder.delay")
             }
+            Button(role: .destructive, action: close) { Label("Back to one loop", systemImage: "arrow.uturn.backward") }
+                .accessibilityIdentifier("builder.close-table")
         } header: {
             HStack { Text("Song form"); Spacer(); Text("\(form.totalBars) bars") }
+        } footer: {
+            if form.totalBars > 64 { Text("The whole song can be up to 64 bars. Shorten a part or play it fewer times.").foregroundStyle(Color.record) }
         }
     }
 }
 
 private struct SongFormPartEditor: View {
     @Binding var form: SongFormBrief
+    let keyRoot: Int
+    let minor: Bool
     let position: Int
     let source: Int
     let start: Int
@@ -474,7 +589,7 @@ private struct SongFormPartEditor: View {
     private func title(at index: Int) -> String {
         let key: String
         switch form.parts[index].role {
-        case .groove: return String(format:"%c",65 + index)
+        case .groove: return form.title(index)
         case .fluteIntro: key = "Flute intro"
         case .developingBeat: key = "Main groove"
         case .arpeggio: key = "Arpeggio"
@@ -484,6 +599,20 @@ private struct SongFormPartEditor: View {
         case .keysOutro: key = "Closing keys"
         }
         return NSLocalizedString(key,comment:"Song section")
+    }
+
+    private var chordsBinding: Binding<String> {
+        Binding(get: { form.parts[source].chordText }, set: { text in
+            form.parts[source].chordText = text
+            form.parts[source].proposedChords = nil
+        })
+    }
+
+    private var nameBinding: Binding<String> {
+        Binding(get: { form.parts[source].name ?? "" }, set: { text in
+            let trimmed = String(text.trimmingCharacters(in: .whitespacesAndNewlines).prefix(40))
+            form.parts[source].name = trimmed.isEmpty ? nil : String(text.prefix(40))
+        })
     }
 
     private var barsBinding: Binding<Int> {
@@ -530,11 +659,15 @@ private struct SongFormPartEditor: View {
                             .accessibilityIdentifier(identifier+"chords")
                     }
                 } else if part.role != .fluteIntro && part.role != .gong {
-                    TextField("Chords",text:$form.parts[source].chordText)
+                    TextField("Chords",text:chordsBinding)
                         .textInputAutocapitalization(.never).autocorrectionDisabled()
                         .accessibilityLabel("Chords").accessibilityIdentifier(identifier+"chords")
+                    ChordPicker(text: chordsBinding, keyRoot: keyRoot, minor: minor, identifier: identifier)
+                    if part.proposedChords == true { Text("Suggested chords").font(.footnote).foregroundStyle(Color.muted) }
                 }
                 if part.role == .groove {
+                    TextField("Part name, for example Verse", text: nameBinding)
+                        .accessibilityIdentifier(identifier+"name")
                     Toggle("Quieter part",isOn:$form.parts[source].relaxed)
                 }
                 if part.role == .keysOutro {
@@ -550,5 +683,62 @@ private struct SongFormPartEditor: View {
                 }
             }
         }.padding(.vertical,4)
+    }
+}
+
+/// Tap-to-pick chords of the key next to the typed list: no format to guess.
+private struct ChordPicker: View {
+    @Binding var text: String
+    let keyRoot: Int
+    let minor: Bool
+    let identifier: String
+
+    private var chords: [String] { text.split { $0 == "," || $0.isWhitespace }.map(String.init) }
+    private var palette: [String] { SongFormBrief.diatonic(keyRoot: keyRoot, minor: minor).map { MusicalNotation.chordSymbol($0, keyRoot: keyRoot, minor: minor) } }
+
+    private func write(_ list: [String]) { text = list.joined(separator: ", ") }
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 6) {
+                ForEach(Array(chords.enumerated()), id: \.offset) { index, chord in
+                    Menu {
+                        ForEach(palette, id: \.self) { symbol in
+                            Button(symbol) { var list = chords; list[index] = symbol; write(list) }
+                        }
+                        Button("Remove", systemImage: "trash", role: .destructive) { var list = chords; list.remove(at: index); write(list) }
+                    } label: {
+                        Text(verbatim: chord).font(.subheadline.weight(.semibold)).padding(.horizontal, 10).frame(minHeight: 36)
+                            .background(Color.harmony.opacity(0.18), in: Capsule()).foregroundStyle(Color.harmony)
+                    }
+                    .accessibilityLabel(Text(verbatim: chord)).accessibilityHint("Change or remove this chord")
+                    .accessibilityIdentifier(identifier + "chord.\(index)")
+                }
+                Menu {
+                    ForEach(palette, id: \.self) { symbol in Button(symbol) { write(chords + [symbol]) } }
+                } label: {
+                    Image(systemName: "plus").font(.subheadline.weight(.bold)).frame(width: 44, height: 36)
+                        .background(Color.raised, in: Capsule()).foregroundStyle(Color.studioText)
+                }
+                .disabled(chords.count >= 64)
+                .accessibilityLabel("Add a chord").accessibilityIdentifier(identifier + "chord.add")
+            }
+        }
+    }
+}
+
+/// The bar the sketch preview is playing, so a silent route still shows that it plays.
+private struct SketchPlayhead: View {
+    let session: Session
+    let length: Int
+    var body: some View {
+        let bars = max(1, length / barTicks)
+        let bar = min(bars, max(1, Int(session.audio.tick) / barTicks + 1))
+        VStack(alignment: .leading, spacing: 4) {
+            ProgressView(value: Double(bar), total: Double(bars)).tint(Color.mint)
+            Text("Playing · bar \(bar) of \(bars)").font(.footnote.monospacedDigit()).foregroundStyle(Color.muted)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("builder.playhead")
     }
 }

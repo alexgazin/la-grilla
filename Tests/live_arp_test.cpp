@@ -30,7 +30,7 @@ int main(){
     {
         auto*h=lg_midi_create();auto*k=kernel(h);
         const int32_t single[]={60},high[]={128};
-        assert(!lg_arp(k,202,nullptr,1,240,0,1,100)&&!lg_arp(k,202,single,1,200,0,1,100)&&!lg_arp(k,202,single,1,240,4,1,100)&&!lg_arp(k,202,high,1,240,0,1,100)&&!lg_arp(k,0,single,1,240,0,1,100));
+        assert(!lg_arp(k,202,nullptr,1,240,0,1,100)&&!lg_arp(k,202,single,1,200,0,1,100)&&!lg_arp(k,202,single,1,240,5,1,100)&&!lg_arp(k,202,high,1,240,0,1,100)&&!lg_arp(k,0,single,1,240,0,1,100));
         lg_seek(k,0);uint64_t time=100000;run(k,h,time,1);lg_play(k,1);
         run(k,h,time,2499);                                  // ≈ tick 100
         const int32_t chord[]={67,60,64};
@@ -75,6 +75,27 @@ int main(){
         assert(std::abs(ratio-2)<0.05);
         assert(vibrato!=plain&&std::abs(double(crossings(vibrato))/double(crossings(plain))-1)<0.03);
     }
+    {   // I29: a custom pattern — note indices, a rest that keeps the grid, an octave up.
+        auto*h=lg_midi_create();auto*k=kernel(h);lg_seek(k,0);uint64_t time=100000;run(k,h,time,1);lg_play(k,1);
+        const int32_t bad[]={3*16},badNote[]={-2};assert(!lg_arp_pattern(k,bad,1)&&!lg_arp_pattern(k,badNote,1)&&!lg_arp_pattern(k,nullptr,2));
+        const int32_t pattern[]={0,2,-1,1+16};
+        assert(lg_arp_pattern(k,pattern,4));
+        const int32_t chord[]={67,60,64};
+        assert(lg_arp(k,202,chord,3,480,4,1,90));
+        auto hits=run(k,h,time,12000*7+10);
+        const int expected[]={60,67,76,60,67,76};
+        assert(hits.size()==6);
+        for(size_t i=0;i<6;i++)assert(hits[i].pitch==expected[i]);
+        for(size_t i=1;i<6;i++)assert((hits[i].time-100001)%12000==0);
+        assert(hits[2].time-hits[1].time==24000&&hits[5].time-hits[4].time==24000);   // the rests
+        // A new pattern takes over on the same grid; an empty one silences mode 4.
+        const int32_t up[]={0,1};assert(lg_arp_pattern(k,up,2));
+        auto next=run(k,h,time,12000*2);assert(next.size()==2);
+        assert(lg_arp_pattern(k,nullptr,0));auto silent=run(k,h,time,12000*2);assert(silent.empty());
+        lg_destroy(k);lg_midi_destroy(h);
+    }
+
+    std::printf("Arpeggio pattern: note indices, rests keep the grid, octave steps, a new pattern on the same grid, empty silences\n");
     std::printf("Pitch bend: zero is bit-identical, +12 semitones doubles the pitch, vibrato keeps the centre pitch\n");
     std::printf("Live arpeggiator: immediate first note then exact grid steps; up over two octaves, down, up-down and as-played orders; held-note changes keep the timing; stop is silent\n");
 }

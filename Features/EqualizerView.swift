@@ -20,7 +20,7 @@ struct EqualizerView: View {
         (destination == .master ? session.project.masterEQ : track?.equalizer) ?? StudioEQ()
     }
     /// Luz: the curve and band handles take the track's colour (mint on the master).
-    private var tint: Color { track.map { Color.track($0.role) } ?? .mint
+    private var tint: Color { track.map { Color.track($0) } ?? .mint
     }
     private var band: EQBand { eq.bands[selected] }
     private var title: String { track?.displayName ?? NSLocalizedString("Master",comment:"Mixer output") }

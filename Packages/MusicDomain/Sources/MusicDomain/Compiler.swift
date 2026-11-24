@@ -1,6 +1,8 @@
 import Foundation
 public struct CompiledNote: Equatable, Sendable {
     public var tick: Int; public var duration: Int; public var pitch: Int; public var velocity: Int; public var track: Int; public var pad: Int = -1;public var instrument:Int=0
+    /// I9: a sung syllable, written to MIDI as a lyric event.
+    public var lyric: String? = nil
 }
 public enum Compiler {
     public static let drumMap = [36,38,42,46,39,37,45,47,50,49,51,54,56,75,70,82]
@@ -14,7 +16,7 @@ public enum Compiler {
         let range = range ?? 0..<project.length
         var result: [CompiledNote] = []
         for (index, track) in project.tracks.enumerated() where track.role != .bass {
-            for clip in track.clips {
+            for clip in track.clips where clip.muted != true {
                 guard let pattern = project.patterns.first(where: {$0.id == clip.patternID}), pattern.length > 0 else { continue }
                 for cycle in stride(from: -clip.offset, to: clip.length, by: pattern.length) {
                     if track.role == .harmony {
@@ -29,14 +31,30 @@ public enum Compiler {
                     } else if track.role == .melody {
                         for note in pattern.notes ?? [] {
                             let local=cycle+note.tick;let start=max(0,local);let end=min(clip.length,local+note.duration)
-                            if end>start{result.append(CompiledNote(tick:clip.start+start,duration:end-start,pitch:note.pitch,velocity:note.velocity,track:index,instrument:3))}
+                            if end>start{var compiled=CompiledNote(tick:clip.start+start,duration:end-start,pitch:note.pitch,velocity:note.velocity,track:index,instrument:3);if local>=0{compiled.lyric=note.syllable};result.append(compiled)}
                         }
                     } else {
                         let mutedTakes = Set((pattern.drumTakes ?? []).filter { $0.muted == true }.map(\.id))
+                        let pass = (cycle + clip.offset) / max(1, pattern.length)
                         for drum in pattern.drums where !(drum.take.map(mutedTakes.contains) ?? false) && cycle + drum.tick >= 0 && cycle + drum.tick < clip.length && (0..<16).contains(drum.pad) && !track.isPadMuted(drum.pad) {
-                            result.append(CompiledNote(tick: clip.start + cycle + drum.tick, duration: 120, pitch: drumMap[drum.pad], velocity: drum.velocity, track: index, pad: drum.pad,instrument:1))
+                            // I25: a chance step plays on some passes — the same ones every time (live = export).
+                            if let chance = drum.probability, StepChance.roll(drum.id, pass: pass, clip: clip.id) >= chance { continue }
+                            // I27: a ratchet repeats inside its sixteenth.
+                            for hit in drum.ratchet.map({ Ratchet.expand(drum, times: $0) }) ?? [drum] where cycle + hit.tick < clip.length {
+                                result.append(CompiledNote(tick: clip.start + cycle + hit.tick, duration: 120, pitch: drumMap[drum.pad], velocity: hit.velocity, track: index, pad: drum.pad,instrument:1))
+                            }
                         }
                     }
+                }
+            }
+        }
+        // I22: a section in another key moves its pitched notes (drums keep their pads).
+        let shifted = project.sections.contains { ($0.transpose ?? 0) != 0 }
+        if shifted {
+            for index in result.indices where result[index].pad < 0 {
+                if let section = project.sections.first(where: { $0.start <= result[index].tick && result[index].tick < $0.start + $0.length }),
+                   let amount = section.transpose, amount != 0 {
+                    result[index].pitch = min(127, max(0, result[index].pitch + amount))
                 }
             }
         }
@@ -59,7 +77,10 @@ public enum MIDIExporter {
     public static func data(_ project: Project, range: Range<Int>? = nil) throws -> Data {
         try project.validate(); let range = range ?? 0..<project.length
         guard range.lowerBound >= 0, range.upperBound <= project.length, !range.isEmpty else { throw MusicError.invalidProject }
-        let markers=project.sections.filter{$0.start<range.upperBound && $0.start+$0.length>range.lowerBound}.map{MIDIMarker(tick:max(0,$0.start-range.lowerBound),text:$0.name)}
+        let sectionMarkers=project.sections.filter{$0.start<range.upperBound && $0.start+$0.length>range.lowerBound}.map{MIDIMarker(tick:max(0,$0.start-range.lowerBound),text:$0.name)}
+        // I39: the musician's own markers travel with the MIDI file.
+        let noteMarkers=(project.markers ?? []).filter{range.contains($0.tick)}.map{MIDIMarker(tick:$0.tick-range.lowerBound,text:String($0.text.prefix(200)))}
+        let markers=(sectionMarkers+noteMarkers).sorted{$0.tick<$1.tick}
         return try sequence(project,notes:Compiler.notes(project,range:range),duration:range.count,markers:markers)
     }
     public static func sequence(_ project:Project,notes:[CompiledNote],duration:Int,markers:[MIDIMarker]=[],controls:[MIDIControl]=[])throws->Data {
@@ -89,6 +110,7 @@ public enum MIDIExporter {
             var events = [Event(tick: 0, priority: -1, bytes: meta(3,Array(t.displayName.utf8)))]
             for control in controls where control.track==i {events.append(Event(tick:control.tick,priority:1,bytes:[UInt8(0xb0|channel),UInt8(control.number),UInt8(control.value)]))}
             for n in notes where n.track == i {
+                if let lyric = n.lyric, !lyric.isEmpty { events.append(Event(tick: n.tick, priority: 1, bytes: meta(5, Array(lyric.utf8.prefix(64))))) }
                 events.append(Event(tick: n.tick, priority: 2, bytes: [UInt8(0x90|channel),UInt8(n.pitch),UInt8(n.velocity)]))
                 events.append(Event(tick: n.tick+n.duration, priority: 0, bytes: [UInt8(0x80|channel),UInt8(n.pitch),0]))
             }

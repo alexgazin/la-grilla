@@ -35,6 +35,10 @@ struct VoiceToMIDIView:View {
     @State private var microphoneLease:UUID?
     @State private var context:VoiceReviewContext?
     @State private var pendingContext:VoiceReviewContext?
+    @State private var listenSource:ListenSource = .voice
+    enum ListenSource:Hashable{case voice,midi,beat}
+    /// Either the original recording or a MIDI audition is sounding.
+    var listening:Bool{capture.originalPlaying || session.harmonyPreview}
     var draftLocked:Bool{applied || applying || capture.isCapturing || capture.state == .analyzing}
     var note:NoteEvent?{notes.first{$0.id==selected}}
     var synthetic:Bool{let args=ProcessInfo.processInfo.arguments;return args.contains("--uitesting") && args.contains("voice-draft")}
@@ -90,11 +94,7 @@ struct VoiceToMIDIView:View {
             Canvas{context,size in for (i,amplitude) in result.analysis.waveform.enumerated(){let x=CGFloat(i)/CGFloat(max(1,result.analysis.waveform.count))*size.width,h=max(1,CGFloat(amplitude)*size.height);context.fill(Path(CGRect(x:x,y:(size.height-h)/2,width:2,height:h)),with:.color(.record.opacity(0.6)))}}.frame(height:64).background(Color.panel,in:RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous)).accessibilityLabel("Original voice waveform")
             HStack{Text("\(notes.count) notes").font(.headline).accessibilityIdentifier("voice.note-count");Spacer();Text("\(notes.filter{($0.confidence ?? 1)<0.9}.count) uncertain").font(.caption).foregroundStyle(Color.harmony)}
             if notes.isEmpty{Text("No stable notes were found. Listen to the original or try a clearer phrase.").font(.callout).foregroundStyle(Color.studioText)}
-            HStack(spacing:10){
-                Button{original()}label:{Label(LocalizedStringKey(capture.originalPlaying ? "Stop original":"Original voice"),systemImage:"waveform").frame(maxWidth:.infinity,minHeight:48).background(Color.raised,in:RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous))}.disabled(applying).accessibilityIdentifier("voice.original")
-                Button{instrument()}label:{Label("Instrument",systemImage:"pianokeys").frame(maxWidth:.infinity,minHeight:48).background(Color.raised,in:RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous))}.disabled(notes.isEmpty || applied || applying).accessibilityIdentifier("voice.instrument")
-            }.font(.subheadline)
-            if session.harmonyPreview{Button("Stop preview"){session.endHarmonyPreview()}.frame(minHeight:44).accessibilityIdentifier("voice.stop-preview")}
+            listenPanel
             DisclosureGroup("Rhythm and scale"){
                 VStack(spacing:12){StudioSegments(title:"Quantize",selection:$quantize,options:[(.off,"Original"),(.sixteenth,"1/16"),(.eighth,"1/8")]);Toggle("Snap to project scale",isOn:$snapScale);HStack{Text("Timing offset");Slider(value:$offset,in:-0.25...0.25,step:0.005);Text("\(Int(offset*1000)) ms").font(.caption.monospaced()).frame(width:56)};Button("Rebuild notes from source"){resetNotes()};Text("Rebuilding replaces manual note corrections. The original recording stays available.").font(.caption).foregroundStyle(Color.muted)}.padding(.top,12)
             }.disabled(draftLocked)
@@ -123,6 +123,32 @@ struct VoiceToMIDIView:View {
             }
         }
     }
+    /// Listen before applying: the original voice, the recognised notes alone, or the
+    /// notes with the beat. Nothing reaches the project until Apply melody.
+    var listenPanel:some View {
+        let blocked=applying || capture.isCapturing || capture.state == .analyzing || (listenSource != .voice && (notes.isEmpty || applied))
+        return AuditionBar(screen:"voice",source:$listenSource,sources:[(.voice,"Voice"),(.midi,"MIDI"),(.beat,"MIDI + beat")],
+                           playing:listening,enabled:!blocked,caption:LocalizedStringKey(listenCaption),play:startListening,stop:stopListening)
+            .onChange(of:target){_,_ in if session.harmonyPreview{startListening()}}
+    }
+    var listenCaption:String {
+        switch listenSource {
+        case .voice:return "Your recording exactly as it was captured."
+        case .midi:return "Only the recognised notes, on the melody sound. Nothing is added to the project until you apply the melody."
+        case .beat:return "The notes in the section with the beat, as they will sound in the song. Nothing is added to the project until you apply the melody."
+        }
+    }
+    func togglePlay(){if listening{stopListening()}else{startListening()}}
+    func stopListening(){capture.stopOriginal();session.endHarmonyPreview()}
+    func startListening(){
+        switch listenSource {
+        case .voice:original()
+        case .midi:instrument(solo:true)
+        case .beat:instrument(solo:false)
+        }
+    }
+    /// A note correction while the MIDI audition plays swaps in the corrected notes.
+    func notesChanged(){if session.harmonyPreview && listenSource != .voice{startListening()}}
     var noteRoll:some View {
         let minimum=max(0,(notes.map(\.pitch).min() ?? 60)-2),maximum=min(127,(notes.map(\.pitch).max() ?? 72)+2)
         return GeometryReader{geo in ZStack(alignment:.topLeading){
@@ -141,11 +167,11 @@ struct VoiceToMIDIView:View {
                 HStack{Button("Octave down"){edit{$0.pitch=max(0,$0.pitch-12)}};Spacer();Button("Octave up"){edit{$0.pitch=min(127,$0.pitch+12)}}}.frame(minHeight:44)
                 Stepper("Start: \(note.tick) ticks",onIncrement:{move(note.tick+120)},onDecrement:{move(note.tick-120)})
                 Stepper("Length: \(note.duration) ticks",onIncrement:{edit{$0.duration=min(sectionLength-$0.tick,$0.duration+120)}},onDecrement:{edit{$0.duration=max(1,$0.duration-120)}})
-                Button("Delete note",role:.destructive){notes.removeAll{$0.id==note.id};selected=notes.first?.id}.frame(minHeight:44)
+                Button("Delete note",role:.destructive){notes.removeAll{$0.id==note.id};selected=notes.first?.id;if notes.isEmpty{session.endHarmonyPreview()}else{notesChanged()}}.frame(minHeight:44)
             }
         }.font(.subheadline).disabled(draftLocked)
     }
-    func edit(_ action:(inout NoteEvent)->Void){guard !draftLocked else{return};if let i=notes.firstIndex(where:{$0.id==selected}){action(&notes[i])};session.endHarmonyPreview()}
+    func edit(_ action:(inout NoteEvent)->Void){guard !draftLocked else{return};if let i=notes.firstIndex(where:{$0.id==selected}){action(&notes[i])};notesChanged()}
     func move(_ tick:Int){edit{$0.tick=max(0,min(sectionLength-$0.duration,tick))}}
     private func makeContext(minimumLead:Double,playing:Bool?=nil)throws->VoiceReviewContext {
         session.audio.refreshClock()
@@ -194,8 +220,16 @@ struct VoiceToMIDIView:View {
         }catch{self.error=error.localizedDescription}
     }
     func placement()throws->VoicePlacement{guard !stale,let context,let result=capture.result else{throw AssistantError.stale};return try Arrangement.voiceCandidate(session.project,sectionID:context.sectionID,target:target,notes:notes,source:result.record)}
-    func original(){guard !applying,!capture.isCapturing,capture.state != .analyzing else{return};session.endHarmonyPreview();session.audio.stop();do{try capture.toggleOriginal()}catch{self.error=error.localizedDescription}}
-    func instrument(){guard !draftLocked else{return};capture.stopOriginal();do{let p=try placement();if let section=p.project.sections.first(where:{$0.id==context?.sectionID}){session.previewHarmony(p.project,section:section)}}catch{self.error=error.localizedDescription}}
+    func original(){guard !applying,!capture.isCapturing,capture.state != .analyzing else{return};session.endHarmonyPreview();session.audio.stop();do{if !capture.originalPlaying{try capture.toggleOriginal()}}catch{self.error=error.localizedDescription}}
+    /// Auditions the candidate without touching the project; `solo` plays only the new melody.
+    func instrument(solo:Bool){
+        guard !draftLocked,!notes.isEmpty else{return};capture.stopOriginal()
+        do {
+            let p=try placement();var candidate=p.project
+            if solo{for i in candidate.tracks.indices{candidate.tracks[i].solo=candidate.tracks[i].id==p.trackID}}
+            if let section=candidate.sections.first(where:{$0.id==context?.sectionID}){session.previewHarmony(candidate,section:section)}
+        }catch{self.error=error.localizedDescription}
+    }
     func apply(){
         guard !draftLocked else{return}
         guard let result=capture.result,let context else{return};capture.stopOriginal();session.endHarmonyPreview()

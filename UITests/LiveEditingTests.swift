@@ -184,7 +184,11 @@ final class LiveEditingTests:XCTestCase {
         wait(menus.element(boundBy:1),NSPredicate(format:"identifier == %@",duplicate))
         playing(app.staticTexts["section.playback-state"])
         screenshot("OriginalVision-qa-live-section-editing")
-        app.buttons[duplicate].tap();app.buttons["section.delete"].tap()
+        // U30: Delete is always the last action, below the others.
+        app.buttons[duplicate].tap()
+        let delete=app.buttons["section.delete"]
+        for _ in 0..<6 where !(delete.exists && delete.isHittable){app.swipeUp(velocity:.slow)}
+        delete.tap()
         XCTAssertTrue(app.alerts["Delete section?"].waitForExistence(timeout:5));app.alerts.buttons["Delete"].tap()
         wait(app.buttons[duplicate],NSPredicate(format:"exists == false"))
         XCTAssertEqual(menus.count,original.count)

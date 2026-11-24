@@ -44,8 +44,12 @@ struct SongFormBriefTests {
         #expect(throws: TrackBriefError.self) { try TrackBrief().suggesting(text.replacingOccurrences(of: "D, Am", with: "D, nonsense")) }
     }
 
-    @Test func unsupportedInstrumentalRequestKeepsCurrentProjectUntouched() {
+    @Test func instrumentsTheArrangerLacksAreListedNotRefused() throws {
+        // Musician feedback (build 47): a flute quartet used to stop the whole request.
         let text = "Композиция для тренировки. Первая часть 8 тактов аккорды A, B. Вторая часть квартет флейт."
-        #expect(throws: SongFormError.self) { try TrackBrief.offlineCreationRequest(text) }
+        let brief = try #require(try TrackBrief.offlineCreationRequest(text))
+        let form = try #require(brief.songForm)
+        #expect(form.skipped == ["Flute"])
+        #expect(form.parts[1].chordText == "A, B" && form.parts[1].proposedChords == true && form.parts[1].proposedBars)
     }
 }

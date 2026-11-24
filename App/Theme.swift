@@ -46,6 +46,13 @@ extension Color {
     static func track(_ role: TrackRole) -> Color {
         role == .harmony ? .harmony : role == .drums ? .drums : role == .bass ? .bass : .mint
     }
+    /// U47: the five track colours a person can choose (all meet the Luz contrast tokens).
+    static let trackPalette: [Color] = [.harmony, .drums, .bass, .mint, .record]
+    /// U31: clip colours (ClipEditing.clipColorCount of them).
+    static let clipPalette: [Color] = [.harmony, .drums, .bass, .mint, .record, .yellow]
+    static func track(_ track: Track) -> Color {
+        track.color.flatMap { trackPalette.indices.contains($0) ? trackPalette[$0] : nil } ?? Color.track(track.role)
+    }
 }
 
 enum StudioMetrics {
@@ -278,6 +285,8 @@ struct StudioSegments<Value: Equatable>: View {
     let title: LocalizedStringKey
     @Binding var selection: Value
     let options: [(Value, LocalizedStringKey)]
+    /// Optional UI-test prefix: segment N gets "<identifier>.<N>".
+    var identifier: String? = nil
     @Namespace private var puck
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -321,6 +330,7 @@ struct StudioSegments<Value: Equatable>: View {
         }
         .buttonStyle(StudioQuietButtonStyle())
         .accessibilityAddTraits(selected ? .isSelected : [])
+        .accessibilityIdentifier(identifier.map { "\($0).\(index)" } ?? "")
     }
 }
 

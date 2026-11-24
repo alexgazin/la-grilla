@@ -12,6 +12,9 @@ typedef struct {int32_t pitch,offset,frames,loopStart;} LGSampleZone;
 // retain independent references to immutable sample banks.
 LGSampleBank *lg_sample_create(int32_t rate,const LGSampleZone *zones,int32_t zoneCount,const int16_t *pcm,int32_t frameCount);
 LGSampleBank *lg_sample_create_with_release(int32_t rate,const LGSampleZone *zones,int32_t zoneCount,const int16_t *pcm,int32_t frameCount,int32_t ringsOut);
+// I34: a pad bank of 2…4 one-shot layers (zone i has pitch i, no loop); mode 0 picks a layer by an
+// equal velocity split (soft → hard), mode 1 plays them in turn (round robin).
+LGSampleBank *lg_sample_create_layers(int32_t rate,const LGSampleZone *zones,int32_t zoneCount,const int16_t *pcm,int32_t frameCount,int32_t mode);
 void lg_sample_release(LGSampleBank *bank);
 int lg_sha256(const uint8_t *data, int32_t count, char *hex);
 typedef struct { int32_t tick, duration, pitch, velocity, track, pad, instrument; } LGNote;
@@ -74,7 +77,17 @@ typedef struct { int32_t start, end; float from, to; } LGFilterRamp;
 // resonance 0...0.9) and an ADSR envelope in seconds. NULL turns it off.
 typedef struct { int32_t wave; float cutoff, resonance, attack, decay, sustain, release; } LGSynthPatch;
 int lg_synth(LGKernel *k, int track, const LGSynthPatch *patch);
+/// Beat machine: seconds an overlapping note slides on a sampled melodic track (0 = no slide).
+int lg_glide(LGKernel *k, int track, float seconds);
+// I54: MPE — with it on, pitch bend on MIDI channels 2…16 bends only that channel's note by up to
+// ±48 semitones and channel pressure shapes its loudness; channel 1 and MPE off bend ±2.
+void lg_mpe(LGKernel *k, int enabled);
 int lg_filter_automation(LGKernel *k, const LGFilterRamp *ramps, int count);
+// I37: one automation lane of a track — parameter 0 is level in dB (−60…+6), 1 is pan (−1…1);
+// up to 64 points with strictly increasing ticks, linear between them, held outside. 0 clears.
+// While playing, the lane reads over the mixer value; a muted track stays silent.
+typedef struct { int32_t tick; float value; } LGAutomationPoint;
+int lg_track_automation(LGKernel *k, int track, int parameter, const LGAutomationPoint *points, int count);
 // I16: live pitch bend (-12...+12 semitones) and modulation (0...1 = vibrato
 // up to ±0.5 semitone at 5.5 Hz) for the voices of the track with `identity`.
 // Zero for both leaves every voice bit-identical.
@@ -85,6 +98,9 @@ void lg_pitch_bend(LGKernel *k, uint64_t identity, float semitones, float modula
 // later notes follow the transport grid (free-running when stopped). Updating
 // the held notes keeps the timing; count 0 stops.
 int lg_arp(LGKernel *k, uint64_t identity, const int32_t *pitches, int count, int stepTicks, int mode, int octaves, int velocity);
+// I29: custom arpeggio pattern for mode 4 — each step is a held-note index (0…15) + 16 × octave
+// (0…2), or −1 for a rest; 1…16 steps (0 clears). Returns 0 on invalid steps.
+int lg_arp_pattern(LGKernel *k, const int32_t *steps, int count);
 void lg_preview(LGKernel *k, int pitch);
 void lg_note_preview(LGKernel *k, int pitch, int track, int instrument);
 // Resolve a stable LGProjectTrack identity after audio-boundary adoption.
@@ -138,6 +154,16 @@ int lg_metronome_config(LGKernel *k, float gainDB, int accent, int sound);
 // reverbSend (0...1, I58) feeds a shared room reverb returned to the master.
 typedef struct { int32_t choke[16]; float sidechainDB, drive; int32_t crushBits; float reverbSend; } LGTrackDynamics;
 int lg_dynamics(LGKernel *k, const LGTrackDynamics *tracks, int count, int limiter, float ceilingDB);
+// I33: the space on the shared send — 0 the classic room (I58), 1 room, 2 hall, 3 plate, 4 spring:
+// impulse responses generated on the device (≤ 2 s), partitioned FFT convolution, 512 frames late.
+// The first use of a space prepares it on the calling (control) thread. Returns 0 if invalid.
+int lg_space(LGKernel *k, int space);
+// I32: offline voice treatment of a mono sound in place (control thread) — preset 1 Podcast,
+// 2 Vocal, 3 Warm: low cut and tone EQ, compressor, de-esser, peak kept under −1 dBFS.
+int lg_voice_treat(float *samples, int frames, int rate, int preset);
+// The stages on their own, for references: a peak-envelope compressor and a dynamic-shelf de-esser.
+int lg_voice_compress(float *samples, int frames, int rate, float thresholdDB, float ratio, float attackMs, float releaseMs, float makeupDB);
+int lg_voice_deess(float *samples, int frames, int rate, float frequency, float thresholdDB, float maxReductionDB);
 // Frames of look-ahead delay the limiter adds while enabled (0 when off).
 int lg_limiter_latency(LGKernel *k);
 void lg_render(LGKernel *k, float *left, float *right, int frames);

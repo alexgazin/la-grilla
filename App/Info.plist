@@ -80,6 +80,8 @@
 	</array>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Open projects you chose to hide behind Face ID.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Record a spoken command or a short melody you choose to capture. Microphone access starts only when you tap Record or Dictate.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>

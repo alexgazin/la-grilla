@@ -65,6 +65,8 @@ public enum DrumTakes {
         public let number: Int
         public let hits: Int
         public let muted: Bool
+        /// "Fill" or "Comp" for generated takes, nil for recorded ones.
+        public var label: String? = nil
     }
 
     /// Hits that belong to no listed take: steps, pads played outside recording, generators.
@@ -77,7 +79,7 @@ public enum DrumTakes {
     public static func takes(in pattern: Pattern?) -> [Summary] {
         let drums = pattern?.drums ?? []
         return (pattern?.drumTakes ?? []).map { take in
-            Summary(id: take.id, number: take.number, hits: drums.filter { $0.take == take.id }.count, muted: take.muted == true)
+            Summary(id: take.id, number: take.number, hits: drums.filter { $0.take == take.id }.count, muted: take.muted == true, label: take.label)
         }.filter { $0.hits > 0 }
     }
 
