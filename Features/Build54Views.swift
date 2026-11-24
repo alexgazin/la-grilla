@@ -1,4 +1,5 @@
 import SwiftUI
+import AVFoundation
 import MusicDomain
 
 /// 54 · Share the song as a link others open with "Make your version". The music rides inside the
@@ -311,6 +312,10 @@ struct AudioTracksView: View {
                 ForEach(Array(tracks.enumerated()), id: \.element.id) { lane, track in
                     trackSection(track, lane: lane)
                 }
+                Section {
+                    Button { session.presentEditor(.plugins) } label: { Label("Instrument and effect plugins…", systemImage: "puzzlepiece.extension") }
+                        .accessibilityIdentifier("audio.plugins")
+                } footer: { Text("An instrument plugin can play a track's notes into an audio track here.") }
                 if !tracks.isEmpty && tracks.count < AudioTrackEditing.maximumTracks {
                     Section { Button { target = session.addAudioTrack() } label: { Label("Add an audio track", systemImage: "plus") }.accessibilityIdentifier("audio.add-more") }
                 }
@@ -479,4 +484,181 @@ private struct LevelBar: View {
         .frame(width: 60, height: 6)
         .accessibilityHidden(true)
     }
+}
+
+// MARK: - 54 · Plugins (AUv3)
+
+/// Effect plugins after the mix (heard live and in exports) and instrument plugins that play a
+/// track's notes into an audio track.
+struct PluginsView: View {
+    @Bindable var session: Session
+    @State private var effects: [PluginCatalog.Entry] = []
+    @State private var instruments: [PluginCatalog.Entry] = []
+    @State private var source: UUID?
+    @State private var instrument: PluginReference?
+    @State private var editing: EditingUnit?
+    @State private var bouncing = false
+    @Environment(\.dismiss) private var dismiss
+
+    struct EditingUnit: Identifiable { let id = UUID(); let unit: AVAudioUnit; let title: String; let save: (Data?) -> Void }
+
+    private var melodicTracks: [Track] { session.project.tracks.filter { $0.role != .drums } }
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section {
+                    ForEach(session.project.masterPlugins ?? []) { plugin in
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(verbatim: plugin.name).font(.body.weight(.medium))
+                                Text(verbatim: plugin.maker).font(.caption).foregroundStyle(Color.muted)
+                            }
+                            Spacer()
+                            Toggle("On", isOn: Binding(get: { plugin.bypassed != true }, set: { on in session.edit { PluginEditing.setBypassed(!on, of: plugin.id, in: &$0) } }))
+                                .labelsHidden().accessibilityIdentifier("plugins.master.on.\(plugin.name)")
+                            Button { open(plugin) } label: { Image(systemName: "slider.horizontal.3").frame(width: 44, height: 44) }
+                                .buttonStyle(.borderless).accessibilityLabel("Open plugin").disabled(plugin.bypassed == true)
+                            Button(role: .destructive) { session.edit { PluginEditing.removeMasterEffect(plugin.id, from: &$0) } } label: { Image(systemName: "trash").frame(width: 44, height: 44) }
+                                .buttonStyle(.borderless).accessibilityLabel("Remove")
+                        }
+                        .accessibilityElement(children: .contain).accessibilityIdentifier("plugins.master.\(plugin.name)")
+                    }
+                    Menu {
+                        ForEach(effects) { entry in
+                            Button { session.edit { var made = entry.reference; made.id = UUID(); try PluginEditing.addMasterEffect(made, to: &$0) } } label: {
+                                Text(verbatim: entry.reference.name + " · " + entry.reference.maker)
+                            }
+                        }
+                    } label: { Label("Add an effect", systemImage: "plus.circle").frame(minHeight: 44) }
+                        .disabled(effects.isEmpty || (session.project.masterPlugins?.count ?? 0) >= PluginEditing.maximumMasterEffects)
+                        .accessibilityIdentifier("plugins.add-effect")
+                } header: { Text("Effects after the mix") } footer: {
+                    Text("Heard while you play and in WAV, AAC, video and ringtone exports. Stems stay without them.")
+                }
+                Section {
+                    Picker("Track", selection: $source) {
+                        Text("Choose a track").tag(UUID?.none)
+                        ForEach(melodicTracks) { track in Text(verbatim: track.displayName).tag(Optional(track.id)) }
+                    }.accessibilityIdentifier("plugins.source")
+                    Menu {
+                        ForEach(instruments) { entry in
+                            Button { instrument = entry.reference } label: { Text(verbatim: entry.reference.name + " · " + entry.reference.maker) }
+                        }
+                    } label: {
+                        LabeledContent("Instrument") { Text(verbatim: instrument?.name ?? NSLocalizedString("Choose", comment: "Plugins")) }
+                    }
+                    .disabled(instruments.isEmpty).accessibilityIdentifier("plugins.instrument")
+                    if let instrument {
+                        Button { openInstrument(instrument) } label: { Label("Open its screen", systemImage: "slider.horizontal.3") }
+                            .accessibilityIdentifier("plugins.instrument-open")
+                    }
+                    Button {
+                        guard let source, let instrument else { return }
+                        bouncing = true
+                        Task { await session.bounce(trackID: source, plugin: instrument); bouncing = false }
+                    } label: {
+                        if let progress = session.bounceProgress {
+                            ProgressView(value: progress) { Text("Playing the notes through the plugin…") }
+                        } else {
+                            Label("Bounce to an audio track", systemImage: "waveform.badge.plus").frame(minHeight: 44)
+                        }
+                    }
+                    .disabled(source == nil || instrument == nil || bouncing)
+                    .accessibilityIdentifier("plugins.bounce")
+                } header: { Text("Instrument plugins") } footer: {
+                    Text("The plugin plays the track's notes offline, sample-accurately, into an audio track; the original track is muted. After changing the notes, bounce again.")
+                }
+                let bounced = (session.project.audioTracks ?? []).filter { $0.bounce != nil }
+                if !bounced.isEmpty {
+                    Section("Bounced tracks") {
+                        ForEach(bounced) { track in
+                            HStack {
+                                Text(verbatim: track.name)
+                                Spacer()
+                                Button("Bounce again") {
+                                    guard let bounce = track.bounce else { return }
+                                    bouncing = true
+                                    Task { await session.bounce(trackID: bounce.sourceTrack, plugin: bounce.plugin); bouncing = false }
+                                }.disabled(bouncing)
+                            }
+                        }
+                    }
+                }
+                if effects.isEmpty && instruments.isEmpty {
+                    Section { Text("No Audio Unit plugins were found. Install AUv3 instruments and effects from the App Store; they appear here.").foregroundStyle(Color.muted) }
+                }
+            }
+            .navigationTitle("Plugins").navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() }.accessibilityIdentifier("plugins.done") } }
+            .task {
+                effects = PluginCatalog.installed(.effect); instruments = PluginCatalog.installed(.instrument)
+                if source == nil { source = session.noteTrackID ?? melodicTracks.first?.id }
+            }
+            .sheet(item: $editing) { item in PluginScreen(unit: item.unit, title: item.title, save: item.save) }
+        }
+    }
+
+    private func open(_ plugin: PluginReference) {
+        guard let unit = session.liveMasterUnit(plugin.id) else { session.syncMasterPlugins(); return }
+        editing = EditingUnit(unit: unit, title: plugin.name) { state in
+            session.edit { try PluginEditing.setState(state, of: plugin.id, in: &$0) }
+        }
+    }
+
+    private func openInstrument(_ reference: PluginReference) {
+        Task {
+            do {
+                let unit = try await PluginHost.instantiateLive(reference)
+                editing = EditingUnit(unit: unit, title: reference.name) { state in instrument?.state = state }
+            } catch { session.message = error.localizedDescription }
+        }
+    }
+}
+
+/// A plugin's own screen; Done keeps its settings in the song.
+private struct PluginScreen: View {
+    let unit: AVAudioUnit
+    let title: String
+    let save: (Data?) -> Void
+    @State private var model = PluginScreenModel()
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            Group {
+                if let controller = model.controller { HostedController(controller: controller) }
+                else if model.noScreen { Text("This plugin has no screen of its own. Its sound is still used.").foregroundStyle(Color.muted).padding() }
+                else { ProgressView() }
+            }
+            .navigationTitle(Text(verbatim: title)).navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { save(PluginHost.state(of: unit)); dismiss() }.accessibilityIdentifier("plugin.done") } }
+        }
+        .task { model.load(unit) }
+    }
+}
+
+private final class ControllerBox: @unchecked Sendable {
+    let value: UIViewController?
+    init(_ value: UIViewController?) { self.value = value }
+}
+
+@MainActor @Observable private final class PluginScreenModel {
+    var controller: UIViewController?
+    var noScreen = false
+    func load(_ unit: AVAudioUnit) {
+        unit.auAudioUnit.requestViewController { [weak self] made in
+            let box = ControllerBox(made)
+            Task { @MainActor in
+                guard let self else { return }
+                if let value = box.value { self.controller = value } else { self.noScreen = true }
+            }
+        }
+    }
+}
+
+private struct HostedController: UIViewControllerRepresentable {
+    let controller: UIViewController
+    func makeUIViewController(context: Context) -> UIViewController { controller }
+    func updateUIViewController(_ controller: UIViewController, context: Context) {}
 }

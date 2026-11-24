@@ -12,6 +12,8 @@ public struct AudioTrack: Codable, Equatable, Identifiable, Sendable {
     public var solo = false
     public var color: Int?
     public var clips: [AudioClip] = []
+    /// 54: made by playing a MIDI track through an instrument plugin ("Bounce again" re-renders).
+    public var bounce: PluginBounce?
     public init(name: String) { self.name = String(name.prefix(40)) }
 }
 
@@ -240,6 +242,10 @@ public enum AudioTrackEditing {
         for track in tracks {
             guard !track.name.isEmpty, track.name.count <= 40, track.gain.isFinite, (-61...6).contains(track.gain), track.pan.isFinite, (-1...1).contains(track.pan),
                   track.clips.count <= maximumClips, Set(track.clips.map(\.id)).count == track.clips.count, track.color.map({ (0..<6).contains($0) }) ?? true else { throw MusicError.invalidProject }
+            if let bounce = track.bounce {
+                try bounce.plugin.validate()
+                guard bounce.plugin.kind == .instrument, project.tracks.contains(where: { $0.id == bounce.sourceTrack }) else { throw MusicError.invalidProject }
+            }
             for clip in track.clips {
                 guard let record = assets[clip.assetID], clip.start >= 0, clip.start < project.length,
                       clip.offset.isFinite, clip.offset >= 0, clip.duration.isFinite, clip.duration >= 0.05, clip.offset + clip.duration <= record.duration + 0.001,

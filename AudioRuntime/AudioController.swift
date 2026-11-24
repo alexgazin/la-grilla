@@ -150,6 +150,23 @@ private enum AudioRender {
         submittedAudio=(k,clips,signature);return true
     }
     func audioMeter(_ lane:Int)->Float{guard let k=handle?.pointer else{return 0};return lg_audio_meter(k,Int32(lane))}
+
+    /// 54 · Effect plugins after the whole mix: kernel → effects → mixer. `signature` names what
+    /// is connected so a sync only rebuilds the chain when the song's effects change.
+    @ObservationIgnored private(set) var masterUnits:[AVAudioUnit]=[]
+    @ObservationIgnored private(set) var masterSignature:[String]=[]
+    @ObservationIgnored private weak var masterEngine:AVAudioEngine?
+    func masterChainCurrent(_ signature:[String])->Bool{masterSignature==signature && masterEngine===engine && engine != nil}
+    func setMasterEffects(_ units:[AVAudioUnit],signature:[String]){
+        guard let engine,let source else{return}
+        let format=source.outputFormat(forBus:0)
+        engine.disconnectNodeOutput(source)
+        for unit in masterUnits where unit.engine===engine{engine.disconnectNodeOutput(unit);engine.detach(unit)}
+        var previous:AVAudioNode=source
+        for unit in units{engine.attach(unit);engine.connect(previous,to:unit,format:format);previous=unit}
+        engine.connect(previous,to:engine.mainMixerNode,format:format)
+        masterUnits=units;masterSignature=signature;masterEngine=engine
+    }
     enum InputPrimingPolicy:String {case platformDefault,outputOnly,sharedInputFirst}
     private let inputPriming:InputPrimingPolicy
     private(set) var inputPrimedAtStartup=false

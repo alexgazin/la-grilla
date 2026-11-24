@@ -502,3 +502,58 @@ struct AudioTrackExportTests {
         await #expect(throws: ExportError.self) { try await render(project, takes: AudioTakeLibrary()) }
     }
 }
+
+@Suite("54 · Plugins")
+struct PluginTests {
+    private let delay = PluginReference(kind: .effect, type: PluginReference.fourCC("aufx"), subtype: PluginReference.fourCC("dely"), manufacturer: PluginReference.fourCC("appl"), name: "AUDelay", maker: "Apple")
+    private let sampler = PluginReference(kind: .instrument, type: PluginReference.fourCC("aumu"), subtype: PluginReference.fourCC("samp"), manufacturer: PluginReference.fourCC("appl"), name: "AUSampler", maker: "Apple")
+
+    @Test func fourCharacterCodesRoundTrip() {
+        #expect(PluginReference.fourCC("aumu") == 0x61756D75)
+        #expect(PluginReference.fourCC(0x61756D75) == "aumu")
+        #expect(delay.sameUnit(as: PluginReference(kind: .effect, type: delay.type, subtype: delay.subtype, manufacturer: delay.manufacturer, name: "Other", maker: "", state: Data([1]))))
+    }
+
+    @Test func masterEffectsAreLimitedSavedAndBypassed() throws {
+        var project = try emptyProject()
+        try PluginEditing.addMasterEffect(delay, to: &project)
+        var second = delay; second.id = UUID()
+        try PluginEditing.addMasterEffect(second, to: &project)
+        var third = delay; third.id = UUID()
+        #expect(throws: MusicError.limit) { try PluginEditing.addMasterEffect(third, to: &project) }
+        #expect(throws: MusicError.invalidProject) { try PluginEditing.addMasterEffect(sampler, to: &project) }
+        try PluginEditing.setState(Data("settings".utf8), of: delay.id, in: &project)
+        PluginEditing.setBypassed(true, of: second.id, in: &project)
+        #expect(project.masterPlugins?.first?.state == Data("settings".utf8))
+        #expect(PluginEditing.activeMasterEffects(project).map(\.id) == [delay.id])
+        try project.validate()
+        let decoded = try ProjectDocument.decode(JSONEncoder().encode(project))
+        #expect(decoded.masterPlugins == project.masterPlugins)
+        PluginEditing.removeMasterEffect(delay.id, from: &project); PluginEditing.removeMasterEffect(second.id, from: &project)
+        #expect(project.masterPlugins == nil)
+        #expect(throws: MusicError.limit) { try PluginEditing.setState(Data(count: PluginReference.maximumState + 1), of: delay.id, in: &project) }
+    }
+
+    @Test func aBounceReplacesItsTakeAndMutesTheSource() throws {
+        var project = try ProjectTemplates.make(name: "B", bpm: 120, root: 0, minor: false, bars: 4, template: .starter)
+        let harmony = project.tracks[0].id
+        let notes = PluginEditing.bounceNotes(project, track: harmony)
+        #expect(!notes.isEmpty && notes.allSatisfy { $0.end > $0.start })
+        #expect(abs(notes[0].start) < 1e-9 && abs(notes.first { $0.start > 0 }!.start - 2) < 1e-9, "a bar is two seconds at 120 BPM")
+        func record(_ seconds: Double) throws -> AudioAssetRecord {
+            let data = AudioTakeReader.caf([Float](repeating: 0.1, count: Int(seconds * 48000)), rate: 48000)
+            return AudioAssetRecord(sha256: try AssetIntegrity.sha256(data), byteCount: data.count, sampleRate: 48000, duration: seconds)
+        }
+        let first = try record(8)
+        let track = try PluginEditing.placeBounce(first, source: harmony, plugin: sampler, in: &project)
+        #expect(project.tracks[0].mute)
+        #expect(project.audioTracks?.first?.bounce?.sourceTrack == harmony && project.audioTracks?.first?.name.hasSuffix("AUSampler") == true)
+        try project.validate()
+        // Bouncing again keeps one track and swaps the take.
+        let second = try record(8)
+        let again = try PluginEditing.placeBounce(second, source: harmony, plugin: sampler, in: &project)
+        #expect(again == track && project.audioTracks?.count == 1)
+        #expect(project.audioAssets?.map(\.id) == [second.id])
+        try project.validate()
+    }
+}

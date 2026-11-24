@@ -94,7 +94,7 @@ import Observation
     private let runtimeTraceStart=ProcessInfo.processInfo.systemUptime
     let personalKits: PersonalKitStore
     let store: ProjectStore
-    enum Sheet: String, Identifiable {case projects, newProject, trackBuilder, export, settings, gettingStarted, bass, sections, notes, harmony, assistant, voice, perform, midiDevices, palettes, history, versions, trash, commands, variations, comp, chordImport, melodyIdeas, lyrics, master, mood, doctor, earTraining, whatsNew, coNotes, vj, help, grooves, practicePlayer, beatMachine, tuner, markers, dynamics, automation, course, audioTracks; var id: String { rawValue }}
+    enum Sheet: String, Identifiable {case projects, newProject, trackBuilder, export, settings, gettingStarted, bass, sections, notes, harmony, assistant, voice, perform, midiDevices, palettes, history, versions, trash, commands, variations, comp, chordImport, melodyIdeas, lyrics, master, mood, doctor, earTraining, whatsNew, coNotes, vj, help, grooves, practicePlayer, beatMachine, tuner, markers, dynamics, automation, course, audioTracks, plugins; var id: String { rawValue }}
     private static var qaProjectStoreID:UUID? {
         let arguments=ProcessInfo.processInfo.arguments
         guard arguments.contains("--uitesting"),let index=arguments.firstIndex(of:"--project-store-id"),arguments.indices.contains(index+1)else{return nil}
@@ -345,6 +345,7 @@ import Observation
         audio.submit(drumPlayback ?? project,loop:loop,range:loopRange);audio.metronome(metronome);syncMIDI()
         // 54: an undo can bring back a clip whose take was let go; load it again.
         if project.hasAudioTracks,audioTakesMissing,!loadingTakes{Task{await loadAudioTakes()}}
+        if project.masterPlugins != nil || !audio.masterSignature.isEmpty{syncMasterPlugins()}
     }
     /// Complete value mutations before publishing either observed property.
     /// A project willSet can synchronously render a view that reads history;
@@ -622,6 +623,7 @@ import Observation
         case .earTraining: presentEditor(.earTraining)
         case .course: presentEditor(.course)
         case .audioTracks: presentEditor(.audioTracks)
+        case .plugins: presentEditor(.plugins)
         }
     }
     /// U8 · Bring back a deleted track, take or clip in one Undo step.
@@ -1316,7 +1318,7 @@ import Observation
     func export(format:ExportFormat,settings:WAVSettings,range:Range<Int>,tracks:Set<UUID>,performance:PerformanceTake?=nil) {
         if performance != nil && format != .midi && format != .wav && format != .aac{exportError="Choose WAV or MIDI for a performance.";return}
         finishTake();cancelExport();exportGeneration+=1;let generation=exportGeneration
-        let snapshot=performance?.source ?? project;let samples=audio.samples;let takes=audio.takes;exportInProgress=true;exportProgress=0;exportWarning=nil
+        let snapshot=performance?.source ?? project;let samples=audio.samples;let takes=audio.takes;let effects=PluginEditing.activeMasterEffects(snapshot);exportInProgress=true;exportProgress=0;exportWarning=nil
         let folder=FileManager.default.temporaryDirectory.appendingPathComponent("GrillaExport-"+UUID().uuidString)
         let safe=String((performance?.name ?? snapshot.name).prefix(80)).components(separatedBy:CharacterSet(charactersIn:"/\\").union(.controlCharacters)).joined(separator:"-").trimmingCharacters(in:CharacterSet(charactersIn:". "))
         let url=folder.appendingPathComponent(safe.isEmpty ? "La Grilla":safe).appendingPathExtension(format.fileExtension)
@@ -1331,6 +1333,8 @@ import Observation
                 case .wav:
                     let receipt:RenderReceipt;if let performance{receipt=try await OfflineRenderer.renderPerformance(performance,to:url,settings:settings,samples:samples,progress:progress)}else{receipt=try await OfflineRenderer.render(snapshot,to:url,settings:settings,range:range,samples:samples,takes:takes,progress:progress)}
                     if receipt.clipped{exportWarning="Clipping was detected. Lower track or master gain for a cleaner export."}
+                    // 54: the song's effect plugins process the mix, as heard live.
+                    if !effects.isEmpty{try await PluginHost.process(url,through:effects)}
                     // I51: title, artist and tempo/key inside the file.
                     try? WAVMetadata.write(url,title:snapshot.name,artist:UserDefaults.standard.string(forKey:"notes.author"),comment:"\(Int(snapshot.bpm.rounded())) BPM · \(snapshot.keyName)")
                 case .stems:_ = try await StemExporter.render(snapshot,to:url,settings:settings,range:range,selected:tracks,samples:samples,takes:takes,progress:progress)
@@ -1340,6 +1344,8 @@ import Observation
                     let short=range.lowerBound..<min(range.upperBound,range.lowerBound+max(barTicks,seconds))
                     let wav=folder.appendingPathComponent("ringtone.wav")
                     _ = try await OfflineRenderer.render(snapshot,to:wav,settings:WAVSettings(sampleRate:settings.sampleRate,bitDepth:settings.bitDepth,tailSeconds:0.5),range:short,samples:samples,takes:takes,progress:progress)
+                    // 54: the song's effect plugins process the mix, as heard live.
+                    if !effects.isEmpty{try await PluginHost.process(wav,through:effects)}
                     try await Task.detached(priority:.userInitiated){try AACEncoder.encode(wav:wav,to:url)}.value
                     try? FileManager.default.removeItem(at:wav)
                 case .musicxml:
@@ -1358,6 +1364,8 @@ import Observation
                     let wav=folder.appendingPathComponent("mix.wav")
                     let receipt:RenderReceipt;if let performance{receipt=try await OfflineRenderer.renderPerformance(performance,to:wav,settings:settings,samples:samples,progress:progress)}else{receipt=try await OfflineRenderer.render(snapshot,to:wav,settings:settings,range:range,samples:samples,takes:takes,progress:progress)}
                     if receipt.clipped{exportWarning="Clipping was detected. Lower track or master gain for a cleaner export."}
+                    // 54: the song's effect plugins process the mix, as heard live.
+                    if !effects.isEmpty{try await PluginHost.process(wav,through:effects)}
                     try await Task.detached(priority:.userInitiated){try AACEncoder.encode(wav:wav,to:url)}.value
                     try? FileManager.default.removeItem(at:wav)
                 case .video:
@@ -1367,6 +1375,7 @@ import Observation
                     let receipt=try await OfflineRenderer.render(snapshot,to:wav,settings:settings,range:range,samples:samples,takes:takes,progress:half)
                     if receipt.clipped{exportWarning="Clipping was detected. Lower track or master gain for a cleaner export."}
                     let style=videoStyle,credit=videoCredit
+                    if !effects.isEmpty{try await PluginHost.process(wav,through:effects)}
                     try await Task.detached(priority:.userInitiated){try await VideoExporter.encode(wav:wav,project:snapshot,range:range,to:url,style:style,credit:credit,progress:progress)}.value
                     try? FileManager.default.removeItem(at:wav)
                 }
@@ -1468,6 +1477,55 @@ import Observation
         guard let sha=try? AssetIntegrity.sha256(data) else { return }
         let record=AudioAssetRecord(sha256:sha,byteCount:data.count,sampleRate:48000,duration:2,origin:.syntheticFixture)
         _ = await applyAudioTake(AudioTakeResult(data:data,record:record,samples:samples),trackID:track,startTick:0,projectID:project.id,latency:0)
+    }
+
+    // MARK: 54 · Plugins (AUv3)
+
+    @ObservationIgnored private var buildingMasterChain=false
+    /// Connects the song's effect plugins after the mix when they change.
+    func syncMasterPlugins() {
+        let active=PluginEditing.activeMasterEffects(project)
+        let signature=active.map(\.id.uuidString)
+        guard !audio.masterChainCurrent(signature),!buildingMasterChain,audio.isPrepared else { return }
+        buildingMasterChain=true
+        Task{@MainActor in
+            defer{buildingMasterChain=false}
+            var units:[AVAudioUnit]=[]
+            for reference in active{
+                do{units.append(try await PluginHost.instantiateLive(reference))}
+                catch{message=String(format:NSLocalizedString("“%@”: %@",comment:"Plugin error"),reference.name,error.localizedDescription)}
+            }
+            audio.setMasterEffects(units,signature:signature)
+        }
+    }
+    /// The live instance of a master effect, for its own screen.
+    func liveMasterUnit(_ id:UUID)->AVAudioUnit?{
+        guard let index=PluginEditing.activeMasterEffects(project).firstIndex(where:{$0.id==id}),audio.masterUnits.indices.contains(index) else{return nil}
+        return audio.masterUnits[index]
+    }
+    var bounceProgress:Double?
+    /// Plays a MIDI track through an instrument plugin offline and puts the result on an audio
+    /// track (the source is muted; "Bounce again" replaces the take).
+    @discardableResult func bounce(trackID:UUID,plugin:PluginReference) async -> Bool {
+        let projectID=project.id
+        let notes=PluginEditing.bounceNotes(project,track:trackID)
+        guard !notes.isEmpty else{message=NSLocalizedString("This track has no notes to play.",comment:"Bounce");return false}
+        let seconds=AudioTrackEditing.seconds(ticks:project.length,bpm:project.bpm)+2
+        bounceProgress=0;defer{bounceProgress=nil}
+        do {
+            let samples=try await PluginHost.bounce(plugin,notes:notes,seconds:seconds,progress:{value in Task{@MainActor in self.bounceProgress=value}})
+            let data=AudioTakeReader.caf(samples,rate:48000)
+            let record=AudioAssetRecord(sha256:try AssetIntegrity.sha256(data),byteCount:data.count,sampleRate:48000,duration:Double(samples.count)/48000,origin:.plugin,recordedAt:Date())
+            guard project.id==projectID else{return false}
+            try await store.writeAsset(data,record:record,projectID:projectID)
+            var candidate=project
+            try PluginEditing.placeBounce(record,source:trackID,plugin:plugin,in:&candidate)
+            try withHistoryTransaction{h,p in try h.apply(&p){$0=candidate}}
+            audio.insertTake(record.id,samples:samples,rate:48000)
+            sync();await save()
+            showToast("Bounced to an audio track")
+            return saveError==nil
+        } catch { message=error.localizedDescription;return false }
     }
 
     // MARK: 54 · Harmony course and assignments

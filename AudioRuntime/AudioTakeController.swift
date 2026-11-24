@@ -16,7 +16,10 @@ struct AudioTakeResult: Sendable {
     enum State: Equatable { case idle, waiting, recording, finishing }
     var state: State = .idle
     var error: String?
-    var elapsed = 0.0, waitingSeconds = 0.0, plannedDuration = 0.0, level = 0.0
+    var elapsed = 0.0
+    var waitingSeconds = 0.0
+    var plannedDuration = 0.0
+    var level = 0.0
     var isCapturing: Bool { state == .waiting || state == .recording }
     private var microphone: LiveMicrophone?
     private var timer: Timer?

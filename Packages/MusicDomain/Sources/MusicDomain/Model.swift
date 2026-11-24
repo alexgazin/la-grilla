@@ -340,6 +340,8 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
     public var audioAssets:[AudioAssetRecord]?
     /// 54: recorded audio tracks (schema 16 when present). Nil in older files.
     public var audioTracks:[AudioTrack]?
+    /// 54: effect plugins (AUv3) after the whole mix, at most two. Nil in older files.
+    public var masterPlugins:[PluginReference]?
     public var midi:MIDISettings?
     /// I41: the last phrase edits applied to this project (newest last, at most 32).
     public var editLog:[String]?
@@ -410,6 +412,7 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
         if let take=performanceTake{guard (take.source.audioAssets ?? []).allSatisfy({asset in (audioAssets ?? []).contains(asset)})else{throw MusicError.invalidProject}}
         guard (audioAssets ?? []).count<=AudioTrackEditing.maximumTakes else{throw MusicError.tooDense}
         try AudioTrackEditing.validate(self)
+        if let plugins=masterPlugins{guard !plugins.isEmpty,plugins.count<=PluginEditing.maximumMasterEffects,plugins.allSatisfy({$0.kind == .effect}) else{throw MusicError.invalidProject};for plugin in plugins{try plugin.validate()}}
         for asset in audioAssets ?? []{try asset.validate()}
         let samples = referencedSamples
         guard samples.count <= 48 else { throw SampleError.limit }

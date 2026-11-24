@@ -2,7 +2,7 @@ import Foundation
 import AudioDSP
 
 public struct AudioAssetRecord:Codable,Equatable,Identifiable,Sendable {
-    public enum Origin:String,Codable,Sendable{case microphone,syntheticFixture}
+    public enum Origin:String,Codable,Sendable{case microphone,syntheticFixture,plugin}
     public var origin:Origin;public var recordedAt:Date?;public var inputLatencySeconds:Double?;public var tempoBPM:Double?
     public var id:UUID
     public var sha256:String;public var byteCount:Int;public var sampleRate:Double;public var duration:Double
