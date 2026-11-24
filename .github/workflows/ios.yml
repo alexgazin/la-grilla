@@ -197,8 +197,8 @@ jobs:
         id: native_flows
         if: ${{ !cancelled() && steps.prepare_simulator.outcome == 'success' }}
         # Independent runner-side bound also covers a blocked Python I/O call.
-        # Full native execution/finalization has 95 minutes; focused subsets
-        # retain 25 minutes. Per-case limits and bounded cleanup stay unchanged.
+        # Full native execution/finalization has 95 minutes; named focused cases
+        # (only_testing) have 90. Per-case limits and bounded cleanup stay unchanged.
         timeout-minutes: 100
         env:
           GRILLA_REQUIRE_MIC_INPUT: '1'
@@ -245,7 +245,7 @@ jobs:
           if test -n "$GRILLA_ONLY_TESTING"; then
             # Rerun only the named cases (e.g. the failures of the last full pass).
             SCOPE=focused
-            GRILLA_NATIVE_TIMEOUT_SECONDS=4200
+            GRILLA_NATIVE_TIMEOUT_SECONDS=5400
             GRILLA_NATIVE_LABEL=selected-cases
             FILTER=()
             INVENTORY=()

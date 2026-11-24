@@ -2380,3 +2380,15 @@
 "Everything: mixer inserts, MIDI devices, automation and fine timing." = "Всё: вставки микшера, MIDI-устройства, автоматизация и точный тайминг.";
 "Compact" = "Компактная";
 "Normal" = "Обычная";
+"A tour of the studio" = "Тур по студии";
+"Five steps on a demo song: pads, a chord, a hummed melody, the mixer and export. Settings → Show me around." = "Пять шагов на демо-песне: пэды, аккорд, напетая мелодия, микшер и экспорт. Настройки → «Покажи, как всё устроено».";
+"Select several clips" = "Выбор нескольких клипов";
+"In Grid, Select: duplicate, move, colour, mute or delete them with one Undo." = "В «Сетке» — «Выбрать»: дублируйте, сдвигайте, красьте, глушите или удаляйте их с одной отменой.";
+"An instrument from any sound" = "Инструмент из любого звука";
+"Record or import one note and play it on every key; voice treatment for recorded sounds." = "Запишите или загрузите одну ноту и играйте ею на всех клавишах; обработка голоса для записанных звуков.";
+"Automation and spaces" = "Автоматизация и пространства";
+"Write level and pan moves while playing; room, hall, plate and spring reverb." = "Записывайте движения громкости и панорамы во время игры; реверберация «комната», «зал», «пластина», «пружина».";
+"Hold to hear" = "Удержите, чтобы послушать";
+"Hold a template, beat, groove or palette to hear four bars before choosing." = "Удержите шаблон, бит, грув или палитру, чтобы услышать четыре такта до выбора.";
+"Simple or full, compact or large" = "Простой или полный, компактный или крупный";
+"Show only the essentials, choose the density, or reach everything with one hand." = "Показывайте только главное, выбирайте плотность или управляйте одной рукой.";
