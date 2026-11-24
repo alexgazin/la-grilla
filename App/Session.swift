@@ -1396,6 +1396,24 @@ import Observation
         exportedFolder=nil
         if let warning=exportWarning{message=warning;exportWarning=nil}
     }
+    /// 54 · "Make your version": the song in a remix link becomes a new project of its own,
+    /// with the original title and author kept as its credit.
+    func openRemix(_ url:URL) async {
+        guard let payload=RemixLink.payload(from:url) else { message=RemixLink.Failure.damaged.localizedDescription; return }
+        do {
+            let project=try await Task.detached(priority:.userInitiated){try RemixLink.project(from:payload)}.value
+            guard await saveNewProject(project) else { return }
+            let credit=project.remixOf
+            showToast(credit?.author.map{String(format:NSLocalizedString("Your version of “%@” by %@",comment:"Remix opened"),credit?.title ?? "",$0)}
+                      ?? String(format:NSLocalizedString("Your version of “%@”",comment:"Remix opened"),credit?.title ?? project.name))
+        } catch { message=error.localizedDescription }
+    }
+    /// 54 · The link that shares this song for others to make their version.
+    func remixLink(author:String?) throws -> URL {
+        let name=author?.trimmingCharacters(in:.whitespacesAndNewlines) ?? ""
+        return try RemixLink.link(project,author:name.isEmpty ? nil:name)
+    }
+
     func importProject(_ url:URL) async {
         guard let token=beginProjectChange()else{return}
         importing=true;defer{importing=false;endProjectChange(token)}

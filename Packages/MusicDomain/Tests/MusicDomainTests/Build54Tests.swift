@@ -111,3 +111,104 @@ struct VideoActivityTests {
         #expect(board.trackCount == project.tracks.count)
     }
 }
+
+@Suite("54 · Remix links")
+struct RemixLinkTests {
+    private func song() throws -> Project {
+        let base = try emptyProject(bpm: QuickTrack.tempo(for: .lofi, seed: 0), bars: QuickTrack.sectionBars)
+        var project = try QuickTrack.make(from: base, genre: .lofi, seed: 0).project
+        project.name = "Rain on glass"
+        project.license = SongLicense.attribution.rawValue
+        project.markers = [Marker(tick: barTicks, text: "vocals here")]
+        return project
+    }
+
+    @Test func aSongTravelsInALinkAndComesBackAsANewProjectWithCredit() throws {
+        let original = try song()
+        let url = try RemixLink.link(original, author: "Alex")
+        #expect(url.absoluteString.hasPrefix("lagrilla://remix#"))
+        #expect(url.absoluteString.count <= RemixLink.maximumLength, "\(url.absoluteString.count) characters")
+        let payload = try #require(RemixLink.payload(from: url))
+        let copy = try RemixLink.project(from: payload)
+        #expect(copy.id != original.id)
+        #expect(copy.remixOf == RemixCredit(title: "Rain on glass", author: "Alex", license: "cc-by"))
+        #expect(copy.name.hasPrefix("Rain on glass · "))
+        #expect(copy.bpm == original.bpm && copy.keyRoot == original.keyRoot && copy.minor == original.minor)
+        #expect(copy.sections.map(\.name) == original.sections.map(\.name))
+        #expect(copy.markers?.map(\.text) == ["vocals here"])
+        // The music is the same note for note.
+        func shape(_ project: Project) -> [String] { Compiler.notes(project).map { "\($0.tick) \($0.duration) \($0.pitch) \($0.velocity) \($0.track) \($0.pad)" }.sorted() }
+        #expect(shape(copy) == shape(original))
+    }
+
+    @Test func aPastedMessageWithTheLinkOpensItAndOtherLinksDoNot() throws {
+        let url = try RemixLink.link(try song(), author: nil)
+        let message = "Make your version in La Grilla: " + url.absoluteString + " — enjoy"
+        #expect(RemixLink.link(in: message) == url)
+        #expect(RemixLink.link(in: "no link here") == nil)
+        #expect(RemixLink.payload(from: URL(string: "https://example.com/remix/#abc")!) == nil)
+        #expect(RemixLink.payload(from: URL(string: "lagrilla://other#abc")!) == nil)
+    }
+
+    @Test func listenOnlySongsAreNotSharedAsRemixes() throws {
+        var project = try song()
+        project.license = SongLicense.allRights.rawValue
+        #expect(throws: RemixLink.Failure.notAllowed) { try RemixLink.link(project, author: nil) }
+        project.license = nil
+        #expect(throws: RemixLink.Failure.notAllowed) { try RemixLink.link(project, author: nil) }
+    }
+
+    @Test func aDamagedOrFutureLinkIsNamed() throws {
+        let payload = try RemixLink.payload(try song(), author: nil)
+        #expect(throws: RemixLink.Failure.damaged) { try RemixLink.project(from: String(payload.dropLast(40))) }
+        #expect(throws: RemixLink.Failure.damaged) { try RemixLink.project(from: "not*base64") }
+        let future = Base64URL.encode([9, 1, 2, 3])
+        #expect(throws: RemixLink.Failure.newerVersion) { try RemixLink.project(from: future) }
+    }
+
+    @Test func lzwRoundTripsAnyBytes() {
+        var generator = SystemRandomNumberGenerator()
+        for length in [0, 1, 2, 3, 5, 100, 5000, 40000] {
+            let bytes = (0..<length).map { _ in UInt8.random(in: 0...255, using: &generator) }
+            #expect(LZW.decode(LZW.encode(bytes)) == bytes, "\(length) random bytes")
+        }
+        let repetitive = Array(String(repeating: "{\"t\":120,\"d\":480},", count: 2000).utf8)
+        let packed = LZW.encode(repetitive)
+        #expect(LZW.decode(packed) == repetitive)
+        #expect(packed.count * 8 < repetitive.count, "repetition compresses well")
+    }
+}
+
+@Suite("54 · Weekly challenge")
+struct WeeklyChallengeTests {
+    @Test func everyoneGetsTheSameChallengeInAWeekAndANewOneNextWeek() {
+        let monday = Date(timeIntervalSince1970: 1_795_000_000)
+        let later = monday.addingTimeInterval(3 * 3600)
+        #expect(WeeklyChallenge.current(monday) == WeeklyChallenge.current(later))
+        let weeks = (0..<26).map { WeeklyChallenge.current(monday.addingTimeInterval(Double($0) * 7 * 86400)).id }
+        #expect(Set(weeks).count == WeeklyChallenge.all.count, "every challenge comes round in 26 weeks")
+        #expect(Set(WeeklyChallenge.all.map(\.id)).count == WeeklyChallenge.all.count)
+    }
+
+    @Test func rulesAreCheckedOnTheSong() throws {
+        var project = try ProjectTemplates.make(name: "Check", bpm: 92, root: 0, minor: false, bars: 8, template: .starter)
+        let challenge = WeeklyChallenge(id: "test", title: "Test", idea: "", rules: [.tempo(80...100), .mode(minor: false), .atMostChords(4), .atLeastBars(8), .melody])
+        let checks = challenge.check(project)
+        #expect(checks.map(\.met) == [true, true, true, true, false])
+        try project.addMelody()
+        let melody = try #require(project.tracks.lastIndex { $0.role == .melody })
+        let pattern = try #require(project.patterns.firstIndex { $0.id == project.tracks[melody].clips.first?.patternID })
+        project.patterns[pattern].notes = [NoteEvent(tick: 0, pitch: 72)]
+        #expect(challenge.isComplete(project))
+        #expect(challenge.tag == "#LaGrillaTest")
+    }
+
+    @Test func aBorrowedChordIsRecognised() throws {
+        var project = try ProjectTemplates.make(name: "Borrow", bpm: 100, root: 0, minor: false, bars: 4, template: .starter)
+        #expect(!WeeklyChallenge.meets(.borrowedChord, project))
+        let harmony = try #require(project.tracks.firstIndex { $0.role == .harmony })
+        let pattern = try #require(project.patterns.firstIndex { $0.id == project.tracks[harmony].clips.first?.patternID })
+        project.patterns[pattern].chords[1].chord = Chord(root: 8) // A♭ in C major: ♭VI
+        #expect(WeeklyChallenge.meets(.borrowedChord, project))
+    }
+}

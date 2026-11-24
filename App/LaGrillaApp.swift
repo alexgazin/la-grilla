@@ -62,7 +62,11 @@ import MusicDomain
                 if target=="notes"{session.sheet = .notes}else{for _ in 0..<4{session.addMelody()};session.tab=2}
             };if target.hasPrefix("voice"){session.sheet = .voice};if target.hasPrefix("assistant"){session.sheet = .assistant};if target.hasPrefix("harmony"){session.sheet = .harmony};if target=="settings"{session.sheet = .settings};if target=="jam"{session.tab=1};if target=="mixer"{session.tab=2};if target=="projects"{session.sheet = .projects};if target.hasPrefix("export"){session.exportPreset=target=="export-wav" ? "wav":target=="export-stems" ? "stems":"midi";session.sheet = .export}
         }
-    }.onOpenURL{url in Task{await session.importProject(url)}}
+    }.onOpenURL{url in
+        // 54: a remix link (lagrilla://remix#… or the remix page) opens as a new project with credit.
+        if url.scheme?.lowercased()==RemixLink.scheme || RemixLink.payload(from:url) != nil{Task{await session.openRemix(url)}}
+        else{Task{await session.importProject(url)}}
+    }
     .onReceive(NotificationCenter.default.publisher(for:.laGrillaLaunchRequest).receive(on:RunLoop.main)){_ in if let request=LaunchRequest.take(){Task{await session.handleLaunch(request)}}}
     .onChange(of:phase){_,value in session.sceneChanged(value)}
     .onReceive(NotificationCenter.default.publisher(for:AVAudioSession.interruptionNotification).receive(on:RunLoop.main)){n in

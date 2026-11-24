@@ -347,6 +347,8 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
     public var notes:[ProjectNote]?
     /// I48: how others may use this song when it is shared ("all-rights", "cc-by", "cc-by-nc"). Nil = not set.
     public var license:String?
+    /// 54: the song this one was made from with "Make your version". Nil in older files.
+    public var remixOf:RemixCredit?
     /// I39: timeline markers with a note ("add vocals here"). Nil in older files.
     public var markers:[Marker]?
     /// I43: a teacher's beat to play back and score against. Nil in older files.

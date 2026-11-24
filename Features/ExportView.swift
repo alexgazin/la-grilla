@@ -46,6 +46,8 @@ struct ExportView:View {
                 HStack{Text("\(project.tracks.count) tracks");Spacer();Text("\(Int(project.bpm)) BPM · 4/4")}.font(.system(.caption,design:.monospaced)).foregroundStyle(Color.muted)
                 if session.exportInProgress {VStack(alignment:.leading,spacing:8){ProgressView(value:session.exportProgress).tint(.mint);Text("\(Int(session.exportProgress*100))%").luzNumeric(session.exportProgress).animation(.snappy,value:Int(session.exportProgress*100)).font(.system(.caption,design:.monospaced))}.accessibilityIdentifier("export.progress")}
                 Button{lastFormat=format.rawValue;session.videoStyle=VideoStyle(rawValue:videoStyle) ?? .map;session.videoCredit=videoCredit;session.export(format:format,settings:WAVSettings(sampleRate:sampleRate,bitDepth:bits,tailSeconds:tail,normalizeStemsDBFS:format == .stems && normalizeStems ? -1:nil),range:range,tracks:tracks,performance:take)}label:{HStack{if session.exportInProgress{ProgressView()};Text(LocalizedStringKey(session.exportInProgress ? "Exporting…":format == .midi ? "Export MIDI":"Export"));Image(systemName:"arrow.up.right")}}.buttonStyle(StudioActionStyle()).accessibilityIdentifier("export.confirm").disabled(session.exportInProgress || (format == .stems && tracks.isEmpty))
+                // 54: share the song as a link others open with "Make your version".
+                if take==nil{RemixShareSection(session:session)}
             }.padding(18)}.background(Color.ink)
             .navigationTitle("Export").navigationBarTitleDisplayMode(.inline)
             .toolbar{ToolbarItem(placement:.cancellationAction){Button("Cancel"){session.cancelExport();session.sheet=nil}}}

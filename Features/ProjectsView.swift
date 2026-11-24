@@ -47,6 +47,16 @@ struct ProjectsView: View {
         HStack{VStack(alignment:.leading,spacing:7){Text("Your next idea\nstarts here.").font(StudioTypography.display);Text("A little studio. A world of possibilities.").font(.system(.caption)).foregroundStyle(Color.muted)};Spacer();Image(systemName:"square.grid.3x3").font(.system(size:42,weight:.ultraLight)).foregroundStyle(Color.mint)}.padding(.vertical,15)
         Button{session.sheet = .newProject}label:{Label("New project",systemImage:"plus")}.buttonStyle(StudioActionStyle()).accessibilityIdentifier("project.new")
         if !Luz.uiTesting || ProcessInfo.processInfo.arguments.contains("--daily"){DailyIdeaCard(session:session)}
+        // 54: a remix link that a messenger did not make tappable is pasted here.
+        HStack(spacing:10){
+            PasteButton(payloadType:String.self){texts in
+                Task{@MainActor in
+                    if let url=RemixLink.link(in:texts.joined(separator:" ")){await session.openRemix(url)}
+                    else{session.message=NSLocalizedString("There is no La Grilla remix link in what you pasted.",comment:"Remix paste")}
+                }
+            }.labelStyle(.titleAndIcon).buttonBorderShape(.capsule).tint(.mint).accessibilityIdentifier("project.paste-remix")
+            Text("Paste a remix link someone sent you.").font(.caption).foregroundStyle(Color.muted)
+        }
         Button{showImport=true}label:{Label("Import project",systemImage:"square.and.arrow.down").font(.system(.subheadline,weight:.medium)).frame(maxWidth:.infinity,minHeight:44)}.buttonStyle(StudioQuietButtonStyle()).tint(.mint).accessibilityIdentifier("project.import")
         Button{guard !openingExample else{return};openingExample=true;Task{_ = await session.openExample();openingExample=false}}label:{Label("Open an example",systemImage:"music.note.list").frame(maxWidth:.infinity,minHeight:44)}.buttonStyle(StudioQuietButtonStyle()).tint(.mint).accessibilityIdentifier("project.example")
         if openingExample{LoadingSkeleton(rows: 2, caption: "Opening example…")}
@@ -54,6 +64,8 @@ struct ProjectsView: View {
         Text("Brings their edits of a shared .grillapack into the open project. One Undo reverts it.").font(.caption).foregroundStyle(Color.muted)
         Text("Opens a separate copy. Your current project is saved first.").font(.caption).foregroundStyle(Color.muted)
         if session.projectChangeQAEnabled{Button{Task{await session.runProjectChangeQA()}}label:{Text(verbatim:"Run project change checks").frame(minHeight:44)}.accessibilityIdentifier("project.change-probe")}
+        // 54: the same challenge for everyone this week, checked against the open song.
+        WeeklyChallengeCard(session:session)
         HStack{SmallHeading(text:"ON THIS IPHONE");Spacer();Text("\(session.entries.count) projects").font(.system(.caption)).foregroundStyle(Color.muted)
             Menu{Picker("Sort by",selection:$orderRaw){ForEach(ProjectOrdering.allCases,id:\.rawValue){order in Text(LocalizedStringKey(order.title)).tag(order.rawValue)}}}label:{Image(systemName:"arrow.up.arrow.down").frame(width:44,height:44)}.accessibilityLabel("Sort projects").accessibilityIdentifier("project.sort")}
         if session.entries.count>3{HStack(spacing:8){Image(systemName:"magnifyingglass").foregroundStyle(Color.muted).accessibilityHidden(true);TextField("Search by name, tempo or key",text:$query).textFieldStyle(.plain).accessibilityIdentifier("project.search");if !query.isEmpty{Button{query=""}label:{Image(systemName:"xmark.circle.fill").foregroundStyle(Color.muted)}.accessibilityLabel("Clear")}}.padding(.horizontal,12).frame(minHeight:44).background(Color.panel,in:Capsule(style:.continuous)).overlay{Capsule(style:.continuous).strokeBorder(Color.outline.opacity(0.8),lineWidth:0.75)}}
