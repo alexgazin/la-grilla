@@ -162,7 +162,10 @@ final class DeviceRecoveryTests: XCTestCase {
         app.buttons["Projects"].tap()
         XCTAssertTrue(app.buttons["project.new"].waitForExistence(timeout: 5))
         app.buttons["project.new"].tap()
+        // The name section sits below "Track in a minute" and "Start with a beat" (build 54).
+        XCTAssertTrue(app.navigationBars["New project"].waitForExistence(timeout: 5))
         let name = app.textFields["project.name"]
+        for _ in 0..<5 where !(name.exists && name.isHittable) { app.swipeUp() }
         XCTAssertTrue(name.waitForExistence(timeout: 5))
         name.tap()
         name.typeText("Offline recovery")
