@@ -167,8 +167,8 @@ final class RemainingIdeasUITests: XCTestCase {
         status.tap()
         let now = app.buttons["save.now"]
         XCTAssertTrue(now.waitForExistence(timeout: 8))
-        let status = app.staticTexts.matching(identifier: "save.status").firstMatch
-        XCTAssertTrue(status.label.contains("Saved"), status.label)
+        let words = app.staticTexts.matching(identifier: "save.status").firstMatch
+        XCTAssertTrue(words.label.contains("Saved"), words.label)
         XCTAssertFalse(now.isEnabled, "Nothing to save on a freshly opened song")
         XCTAssertFalse(app.buttons["save.back"].isEnabled, "Nothing changed since opening")
         XCTAssertTrue(app.buttons["save.copy"].exists)
