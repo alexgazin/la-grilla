@@ -22,7 +22,13 @@ struct SaveCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Label(status, systemImage: session.saveError != nil ? "exclamationmark.triangle.fill" : session.savedRevision == session.project.revision ? "checkmark.circle.fill" : "circle.dotted")
+            // The symbol repeats the words, so VoiceOver reads only the words.
+            Label {
+                Text(status)
+            } icon: {
+                Image(systemName: session.saveError != nil ? "exclamationmark.triangle.fill" : session.savedRevision == session.project.revision ? "checkmark.circle.fill" : "circle.dotted")
+                    .accessibilityHidden(true)
+            }
                 .font(.headline).foregroundStyle(session.saveError != nil ? Color.record : Color.studioText)
                 .accessibilityIdentifier("save.status")
             Text("Your song saves itself a moment after each change. Versions keep the moments you name.")

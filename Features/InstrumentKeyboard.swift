@@ -214,27 +214,27 @@ private struct InstrumentKeyboard: View {
             Toggle("Isomorphic grid", isOn: Binding(get: { isomorphic }, set: { resetKeys(); isomorphic = $0 }))
             Picker("Octaves", selection: Binding(get: { octaveSetting }, set: { resetKeys(); octaveSetting = $0 })) {
                 Text("Automatic").tag(0); Text(verbatim: "1").tag(1); Text(verbatim: "2").tag(2); Text(verbatim: "3").tag(3)
-            }
+            }.pickerStyle(.menu)
             Picker("Key size", selection: Binding(get: { keySize }, set: { resetKeys(); keySize = $0 })) {
                 Text("Small").tag(0); Text("Medium").tag(1); Text("Large").tag(2)
-            }
+            }.pickerStyle(.menu)
             Toggle("Bend and modulation strips", isOn: Binding(get: { bendStrips }, set: { resetKeys(); bendStrips = $0 }))
             Toggle("MPE: slide and press each note", isOn: Binding(get: { mpeKeys }, set: { resetKeys(); mpeKeys = $0; session.midi.mpeKeys = $0; session.audio.setMPE($0) }))
                 .accessibilityIdentifier("keyboard.mpe")
             Picker("Arpeggiator", selection: Binding(get: { arpRate }, set: { resetKeys(); arpRate = $0 })) {
                 Text("Off").tag(0); Text(verbatim: "1/8").tag(480); Text(verbatim: "1/16").tag(240); Text(verbatim: "1/16T").tag(160); Text(verbatim: "1/32").tag(120)
-            }
+            }.pickerStyle(.menu)
             if arpRate > 0 {
                 Picker("Arpeggio order", selection: Binding(get: { arpMode }, set: { resetKeys(); arpMode = $0 })) {
                     Text("Up").tag(0); Text("Down").tag(1); Text("Up and down").tag(2); Text("As played").tag(3)
                     Text("My pattern").tag(ArpPattern.kernelMode)
-                }
+                }.pickerStyle(.menu)
                 if arpMode == ArpPattern.kernelMode {
                     Button("Edit pattern…", systemImage: "square.grid.3x3") { resetKeys(); editingPattern = true }
                 }
                 Picker("Arpeggio octaves", selection: Binding(get: { arpOctaves }, set: { resetKeys(); arpOctaves = $0 })) {
                     Text(verbatim: "1").tag(1); Text(verbatim: "2").tag(2); Text(verbatim: "3").tag(3)
-                }
+                }.pickerStyle(.menu)
             }
         } label: {
             Image(systemName: isomorphic ? "square.grid.4x3.fill" : "rectangle.split.3x1").foregroundStyle(isomorphic ? Color.mint : Color.muted).frame(minWidth: 44, minHeight: 44)
