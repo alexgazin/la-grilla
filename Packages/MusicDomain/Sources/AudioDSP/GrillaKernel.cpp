@@ -19,6 +19,8 @@ struct LGSampleBank {
     bool ringsOut;
     std::vector<int16_t> pcm;
     std::array<LGSampleZone,128> nearest{};
+    // I34: a pad bank with 2…4 layers (zone pitch = layer); 0 velocity split, 1 round robin.
+    int layers=0,layerMode=0;
 };
 namespace {
 template<size_t N>
@@ -372,6 +374,13 @@ struct LGKernel {
         const int count=std::max(1,int(std::ceil(sr*0.003)));*tail={v.lastSample,v.track,count,count};
     }
     void silence(bool all=false){for(auto &v:voices)if(all||v.sourceKey<0){if(!all)retire(v);endOutput(v);v.on=false;}if(all){sustain.fill(false);for(auto &tail:retirements)tail.remaining=0;layoutFadeRemaining=0;}}
+    // I34: which layer of a layered pad sounds — an equal velocity split, or the next in turn.
+    std::array<uint32_t,16> padRobin{};
+    int padLayer(int pad,int velocity,const LGSampleBank &bank){
+        if(bank.layers<2||pad<0||pad>=16)return 0;
+        if(bank.layerMode==1)return int(padRobin[size_t(pad)]++%uint32_t(bank.layers));
+        return std::min(bank.layers-1,std::clamp(velocity,1,127)*bank.layers/128);
+    }
     Voice *trigger(int pitch,int velocity,int track,int pad,int instrument,double duration,bool output=true){
         // A sampled melodic track with a glide slides a still-sounding note to the new pitch
         // instead of starting another one (overlapping notes = a slide).
@@ -419,7 +428,7 @@ struct LGKernel {
         if(current>=0){
             v->sample=slots[current].sampleAt(track,pad);
             if(v->sample){
-                v->zone=v->sample->nearest[pad>=0?0:pitch];
+                v->zone=v->sample->nearest[pad>=0?padLayer(pad,velocity,*v->sample):pitch];
                 v->playbackRatio=double(v->sample->rate)/sr;
                 if(pad>=0)v->duration=double(v->zone.frames)/v->sample->rate;
                 else {
@@ -659,6 +668,13 @@ LGSampleBank *lg_sample_create_with_release(int32_t rate,const LGSampleZone *zon
         }
         return bank;
     }catch(...){return nullptr;}
+}
+LGSampleBank *lg_sample_create_layers(int32_t rate,const LGSampleZone *zones,int32_t count,const int16_t *pcm,int32_t frames,int32_t mode){
+    if(count<2||count>4||(mode!=0&&mode!=1)||!zones)return nullptr;
+    for(int i=0;i<count;i++)if(zones[i].pitch!=i||zones[i].loopStart!=0)return nullptr;
+    auto *bank=lg_sample_create_with_release(rate,zones,count,pcm,frames,0);
+    if(bank){bank->layers=count;bank->layerMode=mode;}
+    return bank;
 }
 void lg_sample_release(LGSampleBank *bank){if(bank&&bank->references.fetch_sub(1,std::memory_order_acq_rel)==1)delete bank;}
 LGKernel*lg_create(double sr){

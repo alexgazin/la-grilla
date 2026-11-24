@@ -2243,3 +2243,14 @@
 "Save as my pattern" = "Save as my pattern";
 "My pattern" = "My pattern";
 "Edit pattern…" = "Edit pattern…";
+"By hit strength" = "By hit strength";
+"In turn" = "In turn";
+"Layers play" = "Layers play";
+"The first layer sounds on soft hits, the last on hard ones." = "The first layer sounds on soft hits, the last on hard ones.";
+"Each hit plays the next layer, so a roll does not sound like a machine gun." = "Each hit plays the next layer, so a roll does not sound like a machine gun.";
+"Add two to four sounds below." = "Add two to four sounds below.";
+"Remove layer %lld" = "Remove layer %lld";
+"Soft to hard" = "Soft to hard";
+"Add a layer" = "Add a layer";
+"Layers on this pad" = "Layers on this pad";
+"Use %lld layers" = "Use %lld layers";

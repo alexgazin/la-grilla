@@ -12,6 +12,9 @@ typedef struct {int32_t pitch,offset,frames,loopStart;} LGSampleZone;
 // retain independent references to immutable sample banks.
 LGSampleBank *lg_sample_create(int32_t rate,const LGSampleZone *zones,int32_t zoneCount,const int16_t *pcm,int32_t frameCount);
 LGSampleBank *lg_sample_create_with_release(int32_t rate,const LGSampleZone *zones,int32_t zoneCount,const int16_t *pcm,int32_t frameCount,int32_t ringsOut);
+// I34: a pad bank of 2…4 one-shot layers (zone i has pitch i, no loop); mode 0 picks a layer by an
+// equal velocity split (soft → hard), mode 1 plays them in turn (round robin).
+LGSampleBank *lg_sample_create_layers(int32_t rate,const LGSampleZone *zones,int32_t zoneCount,const int16_t *pcm,int32_t frameCount,int32_t mode);
 void lg_sample_release(LGSampleBank *bank);
 int lg_sha256(const uint8_t *data, int32_t count, char *hex);
 typedef struct { int32_t tick, duration, pitch, velocity, track, pad, instrument; } LGNote;

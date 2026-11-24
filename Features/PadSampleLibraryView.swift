@@ -52,6 +52,16 @@ struct PadSampleLibraryView: View {
                 } footer: {
                     Text("Tap a sample to use it on this pad. Your library is available in every project.")
                 }
+                // I34: two to four sounds on this pad, by hit strength or in turn.
+                Section {
+                    NavigationLink {
+                        PadLayersBuilder(pad: pad, samples: samples) { sound in use(sound); dismiss() }
+                    } label: {
+                        Label("Layers on this pad", systemImage: "square.stack.3d.up")
+                    }
+                    .accessibilityIdentifier("pad-library.layers")
+                    .disabled(working)
+                }
                 if let error { Label(error, systemImage: "exclamationmark.circle").foregroundStyle(Color.record) }
                 if working { ProgressView("Preparing samples…") }
                 if !filtered.isEmpty {

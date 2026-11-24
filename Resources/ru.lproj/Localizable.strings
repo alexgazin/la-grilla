@@ -2245,3 +2245,14 @@
 "Save as my pattern" = "Сохранить как мой паттерн";
 "My pattern" = "Мой паттерн";
 "Edit pattern…" = "Изменить паттерн…";
+"By hit strength" = "По силе удара";
+"In turn" = "По очереди";
+"Layers play" = "Слои играют";
+"The first layer sounds on soft hits, the last on hard ones." = "Первый слой звучит при тихих ударах, последний — при сильных.";
+"Each hit plays the next layer, so a roll does not sound like a machine gun." = "Каждый удар играет следующий слой, и дробь не звучит как пулемёт.";
+"Add two to four sounds below." = "Добавьте ниже от двух до четырёх звуков.";
+"Remove layer %lld" = "Убрать слой %lld";
+"Soft to hard" = "От тихого к сильному";
+"Add a layer" = "Добавить слой";
+"Layers on this pad" = "Слои на этом пэде";
+"Use %lld layers" = "Поставить слоёв: %lld";

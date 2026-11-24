@@ -13,7 +13,14 @@ struct PreparedSound: Sendable {
 
     init(copying asset: SampleAsset, data: Data) throws {
         self.data = data
-        self.asset = try SampleAsset(kind: asset.kind, name: asset.name, bytes: data, ringsOut: asset.ringsOut == true)
+        self.asset = try SampleAsset(kind: asset.kind, name: asset.name, bytes: data, ringsOut: asset.ringsOut == true, layers: asset.layers)
+    }
+
+    /// I34: two to four one-shots as the layers of one pad.
+    init(layered sounds: [SamplePCM], names: [String], mode: PadLayerMode) throws {
+        let pcm = try PadLayers.combine(sounds)
+        data = try pcm.encode(kind: .oneShot, layered: true)
+        asset = try SampleAsset(kind: .oneShot, name: PadLayers.name(names), bytes: data, layers: mode)
     }
 
     init(name: String, instrumentData: Data, ringsOut: Bool = false) throws {

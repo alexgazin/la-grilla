@@ -61,3 +61,47 @@ struct ArpPatternTests {
         #expect(ArpPatternLibrary(stored: "not json").patterns.isEmpty)
     }
 }
+
+struct PadLayersTests {
+    private func shot(_ value: Int16, frames: Int = 800, rate: Int = 32_000) -> SamplePCM {
+        SamplePCM(rate: rate, zones: [SamplePCM.Zone(pitch: 60, samples: Array(repeating: value, count: frames))])
+    }
+
+    @Test func velocitySplitMirrorsTheKernel() {
+        #expect(PadLayers.layer(velocity: 20, count: 3) == 0 && PadLayers.layer(velocity: 42, count: 3) == 0)
+        #expect(PadLayers.layer(velocity: 43, count: 3) == 1 && PadLayers.layer(velocity: 84, count: 3) == 1)
+        #expect(PadLayers.layer(velocity: 86, count: 3) == 2 && PadLayers.layer(velocity: 127, count: 3) == 2)
+        #expect(PadLayers.layer(velocity: 127, count: 1) == 0 && PadLayers.layer(velocity: 0, count: 4) == 0)
+    }
+
+    @Test func layersAreStoredAsOneLayeredOneShot() throws {
+        let combined = try PadLayers.combine([shot(1000), shot(2000, rate: 16_000), shot(3000)])
+        #expect(combined.rate == 32_000 && combined.zones.map(\.pitch) == [0, 1, 2])
+        #expect(combined.zones[1].samples.count == 1600, "Resampled to the first layer's rate")
+        let data = try combined.encode(kind: .oneShot, layered: true)
+        let asset = try SampleAsset(kind: .oneShot, name: PadLayers.name(["Dusty · Kick", "Coast · Kick", "Rock · Kick"]), bytes: data, layers: .roundRobin)
+        let decoded = try SamplePCM.decode(data, asset: asset)
+        #expect(decoded.zones.count == 3 && decoded.zones[2].samples.first == 3000)
+        #expect(asset.name.hasSuffix("Kick + Kick + Kick"))
+        // The same bytes are not a plain one-shot, and plain one-shots stay single.
+        let plain = try SampleAsset(kind: .oneShot, name: "Plain", bytes: data)
+        #expect(throws: SampleError.self) { try SamplePCM.decode(data, asset: plain) }
+        #expect(throws: SampleError.self) { try combined.encode(kind: .oneShot) }
+        #expect(throws: SampleError.self) { try PadLayers.combine([shot(1)]) }
+        #expect(throws: SampleError.self) { try PadLayers.combine(Array(repeating: shot(1), count: 5)) }
+        #expect(throws: MusicError.self) { try SampleAsset(kind: .instrument, name: "Bad", bytes: data, layers: .velocity) }
+        // Older assets without the field decode unchanged.
+        let json = try JSONEncoder().encode(plain)
+        #expect(try JSONDecoder().decode(SampleAsset.self, from: json).layers == nil)
+    }
+
+    @Test func aLayeredPadValidatesInAProject() throws {
+        var project = Project.demo()
+        let data = try PadLayers.combine([shot(500), shot(900)]).encode(kind: .oneShot, layered: true)
+        let asset = try SampleAsset(kind: .oneShot, name: "Layers · Kick + Kick", bytes: data, layers: .velocity)
+        let drums = try #require(project.tracks.firstIndex { $0.role == .drums })
+        try project.tracks[drums].setPadSample(asset, pad: 0, edit: nil)
+        try project.validate()
+        #expect(project.referencedSamples.contains(asset))
+    }
+}
