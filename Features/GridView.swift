@@ -137,6 +137,8 @@ struct GridView: View {
                     VStack(alignment:.leading,spacing:0){
                         arrangementHeader
                         sectionChips
+                        // 54: a lesson's exercise or a teacher's assignment, ticked as chords are written.
+                        if session.project.harmonyAssignment != nil{AssignmentCheckCard(session:session).padding(.horizontal,16).padding(.bottom,10)}
                         if !hasMusicalEvents{emptyProjectGuide.padding(.horizontal,16).padding(.bottom,14)}
                         else if session.quickTrackFresh{QuickTrackCard(session:session).padding(.horizontal,16).padding(.bottom,10)}
                         else{NextStepCard(session:session).padding(.horizontal,16).padding(.bottom,10)}
@@ -577,6 +579,7 @@ struct GridView: View {
                     Button("+ Add root bass") { session.presentEditor(.bass) }.accessibilityIdentifier("bass.open")
                 }
                 Button("Harmony lab"){session.presentEditor(.harmony)};Button("Piano roll"){session.openNotes()};Button("Assistant"){session.presentEditor(.assistant)};Button("Voice to MIDI"){session.presentEditor(.voice)};Button("Perform"){session.sheet = .perform};Button("MIDI devices"){session.presentEditor(.midiDevices)}
+                Button("Harmony course"){session.presentEditor(.course)}
                 Divider()
                 Button("Settings",systemImage:"gearshape"){session.presentEditor(.settings)}.accessibilityIdentifier("settings.open")
             }.font(.headline).frame(maxWidth:.infinity,minHeight:44).modifier(StudioSurface())
@@ -593,6 +596,8 @@ struct GridView: View {
                     Button("Voice",systemImage:"waveform.badge.mic"){session.presentEditor(.voice)}.accessibilityIdentifier("voice.open")
                     Button("Perform",systemImage:"waveform.path"){session.finishTake();session.sheet = .perform}.accessibilityIdentifier("perform.open")
                     Button("MIDI devices",systemImage:"pianokeys"){session.presentEditor(.midiDevices)}.accessibilityIdentifier("midi.open")
+                    // 54: lessons with exercises checked on your song, and assignments for students.
+                    Button("Harmony course",systemImage:"graduationcap"){session.presentEditor(.course)}.accessibilityIdentifier("course.open")
                     Divider()
                     Button("Settings",systemImage:"gearshape"){session.presentEditor(.settings)}.accessibilityIdentifier("settings.open")
                 }label:{Image(systemName:"ellipsis.circle").frame(width:44,height:44)}.accessibilityLabel("More studio tools").accessibilityIdentifier("tools.more")

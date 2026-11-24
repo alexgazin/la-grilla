@@ -94,7 +94,7 @@ import Observation
     private let runtimeTraceStart=ProcessInfo.processInfo.systemUptime
     let personalKits: PersonalKitStore
     let store: ProjectStore
-    enum Sheet: String, Identifiable {case projects, newProject, trackBuilder, export, settings, gettingStarted, bass, sections, notes, harmony, assistant, voice, perform, midiDevices, palettes, history, versions, trash, commands, variations, comp, chordImport, melodyIdeas, lyrics, master, mood, doctor, earTraining, whatsNew, coNotes, vj, help, grooves, practicePlayer, beatMachine, tuner, markers, dynamics, automation; var id: String { rawValue }}
+    enum Sheet: String, Identifiable {case projects, newProject, trackBuilder, export, settings, gettingStarted, bass, sections, notes, harmony, assistant, voice, perform, midiDevices, palettes, history, versions, trash, commands, variations, comp, chordImport, melodyIdeas, lyrics, master, mood, doctor, earTraining, whatsNew, coNotes, vj, help, grooves, practicePlayer, beatMachine, tuner, markers, dynamics, automation, course; var id: String { rawValue }}
     private static var qaProjectStoreID:UUID? {
         let arguments=ProcessInfo.processInfo.arguments
         guard arguments.contains("--uitesting"),let index=arguments.firstIndex(of:"--project-store-id"),arguments.indices.contains(index+1)else{return nil}
@@ -618,6 +618,7 @@ import Observation
             if let index=project.sections.firstIndex(where:{$0.id==current.id}),index+1<project.sections.count{select(project.sections[index+1])}
         case .doctor: presentEditor(.doctor)
         case .earTraining: presentEditor(.earTraining)
+        case .course: presentEditor(.course)
         }
     }
     /// U8 · Bring back a deleted track, take or clip in one Undo step.
@@ -1396,6 +1397,45 @@ import Observation
         exportedFolder=nil
         if let warning=exportWarning{message=warning;exportWarning=nil}
     }
+    // MARK: 54 · Harmony course and assignments
+
+    /// "Try it": an empty song in `root` with the lesson's exercise, checked as you write.
+    @discardableResult func startLesson(_ lesson:Lesson,root:Int) async -> Bool {
+        do {
+            let name=NSLocalizedString(lesson.title,comment:"Lesson")
+            return await saveNewProject(try HarmonyCourse.workspace(lesson,root:root,name:name))
+        } catch { message=error.localizedDescription; return false }
+    }
+    /// A teacher's assignment as a new song, then the export sheet to send its project file.
+    @discardableResult func shareAssignment(_ assignment:HarmonyAssignment,bars:Int=4) async -> Bool {
+        do {
+            let name=String(format:NSLocalizedString("Assignment: %@",comment:"Assignment project"),NSLocalizedString(assignment.title,comment:"Lesson"))
+            guard await saveNewProject(try assignment.project(name:name,bars:bars)) else { return false }
+            exportPreset=ExportFormat.project.rawValue;sheet = .export
+            return true
+        } catch { message=error.localizedDescription; return false }
+    }
+    /// The student signs the song and sends its project file back.
+    func submitAssignment(student:String) {
+        let name=student.trimmingCharacters(in:.whitespacesAndNewlines)
+        guard project.harmonyAssignment != nil,!name.isEmpty else { return }
+        edit{$0.harmonyAssignment?.student=String(name.prefix(60));$0.harmonyAssignment?.submittedAt=Date()}
+        exportPreset=ExportFormat.project.rawValue;sheet = .export
+    }
+    /// Results of students' songs this teacher has opened, newest first (kept on this iPhone).
+    private(set) var assignmentResults:[AssignmentResult]={
+        guard let data=UserDefaults.standard.data(forKey:"teacher.results"),let list=try? JSONDecoder().decode([AssignmentResult].self,from:data) else{return []}
+        return list
+    }()
+    func recordAssignmentResult(_ project:Project) {
+        guard let result=AssignmentResult(project) else { return }
+        assignmentResults.removeAll{$0.id==result.id}
+        assignmentResults.insert(result,at:0)
+        assignmentResults=Array(assignmentResults.prefix(200))
+        if let data=try? JSONEncoder().encode(assignmentResults){UserDefaults.standard.set(data,forKey:"teacher.results")}
+    }
+    func clearAssignmentResults(){assignmentResults=[];UserDefaults.standard.removeObject(forKey:"teacher.results")}
+
     /// 54 · "Make your version": the song in a remix link becomes a new project of its own,
     /// with the original title and author kept as its credit.
     func openRemix(_ url:URL) async {
@@ -1438,6 +1478,8 @@ import Observation
             try await projectChangeBoundary(token,expected:expected,stage:"candidate.saved")
             activateProject(installed,savedRevision:installed.revision,samples:samples)
             await refreshLibraryEntry(installed.id,validated:true)
+            // 54: a student's song sent back is scored for the teacher.
+            recordAssignmentResult(installed)
         }catch{if let written{await retainUnopenedProject(written)}else{message=error.localizedDescription}}
     }
     /// I78: bring a co-author's edited copy into the open project as one Undo.

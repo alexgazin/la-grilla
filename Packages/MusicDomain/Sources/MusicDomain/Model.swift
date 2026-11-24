@@ -353,6 +353,8 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
     public var markers:[Marker]?
     /// I43: a teacher's beat to play back and score against. Nil in older files.
     public var assignment:Assignment?
+    /// 54: a harmony exercise from a lesson or a teacher, checked on this song. Nil in older files.
+    public var harmonyAssignment:HarmonyAssignment?
     /// Legacy register for implicit root bass. To change it in an existing project,
     /// use MusicalEditing.setBassRegister: explicit rootBassPitch values are absolute
     /// and must be shifted atomically as well; raw field assignment does not do that.
@@ -391,6 +393,7 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
         if let notes{guard notes.count<=200,Set(notes.map(\.id)).count==notes.count,notes.allSatisfy({!$0.text.isEmpty && $0.text.count<=1000 && $0.author.count<=60})else{throw MusicError.invalidProject}}
         if let license{guard ["all-rights","cc-by","cc-by-nc"].contains(license)else{throw MusicError.invalidProject}}
         try assignment?.validate()
+        try harmonyAssignment?.validate()
         if let markers{guard markers.count<=Marker.limit,Set(markers.map(\.id)).count==markers.count,markers.allSatisfy({$0.tick>=0 && $0.tick<songTickLimit && !$0.text.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty && $0.text.count<=200})else{throw MusicError.invalidProject}}
         if let trash=recentlyDeleted{guard trash.count<=ProjectTrash.itemLimit,Set(trash.map(\.id)).count==trash.count,trash.allSatisfy({$0.name.count<=200 && $0.deletedAt.timeIntervalSinceReferenceDate.isFinite})else{throw MusicError.invalidProject}}
         for track in tracks{try track.dynamics?.validate();try track.synth?.validate();if track.synth != nil,track.role == .drums{throw MusicError.invalidProject}

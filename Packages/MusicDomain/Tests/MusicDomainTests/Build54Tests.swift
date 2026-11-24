@@ -212,3 +212,75 @@ struct WeeklyChallengeTests {
         #expect(WeeklyChallenge.meets(.borrowedChord, project))
     }
 }
+
+@Suite("54 · Harmony course")
+struct HarmonyCourseTests {
+    @Test func everyLessonsExampleSolvesItsOwnExerciseInEveryKey() throws {
+        for lesson in HarmonyCourse.lessons where !lesson.rules.contains(.inversion) {
+            for root in [0, 2, 7, 10] {
+                let example = try HarmonyCourse.example(lesson, root: root)
+                for rule in lesson.rules { #expect(rule.isMet(by: example), "\(lesson.id) in \(root): \(rule.title)") }
+            }
+        }
+        #expect(Set(HarmonyCourse.lessons.map(\.id)).count == HarmonyCourse.lessons.count)
+    }
+
+    @Test func anEmptyWorkspaceIsNotDoneAndCarriesTheExercise() throws {
+        let lesson = try #require(HarmonyCourse.lesson("pop-four"))
+        let workspace = try HarmonyCourse.workspace(lesson, root: 5, name: "Try it")
+        let assignment = try #require(workspace.harmonyAssignment)
+        #expect(assignment.lessonID == "pop-four" && assignment.keyRoot == 5)
+        #expect(assignment.score(workspace) == (0, 1))
+    }
+
+    @Test func degreesMatchByKindAndRomanNumeralsRead() {
+        #expect(Degree(7, .major).matches(Chord(root: 7, quality: .seventh), keyRoot: 0), "V7 counts as V")
+        #expect(!Degree(7, .major).matches(Chord(root: 7, quality: .minor), keyRoot: 0))
+        #expect(Degree(2, .minor7).matches(Chord(root: 4, quality: .m7), keyRoot: 2), "ii7 in D is Em7")
+        #expect(Degree(11, .diminished).matches(Chord(root: 11, quality: .dim), keyRoot: 0))
+        #expect([Degree(2, .minor7), Degree(7, .dominant), Degree(0, .major7), Degree(8, .major), Degree(11, .diminished)].map(\.roman) == ["ii7", "V7", "Imaj7", "♭VI", "vii°"])
+    }
+
+    @Test func functionsAndCadencesAreRecognised() throws {
+        let lesson = try #require(HarmonyCourse.lesson("cadences"))
+        var song = try HarmonyCourse.example(lesson, root: 0)
+        #expect(ExerciseRule.ends([Degree(7, .major), Degree(9, .minor)]).isMet(by: song))
+        #expect(ExerciseRule.functions([.tonic, .subdominant, .dominant, .tonic]).isMet(by: song), "I IV V vi is T S D T")
+        // Change the last chord to I: now an authentic cadence, not deceptive.
+        let harmony = try #require(song.tracks.firstIndex { $0.role == .harmony })
+        let pattern = try #require(song.patterns.firstIndex { $0.id == song.tracks[harmony].clips.first?.patternID })
+        song.patterns[pattern].chords[3].chord = Chord(root: 0)
+        #expect(!ExerciseRule.ends([Degree(7, .major), Degree(9, .minor)]).isMet(by: song))
+        #expect(ExerciseRule.ends([Degree(7, .major), Degree(0, .major)]).isMet(by: song))
+    }
+
+    @Test func aTeachersProgressionBecomesAnAssignmentAndASubmissionIsScored() throws {
+        let lesson = try #require(HarmonyCourse.lesson("two-five-one"))
+        let teacherSong = try HarmonyCourse.example(lesson, root: 0)
+        let assignment = try #require(HarmonyAssignment.progression(of: teacherSong, title: "ii–V–I", teacher: "Ms Lee"))
+        #expect(assignment.rules == [.progression([Degree(2, .minor7), Degree(7, .dominant), Degree(0, .major7), Degree(0, .major7)])])
+        var student = try assignment.project(name: "Homework")
+        #expect(student.harmonyAssignment?.teacher == "Ms Lee")
+        #expect(AssignmentResult(student) == nil, "not sent back yet")
+        // The student writes the chords and sends the song back.
+        let harmony = try #require(student.tracks.firstIndex { $0.role == .harmony })
+        let pattern = try #require(student.patterns.firstIndex { $0.id == student.tracks[harmony].clips.first?.patternID })
+        student.patterns[pattern].chords = [Chord(root: 2, quality: .m7), Chord(root: 7, quality: .seventh), Chord(root: 0, quality: .maj7), Chord(root: 0, quality: .maj7)]
+            .enumerated().map { ChordEvent(tick: $0.offset * barTicks, chord: $0.element) }
+        student.harmonyAssignment?.student = "Sam"
+        student.harmonyAssignment?.submittedAt = Date(timeIntervalSince1970: 1_795_000_000)
+        try student.validate()
+        let result = try #require(AssignmentResult(student))
+        #expect(result.student == "Sam" && result.met == 1 && result.total == 1 && result.title == "ii–V–I")
+    }
+
+    @Test func anInversionIsNoticed() throws {
+        let lesson = try #require(HarmonyCourse.lesson("inversions"))
+        var song = try HarmonyCourse.example(lesson, root: 0)
+        #expect(!ExerciseRule.inversion.isMet(by: song))
+        let harmony = try #require(song.tracks.firstIndex { $0.role == .harmony })
+        let pattern = try #require(song.patterns.firstIndex { $0.id == song.tracks[harmony].clips.first?.patternID })
+        song.patterns[pattern].chords[1].chord.slashBass = 11
+        #expect(ExerciseRule.inversion.isMet(by: song))
+    }
+}
