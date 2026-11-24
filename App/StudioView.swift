@@ -40,7 +40,7 @@ struct StudioView: View {
         .overlay(alignment:.bottom){ComfortCompanions(session:session)}
         .overlay(alignment:.top){if let toast=session.toast{Label(LocalizedStringKey(toast),systemImage:toast=="Undo" ? "arrow.uturn.backward":toast=="Redo" ? "arrow.uturn.forward":"checkmark.circle").font(.subheadline.weight(.semibold)).padding(.horizontal,16).padding(.vertical,10).modifier(StudioNavigationSurface()).padding(.top,8).transition(Luz.Transition.drop(reduceMotion)).accessibilityAddTraits(.updatesFrequently).allowsHitTesting(false)}}
         .animation(reduceMotion ? .easeOut(duration:0.15):Luz.Motion.morph,value:session.toast)
-        .sheet(item:$session.sheet,onDismiss:{if let url=session.exportedURL{session.shareURL=url;session.exportedURL=nil}}){sheet in Group{switch sheet {
+        .sheet(item:$session.sheet,onDismiss:{if let url=session.exportedURL{session.shareURL=url;session.exportedURL=nil}}){sheet in VStack(spacing:0){Group{switch sheet {
         case .projects: ProjectsView(session:session)
         case .trackBuilder: TrackBuilderView(session:session)
         case .newProject: NewProjectView(session:session)
@@ -79,7 +79,7 @@ struct StudioView: View {
         case .markers: MarkersView(session:session)
         case .dynamics: DynamicsView(session:session)
         case .practicePlayer: PracticePlayerView(session:session)
-        }}.safeAreaInset(edge:.bottom){if [.bass,.palettes,.lyrics,.harmony].contains(sheet){SheetMiniTransport(session:session)}}
+        }}.frame(maxHeight:.infinity);if [.bass,.palettes,.lyrics,.harmony].contains(sheet){SheetMiniTransport(session:session)}}
         .modifier(SheetZoom(sheet:sheet,namespace:sheetZoom)).modifier(StudioQATypeSize()).scrollContentBackground(.hidden).tint(.mint).presentationDragIndicator(.visible).presentationBackground(Color.panel).presentationCornerRadius(Luz.Radius.sheet)}
         .sheet(isPresented:Binding(get:{session.shareURL != nil},set:{if !$0 {session.shareURL=nil}}),onDismiss:{session.finishSharing()}){if let url=session.shareURL{ShareView(url:url)}}
         .alert("La Grilla",isPresented:Binding(get:{session.message != nil},set:{if !$0{session.message=nil}})){

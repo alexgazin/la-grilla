@@ -22,14 +22,14 @@ final class SongFormTableUITests: XCTestCase {
         table.tap()
         // A menu row can surface as a button or a pop-up button; find it by identifier.
         let order = app.descendants(matching: .any).matching(identifier: "builder.order").firstMatch
-        if !order.waitForExistence(timeout: 5) { print(app.debugDescription) }
-        XCTAssertTrue(order.exists, table.exists ? "The table button is still shown" : "The table opened without its order row")
-        // The table appears where the button was; scroll toward it rather than away from it.
+        _ = order.waitForExistence(timeout: 5)
+        // The builder scrolls to the table; if the row is still out of view, move toward it slowly.
         let window = app.windows.firstMatch.frame
-        for _ in 0..<6 where !order.isHittable || order.frame.maxY > window.maxY - 120 {
+        for _ in 0..<10 where !(order.exists && order.isHittable && order.frame.maxY <= window.maxY - 120) {
             if order.exists, order.frame.minY < window.minY + 120 { app.swipeDown(velocity: .slow) } else { app.swipeUp(velocity: .slow) }
         }
-        XCTAssertTrue(order.isHittable)
+        if !order.isHittable { print(app.debugDescription) }
+        XCTAssertTrue(order.isHittable, table.exists ? "The table button is still shown" : "The table opened without its order row in view")
         XCTAssertTrue(order.label.contains("A · B · A") || app.staticTexts["A · B · A"].exists, order.label)
 
         // Add a chord to part A by tapping it, not typing it.
@@ -48,7 +48,7 @@ final class SongFormTableUITests: XCTestCase {
         let addPart = app.buttons["builder.add-part"]
         for _ in 0..<8 where !addPart.isHittable { app.swipeUp() }
         addPart.tap()
-        for _ in 0..<10 where !order.isHittable { app.swipeDown() }
+        for _ in 0..<10 where !(order.exists && order.isHittable) { app.swipeDown(velocity: .slow) }
         order.tap()
         let ready = app.buttons["A · B · C · B"]
         XCTAssertTrue(ready.waitForExistence(timeout: 5))

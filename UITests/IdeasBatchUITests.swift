@@ -83,7 +83,7 @@ final class IdeasBatchUITests: XCTestCase {
         let field = alert.textFields.firstMatch
         XCTAssertTrue(field.waitForExistence(timeout: 5))
         field.clearAndType("Hook")
-        alert.buttons["Save"].tap()
+        alert.buttons["Save"].firstMatch.tap()
         XCTAssertTrue(app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'grid.section.' AND label CONTAINS 'Hook'")).firstMatch.waitForExistence(timeout: 5))
     }
 }

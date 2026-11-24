@@ -18,6 +18,8 @@ struct TrackBuilderView: View {
     @State private var acceptedIdea: String?
     @State private var history: [TrackBrief] = []
     @State private var programmaticChange: TrackBrief?
+    /// Bumped when "Build by parts in a table" opens the table, to scroll to it.
+    @State private var tableOpened = 0
     @State private var ai = AIComposerController()
     @AppStorage("studio.builder.interpretWithApple") private var interpretWithApple = false
     @State private var interpreting: Task<Void,Never>?
@@ -46,6 +48,7 @@ struct TrackBuilderView: View {
 
     var body: some View {
         NavigationStack {
+            ScrollViewReader { scroller in
             Form {
                 if brief.songForm != nil {
                     Section {
@@ -235,6 +238,11 @@ struct TrackBuilderView: View {
                     }.disabled(preparation != nil || interpreting != nil).accessibilityIdentifier("builder.create")
                 } footer: { Text("Creates a separate editable project.") }
             }
+            // The score appears above when the table opens; keep the table itself in view.
+            .onChange(of: tableOpened) { _, _ in
+                Task { @MainActor in withAnimation(Luz.Motion.snap) { scroller.scrollTo("builder.songform", anchor: .top) } }
+            }
+            }
             .disabled(saving || interpreting != nil)
             .scrollDismissesKeyboard(.interactively)
             .navigationTitle("Build a track")
@@ -326,6 +334,7 @@ struct TrackBuilderView: View {
     private func startTable() {
         acceptedIdea = trimmedIdea; feedback = nil
         brief.songForm = SongFormBrief.starter(keyRoot: brief.root, minor: brief.minor)
+        tableOpened += 1
     }
     private func install(_ next:TrackBrief) {
         history.removeAll()
@@ -519,7 +528,7 @@ private struct SongFormEditor: View {
                     }
                 } label: {
                     LabeledContent("Order") { Text(verbatim: orderText(form.order)).monospaced() }
-                }.accessibilityIdentifier("builder.order")
+                }.accessibilityIdentifier("builder.order").id("builder.songform")
             }
             ForEach(form.order.indices, id: \.self) { position in
                 let source = form.order[position]
