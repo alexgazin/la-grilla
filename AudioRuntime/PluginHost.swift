@@ -56,11 +56,13 @@ enum PluginHost {
     }
     /// An instance for the live engine and the plugin's own screen.
     @MainActor static func instantiateLive(_ reference: PluginReference) async throws -> AVAudioUnit {
-        let unit: AVAudioUnit
-        do { unit = try await AVAudioUnit.instantiate(with: description(reference), options: [.loadOutOfProcess]) }
-        catch { throw PluginHostError.unavailable }
-        restore(reference, into: unit)
-        return unit
+        try await instantiateHandedOver(reference).unit
+    }
+    /// AVAudioUnit is not Sendable, so the new instance crosses to the main actor in a box. Nothing
+    /// else holds it: it is created here and only the caller uses it afterwards.
+    private struct HandedOverUnit: @unchecked Sendable { let unit: AVAudioUnit }
+    private static func instantiateHandedOver(_ reference: PluginReference) async throws -> HandedOverUnit {
+        HandedOverUnit(unit: try await instantiate(reference))
     }
     private static func restore(_ reference: PluginReference, into unit: AVAudioUnit) {
         if let state = reference.state,
