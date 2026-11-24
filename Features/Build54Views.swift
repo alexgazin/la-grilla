@@ -530,7 +530,11 @@ struct PluginsView: View {
                                 Text(verbatim: entry.reference.name + " · " + entry.reference.maker)
                             }
                         }
-                    } label: { Label("Add an effect", systemImage: "plus.circle").frame(minHeight: 44) }
+                    } label: {
+                        // The whole row opens the menu, not only the words on the left.
+                        Label("Add an effect", systemImage: "plus.circle")
+                            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading).contentShape(Rectangle())
+                    }
                         .disabled(effects.isEmpty || (session.project.masterPlugins?.count ?? 0) >= PluginEditing.maximumMasterEffects)
                         .accessibilityIdentifier("plugins.add-effect")
                 } header: { Text("Effects after the mix") } footer: {
