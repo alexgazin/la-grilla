@@ -1472,7 +1472,14 @@ import Observation
     /// UI tests: an audio track with a two-second synthetic take at bar 1 (there is no microphone in CI).
     func installAudioFixture() async {
         guard project.audioTracks == nil, let track=addAudioTrack() else { return }
-        let samples=(0..<96000).map{Float(sin(Double($0)/48000*2 * .pi*330)*0.3*min(1,Double(96000-$0)/4800))}
+        // A 330 Hz tone with a short fade-out, spelled out so the type checker stays quick.
+        let count=96000
+        var samples=[Float](repeating:0,count:count)
+        for index in 0..<count {
+            let phase:Double=Double(index)/48000.0*2.0*Double.pi*330.0
+            let fade:Double=min(1.0,Double(count-index)/4800.0)
+            samples[index]=Float(sin(phase)*0.3*fade)
+        }
         let data=AudioTakeReader.caf(samples,rate:48000)
         guard let sha=try? AssetIntegrity.sha256(data) else { return }
         let record=AudioAssetRecord(sha256:sha,byteCount:data.count,sampleRate:48000,duration:2,origin:.syntheticFixture)
