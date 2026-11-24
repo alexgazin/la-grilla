@@ -213,6 +213,15 @@ struct EqualizerView: View {
                     .contextMenu{if case .track(let id)=destination,selected==0 || selected==3{MIDIAssignButton(session:session,target:selected==0 ? .eqLow:.eqHigh,trackID:id)}}
             }
             control("Q",value:String(format:"%.2f",band.q),binding:Binding(get:{log2(band.q)},set:{ v in update(continuous:true){$0.bands[selected].q=pow(2,v)} }),range:-2...3)
+            // I52: the low and high bands of a track EQ can follow a MIDI knob (also as a button,
+            // because touch and hold on a slider competes with dragging it).
+            if case .track(let id)=destination {
+                Menu {
+                    MIDIAssignButton(session:session,target:.eqLow,trackID:id,named:true)
+                    MIDIAssignButton(session:session,target:.eqHigh,trackID:id,named:true)
+                } label: { Label("Assign a MIDI knob",systemImage:"pianokeys.inverse").font(.subheadline).frame(minHeight:44) }
+                    .accessibilityIdentifier("eq.midi")
+            }
         }.padding(14).background(Color.panel,in:RoundedRectangle(cornerRadius:Luz.Radius.card,style:.continuous))
     }
     private func control(_ title:LocalizedStringKey,value:String,binding:Binding<Double>,range:ClosedRange<Double>)->some View {

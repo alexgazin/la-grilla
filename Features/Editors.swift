@@ -216,7 +216,7 @@ struct SettingsView: View {
             // U14: the top buttons move into the bottom panel, within reach of a thumb.
             Toggle("One-hand reach",isOn:$oneHand).accessibilityIdentifier("settings.one-hand")
             // U63: Low Power Mode slows meters and stills the backdrop; the sound stays the same.
-            if Luz.ecoMode{Label("Eco mode: the sound does not change",systemImage:"leaf").font(.callout).foregroundStyle(Color.mint).accessibilityIdentifier("settings.eco")}
+            if Luz.ecoMode{HStack(spacing:8){Image(systemName:"leaf").accessibilityHidden(true);Text("Eco mode: the sound does not change")}.font(.callout).foregroundStyle(Color.mint).accessibilityElement(children:.combine).accessibilityIdentifier("settings.eco")}
             Toggle("Show time in minutes and seconds",isOn:$showSeconds).accessibilityIdentifier("settings.show-seconds")
             Toggle("Suggest the next step",isOn:Binding(get:{!nextStepOff},set:{nextStepOff = !$0})).accessibilityIdentifier("settings.next-step")
             // U41 · U43 · U57 · U59

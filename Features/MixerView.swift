@@ -718,6 +718,16 @@ private struct SynthEditorView: View {
                     Toggle("Use the synth", isOn: Binding(get: { track.synth != nil }, set: { on in commit(on ? patch : nil) }))
                         .accessibilityIdentifier("synth.enabled")
                     MIDILearningRow(session: session)
+                    if track.synth != nil {
+                        // I52: the knobs' own touch-and-hold menu competes with turning them, so the
+                        // same choice is also a button here.
+                        Menu {
+                            ForEach([MIDIMapping.Target.synthCutoff, .synthResonance, .synthAttack, .synthRelease], id: \.self) { target in
+                                MIDIAssignButton(session: session, target: target, trackID: trackID, named: true)
+                            }
+                        } label: { Label("Assign a MIDI knob", systemImage: "pianokeys.inverse").frame(minHeight: 44) }
+                            .accessibilityIdentifier("synth.midi")
+                    }
                     if track.instrumentSample != nil {
                         Text("This track plays an imported instrument. Choose a built-in sound to hear the synth.").font(.caption).foregroundStyle(Color.muted)
                     }
@@ -837,8 +847,10 @@ struct MIDIAssignButton: View {
     let session: Session
     let target: MIDIMapping.Target
     let trackID: UUID?
+    /// In a list of targets the button names its control; on a single control it says "Assign MIDI".
+    var named = false
     var body: some View {
-        Button("Assign MIDI", systemImage: "pianokeys.inverse") {
+        Button(named ? LocalizedStringKey(target.title) : "Assign MIDI", systemImage: "pianokeys.inverse") {
             if session.project.midi?.enabled != true {
                 session.edit { p in var settings = p.midi ?? MIDISettings(); settings.enabled = true; p.midi = settings }
             }

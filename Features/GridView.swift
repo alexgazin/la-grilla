@@ -79,6 +79,10 @@ struct GridView: View {
     @State private var pinchReference:TimelineZoom?
     @State private var pendingZoom:TimelineZoom.Position?
     @GestureState private var pinchActive=false
+    /// U29 · The chord under a holding finger: it sounds until the finger lifts.
+    @GestureState private var heldChord:UUID?
+    /// U29 · The release that ends a hold is not a tap that opens the chord editor.
+    @State private var chordHoldEnded=false
     @State private var clipMode=ProcessInfo.processInfo.arguments.contains("--arrangement-clips")
     @State private var copyOnDrag=false
     @State private var clipSnap=barTicks
@@ -653,17 +657,22 @@ struct GridView: View {
                 }
             }
         }.frame(height:harmonyHeight)
+        .onChange(of:heldChord){_,id in chordHoldChanged(id)}
     }
     func chordCell(clip:Clip,pattern:Pattern,slice:ArrangementChordSlice)->some View {
         let event=slice.event,tick=slice.sourceTick
         return Button {
+            if chordHoldEnded { return }
             selection=ChordSelection(id:event?.id ?? UUID(),patternID:pattern.id,
                 tick:tick,
                 chord:event?.chord ?? Chord(root:session.displayProject.keyRoot,quality:session.displayProject.minor ? .minor:.major),
                 duration:event?.duration ?? slice.duration)
         } label: { ChordTile(chord:event?.chord,width:max(8,CGFloat(slice.duration)/CGFloat(barTicks)*barWidth-6),height:harmonyHeight-16,keyRoot:session.displayProject.keyRoot,minor:session.displayProject.minor,spelling:PitchSpelling(rawValue:pitchSpelling) ?? .automatic,showDegrees:showDegrees,audio:session.audio,playRange:slice.timelineTick..<(slice.timelineTick+slice.duration)) }
         .buttonStyle(StudioQuietButtonStyle()).disabled(editingLocked).accessibilityIdentifier("grid.chord.\(slice.id)").offset(x:CGFloat(slice.timelineTick)/CGFloat(barTicks)*barWidth+3,y:8)
-        .simultaneousGesture(LongPressGesture(minimumDuration:0.35).sequenced(before:DragGesture()).onEnded { value in
+        // U29: touch and hold a chord to hear it while the finger stays down (dragging still moves it).
+        .simultaneousGesture(LongPressGesture(minimumDuration:0.35).sequenced(before:DragGesture())
+            .updating($heldChord) { value, state, _ in if case .second(true,_)=value, let event { state=event.id } }
+            .onEnded { value in
             if case .second(true,let drag?)=value,let event {
                 let delta=Int((drag.translation.width/barWidth*16).rounded())*240
                 session.edit { p in
@@ -681,11 +690,16 @@ struct GridView: View {
                     }
                 }
             }
-        } preview: {
-            // U29: touch and hold a chord to hear it for as long as the menu is held open.
-            HeldChordPreview(chord:event?.chord,keyRoot:session.displayProject.keyRoot,minor:session.displayProject.minor)
-                .onAppear{if let chord=event?.chord{session.previewHold(chord:chord)}}
-                .onDisappear{session.endHold()}
+        }
+    }
+    /// U29 · Starts and stops the held chord's sound; the release that ends a hold opens nothing.
+    private func chordHoldChanged(_ id:UUID?) {
+        if let id {
+            chordHoldEnded=true
+            if let chord=session.displayProject.patterns.lazy.flatMap(\.chords).first(where:{$0.id==id})?.chord { session.previewHold(chord:chord) }
+        } else {
+            session.endHold()
+            Task { @MainActor in try? await Task.sleep(for:.milliseconds(400)); chordHoldEnded=false }
         }
     }
     var drumLane: some View {
@@ -842,25 +856,6 @@ struct NextStepCard: View {
             .background(Color.panel, in: RoundedRectangle(cornerRadius: Luz.Radius.card, style: .continuous))
             .accessibilityElement(children: .contain).accessibilityIdentifier("next-step")
         }
-    }
-}
-
-/// U29 · The lifted chord while it sounds: its symbol and notes.
-private struct HeldChordPreview: View {
-    let chord: Chord?
-    let keyRoot: Int
-    let minor: Bool
-    var body: some View {
-        VStack(spacing: 6) {
-            Image(systemName: "speaker.wave.2.fill").foregroundStyle(Color.harmony).accessibilityHidden(true)
-            if let chord {
-                Text(verbatim: MusicalNotation.chordSymbol(chord, keyRoot: keyRoot, minor: minor)).font(.title.weight(.semibold))
-                Text(verbatim: MusicalNotation.chordNoteNames(chord, keyRoot: keyRoot, minor: minor).joined(separator: " · ")).font(.caption.monospaced()).foregroundStyle(Color.muted)
-            } else {
-                Text("Empty bar").font(.headline)
-            }
-        }
-        .padding(20).frame(minWidth: 160).background(Color.panel)
     }
 }
 

@@ -165,7 +165,7 @@ public enum WhatsNew {
         .init(symbol: "hand.tap", title: "Hold to hear, everywhere", detail: "Hold a chord, a note, a sound, a beat or a song picture: it plays while you hold and nothing changes.", command: .grid),
         .init(symbol: "scissors", title: "Slice a loop your way", detail: "See the cuts on the waveform, move or add them, hear each slice, then put them on pads 1–16.", command: .jam),
         .init(symbol: "arrow.uturn.backward.circle", title: "Unsaved changes come back", detail: "After a crash La Grilla offers to restore what you did since the last save, with one Undo.", command: nil),
-        .init(symbol: "pianokeys", title: "Your own 808 and MIDI learn", detail: "Play the bass line with your own sound in Beat machine; hold a synth or EQ knob to assign a MIDI control.", command: .beatMachine),
+        .init(symbol: "pianokeys", title: "Your own 808 and MIDI learn", detail: "Play the bass line with your own sound in Beat machine; in the synth or EQ, Assign a MIDI knob.", command: .beatMachine),
         .init(symbol: "speaker.wave.2", title: "Compare at the same loudness", detail: "EQ with and without, matched within half a decibel, so louder never sounds better by accident.", command: .mixer),
         .init(symbol: "leaf", title: "Eco mode and hints", detail: "Low Power Mode calms the screen, never the sound; Assistant and new songs suggest words to start with.", command: .settings),
     ]

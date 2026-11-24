@@ -36,9 +36,9 @@ final class Build53UITests: XCTestCase {
         return app.collectionViews.firstMatch.exists ? app.collectionViews.firstMatch : app.tables.firstMatch
     }
 
-    @MainActor private func reach(_ element: XCUIElement, in scroll: XCUIElement) {
+    @MainActor private func reach(_ element: XCUIElement, in scroll: XCUIElement, _ name: String) {
         for _ in 0..<12 where !(element.exists && element.isHittable) { scroll.swipeUp() }
-        XCTAssertTrue(element.exists, "\(element.identifier) should exist")
+        XCTAssertTrue(element.exists, "\(name) should be on the screen")
     }
 
     @MainActor private func shoot(_ name: String) {
@@ -54,13 +54,16 @@ final class Build53UITests: XCTestCase {
         let hold = any(app, "studio.hold")
         XCTAssertTrue(hold.waitForExistence(timeout: 5))
         XCTAssertEqual(hold.label, "0 off")
+        // A hold sounds the chord until the finger lifts (press() returns after the release).
         chord.press(forDuration: 1.2)
-        XCTAssertTrue(eventually { hold.label == "1 on" }, "The chord sounds while its menu is held open: \(hold.label)")
+        XCTAssertTrue(eventually { hold.label == "1 off" }, "The held chord sounded and stopped on release: \(hold.label)")
         shoot("U29-held-chord")
-        // Closing the menu stops the sound; the song is unchanged.
-        app.windows.firstMatch.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.08)).tap()
-        XCTAssertTrue(eventually { hold.label == "1 off" }, hold.label)
+        XCTAssertFalse(app.navigationBars["Edit chord"].exists, "The release that ends a hold opens nothing")
         XCTAssertFalse(app.buttons["Undo"].firstMatch.isEnabled, "Holding a chord never edits the song")
+        // A plain tap still opens the chord editor.
+        RunLoop.current.run(until: Date().addingTimeInterval(0.6))
+        chord.tap()
+        XCTAssertTrue(app.navigationBars["Edit chord"].waitForExistence(timeout: 8))
     }
 
     // MARK: U33
@@ -93,9 +96,9 @@ final class Build53UITests: XCTestCase {
     @MainActor func testEcoModeAndLaunchTimeInSettings() {
         let app = launch("grid", ["--low-power"])
         let form = openSettings(app)
-        reach(app.staticTexts["settings.eco"].exists ? app.staticTexts["settings.eco"] : any(app, "settings.eco"), in: form)
+        reach(any(app, "settings.eco"), in: form, "Eco mode note")
         let launchTime = any(app, "settings.launch-time")
-        reach(launchTime, in: form)
+        reach(launchTime, in: form, "Launch time")
         XCTAssertTrue((launchTime.label + (launchTime.value as? String ?? "")).contains("ms"))
     }
 
@@ -194,10 +197,15 @@ final class Build53UITests: XCTestCase {
         XCTAssertTrue(synth.waitForExistence(timeout: 5)); synth.tap()
         let use = app.switches["synth.enabled"]
         XCTAssertTrue(use.waitForExistence(timeout: 8))
-        if (use.value as? String) != "1" { use.tap() }
-        let cutoff = app.descendants(matching: .any).matching(NSPredicate(format: "label BEGINSWITH 'Cutoff'")).firstMatch
-        XCTAssertTrue(cutoff.waitForExistence(timeout: 8))
-        cutoff.press(forDuration: 1.2)
+        // The row is one element; the switch inside it is what turns the synth on.
+        if (use.value as? String) != "1" {
+            let inner = use.switches.firstMatch
+            if inner.exists { inner.tap() } else { use.coordinate(withNormalizedOffset: CGVector(dx: 0.92, dy: 0.5)).tap() }
+        }
+        XCTAssertTrue(eventually { (use.value as? String) == "1" }, "The synth is on")
+        // "Assign a MIDI knob" lists the synth's knobs.
+        let midi = app.buttons["synth.midi"]
+        XCTAssertTrue(midi.waitForExistence(timeout: 8)); midi.tap()
         let assign = app.buttons["midi.assign.synthCutoff"]
         XCTAssertTrue(assign.waitForExistence(timeout: 5)); assign.tap()
         // The open sheet itself says it is waiting for a controller and offers a way out.

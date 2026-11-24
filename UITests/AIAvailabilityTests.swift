@@ -4,7 +4,9 @@ import XCTest
 /// injected. A model that is not ready, or an unsupported locale, requires local
 /// fallback. These cases do not prove model generation or global unavailability.
 final class AIAvailabilityTests:XCTestCase {
-    override func setUp(){super.setUp();continueAfterFailure=false;executionTimeAllowance=120}
+    // The local review journey already took up to 120.3 s on CI in build 51; the Listen → Apply →
+    // Discard block (build 53) adds one scroll before Apply, so the budget is 180 s.
+    override func setUp(){super.setUp();continueAfterFailure=false;executionTimeAllowance=180}
 
     @MainActor func testActualUnavailableModelRecheckPreservesIndependentLanguagesInputAndProject(){
         let app=launch()
