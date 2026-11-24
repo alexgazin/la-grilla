@@ -43,11 +43,22 @@ struct StudioView: View {
             if landscape{compactSidebar}
         }
     }
+    /// Audio and save errors and the I68 recovery offer, above the studio.
+    @ViewBuilder private var notices: some View {
+        if let error=session.audio.error {LuzNotice(kind:.danger,symbol:"speaker.slash",text:LocalizedStringKey(error),actions:[("Retry",{_ = session.ensureAudio()})]).padding(.horizontal,8).padding(.top,6).transition(Luz.Transition.drop(reduceMotion))}
+        // I68: the app stopped before saving the last edits; bring them back or let them go.
+        if let journal=session.recoverable {
+            LuzNotice(kind:.caution,symbol:"clock.arrow.circlepath",
+                      text:LocalizedStringKey(String(format:NSLocalizedString("Restore unsaved changes? %@",comment:"Recovery"),HistoryText.line(journal.changes(over:session.project)))),
+                      actions:[("Restore",{session.restoreRecoverable()}),("Discard",{session.discardRecoverable()})])
+                .padding(.horizontal,8).padding(.top,6).accessibilityIdentifier("studio.recovery").transition(Luz.Transition.drop(reduceMotion))
+        }
+        if let error=session.saveError {LuzNotice(kind:.danger,text:LocalizedStringKey(error),actions:[("Retry",{Task{await session.save()}}),("Save copy",{Task{await session.saveCopy()}})]).padding(.horizontal,8).padding(.top,6).transition(Luz.Transition.drop(reduceMotion))}
+    }
     /// The studio with its notices, companions and toast (split from `body` for the type checker).
     private var stage: some View {
         VStack(spacing:0){
-            if let error=session.audio.error {LuzNotice(kind:.danger,symbol:"speaker.slash",text:LocalizedStringKey(error),actions:[("Retry",{_ = session.ensureAudio()})]).padding(.horizontal,8).padding(.top,6).transition(Luz.Transition.drop(reduceMotion))}
-            if let error=session.saveError {LuzNotice(kind:.danger,text:LocalizedStringKey(error),actions:[("Retry",{Task{await session.save()}}),("Save copy",{Task{await session.saveCopy()}})]).padding(.horizontal,8).padding(.top,6).transition(Luz.Transition.drop(reduceMotion))}
+            notices
             studioLayout
         }.animation(reduceMotion ? nil:Luz.Motion.morph,value:session.saveError).animation(reduceMotion ? nil:Luz.Motion.morph,value:session.audio.error)
         .background(Color.ink).foregroundStyle(Color.studioText)

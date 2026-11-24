@@ -266,6 +266,8 @@ struct SettingsView: View {
             // U11: the demo song and the five-step tour, again.
             Button{Task{await session.startTour()}}label:{Label("Show me around",systemImage:"hand.point.up.left")}.accessibilityIdentifier("settings.tour")
             LabeledContent("Version",value:"\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "") (\(Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? ""))")
+            // U20 · U49: how long this launch took to a ready studio, for testers to report.
+            LabeledContent("Launch time",value:String(format:NSLocalizedString("%lld ms",comment:"Launch time"),Int64(session.launchMilliseconds))).accessibilityIdentifier("settings.launch-time")
             Link("Privacy policy",destination:URL(string:"https://github.com/alexgazin/la-grilla/blob/main/docs/privacy/"+(Locale.current.language.languageCode?.identifier=="ru" ? "ru":"en")+".md")!)
             Link("Support",destination:URL(string:"https://github.com/alexgazin/la-grilla/issues")!)
             Text("Projects and recordings stay on your iPhone. Portable project exports include their original voice recordings.").font(.caption).foregroundStyle(.secondary)

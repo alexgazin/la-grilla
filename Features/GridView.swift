@@ -99,6 +99,8 @@ struct GridView: View {
     }
     private let gutter:CGFloat=56
     @Environment(\.studioDensity) private var density
+    /// U15: VoiceOver users get the song as a table above the grid.
+    @Environment(\.accessibilityVoiceOverEnabled) private var voiceOverOn
     /// U39: compact lanes are a little lower, large ones a little taller.
     private var laneScale:CGFloat{min(1.35,max(0.78,(viewport.height-155)/324))*(1+(CGFloat(density.spacing)-1)/2)}
     private var harmonyHeight:CGFloat{132*laneScale}
@@ -134,6 +136,7 @@ struct GridView: View {
                         if !hasMusicalEvents{emptyProjectGuide.padding(.horizontal,16).padding(.bottom,14)}
                         else{NextStepCard(session:session).padding(.horizontal,16).padding(.bottom,10)}
                         CoachTipBanner(tips:[.pinchGrid,.renameSection,.undoHistory]).padding(.horizontal,16).padding(.bottom,10)
+                        if voiceOverOn || ProcessInfo.processInfo.arguments.contains("--voiceover-table"){GridAccessibleTable(session:session).padding(.horizontal,16).padding(.bottom,10)}
                         if clipMode{clipControls.padding(.horizontal,16).padding(.bottom,8)}
                         HStack(spacing:0){
                             VStack(spacing:0){Color.ink.frame(height:28);trackLabel(.harmony,height:harmonyHeight);trackLabel(.drums,height:drumHeight);if showsRootBassLane { trackLabel(.bass,height:bassHeight) };ForEach(session.displayProject.tracks.filter{$0.role == .melody}){track in melodyTrackLabel(track)}}.frame(width:gutter)
@@ -878,5 +881,38 @@ struct TrackLevelBar: View {
         .accessibilityLabel(Text("Level"))
         .accessibilityValue(Text(level > 0.01 ? "Playing" : "Silent"))
         .accessibilityIdentifier("grid.level")
+    }
+}
+
+/// U15 · The song as a table for VoiceOver: a row per bar, read as "Bar 3, Verse. Harmony: Am.
+/// Drums: 12 hits." A "Bars" rotor jumps between rows; activating a row selects its section and
+/// moves the playhead to the bar. Shown while VoiceOver runs (and in UI tests on request).
+struct GridAccessibleTable: View {
+    @Bindable var session: Session
+    @Namespace private var rotor
+    var body: some View {
+        let rows = AccessibleGridTable.rows(session.displayProject) { MusicalNotation.chordSymbol($0, keyRoot: session.displayProject.keyRoot, minor: session.displayProject.minor) }
+        VStack(alignment: .leading, spacing: 2) {
+            Text("SONG TABLE").font(.caption.weight(.semibold)).tracking(1.1).foregroundStyle(Color.muted).accessibilityAddTraits(.isHeader)
+            ForEach(rows) { row in
+                Button {
+                    let tick = (row.bar - 1) * barTicks
+                    if let section = session.project.sections.first(where: { $0.start <= tick && tick < $0.start + $0.length }) { session.select(section) }
+                    session.audio.seek(tick)
+                } label: {
+                    Text(verbatim: row.label).font(.caption).frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                }
+                .buttonStyle(StudioQuietButtonStyle(plate: false))
+                .accessibilityRotorEntry(id: row.bar, in: rotor)
+                .accessibilityIdentifier("grid.table.row.\(row.bar)")
+            }
+        }
+        .padding(10)
+        .background(Color.panel, in: RoundedRectangle(cornerRadius: Luz.Radius.card, style: .continuous))
+        .accessibilityElement(children: .contain)
+        .accessibilityRotor("Bars") {
+            ForEach(rows) { row in AccessibilityRotorEntry(Text(verbatim: row.label), id: row.bar, in: rotor) }
+        }
+        .accessibilityIdentifier("grid.table")
     }
 }

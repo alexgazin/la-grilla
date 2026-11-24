@@ -330,3 +330,88 @@ struct PadDragTests {
         #expect(project.patterns.flatMap(\.drums).filter { $0.pad == 0 }.isEmpty)
     }
 }
+
+@Suite("I52 MIDI learn routing")
+struct MIDILearnRoutingTests {
+    @Test func synthEQReverbAndDriveFollowTheirControllers() throws {
+        var project = Project.demo()
+        try project.addMelody(name: "Lead")
+        let lead = try #require(project.tracks.first { $0.role == .melody }).id
+        let drums = try #require(project.tracks.first { $0.role == .drums }).id
+        func send(_ target: MIDIMapping.Target, _ byte: Int, track: UUID? = lead) -> Bool {
+            let mapping = MIDIMapping(sourceID: 1, channel: 0, controller: 21, target: target, trackID: target.needsTrack ? track : nil)
+            return mapping.apply(mapping.value(byte), to: &project)
+        }
+        #expect(send(.synthCutoff, 127) && send(.synthResonance, 127) && send(.synthAttack, 0) && send(.synthRelease, 127))
+        let synth = try #require(project.tracks.first { $0.id == lead }?.synth)
+        #expect(synth.cutoff == 1 && abs(synth.resonance - 0.9) < 1e-9 && synth.attack == 0 && synth.release == 8)
+        #expect(send(.eqLow, 0) && send(.eqHigh, 64) && send(.reverbSend, 127) && send(.drive, 127))
+        let track = try #require(project.tracks.first { $0.id == lead })
+        #expect(track.equalizer?.bands[0].gain == -18 && track.equalizer?.bands[3].gain == 0)
+        #expect(track.dynamics?.reverbSend == 0.5 && abs((track.dynamics?.drive ?? 0) - 0.7) < 1e-9)
+        try project.validate()
+        // A drum track has no synth; a missing track changes nothing.
+        let before = project
+        #expect(!send(.synthCutoff, 100, track: drums))
+        #expect(!send(.eqLow, 100, track: UUID()))
+        #expect(project == before)
+        // Track controls need a track; master ones must not have one.
+        #expect(MIDIMapping.Target.allCases.filter { !$0.needsTrack } == [.masterGain, .filter, .delay])
+        let mapped = MIDIMapping(sourceID: 1, channel: 0, controller: 21, target: .synthCutoff, trackID: nil)
+        #expect(throws: MusicError.self) { try mapped.validate(project) }
+    }
+}
+
+@Suite("I68 edit journal")
+struct EditJournalTests {
+    @Test func theJournalRestoresWhatWasNotSaved() throws {
+        var saved = Project.demo(); saved.revision = 7
+        var journal = EditJournal(saved: saved, savedRevision: 7)
+        var now = saved
+        now.bpm = 96; now.revision = 8
+        journal.record(now, edit: "Tempo 96", savedRevision: 7)
+        try SectionEditing.append(name: "Chorus", bars: 4, to: &now); now.revision = 9
+        journal.record(now, edit: "Add Chorus", savedRevision: 7)
+        // After a crash, the saved file is revision 7; the journal brings back 9.
+        let data = try journal.encoded()
+        let read = try #require(EditJournal.decode(data))
+        let recovered = try #require(read.recovery(over: saved))
+        #expect(recovered == now && read.edits == ["Tempo 96", "Add Chorus"])
+        #expect(read.changes(over: saved).contains { $0.area == .tempo })
+        #expect(read.changes(over: saved).contains { $0.area == .structure })
+    }
+
+    @Test func nothingIsOfferedWhenSavedOrForAnotherSong() {
+        var saved = Project.demo(); saved.revision = 5
+        var journal = EditJournal(saved: saved, savedRevision: 5)
+        var now = saved; now.bpm = 100; now.revision = 6
+        journal.record(now, edit: "Tempo 100", savedRevision: 5)
+        var newer = now; newer.revision = 6
+        #expect(journal.recovery(over: newer) == nil, "already saved")
+        #expect(journal.isSaved(at: 6) && !journal.isSaved(at: 5))
+        #expect(journal.recovery(over: Project.demo()) == nil, "another song")
+        // A different song resets the journal.
+        let other = Project.demo()
+        journal.record(other, edit: "x", savedRevision: 0)
+        #expect(journal.projectID == other.id && journal.edits == ["x"])
+        // Only the last twenty names are kept.
+        for index in 0..<30 { journal.record(other, edit: "edit \(index)", savedRevision: 0) }
+        #expect(journal.edits.count == EditJournal.summaryLimit && journal.edits.last == "edit 29")
+    }
+}
+
+@Suite("U15 grid as a table")
+struct AccessibleGridTableTests {
+    @Test func oneRowPerBarWithACellPerTrack() throws {
+        let project = Project.demo()
+        let rows = AccessibleGridTable.rows(project)
+        #expect(rows.count == project.length / barTicks)
+        #expect(rows[0].bar == 1 && rows[0].section == project.sections[0].name)
+        #expect(rows[0].cells.count == project.tracks.count)
+        // The demo: C, Am, F, G one per bar; the beat has eight hits a bar (2 kicks, 2 snares, 8 hats = 12).
+        #expect(rows[1].cells.first { $0.track == project.tracks[0].displayName }?.text == "Am")
+        let drums = try #require(rows[0].cells.first { $0.track == project.tracks[1].displayName })
+        #expect(drums.text.hasPrefix("12"))
+        #expect(rows[2].label.hasPrefix("Bar 3,") && rows[2].label.contains("F"))
+    }
+}

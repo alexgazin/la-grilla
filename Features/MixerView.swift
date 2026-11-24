@@ -766,6 +766,18 @@ private struct SynthEditorView: View {
         }), range: range, defaultValue: initial, tint: Color.track(track?.role ?? .melody), format: format,
                 onEditingChanged: { editing in if !editing { commit(patch) } })
             .frame(maxWidth: .infinity)
+            // I52: touch and hold a knob → "Assign MIDI", then move a controller.
+            .contextMenu { if let target = Self.midiTarget(key) { MIDIAssignButton(session: session, target: target, trackID: trackID) } }
+    }
+
+    static func midiTarget(_ key: WritableKeyPath<SynthPatch, Double>) -> MIDIMapping.Target? {
+        switch key {
+        case \SynthPatch.cutoff: .synthCutoff
+        case \SynthPatch.resonance: .synthResonance
+        case \SynthPatch.attack: .synthAttack
+        case \SynthPatch.release: .synthRelease
+        default: nil
+        }
     }
 
     private func commit(_ value: SynthPatch?) {
@@ -798,5 +810,23 @@ private struct SoundingDot: View {
             index -= 1
         }
         return false
+    }
+}
+
+/// I52 · "Assign MIDI" on a knob: the next controller moved on a connected device controls it.
+struct MIDIAssignButton: View {
+    let session: Session
+    let target: MIDIMapping.Target
+    let trackID: UUID?
+    var body: some View {
+        Button("Assign MIDI", systemImage: "pianokeys.inverse") {
+            if session.project.midi?.enabled != true {
+                session.edit { p in var settings = p.midi ?? MIDISettings(); settings.enabled = true; p.midi = settings }
+            }
+            session.midi.learning = target
+            session.midi.learningTrack = target.needsTrack ? trackID : nil
+            session.showToast("Move a knob on your MIDI controller")
+        }
+        .accessibilityIdentifier("midi.assign.\(target.rawValue)")
     }
 }

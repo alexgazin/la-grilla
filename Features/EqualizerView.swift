@@ -208,6 +208,8 @@ struct EqualizerView: View {
             control("Frequency",value:String(format:"%.0f Hz",band.frequency),binding:Binding(get:{x(band.frequency)},set:{ n in update(continuous:true){$0.bands[selected].frequency=hz(n)} }),range:0...1)
             if band.filter.hasGain {
                 control("Gain",value:String(format:"%+.1f dB",band.gain),binding:Binding(get:{band.gain},set:{ v in update(continuous:true){$0.bands[selected].gain=v} }),range:-18...18)
+                    // I52: the low and high bands of a track EQ can follow a MIDI knob.
+                    .contextMenu{if case .track(let id)=destination,selected==0 || selected==3{MIDIAssignButton(session:session,target:selected==0 ? .eqLow:.eqHigh,trackID:id)}}
             }
             control("Q",value:String(format:"%.2f",band.q),binding:Binding(get:{log2(band.q)},set:{ v in update(continuous:true){$0.bands[selected].q=pow(2,v)} }),range:-2...3)
         }.padding(14).background(Color.panel,in:RoundedRectangle(cornerRadius:Luz.Radius.card,style:.continuous))
