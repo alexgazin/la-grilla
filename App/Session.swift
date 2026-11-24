@@ -1167,6 +1167,33 @@ import Observation
         } catch { message=error.localizedDescription; return false }
     }
 
+    /// 54 · Track in a minute: a new project in `genre` with beat, 808, chords, bass and melody as
+    /// a verse and a chorus, applied as one undoable edit so "Another one" can swap it.
+    var quickTrack:(genre:BeatPreset.Genre,seed:UInt32,projectID:UUID,revision:Int)?
+    /// The card offering a clip and "Another one" shows while the track is as it was made.
+    var quickTrackFresh:Bool{guard let quickTrack else{return false};return quickTrack.projectID==project.id && quickTrack.revision==project.revision}
+    @discardableResult func createQuickTrack(_ genre:BeatPreset.Genre,name:String,root:Int,minor:Bool,seed:UInt32=0) async -> Bool {
+        let title=name.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty ? NSLocalizedString(genre.title,comment:"Genre") : name
+        guard await create(name:title,bpm:QuickTrack.tempo(for:genre,seed:seed),root:root,minor:minor,bars:QuickTrack.sectionBars) else { return false }
+        return await fillQuickTrack(genre,seed:seed)
+    }
+    /// 54 · "Another one": back to the empty project, then a different beat and melody.
+    @discardableResult func anotherQuickTrack() async -> Bool {
+        guard let current=quickTrack,quickTrackFresh,history.canUndo else { return false }
+        undo()
+        return await fillQuickTrack(current.genre,seed:current.seed &+ 1)
+    }
+    private func fillQuickTrack(_ genre:BeatPreset.Genre,seed:UInt32) async -> Bool {
+        let base=project,id=project.id,revision=project.revision
+        do {
+            let result=try await Task.detached(priority:.userInitiated){try QuickTrack.make(from:base,genre:genre,seed:seed)}.value
+            try await applyPalette(result.project,kit:result.sounds,projectID:id,revision:revision)
+            quickTrack=(genre,seed,project.id,project.revision)
+            if let verse=project.sections.first{select(verse)}
+            return true
+        } catch { message=error.localizedDescription; return false }
+    }
+
     @discardableResult func saveGeneratedTrack(_ draft: PreparedTrackDraft) async -> Bool {
         await saveNewProject(draft.project, preparedDraft: draft)
     }
@@ -1278,6 +1305,10 @@ import Observation
         var title:String{switch self{case .midi:"Standard MIDI";case .wav:"Stereo WAV";case .stems:"Aligned stems";case .project:"Portable project";case .aac:"AAC for sharing";case .video:"Video for social";case .daw:"For a DAW: stems, MIDI, README";case .musicxml:"Lead sheet (MusicXML)";case .ringtone:"Ringtone (30 s)"}}
         var fileExtension:String{switch self{case .midi:"mid";case .wav:"wav";case .stems,.daw:"zip";case .project:"grillapack";case .aac:"m4a";case .video:"mp4";case .musicxml:"musicxml";case .ringtone:"m4r"}}
     }
+    /// 54: the picture and credit of the next video export, and a clip length the export sheet opens with.
+    var videoStyle:VideoStyle = .map
+    var videoCredit=true
+    var exportClip:ShareClip.Length?
     func export(format:ExportFormat,settings:WAVSettings,range:Range<Int>,tracks:Set<UUID>,performance:PerformanceTake?=nil) {
         if performance != nil && format != .midi && format != .wav && format != .aac{exportError="Choose WAV or MIDI for a performance.";return}
         finishTake();cancelExport();exportGeneration+=1;let generation=exportGeneration
@@ -1326,7 +1357,8 @@ import Observation
                     let half:@Sendable(Double)->Void={value in progress(value*0.5)}
                     let receipt=try await OfflineRenderer.render(snapshot,to:wav,settings:settings,range:range,samples:samples,progress:half)
                     if receipt.clipped{exportWarning="Clipping was detected. Lower track or master gain for a cleaner export."}
-                    try await Task.detached(priority:.userInitiated){try await VideoExporter.encode(wav:wav,project:snapshot,range:range,to:url,progress:progress)}.value
+                    let style=videoStyle,credit=videoCredit
+                    try await Task.detached(priority:.userInitiated){try await VideoExporter.encode(wav:wav,project:snapshot,range:range,to:url,style:style,credit:credit,progress:progress)}.value
                     try? FileManager.default.removeItem(at:wav)
                 }
                 try Task.checkCancellation();guard generation==exportGeneration else{return}

@@ -138,6 +138,7 @@ struct GridView: View {
                         arrangementHeader
                         sectionChips
                         if !hasMusicalEvents{emptyProjectGuide.padding(.horizontal,16).padding(.bottom,14)}
+                        else if session.quickTrackFresh{QuickTrackCard(session:session).padding(.horizontal,16).padding(.bottom,10)}
                         else{NextStepCard(session:session).padding(.horizontal,16).padding(.bottom,10)}
                         CoachTipBanner(tips:[.pinchGrid,.renameSection,.undoHistory]).padding(.horizontal,16).padding(.bottom,10)
                         if voiceOverOn || ProcessInfo.processInfo.arguments.contains("--voiceover-table"){GridAccessibleTable(session:session).padding(.horizontal,16).padding(.bottom,10)}
@@ -823,6 +824,36 @@ struct ChordTile: View {
 }
 
 /// U45 · One quiet suggestion for the next step; "Not now" hides it for this song.
+/// 54 · Right after "Track in a minute": play it, post a 15-second clip, or get another one.
+struct QuickTrackCard: View {
+    @Bindable var session: Session
+    @State private var working = false
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Label("Your track is ready", systemImage: "sparkles").font(.headline)
+            Text("Play it, post a short clip, or try another beat and melody. Every part stays editable.")
+                .font(.caption).foregroundStyle(Color.muted).fixedSize(horizontal: false, vertical: true)
+            HStack(spacing: 8) {
+                Button {
+                    session.exportPreset = Session.ExportFormat.video.rawValue
+                    session.exportClip = .short
+                    session.sheet = .export
+                } label: { Label("Share 15 s", systemImage: "square.and.arrow.up").frame(maxWidth: .infinity, minHeight: 44) }
+                    .buttonStyle(StudioActionStyle()).accessibilityIdentifier("quick.share")
+                Button {
+                    working = true
+                    Task { await session.anotherQuickTrack(); working = false }
+                } label: { Label("Another one", systemImage: "dice").frame(maxWidth: .infinity, minHeight: 44) }
+                    .buttonStyle(StudioQuietButtonStyle()).disabled(working).accessibilityIdentifier("quick.another")
+            }
+        }
+        .padding(14)
+        .background(Color.panel, in: RoundedRectangle(cornerRadius: Luz.Radius.card, style: .continuous))
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("quick.card")
+    }
+}
+
 struct NextStepCard: View {
     @Bindable var session: Session
     @AppStorage("nextStep.hidden") private var hiddenRaw = ""

@@ -109,6 +109,27 @@ struct NewProjectView: View {
                     Text(LocalizedStringKey(template == .empty ? "Start empty, then add chords or record a beat.":"Editable chords, drums and root bass in your chosen key. A local starting point, not AI generation."))
                         .font(.caption).foregroundStyle(.secondary)
                 }
+                // 54: one tap makes a whole short song in the genre: beat, 808, chords, bass and melody.
+                Section {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(BeatPreset.Genre.allCases) { genre in
+                                Button { startQuickTrack(genre) } label: {
+                                    VStack(spacing: 4) {
+                                        Image(systemName: genre.symbol).font(.title3.weight(.bold)).foregroundStyle(.white)
+                                            .frame(width: 56, height: 56)
+                                            .background(LinearGradient(colors: [Color(hue: genre.hues.1, saturation: 0.75, brightness: 0.85), Color(hue: genre.hues.0, saturation: 0.8, brightness: 0.45)],
+                                                                       startPoint: .topLeading, endPoint: .bottomTrailing), in: Circle())
+                                        Text(LocalizedStringKey(genre.title)).font(.caption2.weight(.semibold)).lineLimit(1).frame(width: 72)
+                                    }
+                                }
+                                .buttonStyle(.plain).disabled(creating)
+                                .accessibilityLabel(LocalizedStringKey(genre.title))
+                                .accessibilityIdentifier("project.track.\(genre.rawValue)")
+                            }
+                        }.padding(.vertical, 4)
+                    }
+                } header: { Text("Track in a minute") } footer: { Text("A verse and a chorus with beat, 808, chords and melody in the key below, made on this iPhone. Everything stays editable.") }
                 // U51: one tap makes a project at the genre's tempo and opens its beat in the beat machine.
                 Section {
                     ScrollView(.horizontal, showsIndicators: false) {
@@ -181,6 +202,16 @@ struct NewProjectView: View {
     private var nameIdeas: [String] {
         QuerySuggestions.projectNames(existing: session.entries.compactMap(\.summary).map(\.name), keyRoot: root, minor: minor, bpm: bpm,
                                       seed: UInt64(session.entries.count), russian: Locale.current.language.languageCode?.identifier == "ru")
+    }
+    private func startQuickTrack(_ genre: BeatPreset.Genre) {
+        guard !creating else { return }
+        creating = true; creationError = nil
+        Task {
+            let created = await session.createQuickTrack(genre, name: name, root: root, minor: minor)
+            if created { session.sheet = nil }
+            else if session.sheet == .newProject { creationError = session.message ?? session.saveError; session.message = nil }
+            creating = false
+        }
     }
     private func startWithBeat(_ genre: BeatPreset.Genre) {
         guard !creating, let preset = BeatPreset.presets(genre).first else { return }
