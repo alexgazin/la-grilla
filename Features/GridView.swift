@@ -56,7 +56,7 @@ private struct GridZoomDiagnosticValue:ViewModifier {
     }
 }
 
-struct ChordSelection: Identifiable {let id: UUID;let patternID: UUID;let tick: Int;let chord: Chord;var duration: Int = barTicks}
+struct ChordSelection: Identifiable {let id: UUID;let patternID: UUID;let tick: Int;let chord: Chord;var duration: Int = barTicks;var timelineTick: Int = 0}
 struct GridView: View {
     @Bindable var session: Session
     @Environment(\.dynamicTypeSize) private var dynamicType
@@ -666,7 +666,7 @@ struct GridView: View {
             selection=ChordSelection(id:event?.id ?? UUID(),patternID:pattern.id,
                 tick:tick,
                 chord:event?.chord ?? Chord(root:session.displayProject.keyRoot,quality:session.displayProject.minor ? .minor:.major),
-                duration:event?.duration ?? slice.duration)
+                duration:event?.duration ?? slice.duration,timelineTick:slice.timelineTick)
         } label: { ChordTile(chord:event?.chord,width:max(8,CGFloat(slice.duration)/CGFloat(barTicks)*barWidth-6),height:harmonyHeight-16,keyRoot:session.displayProject.keyRoot,minor:session.displayProject.minor,spelling:PitchSpelling(rawValue:pitchSpelling) ?? .automatic,showDegrees:showDegrees,audio:session.audio,playRange:slice.timelineTick..<(slice.timelineTick+slice.duration)) }
         .buttonStyle(StudioQuietButtonStyle()).disabled(editingLocked).accessibilityIdentifier("grid.chord.\(slice.id)").offset(x:CGFloat(slice.timelineTick)/CGFloat(barTicks)*barWidth+3,y:8)
         // U29: touch and hold a chord to hear it while the finger stays down (dragging still moves it).
@@ -681,16 +681,8 @@ struct GridView: View {
                 }
             }
         })
-        .contextMenu {
-            Button("Change by voice",systemImage:"mic"){session.editByVoice(at:slice.timelineTick)}
-            if let event {
-                Button("Delete chord",role:.destructive) {
-                    session.edit { p in
-                        if let i=p.patterns.firstIndex(where:{$0.id==clip.patternID}) { p.patterns[i].chords.removeAll(where:{$0.id==event.id}) }
-                    }
-                }
-            }
-        }
+        // U29: touch and hold is for listening; "Change by voice" and "Delete chord" are in the
+        // chord editor's ⋯ menu, one tap away.
     }
     /// U29 · Starts and stops the held chord's sound; the release that ends a hold opens nothing.
     private func chordHoldChanged(_ id:UUID?) {

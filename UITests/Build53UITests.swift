@@ -47,7 +47,7 @@ final class Build53UITests: XCTestCase {
 
     // MARK: U29
 
-    @MainActor func testHeldChordSoundsWhileTheMenuIsOpenAndChangesNothing() {
+    @MainActor func testHeldChordSoundsUntilReleaseAndChangesNothing() {
         let app = launch()
         let chord = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'grid.chord.'")).firstMatch
         XCTAssertTrue(chord.waitForExistence(timeout: 15))
@@ -60,10 +60,13 @@ final class Build53UITests: XCTestCase {
         shoot("U29-held-chord")
         XCTAssertFalse(app.navigationBars["Edit chord"].exists, "The release that ends a hold opens nothing")
         XCTAssertFalse(app.buttons["Undo"].firstMatch.isEnabled, "Holding a chord never edits the song")
-        // A plain tap still opens the chord editor.
+        // A plain tap still opens the chord editor, whose ⋯ menu has voice editing and Delete.
         RunLoop.current.run(until: Date().addingTimeInterval(0.6))
         chord.tap()
         XCTAssertTrue(app.navigationBars["Edit chord"].waitForExistence(timeout: 8))
+        app.buttons["chord.more"].tap()
+        XCTAssertTrue(app.buttons["chord.voice"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["chord.delete"].exists)
     }
 
     // MARK: U33

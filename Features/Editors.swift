@@ -67,10 +67,32 @@ struct ChordEditor: View {
             .safeAreaInset(edge:.bottom,spacing:0){
                 chordActions.padding(.horizontal,22).padding(.vertical,12).background(Color.panel)
             }
-            .navigationTitle("Edit chord").navigationBarTitleDisplayMode(.inline).toolbar{ToolbarItem(placement:.cancellationAction){Button("Cancel"){dismiss()}}}}
+            .navigationTitle("Edit chord").navigationBarTitleDisplayMode(.inline).toolbar{ToolbarItem(placement:.cancellationAction){Button("Cancel"){dismiss()}}
+                ToolbarItem(placement:.primaryAction){moreMenu}}}
         .onAppear{chord=selection.chord;text=chord.symbol;duration=selection.duration;family=chord.quality.family;formulaText=chord.effectiveIntervals.map(String.init).joined(separator:", ")}
     }
     // Keep the two frequent actions reachable while the chord catalog scrolls.
+    /// The chord in the song (nil for an empty bar being filled).
+    private var storedChord:Bool { session.project.patterns.first{$0.id==selection.patternID}?.chords.contains{$0.id==selection.id} ?? false }
+    /// U29 moved touch and hold on a chord to listening, so these live here, one tap away.
+    private var moreMenu:some View {
+        Menu {
+            Button("Change by voice",systemImage:"mic"){
+                let tick=selection.timelineTick
+                dismiss()
+                Task{@MainActor in try? await Task.sleep(for:.milliseconds(450));session.editByVoice(at:tick)}
+            }.accessibilityIdentifier("chord.voice")
+            if storedChord {
+                Button("Delete chord",systemImage:"trash",role:.destructive){
+                    let id=selection.id,pattern=selection.patternID
+                    session.edit{p in if let i=p.patterns.firstIndex(where:{$0.id==pattern}){p.patterns[i].chords.removeAll{$0.id==id}}}
+                    dismiss()
+                }.accessibilityIdentifier("chord.delete")
+            }
+        } label:{Image(systemName:"ellipsis.circle").frame(minWidth:44,minHeight:44)}
+            .accessibilityLabel("More")
+            .accessibilityIdentifier("chord.more")
+    }
     private var chordActions:some View {
         HStack{Button{preview()}label:{Label("Preview",systemImage:"speaker.wave.2")}.buttonStyle(StudioActionStyle(color:.harmony,prominent:false)).accessibilityIdentifier("chord.preview");Button{apply();Luz.Haptics.success()}label:{Text("Apply")}.buttonStyle(StudioActionStyle(color:.harmony)).accessibilityIdentifier("chord.apply")}
     }
