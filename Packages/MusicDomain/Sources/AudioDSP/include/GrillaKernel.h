@@ -158,6 +158,12 @@ int lg_dynamics(LGKernel *k, const LGTrackDynamics *tracks, int count, int limit
 // impulse responses generated on the device (≤ 2 s), partitioned FFT convolution, 512 frames late.
 // The first use of a space prepares it on the calling (control) thread. Returns 0 if invalid.
 int lg_space(LGKernel *k, int space);
+// I32: offline voice treatment of a mono sound in place (control thread) — preset 1 Podcast,
+// 2 Vocal, 3 Warm: low cut and tone EQ, compressor, de-esser, peak kept under −1 dBFS.
+int lg_voice_treat(float *samples, int frames, int rate, int preset);
+// The stages on their own, for references: a peak-envelope compressor and a dynamic-shelf de-esser.
+int lg_voice_compress(float *samples, int frames, int rate, float thresholdDB, float ratio, float attackMs, float releaseMs, float makeupDB);
+int lg_voice_deess(float *samples, int frames, int rate, float frequency, float thresholdDB, float maxReductionDB);
 // Frames of look-ahead delay the limiter adds while enabled (0 when off).
 int lg_limiter_latency(LGKernel *k);
 void lg_render(LGKernel *k, float *left, float *right, int frames);

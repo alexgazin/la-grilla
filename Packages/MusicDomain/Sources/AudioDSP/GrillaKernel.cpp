@@ -1,4 +1,5 @@
 #include "Convolution.hpp"
+#include "VoiceChain.hpp"
 #include <memory>
 #include "GrillaKernel.h"
 #include "PerformanceFX.hpp"
@@ -789,6 +790,18 @@ int lg_track_automation(LGKernel*k,int track,int parameter,const LGAutomationPoi
     const int bit=1<<(track*2+parameter);
     if(count>0)k->laneMask.fetch_or(bit,std::memory_order_acq_rel);else k->laneMask.fetch_and(~bit,std::memory_order_acq_rel);
     return 1;
+}
+int lg_voice_treat(float*samples,int frames,int rate,int preset){
+    if(!samples||frames<=0||frames>48000*60||rate<8000||rate>192000)return 0;
+    return grilla::voiceTreat(samples,frames,double(rate),preset)?1:0;
+}
+int lg_voice_compress(float*samples,int frames,int rate,float thresholdDB,float ratio,float attackMs,float releaseMs,float makeupDB){
+    if(!samples||frames<=0||rate<8000||!(ratio>=1)||!(attackMs>0)||!(releaseMs>0)||!std::isfinite(thresholdDB)||!std::isfinite(makeupDB))return 0;
+    grilla::voiceCompress(samples,frames,double(rate),thresholdDB,ratio,attackMs,releaseMs,makeupDB);return 1;
+}
+int lg_voice_deess(float*samples,int frames,int rate,float frequency,float thresholdDB,float maxReductionDB){
+    if(!samples||frames<=0||rate<8000||!(frequency>1000)||frequency>rate*0.4f||!(maxReductionDB>=0)||!std::isfinite(thresholdDB))return 0;
+    grilla::voiceDeess(samples,frames,double(rate),frequency,thresholdDB,maxReductionDB);return 1;
 }
 int lg_space(LGKernel*k,int space){
     if(!k||space<0||space>4)return 0;

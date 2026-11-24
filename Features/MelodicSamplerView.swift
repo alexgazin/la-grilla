@@ -17,6 +17,7 @@ struct MelodicSamplerView: View {
     @State private var detectedCents: Double?
     @State private var attack = 0.005
     @State private var ringsOut = true
+    @State private var voice: VoicePreset?
     @State private var name = ""
     @State private var recording = false
     @State private var importing = false
@@ -74,6 +75,11 @@ struct MelodicSamplerView: View {
                         Text("Holds while pressed").tag(false)
                     }
                     .accessibilityIdentifier("sampler.release")
+                    Picker("Voice treatment", selection: Binding(get: { voice?.rawValue ?? 0 }, set: { voice = VoicePreset(rawValue: $0) })) {
+                        Text("None").tag(0)
+                        ForEach(VoicePreset.allCases, id: \.self) { preset in Text(LocalizedStringKey(preset.title)).tag(preset.rawValue) }
+                    }
+                    .accessibilityIdentifier("sampler.voice")
                     TextField("Name", text: $name).accessibilityIdentifier("sampler.name")
                 }
             }
@@ -160,17 +166,19 @@ struct MelodicSamplerView: View {
 
     private func hear() {
         guard !samples.isEmpty else { return }
-        guard session.ensureAudio(), let audio = try? AVAudioPlayer(data: MelodicSampler.previewWAV(samples)) else { return }
+        let sound = voice.map { VoiceTreatment.apply(samples, rate: MelodicSampler.rate, preset: $0) } ?? samples
+        guard session.ensureAudio(), let audio = try? AVAudioPlayer(data: MelodicSampler.previewWAV(sound)) else { return }
         player?.stop(); player = audio; audio.play()
     }
 
     private func apply() {
         working = true; error = nil
-        let shape = MelodicSampler.Shape(attack: attack, ringsOut: ringsOut)
+        let shape = MelodicSampler.Shape(attack: attack, ringsOut: ringsOut), voice = voice, samples = samples
         Task {
             defer { working = false }
             do {
-                let pcm = try MelodicSampler.instrument(samples, root: root, shape: shape)
+                let sound = voice.map { VoiceTreatment.apply(samples, rate: MelodicSampler.rate, preset: $0) } ?? samples
+                let pcm = try MelodicSampler.instrument(sound, root: root, shape: shape)
                 let data = try pcm.encode(kind: .instrument)
                 let sound = try PreparedSound(name: MelodicSampler.name(root: root, label: name), instrumentData: data, ringsOut: ringsOut)
                 try await session.assignSounds([(pad: nil, sound: sound)], trackID: trackID, projectID: projectID, revision: revision)

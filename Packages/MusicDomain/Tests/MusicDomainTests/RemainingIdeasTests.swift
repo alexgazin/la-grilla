@@ -212,3 +212,37 @@ struct MelodicSamplerTests {
         #expect(throws: SampleError.self) { try MelodicSampler.instrument([0.1, 0.2], root: 60, shape: .init()) }
     }
 }
+
+struct VoiceTreatmentTests {
+    private func sine(_ frequency: Double, seconds: Double, rate: Int) -> [Float] {
+        (0..<Int(seconds * Double(rate))).map { Float(0.4 * sin(2 * Double.pi * frequency * Double($0) / Double(rate))) }
+    }
+
+    @Test func vocalPullsASharpNoteTowardItsSemitoneAndPodcastKeepsThePitch() throws {
+        let rate = 32_000
+        let sharp = sine(220 * pow(2, 30.0 / 1200), seconds: 1.5, rate: rate)        // A3 + 30 cents
+        let vocal = VoiceTreatment.apply(sharp, rate: rate, preset: .vocal)
+        let after = try #require(MelodicSampler.detectRoot(vocal, rate: Double(rate)))
+        #expect(after.pitch == 57 && abs(after.cents - 9) < 4, "70 % of the way: about +9 cents left")
+        let podcast = VoiceTreatment.apply(sharp, rate: rate, preset: .podcast)
+        #expect(podcast.count == sharp.count)
+        #expect(abs(try #require(MelodicSampler.detectRoot(podcast, rate: Double(rate))).cents - 30) < 4)
+        #expect(podcast.map { abs($0) }.max()! <= 0.8913)
+    }
+
+    @Test func aPadEditCarriesItsVoicePreset() throws {
+        let rate = 32_000
+        let samples = sine(330, seconds: 0.8, rate: rate).map { Int16($0 * 32767) }
+        let data = try SamplePCM(rate: rate, zones: [.init(pitch: 60, samples: samples)]).encode(kind: .oneShot)
+        let source = try OneShotSource(asset: try SampleAsset(kind: .oneShot, name: "Voice", bytes: data), data: data)
+        let plain = try source.render(source.initialEdit)
+        var edit = source.initialEdit
+        edit.voice = .warm
+        let warm = try source.render(edit)
+        #expect(warm.zones[0].samples.count == plain.zones[0].samples.count && warm.zones[0].samples != plain.zones[0].samples)
+        let json = try JSONEncoder().encode(edit)
+        #expect(try JSONDecoder().decode(OneShotEdit.self, from: json).voice == .warm)
+        let legacy = try JSONDecoder().decode(OneShotEdit.self, from: Data(#"{"startFrame":0,"endFrame":100,"gainDB":0,"fadeInFrames":0,"fadeOutFrames":0}"#.utf8))
+        #expect(legacy.voice == nil)
+    }
+}
