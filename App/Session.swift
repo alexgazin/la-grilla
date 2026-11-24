@@ -377,8 +377,8 @@ import Observation
     var toast:String?
     /// U11 · The demo tour, while it runs.
     var tour:DemoTour?
-    /// Incremented by the tour's "Show me" on the chord step; Grid opens a chord.
-    var tourChordRequest=0
+    /// Set by the tour's "Show me" on the chord step; Grid opens a chord when it is showing.
+    var pendingTourChord=false
     /// U64 · The note selected in the piano roll (kept across rotation and re-layout).
     var selectedNoteID:UUID?
     /// U20 · Milliseconds from the app starting to the studio being ready.

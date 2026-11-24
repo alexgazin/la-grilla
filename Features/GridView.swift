@@ -168,7 +168,8 @@ struct GridView: View {
                 cancelTimelineGesture();zoomed=false;timelinePosition.scrollTo(edge:.leading);configureViewport(geometry.size)
             }.onChange(of:session.displayProject.length){_,_ in cancelTimelineGesture();configureViewport(geometry.size)}.onChange(of:clipMode){_,mode in cancelTimelineGesture();if !mode{selecting=false;picked=[]}}
             .onChange(of:session.project.revision){_,_ in let existing=Set(session.project.tracks.flatMap(\.clips).map(\.id));picked.formIntersection(existing)}
-        }.onChange(of:session.tourChordRequest){_,_ in openFirstChord()}
+        }.onChange(of:session.pendingTourChord){_,pending in if pending{openTourChord()}}
+        .onAppear{if session.pendingTourChord{openTourChord()}}
         .sheet(item:$selection){selection in ChordEditor(session:session,selection:selection).presentationDetents([.large]).presentationDragIndicator(.visible).presentationBackground(Color.panel)}
             .sheet(item:$clipSelection,onDismiss:openPendingClipEditor){choice in ArrangementClipInspector(session:session,selection:choice){pendingClipEditor=choice;clipSelection=nil}.presentationDragIndicator(.visible).presentationBackground(Color.panel)}
             .sheet(isPresented:$showClipList,onDismiss:{if let choice=pendingClipInspector{pendingClipInspector=nil;clipSelection=choice}}){clipList}
@@ -189,6 +190,11 @@ struct GridView: View {
             Button{session.presentEditor(.chordImport)}label:{Label("Chords from a song or photo",systemImage:"camera.viewfinder").frame(maxWidth:.infinity,minHeight:44)}
                 .buttonStyle(StudioQuietButtonStyle()).font(.subheadline.weight(.medium)).foregroundStyle(Color.mint).accessibilityIdentifier("grid.empty-chord-import")
         }.padding(12).modifier(StudioSurface()).disabled(editingLocked)
+    }
+    /// U11 · The tour asked for a chord: open it once Grid has settled on screen.
+    private func openTourChord(){
+        session.pendingTourChord=false
+        DispatchQueue.main.asyncAfter(deadline:.now()+0.35){openFirstChord()}
     }
     /// U11 · "Show me" on the chord step opens the first chord of this section.
     private func openFirstChord(){

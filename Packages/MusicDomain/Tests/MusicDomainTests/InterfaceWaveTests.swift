@@ -77,6 +77,15 @@ struct ClipBatchTests {
         #expect(Set(project.tracks[drums].clips.map(\.id)) == Set(ids))
     }
 
+    @Test func everyClipOfTheSongCanGoAndComeBack() throws {
+        var project = Project.demo()
+        let all = Set(project.tracks.filter { $0.role != .bass }.flatMap(\.clips).map(\.id))
+        try ClipEditing.batch(.delete, ids: all, in: &project)
+        #expect(project.tracks.allSatisfy { $0.clips.isEmpty || $0.role == .bass })
+        for item in ProjectTrash.items(in: project) { try ProjectTrash.restore(item.id, in: &project) }
+        #expect(Set(project.tracks.flatMap(\.clips).map(\.id)) == all)
+    }
+
     @Test func moveIsAllOrNothing() throws {
         var (project, drums, ids) = try fixture()
         // Bars 1–2 one bar later: bar 2 moves into the space bar 1 leaves; bar 3 is free.

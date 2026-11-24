@@ -23,27 +23,32 @@ struct StudioView: View {
     @Environment(\.verticalSizeClass) private var verticalSize
     /// U39: compact, normal or large bars and tabs.
     @Environment(\.studioDensity) private var density
-    var body: some View {
+    // U64: one layout that changes shape on rotation, so the workspace (its selection,
+    // scroll, zoom and open sheets) is the same view in portrait and landscape.
+    @ViewBuilder private var studioLayout: some View {
+        let landscape=verticalSize == .compact
+        let layout=landscape ? AnyLayout(HStackLayout(spacing:0)):AnyLayout(VStackLayout(spacing:0))
+        layout{
+            VStack(spacing:0){
+                if landscape{compactHeader}
+                // U42: with the recording lock on, only the instrument and Stop respond while recording.
+                else{header.disabled(recordLock && session.recording).opacity(recordLock && session.recording ? 0.45:1)}
+                tourCard
+                workspaceStage
+                if !landscape{
+                    QuickBar(session:session).disabled(recordLock && session.recording)
+                    console
+                }
+            }
+            if landscape{compactSidebar}
+        }
+    }
+    /// The studio with its notices, companions and toast (split from `body` for the type checker).
+    private var stage: some View {
         VStack(spacing:0){
             if let error=session.audio.error {LuzNotice(kind:.danger,symbol:"speaker.slash",text:LocalizedStringKey(error),actions:[("Retry",{_ = session.ensureAudio()})]).padding(.horizontal,8).padding(.top,6).transition(Luz.Transition.drop(reduceMotion))}
             if let error=session.saveError {LuzNotice(kind:.danger,text:LocalizedStringKey(error),actions:[("Retry",{Task{await session.save()}}),("Save copy",{Task{await session.saveCopy()}})]).padding(.horizontal,8).padding(.top,6).transition(Luz.Transition.drop(reduceMotion))}
-            // U64: one layout that changes shape on rotation, so the workspace (its selection,
-            // scroll, zoom and open sheets) is the same view in portrait and landscape.
-            let landscape=verticalSize == .compact
-            (landscape ? AnyLayout(HStackLayout(spacing:0)):AnyLayout(VStackLayout(spacing:0))){
-                VStack(spacing:0){
-                    if landscape{compactHeader}
-                    // U42: with the recording lock on, only the instrument and Stop respond while recording.
-                    else{header.disabled(recordLock && session.recording).opacity(recordLock && session.recording ? 0.45:1)}
-                    tourCard
-                    workspaceStage
-                    if !landscape{
-                        QuickBar(session:session).disabled(recordLock && session.recording)
-                        console
-                    }
-                }
-                if landscape{compactSidebar}
-            }
+            studioLayout
         }.animation(reduceMotion ? nil:Luz.Motion.morph,value:session.saveError).animation(reduceMotion ? nil:Luz.Motion.morph,value:session.audio.error)
         .background(Color.ink).foregroundStyle(Color.studioText)
         .overlay{if AudioRuntimeQA.enabled{AudioRuntimeQAView(session:session)}}
@@ -56,20 +61,10 @@ struct StudioView: View {
         .overlay(alignment:.bottom){ComfortCompanions(session:session)}
         .overlay(alignment:.top){if let toast=session.toast{Label(LocalizedStringKey(toast),systemImage:toast=="Undo" ? "arrow.uturn.backward":toast=="Redo" ? "arrow.uturn.forward":"checkmark.circle").font(.subheadline.weight(.semibold)).padding(.horizontal,16).padding(.vertical,10).modifier(StudioNavigationSurface()).padding(.top,8).transition(Luz.Transition.drop(reduceMotion)).accessibilityAddTraits(.updatesFrequently).allowsHitTesting(false)}}
         .animation(reduceMotion ? .easeOut(duration:0.15):Luz.Motion.morph,value:session.toast)
-        // U11: opening Voice, Mixer and Export finishes those tour steps.
-        .onChange(of:session.sheet){_,sheet in if sheet == .voice{session.tourEvent(.voiceOpened)}else if sheet == .export{session.tourEvent(.exportOpened)}}
-        .onChange(of:session.tab){_,tab in if tab == 2{StudioSignposts.beginMixer();session.tourEvent(.mixerOpened)}}
-        // U49: build the mixer and piano roll once out of sight, shortly after launch.
-        .background{if prewarm{SheetPrewarm(session:session)}}
-        .task{
-            guard !Luz.uiTesting || ProcessInfo.processInfo.arguments.contains("--prewarm") else{return}
-            try? await Task.sleep(for:.seconds(1.5))
-            guard session.sheet == nil,!session.audio.playing else{return}
-            prewarm=true
-            try? await Task.sleep(for:.milliseconds(400))
-            prewarm=false
-        }
-        .animation(reduceMotion ? nil:Luz.Motion.morph,value:session.tour)
+    }
+    var body: some View {
+        stage
+        .modifier(StudioTourAndPrewarm(session:session,prewarm:$prewarm,reduceMotion:reduceMotion))
         .sheet(item:$session.sheet,onDismiss:{if let url=session.exportedURL{session.shareURL=url;session.exportedURL=nil}}){sheet in VStack(spacing:0){Group{switch sheet {
         case .projects: ProjectsView(session:session)
         case .trackBuilder: TrackBuilderView(session:session)
@@ -426,5 +421,30 @@ private struct BarAnnouncer: View {
                 announced = value
                 UIAccessibility.post(notification: .announcement, argument: String(format: NSLocalizedString("Bar %lld", comment: "VoiceOver position"), value))
             }
+    }
+}
+
+/// U11 · U49 · Tour events from opening screens, the signpost for the mixer and the one-time
+/// prewarm of the heavy screens (kept out of `StudioView.body` for the type checker).
+private struct StudioTourAndPrewarm: ViewModifier {
+    let session: Session
+    @Binding var prewarm: Bool
+    let reduceMotion: Bool
+    func body(content: Content) -> some View {
+        content
+        // U11: opening Voice, Mixer and Export finishes those tour steps.
+            .onChange(of:session.sheet){_,sheet in if sheet == .voice{session.tourEvent(.voiceOpened)}else if sheet == .export{session.tourEvent(.exportOpened)}}
+            .onChange(of:session.tab){_,tab in if tab == 2{StudioSignposts.beginMixer();session.tourEvent(.mixerOpened)}}
+        // U49: build the mixer and piano roll once out of sight, shortly after launch.
+            .background{if prewarm{SheetPrewarm(session:session)}}
+            .task{
+                guard !Luz.uiTesting || ProcessInfo.processInfo.arguments.contains("--prewarm") else{return}
+                try? await Task.sleep(for:.seconds(1.5))
+                guard session.sheet == nil,!session.audio.playing else{return}
+                prewarm=true
+                try? await Task.sleep(for:.milliseconds(400))
+                prewarm=false
+            }
+            .animation(reduceMotion ? nil:Luz.Motion.morph,value:session.tour)
     }
 }

@@ -71,7 +71,7 @@ struct DemoTourCard: View {
     private func show(_ step: TourStep) {
         switch step {
         case .pads: session.tab = 1
-        case .chords: session.tab = 0; session.tourChordRequest += 1
+        case .chords: session.tab = 0; session.pendingTourChord = true
         case .hum: session.presentEditor(.voice)
         case .layers: session.tab = 2
         case .export: session.finishTake(); session.exportTake = nil; session.sheet = .export

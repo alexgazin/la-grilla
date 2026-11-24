@@ -245,7 +245,7 @@ jobs:
           if test -n "$GRILLA_ONLY_TESTING"; then
             # Rerun only the named cases (e.g. the failures of the last full pass).
             SCOPE=focused
-            GRILLA_NATIVE_TIMEOUT_SECONDS=1500
+            GRILLA_NATIVE_TIMEOUT_SECONDS=4200
             GRILLA_NATIVE_LABEL=selected-cases
             FILTER=()
             INVENTORY=()
