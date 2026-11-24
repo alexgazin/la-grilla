@@ -170,3 +170,75 @@ struct HoldPreviewTests {
         #expect(HoldPreview.range(long, from: long.length + 99).upperBound == long.length)
     }
 }
+
+@Suite("U33 held project card")
+struct HeldProjectCardTests {
+    @Test func theChorusPlaysForAboutTenSeconds() throws {
+        var project = Project.demo()
+        project.bpm = 120
+        try SectionEditing.append(name: "Chorus", bars: 8, to: &project)
+        let chorus = try #require(project.sections.first { $0.name == "Chorus" })
+        let range = ProjectPreview.range(project)
+        #expect(range.lowerBound == chorus.start)
+        // 120 BPM: ten seconds are twenty beats.
+        #expect(range.count == 20 * ppq)
+        // A slow song plays fewer beats, never past its section.
+        project.bpm = 60
+        #expect(ProjectPreview.range(project).count == 10 * ppq)
+        project.bpm = 240
+        #expect(ProjectPreview.range(project).upperBound == chorus.start + chorus.length)
+    }
+
+    @Test func withoutAChorusTheFirstSectionPlays() {
+        let project = Project.demo()
+        #expect(ProjectPreview.section(of: project)?.id == project.sections[0].id)
+        #expect(ProjectPreview.range(project).lowerBound == 0)
+    }
+}
+
+@Suite("U63 eco mode")
+struct EcoModeTests {
+    @Test func lowPowerHalvesTheMeterRateAndStopsTheBackground() {
+        #expect(EcoMode.meterRate(lowPower: false) == 30 && EcoMode.meterRate(lowPower: true) == 15)
+        #expect(EcoMode.animatesBackground(lowPower: false, reduceMotion: false))
+        #expect(!EcoMode.animatesBackground(lowPower: true, reduceMotion: false))
+        #expect(!EcoMode.animatesBackground(lowPower: false, reduceMotion: true))
+        // A pad stays lit for at least two meter reads.
+        for lowPower in [false, true] { #expect(EcoMode.padGlow(lowPower: lowPower) * EcoMode.meterRate(lowPower: lowPower) >= 2.9) }
+    }
+}
+
+@Suite("U55 level-matched bypass")
+struct EffectBypassTests {
+    /// The demo song with a strong boost on the chords so the EQ changes the level a lot.
+    func boosted() throws -> (Project, UUID) {
+        var project = Project.demo()
+        let harmony = try #require(project.tracks.firstIndex { $0.role == .harmony })
+        var eq = StudioEQ()
+        eq.bands[1].gain = 12
+        eq.bands[2].gain = 9
+        project.tracks[harmony].equalizer = eq
+        try project.validate()
+        return (project, project.tracks[harmony].id)
+    }
+
+    @Test func bypassTurnsTheEffectOffAndMovesOnlyTheLevel() throws {
+        let (project, id) = try boosted()
+        let plain = try EffectBypass.bypassed(project, target: .trackEQ(id), offsetDB: 4)
+        let index = try #require(plain.tracks.firstIndex { $0.id == id })
+        #expect(plain.tracks[index].equalizer?.enabled == false)
+        #expect(plain.tracks[index].gain == project.tracks[index].gain + 4)
+        #expect(plain.tracks.enumerated().allSatisfy { $0.offset == index || $0.element == project.tracks[$0.offset] })
+        var master = project; master.masterEQ = StudioEQ()
+        let masterPlain = try EffectBypass.bypassed(master, target: .masterEQ, offsetDB: -2)
+        #expect(masterPlain.masterEQ?.enabled == false && masterPlain.master == master.master - 2)
+    }
+
+    @Test func theComparisonIsWithinHalfALoudnessUnit() async throws {
+        let (project, id) = try boosted()
+        let comparison = try await EffectBypass.matched(project, target: .trackEQ(id), range: 0..<2 * barTicks, samples: SampleLibrary())
+        #expect(abs(comparison.differenceLU) <= 0.5, "difference \(comparison.differenceLU) LU, offset \(comparison.offsetDB) dB")
+        // The boost made the processed version louder, so the plain one is turned up.
+        #expect(comparison.offsetDB > 0)
+    }
+}

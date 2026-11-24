@@ -165,12 +165,15 @@ private enum AudioRender {
     var meters: [Float] = Array(repeating:0,count:masterBus+1); var sampleRate: Double = 48000
     /// Luz meters: the highest recent level per bus, held 1 s, then falling.
     var peakHolds: [Float] = Array(repeating:0,count:masterBus+1)
+    /// U37 · How many times each pad has sounded (read with the meters; the UI lights pads that changed).
+    var padHits: [UInt32] = Array(repeating:0,count:16)
     @ObservationIgnored private var peakTimes = [TimeInterval](repeating:0,count:masterBus+1)
     var countRemaining = 0; var error: String?
     var overflows = 0
     @ObservationIgnored var onPoll:(()->Void)?
     @ObservationIgnored var onRuntimeTrace:((String)->Void)?
     @ObservationIgnored private var lastRuntimeTracePoll:String?
+    @ObservationIgnored private var powerObserver: NSObjectProtocol?
     private var timer: Timer?
     @ObservationIgnored private var configurationObserver:NSObjectProtocol?
     private var generation = 0
@@ -280,9 +283,7 @@ private enum AudioRender {
             metronomeSettings.apply(to: h.pointer)
             handle=h;source=node;engine=e;submittedNotes=nil;pendingEngine=nil
             observeConfiguration(of:e)
-            timer?.invalidate();timer=Timer.scheduledTimer(withTimeInterval:1/30,repeats:true){[weak self] _ in
-                Task{@MainActor in self?.poll()}
-            }
+            startPolling()
             error=nil
         }catch {
             pendingEngine?.stop()
@@ -499,10 +500,24 @@ private enum AudioRender {
         do{try resumeOutputAfterInputChange()}
         catch{/* The resume operation retained its real failure diagnostics. */}
     }
+    /// U63 · Meters and the playhead are read 30 times a second, 15 in eco mode (Low Power Mode).
+    func startPolling() {
+        timer?.invalidate()
+        timer = Timer.scheduledTimer(withTimeInterval: 1 / EcoMode.meterRate(lowPower: Luz.ecoMode), repeats: true) { [weak self] _ in
+            Task { @MainActor in self?.poll() }
+        }
+        if powerObserver == nil {
+            powerObserver = NotificationCenter.default.addObserver(forName: .NSProcessInfoPowerStateDidChange, object: nil, queue: .main) { [weak self] _ in
+                Task { @MainActor in if self?.timer != nil { self?.startPolling() } }
+            }
+        }
+    }
     func poll() {
         guard let k = handle?.pointer else { return }
         clock = lg_clock(k); tick = lg_tick(k); playing = lg_playing(k) != 0; appliedRevision = sentRevisions[Int(lg_revision(k))] ?? -1; countRemaining = Int(lg_countremaining(k)); overflows = Int(lg_overflows(k))
         meters = (0...masterBus).map {lg_meter(k,Int32($0))}
+        let hits = (0..<16).map { lg_pad_hits(k, Int32($0)) }
+        if hits != padHits { padHits = hits }
         let now = ProcessInfo.processInfo.systemUptime
         var holds = peakHolds
         for bus in holds.indices {

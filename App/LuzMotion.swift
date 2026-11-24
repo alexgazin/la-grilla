@@ -10,6 +10,8 @@ extension Luz {
     /// UI tests check behaviour, not motion: structural transitions are skipped so a
     /// snapshot never catches a half-faded duplicate of a control (like Reduce Motion).
     static let uiTesting = ProcessInfo.processInfo.arguments.contains("--uitesting")
+    /// U63 · Eco mode: Low Power Mode is on (or a UI test asks with `--low-power`). The sound never changes.
+    static var ecoMode: Bool { ProcessInfo.processInfo.isLowPowerModeEnabled || ProcessInfo.processInfo.arguments.contains("--low-power") }
 
     @MainActor enum Transition {
         /// Content that replaces content in place (tabs, steps, states): soft blur cross-fade.
@@ -204,7 +206,7 @@ extension View {
 struct LuzAurora: View {
     @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
     /// U63: Low Power Mode keeps the backdrop still (the sound never changes).
-    private var reduceMotion: Bool { systemReduceMotion || Luz.uiTesting || ProcessInfo.processInfo.isLowPowerModeEnabled }
+    private var reduceMotion: Bool { systemReduceMotion || Luz.uiTesting || Luz.ecoMode }
     @Environment(\.colorSchemeContrast) private var contrast
     @Environment(\.colorScheme) private var scheme
 

@@ -2391,3 +2391,14 @@
 "Simple or full, compact or large" = "Simple or full, compact or large";
 "Show only the essentials, choose the density, or reach everything with one hand." = "Show only the essentials, choose the density, or reach everything with one hand.";
 "Effects" = "Effects";
+"Choose another sound…" = "Choose another sound…";
+"Eco mode: the sound does not change" = "Eco mode: the sound does not change";
+"Empty bar" = "Empty bar";
+"Hear the song" = "Hear the song";
+"Import one note; it plays the bass line." = "Import one note; it plays the bass line.";
+"Level match: %+.1f dB without the EQ" = "Level match: %+.1f dB without the EQ";
+"Your sound plays the bass line." = "Your sound plays the bass line.";
+"With EQ" = "With EQ";
+"Without EQ" = "Without EQ";
+"Without EQ plays at the same loudness, so you hear the tone, not the level." = "Without EQ plays at the same loudness, so you hear the tone, not the level.";
+"Silent" = "Silent";

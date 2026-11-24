@@ -184,6 +184,8 @@ uint64_t lg_clock(LGKernel *k);
 int lg_playing(LGKernel *k);
 int lg_revision(LGKernel *k);
 float lg_meter(LGKernel *k, int track);
+/// U37 · How many times a pad (0…15) has sounded since the kernel started (wraps).
+uint32_t lg_pad_hits(LGKernel *k, int pad);
 // I63: copy the latest `count` (<= 4096) mono master samples for a spectrum
 // view. Lock-free; a concurrent block may tear the copy, which only affects
 // the picture. Returns the number of samples written.

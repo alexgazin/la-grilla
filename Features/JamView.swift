@@ -15,6 +15,8 @@ struct JamView: View {
     private var stepDivision: StepDivision { StepDivision(rawValue: stepDivisionRaw) ?? .sixteenth }
     @State private var velocity = 100.0
     @State private var pressed: Set<Int> = []
+    /// U37: pads that just sounded from the song (or a hit) light up for a moment.
+    @State private var flashing: Set<Int> = []
     /// Luz: the last hit's velocity per pad scales its light.
     @State private var padVelocity: [Int: Int] = [:]
     @AppStorage("jam.haptics") private var padHaptics = false
@@ -27,7 +29,14 @@ struct JamView: View {
             .onChange(of:drumPattern?.length){_,length in stepBar=min(stepBar,max(0,(length ?? barTicks)/barTicks-1))}
             .onChange(of:scenePhase){_,phase in if phase != .active{pressed=[]}}
             .onChange(of:session.performance.replaying){_,replaying in if replaying{pressed=[]}}
-            .onDisappear{pressed=[]}
+            .onDisappear{pressed=[];flashing=[]}
+            // U37: a pad lights while the song plays it (counts read from the kernel with the meters).
+            .onChange(of:session.audio.padHits){old,new in
+                let lit=Set(new.indices.filter{$0<old.count && new[$0] != old[$0]})
+                guard !lit.isEmpty else{return}
+                flashing.formUnion(lit)
+                DispatchQueue.main.asyncAfter(deadline:.now()+EcoMode.padGlow(lowPower:Luz.ecoMode)){flashing.subtract(lit)}
+            }
             .onAppear{_ = session.ensureAudio()}
     }
     private func regularJam(compact:Bool)->some View {
@@ -150,7 +159,7 @@ struct JamView: View {
         GeometryReader{geo in
             let side=max(44,min((geo.size.width-24)/4,(geo.size.height-24)/4))
             LazyVGrid(columns:Array(repeating:GridItem(.flexible(),spacing:8),count:4),spacing:8){ForEach(0..<16,id:\.self){pad in
-                JamPadFace(pad:pad,isDown:pressed.contains(pad),compact:height<280,intensity:Double(padVelocity[pad] ?? 100)/127)
+                JamPadFace(pad:pad,isDown:pressed.contains(pad) || flashing.contains(pad),compact:height<280,intensity:Double(padVelocity[pad] ?? 100)/127)
                     .equatable()
                     .frame(maxWidth:.infinity,alignment:.leading).frame(height:side).contentShape(Rectangle())
                     .accessibilityHidden(true)

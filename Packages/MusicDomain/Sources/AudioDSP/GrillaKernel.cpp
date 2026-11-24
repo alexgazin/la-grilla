@@ -398,6 +398,8 @@ struct LGKernel {
     void silence(bool all=false){for(auto &v:voices)if(all||v.sourceKey<0){if(!all)retire(v);endOutput(v);v.on=false;}if(all){sustain.fill(false);for(auto &tail:retirements)tail.remaining=0;layoutFadeRemaining=0;}}
     // I34: which layer of a layered pad sounds — an equal velocity split, or the next in turn.
     std::array<uint32_t,16> padRobin{};
+    // U37: how many times each pad has sounded (live and from the song); read by the UI to light pads.
+    std::array<std::atomic<uint32_t>,16> padHits{};
     int padLayer(int pad,int velocity,const LGSampleBank &bank){
         if(bank.layers<2||pad<0||pad>=16)return 0;
         if(bank.layerMode==1)return int(padRobin[size_t(pad)]++%uint32_t(bank.layers));
@@ -422,6 +424,7 @@ struct LGKernel {
             if(group>0)for(auto &v:voices)if(v.on&&v.track==track&&v.pad>=0&&v.pad!=pad&&choke[track][v.pad].load(std::memory_order_relaxed)==group){retire(v);endOutput(v);v.on=false;}
             if(pad==0)scHold=std::max(1,int(sr*0.01));
         }
+        if(pad>=0&&pad<16)padHits[size_t(pad)].fetch_add(1,std::memory_order_relaxed);
         Voice *v=nullptr; for(auto &x:voices)if(!x.on){v=&x;break;}
         if(!v) v=&*std::min_element(voices.begin(),voices.end(),[](auto&a,auto&b){return a.level<b.level;});
         retire(*v);endOutput(*v);*v=Voice{true,pitch,track,pad,instrument,0,0,duration,float(velocity/127.0),0};v->outputAllowed=output;v->presetVersion=presets[track].load(std::memory_order_relaxed);
@@ -1091,6 +1094,7 @@ void lg_render_midi(LGKernel*k,LGMIDIHub*hub,uint64_t hostTime,double hostTicksP
 double lg_tick(LGKernel*k){return k->position.load();}uint64_t lg_clock(LGKernel*k){return k->clock.load();}
 int lg_playing(LGKernel*k){return k->playing.load();}int lg_revision(LGKernel*k){return k->applied.load();}
 float lg_meter(LGKernel*k,int t){return t>=0&&t<Buses?k->meters[t].load():0;}
+uint32_t lg_pad_hits(LGKernel*k,int pad){return k&&pad>=0&&pad<16?k->padHits[size_t(pad)].load(std::memory_order_relaxed):0;}
 int lg_scope_read(LGKernel*k,float*out,int count){
     if(!k||!out||count<=0)return 0;
     const int n=std::min<int>(count,int(LGKernel::ScopeSize));

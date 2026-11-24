@@ -53,7 +53,8 @@ struct StudioView: View {
         .background(Color.ink).foregroundStyle(Color.studioText)
         .overlay{if AudioRuntimeQA.enabled{AudioRuntimeQAView(session:session)}}
         // U20: UI tests read the launch time from here.
-        .overlay(alignment:.topLeading){if Luz.uiTesting{Text(verbatim:"\(session.launchMilliseconds)").font(.caption2).foregroundStyle(Color.clear).frame(width:2,height:2).clipped().allowsHitTesting(false).accessibilityIdentifier("studio.launch-ms")}}
+        .overlay(alignment:.topLeading){if Luz.uiTesting{Text(verbatim:"\(session.launchMilliseconds)").font(.caption2).foregroundStyle(Color.clear).frame(width:2,height:2).clipped().allowsHitTesting(false).accessibilityIdentifier("studio.launch-ms")
+            Text(verbatim:"\(session.holdPreviews) \(session.holdSounding ? "on":"off")").font(.caption2).foregroundStyle(Color.clear).frame(width:2,height:2).clipped().allowsHitTesting(false).accessibilityIdentifier("studio.hold")}}
         .background{UndoGestureInstaller(undo:{session.gestureUndo(false)},redo:{session.gestureUndo(true)}).frame(width:0,height:0).accessibilityHidden(true)}
         .background{StudioKeyCommands(session:session)}
         .overlay(alignment:.top){if visualMetronome && session.audio.playing{VisualMetronome(session:session).allowsHitTesting(false)}}

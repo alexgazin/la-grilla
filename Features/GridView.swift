@@ -591,6 +591,11 @@ struct GridView: View {
             }.buttonStyle(StudioQuietButtonStyle()).font(.system(.caption2, weight: .medium)).lineLimit(1).minimumScaleFactor(1).foregroundStyle(Color.mint).padding(.horizontal,4).modifier(StudioSurface())
         }
     }
+    /// U37 · The kernel's level for the first track of a role (0 when silent).
+    private func levelFor(_ role:TrackRole)->Float{
+        guard let index=session.displayProject.tracks.firstIndex(where:{$0.role == role}),session.audio.meters.indices.contains(index)else{return 0}
+        return session.audio.meters[index]
+    }
     func trackLabel(_ role: TrackRole,height: CGFloat)->some View {
         Button{if role == .harmony{session.presentEditor(.harmony)}else if role == .bass {session.presentEditor(.bass)}else if role == .drums{session.tab=1}}
         label:{
@@ -602,7 +607,7 @@ struct GridView: View {
             }.frame(maxWidth:.infinity,maxHeight:.infinity,alignment:.leading)
                 .padding(.leading,12).frame(height:height)
                 .background(Color.ink)
-                .overlay(alignment:.trailing){Rectangle().fill(Color.track(role).opacity(0.6)).frame(width:2).padding(.vertical,12)}
+                .overlay(alignment:.trailing){TrackLevelBar(level:levelFor(role),color:Color.track(role)).padding(.vertical,12)}
                 .overlay(alignment:.bottom){Rectangle().fill(Color.outline.opacity(0.4)).frame(height:0.5)}
         }.buttonStyle(StudioQuietButtonStyle()).accessibilityIdentifier(role == .bass ? "bass.open":"grid.track.\(role.rawValue)")
     }
@@ -611,7 +616,7 @@ struct GridView: View {
             Text(track.displayName).font(.system(.caption2, weight: .semibold)).lineLimit(2)
                 .foregroundStyle(Color.mint).padding(8).frame(width:gutter,height:melodyHeight)
                 .background(Color.ink)
-                .overlay(alignment:.trailing){Rectangle().fill(Color.mint.opacity(0.6)).frame(width:2).padding(.vertical,12)}
+                .overlay(alignment:.trailing){TrackLevelBar(level:{let i=session.displayProject.tracks.firstIndex(where:{$0.id==track.id}) ?? -1;return session.audio.meters.indices.contains(i) ? session.audio.meters[i]:0}(),color:Color.mint).padding(.vertical,12)}
                 .overlay(alignment:.bottom){Rectangle().fill(Color.outline.opacity(0.4)).frame(height:0.5)}
         }.buttonStyle(StudioQuietButtonStyle())
     }
@@ -665,8 +670,6 @@ struct GridView: View {
             }
         })
         .contextMenu {
-            // U29: hear the chord without changing anything.
-            if let event{Button("Hear this chord",systemImage:"speaker.wave.2"){session.audio.preview(event.chord)}}
             Button("Change by voice",systemImage:"mic"){session.editByVoice(at:slice.timelineTick)}
             if let event {
                 Button("Delete chord",role:.destructive) {
@@ -675,6 +678,11 @@ struct GridView: View {
                     }
                 }
             }
+        } preview: {
+            // U29: touch and hold a chord to hear it for as long as the menu is held open.
+            HeldChordPreview(chord:event?.chord,keyRoot:session.displayProject.keyRoot,minor:session.displayProject.minor)
+                .onAppear{if let chord=event?.chord{session.previewHold(chord:chord)}}
+                .onDisappear{session.endHold()}
         }
     }
     var drumLane: some View {
@@ -831,5 +839,44 @@ struct NextStepCard: View {
             .background(Color.panel, in: RoundedRectangle(cornerRadius: Luz.Radius.card, style: .continuous))
             .accessibilityElement(children: .contain).accessibilityIdentifier("next-step")
         }
+    }
+}
+
+/// U29 · The lifted chord while it sounds: its symbol and notes.
+private struct HeldChordPreview: View {
+    let chord: Chord?
+    let keyRoot: Int
+    let minor: Bool
+    var body: some View {
+        VStack(spacing: 6) {
+            Image(systemName: "speaker.wave.2.fill").foregroundStyle(Color.harmony).accessibilityHidden(true)
+            if let chord {
+                Text(verbatim: MusicalNotation.chordSymbol(chord, keyRoot: keyRoot, minor: minor)).font(.title.weight(.semibold))
+                Text(verbatim: MusicalNotation.chordNoteNames(chord, keyRoot: keyRoot, minor: minor).joined(separator: " · ")).font(.caption.monospaced()).foregroundStyle(Color.muted)
+            } else {
+                Text("Empty bar").font(.headline)
+            }
+        }
+        .padding(20).frame(minWidth: 160).background(Color.panel)
+    }
+}
+
+/// U37 · A thin level meter at the edge of a track header: the track colour fills from the bottom
+/// with the kernel's level; at rest it is the faint track line.
+struct TrackLevelBar: View {
+    let level: Float
+    let color: Color
+    var body: some View {
+        GeometryReader { geometry in
+            ZStack(alignment: .bottom) {
+                Rectangle().fill(color.opacity(0.35))
+                Rectangle().fill(color).frame(height: geometry.size.height * CGFloat(min(1, max(0, level.squareRoot()))))
+            }
+        }
+        .frame(width: 3)
+        .accessibilityElement()
+        .accessibilityLabel(Text("Level"))
+        .accessibilityValue(Text(level > 0.01 ? "Playing" : "Silent"))
+        .accessibilityIdentifier("grid.level")
     }
 }

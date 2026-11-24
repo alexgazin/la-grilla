@@ -379,6 +379,46 @@ import Observation
     var tour:DemoTour?
     /// Set by the tour's "Show me" on the chord step; Grid opens a chord when it is showing.
     var pendingTourChord=false
+    /// U29 · Keys held down by a touch-and-hold preview (chord, note); released by `endHold()`.
+    @ObservationIgnored private var heldKeys:[(pitch:Int,track:Track,index:Int)]=[]
+    /// U29 · How many hold previews started (shown to UI tests).
+    private(set) var holdPreviews=0
+    private(set) var holdSounding=false
+    /// U29 · Sounds `pitches` on a track for as long as a finger holds; nothing in the song changes.
+    func previewHold(pitches:[Int],trackID:UUID){
+        endHold()
+        guard !recording,!armed,let index=project.tracks.firstIndex(where:{$0.id==trackID}),ensureAudio()else{return}
+        let track=project.tracks[index]
+        for pitch in Set(pitches.filter{(0...127).contains($0)}).sorted() where midi.playKey(pitch,down:true,track:track,index:index){
+            heldKeys.append((pitch,track,index))
+        }
+        if !heldKeys.isEmpty{holdPreviews+=1;holdSounding=true}
+    }
+    /// U29 · A chord held on its harmony track (the bass follows in playback, not in the preview).
+    func previewHold(chord:Chord){
+        guard let harmony=project.tracks.first(where:{$0.role == .harmony})else{return}
+        previewHold(pitches:chord.notes,trackID:harmony.id)
+    }
+    /// U33 · A held project card plays about ten seconds of that song's chorus (loaded from disk).
+    @ObservationIgnored private var storedPreview:Task<Void,Never>?
+    func previewStored(_ id:UUID)->Bool{
+        storedPreview?.cancel()
+        storedPreview=Task{@MainActor in
+            guard let stored=try? await store.load(id),!Task.isCancelled else{return}
+            let samples=try? await store.loadSamples(for:stored)
+            guard !Task.isCancelled else{return}
+            _ = holdPreview(stored,range:ProjectPreview.range(stored),samples:samples)
+        }
+        return true
+    }
+    func endStoredPreview(){
+        storedPreview?.cancel();storedPreview=nil
+        endHarmonyPreview()
+    }
+    func endHold(){
+        for key in heldKeys{_ = midi.playKey(key.pitch,down:false,track:key.track,index:key.index)}
+        heldKeys=[];holdSounding=false
+    }
     /// U64 · The note selected in the piano roll (kept across rotation and re-layout).
     var selectedNoteID:UUID?
     /// U20 · Milliseconds from the app starting to the studio being ready.

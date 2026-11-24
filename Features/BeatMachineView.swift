@@ -13,11 +13,18 @@ struct BeatMachineView: View {
     @State private var selectedPad = 0
     @State private var page = 0
     @State private var bassStep: Int?
+    /// U29: a held preset card plays its beat; its release is not a tap.
+    @State private var heldPreset = false
     @State private var wholeSong = false
     @State private var useTempo = true
     @State private var muteChordBass = true
     @State private var kits: [FactoryDrumKit: [(pad: Int, asset: SampleAsset, data: Data)]] = [:]
     @State private var basses: [FactorySynth: (asset: SampleAsset, data: Data)] = [:]
+    /// The musician's own sound for the 808 line (one note from a file, played on every key).
+    @State private var ownBass: (asset: SampleAsset, data: Data)?
+    @State private var useOwnBass = false
+    @State private var importingBass = false
+    @State private var preparingBass = false
     @State private var player: AVAudioPlayer?
     @State private var flash: Int?
     @State private var error: String?
@@ -157,10 +164,15 @@ struct BeatMachineView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 LazyHStack(spacing: 10) {
                     ForEach(BeatPreset.presets(genre)) { item in
-                        Button { choose(item) } label: { PresetCard(preset: item, selected: draft.presetID == item.id) }
+                        Button { if heldPreset { heldPreset = false } else { choose(item) } } label: { PresetCard(preset: item, selected: draft.presetID == item.id) }
                             .buttonStyle(.plain)
                             .accessibilityAddTraits(draft.presetID == item.id ? .isSelected : [])
                             .accessibilityIdentifier("beat.preset.\(item.id)")
+                            .holdToPreview(suppressTap: $heldPreset, start: {
+                                guard let beat = try? HoldPreview.beat(preset: item, root: session.project.keyRoot, minor: session.project.minor),
+                                      let library = try? session.paletteLibrary(beat.kit) else { return false }
+                                return session.holdPreview(beat.project, range: HoldPreview.range(beat.project), samples: library)
+                            }, stop: { session.endHarmonyPreview() })
                     }
                 }.padding(.vertical, 2)
             }
@@ -388,15 +400,56 @@ struct BeatMachineView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 LazyHStack(spacing: 8) {
                     soundChip(nil)
+                    ownSoundChip
                     ForEach(FactorySynth.basses) { synth in soundChip(synth) }
                 }.padding(.vertical, 2)
             }
         }
     }
 
+    /// "My sound": one note from a file becomes the 808, on every key, in the key of the song.
+    private var ownSoundChip: some View {
+        Button {
+            if ownBass == nil { importingBass = true } else {
+                useOwnBass = true
+                if draft.bass == nil { draft.bass = FactorySynth.basses.first }
+                if session.harmonyPreview { play() }
+            }
+        } label: {
+            VStack(alignment: .leading, spacing: 4) {
+                Image(systemName: preparingBass ? "hourglass" : "waveform.badge.plus").foregroundStyle(useOwnBass ? Color.mint : Color.bass)
+                Text(verbatim: ownBass?.asset.name ?? NSLocalizedString("My sound", comment: "Beat machine")).font(.subheadline.weight(.semibold)).foregroundStyle(Color.studioText).lineLimit(1)
+                Text(LocalizedStringKey(ownBass == nil ? "Import one note; it plays the bass line." : "Your sound plays the bass line.")).font(.caption2).foregroundStyle(Color.muted).lineLimit(2)
+            }
+            .padding(10).frame(width: 150, height: 96, alignment: .topLeading)
+            .background(Color.panel, in: RoundedRectangle(cornerRadius: Luz.Radius.card, style: .continuous))
+            .overlay { RoundedRectangle(cornerRadius: Luz.Radius.card, style: .continuous).strokeBorder(useOwnBass ? Color.mint : Color.outline, lineWidth: useOwnBass ? 2 : 0.75) }
+        }
+        .buttonStyle(.plain)
+        .disabled(preparingBass)
+        .accessibilityAddTraits(useOwnBass ? .isSelected : [])
+        .accessibilityIdentifier("beat.sound.own")
+        .contextMenu { if ownBass != nil { Button("Choose another sound…", systemImage: "square.and.arrow.down") { importingBass = true } } }
+        .fileImporter(isPresented: $importingBass, allowedContentTypes: [.audio, .movie]) { result in
+            guard case let .success(url) = result else { return }
+            preparingBass = true
+            Task { @MainActor in
+                defer { preparingBass = false }
+                do {
+                    let sound = try await SoundFileReader.instrument(url, name: url.deletingPathExtension().lastPathComponent)
+                    ownBass = (sound.asset, sound.data)
+                    useOwnBass = true
+                    if draft.bass == nil { draft.bass = FactorySynth.basses.first }
+                    error = nil
+                } catch { self.error = error.localizedDescription }
+            }
+        }
+    }
+
     private func soundChip(_ synth: FactorySynth?) -> some View {
-        let selected = draft.bass == synth
+        let selected = draft.bass == synth && !useOwnBass
         return Button {
+            useOwnBass = false
             draft.bass = synth
             if let synth { audition(synth) }
         } label: {
@@ -463,20 +516,22 @@ struct BeatMachineView: View {
 
     private var ready: Bool {
         guard kits[draft.kit] != nil, draft.hitCount > 0 || !draft.bassNotes.isEmpty else { return false }
+        if useOwnBass, draft.bass != nil, !draft.bassNotes.isEmpty { return ownBass != nil }
         if let bass = draft.bass, !draft.bassNotes.isEmpty { return basses[bass] != nil }
         return true
     }
 
     private var sounds: [(pad: Int, asset: SampleAsset, data: Data)] {
         var result = kits[draft.kit] ?? []
-        if let bass = draft.bass, let sound = basses[bass] { result.append((pad: -1, asset: sound.asset, data: sound.data)) }
+        if useOwnBass, let own = ownBass { result.append((pad: -1, asset: own.asset, data: own.data)) }
+        else if let bass = draft.bass, let sound = basses[bass] { result.append((pad: -1, asset: sound.asset, data: sound.data)) }
         return result
     }
 
     private func candidate() throws -> Project? {
         guard ready, let kit = kits[draft.kit] else { return nil }
         let assets = Dictionary(uniqueKeysWithValues: kit.map { ($0.pad, $0.asset) })
-        let bass = draft.bass.flatMap { basses[$0]?.asset }
+        let bass = useOwnBass ? ownBass?.asset : draft.bass.flatMap { basses[$0]?.asset }
         return try BeatMachine.candidate(session.project, draft: draft, scope: wholeSong ? .song : .section(session.section.id), kit: assets, bass: bass,
                                          options: .init(useTempo: useTempo, muteChordBass: muteChordBass))
     }

@@ -9,6 +9,7 @@ struct VariationsView: View {
     @State private var boldness = 0.6
     @State private var seed: UInt64 = 1
     @State private var source = Source.variant
+    @State private var heldCard = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     enum Source: Hashable { case original, variant }
 
@@ -35,7 +36,7 @@ struct VariationsView: View {
                         Text("CHARACTER").font(.caption.weight(.semibold)).tracking(1.2).foregroundStyle(Color.muted)
                         LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
                             ForEach(Array(characters.enumerated()), id: \.element) { index, value in
-                                Button { character = value; refresh() } label: {
+                                Button { if heldCard { heldCard = false; return }; character = value; refresh() } label: {
                                     Text(LocalizedStringKey(value.title)).font(.subheadline.weight(.semibold))
                                         .frame(maxWidth: .infinity, minHeight: 52)
                                         .background(character == value ? Color.mint.opacity(0.2) : Color.panel, in: RoundedRectangle(cornerRadius: Luz.Radius.cell, style: .continuous))
@@ -43,6 +44,11 @@ struct VariationsView: View {
                                 .buttonStyle(StudioQuietButtonStyle())
                                 .accessibilityAddTraits(character == value ? .isSelected : [])
                                 .accessibilityIdentifier("variations.card.\(index)")
+                                // U29: holding a character plays that variation of the section.
+                                .holdToPreview(suppressTap: $heldCard, start: {
+                                    guard let pattern, let project = candidate(PartVariator.variant(pattern, role: role, character: value, boldness: boldness, seed: seed)) else { return false }
+                                    return session.holdPreview(project, range: HoldPreview.range(project, from: session.section.start))
+                                }, stop: { session.endHarmonyPreview() })
                             }
                         }
                         VStack(alignment: .leading, spacing: 6) {

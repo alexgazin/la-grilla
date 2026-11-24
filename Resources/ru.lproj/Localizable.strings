@@ -2393,3 +2393,14 @@
 "Simple or full, compact or large" = "Простой или полный, компактный или крупный";
 "Show only the essentials, choose the density, or reach everything with one hand." = "Показывайте только главное, выбирайте плотность или управляйте одной рукой.";
 "Effects" = "Эффекты";
+"Choose another sound…" = "Выбрать другой звук…";
+"Eco mode: the sound does not change" = "Эко-режим: звук не меняется";
+"Empty bar" = "Пустой такт";
+"Hear the song" = "Послушать песню";
+"Import one note; it plays the bass line." = "Загрузите одну ноту — она сыграет басовую партию.";
+"Level match: %+.1f dB without the EQ" = "Выравнивание: %+.1f дБ без эквалайзера";
+"Your sound plays the bass line." = "Ваш звук играет басовую партию.";
+"With EQ" = "С эквалайзером";
+"Without EQ" = "Без эквалайзера";
+"Without EQ plays at the same loudness, so you hear the tone, not the level." = "«Без эквалайзера» звучит с той же громкостью, поэтому слышна разница тембра, а не уровня.";
+"Silent" = "Тишина";

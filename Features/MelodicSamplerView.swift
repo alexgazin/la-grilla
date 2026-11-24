@@ -149,17 +149,9 @@ struct MelodicSamplerView: View {
         Task {
             defer { working = false }
             do {
-                let wav = try await AudioExtraction.wavIfNeeded(url, limit: MelodicSampler.maxSeconds + 2)
-                let granted = wav.startAccessingSecurityScopedResource()
-                defer { if granted { wav.stopAccessingSecurityScopedResource() } }
-                let file = try AVAudioFile(forReading: wav, commonFormat: .pcmFormatFloat32, interleaved: false)
-                let frames = min(file.length, AVAudioFramePosition(file.processingFormat.sampleRate * (MelodicSampler.maxSeconds + 2)))
-                guard frames > 0, let buffer = AVAudioPCMBuffer(pcmFormat: file.processingFormat, frameCapacity: AVAudioFrameCount(frames)),
-                      let _ = try? file.read(into: buffer, frameCount: AVAudioFrameCount(frames)), let channels = buffer.floatChannelData else { throw SampleError.invalid }
-                let count = Int(buffer.frameLength), channelCount = Int(buffer.format.channelCount)
-                let mono = (0..<count).map { index in (0..<channelCount).reduce(Float(0)) { $0 + channels[$1][index] } / Float(channelCount) }
+                let read = try await SoundFileReader.mono(url, seconds: MelodicSampler.maxSeconds + 2)
                 if name.isEmpty { name = url.deletingPathExtension().lastPathComponent }
-                use(mono, rate: file.processingFormat.sampleRate)
+                use(read.samples, rate: read.rate)
             } catch { self.error = error.localizedDescription }
         }
     }
