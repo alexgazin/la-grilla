@@ -67,6 +67,19 @@ struct MixerView: View {
                     .background(Color.raised.opacity(0.55), in: RoundedRectangle(cornerRadius: StudioMetrics.controlRadius, style: .continuous))
             }.buttonStyle(StudioQuietButtonStyle()).accessibilityIdentifier("mixer.palettes")
                 .disabled(session.performance.contextActive)
+            // I37: write level and pan moves into automation while playing.
+            Button { session.automationRecording.toggle(); Luz.Haptics.selection() } label: {
+                Label("Automation", systemImage: session.automationRecording ? "record.circle.fill" : "record.circle")
+                    .labelStyle(.iconOnly).font(.system(size: 18, weight: .medium))
+                    .foregroundStyle(session.automationRecording ? Color.record : Color.muted)
+                    .frame(width: 44, height: 44)
+                    .background(Color.raised.opacity(0.55), in: RoundedRectangle(cornerRadius: StudioMetrics.controlRadius, style: .continuous))
+            }
+            .buttonStyle(StudioQuietButtonStyle())
+            .accessibilityLabel(Text(LocalizedStringKey(session.automationRecording ? "Stop writing automation" : "Write automation")))
+            .accessibilityAddTraits(session.automationRecording ? .isSelected : [])
+            .accessibilityIdentifier("mixer.automation")
+            .disabled(session.performance.contextActive)
             MixPresetMenu(session: session)
             VStack(spacing: 5) {
                 Image(systemName: "headphones")
@@ -171,6 +184,9 @@ struct MixerView: View {
                     session.edit { p in if let i = p.tracks.firstIndex(where: { $0.id == id }) { p.tracks[i].locked = p.tracks[i].locked == true ? nil : true } }
                 }
                 dynamicsMenu(track)
+                Button("Automation…", systemImage: "point.topleft.down.to.point.bottomright.curvepath") {
+                    session.automationTrackID = track.id; session.presentEditor(.automation)
+                }
                 // U47: a colour of your own for this track.
                 Picker("Colour", selection: Binding(get: { track.color ?? -1 }, set: { value in
                     let id = track.id
@@ -480,7 +496,7 @@ struct MixerView: View {
 
     private func panBinding(_ index: Int) -> Binding<Double> {
         Binding(get: { session.displayProject.tracks[index].pan },
-                set: { value in session.mixerEdit { $0.tracks[index].pan = value } })
+                set: { value in session.mixerEdit { $0.tracks[index].pan = value }; session.captureAutomation(track: index, .pan, value: value) })
     }
 
     private func roleSymbol(_ role: TrackRole) -> String {
@@ -502,6 +518,7 @@ struct MixerView: View {
             if index == masterBus { project.master = value }
             else { project.tracks[index].gain = value }
         }
+        if index < masterBus { session.captureAutomation(track: index, .level, value: max(-60, value)) }
     }
 }
 

@@ -208,6 +208,22 @@ struct LGKernel {
         if(inside){if(!rampApplied||std::abs(value-rampLast)>1e-4f){fx.prepare(value,delayTarget.load(),bpm);rampLast=value;rampApplied=true;}}
         else if(rampApplied){fx.prepare(filterTarget.load(),delayTarget.load(),bpm);rampApplied=false;}
     }
+    // I37: per-track automation of level (dB) and pan in ticks, linear between points, held
+    // before the first and after the last. Lane index = track × 2 + parameter.
+    static constexpr int AutomationPoints=64;
+    struct AutomationLane{std::array<std::atomic<int32_t>,AutomationPoints> tick{};std::array<std::atomic<float>,AutomationPoints> value{};std::atomic<int> count{0};};
+    std::array<AutomationLane,MaxTracks*2> lanes{};std::atomic<int> laneMask{0};
+    bool laneAt(int lane,double tick,float &out) const {
+        const auto &l=lanes[size_t(lane)];const int n=l.count.load(std::memory_order_acquire);
+        if(n<=0)return false;
+        if(tick<=l.tick[0].load(std::memory_order_relaxed)){out=l.value[0].load(std::memory_order_relaxed);return true;}
+        int lo=0,hi=n-1;
+        if(tick>=l.tick[size_t(hi)].load(std::memory_order_relaxed)){out=l.value[size_t(hi)].load(std::memory_order_relaxed);return true;}
+        while(hi-lo>1){const int mid=(lo+hi)/2;if(l.tick[size_t(mid)].load(std::memory_order_relaxed)<=tick)lo=mid;else hi=mid;}
+        const double t0=l.tick[size_t(lo)].load(std::memory_order_relaxed),t1=l.tick[size_t(hi)].load(std::memory_order_relaxed);
+        const float v0=l.value[size_t(lo)].load(std::memory_order_relaxed),v1=l.value[size_t(hi)].load(std::memory_order_relaxed);
+        out=float(v0+(v1-v0)*((tick-t0)/std::max(1.0,t1-t0)));return true;
+    }
     std::array<std::atomic<float>,MaxTracks> glideTime{};
     std::array<std::atomic<int>,MaxTracks> synthOn{},synthWave{};std::array<std::atomic<float>,MaxTracks> synthCutoff{},synthResonance{},synthAttack{},synthDecay{},synthSustain{},synthRelease{};
     void releaseVoice(Voice &v){if(v.synth){v.noteEnd=std::min(v.noteEnd,v.age);v.duration=std::min(v.duration,v.age+v.sR);}else v.duration=std::min(v.duration,v.age+0.008);}
@@ -739,6 +755,23 @@ int lg_filter_automation(LGKernel*k,const LGFilterRamp*ramps,int count){
     for(int i=0;i<count;i++){k->rampStart[size_t(i)].store(ramps[i].start,std::memory_order_relaxed);k->rampEnd[size_t(i)].store(ramps[i].end,std::memory_order_relaxed);k->rampFrom[size_t(i)].store(ramps[i].from,std::memory_order_relaxed);k->rampTo[size_t(i)].store(ramps[i].to,std::memory_order_relaxed);}
     k->rampCount.store(count,std::memory_order_release);return 1;
 }
+int lg_track_automation(LGKernel*k,int track,int parameter,const LGAutomationPoint*points,int count){
+    if(!k||track<0||track>=MaxTracks||(parameter!=0&&parameter!=1)||count<0||count>LGKernel::AutomationPoints||(count>0&&!points))return 0;
+    int previous=-1;
+    for(int i=0;i<count;i++){
+        const auto &p=points[i];
+        if(p.tick<0||p.tick>491520||p.tick<=previous||!std::isfinite(p.value))return 0;
+        if(parameter==0?(p.value< -60||p.value>6):(p.value< -1||p.value>1))return 0;
+        previous=p.tick;
+    }
+    auto &lane=k->lanes[size_t(track*2+parameter)];
+    lane.count.store(0,std::memory_order_release);
+    for(int i=0;i<count;i++){lane.tick[size_t(i)].store(points[i].tick,std::memory_order_relaxed);lane.value[size_t(i)].store(points[i].value,std::memory_order_relaxed);}
+    lane.count.store(count,std::memory_order_release);
+    const int bit=1<<(track*2+parameter);
+    if(count>0)k->laneMask.fetch_or(bit,std::memory_order_acq_rel);else k->laneMask.fetch_and(~bit,std::memory_order_acq_rel);
+    return 1;
+}
 int lg_glide(LGKernel*k,int track,float seconds){
     if(!k||track<0||track>=MaxTracks||!std::isfinite(seconds)||seconds<0||seconds>0.5f)return 0;
     k->glideTime[size_t(track)].store(seconds,std::memory_order_relaxed);return 1;
@@ -946,6 +979,14 @@ void lg_render_midi(LGKernel*k,LGMIDIHub*hub,uint64_t hostTime,double hostTicksP
         // Boundary-time input belongs to the newly adopted layout. Applying it
         // before adoption would create an old-index voice and then clear it.
         if(hub)hub->dueWithOrigin(hostTime+uint64_t(double(f)*hostPerSample),uint64_t(std::max(1.0,hostPerSample)),[&](const LGMIDIEvent &event,bool){if(!k->performance.replaying())k->midiEvent(event,true);});
+        if(k->active&&k->current>=0&&k->laneMask.load(std::memory_order_relaxed)!=0){
+            // I37: automation reads over the mixer while playing; a muted track stays silent.
+            const double tick=k->position.load(std::memory_order_relaxed);float value=0;
+            for(int t=0;t<MaxTracks;t++){
+                if(k->laneAt(t*2,tick,value))gainTargets[t]=k->gains[t].load(std::memory_order_relaxed)>0?std::pow(10.f,std::clamp(value,-60.f,6.f)/20):0;
+                if(k->laneAt(t*2+1,tick,value))panTargets[t]=std::clamp(value,-1.f,1.f);
+            }
+        }
         for(int t=0;t<Buses;t++){k->smooth[t]+=(gainTargets[t]-k->smooth[t])*ramp;k->smoothPan[t]+=(panTargets[t]-k->smoothPan[t])*ramp;}
         float left=0,right=0;float buses[Buses]={};
         // I16: one bent track at a time (the keyboard's); others keep factor 1.

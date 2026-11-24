@@ -2256,3 +2256,14 @@
 "Add a layer" = "Добавить слой";
 "Layers on this pad" = "Слои на этом пэде";
 "Use %lld layers" = "Поставить слоёв: %lld";
+"Automation" = "Автоматизация";
+"Automation…" = "Автоматизация…";
+"Stop writing automation" = "Остановить запись автоматизации";
+"Write automation" = "Записывать автоматизацию";
+"Parameter" = "Параметр";
+"Tap the chart to add a point, drag a point to move it. To record, turn on ● in the Mixer and move a fader or pan while the song plays." = "Коснитесь графика, чтобы добавить точку, перетащите точку, чтобы сдвинуть. Для записи включите ● в микшере и двигайте фейдер или панораму во время игры.";
+"Delete point" = "Удалить точку";
+"Clear this lane" = "Очистить эту дорожку автоматизации";
+"No movement yet" = "Движения пока нет";
+"Automation chart" = "График автоматизации";
+"Add a point at the playhead" = "Добавить точку у курсора";

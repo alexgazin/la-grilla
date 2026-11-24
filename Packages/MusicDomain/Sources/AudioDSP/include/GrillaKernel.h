@@ -80,6 +80,11 @@ int lg_synth(LGKernel *k, int track, const LGSynthPatch *patch);
 /// Beat machine: seconds an overlapping note slides on a sampled melodic track (0 = no slide).
 int lg_glide(LGKernel *k, int track, float seconds);
 int lg_filter_automation(LGKernel *k, const LGFilterRamp *ramps, int count);
+// I37: one automation lane of a track — parameter 0 is level in dB (−60…+6), 1 is pan (−1…1);
+// up to 64 points with strictly increasing ticks, linear between them, held outside. 0 clears.
+// While playing, the lane reads over the mixer value; a muted track stays silent.
+typedef struct { int32_t tick; float value; } LGAutomationPoint;
+int lg_track_automation(LGKernel *k, int track, int parameter, const LGAutomationPoint *points, int count);
 // I16: live pitch bend (-12...+12 semitones) and modulation (0...1 = vibrato
 // up to ±0.5 semitone at 5.5 Hz) for the voices of the track with `identity`.
 // Zero for both leaves every voice bit-identical.

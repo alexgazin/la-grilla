@@ -2254,3 +2254,14 @@
 "Add a layer" = "Add a layer";
 "Layers on this pad" = "Layers on this pad";
 "Use %lld layers" = "Use %lld layers";
+"Automation" = "Automation";
+"Automation…" = "Automation…";
+"Stop writing automation" = "Stop writing automation";
+"Write automation" = "Write automation";
+"Parameter" = "Parameter";
+"Tap the chart to add a point, drag a point to move it. To record, turn on ● in the Mixer and move a fader or pan while the song plays." = "Tap the chart to add a point, drag a point to move it. To record, turn on ● in the Mixer and move a fader or pan while the song plays.";
+"Delete point" = "Delete point";
+"Clear this lane" = "Clear this lane";
+"No movement yet" = "No movement yet";
+"Automation chart" = "Automation chart";
+"Add a point at the playhead" = "Add a point at the playhead";

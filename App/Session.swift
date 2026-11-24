@@ -90,7 +90,7 @@ import Observation
     private let runtimeTraceStart=ProcessInfo.processInfo.systemUptime
     let personalKits: PersonalKitStore
     let store: ProjectStore
-    enum Sheet: String, Identifiable {case projects, newProject, trackBuilder, export, settings, gettingStarted, bass, sections, notes, harmony, assistant, voice, perform, midiDevices, palettes, history, versions, trash, commands, variations, comp, chordImport, melodyIdeas, lyrics, master, mood, doctor, earTraining, whatsNew, coNotes, vj, help, grooves, practicePlayer, beatMachine, tuner, markers, dynamics; var id: String { rawValue }}
+    enum Sheet: String, Identifiable {case projects, newProject, trackBuilder, export, settings, gettingStarted, bass, sections, notes, harmony, assistant, voice, perform, midiDevices, palettes, history, versions, trash, commands, variations, comp, chordImport, melodyIdeas, lyrics, master, mood, doctor, earTraining, whatsNew, coNotes, vj, help, grooves, practicePlayer, beatMachine, tuner, markers, dynamics, automation; var id: String { rawValue }}
     private static var qaProjectStoreID:UUID? {
         let arguments=ProcessInfo.processInfo.arguments
         guard arguments.contains("--uitesting"),let index=arguments.firstIndex(of:"--project-store-id"),arguments.indices.contains(index+1)else{return nil}
@@ -346,7 +346,7 @@ import Observation
         guard !performance.contextActive else{message="Return to editing before changing the source project.";return}
         guard !recording && !armed else {message = "Finish the drum take before editing the project.";return}
         // I39: markers stay with their place in a section when the form changes.
-        do {try withHistoryTransaction{h,p in try h.apply(&p){q in let before=q;try change(&q);MarkerEditing.remap(from:before,to:&q)}}; sync(); scheduleSave()} catch {message = error.localizedDescription}
+        do {try withHistoryTransaction{h,p in try h.apply(&p){q in let before=q;try change(&q);MarkerEditing.remap(from:before,to:&q);AutomationEditing.remap(from:before,to:&q)}}; sync(); scheduleSave()} catch {message = error.localizedDescription}
     }
     var mixerGesture = false
     func mixerEdit(_ change: (inout Project) throws -> Void) {
@@ -589,10 +589,41 @@ import Observation
     private func hasKnownLibraryFailure(_ id:UUID)->Bool {
         libraryLoadFailures[id] != nil || entries.first(where:{$0.id==id})?.error != nil
     }
+    // MARK: I37 · Automation recording
+    /// While on, level and pan moves in the mixer during playback are written into lanes.
+    var automationRecording = false { didSet { if !automationRecording { commitAutomation() } } }
+    /// The track the automation editor shows.
+    var automationTrackID: UUID?
+    @ObservationIgnored private var automationCapture: [UUID: [AutomationLane.Parameter: [(tick: Int, value: Double)]]] = [:]
+    /// Records one control value at the playhead; the first value of a pass silences the old lane.
+    func captureAutomation(track index: Int, _ parameter: AutomationLane.Parameter, value: Double) {
+        guard automationRecording, audio.playing, project.tracks.indices.contains(index), index < masterBus else { return }
+        let id = project.tracks[index].id
+        if automationCapture[id]?[parameter] == nil { audio.suspendAutomation(track: index, parameter: parameter) }
+        automationCapture[id, default: [:]][parameter, default: []].append((tick: Int(audio.tick), value: value))
+    }
+    /// Writes every captured pass as one edit.
+    func commitAutomation() {
+        guard !automationCapture.isEmpty else { return }
+        let capture = automationCapture
+        automationCapture = [:]
+        edit { p in
+            for (id, parameters) in capture {
+                guard let i = p.tracks.firstIndex(where: { $0.id == id }) else { continue }
+                var lanes = p.tracks[i].automation ?? []
+                for (parameter, samples) in parameters {
+                    guard let lane = AutomationEditing.record(samples, parameter: parameter, into: lanes.first { $0.parameter == parameter }) else { continue }
+                    lanes.removeAll { $0.parameter == parameter }
+                    lanes.append(lane)
+                }
+                p.tracks[i].automation = lanes.isEmpty ? nil : lanes.sorted { $0.parameter.rawValue < $1.parameter.rawValue }
+            }
+        }
+    }
     func togglePlay() {
         runtimeTrace("togglePlay.before");defer{runtimeTrace("togglePlay.after")}
         if performance.contextActive{if performance.playing || performance.starting{Task{await performance.stop();pollPerformance()}}else if performance.replaying,let take=performance.replayTake{replayPerformance(take)}else{startPerformance(record:false)};return}
-        if audio.playing {finishTake();audio.stop();Luz.Haptics.transportStop()}else if ensureAudio(){if audio.tick>=Double(loopRange.upperBound){audio.seek(loopRange.lowerBound)};audio.play();Luz.Haptics.transportStart()}
+        if audio.playing {finishTake();audio.stop();commitAutomation();Luz.Haptics.transportStop()}else if ensureAudio(){if audio.tick>=Double(loopRange.upperBound){audio.seek(loopRange.lowerBound)};audio.play();Luz.Haptics.transportStart()}
     }
     func rewind() {if performance.contextActive{Task{await leavePerformance();rewind()};return};finishTake();audio.stop();audio.seek(loopRange.lowerBound)}
     /// U16 · Set when recording would start on a late route; the studio asks first.

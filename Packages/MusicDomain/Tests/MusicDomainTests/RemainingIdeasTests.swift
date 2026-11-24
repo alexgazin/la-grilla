@@ -105,3 +105,62 @@ struct PadLayersTests {
         #expect(project.referencedSamples.contains(asset))
     }
 }
+
+struct TrackAutomationTests {
+    @Test func valuesInterpolateLikeTheKernel() throws {
+        let lane = AutomationLane(parameter: .level, points: [.init(tick: 0, value: 0), .init(tick: 1920, value: -20)])
+        try lane.validate()
+        #expect(lane.value(at: -5) == 0 && lane.value(at: 960) == -10 && lane.value(at: 5000) == -20)
+        #expect(throws: MusicError.self) { try AutomationLane(parameter: .pan, points: [.init(tick: 0, value: 2)]).validate() }
+        #expect(throws: MusicError.self) { try AutomationLane(parameter: .level, points: [.init(tick: 9, value: 0), .init(tick: 9, value: 1)]).validate() }
+        #expect(throws: MusicError.self) { try AutomationLane(parameter: .level, points: []).validate() }
+    }
+
+    @Test func aRecordedPassIsThinnedAndReplacesOnlyItsRange() throws {
+        // A fader pulled smoothly down over two bars, sampled every 20 ticks.
+        let samples = stride(from: 0, through: 3840, by: 20).map { (tick: $0, value: -Double($0) / 192) }
+        let lane = try #require(AutomationEditing.record(samples, parameter: .level, into: nil))
+        try lane.validate()
+        #expect(lane.points.count == 2, "A straight movement needs only its ends")
+        #expect(lane.points.first?.value == 0 && lane.points.last?.value == -20)
+        // A second pass over bar 2 keeps bar 1.
+        let punch = stride(from: 1920, through: 3840, by: 40).map { (tick: $0, value: $0 < 2880 ? -3.0 : -9.0) }
+        let merged = try #require(AutomationEditing.record(punch, parameter: .level, into: lane))
+        try merged.validate()
+        #expect(merged.points.first == .init(tick: 0, value: 0))
+        #expect(merged.value(at: 2400) == -3 && merged.value(at: 3840) == -9)
+        // A wild movement still fits in 64 points.
+        let wild = (0..<2000).map { (tick: $0 * 3, value: $0 % 2 == 0 ? -40.0 : 0.0) }
+        let busy = try #require(AutomationEditing.record(wild, parameter: .level, into: nil))
+        #expect(busy.points.count <= AutomationLane.maxPoints)
+        try busy.validate()
+    }
+
+    @Test func pointsEditAndFollowTheirSections() throws {
+        var lane = AutomationLane(parameter: .pan, points: [.init(tick: 0, value: -1)])
+        #expect(AutomationEditing.set(&lane, tick: 960, value: 3) && lane.points.last?.value == 1)
+        AutomationEditing.move(&lane, index: 1, tick: -50, value: 0.5)
+        #expect(lane.points[1].tick == 1, "A point cannot pass its neighbour")
+        var project = Project.demo()
+        project.sections = [Section(name: "A", start: 0, length: barTicks), Section(name: "B", start: barTicks, length: barTicks)]
+        project.tracks[0].automation = [AutomationLane(parameter: .level, points: [.init(tick: 100, value: -3), .init(tick: barTicks + 100, value: -12)])]
+        let before = project
+        var after = project
+        var first = project.sections[1], second = project.sections[0]
+        first.start = 0; second.start = barTicks
+        after.sections = [first, second]
+        AutomationEditing.remap(from: before, to: &after)
+        #expect(after.tracks[0].automation?.first?.points == [.init(tick: 100, value: -12), .init(tick: barTicks + 100, value: -3)])
+    }
+
+    @Test func aProjectWithLanesValidatesAndRoundTrips() throws {
+        var project = Project.demo()
+        project.tracks[0].automation = [AutomationLane(parameter: .level, points: [.init(tick: 0, value: -6)]),
+                                        AutomationLane(parameter: .pan, points: [.init(tick: 0, value: 0.5)])]
+        try project.validate()
+        let decoded = try JSONDecoder().decode(Project.self, from: JSONEncoder().encode(project))
+        #expect(decoded.tracks[0].automation == project.tracks[0].automation)
+        project.tracks[0].automation?.append(AutomationLane(parameter: .pan, points: [.init(tick: 0, value: 0)]))
+        #expect(throws: MusicError.self) { try project.validate() }
+    }
+}

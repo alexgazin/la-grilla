@@ -300,6 +300,8 @@ public struct Track: Codable, Equatable, Identifiable, Sendable {
     public var color: Int?
     /// Beat machine: seconds an overlapping note slides to the next pitch (808 glide); nil = none.
     public var glide: Double?
+    /// I37: recorded or drawn level and pan movement (one lane per parameter); nil = none.
+    public var automation: [AutomationLane]?
     public init(role: TrackRole) { self.role = role }
     public func isPadMuted(_ pad: Int) -> Bool { mutedPads?.contains(pad) == true }
 }
@@ -388,6 +390,7 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
         for track in tracks{try track.dynamics?.validate();try track.synth?.validate();if track.synth != nil,track.role == .drums{throw MusicError.invalidProject}
             if let color=track.color,!(0..<5).contains(color){throw MusicError.invalidProject}
             if let glide=track.glide,!glide.isFinite || !(0...0.5).contains(glide) || track.role != .melody{throw MusicError.invalidProject}
+            if let lanes=track.automation{guard !lanes.isEmpty,Set(lanes.map(\.parameter)).count==lanes.count else{throw MusicError.invalidProject};for lane in lanes{try lane.validate()}}
             if let muted=track.mutedPads,track.role != .drums || Set(muted).count != muted.count || !muted.allSatisfy({(0..<16).contains($0)}){throw MusicError.invalidProject}}
         guard sections.allSatisfy({$0.color.map{(0...3).contains($0)} ?? true}),sections.allSatisfy({$0.filterSweep?.isValid ?? true}) else{throw MusicError.invalidProject}
         try midi?.validate(self)

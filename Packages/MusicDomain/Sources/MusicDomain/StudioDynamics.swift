@@ -111,6 +111,7 @@ public extension Project {
     @discardableResult
     func applyAutomation(to kernel: OpaquePointer, rangeStart: Int = 0) -> Bool {
         let ramps = filterRamps(rangeStart: rangeStart)
+        applyTrackAutomation(to: kernel, rangeStart: rangeStart)
         return ramps.withUnsafeBufferPointer { lg_filter_automation(kernel, $0.baseAddress, Int32($0.count)) } != 0
     }
 }

@@ -665,6 +665,11 @@ private enum AudioRender {
     }
     /// I16: pitch bend (semitones) and modulation (0...1) for the track with `identity`.
     func pitchBend(identity: UInt64, semitones: Float, modulation: Float) { if let k = handle?.pointer { lg_pitch_bend(k, identity, semitones, modulation) } }
+    /// I37: a lane being re-recorded stops reading so the hand on the control is heard.
+    func suspendAutomation(track index: Int, parameter: AutomationLane.Parameter) {
+        guard let k = handle?.pointer, (0..<masterBus).contains(index) else { return }
+        _ = lg_track_automation(k, Int32(index), parameter == .level ? 0 : 1, nil, 0)
+    }
     /// I55: hear a synth patch while its knobs move, before the edit is committed.
     func previewSynth(track index: Int, _ patch: SynthPatch?) {
         guard let k = handle?.pointer, (0..<masterBus).contains(index) else { return }
