@@ -657,6 +657,12 @@ private enum AudioRender {
         let values = pitches.prefix(16).map { Int32($0) }
         return values.withUnsafeBufferPointer { lg_arp(k, identity, $0.baseAddress, Int32($0.count), Int32(step), Int32(mode), Int32(octaves), Int32(velocity)) } != 0
     }
+    /// I29: the custom pattern played by arpeggio mode 4 (empty clears it).
+    @discardableResult func arpPattern(_ codes: [Int]) -> Bool {
+        guard let k = handle?.pointer else { return false }
+        let values = codes.prefix(16).map { Int32($0) }
+        return values.withUnsafeBufferPointer { lg_arp_pattern(k, $0.baseAddress, Int32($0.count)) } != 0
+    }
     /// I16: pitch bend (semitones) and modulation (0...1) for the track with `identity`.
     func pitchBend(identity: UInt64, semitones: Float, modulation: Float) { if let k = handle?.pointer { lg_pitch_bend(k, identity, semitones, modulation) } }
     /// I55: hear a synth patch while its knobs move, before the edit is committed.

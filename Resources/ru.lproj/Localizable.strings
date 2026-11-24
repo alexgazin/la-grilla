@@ -2228,3 +2228,20 @@
 /* Loudness-matched comparison */
 "Match loudness for the comparison" = "Выровнять громкость для сравнения";
 "After plays at the loudness of Before, so you hear only what the limiter and level change." = "«После» звучит с громкостью «До», так слышно только то, что меняют лимитер и уровень.";
+"Rows are the held notes, the lowest at the bottom. Tap a cell to play that note on the step, tap it again for a rest. ↑ raises a step by an octave." = "Строки — зажатые ноты, нижняя внизу. Касание клетки играет эту ноту на шаге, повторное касание — пауза. ↑ поднимает шаг на октаву.";
+"Arpeggio pattern" = "Паттерн арпеджио";
+"Save pattern" = "Сохранить паттерн";
+"Note %lld" = "Нота %lld";
+"Step %lld, note %lld" = "Шаг %lld, нота %lld";
+"Octave of step %lld" = "Октава шага %lld";
+"PATTERNS" = "ПАТТЕРНЫ";
+"Alberti" = "Альбертиев бас";
+"Broken chord" = "Ломаный аккорд";
+"Pulse" = "Пульс";
+"Octave jumps" = "Октавные скачки";
+"Trance gate" = "Транс-гейт";
+"Waltz" = "Вальс";
+"Delete %@" = "Удалить %@";
+"Save as my pattern" = "Сохранить как мой паттерн";
+"My pattern" = "Мой паттерн";
+"Edit pattern…" = "Изменить паттерн…";

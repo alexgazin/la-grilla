@@ -228,6 +228,9 @@ struct LGKernel {
     }
     std::array<std::atomic<int>,16> arpPitches{};std::atomic<int> arpCount{0},arpStep{240},arpMode{0},arpOctaves{1},arpVelocity{100};std::atomic<uint64_t> arpIdentity{0};
     std::atomic<uint32_t> arpSerial{0};uint32_t arpSeen=0;double arpNextTick=-1,arpFrames=0;int arpIndex=0;
+    // I29: a custom pattern of up to 16 steps; each step is a held-note index (0…15) plus
+    // 16 × octave (0…2), or −1 for a rest. Used by arpeggio mode 4.
+    std::array<std::atomic<int>,16> arpPattern{};std::atomic<int> arpPatternLength{0};
     void arpTick(){
         const int count=std::min(16,arpCount.load(std::memory_order_acquire));
         if(count<=0)return;
@@ -250,6 +253,16 @@ struct LGKernel {
         std::array<int,16> held{};for(int i=0;i<count;i++)held[size_t(i)]=arpPitches[size_t(i)].load(std::memory_order_relaxed);
         const int mode=arpMode.load(std::memory_order_relaxed),octaves=std::clamp(arpOctaves.load(std::memory_order_relaxed),1,3);
         if(mode!=3)std::sort(held.begin(),held.begin()+count);
+        if(mode==4){
+            const int steps=std::clamp(arpPatternLength.load(std::memory_order_acquire),0,16);
+            if(steps==0)return;
+            const int code=arpPattern[size_t(arpIndex%steps)].load(std::memory_order_relaxed);++arpIndex;
+            if(code<0)return;                                    // a rest keeps its place on the grid
+            const int pitch=held[size_t((code&15)%count)]+12*((code>>4)&3);
+            if(pitch>127)return;
+            trigger(pitch,arpVelocity.load(std::memory_order_relaxed),track,-1,slots[current].instruments[track],step*0.8/960.0*60/bpm);
+            return;
+        }
         for(int o=0;o<octaves;o++)for(int i=0;i<count;i++){const int p=held[size_t(i)]+12*o;if(p<=127)sequence[size_t(length++)]=p;}
         if(length==0)return;
         int position=arpIndex;
@@ -678,7 +691,7 @@ void lg_restart(LGKernel*k){k->command.store(2,std::memory_order_release);}
 void lg_seek(LGKernel*k,int tick){if(tick>=0)k->seek.store(std::min(491520,tick));}
 static int enqueue(LGKernel*k,Input value){unsigned w=k->write.load(std::memory_order_relaxed),r=k->read.load(std::memory_order_acquire);if(w-r>=256){k->overflow.fetch_add(1);return 0;}k->input[w%256]=value;k->write.store(w+1,std::memory_order_release);return 1;}
 int lg_arp(LGKernel*k,uint64_t identity,const int32_t*pitches,int count,int step,int mode,int octaves,int velocity){
-    if(!k||count<0||count>16||(count>0&&(!pitches||identity==0))||mode<0||mode>3||octaves<1||octaves>3)return 0;
+    if(!k||count<0||count>16||(count>0&&(!pitches||identity==0))||mode<0||mode>4||octaves<1||octaves>3)return 0;
     if(count>0&&step!=120&&step!=160&&step!=240&&step!=320&&step!=480)return 0;
     for(int i=0;i<count;i++)if(pitches[i]<0||pitches[i]>127)return 0;
     if(count==0){k->arpCount.store(0,std::memory_order_release);return 1;}
@@ -688,6 +701,13 @@ int lg_arp(LGKernel*k,uint64_t identity,const int32_t*pitches,int count,int step
     k->arpVelocity.store(std::clamp(velocity,1,127),std::memory_order_relaxed);k->arpIdentity.store(identity,std::memory_order_relaxed);
     if(starting)k->arpSerial.fetch_add(1,std::memory_order_acq_rel);
     k->arpCount.store(count,std::memory_order_release);return 1;
+}
+int lg_arp_pattern(LGKernel*k,const int32_t*steps,int count){
+    if(!k||count<0||count>16||(count>0&&!steps))return 0;
+    for(int i=0;i<count;i++){const int v=steps[i];if(v!=-1&&(v<0||(v&15)>15||(v>>4)>2))return 0;}
+    k->arpPatternLength.store(0,std::memory_order_release);
+    for(int i=0;i<count;i++)k->arpPattern[size_t(i)].store(steps[i],std::memory_order_relaxed);
+    k->arpPatternLength.store(count,std::memory_order_release);return 1;
 }
 void lg_pitch_bend(LGKernel*k,uint64_t identity,float semitones,float modulation){
     if(!k||!std::isfinite(semitones)||!std::isfinite(modulation))return;

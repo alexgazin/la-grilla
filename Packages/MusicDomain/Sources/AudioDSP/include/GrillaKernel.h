@@ -87,6 +87,9 @@ void lg_pitch_bend(LGKernel *k, uint64_t identity, float semitones, float modula
 // later notes follow the transport grid (free-running when stopped). Updating
 // the held notes keeps the timing; count 0 stops.
 int lg_arp(LGKernel *k, uint64_t identity, const int32_t *pitches, int count, int stepTicks, int mode, int octaves, int velocity);
+// I29: custom arpeggio pattern for mode 4 — each step is a held-note index (0…15) + 16 × octave
+// (0…2), or −1 for a rest; 1…16 steps (0 clears). Returns 0 on invalid steps.
+int lg_arp_pattern(LGKernel *k, const int32_t *steps, int count);
 void lg_preview(LGKernel *k, int pitch);
 void lg_note_preview(LGKernel *k, int pitch, int track, int instrument);
 // Resolve a stable LGProjectTrack identity after audio-boundary adoption.

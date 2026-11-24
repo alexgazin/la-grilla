@@ -133,6 +133,16 @@
 			"name" = "App";
 			"sourceTree" = "<group>";
 		};
+		"DB6DF7406F21090B1931A485" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "Features/ArpPatternEditor.swift";
+			"sourceTree" = "SOURCE_ROOT";
+		};
+		"B157F0DB1B0E876EE0C213E9" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "DB6DF7406F21090B1931A485";
+		};
 		"BAA29D86A3A6243FF7CA89EF" = {
 			"isa" = "PBXFileReference";
 			"lastKnownFileType" = "sourcecode.swift";
@@ -696,6 +706,7 @@
 		"E64DA6756D6CF253E6CA6FFA" = {
 			"isa" = "PBXGroup";
 			"children" = (
+				"DB6DF7406F21090B1931A485",
 				"BAA29D86A3A6243FF7CA89EF",
 				"85B265D86AC02E35D0E8FB67",
 				"2B23BCBC38D35FFAA2DB1EDE",
@@ -1575,6 +1586,7 @@
 				"0587407DA031D1B414F3155D",
 				"F8C137E32B1198A64C56AA5B",
 				"E748B01438B0371DC7F9104A",
+				"B157F0DB1B0E876EE0C213E9",
 				"D56599A09666910E4580ACB7",
 				"3A81CA6969C61D6484E849BC",
 				"A7DB8248AB94AFE8035783B3",

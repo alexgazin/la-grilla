@@ -53,6 +53,10 @@ private struct InstrumentKeyboard: View {
     @AppStorage("keyboard.arpRate") private var arpRate = 0              // I15: 0 off, else step ticks
     @AppStorage("keyboard.arpMode") private var arpMode = 0
     @AppStorage("keyboard.arpOctaves") private var arpOctaves = 1
+    /// I29: the custom pattern (mode 4) and the player's saved patterns.
+    @AppStorage("keyboard.arpPattern") private var arpPatternText = ArpPattern.presets[0].encoded
+    @AppStorage("keyboard.arpPatterns") private var arpLibraryRaw = "[]"
+    @State private var editingPattern = false
     @State private var arpHeld: [Int] = []
     @AppStorage("keyboard.bendStrips") private var bendStrips = false   // I16
     /// I30: step input writes an eighth note per key at a cursor that advances when all keys are up.
@@ -123,6 +127,7 @@ private struct InstrumentKeyboard: View {
                         .accessibilityLabel("Sound banks").disabled(loading != nil || take != nil)
                 }
             }
+            .sheet(isPresented: $editingPattern) { ArpPatternEditor(text: $arpPatternText, libraryRaw: $arpLibraryRaw) }
             .sheet(isPresented: $soundBanks) {
                 if let track {
                     SoundBankView(session: session, trackID: track.id,
@@ -215,6 +220,10 @@ private struct InstrumentKeyboard: View {
             if arpRate > 0 {
                 Picker("Arpeggio order", selection: Binding(get: { arpMode }, set: { resetKeys(); arpMode = $0 })) {
                     Text("Up").tag(0); Text("Down").tag(1); Text("Up and down").tag(2); Text("As played").tag(3)
+                    Text("My pattern").tag(ArpPattern.kernelMode)
+                }
+                if arpMode == ArpPattern.kernelMode {
+                    Button("Edit pattern…", systemImage: "square.grid.3x3") { resetKeys(); editingPattern = true }
                 }
                 Picker("Arpeggio octaves", selection: Binding(get: { arpOctaves }, set: { resetKeys(); arpOctaves = $0 })) {
                     Text(verbatim: "1").tag(1); Text(verbatim: "2").tag(2); Text(verbatim: "3").tag(3)
@@ -333,6 +342,9 @@ private struct InstrumentKeyboard: View {
         if arpRate > 0 {
             // I15: held keys feed the kernel arpeggiator on the transport grid (live only).
             if down { if !arpHeld.contains(pitch) { arpHeld.append(pitch) } } else { arpHeld.removeAll { $0 == pitch } }
+            if arpMode == ArpPattern.kernelMode {
+                session.audio.arpPattern((ArpPattern(name: "Custom", encoded: arpPatternText) ?? ArpPattern.presets[0]).codes)
+            }
             session.audio.arp(identity: MIDIController.trackIdentity(track.id), pitches: arpHeld, step: arpRate, mode: arpMode, octaves: arpOctaves)
             return
         }
