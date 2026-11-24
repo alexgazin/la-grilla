@@ -170,3 +170,248 @@ struct HoldPreviewTests {
         #expect(HoldPreview.range(long, from: long.length + 99).upperBound == long.length)
     }
 }
+
+@Suite("U33 held project card")
+struct HeldProjectCardTests {
+    @Test func theChorusPlaysForAboutTenSeconds() throws {
+        var project = Project.demo()
+        project.bpm = 120
+        try SectionEditing.append(name: "Chorus", bars: 8, to: &project)
+        let chorus = try #require(project.sections.first { $0.name == "Chorus" })
+        let range = ProjectPreview.range(project)
+        #expect(range.lowerBound == chorus.start)
+        // 120 BPM: ten seconds are twenty beats.
+        #expect(range.count == 20 * ppq)
+        // A slow song plays fewer beats, never past its section.
+        project.bpm = 60
+        #expect(ProjectPreview.range(project).count == 10 * ppq)
+        project.bpm = 240
+        #expect(ProjectPreview.range(project).upperBound == chorus.start + chorus.length)
+    }
+
+    @Test func withoutAChorusTheFirstSectionPlays() {
+        let project = Project.demo()
+        #expect(ProjectPreview.section(of: project)?.id == project.sections[0].id)
+        #expect(ProjectPreview.range(project).lowerBound == 0)
+    }
+}
+
+@Suite("U63 eco mode")
+struct EcoModeTests {
+    @Test func lowPowerHalvesTheMeterRateAndStopsTheBackground() {
+        #expect(EcoMode.meterRate(lowPower: false) == 30 && EcoMode.meterRate(lowPower: true) == 15)
+        #expect(EcoMode.animatesBackground(lowPower: false, reduceMotion: false))
+        #expect(!EcoMode.animatesBackground(lowPower: true, reduceMotion: false))
+        #expect(!EcoMode.animatesBackground(lowPower: false, reduceMotion: true))
+        // A pad stays lit for at least two meter reads.
+        for lowPower in [false, true] { #expect(EcoMode.padGlow(lowPower: lowPower) * EcoMode.meterRate(lowPower: lowPower) >= 2.9) }
+    }
+}
+
+@Suite("U55 level-matched bypass")
+struct EffectBypassTests {
+    /// The demo song with a strong boost on the chords so the EQ changes the level a lot.
+    func boosted() throws -> (Project, UUID) {
+        var project = Project.demo()
+        let harmony = try #require(project.tracks.firstIndex { $0.role == .harmony })
+        var eq = StudioEQ()
+        eq.bands[1].gain = 12
+        eq.bands[2].gain = 9
+        project.tracks[harmony].equalizer = eq
+        try project.validate()
+        return (project, project.tracks[harmony].id)
+    }
+
+    @Test func bypassTurnsTheEffectOffAndMovesOnlyTheLevel() throws {
+        let (project, id) = try boosted()
+        let plain = try EffectBypass.bypassed(project, target: .trackEQ(id), offsetDB: 4)
+        let index = try #require(plain.tracks.firstIndex { $0.id == id })
+        #expect(plain.tracks[index].equalizer?.enabled == false)
+        #expect(plain.tracks[index].gain == project.tracks[index].gain + 4)
+        #expect(plain.tracks.enumerated().allSatisfy { $0.offset == index || $0.element == project.tracks[$0.offset] })
+        var master = project; master.masterEQ = StudioEQ()
+        let masterPlain = try EffectBypass.bypassed(master, target: .masterEQ, offsetDB: -2)
+        #expect(masterPlain.masterEQ?.enabled == false && masterPlain.master == master.master - 2)
+    }
+
+    @Test func theComparisonIsWithinHalfALoudnessUnit() async throws {
+        let (project, id) = try boosted()
+        let comparison = try await EffectBypass.matched(project, target: .trackEQ(id), range: 0..<2 * barTicks, samples: SampleLibrary())
+        #expect(abs(comparison.differenceLU) <= 0.5, "difference \(comparison.differenceLU) LU, offset \(comparison.offsetDB) dB")
+        // The boost made the processed version louder, so the plain one is turned up.
+        #expect(comparison.offsetDB > 0)
+    }
+}
+
+@Suite("U69 field hints")
+struct QuerySuggestionsTests {
+    let examples = QuerySuggestions.assistantExamples(russian: false)
+
+    @Test func topFiveByPrefixWithHistoryFirst() {
+        let history = ["tempo 100", "add a verse", "tempo 80"]
+        let hints = QuerySuggestions.top("te", history: history, examples: examples)
+        #expect(hints == ["tempo 80", "tempo 100", "tempo 92"])
+        // A word inside the phrase matches too.
+        #expect(QuerySuggestions.top("chor", history: [], examples: examples).contains("add a chorus"))
+        // Never more than five, never the text itself, no repeats.
+        let many = QuerySuggestions.top("", history: (1...9).map { "tempo \($0)" } + ["tempo 9"], examples: examples)
+        #expect(many.count == 5 && Set(many).count == 5 && many.first == "tempo 9")
+        #expect(!QuerySuggestions.top("louder", history: [], examples: examples).contains("louder"))
+    }
+
+    @Test func russianExamplesAndNewNames() {
+        #expect(QuerySuggestions.top("доб", history: [], examples: QuerySuggestions.assistantExamples(russian: true)) == ["добавь припев"])
+        let all = QuerySuggestions.projectNames(existing: [], keyRoot: 9, minor: true, bpm: 90, seed: 3, russian: false, limit: 10)
+        #expect(!all.isEmpty)
+        let fresh = QuerySuggestions.projectNames(existing: [all[0].uppercased()], keyRoot: 9, minor: true, bpm: 90, seed: 3, russian: false, limit: 10)
+        #expect(!fresh.contains(all[0]))
+    }
+}
+
+@Suite("I6 slice markers")
+struct SliceMarkerTests {
+    /// Eight hits a quarter second apart at 48 kHz: loud on the beat, quiet in between.
+    func loop() -> [Int16] {
+        let rate = 48_000
+        var samples = [Int16](repeating: 0, count: 2 * rate)
+        for hit in 0..<8 {
+            let start = hit * rate / 4, loud = hit % 2 == 0
+            for i in 0..<2400 { samples[start + i] = Int16(Double(loud ? 20_000 : 3_000) * exp(-Double(i) / 400) * (i % 20 < 10 ? 1 : -1)) }
+        }
+        return samples
+    }
+
+    @Test func sensitivityAndIntervalChooseTheHits() {
+        let samples = loop()
+        let all = SliceMarkers.detect(samples, rate: 48_000, sensitivity: 1)
+        #expect(all.frames.count == 8)
+        let strong = SliceMarkers.detect(samples, rate: 48_000, sensitivity: 0)
+        #expect(strong.frames.count == 4, "only the loud hits: \(strong.frames)")
+        let spaced = SliceMarkers.detect(samples, rate: 48_000, sensitivity: 1, minimumGap: 0.4)
+        #expect(spaced.frames.count == 4)
+        #expect(all.ranges(rate: 48_000).count == 8 && all.ranges(rate: 48_000).last?.upperBound == samples.count)
+    }
+
+    @Test func markersAreAddedRemovedAndMovedSafely() {
+        var markers = SliceMarkers(frames: [0, 12_000, 24_000], length: 48_000)
+        let added = markers.add(30_000)
+        #expect(added && markers.frames == [0, 12_000, 24_000, 30_000])
+        let tooClose = markers.add(30_010)
+        #expect(!tooClose, "too close to another marker")
+        markers.move(1, to: 40_000)
+        #expect(markers.frames[1] == 24_000 - SliceMarkers.spacing, "never past the next marker")
+        let removed = markers.remove(at: 0)
+        #expect(removed && markers.frames.count == 3)
+        var one = SliceMarkers(frames: [100], length: 48_000)
+        let removedLast = one.remove(at: 0)
+        #expect(!removedLast && one.frames == [100])
+        #expect(markers.slice(containing: 35_000) == 2)
+        let wav = SliceMarkers.previewWAV(loop(), 0..<1000, rate: 48_000)
+        #expect(wav.count == 44 + 2000 && String(decoding: wav.prefix(4), as: UTF8.self) == "RIFF")
+    }
+}
+
+@Suite("U27 pad drag")
+struct PadDragTests {
+    @Test func aDraggedPadIsReadBackAndNothingElseIs() {
+        #expect(PadEditing.pad(fromDrag: PadEditing.dragPayload(4)) == 4)
+        #expect(PadEditing.pad(fromDrag: "grilla-pad:16") == nil)
+        #expect(PadEditing.pad(fromDrag: "grid.clip.123") == nil)
+        #expect(PadEditing.pad(fromDrag: "grilla-pad:x") == nil)
+    }
+
+    @Test func droppingPadOneOnPadFiveSwapsTheirHits() throws {
+        var project = Project.demo()
+        let drums = try #require(project.tracks.first { $0.role == .drums })
+        let before = project.patterns.flatMap(\.drums).filter { $0.pad == 0 }.count
+        let from = try #require(PadEditing.pad(fromDrag: PadEditing.dragPayload(0)))
+        try PadEditing.swap(from, 4, track: drums.id, in: &project)
+        #expect(project.patterns.flatMap(\.drums).filter { $0.pad == 4 }.count == before)
+        #expect(project.patterns.flatMap(\.drums).filter { $0.pad == 0 }.isEmpty)
+    }
+}
+
+@Suite("I52 MIDI learn routing")
+struct MIDILearnRoutingTests {
+    @Test func synthEQReverbAndDriveFollowTheirControllers() throws {
+        var project = Project.demo()
+        try project.addMelody(name: "Lead")
+        let lead = try #require(project.tracks.first { $0.role == .melody }).id
+        let drums = try #require(project.tracks.first { $0.role == .drums }).id
+        func send(_ target: MIDIMapping.Target, _ byte: Int, track: UUID? = lead) -> Bool {
+            let mapping = MIDIMapping(sourceID: 1, channel: 0, controller: 21, target: target, trackID: target.needsTrack ? track : nil)
+            return mapping.apply(mapping.value(byte), to: &project)
+        }
+        #expect(send(.synthCutoff, 127) && send(.synthResonance, 127) && send(.synthAttack, 0) && send(.synthRelease, 127))
+        let synth = try #require(project.tracks.first { $0.id == lead }?.synth)
+        #expect(synth.cutoff == 1 && abs(synth.resonance - 0.9) < 1e-9 && synth.attack == 0 && synth.release == 8)
+        #expect(send(.eqLow, 0) && send(.eqHigh, 64) && send(.reverbSend, 127) && send(.drive, 127))
+        let track = try #require(project.tracks.first { $0.id == lead })
+        #expect(track.equalizer?.bands[0].gain == -18 && track.equalizer?.bands[3].gain == 0)
+        #expect(track.dynamics?.reverbSend == 0.5 && abs((track.dynamics?.drive ?? 0) - 0.7) < 1e-9)
+        try project.validate()
+        // A drum track has no synth; a missing track changes nothing.
+        let before = project
+        #expect(!send(.synthCutoff, 100, track: drums))
+        #expect(!send(.eqLow, 100, track: UUID()))
+        #expect(project == before)
+        // Track controls need a track; master ones must not have one.
+        #expect(MIDIMapping.Target.allCases.filter { !$0.needsTrack } == [.masterGain, .filter, .delay])
+        let mapped = MIDIMapping(sourceID: 1, channel: 0, controller: 21, target: .synthCutoff, trackID: nil)
+        #expect(throws: MusicError.self) { try mapped.validate(project) }
+    }
+}
+
+@Suite("I68 edit journal")
+struct EditJournalTests {
+    @Test func theJournalRestoresWhatWasNotSaved() throws {
+        var saved = Project.demo(); saved.revision = 7
+        var journal = EditJournal(saved: saved, savedRevision: 7)
+        var now = saved
+        now.bpm = 96; now.revision = 8
+        journal.record(now, edit: "Tempo 96", savedRevision: 7)
+        try SectionEditing.append(name: "Chorus", bars: 4, to: &now); now.revision = 9
+        journal.record(now, edit: "Add Chorus", savedRevision: 7)
+        // After a crash, the saved file is revision 7; the journal brings back 9.
+        let data = try journal.encoded()
+        let read = try #require(EditJournal.decode(data))
+        let recovered = try #require(read.recovery(over: saved))
+        #expect(recovered == now && read.edits == ["Tempo 96", "Add Chorus"])
+        #expect(read.changes(over: saved).contains { $0.area == .tempo })
+        #expect(read.changes(over: saved).contains { $0.area == .structure })
+    }
+
+    @Test func nothingIsOfferedWhenSavedOrForAnotherSong() {
+        var saved = Project.demo(); saved.revision = 5
+        var journal = EditJournal(saved: saved, savedRevision: 5)
+        var now = saved; now.bpm = 100; now.revision = 6
+        journal.record(now, edit: "Tempo 100", savedRevision: 5)
+        var newer = now; newer.revision = 6
+        #expect(journal.recovery(over: newer) == nil, "already saved")
+        #expect(journal.isSaved(at: 6) && !journal.isSaved(at: 5))
+        #expect(journal.recovery(over: Project.demo()) == nil, "another song")
+        // A different song resets the journal.
+        let other = Project.demo()
+        journal.record(other, edit: "x", savedRevision: 0)
+        #expect(journal.projectID == other.id && journal.edits == ["x"])
+        // Only the last twenty names are kept.
+        for index in 0..<30 { journal.record(other, edit: "edit \(index)", savedRevision: 0) }
+        #expect(journal.edits.count == EditJournal.summaryLimit && journal.edits.last == "edit 29")
+    }
+}
+
+@Suite("U15 grid as a table")
+struct AccessibleGridTableTests {
+    @Test func oneRowPerBarWithACellPerTrack() throws {
+        let project = Project.demo()
+        let rows = AccessibleGridTable.rows(project)
+        #expect(rows.count == project.length / barTicks)
+        #expect(rows[0].bar == 1 && rows[0].section == project.sections[0].name)
+        #expect(rows[0].cells.count == project.tracks.count)
+        // The demo: C, Am, F, G one per bar; the beat has eight hits a bar (2 kicks, 2 snares, 8 hats = 12).
+        #expect(rows[1].cells.first { $0.track == project.tracks[0].displayName }?.text == "Am")
+        let drums = try #require(rows[0].cells.first { $0.track == project.tracks[1].displayName })
+        #expect(drums.text.hasPrefix("12"))
+        #expect(rows[2].label.hasPrefix("Bar 3,") && rows[2].label.contains("F"))
+    }
+}

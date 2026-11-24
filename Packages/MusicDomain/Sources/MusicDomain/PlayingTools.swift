@@ -472,11 +472,24 @@ public enum TransientSlicer {
     /// (at most `maxSeconds`), found with a rising block-peak envelope.
     public static func slices(_ samples: [Int16], rate: Int, maximum: Int = 16, minimumGap: Double = 0.07, maxSeconds: Double = 2) -> [Range<Int>] {
         guard rate > 0, samples.count >= 64 else { return [] }
+        let onsets = onsets(samples, rate: rate, maximum: maximum, minimumGap: minimumGap)
+        guard !onsets.isEmpty else { return [] }
+        let limit = Int(maxSeconds * Double(rate))
+        return onsets.enumerated().map { i, start in
+            let next = i + 1 < onsets.count ? onsets[i + 1] : samples.count
+            return start..<min(next, start + limit, samples.count)
+        }.filter { $0.count >= 32 }
+    }
+
+    /// I6 · Attack frames (2 ms early) of up to `maximum` hits at least `minimumGap` seconds apart.
+    /// `level` is the share of the loudest peak an attack must reach (lower finds quieter hits).
+    public static func onsets(_ samples: [Int16], rate: Int, maximum: Int = 16, minimumGap: Double = 0.07, level levelShare: Double = 0.12) -> [Int] {
+        guard rate > 0, samples.count >= 64 else { return [] }
         let hop = max(16, rate / 1000)
         let peak = samples.map { abs(Int($0)) }.max() ?? 0
         guard peak > 0 else { return [] }
         let blocks = stride(from: 0, to: samples.count - hop, by: hop).map { start in samples[start..<start + hop].map { abs(Int($0)) }.max() ?? 0 }
-        let level = Double(peak) * 0.12, back = max(1, Int(0.008 * Double(rate)) / hop)
+        let level = Double(peak) * levelShare, back = max(1, Int(0.008 * Double(rate)) / hop)
         let gap = Int(minimumGap * Double(rate))
         var onsets: [Int] = []
         for b in blocks.indices {
@@ -487,12 +500,7 @@ public enum TransientSlicer {
             onsets.append(frame)
             if onsets.count == maximum { break }
         }
-        if onsets.isEmpty { onsets = [0] }
-        let limit = Int(maxSeconds * Double(rate))
-        return onsets.enumerated().map { i, start in
-            let next = i + 1 < onsets.count ? onsets[i + 1] : samples.count
-            return start..<min(next, start + limit, samples.count)
-        }.filter { $0.count >= 32 }
+        return onsets.isEmpty ? [0] : onsets
     }
 
     /// The slice as a one-shot: a 1 ms fade-in and a 3 ms fade-out avoid clicks.

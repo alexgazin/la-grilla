@@ -717,6 +717,17 @@ private struct SynthEditorView: View {
                 if let track {
                     Toggle("Use the synth", isOn: Binding(get: { track.synth != nil }, set: { on in commit(on ? patch : nil) }))
                         .accessibilityIdentifier("synth.enabled")
+                    MIDILearningRow(session: session)
+                    if track.synth != nil {
+                        // I52: the knobs' own touch-and-hold menu competes with turning them, so the
+                        // same choice is also a button here.
+                        Menu {
+                            ForEach([MIDIMapping.Target.synthCutoff, .synthResonance, .synthAttack, .synthRelease], id: \.self) { target in
+                                MIDIAssignButton(session: session, target: target, trackID: trackID, named: true)
+                            }
+                        } label: { Label("Assign a MIDI knob", systemImage: "pianokeys.inverse").frame(minHeight: 44) }
+                            .accessibilityIdentifier("synth.midi")
+                    }
                     if track.instrumentSample != nil {
                         Text("This track plays an imported instrument. Choose a built-in sound to hear the synth.").font(.caption).foregroundStyle(Color.muted)
                     }
@@ -753,7 +764,7 @@ private struct SynthEditorView: View {
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
         }
         .onAppear { if let synth = track?.synth { patch = synth } }
-        .onDisappear { if let index { session.audio.previewSynth(track: index, session.project.tracks[index].synth) } }
+        .onDisappear { session.midi.learning = nil; if let index { session.audio.previewSynth(track: index, session.project.tracks[index].synth) } }
     }
 
     private func seconds(_ value: Double) -> String { value < 1 ? String(format: "%.0f ms", value * 1000) : String(format: "%.2f s", value) }
@@ -766,6 +777,18 @@ private struct SynthEditorView: View {
         }), range: range, defaultValue: initial, tint: Color.track(track?.role ?? .melody), format: format,
                 onEditingChanged: { editing in if !editing { commit(patch) } })
             .frame(maxWidth: .infinity)
+            // I52: touch and hold a knob → "Assign MIDI", then move a controller.
+            .contextMenu { if let target = Self.midiTarget(key) { MIDIAssignButton(session: session, target: target, trackID: trackID) } }
+    }
+
+    static func midiTarget(_ key: WritableKeyPath<SynthPatch, Double>) -> MIDIMapping.Target? {
+        switch key {
+        case \SynthPatch.cutoff: .synthCutoff
+        case \SynthPatch.resonance: .synthResonance
+        case \SynthPatch.attack: .synthAttack
+        case \SynthPatch.release: .synthRelease
+        default: nil
+        }
     }
 
     private func commit(_ value: SynthPatch?) {
@@ -798,5 +821,43 @@ private struct SoundingDot: View {
             index -= 1
         }
         return false
+    }
+}
+
+/// I52 · "Assign MIDI" on a knob: the next controller moved on a connected device controls it.
+/// I52 · While a knob waits for a controller, the sheet itself says so and offers a way out
+/// (the studio's toast sits under an open sheet).
+struct MIDILearningRow: View {
+    let session: Session
+    var body: some View {
+        if let target = session.midi.learning {
+            VStack(alignment: .leading, spacing: 6) {
+                Label("Move a knob on your MIDI controller", systemImage: "pianokeys.inverse").font(.callout.weight(.semibold))
+                Text(LocalizedStringKey(target.title)).font(.caption).foregroundStyle(Color.muted)
+                Button("Cancel learn") { session.midi.learning = nil; session.midi.learningTrack = nil }.frame(minHeight: 44)
+                    .accessibilityIdentifier("midi.learning.cancel")
+            }
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("midi.learning")
+        }
+    }
+}
+
+struct MIDIAssignButton: View {
+    let session: Session
+    let target: MIDIMapping.Target
+    let trackID: UUID?
+    /// In a list of targets the button names its control; on a single control it says "Assign MIDI".
+    var named = false
+    var body: some View {
+        Button(named ? LocalizedStringKey(target.title) : "Assign MIDI", systemImage: "pianokeys.inverse") {
+            if session.project.midi?.enabled != true {
+                session.edit { p in var settings = p.midi ?? MIDISettings(); settings.enabled = true; p.midi = settings }
+            }
+            session.midi.learning = target
+            session.midi.learningTrack = target.needsTrack ? trackID : nil
+            session.showToast("Move a knob on your MIDI controller")
+        }
+        .accessibilityIdentifier("midi.assign.\(target.rawValue)")
     }
 }

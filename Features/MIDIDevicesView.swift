@@ -40,9 +40,9 @@ struct MIDIDevicesView:View {
             }
             SwiftUI.Section("MIDI Learn") {
                 Picker("Control",selection:$target){ForEach(MIDIMapping.Target.allCases,id:\.self){option in Text(title(option)).tag(option)}}
-                if target == .trackGain || target == .trackPan{Picker("Track",selection:Binding(get:{mappingTrack ?? session.project.tracks[0].id},set:{mappingTrack=$0})){ForEach(session.project.tracks){track in Text(track.displayName).tag(track.id)}}}
+                if target.needsTrack{Picker("Track",selection:Binding(get:{mappingTrack ?? session.project.tracks[0].id},set:{mappingTrack=$0})){ForEach(session.project.tracks){track in Text(track.displayName).tag(track.id)}}}
                 Button(LocalizedStringKey(midi.learning==nil ? "Learn next CC":"Cancel learn")){
-                    if midi.learning != nil{midi.learning=nil}else{midi.learning=target;midi.learningTrack=target == .trackGain || target == .trackPan ? (mappingTrack ?? session.project.tracks[0].id):nil}
+                    if midi.learning != nil{midi.learning=nil}else{midi.learning=target;midi.learningTrack=target.needsTrack ? (mappingTrack ?? session.project.tracks[0].id):nil}
                 }.frame(minHeight:44).accessibilityIdentifier("midi.learn").disabled(!settings.enabled || !midi.sources.contains(where:{midi.isConnected($0.id)}))
                 if midi.learning != nil{Text("Move a controller knob. Sustain and channel-mode messages are reserved.").font(.caption).foregroundStyle(.secondary)}
                 ForEach(settings.mappings){mapping in HStack{VStack(alignment:.leading){Text(title(mapping.target)).accessibilityIdentifier("midi.mapping.\(mapping.target.rawValue)");Text("Ch \(mapping.channel+1) · CC \(mapping.controller)").font(.caption).foregroundStyle(.secondary).accessibilityIdentifier("midi.mapping-detail.\(mapping.target.rawValue)")};Spacer();Button("Remove",role:.destructive){edit{$0.mappings.removeAll{$0.id==mapping.id}}}.font(.caption)}}
@@ -63,7 +63,7 @@ struct MIDIDevicesView:View {
         if midi.fixtureRequested{session.prepareMIDIFixture()}else{session.syncMIDI()}
     }
     private func edit(_ change:@escaping(inout MIDISettings)->Void){session.edit{p in var value=p.midi ?? MIDISettings();change(&value);p.midi=value}}
-    private func title(_ target:MIDIMapping.Target)->String{let key=switch target{case .masterGain:"Master gain";case .trackGain:"Track gain";case .trackPan:"Track pan";case .filter:"Master filter";case .delay:"Delay wet"};return NSLocalizedString(key,comment:"MIDI mapping target")}
+    private func title(_ target:MIDIMapping.Target)->String{NSLocalizedString(target.title,comment:"MIDI learn target")}
 }
 private struct BluetoothMIDIPicker:UIViewControllerRepresentable {
     func makeUIViewController(context:Context)->CABTMIDICentralViewController{CABTMIDICentralViewController()}

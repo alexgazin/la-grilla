@@ -67,10 +67,32 @@ struct ChordEditor: View {
             .safeAreaInset(edge:.bottom,spacing:0){
                 chordActions.padding(.horizontal,22).padding(.vertical,12).background(Color.panel)
             }
-            .navigationTitle("Edit chord").navigationBarTitleDisplayMode(.inline).toolbar{ToolbarItem(placement:.cancellationAction){Button("Cancel"){dismiss()}}}}
+            .navigationTitle("Edit chord").navigationBarTitleDisplayMode(.inline).toolbar{ToolbarItem(placement:.cancellationAction){Button("Cancel"){dismiss()}}
+                ToolbarItem(placement:.primaryAction){moreMenu}}}
         .onAppear{chord=selection.chord;text=chord.symbol;duration=selection.duration;family=chord.quality.family;formulaText=chord.effectiveIntervals.map(String.init).joined(separator:", ")}
     }
     // Keep the two frequent actions reachable while the chord catalog scrolls.
+    /// The chord in the song (nil for an empty bar being filled).
+    private var storedChord:Bool { session.project.patterns.first{$0.id==selection.patternID}?.chords.contains{$0.id==selection.id} ?? false }
+    /// U29 moved touch and hold on a chord to listening, so these live here, one tap away.
+    private var moreMenu:some View {
+        Menu {
+            Button("Change by voice",systemImage:"mic"){
+                let tick=selection.timelineTick
+                dismiss()
+                Task{@MainActor in try? await Task.sleep(for:.milliseconds(450));session.editByVoice(at:tick)}
+            }.accessibilityIdentifier("chord.voice")
+            if storedChord {
+                Button("Delete chord",systemImage:"trash",role:.destructive){
+                    let id=selection.id,pattern=selection.patternID
+                    session.edit{p in if let i=p.patterns.firstIndex(where:{$0.id==pattern}){p.patterns[i].chords.removeAll{$0.id==id}}}
+                    dismiss()
+                }.accessibilityIdentifier("chord.delete")
+            }
+        } label:{Image(systemName:"ellipsis.circle").frame(minWidth:44,minHeight:44)}
+            .accessibilityLabel("More")
+            .accessibilityIdentifier("chord.more")
+    }
     private var chordActions:some View {
         HStack{Button{preview()}label:{Label("Preview",systemImage:"speaker.wave.2")}.buttonStyle(StudioActionStyle(color:.harmony,prominent:false)).accessibilityIdentifier("chord.preview");Button{apply();Luz.Haptics.success()}label:{Text("Apply")}.buttonStyle(StudioActionStyle(color:.harmony)).accessibilityIdentifier("chord.apply")}
     }
@@ -215,6 +237,8 @@ struct SettingsView: View {
             Toggle("Lock the screen while recording",isOn:$recordLock).accessibilityIdentifier("settings.record-lock")
             // U14: the top buttons move into the bottom panel, within reach of a thumb.
             Toggle("One-hand reach",isOn:$oneHand).accessibilityIdentifier("settings.one-hand")
+            // U63: Low Power Mode slows meters and stills the backdrop; the sound stays the same.
+            if Luz.ecoMode{HStack(spacing:8){Image(systemName:"leaf").accessibilityHidden(true);Text("Eco mode: the sound does not change")}.font(.callout).foregroundStyle(Color.mint).accessibilityElement(children:.combine).accessibilityIdentifier("settings.eco")}
             Toggle("Show time in minutes and seconds",isOn:$showSeconds).accessibilityIdentifier("settings.show-seconds")
             Toggle("Suggest the next step",isOn:Binding(get:{!nextStepOff},set:{nextStepOff = !$0})).accessibilityIdentifier("settings.next-step")
             // U41 · U43 · U57 · U59
@@ -264,6 +288,8 @@ struct SettingsView: View {
             // U11: the demo song and the five-step tour, again.
             Button{Task{await session.startTour()}}label:{Label("Show me around",systemImage:"hand.point.up.left")}.accessibilityIdentifier("settings.tour")
             LabeledContent("Version",value:"\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "") (\(Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? ""))")
+            // U20 · U49: how long this launch took to a ready studio, for testers to report.
+            LabeledContent("Launch time",value:String(format:NSLocalizedString("%lld ms",comment:"Launch time"),Int64(session.launchMilliseconds))).accessibilityIdentifier("settings.launch-time")
             Link("Privacy policy",destination:URL(string:"https://github.com/alexgazin/la-grilla/blob/main/docs/privacy/"+(Locale.current.language.languageCode?.identifier=="ru" ? "ru":"en")+".md")!)
             Link("Support",destination:URL(string:"https://github.com/alexgazin/la-grilla/issues")!)
             Text("Projects and recordings stay on your iPhone. Portable project exports include their original voice recordings.").font(.caption).foregroundStyle(.secondary)

@@ -90,6 +90,8 @@ struct TrackSoundPicker:View {
     @State private var error:String?
     @State private var showBanks = false
     @State private var showSamples = false
+    /// U29: a held row plays its sound; its release is not a tap.
+    @State private var heldRow = false
 
     init(session:Session,trackID:UUID){
         self.session=session;self.trackID=trackID
@@ -198,6 +200,7 @@ struct TrackSoundPicker:View {
     private func paletteRow(_ palette:SoundPalette,track:Track)->some View {
         let selected=selectedVersion==palette.rawValue
         return Button{
+            if heldRow{heldRow=false;return}
             selectedVersion=palette.rawValue;error=nil
             if sounding{startPreview()}
         }label:{
@@ -217,10 +220,11 @@ struct TrackSoundPicker:View {
         }.buttonStyle(StudioQuietButtonStyle()).disabled(!canChange)
             .accessibilityAddTraits(selected ? [.isSelected]:[])
             .accessibilityIdentifier("sound.palette.\(palette.rawValue)")
+            .holdToPreview(suppressTap:$heldRow,start:{startPreview(palette);return previewing},stop:{stopPreview()})
     }
 
-    private func startPreview(){
-        guard canChange,let palette=SoundPalette(rawValue:selectedVersion) else{return}
+    private func startPreview(_ held:SoundPalette?=nil){
+        guard canChange,let palette=held ?? SoundPalette(rawValue:selectedVersion) else{return}
         do{
             if !previewing{previewAlongsideTrack=session.audio.playing}
             if previewAlongsideTrack {

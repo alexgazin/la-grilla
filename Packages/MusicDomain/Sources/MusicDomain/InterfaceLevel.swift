@@ -75,3 +75,13 @@ public enum InterfaceDensity: String, CaseIterable, Codable, Sendable {
         return min(standardCount - 1, max(0, system + typeStep))
     }
 }
+
+/// U63 · Eco mode in Low Power Mode: the sound never changes; the screen does less.
+public enum EcoMode {
+    /// How often level meters and the playhead are read (per second).
+    public static func meterRate(lowPower: Bool) -> Double { lowPower ? 15 : 30 }
+    /// The living background and decorative motion stop in eco mode.
+    public static func animatesBackground(lowPower: Bool, reduceMotion: Bool) -> Bool { !lowPower && !reduceMotion }
+    /// How long a pad stays lit after it sounds (seconds); shorter refreshes need a longer glow.
+    public static func padGlow(lowPower: Bool) -> Double { lowPower ? 0.2 : 0.12 }
+}

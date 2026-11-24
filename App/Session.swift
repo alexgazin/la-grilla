@@ -185,13 +185,22 @@ import Observation
                         let previous=try await store.load(entry.id)
                         guard previous.id==entry.id else{throw MusicError.invalidProject}
                         audio.samples = try await store.loadSamples(for: previous)
-                        project=previous;savedRevision=previous.revision;break
+                        project=previous;savedRevision=previous.revision
+                        // I68: unsaved edits from a session that stopped before its save.
+                        if let data=try? Data(contentsOf:journalURL),let found=EditJournal.decode(data),found.recovery(over:previous) != nil{recoverable=found}
+                        break
                     }catch{markLibraryFailure(entry.id,error:error.localizedDescription)}
                 }
                 if entries.isEmpty {
                     savedRevision=try await store.save(project);await refreshLibraryEntry(project.id,validated:true)
                 }
             } catch {message=error.localizedDescription;runtimeTrace("bootstrap.failure \(error.localizedDescription)")}
+            // UI-test fixture: as if the last session stopped with the tempo changed but not saved.
+            if Luz.uiTesting,ProcessInfo.processInfo.arguments.contains("--recovery-fixture"){
+                var newer=project;newer.bpm=min(240,project.bpm+7);newer.revision=project.revision+1
+                var found=EditJournal(saved:project,savedRevision:project.revision);found.record(newer,edit:"",savedRevision:project.revision)
+                recoverable=found
+            }
             // Loading and saving a document do not depend on an audio route.
             // A failed device engine must not turn a valid stored project into
             // an unsaved seed or lose the user's last-opened selection.
@@ -379,6 +388,46 @@ import Observation
     var tour:DemoTour?
     /// Set by the tour's "Show me" on the chord step; Grid opens a chord when it is showing.
     var pendingTourChord=false
+    /// U29 · Keys held down by a touch-and-hold preview (chord, note); released by `endHold()`.
+    @ObservationIgnored private var heldKeys:[(pitch:Int,track:Track,index:Int)]=[]
+    /// U29 · How many hold previews started (shown to UI tests).
+    private(set) var holdPreviews=0
+    private(set) var holdSounding=false
+    /// U29 · Sounds `pitches` on a track for as long as a finger holds; nothing in the song changes.
+    func previewHold(pitches:[Int],trackID:UUID){
+        endHold()
+        guard !recording,!armed,let index=project.tracks.firstIndex(where:{$0.id==trackID}),ensureAudio()else{return}
+        let track=project.tracks[index]
+        for pitch in Set(pitches.filter{(0...127).contains($0)}).sorted() where midi.playKey(pitch,down:true,track:track,index:index){
+            heldKeys.append((pitch,track,index))
+        }
+        if !heldKeys.isEmpty{holdPreviews+=1;holdSounding=true}
+    }
+    /// U29 · A chord held on its harmony track (the bass follows in playback, not in the preview).
+    func previewHold(chord:Chord){
+        guard let harmony=project.tracks.first(where:{$0.role == .harmony})else{return}
+        previewHold(pitches:chord.notes,trackID:harmony.id)
+    }
+    /// U33 · A held project card plays about ten seconds of that song's chorus (loaded from disk).
+    @ObservationIgnored private var storedPreview:Task<Void,Never>?
+    func previewStored(_ id:UUID)->Bool{
+        storedPreview?.cancel()
+        storedPreview=Task{@MainActor in
+            guard let stored=try? await store.load(id),!Task.isCancelled else{return}
+            let samples=try? await store.loadSamples(for:stored)
+            guard !Task.isCancelled else{return}
+            _ = holdPreview(stored,range:ProjectPreview.range(stored),samples:samples)
+        }
+        return true
+    }
+    func endStoredPreview(){
+        storedPreview?.cancel();storedPreview=nil
+        endHarmonyPreview()
+    }
+    func endHold(){
+        for key in heldKeys{_ = midi.playKey(key.pitch,down:false,track:key.track,index:key.index)}
+        heldKeys=[];holdSounding=false
+    }
     /// U64 · The note selected in the piano roll (kept across rotation and re-layout).
     var selectedNoteID:UUID?
     /// U20 · Milliseconds from the app starting to the studio being ready.
@@ -573,7 +622,37 @@ import Observation
     }
     /// U8 · Bring back a deleted track, take or clip in one Undo step.
     func restoreDeleted(_ id:UUID){edit{try ProjectTrash.restore(id,in:&$0)};if message==nil{showToast("Restored")}}
-    func scheduleSave() {saveTask?.cancel();saveTask = Task {try? await Task.sleep(for:.milliseconds(700));guard !Task.isCancelled else{return};await save()} }
+    func scheduleSave() {saveTask?.cancel();saveTask = Task {try? await Task.sleep(for:.milliseconds(700));guard !Task.isCancelled else{return};await save()};journalEdit()}
+    /// I68 · Edits since the last save, kept on disk until that save lands (written off the main thread).
+    @ObservationIgnored private var journal:EditJournal?
+    @ObservationIgnored private var journalTask:Task<Void,Never>?
+    /// I68 · Found at launch: unsaved edits from a session that stopped before saving.
+    var recoverable:EditJournal?
+    private var journalURL:URL{store.root.appendingPathComponent("journal.json")}
+    private func journalEdit(){
+        guard ready,!performance.contextActive,project.revision>savedRevision else{return}
+        var next=journal ?? EditJournal(saved:project,savedRevision:savedRevision)
+        next.record(project,edit:"",savedRevision:savedRevision)
+        journal=next
+        let url=journalURL
+        journalTask?.cancel()
+        journalTask=Task.detached(priority:.utility){
+            try? await Task.sleep(for:.milliseconds(120))
+            guard !Task.isCancelled,let data=try? next.encoded() else{return}
+            try? data.write(to:url,options:.atomic)
+        }
+    }
+    private func clearJournal(){
+        journal=nil;journalTask?.cancel();journalTask=nil
+        try? FileManager.default.removeItem(at:journalURL)
+    }
+    /// I68 · Puts the unsaved edits back as one Undo step, then saves.
+    func restoreRecoverable(){
+        guard let journal=recoverable,let recovered=journal.recovery(over:project)else{recoverable=nil;return}
+        recoverable=nil
+        edit{p in var next=recovered;next.revision=p.revision;p=next}
+    }
+    func discardRecoverable(){recoverable=nil;clearJournal()}
     func save() async {
         // Scene/background notifications may arrive while the catalogue is
         // suspended. Never persist the temporary seed before bootstrap loads
@@ -584,7 +663,7 @@ import Observation
         saving=true; let snapshot=project
         do {
             let writtenRevision=try await store.save(snapshot)
-            if project.id==snapshot.id {savedRevision=max(savedRevision,writtenRevision);saveError=nil;savedAt=Date()}
+            if project.id==snapshot.id {savedRevision=max(savedRevision,writtenRevision);saveError=nil;savedAt=Date();if journal?.isSaved(at:snapshot.revision) ?? true,recoverable==nil{clearJournal()}}
             await refreshLibraryEntry(snapshot.id,validated:true)
         } catch {if project.id==snapshot.id {saveError=error.localizedDescription}}
         if generation==saveGeneration {saving=false}
@@ -1527,13 +1606,8 @@ import Observation
         guard !performance.replaying else{return}
         if performance.contextActive,mapping.target == .filter{performance.setEffects(filter:value);return}
         if performance.contextActive,mapping.target == .delay{performance.setEffects(delay:value);return}
-        mixerEdit{p in switch mapping.target {
-        case .masterGain:p.master=value
-        case .trackGain:if let i=p.tracks.firstIndex(where:{$0.id==mapping.trackID}){p.tracks[i].gain=value}
-        case .trackPan:if let i=p.tracks.firstIndex(where:{$0.id==mapping.trackID}){p.tracks[i].pan=value}
-        case .filter:var fx=p.masterFX ?? MasterFX();fx.filter=value;p.masterFX=fx
-        case .delay:var fx=p.masterFX ?? MasterFX();fx.delayWet=value;p.masterFX=fx
-        }}
+        // I52: every mapped control goes through the same routing as the domain tests.
+        mixerEdit{p in mapping.apply(value,to:&p)}
     }
     func saveCopy()async {
         guard let token=beginProjectChange()else{return}

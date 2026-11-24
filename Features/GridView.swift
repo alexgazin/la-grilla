@@ -56,7 +56,7 @@ private struct GridZoomDiagnosticValue:ViewModifier {
     }
 }
 
-struct ChordSelection: Identifiable {let id: UUID;let patternID: UUID;let tick: Int;let chord: Chord;var duration: Int = barTicks}
+struct ChordSelection: Identifiable {let id: UUID;let patternID: UUID;let tick: Int;let chord: Chord;var duration: Int = barTicks;var timelineTick: Int = 0}
 struct GridView: View {
     @Bindable var session: Session
     @Environment(\.dynamicTypeSize) private var dynamicType
@@ -79,6 +79,10 @@ struct GridView: View {
     @State private var pinchReference:TimelineZoom?
     @State private var pendingZoom:TimelineZoom.Position?
     @GestureState private var pinchActive=false
+    /// U29 · The chord under a holding finger: it sounds until the finger lifts.
+    @GestureState private var heldChord:UUID?
+    /// U29 · The release that ends a hold is not a tap that opens the chord editor.
+    @State private var chordHoldEnded=false
     @State private var clipMode=ProcessInfo.processInfo.arguments.contains("--arrangement-clips")
     @State private var copyOnDrag=false
     @State private var clipSnap=barTicks
@@ -99,6 +103,8 @@ struct GridView: View {
     }
     private let gutter:CGFloat=56
     @Environment(\.studioDensity) private var density
+    /// U15: VoiceOver users get the song as a table above the grid.
+    @Environment(\.accessibilityVoiceOverEnabled) private var voiceOverOn
     /// U39: compact lanes are a little lower, large ones a little taller.
     private var laneScale:CGFloat{min(1.35,max(0.78,(viewport.height-155)/324))*(1+(CGFloat(density.spacing)-1)/2)}
     private var harmonyHeight:CGFloat{132*laneScale}
@@ -134,6 +140,7 @@ struct GridView: View {
                         if !hasMusicalEvents{emptyProjectGuide.padding(.horizontal,16).padding(.bottom,14)}
                         else{NextStepCard(session:session).padding(.horizontal,16).padding(.bottom,10)}
                         CoachTipBanner(tips:[.pinchGrid,.renameSection,.undoHistory]).padding(.horizontal,16).padding(.bottom,10)
+                        if voiceOverOn || ProcessInfo.processInfo.arguments.contains("--voiceover-table"){GridAccessibleTable(session:session).padding(.horizontal,16).padding(.bottom,10)}
                         if clipMode{clipControls.padding(.horizontal,16).padding(.bottom,8)}
                         HStack(spacing:0){
                             VStack(spacing:0){Color.ink.frame(height:28);trackLabel(.harmony,height:harmonyHeight);trackLabel(.drums,height:drumHeight);if showsRootBassLane { trackLabel(.bass,height:bassHeight) };ForEach(session.displayProject.tracks.filter{$0.role == .melody}){track in melodyTrackLabel(track)}}.frame(width:gutter)
@@ -591,6 +598,11 @@ struct GridView: View {
             }.buttonStyle(StudioQuietButtonStyle()).font(.system(.caption2, weight: .medium)).lineLimit(1).minimumScaleFactor(1).foregroundStyle(Color.mint).padding(.horizontal,4).modifier(StudioSurface())
         }
     }
+    /// U37 · The kernel's level for the first track of a role (0 when silent).
+    private func levelFor(_ role:TrackRole)->Float{
+        guard let index=session.displayProject.tracks.firstIndex(where:{$0.role == role}),session.audio.meters.indices.contains(index)else{return 0}
+        return session.audio.meters[index]
+    }
     func trackLabel(_ role: TrackRole,height: CGFloat)->some View {
         Button{if role == .harmony{session.presentEditor(.harmony)}else if role == .bass {session.presentEditor(.bass)}else if role == .drums{session.tab=1}}
         label:{
@@ -602,7 +614,7 @@ struct GridView: View {
             }.frame(maxWidth:.infinity,maxHeight:.infinity,alignment:.leading)
                 .padding(.leading,12).frame(height:height)
                 .background(Color.ink)
-                .overlay(alignment:.trailing){Rectangle().fill(Color.track(role).opacity(0.6)).frame(width:2).padding(.vertical,12)}
+                .overlay(alignment:.trailing){TrackLevelBar(level:levelFor(role),color:Color.track(role)).padding(.vertical,12)}
                 .overlay(alignment:.bottom){Rectangle().fill(Color.outline.opacity(0.4)).frame(height:0.5)}
         }.buttonStyle(StudioQuietButtonStyle()).accessibilityIdentifier(role == .bass ? "bass.open":"grid.track.\(role.rawValue)")
     }
@@ -611,7 +623,7 @@ struct GridView: View {
             Text(track.displayName).font(.system(.caption2, weight: .semibold)).lineLimit(2)
                 .foregroundStyle(Color.mint).padding(8).frame(width:gutter,height:melodyHeight)
                 .background(Color.ink)
-                .overlay(alignment:.trailing){Rectangle().fill(Color.mint.opacity(0.6)).frame(width:2).padding(.vertical,12)}
+                .overlay(alignment:.trailing){TrackLevelBar(level:{let i=session.displayProject.tracks.firstIndex(where:{$0.id==track.id}) ?? -1;return session.audio.meters.indices.contains(i) ? session.audio.meters[i]:0}(),color:Color.mint).padding(.vertical,12)}
                 .overlay(alignment:.bottom){Rectangle().fill(Color.outline.opacity(0.4)).frame(height:0.5)}
         }.buttonStyle(StudioQuietButtonStyle())
     }
@@ -645,17 +657,22 @@ struct GridView: View {
                 }
             }
         }.frame(height:harmonyHeight)
+        .onChange(of:heldChord){_,id in chordHoldChanged(id)}
     }
     func chordCell(clip:Clip,pattern:Pattern,slice:ArrangementChordSlice)->some View {
         let event=slice.event,tick=slice.sourceTick
         return Button {
+            if chordHoldEnded { return }
             selection=ChordSelection(id:event?.id ?? UUID(),patternID:pattern.id,
                 tick:tick,
                 chord:event?.chord ?? Chord(root:session.displayProject.keyRoot,quality:session.displayProject.minor ? .minor:.major),
-                duration:event?.duration ?? slice.duration)
+                duration:event?.duration ?? slice.duration,timelineTick:slice.timelineTick)
         } label: { ChordTile(chord:event?.chord,width:max(8,CGFloat(slice.duration)/CGFloat(barTicks)*barWidth-6),height:harmonyHeight-16,keyRoot:session.displayProject.keyRoot,minor:session.displayProject.minor,spelling:PitchSpelling(rawValue:pitchSpelling) ?? .automatic,showDegrees:showDegrees,audio:session.audio,playRange:slice.timelineTick..<(slice.timelineTick+slice.duration)) }
         .buttonStyle(StudioQuietButtonStyle()).disabled(editingLocked).accessibilityIdentifier("grid.chord.\(slice.id)").offset(x:CGFloat(slice.timelineTick)/CGFloat(barTicks)*barWidth+3,y:8)
-        .simultaneousGesture(LongPressGesture(minimumDuration:0.35).sequenced(before:DragGesture()).onEnded { value in
+        // U29: touch and hold a chord to hear it while the finger stays down (dragging still moves it).
+        .simultaneousGesture(LongPressGesture(minimumDuration:0.35).sequenced(before:DragGesture())
+            .updating($heldChord) { value, state, _ in if case .second(true,_)=value, let event { state=event.id } }
+            .onEnded { value in
             if case .second(true,let drag?)=value,let event {
                 let delta=Int((drag.translation.width/barWidth*16).rounded())*240
                 session.edit { p in
@@ -664,17 +681,17 @@ struct GridView: View {
                 }
             }
         })
-        .contextMenu {
-            // U29: hear the chord without changing anything.
-            if let event{Button("Hear this chord",systemImage:"speaker.wave.2"){session.audio.preview(event.chord)}}
-            Button("Change by voice",systemImage:"mic"){session.editByVoice(at:slice.timelineTick)}
-            if let event {
-                Button("Delete chord",role:.destructive) {
-                    session.edit { p in
-                        if let i=p.patterns.firstIndex(where:{$0.id==clip.patternID}) { p.patterns[i].chords.removeAll(where:{$0.id==event.id}) }
-                    }
-                }
-            }
+        // U29: touch and hold is for listening; "Change by voice" and "Delete chord" are in the
+        // chord editor's ⋯ menu, one tap away.
+    }
+    /// U29 · Starts and stops the held chord's sound; the release that ends a hold opens nothing.
+    private func chordHoldChanged(_ id:UUID?) {
+        if let id {
+            chordHoldEnded=true
+            if let chord=session.displayProject.patterns.lazy.flatMap(\.chords).first(where:{$0.id==id})?.chord { session.previewHold(chord:chord) }
+        } else {
+            session.endHold()
+            Task { @MainActor in try? await Task.sleep(for:.milliseconds(400)); chordHoldEnded=false }
         }
     }
     var drumLane: some View {
@@ -831,5 +848,58 @@ struct NextStepCard: View {
             .background(Color.panel, in: RoundedRectangle(cornerRadius: Luz.Radius.card, style: .continuous))
             .accessibilityElement(children: .contain).accessibilityIdentifier("next-step")
         }
+    }
+}
+
+/// U37 · A thin level meter at the edge of a track header: the track colour fills from the bottom
+/// with the kernel's level; at rest it is the faint track line.
+struct TrackLevelBar: View {
+    let level: Float
+    let color: Color
+    var body: some View {
+        GeometryReader { geometry in
+            ZStack(alignment: .bottom) {
+                Rectangle().fill(color.opacity(0.35))
+                Rectangle().fill(color).frame(height: geometry.size.height * CGFloat(min(1, max(0, level.squareRoot()))))
+            }
+        }
+        .frame(width: 3)
+        .accessibilityElement()
+        .accessibilityLabel(Text("Level"))
+        .accessibilityValue(Text(level > 0.01 ? "Playing" : "Silent"))
+        .accessibilityIdentifier("grid.level")
+    }
+}
+
+/// U15 · The song as a table for VoiceOver: a row per bar, read as "Bar 3, Verse. Harmony: Am.
+/// Drums: 12 hits." A "Bars" rotor jumps between rows; activating a row selects its section and
+/// moves the playhead to the bar. Shown while VoiceOver runs (and in UI tests on request).
+struct GridAccessibleTable: View {
+    @Bindable var session: Session
+    @Namespace private var rotor
+    var body: some View {
+        let rows = AccessibleGridTable.rows(session.displayProject) { MusicalNotation.chordSymbol($0, keyRoot: session.displayProject.keyRoot, minor: session.displayProject.minor) }
+        VStack(alignment: .leading, spacing: 2) {
+            Text("SONG TABLE").font(.caption.weight(.semibold)).tracking(1.1).foregroundStyle(Color.muted).accessibilityAddTraits(.isHeader)
+            ForEach(rows) { row in
+                Button {
+                    let tick = (row.bar - 1) * barTicks
+                    if let section = session.project.sections.first(where: { $0.start <= tick && tick < $0.start + $0.length }) { session.select(section) }
+                    session.audio.seek(tick)
+                } label: {
+                    Text(verbatim: row.label).font(.caption).frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                }
+                .buttonStyle(StudioQuietButtonStyle(plate: false))
+                .accessibilityRotorEntry(id: row.bar, in: rotor)
+                .accessibilityIdentifier("grid.table.row.\(row.bar)")
+            }
+        }
+        .padding(10)
+        .background(Color.panel, in: RoundedRectangle(cornerRadius: Luz.Radius.card, style: .continuous))
+        .accessibilityElement(children: .contain)
+        .accessibilityRotor("Bars") {
+            ForEach(rows) { row in AccessibilityRotorEntry(Text(verbatim: row.label), id: row.bar, in: rotor) }
+        }
+        .accessibilityIdentifier("grid.table")
     }
 }

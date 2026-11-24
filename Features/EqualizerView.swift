@@ -12,6 +12,12 @@ struct EqualizerView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var selected = 0
     @State private var dragging = false
+    /// U55 · With / without the EQ at matched loudness.
+    enum Compare: Hashable { case processed, bypassed }
+    @State private var compare = Compare.processed
+    @State private var comparison: EffectBypass.Comparison?
+    @State private var comparedRevision = -1
+    @State private var matching = false
     private var track: Track? {
         guard case .track(let id)=destination else { return nil }
         return session.project.tracks.first { $0.id == id }
@@ -36,12 +42,14 @@ struct EqualizerView: View {
                         Toggle("EQ on",isOn:Binding(get:{eq.enabled},set:{value in update { $0.enabled=value }}))
                             .fixedSize().tint(.mint)
                     }
+                    MIDILearningRow(session: session)
                     presetMenu
                     response
                     Picker("Band",selection:$selected) {
                         ForEach(0..<4,id:\.self){ i in Text("\(i+1)").tag(i) }
                     }.pickerStyle(.segmented)
                     bandEditor
+                    compareSection
                 }
                 .padding()
             }
@@ -50,10 +58,49 @@ struct EqualizerView: View {
             .toolbar { ToolbarItem(placement:.confirmationAction){Button("Done"){dismiss()}} }
         }
         .tint(.mint)
-        .onDisappear { session.mixerGesture=false }
+        .onDisappear { session.mixerGesture=false; session.midi.learning=nil; session.endHarmonyPreview() }
+        .onChange(of:compare){ _,_ in if session.harmonyPreview { playComparison() } }
         .onChange(of:session.performance.contextActive){ _,active in if active { dismiss() } }
         .onChange(of:session.project.tracks.map(\.id)){ _,_ in
             if case .track = destination, track == nil { dismiss() }
+        }
+    }
+
+    private var compareTarget: EffectBypass.Target { track.map { .trackEQ($0.id) } ?? .masterEQ }
+    private var compareRange: Range<Int> { HoldPreview.range(session.project, from: session.section.start) }
+
+    /// U55 · Hear the section with and without the EQ; "without" is turned up or down to the same
+    /// loudness first, so the difference is the tone.
+    private var compareSection: some View {
+        VStack(alignment:.leading,spacing:8) {
+            if matching { LoadingSkeleton(rows:2,caption:"Matching levels on this section…").accessibilityIdentifier("eq.matching") }
+            AuditionBar(screen:"eq",source:$compare,sources:[(.processed,"With EQ"),(.bypassed,"Without EQ")],
+                        playing:session.harmonyPreview,enabled:eq.enabled && !matching && !session.performance.contextActive,
+                        caption:"Without EQ plays at the same loudness, so you hear the tone, not the level.",
+                        play:playComparison,stop:{session.endHarmonyPreview()})
+            if let comparison,comparedRevision == session.project.revision {
+                Text(String(format:NSLocalizedString("Level match: %+.1f dB without the EQ",comment:"EQ comparison"),comparison.offsetDB))
+                    .font(.caption.monospaced()).foregroundStyle(Color.muted).accessibilityIdentifier("eq.match")
+            }
+        }
+    }
+
+    private func playComparison() {
+        let range = compareRange, sectionID = session.section.id
+        if compare == .processed {
+            session.previewAssistant(session.project,wholeSong:false,sectionID:sectionID,rangeOverride:range,loopOverride:true); return
+        }
+        if let comparison, comparedRevision == session.project.revision {
+            session.previewAssistant(comparison.bypassed,wholeSong:false,sectionID:sectionID,rangeOverride:range,loopOverride:true); return
+        }
+        matching = true
+        let project = session.project, target = compareTarget, samples = session.audio.samples
+        Task { @MainActor in
+            defer { matching = false }
+            guard let result = try? await EffectBypass.matched(project,target:target,range:range,samples:samples),
+                  session.project.revision == project.revision, session.project.id == project.id else { return }
+            comparison = result; comparedRevision = project.revision
+            if compare == .bypassed { session.previewAssistant(result.bypassed,wholeSong:false,sectionID:sectionID,rangeOverride:range,loopOverride:true) }
         }
     }
 
@@ -162,8 +209,19 @@ struct EqualizerView: View {
             control("Frequency",value:String(format:"%.0f Hz",band.frequency),binding:Binding(get:{x(band.frequency)},set:{ n in update(continuous:true){$0.bands[selected].frequency=hz(n)} }),range:0...1)
             if band.filter.hasGain {
                 control("Gain",value:String(format:"%+.1f dB",band.gain),binding:Binding(get:{band.gain},set:{ v in update(continuous:true){$0.bands[selected].gain=v} }),range:-18...18)
+                    // I52: the low and high bands of a track EQ can follow a MIDI knob.
+                    .contextMenu{if case .track(let id)=destination,selected==0 || selected==3{MIDIAssignButton(session:session,target:selected==0 ? .eqLow:.eqHigh,trackID:id)}}
             }
             control("Q",value:String(format:"%.2f",band.q),binding:Binding(get:{log2(band.q)},set:{ v in update(continuous:true){$0.bands[selected].q=pow(2,v)} }),range:-2...3)
+            // I52: the low and high bands of a track EQ can follow a MIDI knob (also as a button,
+            // because touch and hold on a slider competes with dragging it).
+            if case .track(let id)=destination {
+                Menu {
+                    MIDIAssignButton(session:session,target:.eqLow,trackID:id,named:true)
+                    MIDIAssignButton(session:session,target:.eqHigh,trackID:id,named:true)
+                } label: { Label("Assign a MIDI knob",systemImage:"pianokeys.inverse").font(.subheadline).frame(minHeight:44) }
+                    .accessibilityIdentifier("eq.midi")
+            }
         }.padding(14).background(Color.panel,in:RoundedRectangle(cornerRadius:Luz.Radius.card,style:.continuous))
     }
     private func control(_ title:LocalizedStringKey,value:String,binding:Binding<Double>,range:ClosedRange<Double>)->some View {

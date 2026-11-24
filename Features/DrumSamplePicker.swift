@@ -34,6 +34,9 @@ struct DrumSamplePicker: View {
     @State private var error: String?
     @State private var loopTempo: Double?
     @State private var loopURL: URL?
+    /// I6: the loop opened in the slice editor.
+    @State private var slicing: SlicedLoop?
+    struct SlicedLoop: Identifiable { let id = UUID(); let url: URL }
 
     private var track: Track? {
         guard session.project.id == sourceID else { return nil }
@@ -124,16 +127,33 @@ struct DrumSamplePicker: View {
             case .success(let picked):
                 loopTempo = nil
                 Task {
-                    guard let url = try? await AudioExtraction.wavIfNeeded(picked) else { return }
+                    guard let url = try? await AudioExtraction.wavIfNeeded(picked) else { error = NSLocalizedString("This file has no sound to slice.", comment: "Loop slicer"); return }
                     loopURL = url
+                    // I6: the cuts are shown and can be changed before the pads are filled.
+                    slicing = SlicedLoop(url: url)
                     loopTempo = try? await DrumSamplePreparation.shared.loopTempo(url)
-                }
-                prepare {
-                    let slices = try await DrumSamplePreparation.shared.importSlices(try await AudioExtraction.wavIfNeeded(picked))
-                    return slices.prefix(16).enumerated().map { (pad: Optional($0.offset), sound: $0.element) }
                 }
             case .failure(let failure): error = failure.localizedDescription
             }
+        }
+        // UI-test fixture: a loop of eight hits (four loud, four quiet) opens in the slice editor.
+        .task {
+            guard Luz.uiTesting, ProcessInfo.processInfo.arguments.contains("--slicer-fixture"), slicing == nil else { return }
+            let rate = 48_000
+            var samples = [Int16](repeating: 0, count: 2 * rate)
+            for hit in 0..<8 {
+                let start = hit * rate / 4, loud = hit % 2 == 0
+                for i in 0..<2400 { samples[start + i] = Int16(Double(loud ? 20_000 : 3_000) * exp(-Double(i) / 400) * (i % 20 < 10 ? 1 : -1)) }
+            }
+            let url = FileManager.default.temporaryDirectory.appendingPathComponent("slicer-fixture.wav")
+            try? SliceMarkers.previewWAV(samples, 0..<samples.count, rate: rate).write(to: url)
+            slicing = SlicedLoop(url: url)
+        }
+        .sheet(item: $slicing) { loop in
+            LoopSlicerView(url: loop.url) { sounds in
+                prepare { sounds.prefix(16).enumerated().map { (pad: Optional($0.offset), sound: $0.element) } }
+            }
+            .presentationDetents([.large])
         }
         .sheet(item: $libraryTarget) { target in
             PadSampleLibraryView(session: session, pad: target.id) { sound in

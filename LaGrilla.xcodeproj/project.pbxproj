@@ -444,6 +444,16 @@
 			"isa" = "PBXBuildFile";
 			"fileRef" = "B3346702A4CA9F140D4B4375";
 		};
+		"0AA903E123227AA16544D306" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "Features/LoopSlicerView.swift";
+			"sourceTree" = "SOURCE_ROOT";
+		};
+		"51279E45BD38B72432E3522C" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "0AA903E123227AA16544D306";
+		};
 		"9253F872B3B5E1E38DBF7F92" = {
 			"isa" = "PBXFileReference";
 			"lastKnownFileType" = "sourcecode.swift";
@@ -644,6 +654,16 @@
 			"isa" = "PBXBuildFile";
 			"fileRef" = "587E4C16DCAACEFF0C367127";
 		};
+		"0599F6792112F88A77130FF1" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "Features/SoundFileReader.swift";
+			"sourceTree" = "SOURCE_ROOT";
+		};
+		"C937DBAECD7C39C04831B8CA" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "0599F6792112F88A77130FF1";
+		};
 		"38C722B4D05AFF91C439E3F1" = {
 			"isa" = "PBXFileReference";
 			"lastKnownFileType" = "sourcecode.swift";
@@ -817,6 +837,7 @@
 				"D9D94FDD72A5CF2AAE8E2D2F",
 				"060265E3518DFE54215D381C",
 				"B3346702A4CA9F140D4B4375",
+				"0AA903E123227AA16544D306",
 				"9253F872B3B5E1E38DBF7F92",
 				"63A710D81FE05D4384456D81",
 				"D224BB63AFD44DE65E904262",
@@ -837,6 +858,7 @@
 				"075B12E141BDC8F1A4B29020",
 				"E5F2E0908152E1ABD82D2344",
 				"587E4C16DCAACEFF0C367127",
+				"0599F6792112F88A77130FF1",
 				"38C722B4D05AFF91C439E3F1",
 				"3DD94AD1F3282668638276CC",
 				"1CA45D5BF2C2B9C01D6BD806",
@@ -1184,6 +1206,12 @@
 			"path" = "UITests/BeatMachineUITests.swift";
 			"sourceTree" = "SOURCE_ROOT";
 		};
+		"67E02A550B24BC4D86D0223E" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "UITests/Build53UITests.swift";
+			"sourceTree" = "SOURCE_ROOT";
+		};
 		"FBA7C91466F791AA69EC0500" = {
 			"isa" = "PBXFileReference";
 			"lastKnownFileType" = "sourcecode.swift";
@@ -1385,6 +1413,7 @@
 				"59CA5379F0D235A02508DF6D",
 				"FEFA3EFE9A010ED0C7DE91BB",
 				"0C46945B4C02EA19DFF15477",
+				"67E02A550B24BC4D86D0223E",
 				"FBA7C91466F791AA69EC0500",
 				"EC11CC277B38E7141A590858",
 				"8E08794594EBDA422A2DCF65",
@@ -1618,7 +1647,7 @@
 				"GENERATE_INFOPLIST_FILE" = "NO";
 				"INFOPLIST_FILE" = "App/Info.plist";
 				"MARKETING_VERSION" = "1.0.0";
-				"CURRENT_PROJECT_VERSION" = "52";
+				"CURRENT_PROJECT_VERSION" = "53";
 				"ASSETCATALOG_COMPILER_APPICON_NAME" = "AppIcon";
 				"INFOPLIST_KEY_CFBundleDisplayName" = "La Grilla";
 				"INFOPLIST_KEY_LSApplicationCategoryType" = "public.app-category.music";
@@ -1652,7 +1681,7 @@
 				"GENERATE_INFOPLIST_FILE" = "NO";
 				"INFOPLIST_FILE" = "App/Info.plist";
 				"MARKETING_VERSION" = "1.0.0";
-				"CURRENT_PROJECT_VERSION" = "52";
+				"CURRENT_PROJECT_VERSION" = "53";
 				"ASSETCATALOG_COMPILER_APPICON_NAME" = "AppIcon";
 				"INFOPLIST_KEY_CFBundleDisplayName" = "La Grilla";
 				"INFOPLIST_KEY_LSApplicationCategoryType" = "public.app-category.music";
@@ -1719,6 +1748,7 @@
 				"CBD400E82D2C495DB9542305",
 				"BD9CCAF7C2E61E71DC9DEB7F",
 				"E8F3E456D95EA4BE5770D9CF",
+				"51279E45BD38B72432E3522C",
 				"F1099EE2F5A4F211F7E08C10",
 				"17823D32EA18EDCE74541437",
 				"DB62176AF638087FB4D3F269",
@@ -1739,6 +1769,7 @@
 				"BEC76A10B1415D4A4468FA79",
 				"2B0F9CC158C7AC2A104BD510",
 				"8E398EDC12B09F6F2DC70BCE",
+				"C937DBAECD7C39C04831B8CA",
 				"1E27F350D62F6DB039C6B1FE",
 				"C155C0E9399BD8C1E4646C6D",
 				"1108AC00104DD36CAAC325B2",
@@ -1897,6 +1928,10 @@
 		"4EB1255CC04C5735A3DD7CDF" = {
 			"isa" = "PBXBuildFile";
 			"fileRef" = "0C46945B4C02EA19DFF15477";
+		};
+		"F0CABAD26C6C47DB753814EF" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "67E02A550B24BC4D86D0223E";
 		};
 		"01F051F5C5B737487D3476F4" = {
 			"isa" = "PBXBuildFile";
@@ -2095,6 +2130,7 @@
 				"4AEC3071068FA71AC6BDF305",
 				"070EA23D73AD71D8F18CF251",
 				"4EB1255CC04C5735A3DD7CDF",
+				"F0CABAD26C6C47DB753814EF",
 				"01F051F5C5B737487D3476F4",
 				"CFBCB4CE9422545C53E155D9",
 				"6667A272ADBDD8F0F1F28733",

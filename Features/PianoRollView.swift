@@ -167,7 +167,7 @@ struct PianoRollView: View {
                                 .frame(width:barWidth,alignment:.leading)
                         }}.foregroundStyle(Color.muted).frame(height:24).background(Color.raised)
                             .overlay(alignment:.bottom){Rectangle().fill(Color.outline).frame(height:0.5)}
-                        RollCanvas(chordTones:chordTones(for:p),ghost:ghostNotes(for:p),pattern:p,projectID:session.project.id,revision:session.project.revision,clipID:clip?.id,sectionID:session.section.id,selected:selected,lowPitch:lowPitch,barWidth:barWidth,snap:snap,tick:sourcePlayhead,editingChanged:{noteDragging=$0},select:{id in selected=id},insert:{tick,pitch in add(p,tick:tick,pitch:pitch)},move:{id,tick,pitch in change(p.id){NoteEditing.move(id,in:&$0,tick:tick,pitch:pitch,step:snap)}},resize:{id,duration in change(p.id){NoteEditing.resize(id,in:&$0,duration:duration,step:snap)}})
+                        RollCanvas(chordTones:chordTones(for:p),ghost:ghostNotes(for:p),pattern:p,projectID:session.project.id,revision:session.project.revision,clipID:clip?.id,sectionID:session.section.id,selected:selected,lowPitch:lowPitch,barWidth:barWidth,snap:snap,tick:sourcePlayhead,editingChanged:{noteDragging=$0},select:{id in selected=id},insert:{tick,pitch in add(p,tick:tick,pitch:pitch)},move:{id,tick,pitch in change(p.id){NoteEditing.move(id,in:&$0,tick:tick,pitch:pitch,step:snap)}},resize:{id,duration in change(p.id){NoteEditing.resize(id,in:&$0,duration:duration,step:snap)}},hold:{pitch in if let pitch,let id=track?.id{session.previewHold(pitches:[pitch],trackID:id)}else{session.endHold()}})
                             .frame(width:CGFloat(p.length)/CGFloat(barTicks)*barWidth,height:576)
                     }
                 }
@@ -435,6 +435,8 @@ private struct RollCanvas:View {
     let selected:UUID?;let lowPitch:Int;let barWidth:CGFloat;let snap:Int;let tick:Double
     let editingChanged:(Bool)->Void
     let select:(UUID?)->Void;let insert:(Int,Int)->Void;let move:(UUID,Int,Int)->Void;let resize:(UUID,Int)->Void
+    /// U29: the pitch a held note sounds at while it is moved (nil when the finger lifts).
+    var hold:(Int?)->Void={_ in}
     @Environment(\.scenePhase) private var scenePhase
     @State private var interaction:Interaction?
     @State private var gestureAnchor:Anchor?
@@ -608,12 +610,15 @@ private struct RollCanvas:View {
             let anchor=Anchor(context:context,operation:operation,original:note)
             gestureAnchor=anchor;interaction=Interaction(anchor:anchor,preview:note)
             editingChanged(true)
+            if operation == .move{hold(note.pitch)}
         }
         guard let current=gestureAnchor,current.context==context,current.operation==operation,
               pattern.notes?.first(where:{$0.id==current.original.id})==current.original else{interaction=nil;gestureAnchor=nil;invalidated=true;editingChanged(false);return}
         let next=preview(current,translation:translation)
         // Luz: a tick each time the dragged note lands on a new step, pitch or length.
         if let old=interaction?.preview,old.tick != next.tick || old.pitch != next.pitch || old.duration != next.duration{Luz.Haptics.selection()}
+        // U29: the held note follows the finger to its new pitch.
+        if operation == .move,interaction?.preview.pitch != next.pitch{hold(next.pitch)}
         interaction?.preview=next
     }
     private func preview(_ interaction:Anchor,translation:CGSize)->NoteEvent {
@@ -631,7 +636,7 @@ private struct RollCanvas:View {
         select(final.id)
         switch operation{case .move:move(final.id,final.tick,final.pitch);case .resize:resize(final.id,final.duration)}
     }
-    private func cancel(){interaction=nil;gestureAnchor=nil;invalidated=false;editingChanged(false)}
+    private func cancel(){interaction=nil;gestureAnchor=nil;invalidated=false;editingChanged(false);hold(nil)}
 }
 
 private struct NoteInspector:View {

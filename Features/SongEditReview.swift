@@ -12,6 +12,8 @@ struct SongEditReview: View {
     let choose: (Int) -> Void
     let recalculate: () -> Void
     let apply: () -> Void
+    /// U5: Discard closes the plan without changing the song.
+    var discard: (() -> Void)? = nil
     @State private var previewB = false
 
     private var stale: Bool { session.project.id != plan.projectID || session.project.revision != plan.baseRevision }
@@ -58,21 +60,15 @@ struct SongEditReview: View {
                     Button("Recalculate", action: recalculate).buttonStyle(StudioActionStyle(prominent: false))
                         .accessibilityIdentifier("assistant.edit.recalculate")
                 } else {
-                    HStack(spacing: 10) {
-                        Button { previewB = false; audition(source) } label: {
-                            Text("A · Original").frame(maxWidth: .infinity, minHeight: 48)
-                                .background(session.harmonyPreview && !previewB ? Color.mint.opacity(0.2) : Color.raised, in: RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous))
-                        }.accessibilityIdentifier("assistant.a")
-                        Button { previewB = true; audition(candidate) } label: {
-                            Text("B · Proposal").frame(maxWidth: .infinity, minHeight: 48)
-                                .background(session.harmonyPreview && previewB ? Color.mint.opacity(0.2) : Color.raised, in: RoundedRectangle(cornerRadius:Luz.Radius.cell,style:.continuous))
-                        }.accessibilityIdentifier("assistant.b")
-                    }
-                    Text(String(format: NSLocalizedString("Both versions play bars %d–%d at the same level.", comment: "Song edit audition"), window.lowerBound / barTicks + 1, window.upperBound / barTicks))
-                        .font(.caption).foregroundStyle(Color.muted).accessibilityIdentifier("assistant.edit.window")
-                    if session.harmonyPreview { Button("Stop preview") { session.endHarmonyPreview() }.frame(minHeight: 44).accessibilityIdentifier("assistant.stop-preview") }
-                    Button(action: apply) { Text("Apply proposal") }.buttonStyle(StudioActionStyle()).accessibilityIdentifier("assistant.apply")
-                    Text("One Undo restores the whole change.").font(.caption).foregroundStyle(Color.muted)
+                    // U5: the same Listen → Apply → Discard block as every proposal screen.
+                    ABAuditionBar(playing: session.harmonyPreview ? previewB : nil,
+                                  caption: Text(String(format: NSLocalizedString("Both versions play bars %d–%d at the same level.", comment: "Song edit audition"), window.lowerBound / barTicks + 1, window.upperBound / barTicks)),
+                                  playA: { previewB = false; audition(source) },
+                                  playB: { previewB = true; audition(candidate) },
+                                  stop: { session.endHarmonyPreview() },
+                                  apply: apply,
+                                  discard: discard.map { action in { session.endHarmonyPreview(); action() } },
+                                  captionIdentifier: "assistant.edit.window")
                 }
             }
         }

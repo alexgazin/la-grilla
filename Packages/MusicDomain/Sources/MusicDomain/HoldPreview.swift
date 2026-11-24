@@ -30,6 +30,11 @@ public enum HoldPreview {
     /// The first beat of a genre on its own kit (drums only, so it starts at once).
     public static func beat(_ genre: BeatPreset.Genre, root: Int, minor: Bool) throws -> (project: Project, kit: [(pad: Int, asset: SampleAsset, data: Data)]) {
         guard let preset = BeatPreset.presets(genre).first else { throw MusicError.invalidProject }
+        return try beat(preset: preset, root: root, minor: minor)
+    }
+
+    /// U29 · One ready beat on its own kit, four bars at its tempo (drums only).
+    public static func beat(preset: BeatPreset, root: Int, minor: Bool) throws -> (project: Project, kit: [(pad: Int, asset: SampleAsset, data: Data)]) {
         let draft = BeatDraft(preset)
         let empty = try ProjectTemplates.make(name: "Preview", bpm: Double(preset.bpm), root: root, minor: minor, bars: bars, template: .empty)
         let kit = try PaletteEngine.kit(draft.kit)
@@ -42,5 +47,28 @@ public enum HoldPreview {
     public static func range(_ project: Project, from start: Int = 0) -> Range<Int> {
         let lower = max(0, min(start, max(0, project.length - barTicks)))
         return lower..<min(project.length, lower + bars * barTicks)
+    }
+}
+
+/// U33 · What a held project card plays: about ten seconds of the chorus (or of the first section
+/// when no section is called a chorus).
+public enum ProjectPreview {
+    public static let seconds = 10.0
+    static let chorusNames = ["chorus", "припев", "refrain", "hook", "drop"]
+
+    /// The section heard first: the first one named like a chorus, else the first section.
+    public static func section(of project: Project) -> Section? {
+        project.sections.first { section in
+            let name = section.name.lowercased()
+            return chorusNames.contains { name.contains($0) }
+        } ?? project.sections.first
+    }
+
+    /// From the start of that section, at most `seconds` long at the song's tempo, whole beats.
+    public static func range(_ project: Project, seconds: Double = seconds) -> Range<Int> {
+        guard let section = section(of: project) else { return 0..<0 }
+        let ticksPerSecond = project.bpm / 60 * Double(ppq)
+        let wanted = max(ppq, Int((ticksPerSecond * seconds / Double(ppq)).rounded()) * ppq)
+        return section.start..<min(section.start + section.length, section.start + wanted, project.length)
     }
 }
