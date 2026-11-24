@@ -219,10 +219,11 @@ struct MixerView: View {
                     session.edit { p in if let i = p.tracks.firstIndex(where: { $0.id == id }) { p.tracks[i].locked = p.tracks[i].locked == true ? nil : true } }
                 }
                 if advanced {
-                    dynamicsMenu(track)
                     Button("Automation…", systemImage: "point.topleft.down.to.point.bottomright.curvepath") {
                         session.automationTrackID = track.id; session.presentEditor(.automation)
                     }
+                    // Sends, drive, choke groups and the synth stay one level down so the menu stays short.
+                    Menu("Effects", systemImage: "dial.medium") { dynamicsMenu(track) }
                 }
                 if track.role == .melody, session.project.tracks.filter({ $0.role == .melody }).count > 1 {
                     Button("Delete track", systemImage: "trash", role: .destructive) { session.deleteMelody(track.id) }

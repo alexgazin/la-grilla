@@ -11,7 +11,9 @@ struct SaveCard: View {
     private var status: String {
         if let error = session.saveError { return String(format: NSLocalizedString("Not saved: %@", comment: "Save card"), error) }
         if session.saving { return NSLocalizedString("Saving…", comment: "Save card") }
-        if session.savedRevision == session.project.revision, let time = session.savedAt {
+        if session.savedRevision == session.project.revision {
+            // Opened from disk and not changed since: saved, at a time this session did not see.
+            guard let time = session.savedAt else { return NSLocalizedString("Saved on this iPhone", comment: "Save card") }
             return String(format: NSLocalizedString("Saved at %@ on this iPhone", comment: "Save card"), time.formatted(date: .omitted, time: .shortened))
         }
         return NSLocalizedString("Unsaved changes", comment: "Save card")
@@ -25,10 +27,9 @@ struct SaveCard: View {
                 .accessibilityIdentifier("save.status")
             Text("Your song saves itself a moment after each change. Versions keep the moments you name.")
                 .font(.footnote).foregroundStyle(Color.muted).fixedSize(horizontal: false, vertical: true)
-            if session.savedRevision != session.project.revision || session.saveError != nil {
-                Button { Task { await session.save() } } label: { Label("Save now", systemImage: "arrow.down.doc") }
-                    .disabled(session.saving).accessibilityIdentifier("save.now")
-            }
+            Button { Task { await session.save() } } label: { Label("Save now", systemImage: "arrow.down.doc") }
+                .disabled(session.saving || (session.savedRevision == session.project.revision && session.saveError == nil))
+                .accessibilityIdentifier("save.now")
             Button { confirmBack = true } label: {
                 Label(session.openedAt.map { String(format: NSLocalizedString("Back to how it was at %@", comment: "Save card"), $0.formatted(date: .omitted, time: .shortened)) }
                       ?? NSLocalizedString("Back to how it was when opened", comment: "Save card"), systemImage: "arrow.uturn.backward.circle")

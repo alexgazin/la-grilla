@@ -648,9 +648,8 @@ struct AssistantWhy: View {
                     }
                 }.padding(.top, 6)
             } label: {
-                Text("Why this").font(.subheadline.weight(.semibold))
+                Text("Why this").font(.subheadline.weight(.semibold)).accessibilityIdentifier("assistant.why")
             }
-            .accessibilityIdentifier("assistant.why")
             if canVary {
                 HStack(spacing: 8) {
                     Text("Careful").font(.caption).foregroundStyle(Color.muted)

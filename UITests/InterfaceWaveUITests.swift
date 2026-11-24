@@ -31,7 +31,11 @@ final class InterfaceWaveUITests: XCTestCase {
     }
 
     @MainActor private func openSettings(_ app: XCUIApplication) -> XCUIElement {
-        app.buttons["tools.more"].tap()
+        // "More studio tools" lives in Grid.
+        let more = app.buttons["tools.more"]
+        if !more.waitForExistence(timeout: 3) { app.buttons["Grid"].firstMatch.tap() }
+        XCTAssertTrue(more.waitForExistence(timeout: 10))
+        more.tap()
         app.buttons["Settings"].tap()
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 10))
         return app.collectionViews.firstMatch.exists ? app.collectionViews.firstMatch : app.tables.firstMatch
@@ -201,7 +205,7 @@ final class InterfaceWaveUITests: XCTestCase {
         open.tap()
         XCTAssertTrue(app.navigationBars["Piano roll"].waitForExistence(timeout: 8))
         app.buttons["notes.add"].tap()
-        let pitch = app.steppers["Note pitch"]
+        let pitch = app.steppers["notes.selection.pitch"]
         XCTAssertTrue(pitch.waitForExistence(timeout: 8), "Adding a note selects it")
         XCUIDevice.shared.orientation = .landscapeLeft
         XCTAssertTrue(eventually { app.windows.firstMatch.frame.width > app.windows.firstMatch.frame.height })

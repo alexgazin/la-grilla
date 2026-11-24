@@ -9,7 +9,7 @@ enum InterfacePreferences {
     static let oneHandKey = "studio.oneHand"
 
     /// UI tests start from the defaults unless a launch argument asks otherwise:
-    /// `--feature-level simple`, `--density compact|large`, `--one-hand`.
+    /// `--feature-level simple`, `--density compact|large`, `--one-hand`, `--arp-pattern`.
     static func prepareForTesting(_ arguments: [String] = ProcessInfo.processInfo.arguments) {
         guard arguments.contains("--uitesting") else { return }
         func value(after flag: String) -> String? {
@@ -20,6 +20,10 @@ enum InterfacePreferences {
         defaults.set(FeatureLevel(rawValue: value(after: "--feature-level") ?? "")?.rawValue ?? FeatureLevel.full.rawValue, forKey: featureLevelKey)
         defaults.set(InterfaceDensity(rawValue: value(after: "--density") ?? "")?.rawValue ?? InterfaceDensity.normal.rawValue, forKey: densityKey)
         defaults.set(arguments.contains("--one-hand"), forKey: oneHandKey)
+        // The arpeggiator starts off, or on at 1/16 with "My pattern" for the pattern editor test.
+        let arpPattern = arguments.contains("--arp-pattern")
+        defaults.set(arpPattern ? 240 : 0, forKey: "keyboard.arpRate")
+        defaults.set(arpPattern ? 4 : 0, forKey: "keyboard.arpMode")
     }
 }
 

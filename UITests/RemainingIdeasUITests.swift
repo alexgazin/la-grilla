@@ -48,7 +48,8 @@ final class RemainingIdeasUITests: XCTestCase {
     // MARK: I29 · I54
 
     @MainActor func testArpPatternEditorTogglesStepsAndPlaysItsPattern() {
-        let app = launch()
+        // The arpeggiator starts at 1/16 with "My pattern" (UI-test fixture).
+        let app = launch("grid", ["--arp-pattern"])
         let notes = app.buttons["notes.open"]
         XCTAssertTrue(notes.waitForExistence(timeout: 15))
         notes.tap()
@@ -56,15 +57,10 @@ final class RemainingIdeasUITests: XCTestCase {
         app.buttons["keyboard.open"].tap()
         let layout = app.buttons["keyboard.layout"]
         XCTAssertTrue(layout.waitForExistence(timeout: 10))
-        // Arpeggiator on, then "My pattern" as the order.
-        layout.tap()
-        pick("1/16", from: "Arpeggiator", in: app)
-        XCTAssertTrue(layout.waitForExistence(timeout: 5))
-        layout.tap()
-        pick("My pattern", from: "Arpeggio order", in: app)
         layout.tap()
         // I54: the MPE switch sits in the same menu.
         XCTAssertTrue(app.buttons["keyboard.mpe"].waitForExistence(timeout: 5) || app.switches["keyboard.mpe"].exists)
+        XCTAssertTrue(app.buttons["Edit pattern…"].waitForExistence(timeout: 5))
         app.buttons["Edit pattern…"].tap()
         XCTAssertTrue(app.navigationBars["Arpeggio pattern"].waitForExistence(timeout: 8))
         let encoded = app.staticTexts["arp.encoded"]
@@ -87,6 +83,8 @@ final class RemainingIdeasUITests: XCTestCase {
         drums.tap()
         app.buttons["sound.samples"].tap()
         XCTAssertTrue(app.navigationBars["Pad samples"].waitForExistence(timeout: 10))
+        // The pocket kit puts editable samples on the pads.
+        app.buttons["pad-samples.pocket-kit"].tap()
         // I32: the pad editor offers the voice treatment.
         let edit = app.buttons["pad-samples.edit.0"]
         XCTAssertTrue(edit.waitForExistence(timeout: 15))
@@ -169,10 +167,11 @@ final class RemainingIdeasUITests: XCTestCase {
         status.tap()
         let now = app.buttons["save.now"]
         XCTAssertTrue(now.waitForExistence(timeout: 8))
-        XCTAssertTrue(any(app, "save.status").exists)
-        XCTAssertTrue(app.buttons["save.copy"].exists && app.buttons["save.back"].exists)
+        XCTAssertTrue(any(app, "save.status").label.contains("Saved"), any(app, "save.status").label)
+        XCTAssertFalse(now.isEnabled, "Nothing to save on a freshly opened song")
+        XCTAssertFalse(app.buttons["save.back"].isEnabled, "Nothing changed since opening")
+        XCTAssertTrue(app.buttons["save.copy"].exists)
         shoot("U26-save-card")
-        now.tap()
         app.buttons["save.versions"].tap()
         XCTAssertTrue(app.navigationBars["Song versions"].waitForExistence(timeout: 8))
     }
