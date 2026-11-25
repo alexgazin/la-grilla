@@ -359,7 +359,7 @@
 
 ## Попробовать на iPhone
 
-**[Скачать La Grilla 1.0.0 (54)](https://raw.githubusercontent.com/alexgazin/la-grilla/7d1a6fb9b0fac206690615639d0db0a97269db32/Builds/Testing/LaGrilla-54-unsigned.ipa)**. Подпишите скачанный IPA своим Apple ID через Sideloadly. Бесплатная Personal Team подходит. [Установка и проверка пакета](Builds/Testing/README.md).
+**[Скачать La Grilla 1.0.0 (55)](https://raw.githubusercontent.com/alexgazin/la-grilla/299046ea013d3edddfafdadd016360c1edf648e0/Builds/Testing/LaGrilla-55-unsigned.ipa)**. Подпишите скачанный IPA своим Apple ID через Sideloadly. Бесплатная Personal Team подходит. [Установка и проверка пакета](Builds/Testing/README.md).
 
 Перед обновлением экспортируйте важные проекты в `.grillapack`. Сборка 55 читает проекты схем 1…16 (16 — песни с аудиодорожками; их не откроют сборки до 54), проекты сборок 43–47 открываются без миграции. После сохранения в схеме 15 проект хранит исходники отредактированных пэдов. Чтобы снова открыть такую копию, требуется сборка 43 или новее.
 
