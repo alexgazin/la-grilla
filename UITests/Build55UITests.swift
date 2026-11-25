@@ -37,6 +37,15 @@ final class Build55UITests: XCTestCase {
         for _ in 0..<10 where !(element.exists && element.isHittable) { app.swipeUp() }
     }
 
+    /// Drags in the page's side margin (cards there are hold-to-listen, so a slow drag on one plays it).
+    @MainActor private func marginReveal(_ element: XCUIElement, in app: XCUIApplication) {
+        let window = app.windows.firstMatch
+        for _ in 0..<8 where !(element.exists && element.isHittable) {
+            window.coordinate(withNormalizedOffset: CGVector(dx: 0.015, dy: 0.75))
+                .press(forDuration: 0.05, thenDragTo: window.coordinate(withNormalizedOffset: CGVector(dx: 0.015, dy: 0.35)))
+        }
+    }
+
     @MainActor private func shoot(_ name: String) {
         let shot = XCTAttachment(screenshot: XCUIScreen.main.screenshot()); shot.name = name; shot.lifetime = .keepAlways; add(shot)
     }
@@ -133,13 +142,14 @@ final class Build55UITests: XCTestCase {
         XCTAssertTrue(preset.waitForExistence(timeout: 5))
         preset.tap()
         XCTAssertTrue(eventually { app.staticTexts["beat.title"].label == "909 House" }, app.staticTexts["beat.title"].label)
+        // The kit and bass rows follow the beat's choices, so both are in view and selected.
         let kit = app.buttons["beat.kit.punch909"]
-        reveal(kit, in: app)
+        marginReveal(kit, in: app)
         XCTAssertTrue(kit.exists, "The 909-style kit is offered")
-        XCTAssertTrue(app.buttons["beat.kit.classic808"].exists && app.buttons["beat.kit.digital707"].exists && app.buttons["beat.kit.mini606"].exists)
+        XCTAssertTrue(kit.isSelected, "and chosen by the beat")
         let fmBass = app.buttons["beat.sound.fm-solid-bass"]
-        reveal(fmBass, in: app)
-        XCTAssertTrue(fmBass.exists, "The preset's FM bass is offered")
+        marginReveal(fmBass, in: app)
+        XCTAssertTrue(fmBass.exists && fmBass.isSelected, "The beat's FM bass is offered and chosen")
         shoot("55-909-house")
     }
 
