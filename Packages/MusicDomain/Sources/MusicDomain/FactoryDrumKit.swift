@@ -8,6 +8,8 @@ public enum FactoryDrumKit: String, CaseIterable, Sendable {
     case trap808, house, brushes, world
     /// Beat machine: genre kits for hip-hop, electronic and band styles.
     case boomBap, lofi, drill, phonk, techno, reggaeton, afro, garage, jungle, rock, synthwave, chip
+    /// 55 · In the character of the classic drum machines: analog 808 and 606, punchy 909, crisp digital 707.
+    case classic808, punch909, digital707, mini606
     /// Kits with their own generator; the three original kits keep theirs bit-exact.
     public static let original: [FactoryDrumKit] = [.pocket, .dusty, .coast]
 
@@ -243,6 +245,10 @@ extension FactoryDrumKit {
         case .rock: "Rock"
         case .synthwave: "Synthwave"
         case .chip: "8-bit"
+        case .classic808: "808 Classic"
+        case .punch909: "909 Punch"
+        case .digital707: "707 Digital"
+        case .mini606: "606 Mini"
         }
     }
 
@@ -271,6 +277,10 @@ extension FactoryDrumKit {
         case .rock: "Live-room kick, loud snare and long cymbals."
         case .synthwave: "Gated snare, synth toms and an eighties clap."
         case .chip: "Square-wave kicks and noise hats from old consoles."
+        case .classic808: "Deep booming kick, snappy snare, metallic hats, cowbell and claves."
+        case .punch909: "Punchy kick with a click, sharp noisy snare, bright hats, clap and cymbals."
+        case .digital707: "Clean, tight digital kick and snare, toms, tambourine and cowbell."
+        case .mini606: "Small vintage analog kick, thin snare, accented hats and toms."
         }
     }
 }
@@ -281,7 +291,10 @@ extension FactoryDrumKit {
     private enum Hit { case boom, punch, felt, frame, snap, clap, brush, tek, hat, openHat, cymbal, ride, conga, shaker, bell, rim
         /// Beat machine voices: square-wave and stepped-noise 8-bit hits, a two-tone cowbell,
         /// a gated-reverb snare and a falling synth-drum zap.
-        case chip, chipNoise, cowbell, gated, zap }
+        case chip, chipNoise, cowbell, gated, zap
+        /// 55 · Classic machine voices: a sine kick or tom with a slight drop and a long tail, a
+        /// two-oscillator snare, a noisier snare, and hats and cymbals from six detuned squares.
+        case deep, twinSnare, noisySnare, metal, metalCymbal }
     private struct StyledVoice { let hit: Hit; let pitch: Double; let length: Double; let gain: Double }
     private struct Style { let drive: Double; let warmth: Double; let air: Double; let level: Double }
 
@@ -302,6 +315,10 @@ extension FactoryDrumKit {
         case .rock: Style(drive: 1.2, warmth: 0.45, air: 0.85, level: 16_000)
         case .synthwave: Style(drive: 1.4, warmth: 0.55, air: 0.9, level: 15_000)
         case .chip: Style(drive: 1.0, warmth: 0, air: 1.0, level: 12_000)
+        case .classic808: Style(drive: 1.25, warmth: 0.6, air: 0.9, level: 15_500)
+        case .punch909: Style(drive: 1.6, warmth: 0.5, air: 1.0, level: 15_000)
+        case .digital707: Style(drive: 1.1, warmth: 0.2, air: 1.0, level: 15_500)
+        case .mini606: Style(drive: 1.2, warmth: 0.45, air: 0.9, level: 15_000)
         default: Style(drive: 1.15, warmth: 0.5, air: 0.8, level: 15_500)
         }
     }
@@ -445,6 +462,42 @@ extension FactoryDrumKit {
             .init(hit: .ride, pitch: 6400, length: 1.1, gain: 0.42), .init(hit: .shaker, pitch: 9000, length: 0.2, gain: 0.4),
             .init(hit: .cowbell, pitch: 610, length: 0.22, gain: 0.5), .init(hit: .tek, pitch: 2600, length: 0.06, gain: 0.55),
             .init(hit: .shaker, pitch: 7400, length: 0.14, gain: 0.4), .init(hit: .zap, pitch: 600, length: 0.25, gain: 0.55)]
+        case .classic808: [
+            .init(hit: .deep, pitch: 50, length: 1.6, gain: 1), .init(hit: .twinSnare, pitch: 180, length: 0.3, gain: 0.85),
+            .init(hit: .metal, pitch: 540, length: 0.07, gain: 0.5), .init(hit: .metal, pitch: 540, length: 0.5, gain: 0.48),
+            .init(hit: .clap, pitch: 1100, length: 0.32, gain: 0.8), .init(hit: .rim, pitch: 1700, length: 0.06, gain: 0.6),
+            .init(hit: .deep, pitch: 90, length: 0.55, gain: 0.8), .init(hit: .deep, pitch: 130, length: 0.45, gain: 0.76),
+            .init(hit: .deep, pitch: 180, length: 0.38, gain: 0.72), .init(hit: .metalCymbal, pitch: 540, length: 1.6, gain: 0.45),
+            .init(hit: .metalCymbal, pitch: 640, length: 1.1, gain: 0.4), .init(hit: .shaker, pitch: 9000, length: 0.08, gain: 0.42),
+            .init(hit: .cowbell, pitch: 540, length: 0.35, gain: 0.6), .init(hit: .tek, pitch: 2500, length: 0.06, gain: 0.6),
+            .init(hit: .shaker, pitch: 7500, length: 0.12, gain: 0.4), .init(hit: .conga, pitch: 310, length: 0.26, gain: 0.62)]
+        case .punch909: [
+            .init(hit: .punch, pitch: 52, length: 0.5, gain: 1), .init(hit: .noisySnare, pitch: 200, length: 0.26, gain: 0.85),
+            .init(hit: .hat, pitch: 10500, length: 0.06, gain: 0.45), .init(hit: .openHat, pitch: 9800, length: 0.4, gain: 0.45),
+            .init(hit: .clap, pitch: 1150, length: 0.36, gain: 0.85), .init(hit: .rim, pitch: 1900, length: 0.05, gain: 0.6),
+            .init(hit: .punch, pitch: 95, length: 0.42, gain: 0.78), .init(hit: .punch, pitch: 125, length: 0.36, gain: 0.74),
+            .init(hit: .punch, pitch: 165, length: 0.32, gain: 0.7), .init(hit: .cymbal, pitch: 6200, length: 1.6, gain: 0.5),
+            .init(hit: .ride, pitch: 7200, length: 1.2, gain: 0.45), .init(hit: .shaker, pitch: 9500, length: 0.2, gain: 0.42),
+            .init(hit: .cowbell, pitch: 590, length: 0.25, gain: 0.5), .init(hit: .tek, pitch: 2600, length: 0.05, gain: 0.55),
+            .init(hit: .shaker, pitch: 8600, length: 0.14, gain: 0.42), .init(hit: .conga, pitch: 280, length: 0.25, gain: 0.6)]
+        case .digital707: [
+            .init(hit: .punch, pitch: 58, length: 0.32, gain: 1), .init(hit: .noisySnare, pitch: 230, length: 0.22, gain: 0.85),
+            .init(hit: .hat, pitch: 11000, length: 0.05, gain: 0.45), .init(hit: .openHat, pitch: 10500, length: 0.3, gain: 0.45),
+            .init(hit: .clap, pitch: 1300, length: 0.26, gain: 0.8), .init(hit: .rim, pitch: 2100, length: 0.05, gain: 0.62),
+            .init(hit: .conga, pitch: 120, length: 0.35, gain: 0.78), .init(hit: .conga, pitch: 165, length: 0.3, gain: 0.74),
+            .init(hit: .conga, pitch: 220, length: 0.28, gain: 0.7), .init(hit: .cymbal, pitch: 6800, length: 1.3, gain: 0.48),
+            .init(hit: .ride, pitch: 7800, length: 1.0, gain: 0.44), .init(hit: .shaker, pitch: 10000, length: 0.22, gain: 0.5),
+            .init(hit: .cowbell, pitch: 620, length: 0.22, gain: 0.55), .init(hit: .tek, pitch: 2800, length: 0.05, gain: 0.55),
+            .init(hit: .shaker, pitch: 9200, length: 0.12, gain: 0.42), .init(hit: .rim, pitch: 1500, length: 0.06, gain: 0.55)]
+        case .mini606: [
+            .init(hit: .deep, pitch: 62, length: 0.35, gain: 1), .init(hit: .twinSnare, pitch: 240, length: 0.2, gain: 0.8),
+            .init(hit: .metal, pitch: 620, length: 0.05, gain: 0.48), .init(hit: .metal, pitch: 620, length: 0.35, gain: 0.46),
+            .init(hit: .clap, pitch: 1200, length: 0.25, gain: 0.72), .init(hit: .rim, pitch: 1800, length: 0.05, gain: 0.58),
+            .init(hit: .deep, pitch: 120, length: 0.3, gain: 0.78), .init(hit: .deep, pitch: 150, length: 0.27, gain: 0.74),
+            .init(hit: .deep, pitch: 190, length: 0.25, gain: 0.7), .init(hit: .metalCymbal, pitch: 620, length: 1.2, gain: 0.42),
+            .init(hit: .metalCymbal, pitch: 720, length: 0.9, gain: 0.38), .init(hit: .shaker, pitch: 9800, length: 0.1, gain: 0.42),
+            .init(hit: .cowbell, pitch: 600, length: 0.2, gain: 0.5), .init(hit: .tek, pitch: 2700, length: 0.05, gain: 0.55),
+            .init(hit: .shaker, pitch: 8800, length: 0.1, gain: 0.4), .init(hit: .metal, pitch: 620, length: 0.05, gain: 0.66)]
         case .chip: [
             .init(hit: .chip, pitch: 60, length: 0.25, gain: 1), .init(hit: .chipNoise, pitch: 3000, length: 0.18, gain: 0.75),
             .init(hit: .chipNoise, pitch: 9000, length: 0.07, gain: 0.45), .init(hit: .chipNoise, pitch: 8000, length: 0.25, gain: 0.45),
@@ -461,7 +514,7 @@ extension FactoryDrumKit {
         let voice = styledVoices[pad], style = self.style
         let rate = Double(Self.sampleRate), count = Int(max(0.075, voice.length) * rate), turn = 2 * Double.pi
         var seed = UInt32(pad + 101 + (Self.allCases.firstIndex(of: self) ?? 0) * 17) &* 2_654_435_761
-        var low = 0.0, band = 0.0, phase = 0.0, out = [Int16](), tone = 0.0, held = 0.0
+        var low = 0.0, band = 0.0, phase = 0.0, out = [Int16](), tone = 0.0, held = 0.0, metalLow = 0.0
         let hold = max(1, Int(rate / max(1, voice.pitch)))
         out.reserveCapacity(count)
         for frame in 0..<count {
@@ -530,9 +583,28 @@ extension FactoryDrumKit {
             case .zap:
                 phase += turn * voice.pitch * (1 + 6 * exp(-t * 25)) / rate
                 signal = sin(phase) * decay
+            case .deep:
+                // Bridged-T style: a sine that drops a little at the strike and rings out long.
+                let f = voice.pitch * (1 + 0.18 * exp(-t * 35))
+                phase += turn * f / rate
+                signal = sin(phase) * exp(-t * 2.4 / voice.length) + body * 0.25 * exp(-t * 400)
+            case .twinSnare:
+                let tones = (sin(turn * voice.pitch * t) + 0.7 * sin(turn * voice.pitch * 1.83 * t)) * 0.55 * exp(-t * 28)
+                signal = tones + (hiss * 1.5 + body * 0.3) * decay
+            case .noisySnare:
+                signal = 0.5 * sin(turn * voice.pitch * t) * exp(-t * 30) + (hiss * 2.2 + body * 1.2) * decay
+            case .metal, .metalCymbal:
+                // Six detuned square waves (the classic metallic bank), high-passed.
+                let ratios = [0.380, 0.564, 0.684, 0.968, 1.0, 1.481]
+                var bank = 0.0
+                for ratio in ratios { bank += sin(turn * voice.pitch * ratio * t) >= 0 ? 1 : -1 }
+                bank /= Double(ratios.count)
+                metalLow += (bank - metalLow) * 0.18
+                let edge = bank - metalLow
+                signal = voice.hit == .metal ? (edge * 1.7 + hiss * 0.6) * decay : (edge * 1.1 + hiss * 2.0) * decay
             }
             // Metals keep their air; drums and tones get the kit's warmth.
-            let metallic = [.hat, .openHat, .shaker, .cymbal, .ride, .chipNoise].contains(voice.hit)
+            let metallic = [.hat, .openHat, .shaker, .cymbal, .ride, .chipNoise, .metal, .metalCymbal].contains(voice.hit)
             tone += (signal - tone) * (1 - (metallic ? 0 : style.warmth) * 0.6)
             let shaped = tanh(tone * style.drive)
             let edge = min(1, Double(frame) / 9, Double(count - 1 - frame) / 120)

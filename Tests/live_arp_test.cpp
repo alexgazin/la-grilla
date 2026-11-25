@@ -30,7 +30,7 @@ int main(){
     {
         auto*h=lg_midi_create();auto*k=kernel(h);
         const int32_t single[]={60},high[]={128};
-        assert(!lg_arp(k,202,nullptr,1,240,0,1,100)&&!lg_arp(k,202,single,1,200,0,1,100)&&!lg_arp(k,202,single,1,240,5,1,100)&&!lg_arp(k,202,high,1,240,0,1,100)&&!lg_arp(k,0,single,1,240,0,1,100));
+        assert(!lg_arp(k,202,nullptr,1,240,0,1,100)&&!lg_arp(k,202,single,1,200,0,1,100)&&!lg_arp(k,202,single,1,240,6,1,100)&&!lg_arp(k,202,high,1,240,0,1,100)&&!lg_arp(k,0,single,1,240,0,1,100));
         lg_seek(k,0);uint64_t time=100000;run(k,h,time,1);lg_play(k,1);
         run(k,h,time,2499);                                  // ≈ tick 100
         const int32_t chord[]={67,60,64};
@@ -95,7 +95,49 @@ int main(){
         lg_destroy(k);lg_midi_destroy(h);
     }
 
+    {   // 55: a quarter-note rate, a random order that only plays held notes and restarts the
+        // same way, and the gate that shortens each note within its step.
+        auto*h=lg_midi_create();auto*k=kernel(h);lg_seek(k,0);uint64_t time=100000;run(k,h,time,1);lg_play(k,1);
+        const int32_t chord[]={60,64,67,71};
+        assert(lg_arp(k,202,chord,4,960,0,1,90));
+        auto quarters=run(k,h,time,24000*3+10);
+        assert(quarters.size()==4);for(size_t i=1;i<4;i++)assert((quarters[i].time-100001)%24000==0&&quarters[i].time-quarters[i-1].time==24000);
+        lg_arp(k,202,nullptr,0,0,0,1,0);run(k,h,time,100);
+        assert(lg_arp(k,202,chord,4,240,5,2,90));
+        auto first=run(k,h,time,6000*15+10);
+        assert(first.size()==16);
+        bool ascending=true;
+        for(size_t i=0;i<first.size();i++){
+            const int p=first[i].pitch;assert(p==60||p==64||p==67||p==71||p==72||p==76||p==79||p==83);
+            if(i>0&&first[i].pitch<first[i-1].pitch)ascending=false;
+        }
+        assert(!ascending);
+        lg_arp(k,202,nullptr,0,0,0,1,0);run(k,h,time,100);
+        assert(lg_arp(k,202,chord,4,240,5,2,90));
+        auto again=run(k,h,time,6000*15+10);
+        assert(again.size()==16);for(size_t i=0;i<16;i++)assert(again[i].pitch==first[i].pitch);
+        lg_arp(k,202,nullptr,0,0,0,1,0);run(k,h,time,100);
+        lg_destroy(k);lg_midi_destroy(h);
+    }
+    {   // Gate: rejected out of range; a shorter gate gives a shorter sounding note (rendered audio).
+        auto*k0=lg_create(48000);assert(!lg_arp_gate(k0,0.05f)&&!lg_arp_gate(k0,1.5f)&&!lg_arp_gate(k0,NAN)&&lg_arp_gate(k0,1.0f));lg_destroy(k0);
+        auto sounding=[](float gate){
+            auto*k=lg_create(48000);
+            std::array<LGProjectTrack,2> tracks{{{{-6,0,1},2,0,0,101},{{-6,0,1},2,3,2,202}}};
+            LGNote marker{0,1,0,1,0,-1,0};assert(lg_submit_project(k,&marker,1,120,0,3840*4,1,1,1,tracks.data(),2,-3,0,0));
+            assert(lg_arp_gate(k,gate));
+            std::vector<float> l(512),r(512);lg_seek(k,0);lg_render(k,l.data(),r.data(),1);lg_play(k,1);
+            const int32_t one[]={69};assert(lg_arp(k,202,one,1,960,0,1,100));
+            // Count blocks with sound during the first quarter-note step (24000 frames).
+            int loud=0;for(int pos=0;pos<24000;pos+=512){lg_render(k,l.data(),r.data(),512);float peak=0;for(float v:l)peak=std::max(peak,std::fabs(v));if(peak>0.01f)loud++;}
+            lg_destroy(k);return loud;
+        };
+        const int short_=sounding(0.25f),long_=sounding(1.0f);
+        assert(short_>0&&long_>short_+15);
+    }
+
     std::printf("Arpeggio pattern: note indices, rests keep the grid, octave steps, a new pattern on the same grid, empty silences\n");
     std::printf("Pitch bend: zero is bit-identical, +12 semitones doubles the pitch, vibrato keeps the centre pitch\n");
+    std::printf("Live arpeggiator (55): quarter-note steps, a random order of held notes that restarts the same way, gate rejects out-of-range values and shortens notes\n");
     std::printf("Live arpeggiator: immediate first note then exact grid steps; up over two octaves, down, up-down and as-played orders; held-note changes keep the timing; stop is silent\n");
 }

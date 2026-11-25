@@ -192,7 +192,9 @@ public struct PadRetroBuffer: Sendable {
             guard local >= 0, local < clipLength else { continue }
             let tick = quantizer.tick(local, length: clipLength), key = tick * 16 + hit.pad
             if let existing = best[key], existing.velocity >= hit.velocity { continue }
-            best[key] = DrumEvent(tick: tick, pad: hit.pad, velocity: hit.velocity)
+            var event = DrumEvent(tick: tick, pad: hit.pad, velocity: hit.velocity)
+            event.played = local
+            best[key] = event
         }
         return best.values.sorted { ($0.tick, $0.pad) < ($1.tick, $1.pad) }
     }

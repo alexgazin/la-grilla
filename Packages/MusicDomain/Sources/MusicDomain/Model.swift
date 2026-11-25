@@ -245,6 +245,9 @@ public struct DrumEvent: Codable, Equatable, Identifiable, Sendable {
     public var probability: Int?
     /// I27: the hit repeats 2…4 times inside its sixteenth, fading; nil = once.
     public var ratchet: Int?
+    /// 55: where a recorded hit was actually played (pattern ticks), so its take can move between
+    /// the grid and the natural feel without losing the performance. Nil for programmed hits.
+    public var played: Int?
     public init(tick: Int, pad: Int, velocity: Int = 100) { self.tick = tick; self.pad = pad; self.velocity = velocity }
 }
 public struct NoteEvent: Codable, Equatable, Identifiable, Sendable {
@@ -270,6 +273,11 @@ public struct DrumTake: Codable, Equatable, Identifiable, Sendable {
     public var muted: Bool?
     /// What made the take when it was not recorded: "Fill" (I8) or "Comp" (I3). Nil = recorded.
     public var label: String?
+    /// 55: how the take sits in time (nil = recorded before build 55).
+    public var timing: TakeTiming?
+    /// 55: hits of this take that the current timing put on a step another hit already sounds;
+    /// they come back when the timing changes.
+    public var held: [DrumEvent]?
     public init(id: UUID = UUID(), number: Int, muted: Bool? = nil, label: String? = nil) { self.id = id; self.number = number; self.muted = muted; self.label = label }
 }
 public struct Clip: Codable, Equatable, Identifiable, Sendable {
@@ -440,7 +448,12 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
         var end = 0
         for s in sections { guard s.start == end, s.length > 0, s.length <= songTickLimit, s.length % barTicks == 0, !s.name.isEmpty, s.name.count <= 120 else { throw MusicError.invalidProject }; end += s.length }
         for p in patterns {
-            if let takes=p.drumTakes{guard takes.count<=64,Set(takes.map(\.id)).count==takes.count,takes.allSatisfy({$0.number>0 && ($0.label?.count ?? 0)<=40})else{throw MusicError.invalidProject}}
+            if let takes=p.drumTakes{guard takes.count<=64,Set(takes.map(\.id)).count==takes.count,takes.allSatisfy({$0.number>0 && ($0.label?.count ?? 0)<=40})else{throw MusicError.invalidProject}
+                for take in takes {
+                    try take.timing?.validate()
+                    let held=take.held ?? []
+                    guard held.count<=4096,held.allSatisfy({$0.tick>=0 && $0.tick<songTickLimit && (0..<16).contains($0.pad) && (1...127).contains($0.velocity) && ($0.played ?? 0)>=0 && ($0.played ?? 0)<songTickLimit})else{throw MusicError.invalidProject}
+                }}
             guard p.length >= barTicks, p.length % barTicks == 0, p.length <= length, p.chords.count <= 256, p.drums.count <= 4096, (p.notes ?? []).count <= 4096 else { throw MusicError.invalidProject }
             var end = 0
             for e in p.chords.sorted(by: {$0.tick < $1.tick}) {
@@ -452,7 +465,7 @@ public struct Project: Codable, Equatable, Identifiable, Sendable {
             for e in p.notes ?? [] {
                 guard e.tick>=0,e.tick<p.length,e.duration>0,e.duration<=p.length,e.tick+e.duration<=p.length,(0...127).contains(e.pitch),(1...127).contains(e.velocity),e.confidence==nil || (e.confidence!.isFinite && (0...1).contains(e.confidence!))else{throw MusicError.invalidProject}
             }
-            for e in p.drums { guard e.tick >= 0, e.tick < p.length, (0..<16).contains(e.pad), (1...127).contains(e.velocity), (1...99).contains(e.probability ?? 50), (2...4).contains(e.ratchet ?? 2) else { throw MusicError.invalidProject } }
+            for e in p.drums { guard e.tick >= 0, e.tick < p.length, (0..<16).contains(e.pad), (1...127).contains(e.velocity), (1...99).contains(e.probability ?? 50), (2...4).contains(e.ratchet ?? 2), (0..<songTickLimit).contains(e.played ?? 0) else { throw MusicError.invalidProject } }
         }
         for t in tracks {
             try t.equalizer?.validate()
@@ -525,6 +538,22 @@ public enum MusicError: Error, LocalizedError {
     }
 }
 public enum Quantize: Int, CaseIterable, Sendable { case off = 0, eighth = 480, sixteenth = 240
+    /// 55: triplets and thirty-seconds for recording over the beat.
+    case eighthTriplet = 320, sixteenthTriplet = 160, thirtySecond = 120
+    /// Menu order: natural first, then coarse to fine.
+    public static let menu: [Quantize] = [.off, .eighth, .eighthTriplet, .sixteenth, .sixteenthTriplet, .thirtySecond]
+    /// English label; the app localizes "As played".
+    public var label: String {
+        switch self {
+        case .off: "As played"
+        case .eighth: "1/8"
+        case .eighthTriplet: "1/8T"
+        case .sixteenth: "1/16"
+        case .sixteenthTriplet: "1/16T"
+        case .thirtySecond: "1/32"
+        }
+    }
+    public var isTriplet: Bool { self == .eighthTriplet || self == .sixteenthTriplet }
     public func tick(_ tick: Int, length: Int) -> Int { rawValue == 0 ? max(0, min(length - 1, tick)) : ((max(0, tick) + rawValue / 2) / rawValue * rawValue) % length }
 }
 public struct History: Sendable {

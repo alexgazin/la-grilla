@@ -421,7 +421,7 @@ enum CoachTip: String, CaseIterable {
         case .undoHistory: "Touch and hold Undo to jump back several steps or open the edit history."
         case .stepHold: "Touch and hold a lit step for chance and rolls."
         case .stepSize: "Change the step size for triplets or thirty-seconds."
-        case .beatMachine: "The beat machine has ready beats in many genres, 808s and 19 kits."
+        case .beatMachine: "The beat machine has ready beats in many genres, 808s and kits in the style of the classic drum machines."
         }
     }
     static let storageKey = "tips.seen"

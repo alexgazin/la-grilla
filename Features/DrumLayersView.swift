@@ -102,7 +102,10 @@ struct DrumLayersView: View {
                     Text(Self.title(take)).font(.subheadline.weight(.semibold))
                         .foregroundStyle(take.muted ? Color.muted : Color.studioText)
                         .strikethrough(take.muted, color: Color.muted)
-                    Text("\(take.hits) hits").font(.caption2.monospacedDigit()).foregroundStyle(Color.muted)
+                    Group {
+                        if take.canRetime { Text("\(take.hits) hits") + Text(verbatim: " · ") + Text(LocalizedStringKey((take.timing ?? .natural).summary)) }
+                        else { Text("\(take.hits) hits") }
+                    }.font(.caption2.monospacedDigit()).foregroundStyle(Color.muted).accessibilityIdentifier("jam.take.summary.\(take.number)")
                 }
                 Spacer(minLength: 4)
                 Button { DrumLayerActions.setTakeMuted(session: session, pattern: pattern, take: take.id, muted: !take.muted) } label: {
@@ -115,6 +118,7 @@ struct DrumLayersView: View {
                 .accessibilityLabel(Text("Mute take \(take.number)"))
                 .accessibilityValue(LocalizedStringKey(take.muted ? "On" : "Off"))
                 .accessibilityIdentifier("jam.take.mute.\(take.number)")
+                if take.canRetime { timingMenu(take) }
                 Menu {
                     Button("Keep in the beat", systemImage: "checkmark.circle") { DrumLayerActions.keepTake(session: session, pattern: pattern, take: take.id) }
                     Button("Delete take", systemImage: "trash", role: .destructive) { DrumLayerActions.deleteTake(session: session, pattern: pattern, take: take.id) }
@@ -129,6 +133,41 @@ struct DrumLayersView: View {
             .transition(Luz.Transition.pop(reduceMotion))
         }
         Divider().padding(.vertical, 4)
+    }
+
+    /// 55: the take as played, or pulled to a grid with a strength — one Undo, nothing is lost.
+    private func timingMenu(_ take: DrumTakes.Summary) -> some View {
+        let current = take.timing ?? .natural
+        return Menu {
+            Section("Timing of this take") {
+                ForEach(Quantize.menu, id: \.rawValue) { grid in
+                    Button {
+                        DrumLayerActions.retime(session: session, pattern: pattern, take: take.id,
+                                                timing: TakeTiming(grid, strength: grid == .off ? 1 : (current.isNatural ? 1 : current.strength), swing: session.swing))
+                    } label: {
+                        if current.quantize == grid || (grid == .off && current.isNatural) { Label(LocalizedStringKey(grid.label), systemImage: "checkmark") } else { Text(LocalizedStringKey(grid.label)) }
+                    }
+                }
+            }
+            if !current.isNatural {
+                Section("Strength") {
+                    ForEach(TakeTiming.strengths, id: \.self) { strength in
+                        Button {
+                            var next = current; next.strength = strength
+                            DrumLayerActions.retime(session: session, pattern: pattern, take: take.id, timing: next)
+                        } label: {
+                            if current.strength == strength { Label("\(Int(strength * 100))%", systemImage: "checkmark") } else { Text(verbatim: "\(Int(strength * 100))%") }
+                        }
+                    }
+                }
+            }
+        } label: {
+            Image(systemName: current.isNatural ? "waveform.path" : "square.grid.3x1.below.line.grid.1x2").foregroundStyle(Color.drums)
+                .frame(width: 44, height: 44).contentShape(Rectangle())
+        }
+        .accessibilityLabel(Text("Timing of take \(take.number)"))
+        .accessibilityValue(LocalizedStringKey(current.summary))
+        .accessibilityIdentifier("jam.take.timing.\(take.number)")
     }
 
     private func row(_ layer: DrumLayers.Layer, among pads: [Int]) -> some View {
@@ -287,6 +326,15 @@ struct DrumLayersMenu: View {
     }
     static func setTakeMuted(session: Session, pattern: Pattern?, take: UUID, muted: Bool) {
         editPattern(session, pattern) { DrumTakes.setMuted(&$0, take: take, muted: muted) }
+        Luz.Haptics.selection()
+    }
+    /// 55: move a take between its natural feel and a grid (one Undo).
+    static func retime(session: Session, pattern: Pattern?, take: UUID, timing: TakeTiming) {
+        guard let id = pattern?.id else { return }
+        session.edit { project in
+            guard let index = project.patterns.firstIndex(where: { $0.id == id }) else { throw MusicError.invalidProject }
+            try DrumTakeTiming.apply(timing, take: take, in: &project.patterns[index])
+        }
         Luz.Haptics.selection()
     }
     static func keepTake(session: Session, pattern: Pattern?, take: UUID) {

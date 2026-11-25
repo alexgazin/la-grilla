@@ -94,7 +94,7 @@ import Observation
     private let runtimeTraceStart=ProcessInfo.processInfo.systemUptime
     let personalKits: PersonalKitStore
     let store: ProjectStore
-    enum Sheet: String, Identifiable {case projects, newProject, trackBuilder, export, settings, gettingStarted, bass, sections, notes, harmony, assistant, voice, perform, midiDevices, palettes, history, versions, trash, commands, variations, comp, chordImport, melodyIdeas, lyrics, master, mood, doctor, earTraining, whatsNew, coNotes, vj, help, grooves, practicePlayer, beatMachine, tuner, markers, dynamics, automation, course, audioTracks, plugins; var id: String { rawValue }}
+    enum Sheet: String, Identifiable {case projects, newProject, trackBuilder, export, settings, gettingStarted, bass, sections, notes, harmony, assistant, voice, perform, midiDevices, palettes, history, versions, trash, commands, variations, comp, chordImport, melodyIdeas, lyrics, master, mood, doctor, earTraining, whatsNew, coNotes, vj, help, grooves, practicePlayer, beatMachine, tuner, markers, dynamics, automation, course, audioTracks, plugins, arpeggiator; var id: String { rawValue }}
     private static var qaProjectStoreID:UUID? {
         let arguments=ProcessInfo.processInfo.arguments
         guard arguments.contains("--uitesting"),let index=arguments.firstIndex(of:"--project-store-id"),arguments.indices.contains(index+1)else{return nil}
@@ -624,6 +624,7 @@ import Observation
         case .course: presentEditor(.course)
         case .audioTracks: presentEditor(.audioTracks)
         case .plugins: presentEditor(.plugins)
+        case .arpeggiator: openArpeggiator()
         }
     }
     /// U8 · Bring back a deleted track, take or clip in one Undo step.
@@ -797,6 +798,8 @@ import Observation
             commitPass(); passClock += frames
         }
     }
+    /// 55 · How hits recorded now sit in time: as played, or pulled to the chosen grid and strength.
+    var recordingTiming:TakeTiming{TakeTiming(quantize,strength:quantizeStrength,swing:swing)}
     /// I09: put the hits played without Record during the last `bars` bars into
     /// the current drum clip, quantized, as one undoable edit.
     @discardableResult func keepRecentHits(bars:Int)->Int {
@@ -806,11 +809,11 @@ import Observation
         let framesPerBar=UInt64((Double(barTicks)/Double(ppq)*60/project.bpm*audio.sampleRate).rounded())
         let window=UInt64(max(1,bars))*framesPerBar
         let since=audio.clock>window ? audio.clock-window:0
-        let events=retroHits.events(since:since,clipStart:clip.start,clipLength:clip.length,quantizer:GrooveQuantizer(quantize,strength:quantizeStrength,swing:swing))
+        let events=retroHits.events(since:since,clipStart:clip.start,clipLength:clip.length,quantizer:recordingTiming.quantizer)
         guard !events.isEmpty else{message=NSLocalizedString("Play the pads while the loop runs, then keep what you played.",comment:"Keep recent hits");return 0}
         do{
             var draft=try DrumRecordingDraft(project:project,clipID:clip.id)
-            try draft.commitPass(events)
+            try draft.commitPass(events,timing:recordingTiming)
             let candidate=try draft.candidate(for:project)
             edit{$0=candidate}
             retroHits=PadRetroBuffer(capacity:1024)
@@ -870,7 +873,7 @@ import Observation
     func commitPass() {
         guard var draft=drumDraft else{return}
         do{
-            try draft.commitPass(drumPass?.events ?? [],replacing:replaceNextPass ? loopRange:nil)
+            try draft.commitPass(drumPass?.events ?? [],replacing:replaceNextPass ? loopRange:nil,timing:recordingTiming)
             drumDraft=draft;replaceNextPass=false;rawHits=[]
             drumPass=try DrumRecordingPass(draft:draft)
             sync()
@@ -912,7 +915,8 @@ import Observation
             // Heard just before the loop restarted: it belongs at the loop's end.
             if heard<loopRange.lowerBound,input.tick>=loopRange.lowerBound{heard+=loopRange.count}
             guard let draft=drumDraft,let local=draft.localTick(heard) ?? draft.localTick(input.tick),drumPass != nil else{continue}
-            let event=DrumEvent(tick:GrooveQuantizer(quantize,strength:quantizeStrength,swing:swing).tick(local,length:takeLength),pad:input.pad,velocity:input.velocity)
+            var event=DrumEvent(tick:recordingTiming.tick(local,length:takeLength),pad:input.pad,velocity:input.velocity)
+            event.played=local
             do{
                 try drumPass?.append(event)
                 rawHits.append(RawHit(tick:local,sampleFrame:input.clock,event:event))
@@ -1007,6 +1011,12 @@ import Observation
         sheet = .trackBuilder
     }
     func presentEditor(_ sheet:Sheet){if performance.contextActive{Task{await leavePerformance();self.sheet=sheet}}else{finishTake();self.sheet=sheet}}
+    /// 55 · The track the arpeggiator opens on (nil = the first harmony or melody track).
+    var arpeggiatorTrackID:UUID?
+    func openArpeggiator(_ id:UUID?=nil){
+        arpeggiatorTrackID=id ?? project.tracks.first{$0.role == .harmony || $0.role == .melody}?.id
+        presentEditor(.arpeggiator)
+    }
     func openNotes(_ id:UUID?=nil,clipID:UUID?=nil){
         if performance.contextActive{Task{await leavePerformance();openNotes(id,clipID:clipID)};return}
         finishTake()

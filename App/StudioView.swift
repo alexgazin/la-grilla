@@ -118,6 +118,7 @@ struct StudioView: View {
         case .course: HarmonyCourseView(session:session)
         case .audioTracks: AudioTracksView(session:session)
         case .plugins: PluginsView(session:session)
+        case .arpeggiator: ArpeggiatorView(session:session)
         case .dynamics: DynamicsView(session:session)
         case .practicePlayer: PracticePlayerView(session:session)
         }}.frame(maxHeight:.infinity);if [.bass,.palettes,.lyrics,.harmony].contains(sheet){SheetMiniTransport(session:session)}}

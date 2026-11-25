@@ -855,7 +855,7 @@ struct BeatMachineEntry: View {
                 }
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Beat machine").font(.headline).foregroundStyle(.white)
-                    Text(String(format: NSLocalizedString("%lld ready beats · 19 kits · 808", comment: "Beat machine entry"), BeatPreset.library.count))
+                    Text(String(format: NSLocalizedString("%lld ready beats · %lld kits · 808", comment: "Beat machine entry"), BeatPreset.library.count, FactoryDrumKit.allCases.count))
                         .font(.caption).foregroundStyle(.white.opacity(0.8))
                 }
                 Spacer(minLength: 4)

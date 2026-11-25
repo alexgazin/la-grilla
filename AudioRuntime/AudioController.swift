@@ -721,6 +721,11 @@ private enum AudioRender {
         let values = pitches.prefix(16).map { Int32($0) }
         return values.withUnsafeBufferPointer { lg_arp(k, identity, $0.baseAddress, Int32($0.count), Int32(step), Int32(mode), Int32(octaves), Int32(velocity)) } != 0
     }
+    /// 55: share of each live arpeggio step that sounds (0.1…1).
+    @discardableResult func arpGate(_ gate: Double) -> Bool {
+        guard let k = handle?.pointer, gate.isFinite else { return false }
+        return lg_arp_gate(k, Float(min(1, max(0.1, gate)))) != 0
+    }
     /// I29: the custom pattern played by arpeggio mode 4 (empty clears it).
     @discardableResult func arpPattern(_ codes: [Int]) -> Bool {
         guard let k = handle?.pointer else { return false }
