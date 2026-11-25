@@ -101,6 +101,9 @@ int lg_arp(LGKernel *k, uint64_t identity, const int32_t *pitches, int count, in
 // I29: custom arpeggio pattern for mode 4 — each step is a held-note index (0…15) + 16 × octave
 // (0…2), or −1 for a rest; 1…16 steps (0 clears). Returns 0 on invalid steps.
 int lg_arp_pattern(LGKernel *k, const int32_t *steps, int count);
+// 55: share of each arpeggio step that sounds, 0.1…1 (default 0.8). Mode 5 plays the held notes in a
+// random order; step 960 (a quarter note) is accepted alongside 480/320/240/160/120.
+int lg_arp_gate(LGKernel *k, float gate);
 void lg_preview(LGKernel *k, int pitch);
 void lg_note_preview(LGKernel *k, int pitch, int track, int instrument);
 // Resolve a stable LGProjectTrack identity after audio-boundary adoption.

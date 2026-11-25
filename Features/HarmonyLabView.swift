@@ -39,6 +39,10 @@ struct HarmonyLabView:View {
                     }
                     if let error{Text(LocalizedStringKey(error)).foregroundStyle(Color.record).font(.callout)}
                     optionsPanel
+                    // 55: the same chords, broken into an arpeggio written as editable notes.
+                    Button{session.openArpeggiator(session.project.tracks.first{$0.role == .harmony}?.id)}label:{
+                        Label("Arpeggiate these chords…",systemImage:"waveform.path.ecg").frame(maxWidth:.infinity,minHeight:44,alignment:.leading)
+                    }.buttonStyle(StudioQuietButtonStyle()).accessibilityIdentifier("harmony.arpeggiate")
                 }.padding(18)
             }.accessibilityIdentifier("harmony.options-scroll").background(Color.ink).navigationTitle("Harmony lab").navigationBarTitleDisplayMode(.inline)
             .safeAreaInset(edge:.bottom){actionDock}

@@ -371,6 +371,8 @@ struct BeatMachineView: View {
     private var kitPicker: some View {
         VStack(alignment: .leading, spacing: 8) {
             header("Drum kit")
+            // 55: the row follows the kit a ready beat chose, so the choice is always in view.
+            ScrollViewReader { row in
             ScrollView(.horizontal, showsIndicators: false) {
                 LazyHStack(spacing: 8) {
                     ForEach(FactoryDrumKit.allCases, id: \.self) { kit in
@@ -388,8 +390,13 @@ struct BeatMachineView: View {
                         .buttonStyle(.plain)
                         .accessibilityAddTraits(kit == draft.kit ? .isSelected : [])
                         .accessibilityIdentifier("beat.kit.\(kit.rawValue)")
+                        .id(kit)
                     }
                 }.padding(.vertical, 2)
+            }
+            .onChange(of: draft.kit, initial: true) { _, kit in
+                withAnimation(reduceMotion ? nil : Luz.Motion.snap) { row.scrollTo(kit, anchor: .center) }
+            }
             }
         }
     }
@@ -397,12 +404,18 @@ struct BeatMachineView: View {
     private var soundPicker: some View {
         VStack(alignment: .leading, spacing: 8) {
             header("Bass sound")
+            ScrollViewReader { row in
             ScrollView(.horizontal, showsIndicators: false) {
                 LazyHStack(spacing: 8) {
-                    soundChip(nil)
+                    soundChip(nil).id("none")
                     ownSoundChip
-                    ForEach(FactorySynth.basses) { synth in soundChip(synth) }
+                    ForEach(FactorySynth.basses) { synth in soundChip(synth).id(synth.rawValue) }
                 }.padding(.vertical, 2)
+            }
+            .onChange(of: draft.bass, initial: true) { _, bass in
+                guard !useOwnBass else { return }
+                withAnimation(reduceMotion ? nil : Luz.Motion.snap) { row.scrollTo(bass?.rawValue ?? "none", anchor: .center) }
+            }
             }
         }
     }
@@ -855,7 +868,7 @@ struct BeatMachineEntry: View {
                 }
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Beat machine").font(.headline).foregroundStyle(.white)
-                    Text(String(format: NSLocalizedString("%lld ready beats · 19 kits · 808", comment: "Beat machine entry"), BeatPreset.library.count))
+                    Text(String(format: NSLocalizedString("%lld ready beats · %lld kits · 808", comment: "Beat machine entry"), BeatPreset.library.count, FactoryDrumKit.allCases.count))
                         .font(.caption).foregroundStyle(.white.opacity(0.8))
                 }
                 Spacer(minLength: 4)

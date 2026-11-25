@@ -199,12 +199,13 @@ struct BeatMachineTests {
             let wav = try synth.previewWAV(pcm)
             #expect(wav.count > 44 + FactorySynth.rate * 4)
         }
-        #expect(FactorySynth.basses.count == 8 && FactorySynth.melodic.count == 8)
+        #expect(FactorySynth.basses.count == 12 && FactorySynth.melodic.count == 15)
+        #expect(FactorySynth.allCases.filter { $0.collection == .fm }.count == 7 && FactorySynth.allCases.filter { $0.collection == .analog }.count == 4)
     }
 
     @Test func everyKitHasANameAndPrefixThatMarksItsSamples() throws {
-        #expect(FactoryDrumKit.allCases.count == 19)
-        #expect(Set(FactoryDrumKit.allCases.map(\.title)).count == 19)
+        #expect(FactoryDrumKit.allCases.count == 23)
+        #expect(Set(FactoryDrumKit.allCases.map(\.title)).count == 23)
         for kit in [FactoryDrumKit.chip, .phonk, .synthwave] {
             let sounds = try PaletteEngine.kit(kit)
             #expect(sounds.allSatisfy { PaletteEngine.isFactoryKitSound($0.asset.name) })

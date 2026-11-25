@@ -27,10 +27,15 @@ final class BeatMachineUITests: XCTestCase {
         XCTAssertTrue(step.waitForExistence(timeout: 5))
         // Bring the row up first: a tap sent while XCTest is still scrolling only stops the scroll.
         let window = app.windows.firstMatch.frame
+        // Drag in the page's side margin: a slow drag that starts on a ready-beat card is a hold
+        // that plays it (U67), not a scroll.
+        let margin = app.windows.firstMatch
         for _ in 0..<6 {
             let frame = step.frame
             if step.isHittable, frame.minY > window.minY + 120, frame.maxY < window.maxY * 0.7 { break }
-            if frame.minY <= window.minY + 120 { app.swipeDown(velocity: .slow) } else { app.swipeUp(velocity: .slow) }
+            let up = frame.minY > window.minY + 120
+            margin.coordinate(withNormalizedOffset: CGVector(dx: 0.015, dy: up ? 0.7 : 0.35))
+                .press(forDuration: 0.05, thenDragTo: margin.coordinate(withNormalizedOffset: CGVector(dx: 0.015, dy: up ? 0.45 : 0.6)))
         }
         XCTAssertTrue(step.isHittable)
         XCTAssertEqual(step.value as? String, "Off")

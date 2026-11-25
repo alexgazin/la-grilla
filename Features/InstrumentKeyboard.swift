@@ -53,6 +53,10 @@ private struct InstrumentKeyboard: View {
     @AppStorage("keyboard.arpRate") private var arpRate = 0              // I15: 0 off, else step ticks
     @AppStorage("keyboard.arpMode") private var arpMode = 0
     @AppStorage("keyboard.arpOctaves") private var arpOctaves = 1
+    @AppStorage("keyboard.arpGate") private var arpGate = 0.8              // 55: share of each step that sounds
+    /// 55: how a recorded phrase sits in time (0 = as played, else a grid in ticks).
+    @AppStorage("keyboard.phraseGrid") private var phraseGrid = 0
+    @State private var lastPhrase: LastPhrase?
     /// I29: the custom pattern (mode 4) and the player's saved patterns.
     @AppStorage("keyboard.arpPattern") private var arpPatternText = ArpPattern.presets[0].encoded
     @AppStorage("keyboard.arpPatterns") private var arpLibraryRaw = "[]"
@@ -172,11 +176,15 @@ private struct InstrumentKeyboard: View {
                     .accessibilityIdentifier("keyboard.step-input").disabled(take != nil)
             }
             Spacer()
+            if track.role == .melody, take == nil {
+                phraseTimingMenu
+            }
             if track.role == .melody, let clip = sourceClip(track) {
                 IconButton(symbol: take == nil ? "record.circle" : "stop.circle.fill",
                            label: take == nil ? "Record phrase" : "Finish phrase", color: .record) {
                     if take != nil { finishPhrase() }
                     else if let pattern = session.project.patterns.first(where: { $0.id == clip.patternID }) {
+                        lastPhrase = nil
                         take = KeyboardPhrase(patternID: clip.patternID, bpm: session.project.bpm)
                         recordingLength = pattern.length
                     }
@@ -222,18 +230,24 @@ private struct InstrumentKeyboard: View {
             Toggle("MPE: slide and press each note", isOn: Binding(get: { mpeKeys }, set: { resetKeys(); mpeKeys = $0; session.midi.mpeKeys = $0; session.audio.setMPE($0) }))
                 .accessibilityIdentifier("keyboard.mpe")
             Picker("Arpeggiator", selection: Binding(get: { arpRate }, set: { resetKeys(); arpRate = $0 })) {
-                Text("Off").tag(0); Text(verbatim: "1/8").tag(480); Text(verbatim: "1/16").tag(240); Text(verbatim: "1/16T").tag(160); Text(verbatim: "1/32").tag(120)
+                Text("Off").tag(0)
+                ForEach(ArpeggioSettings.Rate.allCases) { rate in Text(verbatim: rate.label).tag(rate.rawValue) }
             }.pickerStyle(.menu)
             if arpRate > 0 {
                 Picker("Arpeggio order", selection: Binding(get: { arpMode }, set: { resetKeys(); arpMode = $0 })) {
-                    Text("Up").tag(0); Text("Down").tag(1); Text("Up and down").tag(2); Text("As played").tag(3)
+                    ForEach(Arpeggiator.Pattern.allCases) { order in Text(LocalizedStringKey(order.title)).tag(order.kernelMode) }
                     Text("My pattern").tag(ArpPattern.kernelMode)
                 }.pickerStyle(.menu)
                 if arpMode == ArpPattern.kernelMode {
                     Button("Edit pattern…", systemImage: "square.grid.3x3") { resetKeys(); editingPattern = true }
                 }
+                // 55: the arpeggio of this track's chords or notes, written as notes to edit.
+                Button("Arpeggiate to MIDI…", systemImage: "pianokeys") { resetKeys(); session.openArpeggiator(track?.id) }
                 Picker("Arpeggio octaves", selection: Binding(get: { arpOctaves }, set: { resetKeys(); arpOctaves = $0 })) {
                     Text(verbatim: "1").tag(1); Text(verbatim: "2").tag(2); Text(verbatim: "3").tag(3)
+                }.pickerStyle(.menu)
+                Picker("Note length", selection: Binding(get: { arpGate }, set: { resetKeys(); arpGate = $0 })) {
+                    ForEach(ArpeggioSettings.gates, id: \.self) { gate in Text(verbatim: "\(Int(gate * 100))%").tag(gate) }
                 }.pickerStyle(.menu)
             }
         } label: {
@@ -352,6 +366,7 @@ private struct InstrumentKeyboard: View {
             if arpMode == ArpPattern.kernelMode {
                 session.audio.arpPattern((ArpPattern(name: "Custom", encoded: arpPatternText) ?? ArpPattern.presets[0]).codes)
             }
+            session.audio.arpGate(arpGate)
             session.audio.arp(identity: MIDIController.trackIdentity(track.id), pitches: arpHeld, step: arpRate, mode: arpMode, octaves: arpOctaves)
             return
         }
@@ -425,15 +440,68 @@ private struct InstrumentKeyboard: View {
         take = nil
         phrase.releaseHeld()
         guard !phrase.notes.isEmpty else { return }
+        let raw = phrase.notes, grid = phraseGrid
+        var inserted: [UUID] = []
         session.edit { project in
             guard let i = project.patterns.firstIndex(where: { $0.id == phrase.patternID }) else { throw MusicError.invalidProject }
-            let length = project.patterns[i].length
-            for var note in phrase.notes where note.tick < length {
-                note.duration = min(note.duration, length - note.tick)
-                try NoteEditing.insert(note, into: &project.patterns[i], step: 1)
-            }
+            inserted = try Self.insert(raw, grid: grid, into: &project.patterns[i])
         }
+        lastPhrase = LastPhrase(patternID: phrase.patternID, raw: raw, ids: inserted, grid: grid)
     }
+
+    /// 55: the phrase's notes at `grid` (0 = as played); returns the inserted notes' identifiers.
+    private static func insert(_ raw: [NoteEvent], grid: Int, into pattern: inout Pattern) throws -> [UUID] {
+        let length = pattern.length
+        var inserted: [UUID] = []
+        for var note in NoteTiming.applied(raw, timing: TakeTiming(grid: grid), length: length) where note.tick < length {
+            note.duration = min(note.duration, length - note.tick)
+            try NoteEditing.insert(note, into: &pattern, step: 1)
+            if let id = pattern.notes?.last?.id { inserted.append(id) }
+        }
+        return inserted
+    }
+
+    /// 55: the last phrase moves between how it was played and a grid (one Undo).
+    private func retimePhrase(_ grid: Int) {
+        guard var last = lastPhrase, last.grid != grid else { return }
+        var inserted: [UUID] = []
+        session.edit { project in
+            guard let i = project.patterns.firstIndex(where: { $0.id == last.patternID }) else { throw MusicError.invalidProject }
+            let ids = Set(last.ids)
+            project.patterns[i].notes?.removeAll { ids.contains($0.id) }
+            inserted = try Self.insert(last.raw, grid: grid, into: &project.patterns[i])
+        }
+        guard !inserted.isEmpty else { return }
+        last.ids = inserted; last.grid = grid; lastPhrase = last; phraseGrid = grid
+    }
+
+    /// 55: before recording it sets how the phrase will sit in time; after a phrase it changes that phrase.
+    private var phraseTimingMenu: some View {
+        let current = lastPhrase?.grid ?? phraseGrid
+        return Menu {
+            Section(LocalizedStringKey(lastPhrase == nil ? "Timing of recorded phrases" : "Timing of the last phrase")) {
+                ForEach(Quantize.menu, id: \.rawValue) { grid in
+                    Button {
+                        if lastPhrase != nil { retimePhrase(grid.rawValue) } else { phraseGrid = grid.rawValue }
+                    } label: {
+                        if current == grid.rawValue { Label(LocalizedStringKey(grid.label), systemImage: "checkmark") } else { Text(LocalizedStringKey(grid.label)) }
+                    }
+                }
+            }
+        } label: {
+            Text(LocalizedStringKey(Quantize(rawValue: current)?.label ?? "As played")).font(.caption.weight(.semibold).monospacedDigit())
+                .foregroundStyle(current == 0 ? Color.muted : Color.mint).frame(minWidth: 44, minHeight: 44)
+        }
+        .accessibilityLabel("Phrase timing").accessibilityIdentifier("keyboard.phrase-timing")
+    }
+}
+
+/// 55: the last recorded phrase as played, so its timing can change without losing it.
+private struct LastPhrase {
+    let patternID: UUID
+    let raw: [NoteEvent]
+    var ids: [UUID]
+    var grid: Int
 }
 
 /// Capture from the first key down. A whole phrase is one undoable pattern edit.

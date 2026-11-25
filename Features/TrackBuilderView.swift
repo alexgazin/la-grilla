@@ -280,7 +280,12 @@ struct TrackBuilderView: View {
                     listen(part: scope.part, restart: true)
                 }
             } else if preparation == nil || preparingBrief != new {
+                // Musician feedback (build 47): tapping Listen while the tempo field still had the
+                // keyboard committed the field after the tap, which cancelled the sketch silently.
+                // A listen that was being prepared starts again with the settings now on screen.
+                let requested = preparation != nil && !saving ? preparingScope : nil
                 invalidatePreview()
+                if let requested { listen(part: requested.part) }
             }
         }
         .onChange(of:name) { _,_ in invalidatePreview() }

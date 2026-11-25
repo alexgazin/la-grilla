@@ -67,6 +67,9 @@ public enum DrumTakes {
         public let muted: Bool
         /// "Fill" or "Comp" for generated takes, nil for recorded ones.
         public var label: String? = nil
+        /// 55: how the take sits in time, and whether it remembers where it was played.
+        public var timing: TakeTiming? = nil
+        public var canRetime = false
     }
 
     /// Hits that belong to no listed take: steps, pads played outside recording, generators.
@@ -79,7 +82,8 @@ public enum DrumTakes {
     public static func takes(in pattern: Pattern?) -> [Summary] {
         let drums = pattern?.drums ?? []
         return (pattern?.drumTakes ?? []).map { take in
-            Summary(id: take.id, number: take.number, hits: drums.filter { $0.take == take.id }.count, muted: take.muted == true, label: take.label)
+            Summary(id: take.id, number: take.number, hits: drums.filter { $0.take == take.id }.count, muted: take.muted == true, label: take.label,
+                    timing: take.timing, canRetime: pattern.map { DrumTakeTiming.canRetime(take.id, in: $0) } ?? false)
         }.filter { $0.hits > 0 }
     }
 

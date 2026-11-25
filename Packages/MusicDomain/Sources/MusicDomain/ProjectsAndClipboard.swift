@@ -162,12 +162,10 @@ public enum StorageUsage {
 public enum WhatsNew {
     public struct Item: Equatable, Sendable { public let symbol: String; public let title: String; public let detail: String; public let command: CommandID? }
     public static let items: [Item] = [
-        .init(symbol: "bolt.fill", title: "Track in a minute", detail: "Pick a genre: a verse and a chorus with beat, 808, chords and melody, then a 15-second clip to post.", command: .newProject),
-        .init(symbol: "mic.circle", title: "Record audio over the song", detail: "Sing or play on up to four audio tracks; move, trim and balance every take.", command: .audioTracks),
-        .init(symbol: "link", title: "Remix links", detail: "Share a link that opens your song in La Grilla for someone to make their version, with your name on it.", command: .export),
-        .init(symbol: "graduationcap", title: "Harmony course", detail: "Ten short lessons checked on your own song, and assignments to send to students.", command: .course),
-        .init(symbol: "puzzlepiece.extension", title: "Plugins and DAWproject", detail: "AUv3 effects after the mix, instruments bounced to audio, and projects for Cubase, Studio One and Bitwig.", command: .plugins),
-        .init(symbol: "flag.checkered", title: "Challenge of the week", detail: "The same musical challenge for everyone each week, checked on your song.", command: .projects),
+        .init(symbol: "waveform.path.ecg", title: "Arpeggiator to MIDI", detail: "Break chords or held notes into an arpeggio — up, down, random, triplets, 1–3 octaves — and edit it as notes.", command: .arpeggiator),
+        .init(symbol: "pianokeys", title: "Eighties FM and analog sounds", detail: "FM electric piano, slap bass, bells and brass; analog mono bass, lead and a chorus pad. All made on this iPhone.", command: nil),
+        .init(symbol: "square.grid.4x3.fill", title: "Classic drum machines", detail: "808, 909, 707 and 606 style kits with their own beats in the beat machine.", command: .beatMachine),
+        .init(symbol: "waveform.path", title: "As played or on the grid", detail: "Record hits and phrases with their natural feel or pulled to a grid, and change each take afterwards.", command: nil),
     ]
     /// Shown when the build changed since it was last shown (never on a fresh install's first launch).
     public static func shouldShow(lastShownBuild: String?, currentBuild: String) -> Bool {

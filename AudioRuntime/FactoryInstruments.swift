@@ -14,6 +14,10 @@ enum FactoryInstrument: String, CaseIterable, Identifiable, Sendable {
     case reeseBass = "synth-reese-bass", acidBass = "synth-acid-bass", fingerBass = "synth-finger-bass", squareBass = "synth-square-bass"
     case supersaw = "synth-supersaw", synthPluck = "synth-synth-pluck", bellKeys = "synth-bell-keys", lofiKeys = "synth-lofi-keys"
     case synthBrass = "synth-synth-brass", stringPad = "synth-string-pad", choirPad = "synth-choir-pad", chipLead = "synth-chip-lead"
+    /// 55 · Eighties FM and analog classics (rendered on the device, no samples).
+    case fmEPiano = "synth-fm-epiano", fmSlapBass = "synth-fm-slap-bass", fmSolidBass = "synth-fm-solid-bass", fmTubularBells = "synth-fm-tubular-bells"
+    case fmMarimba = "synth-fm-marimba", fmBrass = "synth-fm-brass", fmGlassPad = "synth-fm-glass-pad"
+    case analogBass = "synth-analog-bass", pulseBass = "synth-pulse-bass", analogLead = "synth-analog-lead", chorusPad = "synth-chorus-pad"
 
     /// The on-device synth behind this instrument, if it is one.
     var synth: FactorySynth? { rawValue.hasPrefix("synth-") ? FactorySynth(rawValue: String(rawValue.dropFirst(6))) : nil }

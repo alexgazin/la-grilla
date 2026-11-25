@@ -12,8 +12,25 @@ public enum FactorySynth: String, CaseIterable, Codable, Sendable, Identifiable 
     case reese = "reese-bass", acid = "acid-bass", fingerBass = "finger-bass", synthBass = "square-bass"
     case supersaw = "supersaw", pluck = "synth-pluck", bellKeys = "bell-keys", lofiKeys = "lofi-keys"
     case brass = "synth-brass", strings = "string-pad", choir = "choir-pad", chipLead = "chip-lead"
+    /// 55 · Classic eighties FM: electric piano, basses, bells, mallet, brass and a glass pad.
+    case fmEPiano = "fm-epiano", fmSlapBass = "fm-slap-bass", fmSolidBass = "fm-solid-bass", fmTubularBells = "fm-tubular-bells"
+    case fmMarimba = "fm-marimba", fmBrass = "fm-brass", fmGlassPad = "fm-glass-pad"
+    /// 55 · Classic analog: a mono bass with a sub oscillator, a pulse bass, a mono lead and a chorus pad.
+    case analogBass = "analog-bass", pulseBass = "pulse-bass", analogLead = "analog-lead", chorusPad = "chorus-pad"
 
     public enum Family: String, Sendable { case bass, lead, keys, pad }
+    /// 55 · Which set a sound belongs to, for grouping in lists.
+    public enum Collection: String, Sendable, CaseIterable { case beat, fm, analog
+        /// English name; the app localizes it.
+        public var title: String { switch self { case .beat: "Beat machine"; case .fm: "Eighties FM"; case .analog: "Analog classics" } }
+    }
+    public var collection: Collection {
+        switch self {
+        case .fmEPiano, .fmSlapBass, .fmSolidBass, .fmTubularBells, .fmMarimba, .fmBrass, .fmGlassPad: .fm
+        case .analogBass, .pulseBass, .analogLead, .chorusPad: .analog
+        default: .beat
+        }
+    }
 
     public var id: String { rawValue }
     public static let rate = 32_000
@@ -22,10 +39,10 @@ public enum FactorySynth: String, CaseIterable, Codable, Sendable, Identifiable 
 
     public var family: Family {
         switch self {
-        case .sub808, .punch808, .dirty808, .logDrum, .reese, .acid, .fingerBass, .synthBass: .bass
-        case .supersaw, .chipLead: .lead
-        case .pluck, .bellKeys, .lofiKeys: .keys
-        case .brass, .strings, .choir: .pad
+        case .sub808, .punch808, .dirty808, .logDrum, .reese, .acid, .fingerBass, .synthBass, .fmSlapBass, .fmSolidBass, .analogBass, .pulseBass: .bass
+        case .supersaw, .chipLead, .analogLead: .lead
+        case .pluck, .bellKeys, .lofiKeys, .fmEPiano, .fmTubularBells, .fmMarimba: .keys
+        case .brass, .strings, .choir, .fmBrass, .fmGlassPad, .chorusPad: .pad
         }
     }
 
@@ -48,6 +65,17 @@ public enum FactorySynth: String, CaseIterable, Codable, Sendable, Identifiable 
         case .strings: "String pad"
         case .choir: "Choir pad"
         case .chipLead: "8-bit lead"
+        case .fmEPiano: "FM electric piano"
+        case .fmSlapBass: "FM slap bass"
+        case .fmSolidBass: "FM solid bass"
+        case .fmTubularBells: "FM tubular bells"
+        case .fmMarimba: "FM marimba"
+        case .fmBrass: "FM brass"
+        case .fmGlassPad: "FM glass pad"
+        case .analogBass: "Analog mono bass"
+        case .pulseBass: "Pulse bass"
+        case .analogLead: "Analog lead"
+        case .chorusPad: "Chorus pad"
         }
     }
 
@@ -69,6 +97,17 @@ public enum FactorySynth: String, CaseIterable, Codable, Sendable, Identifiable 
         case .strings: "Slow string ensemble pad."
         case .choir: "Airy “ah” choir pad."
         case .chipLead: "Pulse-wave lead from old game consoles."
+        case .fmEPiano: "Glassy eighties FM electric piano with a bell-like tine. Ballads, city pop, R&B."
+        case .fmSlapBass: "Bright metallic FM bass that snaps on every note. Eighties funk and pop."
+        case .fmSolidBass: "Round, steady FM bass for synth-pop and house."
+        case .fmTubularBells: "Ringing FM bells for intros, accents and chimes."
+        case .fmMarimba: "Short woody FM mallet for plucky patterns and arpeggios."
+        case .fmBrass: "Punchy eighties FM brass for stabs and swells."
+        case .fmGlassPad: "Airy shimmering FM pad with a glassy edge."
+        case .analogBass: "Fat saw bass with a sub oscillator and a filter pluck."
+        case .pulseBass: "Hollow pulse-wave mono bass that bounces. Electro and synth-pop."
+        case .analogLead: "Juicy detuned mono lead with a delayed vibrato."
+        case .chorusPad: "Warm polysynth pad with a lush ensemble chorus."
         }
     }
 
@@ -79,7 +118,7 @@ public enum FactorySynth: String, CaseIterable, Codable, Sendable, Identifiable 
 
     public var loops: Bool {
         switch self {
-        case .reese, .synthBass, .supersaw, .brass, .strings, .choir, .chipLead: true
+        case .reese, .synthBass, .supersaw, .brass, .strings, .choir, .chipLead, .fmSolidBass, .fmBrass, .fmGlassPad, .analogLead, .chorusPad: true
         default: false
         }
     }
@@ -205,6 +244,19 @@ public enum FactorySynth: String, CaseIterable, Codable, Sendable, Identifiable 
             }
         case .chipLead:
             weights = (1...harmonicCount).map { n in sin(Double.pi * Double(n) * 0.25) / Double(n) }
+        case .fmSolidBass, .fmBrass, .fmGlassPad: weights = []
+        case .analogLead:
+            weights = saw(5_200, q: 1.3)
+            bright = (1...harmonicCount).map { (n: Int) -> Double in
+                let odd: Double = n % 2 == 1 ? 1 : 0
+                return odd / Double(n) * Self.lowPass(Double(n) * frequency, cutoff: 4_000, q: 1.1)
+            }
+        case .chorusPad:
+            // A 30 % pulse through a gentle low-pass, the polysynth's main oscillator.
+            weights = (1...harmonicCount).map { (n: Int) -> Double in
+                let pulse: Double = sin(Double.pi * Double(n) * 0.3) / Double(n)
+                return pulse * Self.lowPass(Double(n) * frequency, cutoff: 2_600, q: 0.9)
+            }
         default: throw SampleError.invalid
         }
         for frame in 0..<count {
@@ -232,6 +284,25 @@ public enum FactorySynth: String, CaseIterable, Codable, Sendable, Identifiable 
                 value = (Self.partials(phase(0), weights) + Self.partials(phase(-spread), weights) + Self.partials(phase(spread), weights)) * min(1, t * 3.5)
             case .choir:
                 value = (Self.partials(phase(0), weights) + 0.8 * Self.partials(phase(spread), weights)) * min(1, t * 4)
+            case .fmSolidBass:
+                let p = phase(0), index = 1.1 + 2.4 * exp(-t * 9)
+                value = sin(p + index * sin(p)) + 0.55 * sin(p)
+            case .fmBrass:
+                // The modulation index follows the swell, so the brass brightens as it speaks.
+                let swell = 1 - exp(-t * 26)
+                let index = 2.5 * swell * (1 + 0.35 * exp(-t * 7))
+                let p = phase(0), q = phase(spread)
+                value = (sin(p + index * sin(p)) + 0.5 * sin(q + index * sin(q))) * min(1, t * 14)
+            case .fmGlassPad:
+                let index = 0.85 + 0.3 * sin(base * 2)
+                let p = phase(0), q = phase(spread)
+                value = (sin(p + index * sin(3 * p)) + 0.6 * sin(q + index * sin(3 * q))) * min(1, t * 1.6)
+            case .analogLead:
+                value = Self.partials(phase(0), weights) + 0.75 * Self.partials(phase(spread), bright)
+            case .chorusPad:
+                // Ensemble chorus: three detuned copies and a slow swirl that completes whole cycles.
+                let swirl = 1 + 0.08 * sin(base * 3)
+                value = (Self.partials(phase(0), weights) + 0.85 * Self.partials(phase(-spread), weights) + 0.85 * Self.partials(phase(spread), weights)) * swirl * min(1, t * 2.2)
             default:
                 value = Self.partials(phase(0), weights)
             }
@@ -252,6 +323,12 @@ public enum FactorySynth: String, CaseIterable, Codable, Sendable, Identifiable 
         case .fingerBass: 1.5
         case .pluck: 1.1
         case .bellKeys: 2.2
+        case .fmEPiano: 2.6
+        case .fmSlapBass: 1.6
+        case .fmTubularBells: 4.0
+        case .fmMarimba: 1.3
+        case .analogBass: 1.7
+        case .pulseBass: 1.4
         default: 2.0
         }
         let count = Int(seconds * rate)
@@ -330,6 +407,36 @@ public enum FactorySynth: String, CaseIterable, Codable, Sendable, Identifiable 
                 second += turn * frequency * 1.003 * wow / rate
                 let tine = 1.5 * exp(-t * 4) * sin(phase * 2)
                 value = tanh((sin(phase + tine) + 0.55 * sin(second + tine * 0.6)) * 0.9) * exp(-t * 1.25)
+            case .fmEPiano:
+                // Two FM pairs: a 1:1 body that mellows and a 1:14 tine that rings at the attack.
+                phase += turn * frequency / rate
+                let fade = max(0.6, 1 + Double(pitch - 60) / 40)
+                let body = sin(phase + (1.6 * exp(-t * 2.5) + 0.25) * sin(phase)) * exp(-t * 1.05 * fade)
+                let tine = 0.5 * sin(phase + 1.2 * exp(-t * 8) * sin(14 * phase)) * exp(-t * 7 * fade)
+                value = body + tine
+            case .fmSlapBass:
+                phase += turn * frequency / rate
+                let index = 4.2 * exp(-t * 14) + 0.9
+                value = tanh((sin(phase + index * sin(phase)) + 0.4 * sin(phase)) * 1.3) * exp(-t * 1.6) + 0.3 * exp(-t * 90) * sin(6 * phase)
+            case .fmTubularBells:
+                // A 1:3.5 pair gives the bell's inharmonic partials; they mellow as it rings.
+                phase += turn * frequency / rate
+                let index = 2.8 * exp(-t * 1.2) + 0.4
+                value = sin(phase + index * sin(3.5 * phase)) * exp(-t * 0.65) + 0.3 * sin(2 * phase) * exp(-t * 1.5)
+            case .fmMarimba:
+                phase += turn * frequency / rate
+                value = sin(phase + 2.4 * exp(-t * 28) * sin(4 * phase)) * exp(-t * 4.2) + 0.15 * sin(10 * phase) * exp(-t * 60)
+            case .analogBass, .pulseBass:
+                if frame.isMultiple(of: 64) {
+                    let cutoff = (self == .analogBass ? 240 : 300) + (self == .analogBass ? 2_400 : 1_800) * exp(-t * 7)
+                    acidWeights = (1...acidHarmonics).map { (n: Int) -> Double in
+                        let shape: Double = self == .analogBass ? 1 : sin(Double.pi * Double(n) * 0.25) * 1.6
+                        return shape / Double(n) * Self.lowPass(Double(n) * frequency, cutoff: cutoff, q: 1.6)
+                    }
+                }
+                phase += turn * frequency / rate
+                let sub = (sin(phase / 2) >= 0 ? 1.0 : -1.0) * (self == .analogBass ? 0.35 : 0.25)
+                value = tanh((Self.partials(phase, acidWeights) + sub) * 1.2) * exp(-t * (self == .analogBass ? 0.8 : 1.1))
             default: throw SampleError.invalid
             }
             out.append(value)

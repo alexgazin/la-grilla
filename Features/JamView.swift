@@ -92,7 +92,13 @@ struct JamView: View {
         Menu{ForEach(session.loopLengthOptions,id:\.self){n in Button("\(n) bars"){session.setLoop(bars:n)}}}label:{HStack(spacing:6){Image(systemName:"repeat").foregroundStyle(Color.drums);Text("\(session.loopBars) bars").monospacedDigit();Image(systemName:"chevron.down").font(.system(.caption2, weight: .semibold)).foregroundStyle(Color.muted)}.modifier(JamUtilitySurface())}.disabled(session.performance.contextActive)
     }
     private var quantizeControl:some View{
-        Menu{ForEach(Quantize.allCases,id:\.rawValue){q in Button(LocalizedStringKey(q == .off ? "Off":q == .eighth ? "1/8":"1/16")){session.quantize=q}};QuantizeFeelMenu(session:session)}label:{HStack(spacing:6){Text("Q").foregroundStyle(Color.drums);Text(LocalizedStringKey(session.quantize == .off ? "Off":session.quantize == .eighth ? "1/8":"1/16")).monospacedDigit()}.modifier(JamUtilitySurface())}.disabled(session.performance.contextActive)
+        // 55: recorded hits stay as played, or are pulled to a grid; each take can change it later.
+        Menu{
+            Section("Recorded hits"){
+                ForEach(Quantize.menu,id:\.rawValue){q in Button{session.quantize=q}label:{if session.quantize==q{Label(LocalizedStringKey(q.label),systemImage:"checkmark")}else{Text(LocalizedStringKey(q.label))}}}
+            }
+            if session.quantize != .off{QuantizeFeelMenu(session:session)}
+        }label:{HStack(spacing:6){Text("Q").foregroundStyle(Color.drums);Text(LocalizedStringKey(session.quantize.label)).monospacedDigit()}.modifier(JamUtilitySurface())}.disabled(session.performance.contextActive).accessibilityIdentifier("jam.timing")
     }
     private var metronomeControl:some View{
         IconButton(symbol:"metronome",label:"Metronome",color:.muted,isOn:session.metronome){session.metronome.toggle();session.audio.metronome(session.metronome)}
@@ -124,7 +130,7 @@ struct JamView: View {
     }.padding(.horizontal,12).padding(.bottom,8).modifier(ScrollableForLargeType())}
     private var compactOptions:some View{
         Menu{
-                Picker("Quantize",selection:$session.quantize){ForEach(Quantize.allCases,id:\.rawValue){value in Text(LocalizedStringKey(value == .off ? "Off":value == .eighth ? "1/8":"1/16")).tag(value)}}
+                Picker("Quantize",selection:$session.quantize){ForEach(Quantize.menu,id:\.rawValue){value in Text(LocalizedStringKey(value.label)).tag(value)}}
                 Toggle("Count-in",isOn:$session.countIn);Toggle("Overdub",isOn:$session.overdub)
                 Toggle("Metronome",isOn:Binding(get:{session.metronome},set:{session.metronome=$0;session.audio.metronome($0)}))
                 Picker("Loop length",selection:Binding(get:{session.loopBars},set:{session.setLoop(bars:$0)})){ForEach(session.loopLengthOptions,id:\.self){bars in Text("\(bars) bars").tag(bars)}}.disabled(session.performance.contextActive)
